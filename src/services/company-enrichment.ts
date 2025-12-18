@@ -57,63 +57,13 @@ function formatHeadquarters(org: ApolloOrganization): string | null {
   return parts.length > 0 ? parts.join(', ') : null;
 }
 
-// Get companies that need enrichment
-export async function getCompaniesForEnrichment(limit: number = 50): Promise<Array<{
-  id: string;
-  name: string;
-  email: string;
-  domain: string;
-}>> {
-  const jobs = await prisma.job.findMany({
-    where: {
-      applyEmail: { not: null },
-      company: {
-        logo: null,
-      },
-    },
-    select: {
-      applyEmail: true,
-      company: {
-        select: {
-          id: true,
-          name: true,
-          logo: true,
-        },
-      },
-    },
-    distinct: ['companyId'],
-    take: limit * 2,
-  });
-
-  const companiesMap = new Map<string, { id: string; name: string; email: string; domain: string }>();
-
-  for (const job of jobs) {
-    if (!job.applyEmail || !job.company) continue;
-    if (isFreeEmail(job.applyEmail)) continue;
-
-    const domain = extractDomainFromEmail(job.applyEmail);
-    if (!domain) continue;
-    if (companiesMap.has(job.company.id)) continue;
-
-    companiesMap.set(job.company.id, {
-      id: job.company.id,
-      name: job.company.name,
-      email: job.applyEmail,
-      domain,
-    });
-
-    if (companiesMap.size >= limit) break;
-  }
-
-  return Array.from(companiesMap.values());
-}
-
 // Fetch company data from Apollo API
 async function fetchCompanyFromApollo(domain: string): Promise<ApolloOrganization | null> {
   const apolloApiKey = process.env.APOLLO_API_KEY;
 
   if (!apolloApiKey) {
-    throw new Error('APOLLO_API_KEY environment variable is not set');
+    console.warn('APOLLO_API_KEY not set, skipping enrichment');
+    return null;
   }
 
   try {
@@ -191,7 +141,112 @@ async function updateCompanyWithApolloData(
   });
 }
 
-// Main enrichment function
+// Enrich a single company by domain (used after job import)
+export async function enrichCompanyByDomain(
+  companyId: string,
+  domain: string
+): Promise<boolean> {
+  try {
+    // Check if already enriched
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { logo: true, name: true },
+    });
+
+    if (!company) return false;
+    if (company.logo !== null) {
+      console.log(`Company ${company.name} already processed, skipping`);
+      return false;
+    }
+
+    const apolloData = await fetchCompanyFromApollo(domain);
+
+    if (!apolloData) {
+      await prisma.company.update({
+        where: { id: companyId },
+        data: {
+          logo: '',
+          website: `https://${domain}`,
+        },
+      });
+      return false;
+    }
+
+    await updateCompanyWithApolloData(companyId, apolloData, domain);
+    console.log(`Enriched company: ${company.name}`);
+    return true;
+  } catch (error) {
+    console.error(`Failed to enrich company ${companyId}:`, error);
+    return false;
+  }
+}
+
+// Queue company for background enrichment (non-blocking)
+export function queueCompanyEnrichment(companyId: string, email: string): void {
+  // Skip free email providers
+  if (isFreeEmail(email)) return;
+
+  const domain = extractDomainFromEmail(email);
+  if (!domain) return;
+
+  // Run enrichment in background (don't await)
+  enrichCompanyByDomain(companyId, domain).catch(err => {
+    console.error(`Background enrichment failed for ${companyId}:`, err);
+  });
+}
+
+// Get companies that need enrichment
+export async function getCompaniesForEnrichment(limit: number = 50): Promise<Array<{
+  id: string;
+  name: string;
+  email: string;
+  domain: string;
+}>> {
+  const jobs = await prisma.job.findMany({
+    where: {
+      applyEmail: { not: null },
+      company: {
+        logo: null,
+      },
+    },
+    select: {
+      applyEmail: true,
+      company: {
+        select: {
+          id: true,
+          name: true,
+          logo: true,
+        },
+      },
+    },
+    distinct: ['companyId'],
+    take: limit * 2,
+  });
+
+  const companiesMap = new Map<string, { id: string; name: string; email: string; domain: string }>();
+
+  for (const job of jobs) {
+    if (!job.applyEmail || !job.company) continue;
+    if (isFreeEmail(job.applyEmail)) continue;
+
+    const domain = extractDomainFromEmail(job.applyEmail);
+    if (!domain) continue;
+    if (companiesMap.has(job.company.id)) continue;
+
+    companiesMap.set(job.company.id, {
+      id: job.company.id,
+      name: job.company.name,
+      email: job.applyEmail,
+      domain,
+    });
+
+    if (companiesMap.size >= limit) break;
+  }
+
+  return Array.from(companiesMap.values());
+}
+
+// Main enrichment function (batch)
 export async function enrichCompanies(limit: number = 10): Promise<EnrichmentStats> {
   const stats: EnrichmentStats = {
     total: 0,
@@ -252,6 +307,40 @@ export async function enrichCompanies(limit: number = 10): Promise<EnrichmentSta
   }
 
   return stats;
+}
+
+// Enrich ALL pending companies (for cron/batch processing)
+export async function enrichAllPendingCompanies(): Promise<EnrichmentStats> {
+  const totalStats: EnrichmentStats = {
+    total: 0,
+    enriched: 0,
+    skipped: 0,
+    failed: 0,
+    errors: [],
+  };
+
+  let hasMore = true;
+  const batchSize = 50;
+
+  while (hasMore) {
+    const stats = await enrichCompanies(batchSize);
+
+    totalStats.total += stats.total;
+    totalStats.enriched += stats.enriched;
+    totalStats.skipped += stats.skipped;
+    totalStats.failed += stats.failed;
+    totalStats.errors.push(...stats.errors);
+
+    // If we got fewer than batch size, we're done
+    hasMore = stats.total >= batchSize;
+
+    // Small delay between batches
+    if (hasMore) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
+  return totalStats;
 }
 
 // Get enrichment status for admin

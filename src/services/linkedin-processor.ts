@@ -10,6 +10,7 @@ import {
 import { getApifySettings } from '@/lib/settings';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify } from '@/lib/utils';
+import { queueCompanyEnrichment } from '@/services/company-enrichment';
 
 // Re-export for cron endpoint
 export { HIRING_SEARCH_QUERIES };
@@ -324,6 +325,11 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
       postedAt: post.postedAt,
     },
   });
+
+  // Queue company for background enrichment if corporate email
+  if (extracted.contactEmail) {
+    queueCompanyEnrichment(company.id, extracted.contactEmail);
+  }
 
   return { success: true, jobId: job.id };
 }

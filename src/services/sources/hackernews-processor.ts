@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
 import { extractJobData, classifyJobCategory } from '@/lib/deepseek';
+import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import type { ProcessingStats } from './types';
 
 // HN Algolia API for searching "Who is Hiring" threads
@@ -207,6 +208,7 @@ async function processHNComment(comment: HNComment, storyId: number): Promise<'c
   const level = extractLevel(jobTitle);
 
   // Create job
+  const email = extractEmail(text);
   await prisma.job.create({
     data: {
       slug,
@@ -232,12 +234,17 @@ async function processHNComment(comment: HNComment, storyId: number): Promise<'c
       originalContent: text,
       authorName: comment.author,
       applyUrl: extractApplyUrl(text) || sourceUrl,
-      applyEmail: extractEmail(text),
+      applyEmail: email,
       enrichmentStatus: 'COMPLETED',
       qualityScore: 60,
       postedAt: new Date(comment.created_at),
     },
   });
+
+  // Queue company for background enrichment if corporate email
+  if (email) {
+    queueCompanyEnrichment(company.id, email);
+  }
 
   return 'created';
 }

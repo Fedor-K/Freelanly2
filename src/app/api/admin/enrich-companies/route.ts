@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   enrichCompanies,
+  enrichAllPendingCompanies,
   getEnrichmentStatus,
   getCompaniesForEnrichment,
 } from '@/services/company-enrichment';
@@ -36,10 +37,20 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
+    const all = body.all === true;
     const limit = body.limit || 10;
 
-    console.log(`Starting company enrichment for ${limit} companies...`);
+    if (all) {
+      console.log('Starting enrichment for ALL pending companies...');
+      const stats = await enrichAllPendingCompanies();
+      return NextResponse.json({
+        success: true,
+        message: 'Enriched all pending companies',
+        stats,
+      });
+    }
 
+    console.log(`Starting company enrichment for ${limit} companies...`);
     const stats = await enrichCompanies(limit);
 
     return NextResponse.json({
