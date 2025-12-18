@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { SalaryInsights } from '@/components/jobs/SalaryInsights';
+import { ApplyButton } from '@/components/jobs/ApplyButton';
 import { formatDistanceToNow } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
@@ -307,9 +308,14 @@ export default async function JobPage({ params }: JobPageProps) {
               {/* Apply Card */}
               <Card className="sticky top-20">
                 <CardContent className="pt-6 space-y-4">
-                  <Button className="w-full" size="lg">
-                    Apply Now
-                  </Button>
+                  <ApplyButton
+                    applyUrl={job.applyUrl}
+                    applyEmail={job.applyEmail}
+                    sourceUrl={job.sourceUrl}
+                    jobTitle={job.title}
+                    companyName={job.company.name}
+                    jobDescription={job.description}
+                  />
                   <Button variant="outline" className="w-full">
                     Save Job
                   </Button>
