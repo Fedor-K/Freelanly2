@@ -5,9 +5,9 @@ export function Footer() {
   return (
     <footer className="border-t bg-muted/50">
       <div className="container py-12">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
           {/* Brand */}
-          <div className="col-span-2 md:col-span-1">
+          <div className="col-span-2 md:col-span-3 lg:col-span-1">
             <Link href="/" className="text-xl font-bold">
               {siteConfig.name}
             </Link>
