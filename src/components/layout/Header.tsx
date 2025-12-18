@@ -34,6 +34,12 @@ export function Header() {
             >
               Companies
             </Link>
+            <Link
+              href="/country"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              By Country
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-4">

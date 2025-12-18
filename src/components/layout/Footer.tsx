@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { siteConfig, categories, levels } from '@/config/site';
+import { siteConfig, categories, levels, countries } from '@/config/site';
 
 export function Footer() {
   return (
@@ -50,6 +50,31 @@ export function Footer() {
             </ul>
           </div>
 
+          {/* Jobs by Country */}
+          <div>
+            <h3 className="font-semibold mb-3">Jobs by Country</h3>
+            <ul className="space-y-2 text-sm">
+              {countries.slice(0, 8).map((country) => (
+                <li key={country.slug}>
+                  <Link
+                    href={`/country/${country.slug}`}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {country.flag} {country.name}
+                  </Link>
+                </li>
+              ))}
+              <li>
+                <Link
+                  href="/country"
+                  className="text-primary hover:underline transition-colors"
+                >
+                  View all countries →
+                </Link>
+              </li>
+            </ul>
+          </div>
+
           {/* For Job Seekers */}
           <div>
             <h3 className="font-semibold mb-3">For Job Seekers</h3>
@@ -64,10 +89,18 @@ export function Footer() {
               </li>
               <li>
                 <Link
+                  href="/companies-hiring-worldwide"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Companies Hiring Worldwide
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/companies"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Companies Hiring
+                  All Companies
                 </Link>
               </li>
               <li>
@@ -84,14 +117,6 @@ export function Footer() {
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Remote Python Jobs
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/pricing"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Pricing
                 </Link>
               </li>
             </ul>
