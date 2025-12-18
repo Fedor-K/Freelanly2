@@ -1,0 +1,27 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { Source } from '@prisma/client';
+import { validateDataSource } from '@/services/sources';
+
+// POST /api/admin/sources/validate - Validate a source before adding
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { sourceType, companySlug } = body;
+
+    if (!sourceType) {
+      return NextResponse.json(
+        { error: 'sourceType is required' },
+        { status: 400 }
+      );
+    }
+
+    const result = await validateDataSource(sourceType as Source, companySlug);
+
+    return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json(
+      { valid: false, error: String(error) },
+      { status: 500 }
+    );
+  }
+}

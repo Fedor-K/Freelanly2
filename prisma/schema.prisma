@@ -255,20 +255,25 @@ enum SalaryPeriod {
 }
 
 enum Source {
-  LINKEDIN      // LinkedIn posts
-  GREENHOUSE    // Greenhouse ATS
-  LEVER         // Lever ATS
-  ASHBY         // Ashby ATS
-  WORKABLE      // Workable ATS
-  BAMBOO        // BambooHR
-  RSS           // RSS feeds
-  MANUAL        // Manually added
-  SCRAPE        // Web scraping
-  REMOTEOK      // RemoteOK API
-  REMOTIVE      // Remotive API
-  ARBEITNOW     // Arbeitnow API
-  HIMALAYAS     // Himalayas API
-  WORKINGNOMADS // WorkingNomads
+  LINKEDIN          // LinkedIn posts (via Apify)
+  GREENHOUSE        // Greenhouse ATS
+  LEVER             // Lever ATS
+  ASHBY             // Ashby ATS
+  WORKABLE          // Workable ATS
+  BAMBOO            // BambooHR
+  SMARTRECRUITERS   // SmartRecruiters
+  WORKDAY           // Workday
+  RSS               // RSS feeds
+  MANUAL            // Manually added
+  SCRAPE            // Web scraping
+  REMOTEOK          // RemoteOK API
+  WEWORKREMOTELY    // WeWorkRemotely
+  HACKERNEWS        // HackerNews Who is Hiring
+  REMOTIVE          // Remotive API
+  ARBEITNOW         // Arbeitnow API
+  HIMALAYAS         // Himalayas API
+  WORKINGNOMADS     // WorkingNomads
+  INDEED            // Indeed API
 }
 
 enum SourceType {
@@ -447,6 +452,48 @@ enum ImportStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+// ============================================
+// DATA SOURCES
+// ============================================
+
+model DataSource {
+  id            String       @id @default(cuid())
+
+  // Display info
+  name          String       // "Appen", "Netflix", "RemoteOK"
+
+  // Source type
+  sourceType    Source       // LEVER, GREENHOUSE, REMOTEOK, etc.
+
+  // For ATS sources - company identifier
+  companySlug   String?      // "appen", "netflix" (null for aggregators)
+
+  // API configuration
+  apiUrl        String?      // Full API URL (auto-generated or custom)
+  apiKey        String?      // API key if needed
+  config        Json?        // Additional settings
+
+  // Status
+  isActive      Boolean      @default(true)
+
+  // Stats
+  lastRunAt     DateTime?
+  lastSuccessAt DateTime?
+  totalImported Int          @default(0)
+  lastError     String?
+  errorCount    Int          @default(0)
+
+  // Rate limiting
+  minInterval   Int          @default(3600) // Min seconds between runs
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([sourceType, companySlug]) // Can't have duplicate company for same ATS
+  @@index([sourceType])
+  @@index([isActive])
 }
 
 // ============================================
