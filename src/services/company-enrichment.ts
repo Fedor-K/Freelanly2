@@ -1,38 +1,44 @@
 import { prisma } from '@/lib/db';
+import { ApifyClient } from 'apify-client';
 import { isFreeEmail, extractDomainFromEmail } from '@/lib/utils';
 
-// Hunter API for company enrichment
-// https://hunter.io/api-documentation/v2#company
-const HUNTER_API_URL = 'https://api.hunter.io/v2/companies/find';
+// Apify Hunter.io Actor
+// https://apify.com/canadesk/hunter-io
+const HUNTER_APIFY_ACTOR = 'canadesk/hunter-io';
 
-// Response structure from Hunter Company API
-interface HunterCompanyResponse {
-  data: {
-    name?: string;
-    domain?: string;
-    description?: string;
-    industry?: string;
-    company_type?: string;
-    headcount?: string; // "1-10", "11-50", etc.
-    country?: string;
-    state?: string;
-    city?: string;
-    postal_code?: string;
-    street?: string;
-    logo?: string;
-    twitter?: string;
-    facebook?: string;
-    linkedin?: string;
-    instagram?: string;
-    youtube?: string;
-    technologies?: string[];
-  };
-  meta?: {
-    params?: {
-      domain?: string;
-    };
-  };
-  errors?: Array<{ id: string; code: number; details: string }>;
+// Lazy initialization
+let _apify: ApifyClient | null = null;
+
+function getApifyClient(): ApifyClient {
+  if (!_apify) {
+    _apify = new ApifyClient({
+      token: process.env.APIFY_API_TOKEN || 'dummy-token-for-build',
+    });
+  }
+  return _apify;
+}
+
+// Response structure from Hunter via Apify
+interface HunterApifyResult {
+  domain?: string;
+  company?: string;
+  description?: string;
+  industry?: string;
+  size?: string;
+  country?: string;
+  state?: string;
+  city?: string;
+  logo?: string;
+  linkedin?: string;
+  twitter?: string;
+  facebook?: string;
+  emails?: Array<{
+    value?: string;
+    type?: string;
+    first_name?: string;
+    last_name?: string;
+    position?: string;
+  }>;
 }
 
 // Enrichment stats
@@ -44,11 +50,11 @@ export interface EnrichmentStats {
   errors: string[];
 }
 
-// Map Hunter headcount to our company size enum
-function mapCompanySize(headcount?: string): 'STARTUP' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'ENTERPRISE' | null {
-  if (!headcount) return null;
+// Map company size
+function mapCompanySize(size?: string): 'STARTUP' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'ENTERPRISE' | null {
+  if (!size) return null;
 
-  const match = headcount.match(/^(\d+)/);
+  const match = size.match(/^(\d+)/);
   if (!match) return null;
 
   const minEmployees = parseInt(match[1]);
@@ -60,8 +66,8 @@ function mapCompanySize(headcount?: string): 'STARTUP' | 'SMALL' | 'MEDIUM' | 'L
   return 'ENTERPRISE';
 }
 
-// Format headquarters from Hunter data
-function formatHeadquarters(data: HunterCompanyResponse['data']): string | null {
+// Format headquarters
+function formatHeadquarters(data: HunterApifyResult): string | null {
   const parts = [data.city, data.state, data.country].filter(Boolean);
   return parts.length > 0 ? parts.join(', ') : null;
 }
@@ -117,71 +123,47 @@ export async function getCompaniesForEnrichment(limit: number = 50): Promise<Arr
   return Array.from(companiesMap.values());
 }
 
-// Fetch company data from Hunter API with browser-like headers
-async function fetchCompanyFromHunter(domain: string): Promise<HunterCompanyResponse['data'] | null> {
-  const apiKey = process.env.HUNTER_API_KEY;
+// Fetch company data from Hunter via Apify
+async function fetchCompanyFromHunterApify(domain: string): Promise<HunterApifyResult | null> {
+  const apify = getApifyClient();
+  const hunterApiKey = process.env.HUNTER_API_KEY;
 
-  if (!apiKey) {
+  if (!hunterApiKey) {
     throw new Error('HUNTER_API_KEY environment variable is not set');
   }
 
   try {
-    console.log(`Fetching company data from Hunter for domain: ${domain}`);
+    console.log(`Fetching Hunter data via Apify for domain: ${domain}`);
 
-    const url = `${HUNTER_API_URL}?domain=${encodeURIComponent(domain)}&api_key=${apiKey}`;
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
+    const run = await apify.actor(HUNTER_APIFY_ACTOR).call(
+      {
+        apiKey: hunterApiKey,
+        domain: domain,
+        type: 'domain-search',
       },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Hunter API error for ${domain}: ${response.status} - ${errorText.substring(0, 200)}`);
-
-      if (response.status === 404) {
-        return null;
+      {
+        timeout: 120,
       }
+    );
 
-      throw new Error(`Hunter API error: ${response.status}`);
-    }
+    const { items } = await apify.dataset(run.defaultDatasetId).listItems();
 
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      const text = await response.text();
-      console.error(`Hunter returned non-JSON response: ${text.substring(0, 200)}`);
-      throw new Error('Hunter API returned non-JSON response (possibly Cloudflare block)');
-    }
-
-    const result: HunterCompanyResponse = await response.json();
-
-    if (result.errors && result.errors.length > 0) {
-      console.error(`Hunter API errors for ${domain}:`, result.errors);
+    if (items.length === 0) {
+      console.log(`No Hunter data for: ${domain}`);
       return null;
     }
 
-    if (!result.data) {
-      console.log(`No data from Hunter for: ${domain}`);
-      return null;
-    }
-
-    return result.data;
+    return items[0] as HunterApifyResult;
   } catch (error) {
-    console.error(`Error fetching from Hunter for ${domain}:`, error);
+    console.error(`Error fetching Hunter data for ${domain}:`, error);
     throw error;
   }
 }
 
-// Update company with enriched data from Hunter
+// Update company with enriched data
 async function updateCompanyWithHunterData(
   companyId: string,
-  data: HunterCompanyResponse['data'],
+  data: HunterApifyResult,
   domain: string
 ): Promise<void> {
   const updateData: Record<string, unknown> = {};
@@ -197,7 +179,7 @@ async function updateCompanyWithHunterData(
   const headquarters = formatHeadquarters(data);
   if (headquarters) updateData.headquarters = headquarters;
 
-  const size = mapCompanySize(data.headcount);
+  const size = mapCompanySize(data.size);
   if (size) updateData.size = size;
 
   if (!updateData.logo) {
@@ -232,7 +214,7 @@ export async function enrichCompanies(limit: number = 10): Promise<EnrichmentSta
 
   for (const company of companies) {
     try {
-      const hunterData = await fetchCompanyFromHunter(company.domain);
+      const hunterData = await fetchCompanyFromHunterApify(company.domain);
 
       if (!hunterData) {
         stats.skipped++;
@@ -261,7 +243,7 @@ export async function enrichCompanies(limit: number = 10): Promise<EnrichmentSta
       }
 
       // Rate limiting
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 2000));
     } catch (error) {
       stats.failed++;
       stats.errors.push(`${company.name}: ${String(error)}`);
