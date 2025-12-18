@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { formatDistanceToNow } from '@/lib/utils';
+import { siteConfig } from '@/config/site';
 
 interface JobPageProps {
   params: Promise<{ slug: string }>;
@@ -76,13 +77,35 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
     return { title: 'Job Not Found' };
   }
 
+  const jobUrl = `${siteConfig.url}/job/${job.slug}`;
+  const salaryText = job.salaryMin && job.salaryMax
+    ? ` $${(job.salaryMin/1000).toFixed(0)}K-$${(job.salaryMax/1000).toFixed(0)}K.`
+    : '';
+  const description = `${job.title} at ${job.company.name}. ${job.location}.${salaryText} Apply now and join a top remote team!`;
+
   return {
-    title: `${job.title} at ${job.company.name}`,
-    description: `${job.title} position at ${job.company.name}. ${job.location}. Apply now!`,
+    title: `${job.title} at ${job.company.name} - Remote ${job.category.name} Job`,
+    description,
+    keywords: [
+      job.title.toLowerCase(),
+      `remote ${job.category.name.toLowerCase()} jobs`,
+      `${job.company.name} careers`,
+      ...job.skills.map(s => `${s.toLowerCase()} jobs`),
+    ],
     openGraph: {
       title: `${job.title} at ${job.company.name}`,
-      description: job.description.slice(0, 200),
+      description,
       type: 'website',
+      url: jobUrl,
+      siteName: siteConfig.name,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${job.title} at ${job.company.name}`,
+      description,
+    },
+    alternates: {
+      canonical: jobUrl,
     },
   };
 }
@@ -442,10 +465,10 @@ export default async function JobPage({ params }: JobPageProps) {
             '@context': 'https://schema.org',
             '@type': 'BreadcrumbList',
             itemListElement: [
-              { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://freelanly.com' },
-              { '@type': 'ListItem', position: 2, name: 'Jobs', item: 'https://freelanly.com/jobs' },
-              { '@type': 'ListItem', position: 3, name: job.category.name, item: `https://freelanly.com/jobs/${job.category.slug}` },
-              { '@type': 'ListItem', position: 4, name: job.title, item: `https://freelanly.com/job/${job.slug}` },
+              { '@type': 'ListItem', position: 1, name: 'Home', item: siteConfig.url },
+              { '@type': 'ListItem', position: 2, name: 'Jobs', item: `${siteConfig.url}/jobs` },
+              { '@type': 'ListItem', position: 3, name: job.category.name, item: `${siteConfig.url}/jobs/${job.category.slug}` },
+              { '@type': 'ListItem', position: 4, name: job.title, item: `${siteConfig.url}/job/${job.slug}` },
             ],
           }),
         }}

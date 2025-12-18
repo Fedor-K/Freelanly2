@@ -6,11 +6,28 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { categories, levels, jobTypes, locationTypes } from '@/config/site';
+import { siteConfig, categories, levels, jobTypes, locationTypes } from '@/config/site';
 
 export const metadata: Metadata = {
-  title: 'Remote Jobs - Browse All Positions',
-  description: 'Find remote jobs from LinkedIn posts and top companies. Filter by category, level, location, and salary.',
+  title: 'Remote Jobs - Browse 1000+ Remote Work Positions | Freelanly',
+  description: 'Find remote jobs from LinkedIn posts and top companies. Filter by category, level, location, and salary. Updated hourly with new remote opportunities.',
+  keywords: [
+    'remote jobs',
+    'work from home jobs',
+    'remote work',
+    'remote developer jobs',
+    'remote design jobs',
+    'remote marketing jobs',
+  ],
+  openGraph: {
+    title: 'Remote Jobs - Browse All Positions',
+    description: 'Find remote jobs from LinkedIn posts and top companies. Filter by category, level, location, and salary.',
+    url: `${siteConfig.url}/jobs`,
+    siteName: siteConfig.name,
+  },
+  alternates: {
+    canonical: `${siteConfig.url}/jobs`,
+  },
 };
 
 // Mock data for now - will be replaced with DB query
@@ -199,6 +216,41 @@ export default function JobsPage() {
       </main>
 
       <Footer />
+
+      {/* ItemList Schema for Job Listings */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'ItemList',
+            name: 'Remote Jobs',
+            description: 'Browse all remote job opportunities',
+            numberOfItems: mockJobs.length,
+            itemListElement: mockJobs.map((job, index) => ({
+              '@type': 'ListItem',
+              position: index + 1,
+              url: `${siteConfig.url}/job/${job.slug}`,
+              name: `${job.title} at ${job.company.name}`,
+            })),
+          }),
+        }}
+      />
+
+      {/* BreadcrumbList Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Home', item: siteConfig.url },
+              { '@type': 'ListItem', position: 2, name: 'Remote Jobs', item: `${siteConfig.url}/jobs` },
+            ],
+          }),
+        }}
+      />
     </div>
   );
 }
