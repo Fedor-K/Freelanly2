@@ -1,0 +1,16 @@
+{
+  "name": "Freelanly - Remote Jobs",
+  "short_name": "Freelanly",
+  "description": "Find remote jobs from LinkedIn posts and top companies. Apply directly via email.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}
