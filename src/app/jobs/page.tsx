@@ -8,8 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { siteConfig, categories, levels, jobTypes, locationTypes } from '@/config/site';
 import { prisma } from '@/lib/db';
+import { getMaxJobAgeDate } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
+
+interface JobsPageProps {
+  searchParams: Promise<{ page?: string }>;
+}
+
+const JOBS_PER_PAGE = 20;
 
 export const metadata: Metadata = {
   title: 'Remote Jobs - Browse 1000+ Remote Work Positions | Freelanly',
@@ -33,19 +40,17 @@ export const metadata: Metadata = {
   },
 };
 
-interface JobsPageProps {
-  searchParams: Promise<{ page?: string }>;
-}
-
-const JOBS_PER_PAGE = 20;
-
-// Fetch jobs from database
+// Fetch jobs from database (only fresh jobs - max 60 days old)
 async function getJobs(page: number) {
+  const maxAgeDate = getMaxJobAgeDate();
   const skip = (page - 1) * JOBS_PER_PAGE;
 
   const [jobs, totalCount] = await Promise.all([
     prisma.job.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        postedAt: { gte: maxAgeDate },
+      },
       include: {
         company: {
           select: {
@@ -59,7 +64,12 @@ async function getJobs(page: number) {
       skip,
       take: JOBS_PER_PAGE,
     }),
-    prisma.job.count({ where: { isActive: true } }),
+    prisma.job.count({
+      where: {
+        isActive: true,
+        postedAt: { gte: maxAgeDate },
+      },
+    }),
   ]);
 
   return { jobs, totalCount };

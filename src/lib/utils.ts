@@ -25,3 +25,13 @@ export function slugify(text: string): string {
     .replace(/[\s_-]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
+
+// Job freshness: max age in days before a job is considered stale
+// Google recommends 30 days, we use 60 for flexibility
+export const MAX_JOB_AGE_DAYS = 60;
+
+export function getMaxJobAgeDate(): Date {
+  const date = new Date();
+  date.setDate(date.getDate() - MAX_JOB_AGE_DAYS);
+  return date;
+}

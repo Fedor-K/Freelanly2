@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { siteConfig, categories, levels } from '@/config/site';
 import { prisma } from '@/lib/db';
+import { getMaxJobAgeDate } from '@/lib/utils';
 
 interface CategoryLevelPageProps {
   params: Promise<{ category: string; level: string }>;
@@ -82,8 +83,10 @@ export default async function CategoryLevelPage({ params, searchParams }: Catego
   let totalJobs = 0;
 
   try {
+    const maxAgeDate = getMaxJobAgeDate();
     const where = {
       isActive: true,
+      postedAt: { gte: maxAgeDate },
       category: { slug: categorySlug },
       level: level.value,
     };

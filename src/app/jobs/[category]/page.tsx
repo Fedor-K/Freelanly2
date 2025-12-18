@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { siteConfig, categories, levels, jobTypes, locationTypes } from '@/config/site';
 import { prisma } from '@/lib/db';
+import { getMaxJobAgeDate } from '@/lib/utils';
 
 interface CategoryPageProps {
   params: Promise<{ category: string }>;
@@ -74,9 +75,11 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const currentPage = parseInt(page, 10) || 1;
   const perPage = 20;
 
-  // Build filters
+  // Build filters - only show fresh jobs (max 60 days old)
+  const maxAgeDate = getMaxJobAgeDate();
   const where: any = {
     isActive: true,
+    postedAt: { gte: maxAgeDate },
     category: {
       slug: categorySlug,
     },

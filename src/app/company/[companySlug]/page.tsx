@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
+import { getMaxJobAgeDate } from '@/lib/utils';
 
 interface CompanyPageProps {
   params: Promise<{ companySlug: string }>;
@@ -70,11 +71,12 @@ export default async function CompanyPage({ params, searchParams }: CompanyPageP
   let totalJobs = 0;
 
   try {
+    const maxAgeDate = getMaxJobAgeDate();
     company = await prisma.company.findUnique({
       where: { slug: companySlug },
       include: {
         _count: {
-          select: { jobs: { where: { isActive: true } } },
+          select: { jobs: { where: { isActive: true, postedAt: { gte: maxAgeDate } } } },
         },
       },
     });
@@ -82,7 +84,11 @@ export default async function CompanyPage({ params, searchParams }: CompanyPageP
     if (company) {
       [jobs, totalJobs] = await Promise.all([
         prisma.job.findMany({
-          where: { companyId: company.id, isActive: true },
+          where: {
+            companyId: company.id,
+            isActive: true,
+            postedAt: { gte: maxAgeDate },
+          },
           include: {
             company: { select: { name: true, slug: true, logo: true } },
           },
@@ -91,7 +97,11 @@ export default async function CompanyPage({ params, searchParams }: CompanyPageP
           take: perPage,
         }),
         prisma.job.count({
-          where: { companyId: company.id, isActive: true },
+          where: {
+            companyId: company.id,
+            isActive: true,
+            postedAt: { gte: maxAgeDate },
+          },
         }),
       ]);
     }
