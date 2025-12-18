@@ -1,10 +1,17 @@
 import OpenAI from 'openai';
 
-// DeepSeek uses OpenAI-compatible API
-const deepseek = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY,
-  baseURL: 'https://api.deepseek.com/v1',
-});
+// Lazy initialization to avoid build-time errors
+let _deepseek: OpenAI | null = null;
+
+function getDeepSeekClient(): OpenAI {
+  if (!_deepseek) {
+    _deepseek = new OpenAI({
+      apiKey: process.env.DEEPSEEK_API_KEY || 'dummy-key-for-build',
+      baseURL: 'https://api.deepseek.com/v1',
+    });
+  }
+  return _deepseek;
+}
 
 export interface ExtractedJobData {
   title: string | null;
@@ -46,6 +53,7 @@ Return ONLY valid JSON, no markdown or explanation.`;
 
 export async function extractJobData(postText: string): Promise<ExtractedJobData | null> {
   try {
+    const deepseek = getDeepSeekClient();
     const response = await deepseek.chat.completions.create({
       model: 'deepseek-chat',
       response_format: { type: 'json_object' },
@@ -73,6 +81,7 @@ export async function classifyJobCategory(
   skills: string[]
 ): Promise<string> {
   try {
+    const deepseek = getDeepSeekClient();
     const response = await deepseek.chat.completions.create({
       model: 'deepseek-chat',
       messages: [
@@ -99,4 +108,4 @@ If unsure, return "engineering" for technical roles.`
   }
 }
 
-export { deepseek };
+export { getDeepSeekClient as deepseek };
