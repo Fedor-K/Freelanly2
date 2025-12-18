@@ -1,0 +1,38 @@
+services:
+  app:
+    build: .
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - APIFY_API_TOKEN=${APIFY_API_TOKEN}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+    depends_on:
+      - migrate
+
+  migrate:
+    build: .
+    command: sh -c "npx prisma db push && npx tsx prisma/seed.ts"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    restart: "no"
+
+  # Optional: local postgres for development
+  # db:
+  #   image: postgres:16-alpine
+  #   restart: always
+  #   environment:
+  #     POSTGRES_USER: freelanly
+  #     POSTGRES_PASSWORD: freelanly
+  #     POSTGRES_DB: freelanly
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+# volumes:
+#   postgres_data:
