@@ -93,13 +93,288 @@
 ```
 
 **Источники:**
-- LinkedIn Jobs (Apify actor)
+- LinkedIn Posts (Apify actor) — **требуют AI обработки!**
 - Greenhouse API
 - Lever API
 - Ashby API
 - Workable API
 - RSS фиды компаний
 - Прямой скрапинг career pages
+
+---
+
+### КРИТИЧНО: LinkedIn Post → Job Transformation Pipeline
+
+LinkedIn посты — это НЕ структурированные вакансии. Это посты вида:
+```
+"Hey network! 🚀 We're growing the team at Acme Corp!
+
+Looking for a Senior React Developer who loves clean code.
+Remote-first, competitive salary, great benefits.
+
+DM me or drop your resume in comments!"
+```
+
+**Проблема:** Google JobPosting schema требует:
+- `title` (точное название позиции)
+- `description` (полное описание)
+- `datePosted` / `validThrough`
+- `hiringOrganization` (название, лого, сайт)
+- `jobLocation` или `jobLocationType: TELECOMMUTE`
+- `employmentType` (FULL_TIME, PART_TIME, etc)
+- `baseSalary` (опционально, но важно для ranking)
+
+**Решение: AI Enrichment Pipeline**
+
+```
+┌─────────────────┐
+│  LinkedIn Post  │
+│  (raw text)     │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  STEP 1: EXTRACTION (Claude/GPT)                            │
+│                                                             │
+│  Prompt: "Extract structured job data from this post..."   │
+│                                                             │
+│  Output:                                                    │
+│  {                                                          │
+│    "title_raw": "Senior React Developer",                   │
+│    "company_mentioned": "Acme Corp",                        │
+│    "is_remote": true,                                       │
+│    "location_hints": [],                                    │
+│    "salary_hints": "competitive",                           │
+│    "contact_method": "DM",                                  │
+│    "author_linkedin": "linkedin.com/in/john",               │
+│    "skills_mentioned": ["React", "clean code"],             │
+│    "seniority_hints": "Senior",                             │
+│    "employment_type_hints": "full-time implied"             │
+│  }                                                          │
+└────────┬────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  STEP 2: COMPANY ENRICHMENT                                 │
+│                                                             │
+│  Sources:                                                   │
+│  - LinkedIn Company API (via Apify)                         │
+│  - Clearbit Company API                                     │
+│  - Our own company database                                 │
+│  - Manual fallback + caching                                │
+│                                                             │
+│  Output:                                                    │
+│  {                                                          │
+│    "company_name": "Acme Corporation",                      │
+│    "company_logo": "https://...",                           │
+│    "company_website": "https://acme.com",                   │
+│    "company_size": "51-200",                                │
+│    "company_industry": "Software",                          │
+│    "company_linkedin": "linkedin.com/company/acme"          │
+│  }                                                          │
+└────────┬────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  STEP 3: NORMALIZATION & INFERENCE                          │
+│                                                             │
+│  - Map title to standard categories                         │
+│  - Infer seniority level (ENTRY/MID/SENIOR/LEAD)           │
+│  - Infer employment type (FULL_TIME default)                │
+│  - Estimate salary range (by title + location + industry)   │
+│  - Generate validThrough (post_date + 30 days)              │
+│  - Determine apply method (DM → LinkedIn URL, email, etc)   │
+│                                                             │
+│  Salary Estimation Logic:                                   │
+│  - Use Levels.fyi / Glassdoor data as baseline              │
+│  - Adjust by company size, location, industry               │
+│  - Store as estimate with confidence score                  │
+└────────┬────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  STEP 4: DESCRIPTION GENERATION (AI)                        │
+│                                                             │
+│  Generate proper job description from post content:         │
+│                                                             │
+│  Prompt: "Based on this LinkedIn hiring post and company    │
+│  info, generate a professional job description that         │
+│  includes: role overview, responsibilities, requirements,   │
+│  benefits mentioned. Keep factual, don't invent details."   │
+│                                                             │
+│  This creates the long-form description needed for SEO      │
+│  while staying true to original post content.               │
+└────────┬────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  STEP 5: VALIDATION & QUALITY SCORE                         │
+│                                                             │
+│  Required for publish:                                      │
+│  ✓ title (extracted or generated)                           │
+│  ✓ company name                                             │
+│  ✓ description (min 100 chars)                              │
+│  ✓ datePosted                                               │
+│  ✓ at least one: location OR remote flag                    │
+│                                                             │
+│  Quality score (affects ranking):                           │
+│  +20 has salary info                                        │
+│  +15 has company logo                                       │
+│  +15 has company website                                    │
+│  +10 has requirements list                                  │
+│  +10 has benefits mentioned                                 │
+│  +10 description > 500 chars                                │
+│  -20 salary is estimated (not stated)                       │
+│  -10 company info from inference (not verified)             │
+└────────┬────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  FINAL: Structured Job Ready for Google                     │
+│                                                             │
+│  {                                                          │
+│    "@type": "JobPosting",                                   │
+│    "title": "Senior React Developer",                       │
+│    "description": "[AI-generated from post]",               │
+│    "datePosted": "2024-01-15",                              │
+│    "validThrough": "2024-02-14",                            │
+│    "employmentType": "FULL_TIME",                           │
+│    "jobLocationType": "TELECOMMUTE",                        │
+│    "hiringOrganization": {                                  │
+│      "@type": "Organization",                               │
+│      "name": "Acme Corporation",                            │
+│      "sameAs": "https://acme.com",                          │
+│      "logo": "https://..."                                  │
+│    },                                                       │
+│    "baseSalary": {                                          │
+│      "@type": "MonetaryAmount",                             │
+│      "currency": "USD",                                     │
+│      "value": {                                             │
+│        "@type": "QuantitativeValue",                        │
+│        "minValue": 120000,                                  │
+│        "maxValue": 160000,                                  │
+│        "unitText": "YEAR"                                   │
+│      }                                                      │
+│    },                                                       │
+│    "directApply": false,                                    │
+│    "applicationContact": {                                  │
+│      "@type": "ContactPoint",                               │
+│      "url": "https://linkedin.com/in/john"                  │
+│    }                                                        │
+│  }                                                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Ключевые Data Sources для Enrichment
+
+| Data | Source | Cost |
+|------|--------|------|
+| Company info | Clearbit, LinkedIn via Apify | ~$0.01/lookup |
+| Salary estimates | Levels.fyi API, stored baseline | Free/cached |
+| Job categories | Our taxonomy + AI classification | ~$0.0001/job |
+| Description generation | **DeepSeek** | ~$0.0002/job |
+| Logo/branding | Clearbit Logo API, favicon grab | Free tier |
+
+### AI Provider: DeepSeek (текущий выбор)
+
+**Почему DeepSeek:**
+- В 10-20x дешевле OpenAI/Anthropic
+- Достаточное качество для extraction и generation задач
+- Хороший JSON mode для structured output
+- API совместим с OpenAI SDK
+
+```typescript
+// services/ai/deepseek-client.ts
+import OpenAI from 'openai';
+
+const deepseek = new OpenAI({
+  apiKey: process.env.DEEPSEEK_API_KEY,
+  baseURL: 'https://api.deepseek.com/v1',
+});
+
+// Extraction prompt
+const extractJobData = async (postText: string) => {
+  const response = await deepseek.chat.completions.create({
+    model: 'deepseek-chat',
+    response_format: { type: 'json_object' },
+    messages: [
+      {
+        role: 'system',
+        content: `Extract structured job data from LinkedIn hiring posts.
+Return JSON with: title, company, is_remote, location, salary_hints,
+skills, seniority (entry/mid/senior/lead), employment_type, contact_method.
+Be conservative - only extract what's explicitly stated.`
+      },
+      { role: 'user', content: postText }
+    ],
+  });
+  return JSON.parse(response.choices[0].message.content);
+};
+```
+
+**Стоимость с DeepSeek (per 1000 jobs):**
+| Step | Cost |
+|------|------|
+| Apify scraping | ~$5-10 |
+| AI extraction (DeepSeek) | ~$0.10 |
+| Company enrichment | ~$2 (cached) |
+| Description generation (DeepSeek) | ~$0.20 |
+| **Total per 1000 jobs** | **~$7-12** |
+
+### Database Additions for LinkedIn Jobs
+
+```prisma
+model Job {
+  // ... existing fields ...
+
+  // LinkedIn-specific
+  sourceType        SourceType    // STRUCTURED (ATS) vs UNSTRUCTURED (LinkedIn post)
+  originalContent   String?       // Original post text (for reference)
+  authorLinkedIn    String?       // Post author's LinkedIn URL
+
+  // Enrichment tracking
+  enrichmentStatus  EnrichmentStatus @default(PENDING)
+  qualityScore      Int           @default(0)
+  salaryIsEstimate  Boolean       @default(false)
+  companyVerified   Boolean       @default(false)
+
+  // AI-generated fields marked
+  descriptionSource DescSource    // ORIGINAL, AI_ENHANCED, AI_GENERATED
+}
+
+enum SourceType { STRUCTURED, UNSTRUCTURED }
+enum EnrichmentStatus { PENDING, PROCESSING, COMPLETED, FAILED }
+enum DescSource { ORIGINAL, AI_ENHANCED, AI_GENERATED }
+```
+
+### Processing Queue Architecture
+
+```
+LinkedIn Apify Actor
+        │
+        ▼
+   Redis Queue ──────────────────┐
+   "linkedin:raw"                │
+        │                        │
+        ▼                        │
+   Worker 1: Extract     Worker 2: Extract
+        │                        │
+        ▼                        ▼
+   Redis Queue: "jobs:enrich"
+        │
+        ▼
+   Worker: Company Enrichment (rate-limited)
+        │
+        ▼
+   Worker: AI Description (batched)
+        │
+        ▼
+   PostgreSQL (final job record)
+        │
+        ▼
+   Cache invalidation → Frontend shows new job
+```
+
 
 ### 2. Система Откликов (Email)
 
