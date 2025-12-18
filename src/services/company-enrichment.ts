@@ -1,44 +1,53 @@
 import { prisma } from '@/lib/db';
-import { ApifyClient } from 'apify-client';
 import { isFreeEmail, extractDomainFromEmail } from '@/lib/utils';
 
-// Apify Hunter.io Actor
-// https://apify.com/canadesk/hunter-io
-const HUNTER_APIFY_ACTOR = 'canadesk/hunter-io';
+// Hunter.io Company Enrichment API
+// https://hunter.io/api-documentation/v2#company-enrichment
+const HUNTER_COMPANY_API = 'https://api.hunter.io/v2/companies/find';
 
-// Lazy initialization
-let _apify: ApifyClient | null = null;
-
-function getApifyClient(): ApifyClient {
-  if (!_apify) {
-    _apify = new ApifyClient({
-      token: process.env.APIFY_API_TOKEN || 'dummy-token-for-build',
-    });
-  }
-  return _apify;
+// Response structure from Hunter Company Enrichment API
+interface HunterCompanyData {
+  name?: string;
+  legalName?: string;
+  domain?: string;
+  description?: string;
+  logo?: string;
+  location?: string;
+  category?: {
+    sector?: string;
+    industryGroup?: string;
+    industry?: string;
+    subIndustry?: string;
+  };
+  geo?: {
+    city?: string;
+    state?: string;
+    stateCode?: string;
+    country?: string;
+    countryCode?: string;
+  };
+  linkedin?: {
+    handle?: string;
+  };
+  twitter?: {
+    handle?: string;
+  };
+  facebook?: {
+    handle?: string;
+  };
+  metrics?: {
+    employees?: string;
+  };
+  foundedYear?: number;
+  type?: string;
+  companyType?: string;
 }
 
-// Response structure from Hunter via Apify
-interface HunterApifyResult {
-  domain?: string;
-  company?: string;
-  description?: string;
-  industry?: string;
-  size?: string;
-  country?: string;
-  state?: string;
-  city?: string;
-  logo?: string;
-  linkedin?: string;
-  twitter?: string;
-  facebook?: string;
-  emails?: Array<{
-    value?: string;
-    type?: string;
-    first_name?: string;
-    last_name?: string;
-    position?: string;
-  }>;
+interface HunterCompanyResponse {
+  data: HunterCompanyData;
+  meta?: {
+    params?: Record<string, string>;
+  };
 }
 
 // Enrichment stats
@@ -50,26 +59,43 @@ export interface EnrichmentStats {
   errors: string[];
 }
 
-// Map company size
-function mapCompanySize(size?: string): 'STARTUP' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'ENTERPRISE' | null {
-  if (!size) return null;
+// Map company size from Hunter employee range
+function mapCompanySize(employees?: string): 'STARTUP' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'ENTERPRISE' | null {
+  if (!employees) return null;
 
-  const match = size.match(/^(\d+)/);
-  if (!match) return null;
+  const employeeStr = employees.toLowerCase();
 
-  const minEmployees = parseInt(match[1]);
+  // Parse ranges like "1-10", "10-50", "50-200", "200-500", "500-1000", "1000-5000", "5K-10K", "10K-50K", etc.
+  if (employeeStr.includes('1-10') || employeeStr === '1-10') return 'STARTUP';
+  if (employeeStr.includes('10-50') || employeeStr.includes('11-50')) return 'SMALL';
+  if (employeeStr.includes('50-200') || employeeStr.includes('51-200')) return 'MEDIUM';
+  if (employeeStr.includes('200-500') || employeeStr.includes('201-500')) return 'MEDIUM';
+  if (employeeStr.includes('500-1000') || employeeStr.includes('501-1000')) return 'LARGE';
+  if (employeeStr.includes('1000-') || employeeStr.includes('1001-') || employeeStr.includes('1k-')) return 'LARGE';
+  if (employeeStr.includes('5k') || employeeStr.includes('10k') || employeeStr.includes('50k')) return 'ENTERPRISE';
 
-  if (minEmployees <= 10) return 'STARTUP';
-  if (minEmployees <= 50) return 'SMALL';
-  if (minEmployees <= 200) return 'MEDIUM';
-  if (minEmployees <= 1000) return 'LARGE';
-  return 'ENTERPRISE';
+  // Try to extract first number
+  const match = employees.match(/(\d+)/);
+  if (match) {
+    const num = parseInt(match[1]);
+    if (num <= 10) return 'STARTUP';
+    if (num <= 50) return 'SMALL';
+    if (num <= 200) return 'MEDIUM';
+    if (num <= 1000) return 'LARGE';
+    return 'ENTERPRISE';
+  }
+
+  return null;
 }
 
-// Format headquarters
-function formatHeadquarters(data: HunterApifyResult): string | null {
-  const parts = [data.city, data.state, data.country].filter(Boolean);
-  return parts.length > 0 ? parts.join(', ') : null;
+// Format headquarters from Hunter geo data
+function formatHeadquarters(geo?: HunterCompanyData['geo'], location?: string): string | null {
+  if (geo) {
+    const parts = [geo.city, geo.state, geo.country].filter(Boolean);
+    if (parts.length > 0) return parts.join(', ');
+  }
+  // Fall back to location string
+  return location || null;
 }
 
 // Get companies that need enrichment
@@ -123,9 +149,8 @@ export async function getCompaniesForEnrichment(limit: number = 50): Promise<Arr
   return Array.from(companiesMap.values());
 }
 
-// Fetch company data from Hunter via Apify
-async function fetchCompanyFromHunterApify(domain: string): Promise<HunterApifyResult | null> {
-  const apify = getApifyClient();
+// Fetch company data from Hunter Company Enrichment API
+async function fetchCompanyFromHunter(domain: string): Promise<HunterCompanyData | null> {
   const hunterApiKey = process.env.HUNTER_API_KEY;
 
   if (!hunterApiKey) {
@@ -133,55 +158,86 @@ async function fetchCompanyFromHunterApify(domain: string): Promise<HunterApifyR
   }
 
   try {
-    console.log(`Fetching Hunter data via Apify for domain: ${domain}`);
+    console.log(`Fetching Hunter Company data for domain: ${domain}`);
 
-    const run = await apify.actor(HUNTER_APIFY_ACTOR).call(
-      {
-        apiKey: hunterApiKey,
-        domain: domain,
-        type: 'domain-search',
+    const url = `${HUNTER_COMPANY_API}?domain=${encodeURIComponent(domain)}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${hunterApiKey}`,
+        'Accept': 'application/json',
+        'User-Agent': 'Freelanly/1.0 (Company Enrichment Service)',
       },
-      {
-        timeout: 120,
-      }
-    );
+    });
 
-    const { items } = await apify.dataset(run.defaultDatasetId).listItems();
+    console.log(`Hunter API response status: ${response.status}`);
 
-    if (items.length === 0) {
-      console.log(`No Hunter data for: ${domain}`);
+    if (response.status === 404) {
+      console.log(`No Hunter data found for domain: ${domain}`);
       return null;
     }
 
-    return items[0] as HunterApifyResult;
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`Hunter API error: ${response.status} - ${text.substring(0, 500)}`);
+
+      // Check if Cloudflare is blocking
+      if (text.includes('cloudflare') || text.includes('Cloudflare')) {
+        throw new Error(`Cloudflare blocking detected. Status: ${response.status}`);
+      }
+
+      throw new Error(`Hunter API error: ${response.status}`);
+    }
+
+    const data: HunterCompanyResponse = await response.json();
+
+    if (!data.data) {
+      console.log(`Empty data from Hunter for: ${domain}`);
+      return null;
+    }
+
+    console.log(`Hunter returned data for ${domain}: name=${data.data.name}, logo=${!!data.data.logo}, desc=${!!data.data.description}`);
+
+    return data.data;
   } catch (error) {
     console.error(`Error fetching Hunter data for ${domain}:`, error);
     throw error;
   }
 }
 
-// Update company with enriched data
+// Update company with enriched data from Hunter
 async function updateCompanyWithHunterData(
   companyId: string,
-  data: HunterApifyResult,
+  data: HunterCompanyData,
   domain: string
 ): Promise<void> {
   const updateData: Record<string, unknown> = {};
 
   if (data.logo) updateData.logo = data.logo;
   if (data.description) updateData.description = data.description;
-  if (data.industry) updateData.industry = data.industry;
+
+  // Use industry classification if available
+  if (data.category?.industry) {
+    updateData.industry = data.category.industry;
+  }
 
   updateData.website = `https://${data.domain || domain}`;
 
-  if (data.linkedin) updateData.linkedinUrl = data.linkedin;
+  // LinkedIn URL from handle
+  if (data.linkedin?.handle) {
+    updateData.linkedinUrl = `https://www.linkedin.com/${data.linkedin.handle}`;
+  }
 
-  const headquarters = formatHeadquarters(data);
+  // Headquarters from geo or location
+  const headquarters = formatHeadquarters(data.geo, data.location);
   if (headquarters) updateData.headquarters = headquarters;
 
-  const size = mapCompanySize(data.size);
+  // Company size from employees metric
+  const size = mapCompanySize(data.metrics?.employees);
   if (size) updateData.size = size;
 
+  // Mark as processed even if no logo found
   if (!updateData.logo) {
     updateData.logo = '';
   }
@@ -214,7 +270,7 @@ export async function enrichCompanies(limit: number = 10): Promise<EnrichmentSta
 
   for (const company of companies) {
     try {
-      const hunterData = await fetchCompanyFromHunterApify(company.domain);
+      const hunterData = await fetchCompanyFromHunter(company.domain);
 
       if (!hunterData) {
         stats.skipped++;
@@ -242,12 +298,19 @@ export async function enrichCompanies(limit: number = 10): Promise<EnrichmentSta
         console.log(`Partial data for: ${company.name}`);
       }
 
-      // Rate limiting
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Rate limiting - Hunter allows 15 req/sec, but let's be conservative
+      await new Promise(resolve => setTimeout(resolve, 500));
     } catch (error) {
       stats.failed++;
-      stats.errors.push(`${company.name}: ${String(error)}`);
+      const errorMsg = `${company.name}: ${String(error)}`;
+      stats.errors.push(errorMsg);
       console.error(`Failed to enrich ${company.name}:`, error);
+
+      // If Cloudflare is blocking, stop processing to avoid wasting requests
+      if (String(error).includes('Cloudflare')) {
+        console.error('Cloudflare blocking detected - stopping enrichment');
+        break;
+      }
     }
   }
 
