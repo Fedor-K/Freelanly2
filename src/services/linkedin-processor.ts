@@ -7,8 +7,12 @@ import {
   type LinkedInPost,
   type ScrapeOptions,
 } from '@/lib/apify';
+import { getApifySettings } from '@/lib/settings';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify } from '@/lib/utils';
+
+// Re-export for cron endpoint
+export { HIRING_SEARCH_QUERIES };
 
 interface ProcessedJob {
   success: boolean;
@@ -26,7 +30,8 @@ interface ProcessingStats {
 }
 
 // Fetch and process LinkedIn hiring posts (triggers new Apify run)
-export async function fetchAndProcessLinkedInPosts(options: {
+// Uses settings from DB, options are optional overrides
+export async function fetchAndProcessLinkedInPosts(options?: {
   keywords?: string[];
   maxPosts?: number;
   postedLimit?: '24h' | 'week' | 'month';
@@ -49,17 +54,16 @@ export async function fetchAndProcessLinkedInPosts(options: {
   });
 
   try {
-    // 1. Scrape LinkedIn posts via Apify
+    // 1. Scrape LinkedIn posts via Apify (uses settings from DB)
     console.log('Fetching LinkedIn posts via Apify...');
 
-    const scrapeOptions: ScrapeOptions = {
-      searchQueries: options.keywords || HIRING_SEARCH_QUERIES,
-      maxPosts: options.maxPosts || 50,
-      postedLimit: options.postedLimit || 'week',
-      sortBy: 'date',
-    };
+    // Pass overrides if provided, otherwise scrapeLinkedInPosts uses DB settings
+    const scrapeOptions: Partial<ScrapeOptions> = {};
+    if (options?.keywords) scrapeOptions.searchQueries = options.keywords;
+    if (options?.maxPosts) scrapeOptions.maxPosts = options.maxPosts;
+    if (options?.postedLimit) scrapeOptions.postedLimit = options.postedLimit;
 
-    const posts = await scrapeLinkedInPosts(scrapeOptions);
+    const posts = await scrapeLinkedInPosts(Object.keys(scrapeOptions).length > 0 ? scrapeOptions : undefined);
     stats.total = posts.length;
     console.log(`Fetched ${posts.length} posts`);
 
@@ -481,4 +485,4 @@ function calculateQualityScore(extracted: ExtractedJobData, post: LinkedInPost):
   return Math.max(0, Math.min(100, score));
 }
 
-export { processLinkedInPost, HIRING_SEARCH_QUERIES };
+export { processLinkedInPost };

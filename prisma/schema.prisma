@@ -422,3 +422,16 @@ enum ImportStatus {
   FAILED
   CANCELLED
 }
+
+// ============================================
+// SETTINGS (Key-Value Store)
+// ============================================
+
+model Settings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+}

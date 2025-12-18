@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchAndProcessLinkedInPosts, HIRING_SEARCH_QUERIES } from '@/services/linkedin-processor';
+import { fetchAndProcessLinkedInPosts } from '@/services/linkedin-processor';
 
 // Cron job endpoint for fetching LinkedIn posts
-// Call this via cron: curl -X POST http://localhost:3000/api/cron/fetch-linkedin -H "Authorization: Bearer YOUR_CRON_SECRET"
+// Uses settings from database by default
+// Call via cron: curl -X POST http://localhost:3000/api/cron/fetch-linkedin -H "Authorization: Bearer YOUR_CRON_SECRET"
 
 export async function POST(request: NextRequest) {
   // Verify authorization
@@ -16,11 +17,15 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
 
-    const stats = await fetchAndProcessLinkedInPosts({
-      keywords: body.keywords || HIRING_SEARCH_QUERIES,
-      maxPosts: body.maxPosts || 50,
-      postedLimit: body.postedLimit || 'week',
-    });
+    // Pass overrides only if provided, otherwise uses DB settings
+    const options: { keywords?: string[]; maxPosts?: number; postedLimit?: '24h' | 'week' | 'month' } = {};
+    if (body.keywords) options.keywords = body.keywords;
+    if (body.maxPosts) options.maxPosts = body.maxPosts;
+    if (body.postedLimit) options.postedLimit = body.postedLimit;
+
+    const stats = await fetchAndProcessLinkedInPosts(
+      Object.keys(options).length > 0 ? options : undefined
+    );
 
     return NextResponse.json({
       success: true,
@@ -35,7 +40,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Also allow GET for easy testing (with smaller batch)
+// GET - Run with DB settings (for easy testing)
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
@@ -45,11 +50,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const stats = await fetchAndProcessLinkedInPosts({
-      keywords: ['hiring remote developer'],
-      maxPosts: 10, // Small batch for testing
-      postedLimit: '24h',
-    });
+    // Uses settings from database
+    const stats = await fetchAndProcessLinkedInPosts();
 
     return NextResponse.json({
       success: true,

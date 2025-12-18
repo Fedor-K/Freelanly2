@@ -1,4 +1,5 @@
 import { ApifyClient } from 'apify-client';
+import { getApifySettings, type ApifyActorSettings } from './settings';
 
 // Lazy initialization to avoid build-time errors
 let _apify: ApifyClient | null = null;
@@ -11,6 +12,9 @@ function getApifyClient(): ApifyClient {
   }
   return _apify;
 }
+
+// Re-export settings type
+export type { ApifyActorSettings };
 
 // ============================================
 // LinkedIn Posts Search Scraper
@@ -108,30 +112,39 @@ export function transformApifyPost(raw: ApifyLinkedInPostRaw): LinkedInPost {
 const LINKEDIN_POSTS_ACTOR = 'buIWk2uOUzTmcLsuB';
 
 export interface ScrapeOptions {
-  searchQueries: string[];
+  searchQueries?: string[];
   maxPosts?: number;
   postedLimit?: '24h' | 'week' | 'month';
   sortBy?: 'relevance' | 'date';
+  scrapePages?: number;
+  startPage?: number;
   authorsCompanyPublicIdentifiers?: string[];
   targetUrls?: string[];
 }
 
-// Run the actor and get posts
-export async function scrapeLinkedInPosts(options: ScrapeOptions): Promise<LinkedInPost[]> {
+// Run the actor with settings from DB
+export async function scrapeLinkedInPosts(overrides?: Partial<ScrapeOptions>): Promise<LinkedInPost[]> {
   const apify = getApifyClient();
 
+  // Get settings from database
+  const settings = await getApifySettings();
+
+  // Build input from settings + overrides
   const input = {
-    searchQueries: options.searchQueries,
-    maxPosts: options.maxPosts || 100,
-    postedLimit: options.postedLimit || 'week',
-    sortBy: options.sortBy || 'date',
-    scrapeReactions: false, // Don't need reactions
-    scrapeComments: false,  // Don't need comments
-    ...(options.authorsCompanyPublicIdentifiers && {
-      authorsCompanyPublicIdentifiers: options.authorsCompanyPublicIdentifiers,
+    searchQueries: overrides?.searchQueries || settings.searchQueries,
+    maxPosts: overrides?.maxPosts ?? settings.maxPosts,
+    postedLimit: overrides?.postedLimit ?? settings.postedLimit,
+    sortBy: overrides?.sortBy ?? settings.sortBy,
+    scrapePages: overrides?.scrapePages ?? settings.scrapePages,
+    startPage: overrides?.startPage ?? settings.startPage,
+    scrapeReactions: settings.scrapeReactions,
+    scrapeComments: settings.scrapeComments,
+    maxReactions: settings.maxReactions,
+    ...(overrides?.authorsCompanyPublicIdentifiers && {
+      authorsCompanyPublicIdentifiers: overrides.authorsCompanyPublicIdentifiers,
     }),
-    ...(options.targetUrls && {
-      targetUrls: options.targetUrls,
+    ...(overrides?.targetUrls && {
+      targetUrls: overrides.targetUrls,
     }),
   };
 
@@ -199,7 +212,7 @@ export async function getPostsFromRun(runId: string): Promise<LinkedInPost[]> {
   }
 }
 
-// Default hiring search queries
+// Default hiring search queries (fallback, settings from DB are preferred)
 export const HIRING_SEARCH_QUERIES = [
   'hiring remote',
   'we are hiring',
@@ -207,18 +220,12 @@ export const HIRING_SEARCH_QUERIES = [
   'looking for remote',
   'hiring software engineer',
   'hiring developer remote',
-  'open position remote',
-  'remote opportunity',
 ];
 
-// Scrape hiring posts with default settings
-export async function scrapeHiringPosts(maxPosts: number = 100): Promise<LinkedInPost[]> {
-  return scrapeLinkedInPosts({
-    searchQueries: HIRING_SEARCH_QUERIES,
-    maxPosts,
-    postedLimit: 'week',
-    sortBy: 'date',
-  });
+// Scrape hiring posts using settings from DB
+export async function scrapeHiringPosts(): Promise<LinkedInPost[]> {
+  // Uses settings from database automatically
+  return scrapeLinkedInPosts();
 }
 
 export { getApifyClient as apify };
