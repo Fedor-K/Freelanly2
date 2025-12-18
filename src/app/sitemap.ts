@@ -118,20 +118,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.85,
   }));
 
-  // Dynamic job pages from database
+  // Dynamic job pages from database - RRS format: /company/[company]/jobs/[job]
   let jobPages: MetadataRoute.Sitemap = [];
   let companyPages: MetadataRoute.Sitemap = [];
+  let companyJobsPages: MetadataRoute.Sitemap = [];
 
   try {
+    // Fetch jobs with company info for new URL structure
     const jobs = await prisma.job.findMany({
       where: { isActive: true },
-      select: { slug: true, updatedAt: true },
+      select: {
+        slug: true,
+        updatedAt: true,
+        company: {
+          select: { slug: true },
+        },
+      },
       orderBy: { postedAt: 'desc' },
-      take: 10000, // Limit for performance
+      take: 10000,
     });
 
+    // Job pages: /company/[companySlug]/jobs/[jobSlug]
     jobPages = jobs.map((job) => ({
-      url: `${baseUrl}/job/${job.slug}`,
+      url: `${baseUrl}/company/${job.company.slug}/jobs/${job.slug}`,
       lastModified: job.updatedAt,
       changeFrequency: 'weekly' as const,
       priority: 0.7,
@@ -142,11 +151,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       take: 5000,
     });
 
+    // Company pages: /company/[slug]
     companyPages = companies.map((company) => ({
-      url: `${baseUrl}/companies/${company.slug}`,
+      url: `${baseUrl}/company/${company.slug}`,
       lastModified: company.updatedAt,
       changeFrequency: 'weekly' as const,
       priority: 0.6,
+    }));
+
+    // Company jobs listing pages: /company/[slug]/jobs
+    companyJobsPages = companies.map((company) => ({
+      url: `${baseUrl}/company/${company.slug}/jobs`,
+      lastModified: company.updatedAt,
+      changeFrequency: 'daily' as const,
+      priority: 0.65,
     }));
   } catch (error) {
     // Database might not be available during build
@@ -160,7 +178,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...skillLandingPages,
     ...skillLocationPages,
     ...categoryLandingPages,
-    ...jobPages,
     ...companyPages,
+    ...companyJobsPages,
+    ...jobPages,
   ];
 }

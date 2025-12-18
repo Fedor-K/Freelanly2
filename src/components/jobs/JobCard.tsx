@@ -35,13 +35,13 @@ export function JobCard({ job }: JobCardProps) {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <Link
-                  href={`/job/${job.slug}`}
+                  href={`/company/${job.company.slug}/jobs/${job.slug}`}
                   className="font-semibold hover:underline line-clamp-1"
                 >
                   {job.title}
                 </Link>
                 <Link
-                  href={`/companies/${job.company.slug}`}
+                  href={`/company/${job.company.slug}`}
                   className="text-sm text-muted-foreground hover:underline"
                 >
                   {job.company.name}

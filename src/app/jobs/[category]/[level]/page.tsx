@@ -127,7 +127,7 @@ export default async function CategoryLevelPage({ params, searchParams }: Catego
         itemListElement: jobs.map((job, i) => ({
           '@type': 'ListItem',
           position: i + 1,
-          url: `${siteConfig.url}/job/${job.slug}`,
+          url: `${siteConfig.url}/company/${job.company.slug}/jobs/${job.slug}`,
           name: job.title,
         })),
       },

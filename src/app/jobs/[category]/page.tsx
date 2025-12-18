@@ -157,7 +157,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         itemListElement: jobs.map((job, index) => ({
           '@type': 'ListItem',
           position: index + 1,
-          url: `${siteConfig.url}/job/${job.slug}`,
+          url: `${siteConfig.url}/company/${job.company.slug}/jobs/${job.slug}`,
           name: job.title,
         })),
       },

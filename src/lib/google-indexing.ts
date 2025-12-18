@@ -82,17 +82,19 @@ async function getAccessToken(): Promise<string | null> {
 
 /**
  * Notify Google about a new or updated job posting URL
+ * URL format: /company/[companySlug]/jobs/[jobSlug]
  */
-export async function notifyUrlUpdated(jobSlug: string): Promise<boolean> {
-  const url = `${siteConfig.url}/job/${jobSlug}`;
+export async function notifyUrlUpdated(companySlug: string, jobSlug: string): Promise<boolean> {
+  const url = `${siteConfig.url}/company/${companySlug}/jobs/${jobSlug}`;
   return notifyGoogle(url, 'URL_UPDATED');
 }
 
 /**
  * Notify Google that a job posting URL has been deleted
+ * URL format: /company/[companySlug]/jobs/[jobSlug]
  */
-export async function notifyUrlDeleted(jobSlug: string): Promise<boolean> {
-  const url = `${siteConfig.url}/job/${jobSlug}`;
+export async function notifyUrlDeleted(companySlug: string, jobSlug: string): Promise<boolean> {
+  const url = `${siteConfig.url}/company/${companySlug}/jobs/${jobSlug}`;
   return notifyGoogle(url, 'URL_DELETED');
 }
 
@@ -133,18 +135,19 @@ async function notifyGoogle(url: string, type: 'URL_UPDATED' | 'URL_DELETED'): P
 
 /**
  * Batch notify multiple URLs (max 100 per batch)
+ * Jobs should include { companySlug, jobSlug }
  */
 export async function batchNotifyUrls(
-  jobSlugs: string[],
+  jobs: Array<{ companySlug: string; jobSlug: string }>,
   type: 'URL_UPDATED' | 'URL_DELETED' = 'URL_UPDATED'
 ): Promise<{ success: number; failed: number }> {
   const results = { success: 0, failed: 0 };
 
   // Google allows max 200 requests per day by default
-  const batch = jobSlugs.slice(0, 100);
+  const batch = jobs.slice(0, 100);
 
-  for (const slug of batch) {
-    const url = `${siteConfig.url}/job/${slug}`;
+  for (const job of batch) {
+    const url = `${siteConfig.url}/company/${job.companySlug}/jobs/${job.jobSlug}`;
     const success = await notifyGoogle(url, type);
     if (success) {
       results.success++;
@@ -162,11 +165,11 @@ export async function batchNotifyUrls(
 /**
  * Get URL notification status from Google
  */
-export async function getUrlStatus(jobSlug: string): Promise<IndexingResponse | null> {
+export async function getUrlStatus(companySlug: string, jobSlug: string): Promise<IndexingResponse | null> {
   const accessToken = await getAccessToken();
   if (!accessToken) return null;
 
-  const url = `${siteConfig.url}/job/${jobSlug}`;
+  const url = `${siteConfig.url}/company/${companySlug}/jobs/${jobSlug}`;
 
   try {
     const response = await fetch(

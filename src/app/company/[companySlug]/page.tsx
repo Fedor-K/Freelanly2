@@ -4,27 +4,27 @@ import { notFound } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { JobCard } from '@/components/jobs/JobCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 
 interface CompanyPageProps {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ companySlug: string }>;
   searchParams: Promise<{ page?: string }>;
 }
 
 export async function generateMetadata({ params }: CompanyPageProps): Promise<Metadata> {
-  const { slug } = await params;
+  const { companySlug } = await params;
 
   let company;
   try {
     company = await prisma.company.findUnique({
-      where: { slug },
+      where: { slug: companySlug },
       select: { name: true, description: true, industry: true },
     });
-  } catch (error) {
+  } catch {
     return { title: 'Company Not Found' };
   }
 
@@ -49,17 +49,17 @@ export async function generateMetadata({ params }: CompanyPageProps): Promise<Me
     openGraph: {
       title,
       description,
-      url: `${siteConfig.url}/companies/${slug}`,
+      url: `${siteConfig.url}/company/${companySlug}`,
       type: 'website',
     },
     alternates: {
-      canonical: `${siteConfig.url}/companies/${slug}`,
+      canonical: `${siteConfig.url}/company/${companySlug}`,
     },
   };
 }
 
 export default async function CompanyPage({ params, searchParams }: CompanyPageProps) {
-  const { slug } = await params;
+  const { companySlug } = await params;
   const { page = '1' } = await searchParams;
 
   const currentPage = parseInt(page, 10) || 1;
@@ -71,7 +71,7 @@ export default async function CompanyPage({ params, searchParams }: CompanyPageP
 
   try {
     company = await prisma.company.findUnique({
-      where: { slug },
+      where: { slug: companySlug },
       include: {
         _count: {
           select: { jobs: { where: { isActive: true } } },
@@ -112,13 +112,12 @@ export default async function CompanyPage({ params, searchParams }: CompanyPageP
         '@type': 'BreadcrumbList',
         itemListElement: [
           { '@type': 'ListItem', position: 1, name: 'Home', item: siteConfig.url },
-          { '@type': 'ListItem', position: 2, name: 'Companies', item: `${siteConfig.url}/companies` },
-          { '@type': 'ListItem', position: 3, name: company.name, item: `${siteConfig.url}/companies/${slug}` },
+          { '@type': 'ListItem', position: 2, name: company.name, item: `${siteConfig.url}/company/${companySlug}` },
         ],
       },
       {
         '@type': 'Organization',
-        '@id': `${siteConfig.url}/companies/${slug}#organization`,
+        '@id': `${siteConfig.url}/company/${companySlug}#organization`,
         name: company.name,
         url: company.website || undefined,
         logo: company.logo || undefined,
@@ -139,7 +138,7 @@ export default async function CompanyPage({ params, searchParams }: CompanyPageP
         itemListElement: jobs.map((job, i) => ({
           '@type': 'ListItem',
           position: i + 1,
-          url: `${siteConfig.url}/job/${job.slug}`,
+          url: `${siteConfig.url}/company/${companySlug}/jobs/${job.slug}`,
           name: job.title,
         })),
       },
@@ -163,12 +162,10 @@ export default async function CompanyPage({ params, searchParams }: CompanyPageP
 
       <main className="flex-1">
         <div className="container py-8">
-          {/* Breadcrumbs */}
+          {/* Breadcrumbs - RRS style */}
           <nav className="mb-6 text-sm text-muted-foreground" aria-label="Breadcrumb">
             <ol className="flex items-center space-x-2">
               <li><Link href="/" className="hover:text-foreground">Home</Link></li>
-              <li>/</li>
-              <li><Link href="/companies" className="hover:text-foreground">Companies</Link></li>
               <li>/</li>
               <li className="text-foreground font-medium">{company.name}</li>
             </ol>
@@ -238,14 +235,21 @@ export default async function CompanyPage({ params, searchParams }: CompanyPageP
 
           {/* Jobs Section */}
           <section>
-            <h2 className="text-2xl font-bold mb-6">
-              Open Positions at {company.name}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold">
+                Open Positions at {company.name}
+                {totalJobs > 0 && (
+                  <span className="text-lg font-normal text-muted-foreground ml-2">
+                    ({totalJobs} {totalJobs === 1 ? 'job' : 'jobs'})
+                  </span>
+                )}
+              </h2>
               {totalJobs > 0 && (
-                <span className="text-lg font-normal text-muted-foreground ml-2">
-                  ({totalJobs} {totalJobs === 1 ? 'job' : 'jobs'})
-                </span>
+                <Link href={`/company/${companySlug}/jobs`} className="text-primary hover:underline text-sm">
+                  View all jobs →
+                </Link>
               )}
-            </h2>
+            </div>
 
             {jobs.length > 0 ? (
               <div className="space-y-4">
@@ -270,7 +274,7 @@ export default async function CompanyPage({ params, searchParams }: CompanyPageP
             {totalPages > 1 && (
               <nav className="mt-8 flex justify-center gap-2">
                 {currentPage > 1 && (
-                  <Link href={`/companies/${slug}?page=${currentPage - 1}`}>
+                  <Link href={`/company/${companySlug}?page=${currentPage - 1}`}>
                     <Button variant="outline">Previous</Button>
                   </Link>
                 )}
@@ -278,7 +282,7 @@ export default async function CompanyPage({ params, searchParams }: CompanyPageP
                   Page {currentPage} of {totalPages}
                 </span>
                 {currentPage < totalPages && (
-                  <Link href={`/companies/${slug}?page=${currentPage + 1}`}>
+                  <Link href={`/company/${companySlug}?page=${currentPage + 1}`}>
                     <Button variant="outline">Next</Button>
                   </Link>
                 )}
@@ -299,7 +303,7 @@ export default async function CompanyPage({ params, searchParams }: CompanyPageP
               </p>
               <p>
                 Check out the open positions above and apply directly.
-                We aggregate job postings from {company.name}'s career page and LinkedIn
+                We aggregate job postings from {company.name}&apos;s career page and LinkedIn
                 to make it easier for you to find and apply.
               </p>
             </div>

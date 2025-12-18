@@ -11,13 +11,18 @@ import { formatDistanceToNow } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
 
 interface JobPageProps {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ companySlug: string; jobSlug: string }>;
+}
+
+// Helper to build job URL in RRS format
+function buildJobUrl(companySlug: string, jobSlug: string): string {
+  return `${siteConfig.url}/company/${companySlug}/jobs/${jobSlug}`;
 }
 
 // Mock job data - will be replaced with DB query
 const mockJob = {
   id: '1',
-  slug: 'senior-react-developer-acme-corp',
+  slug: 'senior-react-developer',
   title: 'Senior React Developer',
   description: 'We are looking for a Senior React Developer to join our team...',
   company: {
@@ -47,7 +52,6 @@ const mockJob = {
   sourceUrl: 'https://linkedin.com/posts/johndoe-123456',
   applyUrl: null,
   applyEmail: 'jobs@acme.com',
-  // LinkedIn post specific
   originalContent: `Hey network! 🚀
 
 We're growing the team at Acme Corp and looking for a Senior React Developer!
@@ -69,15 +73,15 @@ DM me or drop your resume at jobs@acme.com!
 };
 
 export async function generateMetadata({ params }: JobPageProps): Promise<Metadata> {
-  const { slug } = await params;
-  // In real app, fetch job from DB
+  const { companySlug, jobSlug } = await params;
+  // In real app, fetch job from DB by companySlug and jobSlug
   const job = mockJob;
 
   if (!job) {
     return { title: 'Job Not Found' };
   }
 
-  const jobUrl = `${siteConfig.url}/job/${job.slug}`;
+  const jobUrl = buildJobUrl(job.company.slug, job.slug);
   const salaryText = job.salaryMin && job.salaryMax
     ? ` $${(job.salaryMin/1000).toFixed(0)}K-$${(job.salaryMax/1000).toFixed(0)}K.`
     : '';
@@ -90,6 +94,7 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
       job.title.toLowerCase(),
       `remote ${job.category.name.toLowerCase()} jobs`,
       `${job.company.name} careers`,
+      `${job.company.name} jobs`,
       ...job.skills.map(s => `${s.toLowerCase()} jobs`),
     ],
     openGraph: {
@@ -111,16 +116,16 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
 }
 
 export default async function JobPage({ params }: JobPageProps) {
-  const { slug } = await params;
+  const { companySlug, jobSlug } = await params;
   // In real app, fetch job from DB
   const job = mockJob;
 
-  if (!job || job.slug !== slug) {
-    // For demo, just show the mock job
-    // notFound();
+  if (!job) {
+    notFound();
   }
 
   const isLinkedInPost = job.sourceType === 'UNSTRUCTURED';
+  const jobUrl = buildJobUrl(job.company.slug, job.slug);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -128,12 +133,16 @@ export default async function JobPage({ params }: JobPageProps) {
 
       <main className="flex-1">
         <div className="container py-8">
-          {/* Breadcrumbs */}
+          {/* Breadcrumbs - RRS style */}
           <nav className="mb-6 text-sm text-muted-foreground">
-            <Link href="/jobs" className="hover:text-foreground">Jobs</Link>
+            <Link href="/" className="hover:text-foreground">Home</Link>
             {' / '}
-            <Link href={`/jobs/${job.category.slug}`} className="hover:text-foreground">
-              {job.category.name}
+            <Link href={`/company/${job.company.slug}`} className="hover:text-foreground">
+              {job.company.name}
+            </Link>
+            {' / '}
+            <Link href={`/company/${job.company.slug}/jobs`} className="hover:text-foreground">
+              Jobs
             </Link>
             {' / '}
             <span className="text-foreground">{job.title}</span>
@@ -158,7 +167,7 @@ export default async function JobPage({ params }: JobPageProps) {
                 <div>
                   <h1 className="text-2xl font-bold">{job.title}</h1>
                   <Link
-                    href={`/companies/${job.company.slug}`}
+                    href={`/company/${job.company.slug}`}
                     className="text-lg text-muted-foreground hover:underline"
                   >
                     {job.company.name}
@@ -349,12 +358,18 @@ export default async function JobPage({ params }: JobPageProps) {
                         Size: {formatCompanySize(job.company.size)}
                       </p>
                     )}
+                    <Link
+                      href={`/company/${job.company.slug}`}
+                      className="text-sm text-primary hover:underline block mt-2"
+                    >
+                      View all jobs at {job.company.name} →
+                    </Link>
                     {job.company.website && (
                       <a
                         href={job.company.website}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline"
+                        className="text-sm text-primary hover:underline block"
                       >
                         Visit website →
                       </a>
@@ -389,7 +404,6 @@ export default async function JobPage({ params }: JobPageProps) {
           __html: JSON.stringify({
             '@context': 'https://schema.org',
             '@type': 'JobPosting',
-            // Required fields
             title: job.title,
             description: job.originalContent || job.description,
             datePosted: job.postedAt.toISOString(),
@@ -409,7 +423,6 @@ export default async function JobPage({ params }: JobPageProps) {
                     addressLocality: job.location || undefined,
                   },
                 },
-            // Recommended fields
             validThrough: new Date(job.postedAt.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
             employmentType: job.type,
             identifier: {
@@ -418,7 +431,6 @@ export default async function JobPage({ params }: JobPageProps) {
               value: job.id,
             },
             directApply: !!(job.applyUrl || job.applyEmail),
-            // Remote work fields
             ...(['REMOTE', 'REMOTE_US', 'REMOTE_EU'].includes(job.locationType) && {
               jobLocationType: 'TELECOMMUTE',
               applicantLocationRequirements: job.locationType === 'REMOTE_US'
@@ -432,7 +444,6 @@ export default async function JobPage({ params }: JobPageProps) {
                   ]
                 : undefined,
             }),
-            // Salary (only if not estimated)
             ...(job.salaryMin && !job.salaryIsEstimate && {
               baseSalary: {
                 '@type': 'MonetaryAmount',
@@ -445,11 +456,9 @@ export default async function JobPage({ params }: JobPageProps) {
                 },
               },
             }),
-            // Skills
             ...(job.skills.length > 0 && {
               skills: job.skills.join(', '),
             }),
-            // Benefits
             ...(job.benefits.length > 0 && {
               jobBenefits: job.benefits.join(', '),
             }),
@@ -457,7 +466,7 @@ export default async function JobPage({ params }: JobPageProps) {
         }}
       />
 
-      {/* BreadcrumbList Structured Data */}
+      {/* BreadcrumbList Structured Data - RRS style */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -466,9 +475,9 @@ export default async function JobPage({ params }: JobPageProps) {
             '@type': 'BreadcrumbList',
             itemListElement: [
               { '@type': 'ListItem', position: 1, name: 'Home', item: siteConfig.url },
-              { '@type': 'ListItem', position: 2, name: 'Jobs', item: `${siteConfig.url}/jobs` },
-              { '@type': 'ListItem', position: 3, name: job.category.name, item: `${siteConfig.url}/jobs/${job.category.slug}` },
-              { '@type': 'ListItem', position: 4, name: job.title, item: `${siteConfig.url}/job/${job.slug}` },
+              { '@type': 'ListItem', position: 2, name: job.company.name, item: `${siteConfig.url}/company/${job.company.slug}` },
+              { '@type': 'ListItem', position: 3, name: 'Jobs', item: `${siteConfig.url}/company/${job.company.slug}/jobs` },
+              { '@type': 'ListItem', position: 4, name: job.title, item: jobUrl },
             ],
           }),
         }}

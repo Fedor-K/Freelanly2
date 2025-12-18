@@ -230,7 +230,7 @@ export default function JobsPage() {
             itemListElement: mockJobs.map((job, index) => ({
               '@type': 'ListItem',
               position: index + 1,
-              url: `${siteConfig.url}/job/${job.slug}`,
+              url: `${siteConfig.url}/company/${job.company.slug}/jobs/${job.slug}`,
               name: `${job.title} at ${job.company.name}`,
             })),
           }),
