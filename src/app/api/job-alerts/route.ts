@@ -15,9 +15,32 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if subscriber already exists
-    // In a real implementation, you'd have a JobAlert model
-    // For now, we'll just add to DashaMail
+    const existing = await prisma.jobAlert.findUnique({
+      where: { email },
+    });
 
+    if (existing) {
+      // Update existing subscription
+      await prisma.jobAlert.update({
+        where: { email },
+        data: {
+          category: category || null,
+          keywords: keywords || null,
+          isActive: true,
+        },
+      });
+    } else {
+      // Create new subscription
+      await prisma.jobAlert.create({
+        data: {
+          email,
+          category: category || null,
+          keywords: keywords || null,
+        },
+      });
+    }
+
+    // Also add to DashaMail for email delivery
     try {
       await addSubscriber(email, {
         category: category || 'all',
@@ -26,11 +49,8 @@ export async function POST(request: NextRequest) {
       });
     } catch (error) {
       console.error('Failed to add to DashaMail:', error);
-      // Continue anyway - we can still track locally
+      // Continue anyway - we have it in our database
     }
-
-    // Log the subscription (would be stored in DB in production)
-    console.log('Job alert subscription:', { email, category, keywords });
 
     return NextResponse.json({
       success: true,

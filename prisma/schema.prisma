@@ -390,6 +390,32 @@ model LandingPage {
 }
 
 // ============================================
+// JOB ALERTS / SUBSCRIBERS
+// ============================================
+
+model JobAlert {
+  id            String    @id @default(cuid())
+  email         String    @unique
+
+  // Preferences
+  category      String?   // Category slug filter
+  keywords      String?   // Keywords to match
+
+  // Status
+  isActive      Boolean   @default(true)
+
+  // Stats
+  lastSentAt    DateTime?
+  emailsSent    Int       @default(0)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([email])
+  @@index([isActive])
+}
+
+// ============================================
 // JOB IMPORT TRACKING
 // ============================================
 
