@@ -42,6 +42,9 @@ const skillKeywords: Record<string, { title: string; skills: string[]; relatedCa
   'postgresql': { title: 'PostgreSQL', skills: ['PostgreSQL', 'Postgres'], relatedCategories: ['engineering', 'data'] },
   'mongodb': { title: 'MongoDB', skills: ['MongoDB', 'Mongo'], relatedCategories: ['engineering', 'data'] },
   'redis': { title: 'Redis', skills: ['Redis'], relatedCategories: ['engineering', 'backend'] },
+  'elasticsearch': { title: 'Elasticsearch', skills: ['Elasticsearch', 'Elastic'], relatedCategories: ['engineering', 'data'] },
+  'kafka': { title: 'Kafka', skills: ['Kafka', 'Apache Kafka'], relatedCategories: ['engineering', 'data'] },
+  'spark': { title: 'Spark', skills: ['Spark', 'Apache Spark', 'PySpark'], relatedCategories: ['data', 'engineering'] },
   'machine-learning': { title: 'Machine Learning', skills: ['Machine Learning', 'ML'], relatedCategories: ['data', 'engineering'] },
   'data-science': { title: 'Data Science', skills: ['Data Science', 'Data Scientist'], relatedCategories: ['data'] },
   'devops': { title: 'DevOps', skills: ['DevOps'], relatedCategories: ['devops'] },
@@ -92,11 +95,22 @@ function parseLandingSlug(slug: string): { skill?: string; location?: string } |
   };
 }
 
+// Skills list matching sitemap.ts for consistency
+const popularSkills = [
+  'react', 'typescript', 'python', 'javascript', 'nodejs',
+  'java', 'golang', 'rust', 'aws', 'kubernetes',
+  'docker', 'terraform', 'graphql', 'nextjs', 'vue',
+  'angular', 'flutter', 'swift', 'kotlin', 'ruby',
+  'rails', 'django', 'laravel', 'postgresql', 'mongodb',
+  'redis', 'elasticsearch', 'kafka', 'spark', 'machine-learning',
+  'data-science', 'devops', 'sre', 'cloud', 'security',
+];
+
 // Generate static params for popular combinations
 export async function generateStaticParams() {
   const params: { landing: string }[] = [];
 
-  // Skill-only pages
+  // Skill-only pages (all skills in skillKeywords)
   for (const skill of Object.keys(skillKeywords)) {
     params.push({ landing: `remote-${skill}-jobs` });
   }
@@ -106,9 +120,8 @@ export async function generateStaticParams() {
     params.push({ landing: `remote-${cat.slug}-jobs` });
   }
 
-  // Skill + Location combinations (top skills only)
-  const topSkills = ['react', 'python', 'typescript', 'nodejs', 'aws', 'devops', 'frontend', 'backend'];
-  for (const skill of topSkills) {
+  // Skill + Location combinations (all popularSkills to match sitemap)
+  for (const skill of popularSkills) {
     for (const location of Object.keys(locationKeywords)) {
       params.push({ landing: `remote-${skill}-jobs-${location}` });
     }
