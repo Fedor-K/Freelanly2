@@ -106,16 +106,16 @@ export default function AdminApifyPage() {
 
   async function runScraper() {
     setSaving(true);
-    setMessage(null);
+    setMessage({ type: 'success', text: 'Starting scraper... This may take 1-5 minutes.' });
 
     try {
-      const res = await fetch('/api/cron/fetch-linkedin', { method: 'POST' });
+      const res = await fetch('/api/admin/run-scraper', { method: 'POST' });
       const data = await res.json();
 
       if (data.success) {
         setMessage({
           type: 'success',
-          text: `Scraper completed! Created: ${data.stats.created}, Skipped: ${data.stats.skipped}, Failed: ${data.stats.failed}`,
+          text: `Scraper completed! Total: ${data.stats.total}, Created: ${data.stats.created}, Skipped: ${data.stats.skipped}, Failed: ${data.stats.failed}`,
         });
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to run scraper' });
