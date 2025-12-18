@@ -33,27 +33,44 @@ export const metadata: Metadata = {
   },
 };
 
-// Fetch jobs from database
-async function getJobs() {
-  const jobs = await prisma.job.findMany({
-    where: { isActive: true },
-    include: {
-      company: {
-        select: {
-          name: true,
-          slug: true,
-          logo: true,
-        },
-      },
-    },
-    orderBy: { postedAt: 'desc' },
-    take: 50,
-  });
-  return jobs;
+interface JobsPageProps {
+  searchParams: Promise<{ page?: string }>;
 }
 
-export default async function JobsPage() {
-  const jobs = await getJobs();
+const JOBS_PER_PAGE = 20;
+
+// Fetch jobs from database
+async function getJobs(page: number) {
+  const skip = (page - 1) * JOBS_PER_PAGE;
+
+  const [jobs, totalCount] = await Promise.all([
+    prisma.job.findMany({
+      where: { isActive: true },
+      include: {
+        company: {
+          select: {
+            name: true,
+            slug: true,
+            logo: true,
+          },
+        },
+      },
+      orderBy: { postedAt: 'desc' },
+      skip,
+      take: JOBS_PER_PAGE,
+    }),
+    prisma.job.count({ where: { isActive: true } }),
+  ]);
+
+  return { jobs, totalCount };
+}
+
+export default async function JobsPage({ searchParams }: JobsPageProps) {
+  const params = await searchParams;
+  const currentPage = Math.max(1, parseInt(params.page || '1', 10) || 1);
+  const { jobs, totalCount } = await getJobs(currentPage);
+  const totalPages = Math.ceil(totalCount / JOBS_PER_PAGE);
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -64,7 +81,7 @@ export default async function JobsPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">Remote Jobs</h1>
             <p className="text-muted-foreground">
-              {jobs.length} jobs found
+              {totalCount} jobs found
             </p>
           </div>
 
@@ -155,14 +172,29 @@ export default async function JobsPage() {
               </div>
 
               {/* Pagination */}
-              <div className="mt-8 flex justify-center gap-2">
-                <Button variant="outline" disabled>
-                  Previous
-                </Button>
-                <Button variant="outline">
-                  Next
-                </Button>
-              </div>
+              {totalPages > 1 && (
+                <nav className="mt-8 flex justify-center gap-2">
+                  {currentPage > 1 ? (
+                    <Link href={`/jobs?page=${currentPage - 1}`}>
+                      <Button variant="outline">Previous</Button>
+                    </Link>
+                  ) : (
+                    <Button variant="outline" disabled>Previous</Button>
+                  )}
+
+                  <span className="flex items-center px-4 text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages}
+                  </span>
+
+                  {currentPage < totalPages ? (
+                    <Link href={`/jobs?page=${currentPage + 1}`}>
+                      <Button variant="outline">Next</Button>
+                    </Link>
+                  ) : (
+                    <Button variant="outline" disabled>Next</Button>
+                  )}
+                </nav>
+              )}
             </div>
           </div>
         </div>
@@ -179,10 +211,10 @@ export default async function JobsPage() {
             '@type': 'ItemList',
             name: 'Remote Jobs',
             description: 'Browse all remote job opportunities',
-            numberOfItems: jobs.length,
+            numberOfItems: totalCount,
             itemListElement: jobs.map((job, index) => ({
               '@type': 'ListItem',
-              position: index + 1,
+              position: (currentPage - 1) * JOBS_PER_PAGE + index + 1,
               url: `${siteConfig.url}/company/${job.company.slug}/jobs/${job.slug}`,
               name: `${job.title} at ${job.company.name}`,
             })),
