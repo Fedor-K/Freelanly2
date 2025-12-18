@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { SalaryInsights } from '@/components/jobs/SalaryInsights';
 import { formatDistanceToNow } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
 
@@ -333,6 +334,16 @@ export default async function JobPage({ params }: JobPageProps) {
 
             {/* Sidebar */}
             <div className="space-y-6">
+              {/* Salary Insights */}
+              <SalaryInsights
+                jobTitle={job.title}
+                location={job.location}
+                salaryMin={job.salaryMin}
+                salaryMax={job.salaryMax}
+                currency={job.salaryCurrency}
+                isEstimate={job.salaryIsEstimate}
+              />
+
               {/* Apply Card */}
               <Card className="sticky top-20">
                 <CardContent className="pt-6 space-y-4">
