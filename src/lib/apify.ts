@@ -89,13 +89,13 @@ export async function scrapeLinkedInCompany(companyUrl: string): Promise<LinkedI
     });
 
     const { items } = await apify.dataset(run.defaultDatasetId).listItems();
-    const company = items[0];
+    const company = items[0] as Record<string, any> | undefined;
 
     if (!company) return null;
 
     return {
-      name: company.name || '',
-      url: company.url || companyUrl,
+      name: String(company.name || ''),
+      url: String(company.url || companyUrl),
       logo: company.logo || company.logoUrl || null,
       website: company.website || null,
       industry: company.industry || null,
