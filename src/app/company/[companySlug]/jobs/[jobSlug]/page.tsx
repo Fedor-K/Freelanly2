@@ -10,6 +10,9 @@ import { Separator } from '@/components/ui/separator';
 import { SalaryInsights } from '@/components/jobs/SalaryInsights';
 import { formatDistanceToNow } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
+import { prisma } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
 
 interface JobPageProps {
   params: Promise<{ companySlug: string; jobSlug: string }>;
@@ -20,63 +23,21 @@ function buildJobUrl(companySlug: string, jobSlug: string): string {
   return `${siteConfig.url}/company/${companySlug}/jobs/${jobSlug}`;
 }
 
-// Mock job data - will be replaced with DB query
-const mockJob = {
-  id: '1',
-  slug: 'senior-react-developer',
-  title: 'Senior React Developer',
-  description: 'We are looking for a Senior React Developer to join our team...',
-  company: {
-    name: 'Acme Corp',
-    slug: 'acme-corp',
-    logo: null,
-    website: 'https://acme.com',
-    size: 'MEDIUM',
-    industry: 'Software',
-  },
-  category: {
-    name: 'Engineering',
-    slug: 'engineering',
-  },
-  location: 'Remote',
-  locationType: 'REMOTE',
-  level: 'SENIOR',
-  type: 'FULL_TIME',
-  salaryMin: 120000,
-  salaryMax: 160000,
-  salaryCurrency: 'USD',
-  salaryIsEstimate: true,
-  skills: ['React', 'TypeScript', 'Node.js', 'GraphQL'],
-  benefits: ['Health Insurance', '401k', 'Unlimited PTO', 'Remote-first'],
-  source: 'LINKEDIN',
-  sourceType: 'UNSTRUCTURED',
-  sourceUrl: 'https://linkedin.com/posts/johndoe-123456',
-  applyUrl: null,
-  applyEmail: 'jobs@acme.com',
-  originalContent: `Hey network! 🚀
-
-We're growing the team at Acme Corp and looking for a Senior React Developer!
-
-What we're looking for:
-- 5+ years of React experience
-- Strong TypeScript skills
-- Experience with GraphQL
-- Love for clean, maintainable code
-
-We're fully remote, offer competitive salary, great benefits including unlimited PTO.
-
-DM me or drop your resume at jobs@acme.com!
-
-#hiring #react #remotework`,
-  authorLinkedIn: 'https://linkedin.com/in/johndoe',
-  authorName: 'John Doe',
-  postedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-};
+// Fetch job from database
+async function getJob(jobSlug: string) {
+  const job = await prisma.job.findUnique({
+    where: { slug: jobSlug },
+    include: {
+      company: true,
+      category: true,
+    },
+  });
+  return job;
+}
 
 export async function generateMetadata({ params }: JobPageProps): Promise<Metadata> {
   const { companySlug, jobSlug } = await params;
-  // In real app, fetch job from DB by companySlug and jobSlug
-  const job = mockJob;
+  const job = await getJob(jobSlug);
 
   if (!job) {
     return { title: 'Job Not Found' };
@@ -118,8 +79,7 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
 
 export default async function JobPage({ params }: JobPageProps) {
   const { companySlug, jobSlug } = await params;
-  // In real app, fetch job from DB
-  const job = mockJob;
+  const job = await getJob(jobSlug);
 
   if (!job) {
     notFound();
@@ -337,10 +297,10 @@ export default async function JobPage({ params }: JobPageProps) {
               {/* Salary Insights */}
               <SalaryInsights
                 jobTitle={job.title}
-                location={job.location}
+                location={job.location || 'Remote'}
                 salaryMin={job.salaryMin}
                 salaryMax={job.salaryMax}
-                currency={job.salaryCurrency}
+                currency={job.salaryCurrency || 'USD'}
                 isEstimate={job.salaryIsEstimate}
               />
 

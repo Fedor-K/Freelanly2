@@ -7,6 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { siteConfig, categories, levels, jobTypes, locationTypes } from '@/config/site';
+import { prisma } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Remote Jobs - Browse 1000+ Remote Work Positions | Freelanly',
@@ -30,77 +33,27 @@ export const metadata: Metadata = {
   },
 };
 
-// Mock data for now - will be replaced with DB query
-const mockJobs = [
-  {
-    id: '1',
-    slug: 'senior-react-developer-acme-corp',
-    title: 'Senior React Developer',
-    company: {
-      name: 'Acme Corp',
-      slug: 'acme-corp',
-      logo: null,
+// Fetch jobs from database
+async function getJobs() {
+  const jobs = await prisma.job.findMany({
+    where: { isActive: true },
+    include: {
+      company: {
+        select: {
+          name: true,
+          slug: true,
+          logo: true,
+        },
+      },
     },
-    location: 'Remote',
-    locationType: 'REMOTE',
-    level: 'SENIOR',
-    type: 'FULL_TIME',
-    salaryMin: 120000,
-    salaryMax: 160000,
-    salaryCurrency: 'USD',
-    salaryIsEstimate: true,
-    skills: ['React', 'TypeScript', 'Node.js'],
-    source: 'LINKEDIN',
-    sourceType: 'UNSTRUCTURED',
-    postedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: '2',
-    slug: 'product-designer-startup-xyz',
-    title: 'Product Designer',
-    company: {
-      name: 'Startup XYZ',
-      slug: 'startup-xyz',
-      logo: null,
-    },
-    location: 'Remote (US)',
-    locationType: 'REMOTE_US',
-    level: 'MID',
-    type: 'FULL_TIME',
-    salaryMin: 90000,
-    salaryMax: 130000,
-    salaryCurrency: 'USD',
-    salaryIsEstimate: false,
-    skills: ['Figma', 'User Research', 'Prototyping'],
-    source: 'GREENHOUSE',
-    sourceType: 'STRUCTURED',
-    postedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: '3',
-    slug: 'devops-engineer-tech-inc',
-    title: 'DevOps Engineer',
-    company: {
-      name: 'Tech Inc',
-      slug: 'tech-inc',
-      logo: null,
-    },
-    location: 'Remote (Europe)',
-    locationType: 'REMOTE_EU',
-    level: 'SENIOR',
-    type: 'CONTRACT',
-    salaryMin: 80000,
-    salaryMax: 120000,
-    salaryCurrency: 'EUR',
-    salaryIsEstimate: true,
-    skills: ['AWS', 'Kubernetes', 'Terraform', 'CI/CD'],
-    source: 'LINKEDIN',
-    sourceType: 'UNSTRUCTURED',
-    postedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-  },
-];
+    orderBy: { postedAt: 'desc' },
+    take: 50,
+  });
+  return jobs;
+}
 
-export default function JobsPage() {
+export default async function JobsPage() {
+  const jobs = await getJobs();
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -111,7 +64,7 @@ export default function JobsPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">Remote Jobs</h1>
             <p className="text-muted-foreground">
-              {mockJobs.length} jobs found
+              {jobs.length} jobs found
             </p>
           </div>
 
@@ -196,7 +149,7 @@ export default function JobsPage() {
 
               {/* Jobs */}
               <div className="space-y-4">
-                {mockJobs.map((job) => (
+                {jobs.map((job) => (
                   <JobCard key={job.id} job={job} />
                 ))}
               </div>
@@ -226,8 +179,8 @@ export default function JobsPage() {
             '@type': 'ItemList',
             name: 'Remote Jobs',
             description: 'Browse all remote job opportunities',
-            numberOfItems: mockJobs.length,
-            itemListElement: mockJobs.map((job, index) => ({
+            numberOfItems: jobs.length,
+            itemListElement: jobs.map((job, index) => ({
               '@type': 'ListItem',
               position: index + 1,
               url: `${siteConfig.url}/company/${job.company.slug}/jobs/${job.slug}`,
