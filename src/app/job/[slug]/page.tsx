@@ -359,37 +359,94 @@ export default async function JobPage({ params }: JobPageProps) {
 
       <Footer />
 
-      {/* JSON-LD Structured Data */}
+      {/* JSON-LD JobPosting Structured Data - Google Compliant */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             '@context': 'https://schema.org',
             '@type': 'JobPosting',
+            // Required fields
             title: job.title,
             description: job.originalContent || job.description,
             datePosted: job.postedAt.toISOString(),
-            validThrough: new Date(job.postedAt.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            employmentType: job.type,
-            jobLocationType: job.locationType === 'REMOTE' ? 'TELECOMMUTE' : undefined,
             hiringOrganization: {
               '@type': 'Organization',
               name: job.company.name,
-              sameAs: job.company.website,
-              logo: job.company.logo,
+              sameAs: job.company.website || undefined,
+              logo: job.company.logo || undefined,
             },
-            ...(job.salaryMin && {
+            jobLocation: ['REMOTE', 'REMOTE_US', 'REMOTE_EU'].includes(job.locationType)
+              ? undefined
+              : {
+                  '@type': 'Place',
+                  address: {
+                    '@type': 'PostalAddress',
+                    addressCountry: 'US',
+                    addressLocality: job.location || undefined,
+                  },
+                },
+            // Recommended fields
+            validThrough: new Date(job.postedAt.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            employmentType: job.type,
+            identifier: {
+              '@type': 'PropertyValue',
+              name: job.company.name,
+              value: job.id,
+            },
+            directApply: !!(job.applyUrl || job.applyEmail),
+            // Remote work fields
+            ...(['REMOTE', 'REMOTE_US', 'REMOTE_EU'].includes(job.locationType) && {
+              jobLocationType: 'TELECOMMUTE',
+              applicantLocationRequirements: job.locationType === 'REMOTE_US'
+                ? { '@type': 'Country', name: 'USA' }
+                : job.locationType === 'REMOTE_EU'
+                ? [
+                    { '@type': 'Country', name: 'Germany' },
+                    { '@type': 'Country', name: 'France' },
+                    { '@type': 'Country', name: 'Netherlands' },
+                    { '@type': 'Country', name: 'United Kingdom' },
+                  ]
+                : undefined,
+            }),
+            // Salary (only if not estimated)
+            ...(job.salaryMin && !job.salaryIsEstimate && {
               baseSalary: {
                 '@type': 'MonetaryAmount',
                 currency: job.salaryCurrency || 'USD',
                 value: {
                   '@type': 'QuantitativeValue',
                   minValue: job.salaryMin,
-                  maxValue: job.salaryMax,
+                  maxValue: job.salaryMax || job.salaryMin,
                   unitText: 'YEAR',
                 },
               },
             }),
+            // Skills
+            ...(job.skills.length > 0 && {
+              skills: job.skills.join(', '),
+            }),
+            // Benefits
+            ...(job.benefits.length > 0 && {
+              jobBenefits: job.benefits.join(', '),
+            }),
+          }),
+        }}
+      />
+
+      {/* BreadcrumbList Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://freelanly.com' },
+              { '@type': 'ListItem', position: 2, name: 'Jobs', item: 'https://freelanly.com/jobs' },
+              { '@type': 'ListItem', position: 3, name: job.category.name, item: `https://freelanly.com/jobs/${job.category.slug}` },
+              { '@type': 'ListItem', position: 4, name: job.title, item: `https://freelanly.com/job/${job.slug}` },
+            ],
           }),
         }}
       />
