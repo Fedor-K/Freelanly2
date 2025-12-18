@@ -50,10 +50,18 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Resources */}
+          {/* For Job Seekers */}
           <div>
-            <h3 className="font-semibold mb-3">Resources</h3>
+            <h3 className="font-semibold mb-3">For Job Seekers</h3>
             <ul className="space-y-2 text-sm">
+              <li>
+                <Link
+                  href="/jobs"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Browse All Jobs
+                </Link>
+              </li>
               <li>
                 <Link
                   href="/companies"
@@ -64,18 +72,18 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/salaries"
+                  href="/remote-react-jobs"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Salary Guide
+                  Remote React Jobs
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/blog"
+                  href="/remote-python-jobs"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Blog
+                  Remote Python Jobs
                 </Link>
               </li>
               <li>
@@ -85,6 +93,37 @@ export function Footer() {
                 >
                   Pricing
                 </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* For Employers */}
+          <div>
+            <h3 className="font-semibold mb-3">For Employers</h3>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link
+                  href="/employers"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Post a Job
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/employers#pricing"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Employer Pricing
+                </Link>
+              </li>
+              <li>
+                <a
+                  href="mailto:employers@freelanly.com"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Contact Sales
+                </a>
               </li>
             </ul>
           </div>

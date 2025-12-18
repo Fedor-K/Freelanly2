@@ -37,12 +37,16 @@ export function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm">
-            Sign In
-          </Button>
-          <Button size="sm">
-            Post a Job
-          </Button>
+          <Link href="/pricing">
+            <Button variant="ghost" size="sm">
+              Pricing
+            </Button>
+          </Link>
+          <Link href="/employers">
+            <Button size="sm">
+              Post a Job
+            </Button>
+          </Link>
         </div>
       </div>
     </header>

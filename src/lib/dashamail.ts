@@ -80,13 +80,16 @@ export async function sendApplicationEmail(params: SendEmailParams): Promise<{ s
   }
 }
 
-// Add subscriber to list (for newsletter)
-export async function addSubscriber(email: string, name?: string): Promise<boolean> {
+// Add subscriber to list (for newsletter/job alerts)
+export async function addSubscriber(
+  email: string,
+  mergeFields?: Record<string, string>
+): Promise<boolean> {
   try {
     const result = await apiCall('lists.add_member', {
       list_id: config.listId,
       email,
-      merge: name ? { NAME: name } : undefined,
+      merge: mergeFields,
     });
     return result.status === 'success';
   } catch (error) {
