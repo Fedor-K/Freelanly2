@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
 import {
   enrichCompanies,
   enrichAllPendingCompanies,
@@ -38,7 +39,31 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const all = body.all === true;
+    const reset = body.reset === true;
     const limit = body.limit || 10;
+
+    // Reset all companies for re-enrichment
+    if (reset) {
+      console.log('Resetting all companies for re-enrichment...');
+      const resetResult = await prisma.company.updateMany({
+        where: {
+          logo: { not: null },
+        },
+        data: {
+          logo: null,
+        },
+      });
+      console.log(`Reset ${resetResult.count} companies`);
+
+      // Now enrich all
+      console.log('Starting enrichment for ALL companies...');
+      const stats = await enrichAllPendingCompanies();
+      return NextResponse.json({
+        success: true,
+        message: `Reset ${resetResult.count} companies and re-enriched`,
+        stats,
+      });
+    }
 
     if (all) {
       console.log('Starting enrichment for ALL pending companies...');
