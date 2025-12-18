@@ -1,60 +1,38 @@
 import { prisma } from '@/lib/db';
-import { ApifyClient } from 'apify-client';
 import { isFreeEmail, extractDomainFromEmail } from '@/lib/utils';
 
-// LinkedIn Companies Search Scraper (No Login Required)
-// https://apify.com/apimaestro/linkedin-companies-search-scraper
-// $5 per 1000 results - searches by keyword, no cookies needed
-const LINKEDIN_COMPANY_SEARCH_ACTOR = 'apimaestro/linkedin-companies-search-scraper';
+// Hunter API for company enrichment
+// https://hunter.io/api-documentation/v2#company
+const HUNTER_API_URL = 'https://api.hunter.io/v2/companies/find';
 
-// Lazy initialization
-let _apify: ApifyClient | null = null;
-
-function getApifyClient(): ApifyClient {
-  if (!_apify) {
-    _apify = new ApifyClient({
-      token: process.env.APIFY_API_TOKEN || 'dummy-token-for-build',
-    });
-  }
-  return _apify;
-}
-
-// Response structure from LinkedIn Companies Search Scraper
-interface LinkedInCompanySearchResult {
-  name?: string;
-  universalName?: string;
-  linkedinUrl?: string;
-  url?: string;
-  description?: string;
-  tagline?: string;
-  website?: string;
-  industry?: string;
-  industryCode?: string;
-  companySize?: string;
-  employeeCount?: number;
-  employeeCountRange?: {
-    start?: number;
-    end?: number;
-  };
-  headquarter?: {
-    city?: string;
+// Response structure from Hunter Company API
+interface HunterCompanyResponse {
+  data: {
+    name?: string;
+    domain?: string;
+    description?: string;
+    industry?: string;
+    company_type?: string;
+    headcount?: string; // "1-10", "11-50", etc.
     country?: string;
-    geographicArea?: string;
-    postalCode?: string;
-    line1?: string;
-  };
-  locations?: Array<{
+    state?: string;
     city?: string;
-    country?: string;
-  }>;
-  foundedOn?: number;
-  foundedYear?: number;
-  specialities?: string[];
-  logo?: string;
-  logoUrl?: string;
-  backgroundCover?: string;
-  followerCount?: number;
-  staffCount?: number;
+    postal_code?: string;
+    street?: string;
+    logo?: string;
+    twitter?: string;
+    facebook?: string;
+    linkedin?: string;
+    instagram?: string;
+    youtube?: string;
+    technologies?: string[];
+  };
+  meta?: {
+    params?: {
+      domain?: string;
+    };
+  };
+  errors?: Array<{ id: string; code: number; details: string }>;
 }
 
 // Enrichment stats
@@ -66,43 +44,26 @@ export interface EnrichmentStats {
   errors: string[];
 }
 
-// Map company size from employee count or range
-function mapCompanySize(data: LinkedInCompanySearchResult): 'STARTUP' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'ENTERPRISE' | null {
-  const count = data.employeeCount || data.staffCount || data.employeeCountRange?.end;
-  if (!count) {
-    // Try to parse from companySize string like "11-50" or "1001-5000"
-    if (data.companySize) {
-      const match = data.companySize.match(/(\d+)/);
-      if (match) {
-        const num = parseInt(match[1]);
-        if (num <= 10) return 'STARTUP';
-        if (num <= 50) return 'SMALL';
-        if (num <= 200) return 'MEDIUM';
-        if (num <= 1000) return 'LARGE';
-        return 'ENTERPRISE';
-      }
-    }
-    return null;
-  }
-  if (count <= 10) return 'STARTUP';
-  if (count <= 50) return 'SMALL';
-  if (count <= 200) return 'MEDIUM';
-  if (count <= 1000) return 'LARGE';
+// Map Hunter headcount to our company size enum
+function mapCompanySize(headcount?: string): 'STARTUP' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'ENTERPRISE' | null {
+  if (!headcount) return null;
+
+  const match = headcount.match(/^(\d+)/);
+  if (!match) return null;
+
+  const minEmployees = parseInt(match[1]);
+
+  if (minEmployees <= 10) return 'STARTUP';
+  if (minEmployees <= 50) return 'SMALL';
+  if (minEmployees <= 200) return 'MEDIUM';
+  if (minEmployees <= 1000) return 'LARGE';
   return 'ENTERPRISE';
 }
 
-// Format headquarters from LinkedIn data
-function formatHeadquarters(data: LinkedInCompanySearchResult): string | null {
-  if (data.headquarter) {
-    const parts = [data.headquarter.city, data.headquarter.geographicArea, data.headquarter.country].filter(Boolean);
-    if (parts.length > 0) return parts.join(', ');
-  }
-  if (data.locations && data.locations.length > 0) {
-    const loc = data.locations[0];
-    const parts = [loc.city, loc.country].filter(Boolean);
-    if (parts.length > 0) return parts.join(', ');
-  }
-  return null;
+// Format headquarters from Hunter data
+function formatHeadquarters(data: HunterCompanyResponse['data']): string | null {
+  const parts = [data.city, data.state, data.country].filter(Boolean);
+  return parts.length > 0 ? parts.join(', ') : null;
 }
 
 // Get companies that need enrichment
@@ -112,12 +73,11 @@ export async function getCompaniesForEnrichment(limit: number = 50): Promise<Arr
   email: string;
   domain: string;
 }>> {
-  // Find jobs with corporate emails (not free providers)
   const jobs = await prisma.job.findMany({
     where: {
       applyEmail: { not: null },
       company: {
-        logo: null, // Not yet enriched
+        logo: null,
       },
     },
     select: {
@@ -131,21 +91,17 @@ export async function getCompaniesForEnrichment(limit: number = 50): Promise<Arr
       },
     },
     distinct: ['companyId'],
-    take: limit * 2, // Get more to account for filtering
+    take: limit * 2,
   });
 
   const companiesMap = new Map<string, { id: string; name: string; email: string; domain: string }>();
 
   for (const job of jobs) {
     if (!job.applyEmail || !job.company) continue;
-
-    // Skip free email providers
     if (isFreeEmail(job.applyEmail)) continue;
 
     const domain = extractDomainFromEmail(job.applyEmail);
     if (!domain) continue;
-
-    // Skip if already in map
     if (companiesMap.has(job.company.id)) continue;
 
     companiesMap.set(job.company.id, {
@@ -161,82 +117,91 @@ export async function getCompaniesForEnrichment(limit: number = 50): Promise<Arr
   return Array.from(companiesMap.values());
 }
 
-// Search for company on LinkedIn by name
-async function searchCompanyOnLinkedIn(companyName: string): Promise<LinkedInCompanySearchResult | null> {
-  const apify = getApifyClient();
+// Fetch company data from Hunter API with browser-like headers
+async function fetchCompanyFromHunter(domain: string): Promise<HunterCompanyResponse['data'] | null> {
+  const apiKey = process.env.HUNTER_API_KEY;
+
+  if (!apiKey) {
+    throw new Error('HUNTER_API_KEY environment variable is not set');
+  }
 
   try {
-    console.log(`Searching LinkedIn for company: ${companyName}`);
+    console.log(`Fetching company data from Hunter for domain: ${domain}`);
 
-    const run = await apify.actor(LINKEDIN_COMPANY_SEARCH_ACTOR).call(
-      {
-        keywords: companyName,
-        maxResults: 1,
+    const url = `${HUNTER_API_URL}?domain=${encodeURIComponent(domain)}&api_key=${apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
       },
-      {
-        timeout: 120, // 2 minutes timeout
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Hunter API error for ${domain}: ${response.status} - ${errorText.substring(0, 200)}`);
+
+      if (response.status === 404) {
+        return null;
       }
-    );
 
-    const { items } = await apify.dataset(run.defaultDatasetId).listItems();
+      throw new Error(`Hunter API error: ${response.status}`);
+    }
 
-    if (items.length === 0) {
-      console.log(`No LinkedIn results for: ${companyName}`);
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error(`Hunter returned non-JSON response: ${text.substring(0, 200)}`);
+      throw new Error('Hunter API returned non-JSON response (possibly Cloudflare block)');
+    }
+
+    const result: HunterCompanyResponse = await response.json();
+
+    if (result.errors && result.errors.length > 0) {
+      console.error(`Hunter API errors for ${domain}:`, result.errors);
       return null;
     }
 
-    return items[0] as LinkedInCompanySearchResult;
+    if (!result.data) {
+      console.log(`No data from Hunter for: ${domain}`);
+      return null;
+    }
+
+    return result.data;
   } catch (error) {
-    console.error(`Error searching LinkedIn for ${companyName}:`, error);
+    console.error(`Error fetching from Hunter for ${domain}:`, error);
     throw error;
   }
 }
 
-// Update company with enriched data
-async function updateCompanyWithEnrichedData(
+// Update company with enriched data from Hunter
+async function updateCompanyWithHunterData(
   companyId: string,
-  data: LinkedInCompanySearchResult,
+  data: HunterCompanyResponse['data'],
   domain: string
 ): Promise<void> {
   const updateData: Record<string, unknown> = {};
 
-  // Logo - try multiple fields
-  const logo = data.logo || data.logoUrl;
-  if (logo) updateData.logo = logo;
-
-  // Description - try tagline if no description
-  const description = data.description || data.tagline;
-  if (description) updateData.description = description;
-
-  // Industry
+  if (data.logo) updateData.logo = data.logo;
+  if (data.description) updateData.description = data.description;
   if (data.industry) updateData.industry = data.industry;
 
-  // Website - use from LinkedIn or construct from domain
-  if (data.website) {
-    updateData.website = data.website;
-  } else if (domain) {
-    updateData.website = `https://${domain}`;
-  }
+  updateData.website = `https://${data.domain || domain}`;
 
-  // LinkedIn URL
-  const linkedinUrl = data.linkedinUrl || data.url;
-  if (linkedinUrl) updateData.linkedinUrl = linkedinUrl;
+  if (data.linkedin) updateData.linkedinUrl = data.linkedin;
 
-  // Founded year
-  const foundedYear = data.foundedYear || data.foundedOn;
-  if (foundedYear) updateData.foundedYear = foundedYear;
-
-  // Headquarters
   const headquarters = formatHeadquarters(data);
   if (headquarters) updateData.headquarters = headquarters;
 
-  // Company size
-  const size = mapCompanySize(data);
+  const size = mapCompanySize(data.headcount);
   if (size) updateData.size = size;
 
-  // Always update something to mark as processed
   if (!updateData.logo) {
-    updateData.logo = ''; // Mark as processed but no logo found
+    updateData.logo = '';
   }
 
   await prisma.company.update({
@@ -255,7 +220,6 @@ export async function enrichCompanies(limit: number = 10): Promise<EnrichmentSta
     errors: [],
   };
 
-  // Get companies to enrich
   const companies = await getCompaniesForEnrichment(limit);
   stats.total = companies.length;
 
@@ -268,11 +232,10 @@ export async function enrichCompanies(limit: number = 10): Promise<EnrichmentSta
 
   for (const company of companies) {
     try {
-      const linkedInData = await searchCompanyOnLinkedIn(company.name);
+      const hunterData = await fetchCompanyFromHunter(company.domain);
 
-      if (!linkedInData) {
+      if (!hunterData) {
         stats.skipped++;
-        // Mark as processed
         await prisma.company.update({
           where: { id: company.id },
           data: {
@@ -280,25 +243,25 @@ export async function enrichCompanies(limit: number = 10): Promise<EnrichmentSta
             website: `https://${company.domain}`,
           },
         });
+        console.log(`No Hunter data for: ${company.name} (${company.domain})`);
         continue;
       }
 
-      await updateCompanyWithEnrichedData(company.id, linkedInData, company.domain);
+      await updateCompanyWithHunterData(company.id, hunterData, company.domain);
 
-      // Check if we actually got useful data
-      const hasLogo = linkedInData.logo || linkedInData.logoUrl;
-      const hasDescription = linkedInData.description || linkedInData.tagline;
+      const hasLogo = !!hunterData.logo;
+      const hasDescription = !!hunterData.description;
 
       if (hasLogo || hasDescription) {
         stats.enriched++;
-        console.log(`Enriched company: ${company.name} (logo: ${!!hasLogo}, desc: ${!!hasDescription})`);
+        console.log(`Enriched company: ${company.name} (logo: ${hasLogo}, desc: ${hasDescription})`);
       } else {
         stats.skipped++;
-        console.log(`No useful data for: ${company.name}`);
+        console.log(`Partial data for: ${company.name}`);
       }
 
-      // Rate limiting - delay between API calls
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Rate limiting
+      await new Promise(resolve => setTimeout(resolve, 500));
     } catch (error) {
       stats.failed++;
       stats.errors.push(`${company.name}: ${String(error)}`);
@@ -331,7 +294,6 @@ export async function getEnrichmentStatus(): Promise<{
     }),
   ]);
 
-  // Count companies with corporate email
   const jobsWithCorporateEmail = await prisma.job.findMany({
     where: {
       applyEmail: { not: null },
