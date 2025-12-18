@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { isFreeEmail, extractDomainFromEmail } from '@/lib/utils';
+import { isFreeEmail, extractDomainFromEmail, slugify } from '@/lib/utils';
 
 // Apollo.io Organization Enrichment API
 const APOLLO_API = 'https://api.apollo.io/api/v1/organizations/enrich';
@@ -115,6 +115,20 @@ async function updateCompanyWithApolloData(
   domain: string
 ): Promise<void> {
   const updateData: Record<string, unknown> = {};
+
+  // Update company name and slug if Apollo has a better one
+  if (org.name) {
+    updateData.name = org.name;
+    // Generate new slug from Apollo company name
+    const newSlug = slugify(org.name);
+    // Check if slug is available
+    const existingWithSlug = await prisma.company.findFirst({
+      where: { slug: newSlug, NOT: { id: companyId } },
+    });
+    if (!existingWithSlug) {
+      updateData.slug = newSlug;
+    }
+  }
 
   if (org.logo_url) updateData.logo = org.logo_url;
   if (org.short_description) updateData.description = org.short_description;
