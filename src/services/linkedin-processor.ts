@@ -1,5 +1,12 @@
-import { db } from '@/lib/db';
-import { scrapeLinkedInHiringPosts, scrapeLinkedInCompany, type LinkedInPost } from '@/lib/apify';
+import { prisma } from '@/lib/db';
+import {
+  scrapeLinkedInPosts,
+  getPostsFromDataset,
+  getPostsFromRun,
+  HIRING_SEARCH_QUERIES,
+  type LinkedInPost,
+  type ScrapeOptions,
+} from '@/lib/apify';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify } from '@/lib/utils';
 
@@ -18,10 +25,11 @@ interface ProcessingStats {
   errors: string[];
 }
 
-// Fetch and process LinkedIn hiring posts
+// Fetch and process LinkedIn hiring posts (triggers new Apify run)
 export async function fetchAndProcessLinkedInPosts(options: {
   keywords?: string[];
   maxPosts?: number;
+  postedLimit?: '24h' | 'week' | 'month';
 }): Promise<ProcessingStats> {
   const stats: ProcessingStats = {
     total: 0,
@@ -33,7 +41,7 @@ export async function fetchAndProcessLinkedInPosts(options: {
   };
 
   // Create import log
-  const importLog = await db.importLog.create({
+  const importLog = await prisma.importLog.create({
     data: {
       source: 'LINKEDIN',
       status: 'RUNNING',
@@ -41,34 +49,25 @@ export async function fetchAndProcessLinkedInPosts(options: {
   });
 
   try {
-    // 1. Scrape LinkedIn posts
-    console.log('Fetching LinkedIn posts...');
-    const posts = await scrapeLinkedInHiringPosts(options);
+    // 1. Scrape LinkedIn posts via Apify
+    console.log('Fetching LinkedIn posts via Apify...');
+
+    const scrapeOptions: ScrapeOptions = {
+      searchQueries: options.keywords || HIRING_SEARCH_QUERIES,
+      maxPosts: options.maxPosts || 50,
+      postedLimit: options.postedLimit || 'week',
+      sortBy: 'date',
+    };
+
+    const posts = await scrapeLinkedInPosts(scrapeOptions);
     stats.total = posts.length;
     console.log(`Fetched ${posts.length} posts`);
 
-    // 2. Process each post
-    for (const post of posts) {
-      try {
-        const result = await processLinkedInPost(post);
-        stats.processed++;
-
-        if (result.success && result.jobId) {
-          stats.created++;
-        } else if (result.error === 'duplicate') {
-          stats.skipped++;
-        } else {
-          stats.failed++;
-          stats.errors.push(result.error || 'Unknown error');
-        }
-      } catch (error) {
-        stats.failed++;
-        stats.errors.push(String(error));
-      }
-    }
+    // 2. Process posts
+    await processPostsBatch(posts, stats);
 
     // Update import log
-    await db.importLog.update({
+    await prisma.importLog.update({
       where: { id: importLog.id },
       data: {
         status: 'COMPLETED',
@@ -84,7 +83,7 @@ export async function fetchAndProcessLinkedInPosts(options: {
     return stats;
   } catch (error) {
     // Update import log with error
-    await db.importLog.update({
+    await prisma.importLog.update({
       where: { id: importLog.id },
       data: {
         status: 'FAILED',
@@ -97,10 +96,145 @@ export async function fetchAndProcessLinkedInPosts(options: {
   }
 }
 
+// Process posts from existing Apify dataset (for webhook)
+export async function processPostsFromDataset(datasetId: string): Promise<ProcessingStats> {
+  const stats: ProcessingStats = {
+    total: 0,
+    processed: 0,
+    created: 0,
+    skipped: 0,
+    failed: 0,
+    errors: [],
+  };
+
+  const importLog = await prisma.importLog.create({
+    data: {
+      source: 'LINKEDIN',
+      status: 'RUNNING',
+    },
+  });
+
+  try {
+    console.log(`Fetching posts from Apify dataset: ${datasetId}`);
+    const posts = await getPostsFromDataset(datasetId);
+    stats.total = posts.length;
+    console.log(`Fetched ${posts.length} posts from dataset`);
+
+    await processPostsBatch(posts, stats);
+
+    await prisma.importLog.update({
+      where: { id: importLog.id },
+      data: {
+        status: 'COMPLETED',
+        totalFetched: stats.total,
+        totalNew: stats.created,
+        totalSkipped: stats.skipped,
+        totalFailed: stats.failed,
+        errors: stats.errors.length > 0 ? stats.errors : undefined,
+        completedAt: new Date(),
+      },
+    });
+
+    return stats;
+  } catch (error) {
+    await prisma.importLog.update({
+      where: { id: importLog.id },
+      data: {
+        status: 'FAILED',
+        errors: [String(error)],
+        completedAt: new Date(),
+      },
+    });
+
+    throw error;
+  }
+}
+
+// Process posts from Apify run ID
+export async function processPostsFromRun(runId: string): Promise<ProcessingStats> {
+  const stats: ProcessingStats = {
+    total: 0,
+    processed: 0,
+    created: 0,
+    skipped: 0,
+    failed: 0,
+    errors: [],
+  };
+
+  const importLog = await prisma.importLog.create({
+    data: {
+      source: 'LINKEDIN',
+      status: 'RUNNING',
+    },
+  });
+
+  try {
+    console.log(`Fetching posts from Apify run: ${runId}`);
+    const posts = await getPostsFromRun(runId);
+    stats.total = posts.length;
+    console.log(`Fetched ${posts.length} posts from run`);
+
+    await processPostsBatch(posts, stats);
+
+    await prisma.importLog.update({
+      where: { id: importLog.id },
+      data: {
+        status: 'COMPLETED',
+        totalFetched: stats.total,
+        totalNew: stats.created,
+        totalSkipped: stats.skipped,
+        totalFailed: stats.failed,
+        errors: stats.errors.length > 0 ? stats.errors : undefined,
+        completedAt: new Date(),
+      },
+    });
+
+    return stats;
+  } catch (error) {
+    await prisma.importLog.update({
+      where: { id: importLog.id },
+      data: {
+        status: 'FAILED',
+        errors: [String(error)],
+        completedAt: new Date(),
+      },
+    });
+
+    throw error;
+  }
+}
+
+// Process a batch of posts
+async function processPostsBatch(posts: LinkedInPost[], stats: ProcessingStats): Promise<void> {
+  for (const post of posts) {
+    try {
+      const result = await processLinkedInPost(post);
+      stats.processed++;
+
+      if (result.success && result.jobId) {
+        stats.created++;
+      } else if (result.error === 'duplicate') {
+        stats.skipped++;
+      } else {
+        stats.failed++;
+        if (result.error) {
+          stats.errors.push(result.error);
+        }
+      }
+
+      // Rate limiting - small delay between posts
+      await new Promise(resolve => setTimeout(resolve, 300));
+    } catch (error) {
+      stats.failed++;
+      stats.errors.push(String(error));
+    }
+  }
+}
+
 // Process a single LinkedIn post
 async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
   // Check if already exists
-  const existingJob = await db.job.findFirst({
+  const existingJob = await prisma.job.findFirst({
     where: {
       OR: [
         { sourceId: post.id },
@@ -114,25 +248,36 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
   }
 
   // Extract job data using DeepSeek
-  console.log(`Extracting data from post: ${post.text.slice(0, 50)}...`);
-  const extracted = await extractJobData(post.text);
+  console.log(`Extracting data from post: ${post.content.slice(0, 50)}...`);
+  const extracted = await extractJobData(post.content);
 
   if (!extracted || !extracted.title) {
     return { success: false, error: 'Could not extract job title' };
   }
 
+  // Get company name from extraction or author headline
+  const companyName = extracted.company ||
+    extractCompanyFromHeadline(post.authorHeadline) ||
+    post.authorName;
+
   // Find or create company
   const company = await findOrCreateCompany({
-    name: extracted.company || post.companyName || post.authorName,
-    linkedinUrl: post.companyUrl || post.authorUrl,
+    name: companyName,
+    linkedinUrl: post.authorLinkedInUrl,
   });
 
   // Classify category
   const categorySlug = await classifyJobCategory(extracted.title, extracted.skills);
-  const category = await db.category.findUnique({ where: { slug: categorySlug } });
+  let category = await prisma.category.findUnique({ where: { slug: categorySlug } });
 
+  // Create category if it doesn't exist
   if (!category) {
-    return { success: false, error: `Category not found: ${categorySlug}` };
+    category = await prisma.category.create({
+      data: {
+        slug: categorySlug,
+        name: getCategoryName(categorySlug),
+      },
+    });
   }
 
   // Generate unique slug
@@ -143,39 +288,80 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
   const locationType = mapLocationType(extracted.isRemote, extracted.location);
 
   // Create job
-  const job = await db.job.create({
+  const job = await prisma.job.create({
     data: {
       slug,
       title: extracted.title,
-      description: post.text, // Original post as description
+      description: post.content, // Original post as description
       companyId: company.id,
       categoryId: category.id,
-      location: extracted.isRemote ? 'Remote' : extracted.location,
+      location: extracted.isRemote ? (extracted.location || 'Remote') : extracted.location,
       locationType,
+      country: extractCountryCode(extracted.location),
       level: extracted.level || 'MID',
       type: extracted.type || 'FULL_TIME',
       salaryMin: extracted.salaryMin,
       salaryMax: extracted.salaryMax,
       salaryCurrency: extracted.salaryCurrency || 'USD',
-      salaryIsEstimate: !extracted.salaryMin, // If no salary stated, we'll estimate later
+      salaryIsEstimate: !extracted.salaryMin,
       skills: extracted.skills,
       benefits: extracted.benefits,
       source: 'LINKEDIN',
       sourceType: 'UNSTRUCTURED',
       sourceUrl: post.url,
       sourceId: post.id,
-      originalContent: post.text,
-      authorLinkedIn: post.authorUrl,
+      originalContent: post.content,
+      authorLinkedIn: post.authorLinkedInUrl,
       authorName: post.authorName,
       applyEmail: extracted.contactEmail,
       applyUrl: extracted.applyUrl,
       enrichmentStatus: 'COMPLETED',
       qualityScore: calculateQualityScore(extracted, post),
-      postedAt: new Date(post.postedAt),
+      postedAt: post.postedAt,
     },
   });
 
   return { success: true, jobId: job.id };
+}
+
+// Extract company from headline like "Title at Company | More info"
+function extractCompanyFromHeadline(headline: string | null): string | null {
+  if (!headline) return null;
+
+  const patterns = [
+    /(?:at|@)\s+([^|,]+)/i,
+    /\|\s*([^|]+)$/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = headline.match(pattern);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+  }
+
+  return null;
+}
+
+// Get category display name
+function getCategoryName(slug: string): string {
+  const names: Record<string, string> = {
+    engineering: 'Engineering',
+    frontend: 'Frontend',
+    backend: 'Backend',
+    fullstack: 'Full Stack',
+    mobile: 'Mobile',
+    devops: 'DevOps',
+    data: 'Data',
+    design: 'Design',
+    product: 'Product',
+    marketing: 'Marketing',
+    sales: 'Sales',
+    support: 'Support',
+    hr: 'HR',
+    finance: 'Finance',
+  };
+  return names[slug] || slug;
 }
 
 // Find or create company
@@ -186,7 +372,7 @@ async function findOrCreateCompany(data: {
   const slug = slugify(data.name);
 
   // Try to find existing company
-  let company = await db.company.findFirst({
+  let company = await prisma.company.findFirst({
     where: {
       OR: [
         { slug },
@@ -200,28 +386,12 @@ async function findOrCreateCompany(data: {
     return company;
   }
 
-  // Try to enrich from LinkedIn
-  let enrichedData = null;
-  if (data.linkedinUrl) {
-    try {
-      enrichedData = await scrapeLinkedInCompany(data.linkedinUrl);
-    } catch (error) {
-      console.error('Company enrichment failed:', error);
-    }
-  }
-
-  // Create new company
-  company = await db.company.create({
+  // Create new company (without enrichment to save costs)
+  company = await prisma.company.create({
     data: {
       slug: await generateUniqueSlug(slug, 'company'),
-      name: enrichedData?.name || data.name,
+      name: data.name,
       linkedinUrl: data.linkedinUrl,
-      logo: enrichedData?.logo,
-      website: enrichedData?.website,
-      industry: enrichedData?.industry,
-      description: enrichedData?.description,
-      size: mapCompanySize(enrichedData?.size),
-      foundedYear: enrichedData?.foundedYear,
       verified: false,
     },
   });
@@ -236,8 +406,8 @@ async function generateUniqueSlug(base: string, type: 'job' | 'company' = 'job')
 
   while (true) {
     const exists = type === 'job'
-      ? await db.job.findUnique({ where: { slug } })
-      : await db.company.findUnique({ where: { slug } });
+      ? await prisma.job.findUnique({ where: { slug } })
+      : await prisma.company.findUnique({ where: { slug } });
 
     if (!exists) return slug;
 
@@ -251,44 +421,58 @@ function mapLocationType(isRemote: boolean, location: string | null): 'REMOTE' |
   if (!isRemote) return 'ONSITE';
 
   const loc = location?.toLowerCase() || '';
-  if (loc.includes('us') || loc.includes('usa') || loc.includes('united states')) return 'REMOTE_US';
-  if (loc.includes('eu') || loc.includes('europe')) return 'REMOTE_EU';
-  if (location && location !== 'Remote') return 'REMOTE_COUNTRY';
+  if (loc.includes('us only') || loc.includes('usa only') || loc.includes('united states only')) return 'REMOTE_US';
+  if (loc.includes('eu only') || loc.includes('europe only') || loc.includes('emea')) return 'REMOTE_EU';
+  if (location && location.toLowerCase() !== 'remote' && location.toLowerCase() !== 'worldwide') return 'REMOTE_COUNTRY';
 
   return 'REMOTE';
 }
 
-// Map company size
-function mapCompanySize(size: string | null | undefined): 'STARTUP' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'ENTERPRISE' | null {
-  if (!size) return null;
+// Extract country code
+function extractCountryCode(location: string | null): string | null {
+  if (!location) return null;
 
-  const s = size.toLowerCase();
-  if (s.includes('1-10') || s.includes('1-50')) return 'STARTUP';
-  if (s.includes('11-50') || s.includes('51-200')) return 'SMALL';
-  if (s.includes('201-500') || s.includes('501-1000')) return 'MEDIUM';
-  if (s.includes('1001-5000') || s.includes('5001-10000')) return 'LARGE';
-  if (s.includes('10000') || s.includes('10,000')) return 'ENTERPRISE';
+  const countryMap: Record<string, string> = {
+    'usa': 'US', 'united states': 'US', 'us': 'US',
+    'uk': 'GB', 'united kingdom': 'GB',
+    'canada': 'CA',
+    'germany': 'DE',
+    'france': 'FR',
+    'netherlands': 'NL',
+    'spain': 'ES',
+    'italy': 'IT',
+    'australia': 'AU',
+    'india': 'IN',
+    'brazil': 'BR',
+    'mexico': 'MX',
+    'poland': 'PL',
+    'portugal': 'PT',
+    'ireland': 'IE',
+    'sweden': 'SE',
+    'switzerland': 'CH',
+  };
+
+  const loc = location.toLowerCase();
+  for (const [key, code] of Object.entries(countryMap)) {
+    if (loc.includes(key)) {
+      return code;
+    }
+  }
 
   return null;
 }
 
 // Calculate quality score
 function calculateQualityScore(extracted: ExtractedJobData, post: LinkedInPost): number {
-  let score = 50; // Base score
+  let score = 40; // Base score for LinkedIn posts
 
-  // Content quality
-  if (extracted.title) score += 10;
-  if (extracted.company) score += 5;
+  if (extracted.title) score += 15;
+  if (extracted.company) score += 10;
   if (extracted.salaryMin || extracted.salaryMax) score += 15;
   if (extracted.skills.length > 0) score += 5;
   if (extracted.skills.length > 3) score += 5;
   if (extracted.benefits.length > 0) score += 5;
   if (extracted.contactEmail || extracted.applyUrl) score += 5;
-
-  // Engagement (indicates relevance)
-  if (post.likes > 10) score += 2;
-  if (post.likes > 50) score += 3;
-  if (post.comments > 5) score += 2;
 
   // Penalties
   if (!extracted.level) score -= 5;
@@ -297,4 +481,4 @@ function calculateQualityScore(extracted: ExtractedJobData, post: LinkedInPost):
   return Math.max(0, Math.min(100, score));
 }
 
-export { processLinkedInPost };
+export { processLinkedInPost, HIRING_SEARCH_QUERIES };

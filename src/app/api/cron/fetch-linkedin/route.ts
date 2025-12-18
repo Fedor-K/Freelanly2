@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchAndProcessLinkedInPosts } from '@/services/linkedin-processor';
+import { fetchAndProcessLinkedInPosts, HIRING_SEARCH_QUERIES } from '@/services/linkedin-processor';
 
 // Cron job endpoint for fetching LinkedIn posts
 // Call this via cron: curl -X POST http://localhost:3000/api/cron/fetch-linkedin -H "Authorization: Bearer YOUR_CRON_SECRET"
@@ -17,8 +17,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
 
     const stats = await fetchAndProcessLinkedInPosts({
-      keywords: body.keywords || ['hiring remote', 'we are hiring', 'join our team remote', 'looking for developer'],
+      keywords: body.keywords || HIRING_SEARCH_QUERIES,
       maxPosts: body.maxPosts || 50,
+      postedLimit: body.postedLimit || 'week',
     });
 
     return NextResponse.json({
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Also allow GET for easy testing
+// Also allow GET for easy testing (with smaller batch)
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
     const stats = await fetchAndProcessLinkedInPosts({
       keywords: ['hiring remote developer'],
       maxPosts: 10, // Small batch for testing
+      postedLimit: '24h',
     });
 
     return NextResponse.json({

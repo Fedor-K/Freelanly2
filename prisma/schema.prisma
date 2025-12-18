@@ -264,6 +264,11 @@ enum Source {
   RSS           // RSS feeds
   MANUAL        // Manually added
   SCRAPE        // Web scraping
+  REMOTEOK      // RemoteOK API
+  REMOTIVE      // Remotive API
+  ARBEITNOW     // Arbeitnow API
+  HIMALAYAS     // Himalayas API
+  WORKINGNOMADS // WorkingNomads
 }
 
 enum SourceType {
