@@ -35,3 +35,48 @@ export function getMaxJobAgeDate(): Date {
   date.setDate(date.getDate() - MAX_JOB_AGE_DAYS);
   return date;
 }
+
+// Free email providers - emails from these domains should not trigger company enrichment
+export const FREE_EMAIL_PROVIDERS = [
+  'gmail.com',
+  'yahoo.com',
+  'hotmail.com',
+  'outlook.com',
+  'mail.ru',
+  'yandex.ru',
+  'yandex.com',
+  'protonmail.com',
+  'proton.me',
+  'icloud.com',
+  'aol.com',
+  'zoho.com',
+  'gmx.com',
+  'gmx.net',
+  'fastmail.com',
+  'tutanota.com',
+  'pm.me',
+  'live.com',
+  'msn.com',
+  'qq.com',
+  '163.com',
+  '126.com',
+  'rambler.ru',
+  'inbox.ru',
+  'list.ru',
+  'bk.ru',
+];
+
+// Check if email is from a free provider
+export function isFreeEmail(email: string): boolean {
+  if (!email || !email.includes('@')) return true;
+  const domain = email.split('@')[1]?.toLowerCase();
+  if (!domain) return true;
+  return FREE_EMAIL_PROVIDERS.includes(domain);
+}
+
+// Extract domain from email
+export function extractDomainFromEmail(email: string): string | null {
+  if (!email || !email.includes('@')) return null;
+  const domain = email.split('@')[1]?.toLowerCase();
+  return domain || null;
+}
