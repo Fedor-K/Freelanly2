@@ -1,0 +1,418 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// USER & AUTH
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+
+  // Stripe integration
+  stripeId      String?   @unique
+  plan          Plan      @default(FREE)
+
+  // Limits tracking
+  jobViewsToday Int       @default(0)
+  lastViewReset DateTime  @default(now())
+
+  // Relations
+  applications  Application[]
+  savedJobs     SavedJob[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+// ============================================
+// COMPANIES
+// ============================================
+
+model Company {
+  id            String       @id @default(cuid())
+  slug          String       @unique
+  name          String
+  logo          String?
+  website       String?
+  description   String?
+
+  // Company details
+  size          CompanySize?
+  industry      String?
+  foundedYear   Int?
+  headquarters  String?
+
+  // LinkedIn
+  linkedinUrl   String?
+  linkedinId    String?
+
+  // ATS integration
+  atsType       ATSType?
+  atsId         String?      // board token for ATS
+
+  // Verification
+  verified      Boolean      @default(false)
+
+  // Relations
+  jobs          Job[]
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([slug])
+  @@index([name])
+}
+
+enum CompanySize {
+  STARTUP      // 1-10
+  SMALL        // 11-50
+  MEDIUM       // 51-200
+  LARGE        // 201-1000
+  ENTERPRISE   // 1000+
+}
+
+enum ATSType {
+  GREENHOUSE
+  LEVER
+  ASHBY
+  WORKABLE
+  BAMBOO
+  JOBVITE
+  SMARTRECRUITERS
+}
+
+// ============================================
+// CATEGORIES
+// ============================================
+
+model Category {
+  id            String      @id @default(cuid())
+  slug          String      @unique
+  name          String
+  description   String?     // SEO description
+  icon          String?     // Icon name or emoji
+
+  // Hierarchy
+  parentId      String?
+  parent        Category?   @relation("SubCategories", fields: [parentId], references: [id])
+  children      Category[]  @relation("SubCategories")
+
+  // SEO
+  metaTitle     String?
+  metaDescription String?
+
+  // Stats (updated daily)
+  jobCount      Int         @default(0)
+  avgSalary     Int?
+
+  // Relations
+  jobs          Job[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([slug])
+  @@index([parentId])
+}
+
+// ============================================
+// JOBS
+// ============================================
+
+model Job {
+  id            String      @id @default(cuid())
+  slug          String      @unique
+
+  // Basic info
+  title         String
+  description   String      // Original description or post text
+
+  // Company
+  company       Company     @relation(fields: [companyId], references: [id])
+  companyId     String
+
+  // Category
+  category      Category    @relation(fields: [categoryId], references: [id])
+  categoryId    String
+
+  // Location
+  location      String?     // "Remote", "New York, USA", etc
+  locationType  LocationType @default(REMOTE)
+  country       String?     // ISO code: "US", "DE", etc
+  city          String?
+  timezone      String?     // "PST", "CET", etc
+
+  // Job details
+  level         Level       @default(MID)
+  type          JobType     @default(FULL_TIME)
+
+  // Salary
+  salaryMin     Int?
+  salaryMax     Int?
+  salaryCurrency String?    @default("USD")
+  salaryPeriod  SalaryPeriod @default(YEAR)
+  salaryIsEstimate Boolean  @default(false)
+
+  // Skills/tags
+  skills        String[]    // ["React", "TypeScript", "Node.js"]
+  benefits      String[]    // ["Health insurance", "401k", "Remote"]
+
+  // Source tracking
+  source        Source
+  sourceType    SourceType  @default(STRUCTURED)
+  sourceUrl     String      // Original URL
+  sourceId      String?     // ID in source system
+
+  // LinkedIn-specific (for posts)
+  originalContent String?   // Original post text
+  authorLinkedIn  String?   // Post author's LinkedIn URL
+  authorName      String?   // Post author name
+
+  // Application
+  applyUrl      String?     // Direct apply URL
+  applyEmail    String?     // Email to apply
+
+  // Processing status
+  enrichmentStatus EnrichmentStatus @default(COMPLETED)
+  qualityScore     Int       @default(50)
+  companyVerified  Boolean   @default(false)
+
+  // Visibility
+  isActive      Boolean     @default(true)
+  isFeatured    Boolean     @default(false)
+
+  // Dates
+  postedAt      DateTime
+  expiresAt     DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  applications  Application[]
+  savedBy       SavedJob[]
+
+  @@index([categoryId])
+  @@index([companyId])
+  @@index([postedAt(sort: Desc)])
+  @@index([isActive, postedAt(sort: Desc)])
+  @@index([source])
+  @@index([level])
+  @@index([locationType])
+  @@index([country])
+}
+
+enum LocationType {
+  REMOTE        // Fully remote, worldwide
+  REMOTE_US     // Remote, US only
+  REMOTE_EU     // Remote, Europe only
+  REMOTE_COUNTRY // Remote, specific country
+  HYBRID        // Hybrid
+  ONSITE        // On-site only
+}
+
+enum Level {
+  INTERN
+  ENTRY
+  JUNIOR
+  MID
+  SENIOR
+  LEAD
+  MANAGER
+  DIRECTOR
+  EXECUTIVE
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  FREELANCE
+  INTERNSHIP
+  TEMPORARY
+}
+
+enum SalaryPeriod {
+  HOUR
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
+enum Source {
+  LINKEDIN      // LinkedIn posts
+  GREENHOUSE    // Greenhouse ATS
+  LEVER         // Lever ATS
+  ASHBY         // Ashby ATS
+  WORKABLE      // Workable ATS
+  BAMBOO        // BambooHR
+  RSS           // RSS feeds
+  MANUAL        // Manually added
+  SCRAPE        // Web scraping
+}
+
+enum SourceType {
+  STRUCTURED    // From ATS with full data
+  UNSTRUCTURED  // From LinkedIn posts, needs extraction
+}
+
+enum EnrichmentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// ============================================
+// APPLICATIONS
+// ============================================
+
+model Application {
+  id            String    @id @default(cuid())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+
+  job           Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId         String
+
+  // Application content
+  coverLetter   String?
+  resumeUrl     String?
+
+  // Status tracking
+  status        ApplicationStatus @default(SENT)
+
+  // Email tracking
+  emailMessageId String?  // For tracking
+
+  // Timestamps
+  sentAt        DateTime  @default(now())
+  openedAt      DateTime?
+  repliedAt     DateTime?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([userId, jobId])
+  @@index([userId])
+  @@index([jobId])
+  @@index([status])
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  REPLIED
+  REJECTED
+  INTERVIEW
+  OFFER
+  HIRED
+  WITHDRAWN
+}
+
+// ============================================
+// SAVED JOBS
+// ============================================
+
+model SavedJob {
+  id        String   @id @default(cuid())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId     String
+
+  notes     String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, jobId])
+  @@index([userId])
+}
+
+// ============================================
+// SEO LANDING PAGES
+// ============================================
+
+model LandingPage {
+  id            String    @id @default(cuid())
+  slug          String    @unique
+
+  // Filters that define this page
+  categorySlug  String?
+  location      String?
+  level         String?
+  jobType       String?
+
+  // SEO content
+  title         String
+  h1            String
+  metaDescription String
+  content       String?   // Additional page content for SEO
+
+  // Stats (updated via cron)
+  jobCount      Int       @default(0)
+  avgSalary     Int?
+
+  // Control
+  isActive      Boolean   @default(true)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([slug])
+  @@index([categorySlug])
+}
+
+// ============================================
+// JOB IMPORT TRACKING
+// ============================================
+
+model ImportLog {
+  id            String    @id @default(cuid())
+
+  source        Source
+  status        ImportStatus @default(RUNNING)
+
+  // Stats
+  totalFetched  Int       @default(0)
+  totalNew      Int       @default(0)
+  totalUpdated  Int       @default(0)
+  totalSkipped  Int       @default(0)
+  totalFailed   Int       @default(0)
+
+  // Error tracking
+  errors        Json?     // Array of error messages
+
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+
+  @@index([source])
+  @@index([startedAt(sort: Desc)])
+}
+
+enum ImportStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
