@@ -5,22 +5,37 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  // Create categories
+  // Create categories (synced with src/config/site.ts)
   const categories = [
+    // Tech
     { slug: 'engineering', name: 'Engineering', icon: '💻', description: 'Software engineering, development, and technical roles' },
     { slug: 'frontend', name: 'Frontend', icon: '🎨', description: 'Frontend development, React, Vue, Angular jobs', parentSlug: 'engineering' },
     { slug: 'backend', name: 'Backend', icon: '⚙️', description: 'Backend development, APIs, databases', parentSlug: 'engineering' },
     { slug: 'fullstack', name: 'Full Stack', icon: '🔄', description: 'Full stack development roles', parentSlug: 'engineering' },
     { slug: 'mobile', name: 'Mobile', icon: '📱', description: 'iOS, Android, React Native, Flutter', parentSlug: 'engineering' },
-    { slug: 'devops', name: 'DevOps', icon: '🔧', description: 'DevOps, SRE, infrastructure, cloud' },
-    { slug: 'data', name: 'Data', icon: '📊', description: 'Data science, analytics, machine learning' },
     { slug: 'design', name: 'Design', icon: '🎨', description: 'UI/UX design, product design, graphic design' },
+    { slug: 'data', name: 'Data & Analytics', icon: '📊', description: 'Data science, analytics, machine learning, BI' },
+    { slug: 'devops', name: 'DevOps', icon: '🔧', description: 'DevOps, SRE, infrastructure, cloud engineering' },
+    { slug: 'qa', name: 'QA & Testing', icon: '🧪', description: 'Quality assurance, testing, automation' },
+    { slug: 'security', name: 'Security', icon: '🔒', description: 'Information security, cybersecurity, compliance' },
+    // Business
     { slug: 'product', name: 'Product', icon: '📦', description: 'Product management, product owner roles' },
-    { slug: 'marketing', name: 'Marketing', icon: '📣', description: 'Digital marketing, growth, SEO, content' },
+    { slug: 'marketing', name: 'Marketing', icon: '📣', description: 'Digital marketing, growth, SEO, content marketing' },
     { slug: 'sales', name: 'Sales', icon: '💼', description: 'Sales, business development, account management' },
-    { slug: 'support', name: 'Support', icon: '🎧', description: 'Customer support, success, technical support' },
-    { slug: 'hr', name: 'HR & People', icon: '👥', description: 'Human resources, recruiting, people operations' },
-    { slug: 'finance', name: 'Finance', icon: '💰', description: 'Finance, accounting, financial analysis' },
+    { slug: 'finance', name: 'Finance', icon: '💰', description: 'Finance, accounting, payroll, financial analysis' },
+    { slug: 'hr', name: 'HR & Recruiting', icon: '👥', description: 'Human resources, recruiting, people operations' },
+    { slug: 'operations', name: 'Operations', icon: '⚙️', description: 'Operations, administration, office management' },
+    { slug: 'legal', name: 'Legal', icon: '⚖️', description: 'Legal, compliance, contracts, intellectual property' },
+    { slug: 'project-management', name: 'Project Management', icon: '📋', description: 'Project management, scrum master, agile coach' },
+    // Content & Creative
+    { slug: 'writing', name: 'Writing & Content', icon: '✍️', description: 'Copywriting, content creation, technical writing' },
+    { slug: 'translation', name: 'Translation', icon: '🌐', description: 'Translation, localization, interpretation' },
+    { slug: 'creative', name: 'Creative & Media', icon: '🎬', description: 'Video production, animation, photography, media' },
+    // Other
+    { slug: 'support', name: 'Customer Support', icon: '🎧', description: 'Customer support, success, technical support' },
+    { slug: 'education', name: 'Education', icon: '📚', description: 'Training, teaching, instructional design, e-learning' },
+    { slug: 'research', name: 'Research', icon: '🔬', description: 'User research, market research, academic research' },
+    { slug: 'consulting', name: 'Consulting', icon: '💡', description: 'Consulting, advisory, strategy' },
   ];
 
   // Create parent categories first
