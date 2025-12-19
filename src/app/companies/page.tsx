@@ -118,7 +118,7 @@ export default async function CompaniesPage({
         itemListElement: companies.map((company, i) => ({
           '@type': 'ListItem',
           position: i + 1,
-          url: `${siteConfig.url}/companies/${company.slug}`,
+          url: `${siteConfig.url}/company/${company.slug}`,
           name: company.name,
         })),
       },
@@ -179,7 +179,7 @@ export default async function CompaniesPage({
               {companies.length > 0 ? (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {companies.map((company) => (
-                    <Link key={company.id} href={`/companies/${company.slug}`}>
+                    <Link key={company.id} href={`/company/${company.slug}`}>
                       <Card className="h-full hover:shadow-md transition-shadow">
                         <CardContent className="pt-6">
                           <div className="flex items-start gap-3">
