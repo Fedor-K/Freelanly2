@@ -119,8 +119,8 @@ async function processLeverJob(
     return 'skipped';
   }
 
-  // Get category
-  const categorySlug = mapDepartmentToCategory(job.categories.department);
+  // Get category (check department first, then title as fallback)
+  const categorySlug = mapDepartmentToCategory(job.categories.department, job.text);
   let category = await prisma.category.findUnique({ where: { slug: categorySlug } });
   if (!category) {
     category = await prisma.category.create({
@@ -219,10 +219,9 @@ async function generateUniqueJobSlug(base: string): Promise<string> {
   }
 }
 
-function mapDepartmentToCategory(department?: string): string {
-  if (!department) return 'engineering';
-
-  const d = department.toLowerCase();
+function mapDepartmentToCategory(department?: string, title?: string): string {
+  // Check department first
+  const d = (department || '').toLowerCase();
   if (d.includes('engineer') || d.includes('develop') || d.includes('software')) return 'engineering';
   if (d.includes('design') || d.includes('ux') || d.includes('ui')) return 'design';
   if (d.includes('product') && !d.includes('market')) return 'product';
@@ -232,7 +231,19 @@ function mapDepartmentToCategory(department?: string): string {
   if (d.includes('devops') || d.includes('infrastructure') || d.includes('sre') || d.includes('platform')) return 'devops';
   if (d.includes('support') || d.includes('customer')) return 'support';
   if (d.includes('hr') || d.includes('people') || d.includes('recruit') || d.includes('talent')) return 'hr';
-  if (d.includes('finance') || d.includes('account') || d.includes('legal')) return 'finance';
+  if (d.includes('finance') || d.includes('account') || d.includes('legal') || d.includes('payroll')) return 'finance';
+
+  // Fallback: check job title
+  const t = (title || '').toLowerCase();
+  if (t.includes('payroll') || t.includes('accountant') || t.includes('finance') || t.includes('controller') || t.includes('bookkeeper')) return 'finance';
+  if (t.includes('designer') || t.includes('ux') || t.includes('ui')) return 'design';
+  if (t.includes('product manager') || t.includes('product owner')) return 'product';
+  if (t.includes('marketing') || t.includes('growth') || t.includes('seo') || t.includes('content')) return 'marketing';
+  if (t.includes('sales') || t.includes('account executive') || t.includes('bdr') || t.includes('sdr')) return 'sales';
+  if (t.includes('recruiter') || t.includes('hr ') || t.includes('human resource') || t.includes('people ops')) return 'hr';
+  if (t.includes('data analyst') || t.includes('data scientist') || t.includes('data engineer')) return 'data';
+  if (t.includes('devops') || t.includes('sre') || t.includes('infrastructure')) return 'devops';
+  if (t.includes('support') || t.includes('customer success')) return 'support';
 
   return 'engineering';
 }
