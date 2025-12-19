@@ -285,7 +285,7 @@ export default async function JobPage({ params }: JobPageProps) {
                     <CardTitle className="text-lg">Job Description</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="prose prose-sm max-w-none">
+                    <div className="prose prose-sm max-w-none whitespace-pre-wrap">
                       {job.description}
                     </div>
                   </CardContent>
