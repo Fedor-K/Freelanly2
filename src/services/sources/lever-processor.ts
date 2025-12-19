@@ -324,17 +324,48 @@ function mapSalaryInterval(interval?: string): 'HOUR' | 'DAY' | 'WEEK' | 'MONTH'
   return 'YEAR';
 }
 
+// Convert HTML to readable plain text
+function htmlToPlainText(html: string): string {
+  return html
+    // Convert list items to bullet points
+    .replace(/<li[^>]*>/gi, '\n• ')
+    .replace(/<\/li>/gi, '')
+    // Convert paragraphs and breaks to newlines
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<p[^>]*>/gi, '')
+    // Convert headers to text with newlines
+    .replace(/<h[1-6][^>]*>/gi, '\n')
+    .replace(/<\/h[1-6]>/gi, '\n')
+    // Remove list wrappers
+    .replace(/<\/?[uo]l[^>]*>/gi, '')
+    // Decode common HTML entities
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    // Strip remaining HTML tags
+    .replace(/<[^>]+>/g, '')
+    // Clean up multiple newlines
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 function buildDescription(job: LeverJob): string {
   let description = job.descriptionPlain || job.description || '';
 
   if (job.lists && job.lists.length > 0) {
     for (const list of job.lists) {
-      description += `\n\n${list.text}\n${list.content}`;
+      const content = htmlToPlainText(list.content);
+      description += `\n\n${list.text}\n${content}`;
     }
   }
 
   if (job.additionalPlain || job.additional) {
-    description += `\n\n${job.additionalPlain || job.additional}`;
+    const additional = job.additionalPlain || htmlToPlainText(job.additional || '');
+    description += `\n\n${additional}`;
   }
 
   return description.trim();
