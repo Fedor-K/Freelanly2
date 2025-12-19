@@ -220,46 +220,91 @@ async function generateUniqueJobSlug(base: string): Promise<string> {
 }
 
 function mapDepartmentToCategory(department?: string, title?: string): string {
-  // Check department first
   const d = (department || '').toLowerCase();
-  if (d.includes('engineer') || d.includes('develop') || d.includes('software')) return 'engineering';
-  if (d.includes('design') || d.includes('ux') || d.includes('ui')) return 'design';
+  const t = (title || '').toLowerCase();
+  const combined = `${d} ${t}`;
+
+  // Tech
+  if (d.includes('engineer') || d.includes('develop') || d.includes('software') || d.includes('tech')) return 'engineering';
+  if (d.includes('design') || d.includes('ux') || d.includes('ui') || d.includes('creative')) return 'design';
+  if (d.includes('data') || d.includes('analytics') || d.includes('machine learning') || d.includes('ai') || d.includes('bi')) return 'data';
+  if (d.includes('devops') || d.includes('infrastructure') || d.includes('sre') || d.includes('platform') || d.includes('cloud')) return 'devops';
+  if (d.includes('qa') || d.includes('quality') || d.includes('test')) return 'qa';
+  if (d.includes('security') || d.includes('infosec') || d.includes('cyber')) return 'security';
+
+  // Business
   if (d.includes('product') && !d.includes('market')) return 'product';
-  if (d.includes('market') || d.includes('growth')) return 'marketing';
-  if (d.includes('sale') || d.includes('business dev')) return 'sales';
-  if (d.includes('data') || d.includes('analytics') || d.includes('machine learning')) return 'data';
-  if (d.includes('devops') || d.includes('infrastructure') || d.includes('sre') || d.includes('platform')) return 'devops';
-  if (d.includes('support') || d.includes('customer')) return 'support';
+  if (d.includes('market') || d.includes('growth') || d.includes('brand')) return 'marketing';
+  if (d.includes('sale') || d.includes('business dev') || d.includes('account exec')) return 'sales';
+  if (d.includes('finance') || d.includes('account') || d.includes('payroll') || d.includes('treasury')) return 'finance';
   if (d.includes('hr') || d.includes('people') || d.includes('recruit') || d.includes('talent')) return 'hr';
-  if (d.includes('finance') || d.includes('account') || d.includes('legal') || d.includes('payroll')) return 'finance';
+  if (d.includes('operations') || d.includes('admin') || d.includes('office')) return 'operations';
+  if (d.includes('legal') || d.includes('compliance') || d.includes('contract')) return 'legal';
+  if (d.includes('project manage') || d.includes('program manage') || d.includes('pmo')) return 'project-management';
+
+  // Content & Creative
+  if (d.includes('content') || d.includes('writer') || d.includes('editor') || d.includes('copywrite')) return 'writing';
+  if (d.includes('translat') || d.includes('locali') || d.includes('language')) return 'translation';
+  if (d.includes('video') || d.includes('media') || d.includes('audio') || d.includes('animat')) return 'creative';
+
+  // Other
+  if (d.includes('support') || d.includes('customer success') || d.includes('cx')) return 'support';
+  if (d.includes('education') || d.includes('training') || d.includes('learning') || d.includes('teach')) return 'education';
+  if (d.includes('research') || d.includes('ux research') || d.includes('user research')) return 'research';
+  if (d.includes('consult') || d.includes('advisory')) return 'consulting';
 
   // Fallback: check job title
-  const t = (title || '').toLowerCase();
-  if (t.includes('payroll') || t.includes('accountant') || t.includes('finance') || t.includes('controller') || t.includes('bookkeeper')) return 'finance';
-  if (t.includes('designer') || t.includes('ux') || t.includes('ui')) return 'design';
-  if (t.includes('product manager') || t.includes('product owner')) return 'product';
-  if (t.includes('marketing') || t.includes('growth') || t.includes('seo') || t.includes('content')) return 'marketing';
-  if (t.includes('sales') || t.includes('account executive') || t.includes('bdr') || t.includes('sdr')) return 'sales';
-  if (t.includes('recruiter') || t.includes('hr ') || t.includes('human resource') || t.includes('people ops')) return 'hr';
-  if (t.includes('data analyst') || t.includes('data scientist') || t.includes('data engineer')) return 'data';
-  if (t.includes('devops') || t.includes('sre') || t.includes('infrastructure')) return 'devops';
-  if (t.includes('support') || t.includes('customer success')) return 'support';
+  if (combined.includes('payroll') || combined.includes('accountant') || combined.includes('controller') || combined.includes('bookkeeper')) return 'finance';
+  if (combined.includes('designer') || combined.includes('ux') || combined.includes('ui')) return 'design';
+  if (combined.includes('product manager') || combined.includes('product owner')) return 'product';
+  if (combined.includes('marketing') || combined.includes('growth') || combined.includes('seo')) return 'marketing';
+  if (combined.includes('sales') || combined.includes('account executive') || combined.includes('bdr') || combined.includes('sdr')) return 'sales';
+  if (combined.includes('recruiter') || combined.includes('hr ') || combined.includes('human resource') || combined.includes('people ops')) return 'hr';
+  if (combined.includes('data analyst') || combined.includes('data scientist') || combined.includes('data engineer')) return 'data';
+  if (combined.includes('devops') || combined.includes('sre') || combined.includes('infrastructure')) return 'devops';
+  if (combined.includes('qa') || combined.includes('tester') || combined.includes('quality assurance')) return 'qa';
+  if (combined.includes('security') || combined.includes('infosec')) return 'security';
+  if (combined.includes('support') || combined.includes('customer success')) return 'support';
+  if (combined.includes('project manager') || combined.includes('scrum master') || combined.includes('agile coach')) return 'project-management';
+  if (combined.includes('translator') || combined.includes('interpreter') || combined.includes('localization')) return 'translation';
+  if (combined.includes('writer') || combined.includes('editor') || combined.includes('copywriter') || combined.includes('content')) return 'writing';
+  if (combined.includes('video') || combined.includes('animator') || combined.includes('motion')) return 'creative';
+  if (combined.includes('teacher') || combined.includes('instructor') || combined.includes('tutor')) return 'education';
+  if (combined.includes('researcher')) return 'research';
+  if (combined.includes('operations') || combined.includes('office manager') || combined.includes('executive assistant')) return 'operations';
+  if (combined.includes('legal') || combined.includes('lawyer') || combined.includes('attorney') || combined.includes('paralegal')) return 'legal';
+  if (combined.includes('consultant')) return 'consulting';
 
   return 'engineering';
 }
 
 function getCategoryName(slug: string): string {
   const names: Record<string, string> = {
+    // Tech
     engineering: 'Engineering',
     design: 'Design',
+    data: 'Data & Analytics',
+    devops: 'DevOps',
+    qa: 'QA & Testing',
+    security: 'Security',
+    // Business
     product: 'Product',
     marketing: 'Marketing',
     sales: 'Sales',
-    data: 'Data',
-    devops: 'DevOps',
-    support: 'Support',
-    hr: 'HR',
     finance: 'Finance',
+    hr: 'HR & Recruiting',
+    operations: 'Operations',
+    legal: 'Legal',
+    'project-management': 'Project Management',
+    // Content
+    writing: 'Writing & Content',
+    translation: 'Translation',
+    creative: 'Creative & Media',
+    // Other
+    support: 'Customer Support',
+    education: 'Education',
+    research: 'Research',
+    consulting: 'Consulting',
   };
   return names[slug] || slug;
 }

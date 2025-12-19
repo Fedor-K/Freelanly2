@@ -35,17 +35,42 @@ export const locations = [
   { slug: 'worldwide', name: 'Worldwide', country: null },
 ] as const;
 
-export const categories = [
+// Main categories shown in navigation
+export const mainCategories = [
   { slug: 'engineering', name: 'Engineering', icon: '💻' },
   { slug: 'design', name: 'Design', icon: '🎨' },
   { slug: 'product', name: 'Product', icon: '📦' },
   { slug: 'marketing', name: 'Marketing', icon: '📣' },
   { slug: 'sales', name: 'Sales', icon: '💼' },
-  { slug: 'data', name: 'Data', icon: '📊' },
-  { slug: 'devops', name: 'DevOps', icon: '🔧' },
-  { slug: 'support', name: 'Support', icon: '🎧' },
-  { slug: 'hr', name: 'HR', icon: '👥' },
-  { slug: 'finance', name: 'Finance', icon: '💰' },
+] as const;
+
+// All categories for the platform
+export const categories = [
+  // Tech
+  { slug: 'engineering', name: 'Engineering', icon: '💻', group: 'tech' },
+  { slug: 'design', name: 'Design', icon: '🎨', group: 'tech' },
+  { slug: 'data', name: 'Data & Analytics', icon: '📊', group: 'tech' },
+  { slug: 'devops', name: 'DevOps', icon: '🔧', group: 'tech' },
+  { slug: 'qa', name: 'QA & Testing', icon: '🧪', group: 'tech' },
+  { slug: 'security', name: 'Security', icon: '🔒', group: 'tech' },
+  // Business
+  { slug: 'product', name: 'Product', icon: '📦', group: 'business' },
+  { slug: 'marketing', name: 'Marketing', icon: '📣', group: 'business' },
+  { slug: 'sales', name: 'Sales', icon: '💼', group: 'business' },
+  { slug: 'finance', name: 'Finance', icon: '💰', group: 'business' },
+  { slug: 'hr', name: 'HR & Recruiting', icon: '👥', group: 'business' },
+  { slug: 'operations', name: 'Operations', icon: '⚙️', group: 'business' },
+  { slug: 'legal', name: 'Legal', icon: '⚖️', group: 'business' },
+  { slug: 'project-management', name: 'Project Management', icon: '📋', group: 'business' },
+  // Content & Creative
+  { slug: 'writing', name: 'Writing & Content', icon: '✍️', group: 'content' },
+  { slug: 'translation', name: 'Translation', icon: '🌐', group: 'content' },
+  { slug: 'creative', name: 'Creative & Media', icon: '🎬', group: 'content' },
+  // Other
+  { slug: 'support', name: 'Customer Support', icon: '🎧', group: 'other' },
+  { slug: 'education', name: 'Education', icon: '📚', group: 'other' },
+  { slug: 'research', name: 'Research', icon: '🔬', group: 'other' },
+  { slug: 'consulting', name: 'Consulting', icon: '💡', group: 'other' },
 ] as const;
 
 export const levels = [

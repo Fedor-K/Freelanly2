@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { siteConfig, categories } from '@/config/site';
+import { siteConfig, mainCategories } from '@/config/site';
 
 export function Header() {
   return (
@@ -19,7 +19,7 @@ export function Header() {
             >
               All Jobs
             </Link>
-            {categories.slice(0, 5).map((category) => (
+            {mainCategories.map((category) => (
               <Link
                 key={category.slug}
                 href={`/jobs/${category.slug}`}
