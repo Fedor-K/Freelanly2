@@ -209,6 +209,19 @@ export function queueCompanyEnrichment(companyId: string, email: string): void {
   });
 }
 
+// Queue company enrichment by slug/name (for ATS companies without email)
+export function queueCompanyEnrichmentBySlug(companyId: string, slug: string): void {
+  // Derive domain from slug (e.g., "whoop" -> "whoop.com")
+  const domain = `${slug.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+
+  console.log(`Queueing enrichment for company ${slug} with domain ${domain}`);
+
+  // Run enrichment in background (don't await)
+  enrichCompanyByDomain(companyId, domain).catch(err => {
+    console.error(`Background enrichment failed for ${companyId}:`, err);
+  });
+}
+
 // Get companies that need enrichment
 export async function getCompaniesForEnrichment(limit: number = 50): Promise<Array<{
   id: string;

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
+import { queueCompanyEnrichmentBySlug } from '@/services/company-enrichment';
 import type { ProcessingStats, LeverJob } from './types';
 
 export async function processLeverSource(dataSourceId: string): Promise<ProcessingStats> {
@@ -195,6 +196,12 @@ async function findOrCreateCompany(name: string, slug: string) {
         verified: true,
       },
     });
+
+    // Queue automatic enrichment for new company
+    queueCompanyEnrichmentBySlug(company.id, slug);
+  } else if (company.logo === null) {
+    // Also enrich existing companies without logo
+    queueCompanyEnrichmentBySlug(company.id, slug);
   }
 
   return company;
