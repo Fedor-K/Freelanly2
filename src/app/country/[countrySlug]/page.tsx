@@ -82,9 +82,12 @@ export default async function CountryPage({ params, searchParams }: CountryPageP
     isActive: true,
   };
 
-  // Country filter
+  // Country filter - search by country code OR location containing country name
   if (country.code) {
-    whereConditions.country = country.code;
+    whereConditions.OR = [
+      { country: country.code },
+      { location: { contains: country.name, mode: 'insensitive' } },
+    ];
   }
 
   // Tech stack filter

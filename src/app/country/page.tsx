@@ -29,20 +29,33 @@ export const metadata: Metadata = {
 };
 
 export default async function CountriesPage() {
-  // Get job counts by country
+  // Get job counts by country (by country code OR location name)
   let countryCounts: Record<string, number> = {};
+  let totalJobs = 0;
 
   try {
-    const counts = await prisma.job.groupBy({
-      by: ['country'],
-      where: { isActive: true },
-      _count: true,
-    });
+    // Count total jobs for "Worldwide"
+    totalJobs = await prisma.job.count({ where: { isActive: true } });
 
-    counts.forEach((c) => {
-      if (c.country) {
-        countryCounts[c.country] = c._count;
-      }
+    // Count jobs for each country using both country code and location name
+    const countPromises = countries
+      .filter((c) => c.code) // Only countries with code (not Worldwide)
+      .map(async (country) => {
+        const count = await prisma.job.count({
+          where: {
+            isActive: true,
+            OR: [
+              { country: country.code },
+              { location: { contains: country.name, mode: 'insensitive' } },
+            ],
+          },
+        });
+        return { code: country.code!, count };
+      });
+
+    const results = await Promise.all(countPromises);
+    results.forEach((r) => {
+      countryCounts[r.code] = r.count;
     });
   } catch (error) {
     console.error('Failed to fetch country counts:', error);
@@ -99,7 +112,7 @@ export default async function CountriesPage() {
           <section className="mb-12">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {countries.map((country) => {
-                const jobCount = country.code ? countryCounts[country.code] || 0 : Object.values(countryCounts).reduce((a, b) => a + b, 0);
+                const jobCount = country.code ? countryCounts[country.code] || 0 : totalJobs;
 
                 return (
                   <Link key={country.slug} href={`/country/${country.slug}`}>
