@@ -2,6 +2,21 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Normalize company name for comparison
+function normalizeForComparison(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/,\s*$/, '')
+    .replace(/\s*[-–—]\s*engineering.*$/i, '')
+    .replace(/\s*[-–—]\s*technology.*$/i, '')
+    .replace(/\s*[-–—]\s*solutions.*$/i, '')
+    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '') // Remove punctuation
+    .replace(/\s+(inc|llc|ltd|corp|corporation|company|co)\.?$/i, '') // Remove common suffixes
+    .trim();
+}
+
 async function main() {
   console.log('Finding duplicate companies...');
 
@@ -13,10 +28,11 @@ async function main() {
     orderBy: { createdAt: 'asc' },
   });
 
-  // Group by lowercase name
+  // Group by normalized name
   const nameGroups: Map<string, typeof companies> = new Map();
   for (const company of companies) {
-    const key = company.name.toLowerCase();
+    const key = normalizeForComparison(company.name);
+    if (!key) continue; // Skip empty names
     const existing = nameGroups.get(key) || [];
     existing.push(company);
     nameGroups.set(key, existing);

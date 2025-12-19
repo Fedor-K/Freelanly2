@@ -379,20 +379,36 @@ function getCategoryName(slug: string): string {
   return names[slug] || slug;
 }
 
+// Normalize company name for matching (remove extra spaces, common suffixes variations)
+function normalizeCompanyName(name: string): string {
+  return name
+    .trim()
+    .replace(/\s+/g, ' ') // Multiple spaces to single
+    .replace(/,\s*$/, '') // Trailing comma
+    .replace(/\s*[-–—]\s*Engineering.*$/i, '') // Remove "- Engineering..." suffix
+    .replace(/\s*[-–—]\s*Technology.*$/i, '') // Remove "- Technology..." suffix
+    .trim();
+}
+
 // Find or create company
 async function findOrCreateCompany(data: {
   name: string;
   linkedinUrl?: string | null;
 }) {
-  const slug = slugify(data.name);
+  const normalizedName = normalizeCompanyName(data.name);
+  const slug = slugify(normalizedName);
 
-  // Try to find existing company
+  // Try to find existing company by multiple criteria
   let company = await prisma.company.findFirst({
     where: {
       OR: [
         { slug },
-        { linkedinUrl: data.linkedinUrl || undefined },
+        { slug: slugify(data.name) }, // Original slug too
+        ...(data.linkedinUrl ? [{ linkedinUrl: data.linkedinUrl }] : []),
         { name: { equals: data.name, mode: 'insensitive' } },
+        { name: { equals: normalizedName, mode: 'insensitive' } },
+        // Also search with contains for partial matches
+        { name: { contains: normalizedName, mode: 'insensitive' } },
       ],
     },
   });
@@ -405,7 +421,7 @@ async function findOrCreateCompany(data: {
   company = await prisma.company.create({
     data: {
       slug: await generateUniqueSlug(slug, 'company'),
-      name: data.name,
+      name: normalizedName, // Use normalized name
       linkedinUrl: data.linkedinUrl,
       verified: false,
     },
