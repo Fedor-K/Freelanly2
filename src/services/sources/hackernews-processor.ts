@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { slugify } from '@/lib/utils';
+import { slugify, isFreeEmail } from '@/lib/utils';
 import { extractJobData, classifyJobCategory } from '@/lib/deepseek';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import type { ProcessingStats } from './types';
@@ -167,6 +167,12 @@ async function processHNComment(comment: HNComment, storyId: number): Promise<'c
   // Parse the comment text to extract job info
   const text = decodeHtml(comment.comment_text);
 
+  // Check for corporate email early - skip if no corporate email
+  const email = extractEmail(text);
+  if (!email || isFreeEmail(email)) {
+    return 'skipped'; // No corporate email
+  }
+
   // HN job posts usually start with "Company Name | Location | Role"
   const parsedHeader = parseHNJobHeader(text);
 
@@ -207,8 +213,7 @@ async function processHNComment(comment: HNComment, storyId: number): Promise<'c
   // Extract level
   const level = extractLevel(jobTitle);
 
-  // Create job
-  const email = extractEmail(text);
+  // Create job (email already extracted and validated above)
   await prisma.job.create({
     data: {
       slug,

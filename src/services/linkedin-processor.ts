@@ -9,7 +9,7 @@ import {
 } from '@/lib/apify';
 import { getApifySettings } from '@/lib/settings';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
-import { slugify } from '@/lib/utils';
+import { slugify, isFreeEmail } from '@/lib/utils';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
 
 // Re-export for cron endpoint
@@ -258,6 +258,11 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
 
   if (!extracted || !extracted.title) {
     return { success: false, error: 'Could not extract job title' };
+  }
+
+  // Skip jobs without corporate email (filter out gmail, yahoo, etc.)
+  if (!extracted.contactEmail || isFreeEmail(extracted.contactEmail)) {
+    return { success: false, error: 'No corporate email - skipped' };
   }
 
   // Get company name from extraction or author headline

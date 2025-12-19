@@ -1,85 +1,117 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { getMaxJobAgeDate, MAX_JOB_AGE_DAYS } from '@/lib/utils';
+import { isFreeEmail } from '@/lib/utils';
 
-// POST /api/admin/cleanup-jobs - Deactivate jobs older than MAX_JOB_AGE_DAYS
+// POST - Cleanup jobs and companies without corporate emails
 export async function POST() {
   try {
-    const maxAgeDate = getMaxJobAgeDate();
+    console.log('Starting cleanup of non-corporate email jobs...');
 
-    // Deactivate old jobs
-    const result = await prisma.job.updateMany({
-      where: {
-        isActive: true,
-        postedAt: { lt: maxAgeDate },
-      },
-      data: {
-        isActive: false,
+    // Find all jobs with free email providers or no email
+    const jobsToCheck = await prisma.job.findMany({
+      select: {
+        id: true,
+        applyEmail: true,
+        companyId: true,
       },
     });
 
-    // Log the cleanup
-    console.log(`[Cleanup] Deactivated ${result.count} jobs older than ${MAX_JOB_AGE_DAYS} days`);
+    const jobIdsToDelete: string[] = [];
+    const companyIdsToCheck = new Set<string>();
+
+    for (const job of jobsToCheck) {
+      // Delete if no email or free email
+      if (!job.applyEmail || isFreeEmail(job.applyEmail)) {
+        jobIdsToDelete.push(job.id);
+        companyIdsToCheck.add(job.companyId);
+      }
+    }
+
+    console.log(`Found ${jobIdsToDelete.length} jobs to delete`);
+
+    // Delete jobs
+    const deletedJobs = await prisma.job.deleteMany({
+      where: {
+        id: { in: jobIdsToDelete },
+      },
+    });
+
+    console.log(`Deleted ${deletedJobs.count} jobs`);
+
+    // Find companies with no remaining jobs
+    const companiesToDelete: string[] = [];
+
+    for (const companyId of companyIdsToCheck) {
+      const remainingJobs = await prisma.job.count({
+        where: { companyId },
+      });
+
+      if (remainingJobs === 0) {
+        companiesToDelete.push(companyId);
+      }
+    }
+
+    console.log(`Found ${companiesToDelete.length} companies to delete`);
+
+    // Delete empty companies
+    const deletedCompanies = await prisma.company.deleteMany({
+      where: {
+        id: { in: companiesToDelete },
+      },
+    });
+
+    console.log(`Deleted ${deletedCompanies.count} companies`);
 
     return NextResponse.json({
       success: true,
-      deactivated: result.count,
-      maxAgeDays: MAX_JOB_AGE_DAYS,
-      cutoffDate: maxAgeDate.toISOString(),
+      deletedJobs: deletedJobs.count,
+      deletedCompanies: deletedCompanies.count,
     });
   } catch (error) {
-    console.error('Failed to cleanup old jobs:', error);
+    console.error('Error during cleanup:', error);
     return NextResponse.json(
-      { error: 'Failed to cleanup old jobs' },
+      { error: 'Failed to cleanup', details: String(error) },
       { status: 500 }
     );
   }
 }
 
-// GET /api/admin/cleanup-jobs - Preview old jobs that would be deactivated
+// GET - Preview what would be deleted
 export async function GET() {
   try {
-    const maxAgeDate = getMaxJobAgeDate();
+    const jobs = await prisma.job.findMany({
+      select: {
+        id: true,
+        title: true,
+        applyEmail: true,
+        company: {
+          select: { name: true },
+        },
+      },
+    });
 
-    const [oldJobsCount, oldJobs] = await Promise.all([
-      prisma.job.count({
-        where: {
-          isActive: true,
-          postedAt: { lt: maxAgeDate },
-        },
-      }),
-      prisma.job.findMany({
-        where: {
-          isActive: true,
-          postedAt: { lt: maxAgeDate },
-        },
-        select: {
-          id: true,
-          title: true,
-          postedAt: true,
-          company: { select: { name: true } },
-        },
-        orderBy: { postedAt: 'asc' },
-        take: 20,
-      }),
-    ]);
+    const jobsToDelete = jobs.filter(
+      job => !job.applyEmail || isFreeEmail(job.applyEmail)
+    );
+
+    const corporateJobs = jobs.filter(
+      job => job.applyEmail && !isFreeEmail(job.applyEmail)
+    );
 
     return NextResponse.json({
-      count: oldJobsCount,
-      maxAgeDays: MAX_JOB_AGE_DAYS,
-      cutoffDate: maxAgeDate.toISOString(),
-      preview: oldJobs.map((job) => ({
-        id: job.id,
-        title: job.title,
-        company: job.company.name,
-        postedAt: job.postedAt,
-        ageInDays: Math.floor((Date.now() - job.postedAt.getTime()) / (1000 * 60 * 60 * 24)),
+      totalJobs: jobs.length,
+      jobsToDelete: jobsToDelete.length,
+      corporateJobs: corporateJobs.length,
+      preview: jobsToDelete.slice(0, 20).map(j => ({
+        title: j.title,
+        company: j.company.name,
+        email: j.applyEmail || 'NO EMAIL',
       })),
     });
   } catch (error) {
-    console.error('Failed to get old jobs:', error);
+    console.error('Error getting preview:', error);
     return NextResponse.json(
-      { error: 'Failed to get old jobs' },
+      { error: 'Failed to get preview' },
       { status: 500 }
     );
   }
