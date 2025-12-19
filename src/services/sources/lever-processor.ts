@@ -184,12 +184,22 @@ async function processLeverJob(
 }
 
 async function findOrCreateCompany(name: string, slug: string) {
-  let company = await prisma.company.findUnique({ where: { slug } });
+  // Search by slug OR by name (case-insensitive) to avoid duplicates
+  let company = await prisma.company.findFirst({
+    where: {
+      OR: [
+        { slug },
+        { name: { equals: name, mode: 'insensitive' } },
+      ],
+    },
+  });
 
   if (!company) {
+    // Generate unique slug in case similar company exists with different name
+    const uniqueSlug = await generateUniqueCompanySlug(slug);
     company = await prisma.company.create({
       data: {
-        slug,
+        slug: uniqueSlug,
         name,
         atsType: 'LEVER',
         atsId: slug,
@@ -198,13 +208,24 @@ async function findOrCreateCompany(name: string, slug: string) {
     });
 
     // Queue automatic enrichment for new company
-    queueCompanyEnrichmentBySlug(company.id, slug);
+    queueCompanyEnrichmentBySlug(company.id, uniqueSlug);
   } else if (company.logo === null) {
     // Also enrich existing companies without logo
-    queueCompanyEnrichmentBySlug(company.id, slug);
+    queueCompanyEnrichmentBySlug(company.id, company.slug);
   }
 
   return company;
+}
+
+async function generateUniqueCompanySlug(base: string): Promise<string> {
+  let slug = base;
+  let counter = 1;
+  while (true) {
+    const exists = await prisma.company.findUnique({ where: { slug } });
+    if (!exists) return slug;
+    slug = `${base}-${counter}`;
+    counter++;
+  }
 }
 
 async function generateUniqueJobSlug(base: string): Promise<string> {
