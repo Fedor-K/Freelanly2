@@ -252,6 +252,7 @@ enum SalaryPeriod {
   WEEK
   MONTH
   YEAR
+  ONE_TIME
 }
 
 enum Source {

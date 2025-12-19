@@ -24,6 +24,31 @@ function buildJobUrl(companySlug: string, jobSlug: string): string {
   return `${siteConfig.url}/company/${companySlug}/jobs/${jobSlug}`;
 }
 
+// Helper to format salary period label
+function formatSalaryPeriod(period: string): string {
+  const labels: Record<string, string> = {
+    'HOUR': '/hour',
+    'DAY': '/day',
+    'WEEK': '/week',
+    'MONTH': '/month',
+    'YEAR': '/year',
+    'ONE_TIME': 'one-time',
+  };
+  return labels[period] || '/year';
+}
+
+// Helper to map salary period to Schema.org unitText
+function getSchemaUnitText(period: string): string | null {
+  const schemaUnits: Record<string, string> = {
+    'HOUR': 'HOUR',
+    'DAY': 'DAY',
+    'WEEK': 'WEEK',
+    'MONTH': 'MONTH',
+    'YEAR': 'YEAR',
+  };
+  return schemaUnits[period] || null; // ONE_TIME returns null (not supported by Schema.org)
+}
+
 // Fetch job from database
 async function getJob(jobSlug: string) {
   const job = await prisma.job.findUnique({
@@ -165,7 +190,7 @@ export default async function JobPage({ params }: JobPageProps) {
                         <p className="text-sm text-muted-foreground">Salary Range</p>
                         <p className="text-xl font-semibold">
                           {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency)}
-                          <span className="text-sm font-normal text-muted-foreground"> /year</span>
+                          <span className="text-sm font-normal text-muted-foreground"> {formatSalaryPeriod(job.salaryPeriod)}</span>
                         </p>
                       </div>
                       {job.salaryIsEstimate && (
@@ -421,7 +446,7 @@ export default async function JobPage({ params }: JobPageProps) {
                   ]
                 : undefined,
             }),
-            ...(job.salaryMin && !job.salaryIsEstimate && {
+            ...(job.salaryMin && !job.salaryIsEstimate && getSchemaUnitText(job.salaryPeriod) && {
               baseSalary: {
                 '@type': 'MonetaryAmount',
                 currency: job.salaryCurrency || 'USD',
@@ -429,7 +454,7 @@ export default async function JobPage({ params }: JobPageProps) {
                   '@type': 'QuantitativeValue',
                   minValue: job.salaryMin,
                   maxValue: job.salaryMax || job.salaryMin,
-                  unitText: 'YEAR',
+                  unitText: getSchemaUnitText(job.salaryPeriod),
                 },
               },
             }),

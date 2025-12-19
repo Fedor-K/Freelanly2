@@ -164,6 +164,7 @@ async function processLeverJob(
       salaryMin: job.salaryRange?.min,
       salaryMax: job.salaryRange?.max,
       salaryCurrency: job.salaryRange?.currency || 'USD',
+      salaryPeriod: mapSalaryInterval(job.salaryRange?.interval),
       salaryIsEstimate: false,
       skills,
       benefits: [],
@@ -310,6 +311,17 @@ function mapCommitmentToType(commitment?: string): 'FULL_TIME' | 'PART_TIME' | '
   if (c.includes('intern')) return 'INTERNSHIP';
   if (c.includes('temporary') || c.includes('temp')) return 'TEMPORARY';
   return 'FULL_TIME';
+}
+
+function mapSalaryInterval(interval?: string): 'HOUR' | 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'ONE_TIME' {
+  if (!interval) return 'YEAR';
+  const i = interval.toLowerCase();
+  if (i.includes('hour') || i === 'hourly') return 'HOUR';
+  if (i.includes('day') || i === 'daily') return 'DAY';
+  if (i.includes('week') || i === 'weekly') return 'WEEK';
+  if (i.includes('month') || i === 'monthly') return 'MONTH';
+  if (i.includes('one-time') || i.includes('one time') || i === 'once' || i.includes('project')) return 'ONE_TIME';
+  return 'YEAR';
 }
 
 function buildDescription(job: LeverJob): string {
