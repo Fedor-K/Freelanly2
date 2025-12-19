@@ -296,47 +296,68 @@ npm run db:reset     # Reset DB + reseed
 
 ---
 
-## Deployment (VPS + Docker)
+## Deployment
 
-### Quick Deploy
+### Option 1: PM2 (recommended)
 
 ```bash
-# On VPS
+# Первая установка
+cd /opt
+git clone https://github.com/Fedor-K/Freelanly2.git freelanly2
+cd freelanly2
+
+npm install
+cp .env.example .env
+nano .env  # заполнить переменные
+
+npx prisma db push
+npm run build
+
+# Запуск на порту 3001
+pm2 start npm --name "freelanly" -- start -- -p 3001
+pm2 save
+pm2 startup  # автозапуск после перезагрузки
+```
+
+### Обновление (PM2)
+
+```bash
+cd /opt/freelanly2
+git pull
+npm install           # если изменились зависимости
+npx prisma db push    # если изменилась схема БД
+npm run build
+pm2 restart freelanly
+```
+
+### Option 2: Docker
+
+```bash
 cd /opt
 git clone https://github.com/Fedor-K/Freelanly2.git freelanly
 cd freelanly
-
-# Setup env
 cp .env.example .env
-nano .env  # Fill in values
+nano .env
 
-# Run
 docker compose up -d --build
 ```
 
-### With Nginx + SSL
-
-```bash
-# Install nginx
-apt install nginx certbot python3-certbot-nginx -y
-
-# Copy config
-cp deploy/nginx.conf /etc/nginx/sites-available/freelanly
-ln -s /etc/nginx/sites-available/freelanly /etc/nginx/sites-enabled/
-
-# Get SSL
-certbot --nginx -d your-domain.com
-
-# Reload
-nginx -t && systemctl reload nginx
-```
-
-### Update Deployment
+### Обновление (Docker)
 
 ```bash
 cd /opt/freelanly
 git pull
 docker compose up -d --build
+```
+
+### С Nginx + SSL
+
+```bash
+apt install nginx certbot python3-certbot-nginx -y
+cp deploy/nginx.conf /etc/nginx/sites-available/freelanly
+ln -s /etc/nginx/sites-available/freelanly /etc/nginx/sites-enabled/
+certbot --nginx -d your-domain.com
+nginx -t && systemctl reload nginx
 ```
 
 See full guide: [deploy/DEPLOY.md](deploy/DEPLOY.md)
