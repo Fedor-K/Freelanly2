@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import {
   enrichCompanies,
   enrichAllPendingCompanies,
+  enrichCompaniesByName,
   getEnrichmentStatus,
   getCompaniesForEnrichment,
 } from '@/services/company-enrichment';
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const all = body.all === true;
     const reset = body.reset === true;
+    const byName = body.byName === true; // Enrich by company name/website
     const limit = body.limit || 10;
 
     // Reset all companies for re-enrichment
@@ -55,9 +57,9 @@ export async function POST(request: Request) {
       });
       console.log(`Reset ${resetResult.count} companies`);
 
-      // Now enrich all
-      console.log('Starting enrichment for ALL companies...');
-      const stats = await enrichAllPendingCompanies();
+      // Now enrich all by name (since reset clears all)
+      console.log('Starting enrichment for ALL companies by name...');
+      const stats = await enrichCompaniesByName(500);
       return NextResponse.json({
         success: true,
         message: `Reset ${resetResult.count} companies and re-enriched`,
@@ -65,13 +67,36 @@ export async function POST(request: Request) {
       });
     }
 
+    // Enrich by company name/website (for companies without email)
+    if (byName) {
+      console.log(`Enriching companies by name/website (limit: ${limit})...`);
+      const stats = await enrichCompaniesByName(limit);
+      return NextResponse.json({
+        success: true,
+        message: 'Enriched companies by name/website',
+        stats,
+      });
+    }
+
     if (all) {
       console.log('Starting enrichment for ALL pending companies...');
-      const stats = await enrichAllPendingCompanies();
+      // First try by email domain
+      const emailStats = await enrichAllPendingCompanies();
+      // Then try remaining by name
+      const nameStats = await enrichCompaniesByName(500);
+
       return NextResponse.json({
         success: true,
         message: 'Enriched all pending companies',
-        stats,
+        stats: {
+          byEmail: emailStats,
+          byName: nameStats,
+          total: {
+            enriched: emailStats.enriched + nameStats.enriched,
+            skipped: emailStats.skipped + nameStats.skipped,
+            failed: emailStats.failed + nameStats.failed,
+          },
+        },
       });
     }
 

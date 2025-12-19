@@ -357,6 +357,110 @@ export async function enrichAllPendingCompanies(): Promise<EnrichmentStats> {
   return totalStats;
 }
 
+// Extract domain from URL
+function extractDomainFromUrl(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
+    return parsed.hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+}
+
+// Derive domain from company name (e.g., "Appen" -> "appen.com")
+function deriveDomainFromName(name: string): string {
+  // Clean company name: remove Inc, LLC, Ltd, Corp, etc.
+  const cleaned = name
+    .toLowerCase()
+    .replace(/[,.]?\s*(inc|llc|ltd|corp|corporation|company|co|gmbh|ag|sa|srl|limited)\.?$/i, '')
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+
+  return `${cleaned}.com`;
+}
+
+// Enrich companies that don't have email (using website or name)
+export async function enrichCompaniesByName(limit: number = 50): Promise<EnrichmentStats> {
+  const stats: EnrichmentStats = {
+    total: 0,
+    enriched: 0,
+    skipped: 0,
+    failed: 0,
+    errors: [],
+  };
+
+  // Find companies without logo that don't have jobs with corporate email
+  const companies = await prisma.company.findMany({
+    where: {
+      logo: null,
+    },
+    select: {
+      id: true,
+      name: true,
+      website: true,
+    },
+    take: limit,
+  });
+
+  stats.total = companies.length;
+
+  if (companies.length === 0) {
+    console.log('No companies to enrich by name');
+    return stats;
+  }
+
+  console.log(`Found ${companies.length} companies to enrich by name/website`);
+
+  for (const company of companies) {
+    try {
+      // Try to get domain from website first, then from name
+      let domain = extractDomainFromUrl(company.website);
+
+      if (!domain) {
+        domain = deriveDomainFromName(company.name);
+      }
+
+      console.log(`Trying to enrich ${company.name} with domain: ${domain}`);
+
+      const apolloData = await fetchCompanyFromApollo(domain);
+
+      if (!apolloData) {
+        stats.skipped++;
+        await prisma.company.update({
+          where: { id: company.id },
+          data: { logo: '' }, // Mark as processed
+        });
+        console.log(`No Apollo data for: ${company.name} (${domain})`);
+        continue;
+      }
+
+      await updateCompanyWithApolloData(company.id, apolloData, domain);
+
+      const hasLogo = !!apolloData.logo_url;
+      const hasDescription = !!apolloData.short_description;
+
+      if (hasLogo || hasDescription) {
+        stats.enriched++;
+        console.log(`Enriched company: ${company.name} (logo: ${hasLogo}, desc: ${hasDescription})`);
+      } else {
+        stats.skipped++;
+        console.log(`Partial data for: ${company.name}`);
+      }
+
+      // Rate limiting
+      await new Promise(resolve => setTimeout(resolve, 300));
+    } catch (error) {
+      stats.failed++;
+      const errorMsg = `${company.name}: ${String(error)}`;
+      stats.errors.push(errorMsg);
+      console.error(`Failed to enrich ${company.name}:`, error);
+    }
+  }
+
+  return stats;
+}
+
 // Get enrichment status for admin
 export async function getEnrichmentStatus(): Promise<{
   totalCompanies: number;
