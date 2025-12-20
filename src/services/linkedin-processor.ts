@@ -276,6 +276,18 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     linkedinUrl: post.authorLinkedInUrl,
   });
 
+  // Check for duplicate job by title + company (case-insensitive)
+  const duplicateByTitle = await prisma.job.findFirst({
+    where: {
+      companyId: company.id,
+      title: { equals: extracted.title, mode: 'insensitive' },
+    },
+  });
+
+  if (duplicateByTitle) {
+    return { success: false, error: 'duplicate' };
+  }
+
   // Classify category
   const categorySlug = await classifyJobCategory(extracted.title, extracted.skills);
   let category = await prisma.category.findUnique({ where: { slug: categorySlug } });
