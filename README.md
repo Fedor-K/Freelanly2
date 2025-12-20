@@ -171,13 +171,16 @@ src/
 │   │   └── Footer.tsx
 │   └── jobs/
 │       ├── JobCard.tsx
-│       └── JobFilters.tsx        # Search filter component
+│       ├── JobFilters.tsx        # Search filter component
+│       └── SalaryInsights.tsx    # Salary market data visualization
 │
 ├── lib/
 │   ├── db.ts                     # Prisma client
 │   ├── deepseek.ts               # DeepSeek AI (extraction + categorization)
 │   ├── apify.ts                  # Apify client
 │   ├── apollo.ts                 # Apollo.io enrichment
+│   ├── bls.ts                    # BLS API client (US salary data)
+│   ├── adzuna.ts                 # Adzuna API client (international salary)
 │   ├── dashamail.ts              # DashaMail email
 │   ├── settings.ts               # DB settings store
 │   └── utils.ts                  # Utilities (slugify, freshness, etc.)
@@ -185,12 +188,14 @@ src/
 ├── services/
 │   ├── linkedin-processor.ts     # LinkedIn → Job pipeline
 │   ├── company-enrichment.ts     # Apollo.io enrichment queue
+│   ├── salary-insights.ts        # Salary market data service
 │   └── sources/
 │       ├── lever-processor.ts    # Lever ATS processor
 │       └── types.ts              # Shared types
 │
 ├── config/
-│   └── site.ts                   # Site config, 21 categories, levels, etc.
+│   ├── site.ts                   # Site config, 21 categories, levels, etc.
+│   └── salary-coefficients.ts    # Country salary coefficients (50+ countries)
 │
 └── types/
     └── index.ts                  # TypeScript types
@@ -272,6 +277,37 @@ POST /api/webhooks/apify
 **Файлы:**
 - `src/lib/apollo.ts` — Apollo.io client
 - `src/services/company-enrichment.ts` — Enrichment queue
+
+### Salary Insights
+
+На странице вакансии отображаются реальные рыночные данные о зарплатах:
+
+**Источники данных (по приоритету):**
+
+| Source | Coverage | Data Quality |
+|--------|----------|--------------|
+| **BLS API** | US only | Official government statistics, 40+ occupation codes |
+| **Adzuna API** | 19 countries | UK, DE, FR, AU, NL, AT, BE, BR, CA, IN, IT, MX, NZ, PL, RU, SG, ZA, ES, CH |
+| **Coefficients** | 50+ countries | Estimation based on US baseline × country coefficient |
+| **DB Fallback** | All | Calculated from similar jobs in database |
+
+**Компонент отображает:**
+- Визуализация диапазона зарплат (min-max с перцентилями)
+- Средняя зарплата
+- Количество похожих вакансий
+- Источник данных (BLS/Adzuna/Estimated)
+- Позиция текущей вакансии относительно рынка
+
+**Кэширование:**
+- 30 дней в таблице `SalaryBenchmark`
+- Уникальный ключ: `jobTitle + country + region`
+
+**Файлы:**
+- `src/lib/bls.ts` — BLS API client (US)
+- `src/lib/adzuna.ts` — Adzuna API client (international)
+- `src/config/salary-coefficients.ts` — Country coefficients (50+ countries)
+- `src/services/salary-insights.ts` — Main service
+- `src/components/jobs/SalaryInsights.tsx` — UI component
 
 ---
 
@@ -531,6 +567,15 @@ APIFY_API_TOKEN="apify_api_xxx"
 # Apollo.io (company enrichment)
 APOLLO_API_KEY="xxx"
 
+# BLS (Bureau of Labor Statistics) - US salary data
+# Register: https://data.bls.gov/registrationEngine/
+BLS_API_KEY="xxx"
+
+# Adzuna (international salary data)
+# Register: https://developer.adzuna.com/
+ADZUNA_APP_ID="xxx"
+ADZUNA_APP_KEY="xxx"
+
 # DashaMail (email applications)
 DASHAMAIL_API_KEY="xxx"
 DASHAMAIL_FROM_EMAIL="info@freelanly.com"
@@ -636,6 +681,7 @@ Job             → Dual source support (ATS/LinkedIn)
 Application     → Email tracking
 ImportLog       → Job import tracking
 DataSource      → Configured import sources
+SalaryBenchmark → Cached salary market data (30-day TTL)
 ```
 
 ### Key Job Fields
@@ -679,6 +725,7 @@ model Job {
 - [x] Docker deployment
 - [x] Admin panel for sources
 - [x] Maintenance scripts
+- [x] **Salary Insights** (BLS + Adzuna + coefficients)
 - [ ] Authentication (NextAuth)
 - [ ] Stripe payments
 - [ ] User dashboard

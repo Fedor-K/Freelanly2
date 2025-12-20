@@ -325,6 +325,7 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
       salaryMin: extracted.salaryMin,
       salaryMax: extracted.salaryMax,
       salaryCurrency: extracted.salaryCurrency || 'USD',
+      salaryPeriod: extracted.salaryPeriod || 'YEAR',
       salaryIsEstimate: !extracted.salaryMin,
       skills: extracted.skills,
       benefits: extracted.benefits,

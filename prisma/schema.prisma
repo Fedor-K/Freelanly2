@@ -498,6 +498,49 @@ model DataSource {
 }
 
 // ============================================
+// SALARY BENCHMARKS (Cache for salary market data)
+// ============================================
+
+model SalaryBenchmark {
+  id            String   @id @default(cuid())
+
+  // Search key - normalized job title + location
+  jobTitle      String   // Normalized title (e.g., "software engineer")
+  country       String   // ISO code: "US", "UK", "DE", etc.
+  region        String   @default("") // State/region for more specific data (empty = national)
+
+  // Salary data (annual, in USD)
+  minSalary     Int
+  maxSalary     Int
+  avgSalary     Int
+  medianSalary  Int
+  percentile25  Int
+  percentile75  Int
+  sampleSize    Int      // Number of data points used
+
+  // Source tracking
+  source        SalarySource
+  sourceCode    String?  // BLS SOC code, Adzuna category, etc.
+  rawResponse   Json?    // Original API response for debugging
+
+  // Cache management
+  createdAt     DateTime @default(now())
+  expiresAt     DateTime // When this cache entry expires
+
+  @@unique([jobTitle, country, region])
+  @@index([jobTitle])
+  @@index([country])
+  @@index([expiresAt])
+}
+
+enum SalarySource {
+  BLS           // US Bureau of Labor Statistics
+  ADZUNA        // Adzuna salary predictor
+  CALCULATED    // Calculated from our job database
+  ESTIMATED     // AI/coefficient-based estimation
+}
+
+// ============================================
 // SETTINGS (Key-Value Store)
 // ============================================
 

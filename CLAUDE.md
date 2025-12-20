@@ -52,6 +52,46 @@ Other: support, education, research, consulting
 - Only jobs with corporate email (filter gmail, yahoo, etc.)
 - `src/lib/utils.ts` → `isFreeEmail()`
 
+### Salary Insights
+Real market salary data displayed on job detail pages.
+
+**Data Sources (priority order):**
+1. **US jobs** → BLS API (Bureau of Labor Statistics)
+   - 40+ SOC occupation code mappings
+   - Official government salary data
+2. **International** → Adzuna API (19 countries)
+   - UK, DE, FR, AU, NL, AT, BE, BR, CA, IN, IT, MX, NZ, PL, RU, SG, ZA, ES, CH
+   - Histogram-based salary data with currency conversion
+3. **Other countries** → Coefficient-based estimation
+   - 50+ countries with coefficients relative to US (1.0)
+   - File: `src/config/salary-coefficients.ts`
+4. **Fallback** → Calculate from similar jobs in DB
+
+**Caching:**
+- 30 days in `SalaryBenchmark` table
+- Unique key: `jobTitle + country + region`
+
+**Component displays:**
+- Market range visualization (min-max with percentiles)
+- Average salary
+- Sample size (when available)
+- Source badge (BLS/Adzuna/Estimated)
+- "This job" position comparison
+
+**Files:**
+- `src/lib/bls.ts` — BLS API client
+- `src/lib/adzuna.ts` — Adzuna API client
+- `src/config/salary-coefficients.ts` — Country coefficients
+- `src/services/salary-insights.ts` — Main orchestration service
+- `src/components/jobs/SalaryInsights.tsx` — UI component
+
+**Environment variables:**
+```
+BLS_API_KEY=xxx
+ADZUNA_APP_ID=xxx
+ADZUNA_APP_KEY=xxx
+```
+
 ## Important Files
 
 ```
@@ -60,10 +100,15 @@ src/
 ├── app/company/[slug]/jobs/[job]/page.tsx  # Job detail + Apply Now
 ├── lib/deepseek.ts                # AI extraction + categorization (21 cats)
 ├── lib/utils.ts                   # Freshness, slugify, free email check
+├── lib/bls.ts                     # BLS API client (US salary data)
+├── lib/adzuna.ts                  # Adzuna API client (international salary)
 ├── services/linkedin-processor.ts # LinkedIn → Job (with dedup)
 ├── services/sources/lever-processor.ts  # Lever ATS processor
 ├── services/company-enrichment.ts # Apollo.io enrichment
+├── services/salary-insights.ts    # Salary market data service
 ├── config/site.ts                 # Categories, levels, countries config
+├── config/salary-coefficients.ts  # Country salary coefficients
+├── components/jobs/SalaryInsights.tsx  # Salary insights component
 
 scripts/
 ├── cleanup-duplicate-companies.ts # Merge duplicate companies
@@ -102,6 +147,7 @@ Admin → Sources → Add New → LEVER → company-slug → Save & Run
 5. **Working job filters** — search, level, type via URL params
 6. **Fixed categorization** — 21 categories, AI + fallback, default=support
 7. **Updated README** — comprehensive system documentation
+8. **Salary Insights** — real market data from BLS (US) + Adzuna (international)
 
 ## Code Patterns
 

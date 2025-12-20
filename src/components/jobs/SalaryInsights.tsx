@@ -2,6 +2,19 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
+export interface SalaryMarketData {
+  avgSalary: number;
+  minSalary: number;
+  maxSalary: number;
+  medianSalary: number;
+  percentile25: number;
+  percentile75: number;
+  sampleSize: number;
+  source: string;
+  sourceLabel: string;
+  isEstimate: boolean;
+}
+
 interface SalaryInsightsProps {
   jobTitle: string;
   location: string;
@@ -9,15 +22,7 @@ interface SalaryInsightsProps {
   salaryMax?: number | null;
   currency?: string | null;
   isEstimate?: boolean;
-  // Aggregated data (would come from DB in production)
-  marketData?: {
-    avgSalary: number;
-    minSalary: number;
-    maxSalary: number;
-    totalJobs: number;
-    percentile25: number;
-    percentile75: number;
-  };
+  marketData?: SalaryMarketData | null;
 }
 
 export function SalaryInsights({
@@ -29,15 +34,12 @@ export function SalaryInsights({
   isEstimate,
   marketData,
 }: SalaryInsightsProps) {
-  // Default market data if not provided
-  const data = marketData || {
-    avgSalary: 120000,
-    minSalary: 80000,
-    maxSalary: 200000,
-    totalJobs: 150,
-    percentile25: 95000,
-    percentile75: 145000,
-  };
+  // If no market data provided, don't render the component
+  if (!marketData) {
+    return null;
+  }
+
+  const data = marketData;
 
   const formatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -50,7 +52,7 @@ export function SalaryInsights({
   // Calculate where this job's salary falls in the market range
   const jobMidpoint = salaryMin && salaryMax ? (salaryMin + salaryMax) / 2 : salaryMin || salaryMax;
   const marketRange = data.maxSalary - data.minSalary;
-  const jobPercentile = jobMidpoint
+  const jobPercentile = jobMidpoint && marketRange > 0
     ? Math.min(100, Math.max(0, ((jobMidpoint - data.minSalary) / marketRange) * 100))
     : null;
 
@@ -63,15 +65,39 @@ export function SalaryInsights({
     }
   }
 
+  // Source badge color
+  const getSourceBadgeClass = () => {
+    switch (data.source) {
+      case 'BLS':
+        return 'bg-blue-100 text-blue-700';
+      case 'ADZUNA':
+        return 'bg-green-100 text-green-700';
+      case 'CALCULATED':
+        return 'bg-purple-100 text-purple-700';
+      case 'ESTIMATED':
+        return 'bg-yellow-100 text-yellow-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center gap-2">
           📊 Salary Insights
         </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Based on {data.totalJobs} similar {jobTitle.toLowerCase()} roles
-        </p>
+        <div className="flex flex-col gap-1">
+          <p className="text-sm text-muted-foreground">
+            {data.sampleSize > 0
+              ? `Based on ${data.sampleSize.toLocaleString()} similar ${jobTitle.toLowerCase()} roles`
+              : `Market estimate for ${jobTitle.toLowerCase()} roles`
+            }
+          </p>
+          <span className={`text-xs px-2 py-0.5 rounded w-fit ${getSourceBadgeClass()}`}>
+            {data.sourceLabel}
+          </span>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Market Range Visualization */}
@@ -87,13 +113,15 @@ export function SalaryInsights({
             <div className="absolute inset-0 bg-gradient-to-r from-red-200 via-green-200 to-blue-200" />
 
             {/* 25th-75th percentile highlight */}
-            <div
-              className="absolute top-0 bottom-0 bg-green-400/60"
-              style={{
-                left: `${((data.percentile25 - data.minSalary) / marketRange) * 100}%`,
-                width: `${((data.percentile75 - data.percentile25) / marketRange) * 100}%`,
-              }}
-            />
+            {marketRange > 0 && (
+              <div
+                className="absolute top-0 bottom-0 bg-green-400/60"
+                style={{
+                  left: `${((data.percentile25 - data.minSalary) / marketRange) * 100}%`,
+                  width: `${((data.percentile75 - data.percentile25) / marketRange) * 100}%`,
+                }}
+              />
+            )}
 
             {/* This job's position */}
             {jobPercentile !== null && (
@@ -117,7 +145,9 @@ export function SalaryInsights({
             <p className="text-xs text-muted-foreground">Average Salary</p>
           </div>
           <div className="text-center p-3 bg-muted rounded-lg">
-            <p className="text-2xl font-bold">{data.totalJobs}</p>
+            <p className="text-2xl font-bold">
+              {data.sampleSize > 0 ? data.sampleSize.toLocaleString() : '—'}
+            </p>
             <p className="text-xs text-muted-foreground">Similar Jobs</p>
           </div>
         </div>
@@ -130,7 +160,7 @@ export function SalaryInsights({
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Median</span>
-            <span>{formatter.format(data.avgSalary)}</span>
+            <span>{formatter.format(data.medianSalary)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">75th Percentile</span>
@@ -163,8 +193,10 @@ export function SalaryInsights({
 
         {/* Disclaimer */}
         <p className="text-xs text-muted-foreground border-t pt-4">
-          Salary data is aggregated from similar roles in {location}. Actual compensation
-          may vary based on experience, skills, and company.
+          {data.isEstimate
+            ? `Salary data is estimated based on market trends for ${location}. Actual compensation may vary based on experience, skills, and company.`
+            : `Salary data is aggregated from similar roles in ${location}. Actual compensation may vary based on experience, skills, and company.`
+          }
         </p>
       </CardContent>
     </Card>
