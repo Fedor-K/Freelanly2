@@ -1,0 +1,25 @@
+services:
+  app:
+    build: .
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - APIFY_API_TOKEN=${APIFY_API_TOKEN}
+      - DASHAMAIL_API_KEY=${DASHAMAIL_API_KEY}
+      - DASHAMAIL_FROM_EMAIL=${DASHAMAIL_FROM_EMAIL}
+      - DASHAMAIL_LIST_ID=${DASHAMAIL_LIST_ID}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - CRON_SECRET=${CRON_SECRET:-}
+    depends_on:
+      - migrate
+
+  migrate:
+    build: .
+    command: sh -c "npx prisma db push && npx tsx prisma/seed.ts"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    restart: "no"

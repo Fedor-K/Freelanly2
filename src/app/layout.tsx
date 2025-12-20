@@ -1,0 +1,141 @@
+import type { Metadata, Viewport } from "next";
+import "./globals.css";
+import { siteConfig } from "@/config/site";
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#ffffff',
+};
+
+export const metadata: Metadata = {
+  title: {
+    default: `${siteConfig.name} - Remote Jobs from LinkedIn & Top Companies`,
+    template: `%s | ${siteConfig.name}`,
+  },
+  description: siteConfig.description,
+  keywords: siteConfig.keywords,
+  authors: [{ name: siteConfig.creator }],
+  creator: siteConfig.creator,
+  publisher: siteConfig.creator,
+  metadataBase: new URL(siteConfig.url),
+  alternates: {
+    canonical: siteConfig.url,
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: siteConfig.url,
+    title: `${siteConfig.name} - Find Remote Jobs`,
+    description: siteConfig.description,
+    siteName: siteConfig.name,
+    images: [
+      {
+        url: siteConfig.ogImage,
+        width: 1200,
+        height: 630,
+        alt: `${siteConfig.name} - Remote Jobs`,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${siteConfig.name} - Remote Jobs`,
+    description: siteConfig.description,
+    images: [siteConfig.ogImage],
+    creator: "@freelanly",
+    site: "@freelanly",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    nocache: false,
+    googleBot: {
+      index: true,
+      follow: true,
+      noimageindex: false,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    // Add these when you have them
+    // google: 'your-google-verification-code',
+    // yandex: 'your-yandex-verification-code',
+  },
+  category: 'jobs',
+};
+
+// Website and Organization JSON-LD
+const websiteJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  '@id': `${siteConfig.url}/#website`,
+  name: siteConfig.name,
+  url: siteConfig.url,
+  description: siteConfig.description,
+  publisher: {
+    '@id': `${siteConfig.url}/#organization`,
+  },
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: `${siteConfig.url}/jobs?q={search_term_string}`,
+    },
+    'query-input': 'required name=search_term_string',
+  },
+};
+
+const organizationJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  '@id': `${siteConfig.url}/#organization`,
+  name: siteConfig.name,
+  url: siteConfig.url,
+  logo: {
+    '@type': 'ImageObject',
+    url: `${siteConfig.url}/logo.png`,
+  },
+  sameAs: [
+    siteConfig.links.twitter,
+    siteConfig.links.github,
+  ],
+  contactPoint: {
+    '@type': 'ContactPoint',
+    email: 'info@freelanly.com',
+    contactType: 'customer service',
+  },
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.json" />
+        {/* Preconnect to external domains */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        {/* JSON-LD Structured Data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+        />
+      </head>
+      <body className="font-sans antialiased">
+        {children}
+      </body>
+    </html>
+  );
+}
