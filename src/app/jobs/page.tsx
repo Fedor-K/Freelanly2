@@ -5,15 +5,20 @@ import { Footer } from '@/components/layout/Footer';
 import { JobCard } from '@/components/jobs/JobCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { siteConfig, categories, levels, jobTypes, locationTypes } from '@/config/site';
+import { siteConfig, categories, levels, jobTypes } from '@/config/site';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
+import { JobFilters } from '@/components/jobs/JobFilters';
 
 export const dynamic = 'force-dynamic';
 
 interface JobsPageProps {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    q?: string;
+    level?: string | string[];
+    type?: string | string[];
+  }>;
 }
 
 const JOBS_PER_PAGE = 20;
@@ -40,17 +45,44 @@ export const metadata: Metadata = {
   },
 };
 
-// Fetch jobs from database (only fresh jobs - max 60 days old)
-async function getJobs(page: number) {
+// Fetch jobs from database with filters
+async function getJobs(
+  page: number,
+  filters: {
+    search?: string;
+    levels?: string[];
+    types?: string[];
+  }
+) {
   const maxAgeDate = getMaxJobAgeDate();
   const skip = (page - 1) * JOBS_PER_PAGE;
 
+  const where: any = {
+    isActive: true,
+    postedAt: { gte: maxAgeDate },
+  };
+
+  // Search filter
+  if (filters.search) {
+    where.OR = [
+      { title: { contains: filters.search, mode: 'insensitive' } },
+      { company: { name: { contains: filters.search, mode: 'insensitive' } } },
+    ];
+  }
+
+  // Level filter
+  if (filters.levels && filters.levels.length > 0) {
+    where.level = { in: filters.levels };
+  }
+
+  // Type filter
+  if (filters.types && filters.types.length > 0) {
+    where.type = { in: filters.types };
+  }
+
   const [jobs, totalCount] = await Promise.all([
     prisma.job.findMany({
-      where: {
-        isActive: true,
-        postedAt: { gte: maxAgeDate },
-      },
+      where,
       include: {
         company: {
           select: {
@@ -64,22 +96,53 @@ async function getJobs(page: number) {
       skip,
       take: JOBS_PER_PAGE,
     }),
-    prisma.job.count({
-      where: {
-        isActive: true,
-        postedAt: { gte: maxAgeDate },
-      },
-    }),
+    prisma.job.count({ where }),
   ]);
 
   return { jobs, totalCount };
 }
 
+// Helper to normalize array params
+function toArray(value: string | string[] | undefined): string[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+// Build URL with filters
+function buildFilterUrl(
+  baseParams: Record<string, string | string[] | undefined>,
+  changes: Record<string, string | string[] | undefined>
+): string {
+  const params = new URLSearchParams();
+  const merged = { ...baseParams, ...changes };
+
+  for (const [key, value] of Object.entries(merged)) {
+    if (!value) continue;
+    if (Array.isArray(value)) {
+      value.forEach((v) => params.append(key, v));
+    } else {
+      params.set(key, value);
+    }
+  }
+
+  const queryString = params.toString();
+  return queryString ? `/jobs?${queryString}` : '/jobs';
+}
+
 export default async function JobsPage({ searchParams }: JobsPageProps) {
   const params = await searchParams;
   const currentPage = Math.max(1, parseInt(params.page || '1', 10) || 1);
-  const { jobs, totalCount } = await getJobs(currentPage);
+
+  const filters = {
+    search: params.q,
+    levels: toArray(params.level),
+    types: toArray(params.type),
+  };
+
+  const { jobs, totalCount } = await getJobs(currentPage, filters);
   const totalPages = Math.ceil(totalCount / JOBS_PER_PAGE);
+
+  const hasFilters = filters.search || filters.levels.length > 0 || filters.types.length > 0;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -100,10 +163,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
             <aside className="hidden lg:block w-64 flex-shrink-0">
               <div className="sticky top-20 space-y-6">
                 {/* Search */}
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Search</label>
-                  <Input placeholder="Job title, company..." />
-                </div>
+                <JobFilters currentSearch={filters.search} />
 
                 {/* Categories */}
                 <div>
@@ -125,12 +185,33 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                 <div>
                   <label className="text-sm font-medium mb-2 block">Level</label>
                   <div className="space-y-1">
-                    {levels.map((level) => (
-                      <label key={level.value} className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" className="rounded" />
-                        {level.label}
-                      </label>
-                    ))}
+                    {levels.map((level) => {
+                      const isActive = filters.levels.includes(level.value);
+                      const newLevels = isActive
+                        ? filters.levels.filter((l) => l !== level.value)
+                        : [...filters.levels, level.value];
+                      const href = buildFilterUrl(
+                        { q: params.q, type: params.type },
+                        { level: newLevels.length > 0 ? newLevels : undefined, page: undefined }
+                      );
+
+                      return (
+                        <Link
+                          key={level.value}
+                          href={href}
+                          className={`flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-muted ${
+                            isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground'
+                          }`}
+                        >
+                          <span className={`w-4 h-4 border rounded flex items-center justify-center ${
+                            isActive ? 'bg-primary border-primary text-white' : 'border-gray-300'
+                          }`}>
+                            {isActive && '✓'}
+                          </span>
+                          {level.label}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -138,25 +219,33 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                 <div>
                   <label className="text-sm font-medium mb-2 block">Job Type</label>
                   <div className="space-y-1">
-                    {jobTypes.map((type) => (
-                      <label key={type.value} className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" className="rounded" />
-                        {type.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
+                    {jobTypes.map((type) => {
+                      const isActive = filters.types.includes(type.value);
+                      const newTypes = isActive
+                        ? filters.types.filter((t) => t !== type.value)
+                        : [...filters.types, type.value];
+                      const href = buildFilterUrl(
+                        { q: params.q, level: params.level },
+                        { type: newTypes.length > 0 ? newTypes : undefined, page: undefined }
+                      );
 
-                {/* Location */}
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Location</label>
-                  <div className="space-y-1">
-                    {locationTypes.map((loc) => (
-                      <label key={loc.value} className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" className="rounded" />
-                        {loc.label}
-                      </label>
-                    ))}
+                      return (
+                        <Link
+                          key={type.value}
+                          href={href}
+                          className={`flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-muted ${
+                            isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground'
+                          }`}
+                        >
+                          <span className={`w-4 h-4 border rounded flex items-center justify-center ${
+                            isActive ? 'bg-primary border-primary text-white' : 'border-gray-300'
+                          }`}>
+                            {isActive && '✓'}
+                          </span>
+                          {type.label}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -165,27 +254,87 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
             {/* Job List */}
             <div className="flex-1">
               {/* Active Filters */}
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
                 <span className="text-sm text-muted-foreground">Filters:</span>
-                <Badge variant="secondary">All Categories</Badge>
-                <Badge variant="secondary">All Levels</Badge>
-                <Button variant="ghost" size="sm" className="text-xs">
-                  Clear all
-                </Button>
+
+                {filters.search && (
+                  <Link href={buildFilterUrl({ level: params.level, type: params.type }, { q: undefined })}>
+                    <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
+                      Search: {filters.search} ×
+                    </Badge>
+                  </Link>
+                )}
+
+                {filters.levels.map((level) => {
+                  const levelLabel = levels.find((l) => l.value === level)?.label || level;
+                  const newLevels = filters.levels.filter((l) => l !== level);
+                  return (
+                    <Link
+                      key={level}
+                      href={buildFilterUrl(
+                        { q: params.q, type: params.type },
+                        { level: newLevels.length > 0 ? newLevels : undefined }
+                      )}
+                    >
+                      <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
+                        {levelLabel} ×
+                      </Badge>
+                    </Link>
+                  );
+                })}
+
+                {filters.types.map((type) => {
+                  const typeLabel = jobTypes.find((t) => t.value === type)?.label || type;
+                  const newTypes = filters.types.filter((t) => t !== type);
+                  return (
+                    <Link
+                      key={type}
+                      href={buildFilterUrl(
+                        { q: params.q, level: params.level },
+                        { type: newTypes.length > 0 ? newTypes : undefined }
+                      )}
+                    >
+                      <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
+                        {typeLabel} ×
+                      </Badge>
+                    </Link>
+                  );
+                })}
+
+                {!hasFilters && (
+                  <Badge variant="outline">All Jobs</Badge>
+                )}
+
+                {hasFilters && (
+                  <Link href="/jobs">
+                    <Button variant="ghost" size="sm" className="text-xs">
+                      Clear all
+                    </Button>
+                  </Link>
+                )}
               </div>
 
               {/* Jobs */}
-              <div className="space-y-4">
-                {jobs.map((job) => (
-                  <JobCard key={job.id} job={job} />
-                ))}
-              </div>
+              {jobs.length > 0 ? (
+                <div className="space-y-4">
+                  {jobs.map((job) => (
+                    <JobCard key={job.id} job={job} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground mb-4">No jobs found matching your filters.</p>
+                  <Link href="/jobs">
+                    <Button variant="outline">Clear filters</Button>
+                  </Link>
+                </div>
+              )}
 
               {/* Pagination */}
               {totalPages > 1 && (
                 <nav className="mt-8 flex justify-center gap-2">
                   {currentPage > 1 ? (
-                    <Link href={`/jobs?page=${currentPage - 1}`}>
+                    <Link href={buildFilterUrl(params, { page: String(currentPage - 1) })}>
                       <Button variant="outline">Previous</Button>
                     </Link>
                   ) : (
@@ -197,7 +346,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                   </span>
 
                   {currentPage < totalPages ? (
-                    <Link href={`/jobs?page=${currentPage + 1}`}>
+                    <Link href={buildFilterUrl(params, { page: String(currentPage + 1) })}>
                       <Button variant="outline">Next</Button>
                     </Link>
                   ) : (

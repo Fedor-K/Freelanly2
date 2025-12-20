@@ -4,7 +4,6 @@ import { notFound } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { JobCard } from '@/components/jobs/JobCard';
-import { JobFilters } from '@/components/jobs/JobFilters';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { siteConfig, countries, jobRoles } from '@/config/site';
@@ -232,17 +231,9 @@ export default async function CountryPage({ params, searchParams }: CountryPageP
             </div>
           </section>
 
-          <div className="flex gap-8">
-            {/* Filters Sidebar */}
-            <aside className="hidden lg:block w-64 flex-shrink-0">
-              <JobFilters
-                basePath={`/country/${countrySlug}`}
-                currentFilters={filters}
-              />
-            </aside>
-
+          <div>
             {/* Job List */}
-            <div className="flex-1">
+            <div>
               {jobs.length > 0 ? (
                 <div className="space-y-4">
                   {jobs.map((job) => (
