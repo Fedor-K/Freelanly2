@@ -281,7 +281,7 @@ export default async function JobPage({ params }: JobPageProps) {
                       )}
                     </CardHeader>
                     <CardContent>
-                      <div className="bg-white rounded-lg p-4 border whitespace-pre-wrap text-sm">
+                      <div className="bg-white rounded-lg p-4 border whitespace-pre-wrap break-words text-sm overflow-hidden">
                         {job.originalContent}
                       </div>
                       <div className="mt-4 flex gap-2">
