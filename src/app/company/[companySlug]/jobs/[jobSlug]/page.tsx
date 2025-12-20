@@ -120,16 +120,12 @@ export default async function JobPage({ params }: JobPageProps) {
 
       <main className="flex-1">
         <div className="container py-8">
-          {/* Breadcrumbs - RRS style */}
+          {/* Breadcrumbs - simplified path */}
           <nav className="mb-6 text-sm text-muted-foreground">
             <Link href="/" className="hover:text-foreground">Home</Link>
             {' / '}
             <Link href={`/company/${job.company.slug}`} className="hover:text-foreground">
               {job.company.name}
-            </Link>
-            {' / '}
-            <Link href={`/company/${job.company.slug}/jobs`} className="hover:text-foreground">
-              Jobs
             </Link>
             {' / '}
             <span className="text-foreground">{job.title}</span>
@@ -468,7 +464,7 @@ export default async function JobPage({ params }: JobPageProps) {
         }}
       />
 
-      {/* BreadcrumbList Structured Data - RRS style */}
+      {/* BreadcrumbList Structured Data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -478,8 +474,7 @@ export default async function JobPage({ params }: JobPageProps) {
             itemListElement: [
               { '@type': 'ListItem', position: 1, name: 'Home', item: siteConfig.url },
               { '@type': 'ListItem', position: 2, name: job.company.name, item: `${siteConfig.url}/company/${job.company.slug}` },
-              { '@type': 'ListItem', position: 3, name: 'Jobs', item: `${siteConfig.url}/company/${job.company.slug}/jobs` },
-              { '@type': 'ListItem', position: 4, name: job.title, item: jobUrl },
+              { '@type': 'ListItem', position: 3, name: job.title, item: jobUrl },
             ],
           }),
         }}
