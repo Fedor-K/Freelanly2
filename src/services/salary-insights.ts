@@ -164,7 +164,13 @@ async function getCachedSalary(
 
     return null;
   } catch (error) {
-    console.error('[SalaryInsights] Cache read error:', error);
+    // Handle missing table gracefully
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('SalaryBenchmark')) {
+      console.log('[SalaryInsights] SalaryBenchmark table not found - skipping cache. Run: npx prisma db push');
+    } else {
+      console.error('[SalaryInsights] Cache read error:', error);
+    }
     return null;
   }
 }
@@ -223,7 +229,13 @@ async function cacheSalary(
       },
     });
   } catch (error) {
-    console.error('[SalaryInsights] Cache write error:', error);
+    // Handle missing table gracefully - caching will be skipped
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('SalaryBenchmark')) {
+      // Silently skip - already logged in getCachedSalary
+    } else {
+      console.error('[SalaryInsights] Cache write error:', error);
+    }
   }
 }
 
