@@ -115,31 +115,36 @@ export default async function JobPage({ params }: JobPageProps) {
   const isLinkedInPost = job.sourceType === 'UNSTRUCTURED';
   const jobUrl = buildJobUrl(job.company.slug, job.slug);
 
-  // Fetch salary market data
+  // Fetch salary market data (only for annual salaries or jobs without salary info)
+  // Hourly/daily/weekly rates can't be meaningfully compared to annual market data
+  const shouldShowSalaryInsights = !job.salaryMin || job.salaryPeriod === 'YEAR';
+
   let salaryMarketData: SalaryMarketData | null = null;
-  try {
-    const salaryData = await getSalaryInsights(
-      job.title,
-      job.location,
-      job.country,
-      job.categoryId
-    );
-    if (salaryData) {
-      salaryMarketData = {
-        avgSalary: salaryData.avgSalary,
-        minSalary: salaryData.minSalary,
-        maxSalary: salaryData.maxSalary,
-        medianSalary: salaryData.medianSalary,
-        percentile25: salaryData.percentile25,
-        percentile75: salaryData.percentile75,
-        sampleSize: salaryData.sampleSize,
-        source: salaryData.source,
-        sourceLabel: salaryData.sourceLabel,
-        isEstimate: salaryData.isEstimate,
-      };
+  if (shouldShowSalaryInsights) {
+    try {
+      const salaryData = await getSalaryInsights(
+        job.title,
+        job.location,
+        job.country,
+        job.categoryId
+      );
+      if (salaryData) {
+        salaryMarketData = {
+          avgSalary: salaryData.avgSalary,
+          minSalary: salaryData.minSalary,
+          maxSalary: salaryData.maxSalary,
+          medianSalary: salaryData.medianSalary,
+          percentile25: salaryData.percentile25,
+          percentile75: salaryData.percentile75,
+          sampleSize: salaryData.sampleSize,
+          source: salaryData.source,
+          sourceLabel: salaryData.sourceLabel,
+          isEstimate: salaryData.isEstimate,
+        };
+      }
+    } catch (error) {
+      console.error('[JobPage] Error fetching salary insights:', error);
     }
-  } catch (error) {
-    console.error('[JobPage] Error fetching salary insights:', error);
   }
 
   return (
