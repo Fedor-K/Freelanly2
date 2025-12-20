@@ -53,12 +53,44 @@ Other: support, education, research, consulting
 - `src/lib/utils.ts` → `isFreeEmail()`
 
 ### Salary Insights
-- **US jobs** → BLS API (Bureau of Labor Statistics)
-- **International** → Adzuna API (19 countries: UK, DE, FR, AU, etc.)
-- **Other countries** → Coefficient-based estimation (relative to US)
-- **Fallback** → Calculate from similar jobs in DB
-- **Caching** → 30 days in `salary_benchmarks` table
-- Files: `src/lib/bls.ts`, `src/lib/adzuna.ts`, `src/services/salary-insights.ts`
+Real market salary data displayed on job detail pages.
+
+**Data Sources (priority order):**
+1. **US jobs** → BLS API (Bureau of Labor Statistics)
+   - 40+ SOC occupation code mappings
+   - Official government salary data
+2. **International** → Adzuna API (19 countries)
+   - UK, DE, FR, AU, NL, AT, BE, BR, CA, IN, IT, MX, NZ, PL, RU, SG, ZA, ES, CH
+   - Histogram-based salary data with currency conversion
+3. **Other countries** → Coefficient-based estimation
+   - 50+ countries with coefficients relative to US (1.0)
+   - File: `src/config/salary-coefficients.ts`
+4. **Fallback** → Calculate from similar jobs in DB
+
+**Caching:**
+- 30 days in `SalaryBenchmark` table
+- Unique key: `jobTitle + country + region`
+
+**Component displays:**
+- Market range visualization (min-max with percentiles)
+- Average salary
+- Sample size (when available)
+- Source badge (BLS/Adzuna/Estimated)
+- "This job" position comparison
+
+**Files:**
+- `src/lib/bls.ts` — BLS API client
+- `src/lib/adzuna.ts` — Adzuna API client
+- `src/config/salary-coefficients.ts` — Country coefficients
+- `src/services/salary-insights.ts` — Main orchestration service
+- `src/components/jobs/SalaryInsights.tsx` — UI component
+
+**Environment variables:**
+```
+BLS_API_KEY=xxx
+ADZUNA_APP_ID=xxx
+ADZUNA_APP_KEY=xxx
+```
 
 ## Important Files
 
