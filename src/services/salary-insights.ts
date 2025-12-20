@@ -33,6 +33,14 @@ export interface SalaryInsightsData {
   currency: string;
   jobTitle: string;
   isEstimate: boolean;
+  // Calculation details for tooltip
+  calculationDetails?: {
+    method: string;
+    baselineSource?: string;
+    baselineAvg?: number;
+    coefficient?: number;
+    coefficientName?: string;
+  };
 }
 
 /**
@@ -156,7 +164,13 @@ async function getCachedSalary(
 
     return null;
   } catch (error) {
-    console.error('[SalaryInsights] Cache read error:', error);
+    // Handle missing table gracefully
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('SalaryBenchmark')) {
+      console.log('[SalaryInsights] SalaryBenchmark table not found - skipping cache. Run: npx prisma db push');
+    } else {
+      console.error('[SalaryInsights] Cache read error:', error);
+    }
     return null;
   }
 }
@@ -215,7 +229,13 @@ async function cacheSalary(
       },
     });
   } catch (error) {
-    console.error('[SalaryInsights] Cache write error:', error);
+    // Handle missing table gracefully - caching will be skipped
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('does not exist') || errorMessage.includes('relation') || errorMessage.includes('SalaryBenchmark')) {
+      // Silently skip - already logged in getCachedSalary
+    } else {
+      console.error('[SalaryInsights] Cache write error:', error);
+    }
   }
 }
 
@@ -286,6 +306,14 @@ async function fetchFromAdzuna(
     return null;
   }
 
+  // Validate that we have meaningful salary data (not all zeros)
+  // Minimum $1000 annual salary to be considered valid
+  const MIN_VALID_SALARY = 1000;
+  if (adzunaData.avgSalaryUSD < MIN_VALID_SALARY || adzunaData.sampleSize < 1) {
+    console.log(`[Adzuna] Invalid/insufficient data for "${jobTitle}": avg=${adzunaData.avgSalaryUSD}, samples=${adzunaData.sampleSize}`);
+    return null;
+  }
+
   const data: SalaryInsightsData = {
     minSalary: adzunaData.minSalaryUSD,
     maxSalary: adzunaData.maxSalaryUSD,
@@ -351,9 +379,11 @@ async function calculateFromDatabase(
     }
 
     // Calculate statistics
+    // Filter out unrealistic annual salaries (< $10K likely means hourly rate stored incorrectly)
+    const MIN_ANNUAL_SALARY = 10000;
     const salaries = jobs
       .map(j => ((j.salaryMin || 0) + (j.salaryMax || 0)) / 2)
-      .filter(s => s > 0)
+      .filter(s => s >= MIN_ANNUAL_SALARY)
       .sort((a, b) => a - b);
 
     if (salaries.length < 3) {
@@ -438,6 +468,13 @@ async function estimateFromCoefficients(
   // Apply country coefficient
   const coefficient = getCountryCoefficient(country);
 
+  // Determine baseline source description
+  const baselineSourceDesc = usBaseline.source === 'BLS'
+    ? 'BLS (US Bureau of Labor Statistics)'
+    : usBaseline.source === 'CALCULATED'
+    ? 'Similar jobs in database'
+    : 'Industry average estimate';
+
   const data: SalaryInsightsData = {
     minSalary: Math.round(usBaseline.minSalary * coefficient.coefficient),
     maxSalary: Math.round(usBaseline.maxSalary * coefficient.coefficient),
@@ -452,6 +489,13 @@ async function estimateFromCoefficients(
     currency: 'USD',
     jobTitle: normalizedTitle,
     isEstimate: true,
+    calculationDetails: {
+      method: 'Country coefficient adjustment',
+      baselineSource: baselineSourceDesc,
+      baselineAvg: usBaseline.avgSalary,
+      coefficient: coefficient.coefficient,
+      coefficientName: coefficient.name,
+    },
   };
 
   // Cache the result

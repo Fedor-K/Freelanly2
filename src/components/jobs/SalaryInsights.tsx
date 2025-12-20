@@ -1,6 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+export interface CalculationDetails {
+  method: string;
+  baselineSource?: string;
+  baselineAvg?: number;
+  coefficient?: number;
+  coefficientName?: string;
+}
 
 export interface SalaryMarketData {
   avgSalary: number;
@@ -13,6 +22,7 @@ export interface SalaryMarketData {
   source: string;
   sourceLabel: string;
   isEstimate: boolean;
+  calculationDetails?: CalculationDetails;
 }
 
 interface SalaryInsightsProps {
@@ -34,6 +44,8 @@ export function SalaryInsights({
   isEstimate,
   marketData,
 }: SalaryInsightsProps) {
+  const [showTooltip, setShowTooltip] = useState(false);
+
   // If no market data provided, don't render the component
   if (!marketData) {
     return null;
@@ -94,9 +106,44 @@ export function SalaryInsights({
               : `Market estimate for ${jobTitle.toLowerCase()} roles`
             }
           </p>
-          <span className={`text-xs px-2 py-0.5 rounded w-fit ${getSourceBadgeClass()}`}>
-            {data.sourceLabel}
-          </span>
+          <div className="relative inline-block">
+            <span
+              className={`text-xs px-2 py-0.5 rounded w-fit cursor-help ${getSourceBadgeClass()}`}
+              onMouseEnter={() => setShowTooltip(true)}
+              onMouseLeave={() => setShowTooltip(false)}
+            >
+              {data.sourceLabel}
+              {data.calculationDetails && <span className="ml-1">ⓘ</span>}
+            </span>
+            {showTooltip && data.calculationDetails && (
+              <div className="absolute z-50 left-0 top-full mt-2 w-72 p-3 bg-popover border rounded-lg shadow-lg text-sm">
+                <p className="font-medium mb-2">How this was calculated:</p>
+                <ul className="space-y-1 text-muted-foreground text-xs">
+                  <li>
+                    <span className="font-medium">Method:</span> {data.calculationDetails.method}
+                  </li>
+                  {data.calculationDetails.baselineSource && (
+                    <li>
+                      <span className="font-medium">Baseline:</span> {data.calculationDetails.baselineSource}
+                    </li>
+                  )}
+                  {data.calculationDetails.baselineAvg && (
+                    <li>
+                      <span className="font-medium">US Average:</span> ${data.calculationDetails.baselineAvg.toLocaleString()}/year
+                    </li>
+                  )}
+                  {data.calculationDetails.coefficient && (
+                    <li>
+                      <span className="font-medium">Coefficient:</span> ×{data.calculationDetails.coefficient} ({data.calculationDetails.coefficientName})
+                    </li>
+                  )}
+                </ul>
+                <p className="mt-2 text-xs text-muted-foreground border-t pt-2">
+                  ${data.calculationDetails.baselineAvg?.toLocaleString()} × {data.calculationDetails.coefficient} = ${data.avgSalary.toLocaleString()}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
