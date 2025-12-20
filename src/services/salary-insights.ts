@@ -359,9 +359,11 @@ async function calculateFromDatabase(
     }
 
     // Calculate statistics
+    // Filter out unrealistic annual salaries (< $10K likely means hourly rate stored incorrectly)
+    const MIN_ANNUAL_SALARY = 10000;
     const salaries = jobs
       .map(j => ((j.salaryMin || 0) + (j.salaryMax || 0)) / 2)
-      .filter(s => s > 0)
+      .filter(s => s >= MIN_ANNUAL_SALARY)
       .sort((a, b) => a - b);
 
     if (salaries.length < 3) {
