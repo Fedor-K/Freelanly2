@@ -87,24 +87,85 @@ export async function classifyJobCategory(
       messages: [
         {
           role: 'system',
-          content: `Classify this job into ONE category. Return only the slug.
-Categories: engineering, frontend, backend, fullstack, mobile, devops, data, design, product, marketing, sales, support, hr, finance
+          content: `Classify this job into ONE category. Return ONLY the category slug, nothing else.
 
-If unsure, return "engineering" for technical roles.`
+Categories (use exact slug):
+- engineering: Software engineers, developers, programmers
+- design: UI/UX designers, graphic designers, product designers
+- data: Data scientists, analysts, ML engineers, BI analysts
+- devops: DevOps, SRE, infrastructure, cloud engineers
+- qa: QA engineers, testers, quality assurance
+- security: Security engineers, cybersecurity, infosec
+- product: Product managers, product owners
+- marketing: Marketing, growth, SEO, content marketing
+- sales: Sales, business development, account managers
+- finance: Finance, accounting, payroll specialists
+- hr: HR, recruiters, people operations
+- operations: Operations, administration, office management
+- legal: Legal, compliance, contracts
+- project-management: Project managers, scrum masters, agile coaches
+- writing: Copywriters, content writers, technical writers
+- translation: Translators, interpreters, localization
+- creative: Video producers, animators, photographers
+- support: Customer support, customer success, tech support
+- education: Trainers, teachers, instructional designers
+- research: Researchers, user researchers, market researchers
+- consulting: Consultants, advisors, strategists
+
+Match based on job title and skills. Choose the MOST specific category that fits.
+Examples:
+- "Business Analyst" → data (or product if product-focused)
+- "Research Manager" → research
+- "Image Review/Annotation" → qa
+- "Software Engineer" → engineering
+- "Full Stack Developer" → engineering`
         },
-        { role: 'user', content: `Title: ${title}\nSkills: ${skills.join(', ')}` }
+        { role: 'user', content: `Title: ${title}\nSkills: ${skills.join(', ') || 'none specified'}` }
       ],
       temperature: 0,
       max_tokens: 50,
     });
 
-    const category = response.choices[0]?.message?.content?.trim().toLowerCase();
-    const validCategories = ['engineering', 'frontend', 'backend', 'fullstack', 'mobile', 'devops', 'data', 'design', 'product', 'marketing', 'sales', 'support', 'hr', 'finance'];
+    const category = response.choices[0]?.message?.content?.trim().toLowerCase().replace(/[^a-z-]/g, '');
+    const validCategories = [
+      'engineering', 'design', 'data', 'devops', 'qa', 'security',
+      'product', 'marketing', 'sales', 'finance', 'hr', 'operations',
+      'legal', 'project-management', 'writing', 'translation', 'creative',
+      'support', 'education', 'research', 'consulting'
+    ];
 
-    return validCategories.includes(category || '') ? category! : 'engineering';
+    if (validCategories.includes(category || '')) {
+      return category!;
+    }
+
+    // Fallback: classify locally based on title keywords
+    const t = title.toLowerCase();
+    if (t.includes('research') || t.includes('researcher')) return 'research';
+    if (t.includes('analyst') || t.includes('data') || t.includes('bi ')) return 'data';
+    if (t.includes('product manager') || t.includes('product owner')) return 'product';
+    if (t.includes('qa') || t.includes('quality') || t.includes('test') || t.includes('review')) return 'qa';
+    if (t.includes('support') || t.includes('customer success')) return 'support';
+    if (t.includes('marketing') || t.includes('growth')) return 'marketing';
+    if (t.includes('sales') || t.includes('account')) return 'sales';
+    if (t.includes('design') || t.includes('ux') || t.includes('ui')) return 'design';
+    if (t.includes('writer') || t.includes('content') || t.includes('copy')) return 'writing';
+    if (t.includes('translat') || t.includes('locali')) return 'translation';
+    if (t.includes('project manager') || t.includes('scrum')) return 'project-management';
+    if (t.includes('hr') || t.includes('recruit') || t.includes('people')) return 'hr';
+    if (t.includes('finance') || t.includes('account') || t.includes('payroll')) return 'finance';
+    if (t.includes('legal') || t.includes('compliance')) return 'legal';
+    if (t.includes('operations') || t.includes('admin')) return 'operations';
+    if (t.includes('engineer') || t.includes('develop') || t.includes('program')) return 'engineering';
+
+    return 'support'; // Safe default for misc jobs
   } catch (error) {
     console.error('Category classification error:', error);
-    return 'engineering';
+    // Local fallback on API error
+    const t = title.toLowerCase();
+    if (t.includes('engineer') || t.includes('develop')) return 'engineering';
+    if (t.includes('analyst') || t.includes('data')) return 'data';
+    if (t.includes('manager')) return 'product';
+    return 'support';
   }
 }
 
