@@ -294,6 +294,14 @@ async function fetchFromAdzuna(
     return null;
   }
 
+  // Validate that we have meaningful salary data (not all zeros)
+  // Minimum $1000 annual salary to be considered valid
+  const MIN_VALID_SALARY = 1000;
+  if (adzunaData.avgSalaryUSD < MIN_VALID_SALARY || adzunaData.sampleSize < 1) {
+    console.log(`[Adzuna] Invalid/insufficient data for "${jobTitle}": avg=${adzunaData.avgSalaryUSD}, samples=${adzunaData.sampleSize}`);
+    return null;
+  }
+
   const data: SalaryInsightsData = {
     minSalary: adzunaData.minSalaryUSD,
     maxSalary: adzunaData.maxSalaryUSD,
