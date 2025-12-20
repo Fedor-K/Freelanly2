@@ -114,6 +114,11 @@ scripts/
 ├── cleanup-duplicate-companies.ts # Merge duplicate companies
 ├── cleanup-duplicate-jobs.ts      # Remove duplicate jobs
 ├── recategorize-jobs.ts           # Fix miscategorized jobs
+├── fix-mistral-company.ts         # Fix company via Apollo enrichment
+├── merge-mistral-companies.ts     # Merge duplicate companies
+├── reenrich-mistral.ts            # Re-enrich company from Apollo
+├── create-salary-benchmark-table.sql # Manual SQL for SalaryBenchmark table
+├── debug-salary-calculation.ts    # Debug salary calculation sources
 ```
 
 ## Common Tasks
@@ -138,6 +143,52 @@ npx tsx scripts/recategorize-jobs.ts
 ### Add Lever source
 Admin → Sources → Add New → LEVER → company-slug → Save & Run
 
+### Fix wrong company enrichment
+If Apollo enriched company with wrong data (e.g., bakery instead of AI company):
+```bash
+# 1. Create script to re-enrich with correct domain
+cat > scripts/fix-company.ts << 'EOF'
+import { prisma } from '../src/lib/db';
+import { enrichCompanyByDomain } from '../src/services/company-enrichment';
+
+async function main() {
+  const company = await prisma.company.findFirst({
+    where: { slug: 'company-slug' }
+  });
+  if (!company) return;
+
+  // Reset logo to trigger re-enrichment
+  await prisma.company.update({
+    where: { id: company.id },
+    data: { logo: null }
+  });
+
+  // Enrich with correct domain
+  await enrichCompanyByDomain(company.id, 'correct-domain.com');
+}
+main().catch(console.error).finally(() => prisma.$disconnect());
+EOF
+npx tsx scripts/fix-company.ts
+```
+
+### Merge duplicate companies
+```bash
+npx tsx scripts/merge-mistral-companies.ts
+# Or create custom merge script for specific companies
+```
+
+### Database operations
+```bash
+# Seed categories (required after DB reset!)
+npm run db:seed
+
+# Push schema changes
+npx prisma db push
+
+# DANGEROUS: Reset database (deletes ALL data!)
+npx prisma db push --force-reset
+```
+
 ## Recent Changes (Dec 2024)
 
 1. **Fixed company duplicates** — search by slug OR name
@@ -148,6 +199,12 @@ Admin → Sources → Add New → LEVER → company-slug → Save & Run
 6. **Fixed categorization** — 21 categories, AI + fallback, default=support
 7. **Updated README** — comprehensive system documentation
 8. **Salary Insights** — real market data from BLS (US) + Adzuna (international)
+9. **Salary period extraction** — DeepSeek now extracts salaryPeriod (HOUR/DAY/WEEK/MONTH/YEAR/ONE_TIME)
+10. **Salary Insights for annual only** — hidden for hourly/daily/weekly jobs (meaningless comparison)
+11. **Calculation tooltip** — hover on "Estimated for [country]" shows formula breakdown
+12. **Adzuna validation** — skip data if avgSalary < $1000 or sampleSize < 1
+13. **DB salary filter** — MIN_ANNUAL_SALARY = $10000 to filter out hourly rates stored incorrectly
+14. **Graceful error handling** — SalaryBenchmark table missing doesn't crash the app
 
 ## Code Patterns
 
@@ -168,3 +225,30 @@ Admin → Sources → Add New → LEVER → company-slug → Save & Run
 - Категоризация должна быть точной — не всё engineering!
 - Фильтры на /jobs работают через URL params
 - Breadcrumbs = URL structure, не путь навигации
+
+## ⚠️ Important Warnings
+
+1. **NEVER use `prisma db push --force-reset`** without understanding it deletes ALL data!
+2. After DB reset, must run `npm run db:seed` to restore categories
+3. Apollo enrichment can match wrong company (e.g., "Mistral" → bakery instead of AI)
+4. Salary Insights only shown for annual salaries (YEAR period)
+5. Server runs on `/opt/freelanly2` with PM2 process `freelanly`
+
+## Server Commands (Production)
+
+```bash
+# SSH to server
+ssh root@198.12.73.168
+
+# App location
+cd /opt/freelanly2
+
+# Restart app
+pm2 restart freelanly
+
+# View logs
+pm2 logs freelanly --lines 50
+
+# Rebuild after code changes
+git pull && npm run build && pm2 restart freelanly
+```
