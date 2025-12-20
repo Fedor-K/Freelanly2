@@ -7,11 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { SalaryInsights } from '@/components/jobs/SalaryInsights';
+import { SalaryInsights, SalaryMarketData } from '@/components/jobs/SalaryInsights';
 import { ApplyButton } from '@/components/jobs/ApplyButton';
 import { formatDistanceToNow } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
+import { getSalaryInsights } from '@/services/salary-insights';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,6 +114,33 @@ export default async function JobPage({ params }: JobPageProps) {
 
   const isLinkedInPost = job.sourceType === 'UNSTRUCTURED';
   const jobUrl = buildJobUrl(job.company.slug, job.slug);
+
+  // Fetch salary market data
+  let salaryMarketData: SalaryMarketData | null = null;
+  try {
+    const salaryData = await getSalaryInsights(
+      job.title,
+      job.location,
+      job.country,
+      job.categoryId
+    );
+    if (salaryData) {
+      salaryMarketData = {
+        avgSalary: salaryData.avgSalary,
+        minSalary: salaryData.minSalary,
+        maxSalary: salaryData.maxSalary,
+        medianSalary: salaryData.medianSalary,
+        percentile25: salaryData.percentile25,
+        percentile75: salaryData.percentile75,
+        sampleSize: salaryData.sampleSize,
+        source: salaryData.source,
+        sourceLabel: salaryData.sourceLabel,
+        isEstimate: salaryData.isEstimate,
+      };
+    }
+  } catch (error) {
+    console.error('[JobPage] Error fetching salary insights:', error);
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -324,6 +352,7 @@ export default async function JobPage({ params }: JobPageProps) {
                 salaryMax={job.salaryMax}
                 currency={job.salaryCurrency || 'USD'}
                 isEstimate={job.salaryIsEstimate}
+                marketData={salaryMarketData}
               />
 
               {/* Apply Card */}

@@ -531,6 +531,15 @@ APIFY_API_TOKEN="apify_api_xxx"
 # Apollo.io (company enrichment)
 APOLLO_API_KEY="xxx"
 
+# BLS (Bureau of Labor Statistics) - US salary data
+# Register: https://data.bls.gov/registrationEngine/
+BLS_API_KEY="xxx"
+
+# Adzuna (international salary data)
+# Register: https://developer.adzuna.com/
+ADZUNA_APP_ID="xxx"
+ADZUNA_APP_KEY="xxx"
+
 # DashaMail (email applications)
 DASHAMAIL_API_KEY="xxx"
 DASHAMAIL_FROM_EMAIL="info@freelanly.com"

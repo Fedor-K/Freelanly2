@@ -52,6 +52,14 @@ Other: support, education, research, consulting
 - Only jobs with corporate email (filter gmail, yahoo, etc.)
 - `src/lib/utils.ts` → `isFreeEmail()`
 
+### Salary Insights
+- **US jobs** → BLS API (Bureau of Labor Statistics)
+- **International** → Adzuna API (19 countries: UK, DE, FR, AU, etc.)
+- **Other countries** → Coefficient-based estimation (relative to US)
+- **Fallback** → Calculate from similar jobs in DB
+- **Caching** → 30 days in `salary_benchmarks` table
+- Files: `src/lib/bls.ts`, `src/lib/adzuna.ts`, `src/services/salary-insights.ts`
+
 ## Important Files
 
 ```
@@ -60,10 +68,15 @@ src/
 ├── app/company/[slug]/jobs/[job]/page.tsx  # Job detail + Apply Now
 ├── lib/deepseek.ts                # AI extraction + categorization (21 cats)
 ├── lib/utils.ts                   # Freshness, slugify, free email check
+├── lib/bls.ts                     # BLS API client (US salary data)
+├── lib/adzuna.ts                  # Adzuna API client (international salary)
 ├── services/linkedin-processor.ts # LinkedIn → Job (with dedup)
 ├── services/sources/lever-processor.ts  # Lever ATS processor
 ├── services/company-enrichment.ts # Apollo.io enrichment
+├── services/salary-insights.ts    # Salary market data service
 ├── config/site.ts                 # Categories, levels, countries config
+├── config/salary-coefficients.ts  # Country salary coefficients
+├── components/jobs/SalaryInsights.tsx  # Salary insights component
 
 scripts/
 ├── cleanup-duplicate-companies.ts # Merge duplicate companies
@@ -102,6 +115,7 @@ Admin → Sources → Add New → LEVER → company-slug → Save & Run
 5. **Working job filters** — search, level, type via URL params
 6. **Fixed categorization** — 21 categories, AI + fallback, default=support
 7. **Updated README** — comprehensive system documentation
+8. **Salary Insights** — real market data from BLS (US) + Adzuna (international)
 
 ## Code Patterns
 
