@@ -33,6 +33,14 @@ export interface SalaryInsightsData {
   currency: string;
   jobTitle: string;
   isEstimate: boolean;
+  // Calculation details for tooltip
+  calculationDetails?: {
+    method: string;
+    baselineSource?: string;
+    baselineAvg?: number;
+    coefficient?: number;
+    coefficientName?: string;
+  };
 }
 
 /**
@@ -438,6 +446,13 @@ async function estimateFromCoefficients(
   // Apply country coefficient
   const coefficient = getCountryCoefficient(country);
 
+  // Determine baseline source description
+  const baselineSourceDesc = usBaseline.source === 'BLS'
+    ? 'BLS (US Bureau of Labor Statistics)'
+    : usBaseline.source === 'CALCULATED'
+    ? 'Similar jobs in database'
+    : 'Industry average estimate';
+
   const data: SalaryInsightsData = {
     minSalary: Math.round(usBaseline.minSalary * coefficient.coefficient),
     maxSalary: Math.round(usBaseline.maxSalary * coefficient.coefficient),
@@ -452,6 +467,13 @@ async function estimateFromCoefficients(
     currency: 'USD',
     jobTitle: normalizedTitle,
     isEstimate: true,
+    calculationDetails: {
+      method: 'Country coefficient adjustment',
+      baselineSource: baselineSourceDesc,
+      baselineAvg: usBaseline.avgSalary,
+      coefficient: coefficient.coefficient,
+      coefficientName: coefficient.name,
+    },
   };
 
   // Cache the result

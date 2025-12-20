@@ -140,6 +140,7 @@ export default async function JobPage({ params }: JobPageProps) {
           source: salaryData.source,
           sourceLabel: salaryData.sourceLabel,
           isEstimate: salaryData.isEstimate,
+          calculationDetails: salaryData.calculationDetails,
         };
       }
     } catch (error) {
