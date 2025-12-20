@@ -145,6 +145,13 @@ async function getCachedSalary(
     });
 
     if (cached) {
+      // For ESTIMATED source, include country name in label
+      let sourceLabel = getSourceLabel(cached.source);
+      if (cached.source === 'ESTIMATED') {
+        const coefficient = getCountryCoefficient(country);
+        sourceLabel = `Estimated for ${coefficient.name}`;
+      }
+
       return {
         minSalary: cached.minSalary,
         maxSalary: cached.maxSalary,
@@ -154,7 +161,7 @@ async function getCachedSalary(
         percentile75: cached.percentile75,
         sampleSize: cached.sampleSize,
         source: cached.source,
-        sourceLabel: getSourceLabel(cached.source),
+        sourceLabel,
         country,
         currency: 'USD',
         jobTitle: cached.jobTitle,
