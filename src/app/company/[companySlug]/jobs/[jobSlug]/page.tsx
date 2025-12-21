@@ -428,6 +428,11 @@ export default async function JobPage({ params }: JobPageProps) {
                   {/* Company Info */}
                   <div>
                     <h3 className="font-semibold mb-3">About {job.company.name}</h3>
+                    {job.company.description && (
+                      <p className="text-sm text-muted-foreground mb-3 line-clamp-4">
+                        {job.company.description}
+                      </p>
+                    )}
                     {job.company.industry && (
                       <p className="text-sm text-muted-foreground">
                         Industry: {job.company.industry}
@@ -436,6 +441,11 @@ export default async function JobPage({ params }: JobPageProps) {
                     {job.company.size && (
                       <p className="text-sm text-muted-foreground">
                         Size: {formatCompanySize(job.company.size)}
+                      </p>
+                    )}
+                    {job.company.headquarters && (
+                      <p className="text-sm text-muted-foreground">
+                        HQ: {job.company.headquarters}
                       </p>
                     )}
                     <Link
