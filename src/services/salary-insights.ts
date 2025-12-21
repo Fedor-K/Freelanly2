@@ -81,29 +81,29 @@ function extractCountryCode(location: string | null | undefined, country: string
     return 'US';
   }
 
-  // Common country patterns
+  // Common country patterns (including major cities)
   const countryPatterns: Record<string, string[]> = {
-    'US': ['usa', 'united states', 'u.s.', 'america'],
-    'GB': ['uk', 'united kingdom', 'england', 'britain'],
-    'DE': ['germany', 'deutschland'],
-    'FR': ['france'],
-    'CA': ['canada'],
-    'AU': ['australia'],
-    'NL': ['netherlands', 'holland'],
-    'ES': ['spain', 'españa'],
-    'IT': ['italy', 'italia'],
-    'PL': ['poland', 'polska'],
-    'IN': ['india'],
-    'BR': ['brazil', 'brasil'],
+    'US': ['usa', 'united states', 'u.s.', 'america', 'new york', 'san francisco', 'los angeles', 'chicago', 'seattle', 'austin', 'boston', 'denver', 'miami', 'atlanta'],
+    'GB': ['uk', 'united kingdom', 'england', 'britain', 'london', 'manchester', 'birmingham', 'edinburgh', 'glasgow', 'bristol', 'cambridge', 'oxford'],
+    'DE': ['germany', 'deutschland', 'berlin', 'munich', 'frankfurt', 'hamburg', 'köln', 'cologne'],
+    'FR': ['france', 'paris', 'lyon', 'marseille'],
+    'CA': ['canada', 'toronto', 'vancouver', 'montreal'],
+    'AU': ['australia', 'sydney', 'melbourne', 'brisbane'],
+    'NL': ['netherlands', 'holland', 'amsterdam', 'rotterdam'],
+    'ES': ['spain', 'españa', 'madrid', 'barcelona'],
+    'IT': ['italy', 'italia', 'rome', 'milan', 'roma', 'milano'],
+    'PL': ['poland', 'polska', 'warsaw', 'krakow', 'wroclaw'],
+    'IN': ['india', 'bangalore', 'mumbai', 'delhi', 'hyderabad', 'chennai', 'bengaluru'],
+    'BR': ['brazil', 'brasil', 'são paulo', 'rio de janeiro'],
     'SG': ['singapore'],
-    'IL': ['israel'],
-    'IE': ['ireland'],
-    'SE': ['sweden'],
-    'CH': ['switzerland'],
-    'JP': ['japan'],
-    'KR': ['korea'],
-    'MX': ['mexico'],
-    'AR': ['argentina'],
+    'IL': ['israel', 'tel aviv', 'jerusalem'],
+    'IE': ['ireland', 'dublin'],
+    'SE': ['sweden', 'stockholm'],
+    'CH': ['switzerland', 'zurich', 'geneva', 'zürich'],
+    'JP': ['japan', 'tokyo', 'osaka'],
+    'KR': ['korea', 'seoul'],
+    'MX': ['mexico', 'mexico city'],
+    'AR': ['argentina', 'buenos aires'],
   };
 
   for (const [code, patterns] of Object.entries(countryPatterns)) {
@@ -145,6 +145,13 @@ async function getCachedSalary(
     });
 
     if (cached) {
+      // For ESTIMATED source, include country name in label
+      let sourceLabel = getSourceLabel(cached.source);
+      if (cached.source === 'ESTIMATED') {
+        const coefficient = getCountryCoefficient(country);
+        sourceLabel = `Estimated for ${coefficient.name}`;
+      }
+
       return {
         minSalary: cached.minSalary,
         maxSalary: cached.maxSalary,
@@ -154,7 +161,7 @@ async function getCachedSalary(
         percentile75: cached.percentile75,
         sampleSize: cached.sampleSize,
         source: cached.source,
-        sourceLabel: getSourceLabel(cached.source),
+        sourceLabel,
         country,
         currency: 'USD',
         jobTitle: cached.jobTitle,

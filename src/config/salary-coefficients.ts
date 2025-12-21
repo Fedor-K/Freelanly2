@@ -106,7 +106,7 @@ export const COUNTRY_COEFFICIENTS: Record<string, CountryCoefficient> = {
 
 // Default coefficient for unknown countries
 export const DEFAULT_COEFFICIENT: CountryCoefficient = {
-  name: 'Unknown',
+  name: 'Global Average',
   coefficient: 0.50,  // Default to 50% of US salary
   currency: 'USD',
   currencySymbol: '$',
