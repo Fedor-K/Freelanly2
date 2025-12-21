@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
+import { cleanupOldJobs } from '@/services/job-cleanup';
 import type { ProcessingStats, RemoteOKJob } from './types';
 
 const REMOTEOK_API = 'https://remoteok.com/api';
@@ -71,6 +72,9 @@ export async function processRemoteOKSource(dataSourceId: string): Promise<Proce
         errorCount: 0,
       },
     });
+
+    // Cleanup old jobs after successful import
+    await cleanupOldJobs();
 
     return stats;
   } catch (error) {

@@ -117,9 +117,9 @@ export default async function JobPage({ params }: JobPageProps) {
   const isLinkedInPost = job.sourceType === 'UNSTRUCTURED';
   const jobUrl = buildJobUrl(job.company.slug, job.slug);
 
-  // Fetch salary market data (only for annual salaries or jobs without salary info)
-  // Hourly/daily/weekly rates can't be meaningfully compared to annual market data
-  const shouldShowSalaryInsights = !job.salaryMin || job.salaryPeriod === 'YEAR';
+  // Fetch salary market data ONLY when job doesn't have real salary info
+  // If job has salaryMin, we show actual salary from the job posting, not market estimates
+  const shouldShowSalaryInsights = !job.salaryMin && job.salaryPeriod === 'YEAR';
 
   let salaryMarketData: SalaryMarketData | null = null;
   if (shouldShowSalaryInsights) {

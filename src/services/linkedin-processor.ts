@@ -11,6 +11,7 @@ import { getApifySettings } from '@/lib/settings';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify, isFreeEmail } from '@/lib/utils';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
+import { cleanupOldJobs } from '@/services/job-cleanup';
 
 // Re-export for cron endpoint
 export { HIRING_SEARCH_QUERIES };
@@ -85,6 +86,9 @@ export async function fetchAndProcessLinkedInPosts(options?: {
       },
     });
 
+    // Cleanup old jobs after successful import
+    await cleanupOldJobs();
+
     return stats;
   } catch (error) {
     // Update import log with error
@@ -140,6 +144,9 @@ export async function processPostsFromDataset(datasetId: string): Promise<Proces
       },
     });
 
+    // Cleanup old jobs after successful import
+    await cleanupOldJobs();
+
     return stats;
   } catch (error) {
     await prisma.importLog.update({
@@ -193,6 +200,9 @@ export async function processPostsFromRun(runId: string): Promise<ProcessingStat
         completedAt: new Date(),
       },
     });
+
+    // Cleanup old jobs after successful import
+    await cleanupOldJobs();
 
     return stats;
   } catch (error) {

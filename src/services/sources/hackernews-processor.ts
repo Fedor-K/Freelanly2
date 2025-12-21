@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { slugify, isFreeEmail } from '@/lib/utils';
 import { extractJobData, classifyJobCategory } from '@/lib/deepseek';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
+import { cleanupOldJobs } from '@/services/job-cleanup';
 import type { ProcessingStats } from './types';
 
 // HN Algolia API for searching "Who is Hiring" threads
@@ -86,6 +87,9 @@ export async function processHackerNewsSource(dataSourceId: string): Promise<Pro
         config: { storyId }, // Store the thread ID
       },
     });
+
+    // Cleanup old jobs after successful import
+    await cleanupOldJobs();
 
     return stats;
   } catch (error) {
