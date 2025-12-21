@@ -94,6 +94,9 @@ async function processLeverJob(
   companyId: string,
   companySlug: string
 ): Promise<'created' | 'updated' | 'skipped'> {
+  // Build full description (with RESPONSIBILITIES, QUALIFICATIONS, etc.)
+  const fullDescription = buildDescription(job);
+
   // Check if job already exists
   const existingJob = await prisma.job.findFirst({
     where: {
@@ -105,16 +108,16 @@ async function processLeverJob(
   });
 
   if (existingJob) {
-    // Update if needed
+    // Update if description changed (compare full built description)
     const needsUpdate = existingJob.title !== job.text ||
-      existingJob.description !== (job.descriptionPlain || job.description);
+      existingJob.description !== fullDescription;
 
     if (needsUpdate) {
       await prisma.job.update({
         where: { id: existingJob.id },
         data: {
           title: job.text,
-          description: job.descriptionPlain || job.description || '',
+          description: fullDescription,
           updatedAt: new Date(),
         },
       });
@@ -147,18 +150,15 @@ async function processLeverJob(
   // Parse job type
   const jobType = mapCommitmentToType(job.categories.commitment);
 
-  // Build description
-  const description = buildDescription(job);
-
   // Extract skills from tags/description
-  const skills = extractSkillsFromDescription(description, job.categories.department);
+  const skills = extractSkillsFromDescription(fullDescription, job.categories.department);
 
   // Create job
   await prisma.job.create({
     data: {
       slug,
       title: job.text,
-      description,
+      description: fullDescription,
       companyId,
       categoryId: category.id,
       location,
