@@ -67,7 +67,11 @@ export type AnalyticsEvent =
 
 declare global {
   interface Window {
-    ym?: (id: number, action: string, target: string, params?: Record<string, unknown>) => void;
+    // Yandex.Metrika has different signatures for different methods:
+    // - reachGoal: (id, 'reachGoal', goalName, params)
+    // - hit: (id, 'hit', url, options)
+    // - userParams: (id, 'userParams', paramsObject)
+    ym?: (id: number, action: string, ...args: unknown[]) => void;
     gtag?: (...args: unknown[]) => void;
     clarity?: (...args: unknown[]) => void;
   }
