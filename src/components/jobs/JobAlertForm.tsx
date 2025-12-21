@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { track } from '@/lib/analytics';
 
 interface JobAlertFormProps {
   category?: string;
@@ -37,6 +38,7 @@ export function JobAlertForm({ category, keywords, compact = false }: JobAlertFo
       if (response.ok) {
         setStatus('success');
         setMessage('You\'re subscribed! We\'ll notify you of new jobs.');
+        track({ name: 'job_alert_subscribe', params: { category: category || 'all', keywords: keywords || '' } });
         setEmail('');
       } else {
         const data = await response.json();
@@ -147,6 +149,7 @@ export function JobAlertBanner() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
+      track({ name: 'job_alert_subscribe', params: { source: 'banner' } });
       setSubscribed(true);
     } catch (error) {
       // Silent fail for banner

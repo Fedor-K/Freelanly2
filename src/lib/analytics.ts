@@ -34,17 +34,17 @@ export const analyticsConfig = {
 
 export type AnalyticsEvent =
   // Job events
-  | { name: 'job_view'; params: { job_id: string; category: string; level: string; company: string } }
+  | { name: 'job_view'; params: { job_id: string; job_title: string; category: string; company: string } }
   | { name: 'job_apply_click'; params: { job_id: string; method: 'email' | 'url' | 'linkedin' } }
   | { name: 'job_save'; params: { job_id: string } }
   | { name: 'job_share'; params: { job_id: string; platform: 'twitter' | 'linkedin' | 'telegram' | 'whatsapp' | 'copy' } }
-  | { name: 'job_search'; params: { query: string; results_count: number } }
+  | { name: 'job_search'; params: { query: string; results_count?: number } }
   | { name: 'job_filter'; params: { category?: string; level?: string; type?: string } }
 
   // User events
   | { name: 'signup'; params: { method: 'email' | 'google' | 'github' | 'linkedin' } }
   | { name: 'login'; params: { method: 'email' | 'google' | 'github' | 'linkedin' } }
-  | { name: 'job_alert_subscribe'; params: { category?: string; keywords?: string } }
+  | { name: 'job_alert_subscribe'; params: { category?: string; keywords?: string; source?: string } }
   | { name: 'job_alert_unsubscribe'; params: Record<string, never> }
 
   // Conversion events

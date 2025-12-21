@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { QuickApplyModal } from './QuickApplyModal';
+import { track } from '@/lib/analytics';
 
 interface ApplyButtonProps {
+  jobId: string;
   applyUrl: string | null;
   applyEmail: string | null;
   sourceUrl: string;
@@ -14,6 +16,7 @@ interface ApplyButtonProps {
 }
 
 export function ApplyButton({
+  jobId,
   applyUrl,
   applyEmail,
   sourceUrl,
@@ -23,11 +26,20 @@ export function ApplyButton({
 }: ApplyButtonProps) {
   const [showQuickApply, setShowQuickApply] = useState(false);
 
+  const handleApplyClick = (method: 'url' | 'email' | 'linkedin') => {
+    track({ name: 'job_apply_click', params: { job_id: jobId, method } });
+  };
+
   // Priority 1: Direct apply URL (ATS)
   if (applyUrl) {
     return (
       <Button className="w-full" size="lg" asChild>
-        <a href={applyUrl} target="_blank" rel="noopener noreferrer">
+        <a
+          href={applyUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => handleApplyClick('url')}
+        >
           Apply Now
         </a>
       </Button>
@@ -41,7 +53,10 @@ export function ApplyButton({
         <Button
           className="w-full"
           size="lg"
-          onClick={() => setShowQuickApply(true)}
+          onClick={() => {
+            handleApplyClick('email');
+            setShowQuickApply(true);
+          }}
         >
           Quick Apply
         </Button>
@@ -60,7 +75,12 @@ export function ApplyButton({
   // Priority 3: Source URL (LinkedIn post, etc.)
   return (
     <Button className="w-full" size="lg" asChild>
-      <a href={sourceUrl} target="_blank" rel="noopener noreferrer">
+      <a
+        href={sourceUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => handleApplyClick('linkedin')}
+      >
         Apply Now
       </a>
     </Button>

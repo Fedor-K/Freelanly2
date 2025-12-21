@@ -1,14 +1,16 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { track } from '@/lib/analytics';
 
 interface SocialShareProps {
+  jobId: string;
   url: string;
   title: string;
   description?: string;
 }
 
-export function SocialShare({ url, title, description }: SocialShareProps) {
+export function SocialShare({ jobId, url, title, description }: SocialShareProps) {
   const encodedUrl = encodeURIComponent(url);
   const encodedTitle = encodeURIComponent(title);
   const encodedDesc = encodeURIComponent(description || '');
@@ -22,7 +24,12 @@ export function SocialShare({ url, title, description }: SocialShareProps) {
     email: `mailto:?subject=${encodedTitle}&body=${encodedDesc}%0A%0A${encodedUrl}`,
   };
 
+  const handleShareClick = (platform: 'twitter' | 'linkedin' | 'telegram' | 'whatsapp' | 'copy') => {
+    track({ name: 'job_share', params: { job_id: jobId, platform } });
+  };
+
   const handleCopyLink = async () => {
+    handleShareClick('copy');
     try {
       await navigator.clipboard.writeText(url);
       // Could add toast notification here
@@ -44,6 +51,7 @@ export function SocialShare({ url, title, description }: SocialShareProps) {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Share on LinkedIn"
+          onClick={() => handleShareClick('linkedin')}
         >
           <LinkedInIcon className="h-4 w-4" />
           <span className="hidden sm:inline">LinkedIn</span>
@@ -61,6 +69,7 @@ export function SocialShare({ url, title, description }: SocialShareProps) {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Share on Twitter"
+          onClick={() => handleShareClick('twitter')}
         >
           <TwitterIcon className="h-4 w-4" />
           <span className="hidden sm:inline">Twitter</span>
@@ -78,6 +87,7 @@ export function SocialShare({ url, title, description }: SocialShareProps) {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Share on Telegram"
+          onClick={() => handleShareClick('telegram')}
         >
           <TelegramIcon className="h-4 w-4" />
           <span className="hidden sm:inline">Telegram</span>
