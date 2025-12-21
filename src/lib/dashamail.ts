@@ -150,4 +150,172 @@ ${params.coverLetter}
   `.trim();
 }
 
+// ============================================
+// STATISTICS API
+// ============================================
+
+export interface EmailCampaignStats {
+  campaignId: string;
+  name: string;
+  sentAt: string;
+  totalSent: number;
+  delivered: number;
+  opened: number;
+  clicked: number;
+  unsubscribed: number;
+  bounced: number;
+  openRate: number;
+  clickRate: number;
+}
+
+export interface SubscriberStats {
+  total: number;
+  active: number;
+  unsubscribed: number;
+  bounced: number;
+}
+
+/**
+ * Получает статистику по списку подписчиков
+ */
+export async function getSubscriberStats(): Promise<SubscriberStats | null> {
+  try {
+    const result = await apiCall('lists.get', {
+      list_id: config.listId,
+    });
+
+    if (result.status === 'success' && result.data) {
+      return {
+        total: result.data.members_count || 0,
+        active: result.data.members_active || 0,
+        unsubscribed: result.data.members_unsubscribed || 0,
+        bounced: result.data.members_bounced || 0,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('DashaMail getSubscriberStats error:', error);
+    return null;
+  }
+}
+
+/**
+ * Получает список кампаний
+ */
+export async function getCampaignsList(limit: number = 10): Promise<EmailCampaignStats[]> {
+  try {
+    const result = await apiCall('campaigns.get', {
+      list_id: config.listId,
+      limit,
+    });
+
+    if (result.status === 'success' && result.data?.data) {
+      return result.data.data.map((campaign: Record<string, unknown>) => {
+        const sent = Number(campaign.sent) || 0;
+        const opened = Number(campaign.opened) || 0;
+        const clicked = Number(campaign.clicked) || 0;
+
+        return {
+          campaignId: String(campaign.id),
+          name: String(campaign.name || ''),
+          sentAt: String(campaign.send_date || ''),
+          totalSent: sent,
+          delivered: Number(campaign.delivered) || sent,
+          opened,
+          clicked,
+          unsubscribed: Number(campaign.unsubscribed) || 0,
+          bounced: Number(campaign.bounced) || 0,
+          openRate: sent > 0 ? (opened / sent) * 100 : 0,
+          clickRate: sent > 0 ? (clicked / sent) * 100 : 0,
+        };
+      });
+    }
+    return [];
+  } catch (error) {
+    console.error('DashaMail getCampaignsList error:', error);
+    return [];
+  }
+}
+
+/**
+ * Получает детальную статистику кампании
+ */
+export async function getCampaignStats(campaignId: string): Promise<EmailCampaignStats | null> {
+  try {
+    const result = await apiCall('reports.get', {
+      campaign_id: campaignId,
+    });
+
+    if (result.status === 'success' && result.data) {
+      const data = result.data;
+      const sent = Number(data.sent) || 0;
+      const opened = Number(data.unique_opened) || 0;
+      const clicked = Number(data.unique_clicked) || 0;
+
+      return {
+        campaignId,
+        name: String(data.name || ''),
+        sentAt: String(data.send_date || ''),
+        totalSent: sent,
+        delivered: Number(data.delivered) || sent,
+        opened,
+        clicked,
+        unsubscribed: Number(data.unsubscribed) || 0,
+        bounced: Number(data.bounced) || 0,
+        openRate: sent > 0 ? (opened / sent) * 100 : 0,
+        clickRate: sent > 0 ? (clicked / sent) * 100 : 0,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('DashaMail getCampaignStats error:', error);
+    return null;
+  }
+}
+
+/**
+ * Получает сводную статистику email маркетинга
+ */
+export async function getEmailMarketingStats(): Promise<{
+  subscribers: SubscriberStats | null;
+  lastCampaigns: EmailCampaignStats[];
+  avgOpenRate: number;
+  avgClickRate: number;
+}> {
+  const [subscribers, campaigns] = await Promise.all([
+    getSubscriberStats(),
+    getCampaignsList(5),
+  ]);
+
+  // Средние показатели
+  let avgOpenRate = 0;
+  let avgClickRate = 0;
+
+  if (campaigns.length > 0) {
+    avgOpenRate = campaigns.reduce((sum, c) => sum + c.openRate, 0) / campaigns.length;
+    avgClickRate = campaigns.reduce((sum, c) => sum + c.clickRate, 0) / campaigns.length;
+  }
+
+  return {
+    subscribers,
+    lastCampaigns: campaigns,
+    avgOpenRate,
+    avgClickRate,
+  };
+}
+
+/**
+ * Проверяет подключение к API
+ */
+export async function testDashaMailConnection(): Promise<boolean> {
+  try {
+    if (!config.apiKey) return false;
+
+    const result = await apiCall('lists.get', {});
+    return result.status === 'success';
+  } catch {
+    return false;
+  }
+}
+
 export { config as dashamailConfig };

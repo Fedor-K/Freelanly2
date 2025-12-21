@@ -1,5 +1,15 @@
 # Настройка аналитики Freelanly
 
+## Автоматический сбор данных
+
+Система автоматически собирает данные из:
+- ✅ **Яндекс.Метрика API** — трафик, поведение, цели
+- ✅ **DashaMail API** — подписчики, рассылки, open/click rate
+- ✅ **Google Sheets** — ручные данные (соцсети, etc.)
+- ✅ **Внутренняя БД** — вакансии, компании, пользователи
+
+---
+
 ## Шаг 1: Создай счётчики (5 минут)
 
 ### Яндекс.Метрика
@@ -26,9 +36,36 @@
 
 ---
 
-## Шаг 2: Добавь в .env
+## Шаг 2: Получи API токены
+
+### Яндекс.Метрика API Token (для автоматического сбора данных)
+
+1. Зайди на https://oauth.yandex.ru/client/new
+2. Создай приложение:
+   - Название: "Freelanly Analytics"
+   - Платформы: Веб-сервисы
+   - Callback URL: `https://oauth.yandex.ru/verification_code`
+3. Права: `metrika:read`
+4. Получи **Client ID**
+5. Перейди по ссылке:
+   ```
+   https://oauth.yandex.ru/authorize?response_type=token&client_id=ВАШ_CLIENT_ID
+   ```
+6. Скопируй **access_token** из URL после авторизации
+
+### DashaMail API
+
+API ключ уже должен быть в настройках DashaMail:
+1. Зайди в DashaMail → Настройки → API
+2. Скопируй API ключ
+
+---
+
+## Шаг 3: Добавь в .env
 
 ```bash
+# ===== FRONTEND (для скриптов на странице) =====
+
 # Яндекс.Метрика
 NEXT_PUBLIC_YANDEX_METRIKA_ID=12345678
 
@@ -37,6 +74,19 @@ NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
 
 # Microsoft Clarity (опционально)
 NEXT_PUBLIC_CLARITY_ID=xxxxxxxxxx
+
+# ===== BACKEND (для API запросов) =====
+
+# Яндекс.Метрика API (для автоматического сбора)
+YANDEX_METRIKA_TOKEN=ваш_oauth_токен
+YANDEX_METRIKA_COUNTER_ID=12345678
+
+# DashaMail (уже должен быть)
+DASHAMAIL_API_KEY=ваш_ключ
+DASHAMAIL_LIST_ID=id_списка
+
+# Google Sheets (опционально)
+ANALYTICS_SHEET_ID=id_таблицы
 ```
 
 ---
