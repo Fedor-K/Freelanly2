@@ -39,20 +39,10 @@ async function main() {
       size: 'MEDIUM',
       headquarters: 'Paris, France',
       linkedinUrl: 'https://www.linkedin.com/company/mistral-ai/',
-      twitterUrl: 'https://twitter.com/MistralAI',
-      enrichmentStatus: 'ENRICHED',
     }
   });
 
   console.log('Updated company:', JSON.stringify(updated, null, 2));
-
-  // Also update any jobs that might reference the old slug
-  const jobsUpdated = await prisma.job.updateMany({
-    where: { companyId: company.id },
-    data: { slug: undefined } // Will be regenerated if needed
-  });
-
-  console.log(`Updated ${jobsUpdated.count} jobs`);
 }
 
 main()
