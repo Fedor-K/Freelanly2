@@ -26,14 +26,17 @@ Freelanly агрегирует hiring-посты из LinkedIn, извлекае
 ### Ключевые особенности
 
 - **LinkedIn Integration** — парсинг hiring-постов через Apify
-- **Lever ATS Integration** — импорт вакансий из корпоративных ATS
-- **AI Extraction** — извлечение данных из постов через DeepSeek
+- **Multi-ATS Integration** — импорт вакансий из Lever, RemoteOK, WeWorkRemotely, HackerNews
+- **AI Extraction** — извлечение данных из постов через DeepSeek (salary, benefits, skills)
+- **Real Salary Display** — показ реальной зарплаты из вакансии, когда доступна
 - **21 категория** — точная классификация вакансий
 - **Dual Display** — показываем и extracted facts, и оригинальный пост
 - **SEO-First** — программные landing pages для органического трафика
 - **Email Applications** — отклики через DashaMail с tracking
 - **Company Enrichment** — автоматическое обогащение данных о компаниях через Apollo.io
 - **30-дневная свежесть** — только актуальные вакансии (Google рекомендация)
+- **Auto Cleanup** — автоматическое удаление старых вакансий после каждого импорта
+- **Daily Cron** — автоматический запуск всех источников раз в день (6:00 UTC)
 
 ---
 
@@ -99,9 +102,9 @@ Open [http://localhost:3000](http://localhost:3000)
 ┌─────────────────────────────────────────────────────────────────┐
 │                         ИСТОЧНИКИ                                │
 ├─────────────────────────────────────────────────────────────────┤
-│  LinkedIn (Apify)          │  Lever ATS          │  Другие ATS  │
-│  - Hiring posts            │  - API интеграция   │  (Greenhouse │
-│  - Unstructured data       │  - Structured data  │   Ashby...)  │
+│  LinkedIn (Apify)   │  Lever ATS    │  RemoteOK     │  WWR / HN    │
+│  - Hiring posts     │  - API        │  - API        │  - RSS/API   │
+│  - Unstructured     │  - Structured │  - Structured │  - Structured│
 └─────────────────────────────────────────────────────────────────┘
                                │
                                ▼
@@ -189,8 +192,13 @@ src/
 │   ├── linkedin-processor.ts     # LinkedIn → Job pipeline
 │   ├── company-enrichment.ts     # Apollo.io enrichment queue
 │   ├── salary-insights.ts        # Salary market data service
+│   ├── job-cleanup.ts            # Automatic old job cleanup
 │   └── sources/
+│       ├── index.ts              # Source orchestration
 │       ├── lever-processor.ts    # Lever ATS processor
+│       ├── remoteok-processor.ts # RemoteOK processor
+│       ├── weworkremotely-processor.ts  # WWR processor
+│       ├── hackernews-processor.ts      # HN Who is Hiring processor
 │       └── types.ts              # Shared types
 │
 ├── config/
@@ -264,6 +272,39 @@ POST /api/webhooks/apify
 2. Select "LEVER" as source type
 3. Enter company slug (e.g., "netflix")
 4. Save and run
+
+### 3. RemoteOK
+
+**Процесс:**
+1. Fetch jobs from RemoteOK API (`/api`)
+2. Parse structured JSON data
+3. Extract salary, location, tags
+4. Auto cleanup after import
+
+**Файлы:**
+- `src/services/sources/remoteok-processor.ts`
+
+### 4. WeWorkRemotely
+
+**Процесс:**
+1. Fetch jobs from WWR RSS feed
+2. Parse RSS items
+3. Extract job data from descriptions
+4. Auto cleanup after import
+
+**Файлы:**
+- `src/services/sources/weworkremotely-processor.ts`
+
+### 5. HackerNews Who is Hiring
+
+**Процесс:**
+1. Fetch monthly "Who is Hiring" thread
+2. Parse individual comments as job posts
+3. Extract company, title, location via AI
+4. Auto cleanup after import
+
+**Файлы:**
+- `src/services/sources/hackernews-processor.ts`
 
 ### Company Enrichment
 
@@ -431,6 +472,18 @@ export function getMaxJobAgeDate(): Date {
 }
 ```
 
+### Auto Cleanup
+
+После каждого импорта автоматически удаляются:
+- Вакансии старше 30 дней (`postedAt < 30 days ago`)
+- Неактивные вакансии (`isActive = false`)
+
+**Файлы:**
+- `src/services/job-cleanup.ts` — сервис очистки
+
+**Интеграция:**
+- Вызывается в конце каждого процессора (LinkedIn, Lever, RemoteOK, WWR, HN)
+
 ---
 
 ## URL структура и хлебные крошки
@@ -529,6 +582,7 @@ npx tsx scripts/recategorize-jobs.ts
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/cron/fetch-linkedin` | Trigger LinkedIn import |
+| POST | `/api/cron/fetch-sources` | Trigger all ATS sources (Lever, RemoteOK, WWR, HN) |
 
 ### Webhooks
 
@@ -613,6 +667,9 @@ npm run build
 pm2 start npm --name "freelanly" -- start -- -p 3001
 pm2 save
 pm2 startup  # auto-start after reboot
+
+# Setup daily cron (runs at 6:00 UTC)
+echo '0 6 * * * curl -s -X POST http://localhost:3000/api/cron/fetch-sources -H "Authorization: Bearer YOUR_CRON_SECRET" >> /var/log/freelanly-cron.log 2>&1' | crontab -
 ```
 
 ### Update (PM2)
@@ -717,15 +774,21 @@ model Job {
 - [x] DeepSeek integration (extraction + categorization)
 - [x] Apify integration
 - [x] Lever ATS integration
+- [x] **RemoteOK integration**
+- [x] **WeWorkRemotely integration**
+- [x] **HackerNews Who is Hiring integration**
 - [x] DashaMail integration
 - [x] Apollo.io company enrichment
 - [x] LinkedIn processor with deduplication
 - [x] Job filters (search, level, type)
 - [x] 30-day job freshness
+- [x] **Auto cleanup of old jobs**
+- [x] **Daily cron job (6:00 UTC)**
 - [x] Docker deployment
 - [x] Admin panel for sources
 - [x] Maintenance scripts
 - [x] **Salary Insights** (BLS + Adzuna + coefficients)
+- [x] **Real salary from job postings** (when available)
 - [ ] Authentication (NextAuth)
 - [ ] Stripe payments
 - [ ] User dashboard
