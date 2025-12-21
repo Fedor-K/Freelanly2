@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { siteConfig } from "@/config/site";
+import { AnalyticsScripts } from "@/components/analytics/AnalyticsScripts";
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -135,6 +136,7 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased">
         {children}
+        <AnalyticsScripts />
       </body>
     </html>
   );
