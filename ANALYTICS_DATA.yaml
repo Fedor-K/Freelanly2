@@ -1,0 +1,267 @@
+# Freelanly Analytics Data
+# Заполни этот файл — я буду использовать его для принятия решений
+
+# ============================================
+# ТЕКУЩЕЕ СОСТОЯНИЕ ПРОЕКТА
+# ============================================
+
+project:
+  name: "Freelanly"
+  domain: ""                    # freelanly.com или другой
+  launch_date: ""               # Когда запустился? (YYYY-MM-DD)
+  current_mrr: 0                # Текущий MRR в долларах
+  current_users: 0              # Зарегистрированных пользователей
+  paid_users: 0                 # Платящих пользователей
+
+# ============================================
+# АККАУНТЫ И ДОСТУПЫ
+# ============================================
+
+accounts:
+  # Личный LinkedIn (для personal brand)
+  linkedin_personal:
+    url: ""                     # linkedin.com/in/...
+    followers: 0
+    posts_per_week: 0
+    avg_engagement: 0           # Лайки + комменты на пост
+
+  # LinkedIn компании
+  linkedin_company:
+    url: ""                     # linkedin.com/company/...
+    followers: 0
+    exists: false               # true/false
+
+  # TikTok
+  tiktok:
+    url: ""                     # tiktok.com/@...
+    followers: 0
+    exists: false
+
+  # Instagram
+  instagram:
+    url: ""
+    followers: 0
+    exists: false
+
+  # Twitter/X
+  twitter:
+    url: ""
+    followers: 0
+    exists: false
+
+  # YouTube
+  youtube:
+    url: ""
+    subscribers: 0
+    exists: false
+
+  # Telegram канал
+  telegram:
+    url: ""
+    subscribers: 0
+    exists: false
+
+# ============================================
+# АНАЛИТИКА САЙТА
+# ============================================
+
+website_analytics:
+  # Яндекс.Метрика
+  yandex_metrika:
+    installed: false            # true/false
+    counter_id: ""
+
+  # Google Analytics
+  google_analytics:
+    installed: false
+    measurement_id: ""          # G-XXXXXXXX
+
+  # Google Search Console
+  search_console:
+    connected: false
+    verified: false
+
+# Трафик за последние 30 дней (если есть данные)
+traffic_last_30_days:
+  total_visitors: 0
+  unique_visitors: 0
+  page_views: 0
+  avg_session_duration: ""      # "1:30" формат
+  bounce_rate: 0                # в процентах
+
+# Топ источники трафика
+traffic_sources:
+  organic_search: 0             # % от общего
+  direct: 0
+  social: 0
+  referral: 0
+  email: 0
+
+# Топ страницы
+top_pages:
+  - url: ""
+    views: 0
+  - url: ""
+    views: 0
+  - url: ""
+    views: 0
+
+# ============================================
+# SEO
+# ============================================
+
+seo:
+  # Google Search Console данные
+  impressions_last_30_days: 0
+  clicks_last_30_days: 0
+  avg_position: 0
+  indexed_pages: 0
+
+  # Основные ключевые слова (по которым уже ранжируетесь)
+  ranking_keywords:
+    - keyword: ""
+      position: 0
+      clicks: 0
+    - keyword: ""
+      position: 0
+      clicks: 0
+
+  # Backlinks (если знаешь)
+  backlinks_count: 0
+  referring_domains: 0
+
+# ============================================
+# EMAIL MARKETING
+# ============================================
+
+email:
+  # DashaMail (уже интегрирован)
+  provider: "DashaMail"
+
+  total_subscribers: 0
+  active_subscribers: 0         # Открывали письма за 30 дней
+
+  # Job Alerts подписчики
+  job_alert_subscribers: 0
+
+  # Метрики последней рассылки
+  last_campaign:
+    sent_date: ""               # YYYY-MM-DD
+    sent_count: 0
+    open_rate: 0                # в процентах
+    click_rate: 0               # в процентах
+    unsubscribe_rate: 0
+
+# ============================================
+# КОНТЕНТ
+# ============================================
+
+content:
+  # Вакансии в базе
+  total_jobs: 0
+  active_jobs: 0
+  jobs_added_last_week: 0
+
+  # Компании
+  total_companies: 0
+  verified_companies: 0
+
+  # Блог/статьи
+  blog_posts_count: 0
+  blog_exists: false
+
+# ============================================
+# КОНКУРЕНТЫ
+# ============================================
+
+competitors:
+  main_competitors:
+    - name: ""
+      url: ""
+      estimated_traffic: ""     # "100K/month" например
+    - name: ""
+      url: ""
+      estimated_traffic: ""
+
+# ============================================
+# РЕСУРСЫ И ОГРАНИЧЕНИЯ
+# ============================================
+
+resources:
+  # Время которое ты можешь уделять проекту
+  hours_per_week: 0             # Сколько часов в неделю
+
+  # Бюджет (если есть)
+  monthly_budget_usd: 0
+
+  # Навыки (1-10)
+  skills:
+    development: 0
+    design: 0
+    copywriting: 0
+    video_content: 0
+    seo: 0
+    paid_ads: 0
+
+  # Языки контента
+  languages:
+    - "ru"                      # Какие языки для контента?
+    - "en"
+
+# ============================================
+# ЦЕЛЕВАЯ АУДИТОРИЯ
+# ============================================
+
+target_audience:
+  primary:
+    description: ""             # "Frontend разработчики ищущие remote"
+    geography: []               # ["RU", "UA", "BY"] или ["US", "EU"]
+
+  secondary:
+    description: ""
+    geography: []
+
+# ============================================
+# ТЕКУЩИЕ АКТИВНОСТИ
+# ============================================
+
+current_activities:
+  # Что уже делается регулярно?
+  linkedin_posting: false
+  email_newsletters: false
+  blog_writing: false
+  social_media: false
+  community_engagement: false   # Reddit, Discord, etc.
+
+  # Партнёрства
+  active_partnerships: 0
+  partnership_names: []
+
+# ============================================
+# ПРОБЛЕМЫ И БЛОКЕРЫ
+# ============================================
+
+blockers:
+  - ""                          # "Нет времени на контент"
+  - ""                          # "Не знаю как снимать видео"
+  - ""                          # "Мало трафика"
+
+# ============================================
+# ПРИОРИТЕТЫ
+# ============================================
+
+priorities:
+  # Что для тебя сейчас важнее всего? (1-5)
+  get_first_paying_users: 0
+  grow_traffic: 0
+  build_email_list: 0
+  create_content: 0
+  improve_product: 0
+
+# ============================================
+# ДОПОЛНИТЕЛЬНЫЕ ЗАМЕТКИ
+# ============================================
+
+notes: |
+  Любая дополнительная информация которую считаешь важной.
+  Например: особенности рынка, прошлый опыт, что уже пробовали и не сработало.

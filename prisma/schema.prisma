@@ -552,3 +552,171 @@ model Settings {
 
   @@index([key])
 }
+
+// ============================================
+// CEO ANALYTICS - Metrics & KPIs
+// ============================================
+
+model DailyMetric {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date // YYYY-MM-DD
+
+  // === TRAFFIC METRICS ===
+  pageViews        Int @default(0)
+  uniqueVisitors   Int @default(0)
+  jobPageViews     Int @default(0)
+  companyPageViews Int @default(0)
+
+  // === USER METRICS ===
+  newSignups       Int @default(0)
+  activeUsers      Int @default(0)  // Users who visited
+  returningUsers   Int @default(0)
+
+  // === CONVERSION METRICS ===
+  trialStarts      Int @default(0)
+  paidConversions  Int @default(0)
+  churns           Int @default(0)
+
+  // === REVENUE METRICS (in cents) ===
+  newMRR           Int @default(0)  // New subscriptions
+  churnedMRR       Int @default(0)  // Lost from churns
+  expansionMRR     Int @default(0)  // Upgrades
+  netMRR           Int @default(0)  // End of day MRR
+
+  // === ENGAGEMENT METRICS ===
+  jobApplications  Int @default(0)
+  savedJobs        Int @default(0)
+  emailAlertSubs   Int @default(0)
+
+  // === CONTENT METRICS ===
+  newJobs          Int @default(0)
+  expiredJobs      Int @default(0)
+  newCompanies     Int @default(0)
+
+  // === SEO METRICS ===
+  googleImpressions Int @default(0)
+  googleClicks      Int @default(0)
+  indexedPages      Int @default(0)
+
+  // === OPERATIONAL METRICS ===
+  importRuns       Int @default(0)
+  importSuccesses  Int @default(0)
+  importFailures   Int @default(0)
+  apiCostsCents    Int @default(0)  // Apify, DeepSeek, etc.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([date])
+  @@index([date])
+}
+
+model MonthlyTarget {
+  id        String   @id @default(cuid())
+  month     DateTime @db.Date // First day of month
+
+  // === REVENUE TARGETS ===
+  targetMRR        Int      // Target MRR in cents
+  actualMRR        Int?     // Actual MRR achieved
+
+  // === GROWTH TARGETS ===
+  targetSignups    Int
+  actualSignups    Int?
+
+  targetPaidUsers  Int
+  actualPaidUsers  Int?
+
+  targetJobs       Int
+  actualJobs       Int?
+
+  // === NOTES ===
+  notes            String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([month])
+}
+
+model RevenueEvent {
+  id        String   @id @default(cuid())
+
+  // Event type
+  type      RevenueEventType
+
+  // Amount in cents
+  amount    Int
+  currency  String   @default("USD")
+
+  // Related entities
+  userId    String?
+  planFrom  Plan?
+  planTo    Plan?
+
+  // Stripe reference
+  stripeEventId     String?   @unique
+  stripeCustomerId  String?
+  stripeSubscriptionId String?
+
+  // Metadata
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+enum RevenueEventType {
+  SUBSCRIPTION_STARTED
+  SUBSCRIPTION_RENEWED
+  SUBSCRIPTION_UPGRADED
+  SUBSCRIPTION_DOWNGRADED
+  SUBSCRIPTION_CANCELLED
+  SUBSCRIPTION_CHURNED
+  ONE_TIME_PAYMENT
+  REFUND
+}
+
+model CEOAlert {
+  id        String   @id @default(cuid())
+
+  type      AlertType
+  severity  AlertSeverity
+
+  title     String
+  message   String
+
+  // For metrics-based alerts
+  metricName String?
+  threshold  Float?
+  actualValue Float?
+
+  // Status
+  isRead    Boolean  @default(false)
+  isDismissed Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([isRead])
+  @@index([severity])
+  @@index([createdAt])
+}
+
+enum AlertType {
+  REVENUE_DROP
+  CHURN_SPIKE
+  CONVERSION_DROP
+  TRAFFIC_ANOMALY
+  SYSTEM_ERROR
+  MILESTONE_REACHED
+  TARGET_AT_RISK
+  OPPORTUNITY
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
