@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
+import { getMaxJobAgeDate } from '@/lib/utils';
 
 interface CompanyJobsPageProps {
   params: Promise<{ companySlug: string }>;
@@ -55,6 +56,7 @@ export default async function CompanyJobsPage({ params, searchParams }: CompanyJ
 
   const currentPage = parseInt(page, 10) || 1;
   const perPage = 20;
+  const maxAgeDate = getMaxJobAgeDate();
 
   let company;
   let jobs: any[] = [];
@@ -66,9 +68,14 @@ export default async function CompanyJobsPage({ params, searchParams }: CompanyJ
     });
 
     if (company) {
+      const jobWhere = {
+        companyId: company.id,
+        isActive: true,
+        postedAt: { gte: maxAgeDate },
+      };
       [jobs, totalJobs] = await Promise.all([
         prisma.job.findMany({
-          where: { companyId: company.id, isActive: true },
+          where: jobWhere,
           include: {
             company: { select: { name: true, slug: true, logo: true } },
           },
@@ -76,9 +83,7 @@ export default async function CompanyJobsPage({ params, searchParams }: CompanyJ
           skip: (currentPage - 1) * perPage,
           take: perPage,
         }),
-        prisma.job.count({
-          where: { companyId: company.id, isActive: true },
-        }),
+        prisma.job.count({ where: jobWhere }),
       ]);
     }
   } catch (error) {

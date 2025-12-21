@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { siteConfig, categories, levels } from '@/config/site';
 import { prisma } from '@/lib/db';
+import { getMaxJobAgeDate } from '@/lib/utils';
 
 interface LandingPageProps {
   params: Promise<{ landing: string }>;
@@ -192,6 +193,7 @@ export default async function LandingPage({ params, searchParams }: LandingPageP
 
   const currentPage = parseInt(page, 10) || 1;
   const perPage = 20;
+  const maxAgeDate = getMaxJobAgeDate();
 
   let jobs: any[] = [];
   let totalJobs = 0;
@@ -199,6 +201,7 @@ export default async function LandingPage({ params, searchParams }: LandingPageP
   try {
     const where: any = {
       isActive: true,
+      postedAt: { gte: maxAgeDate },
       OR: [
         { skills: { hasSome: skills } },
         { title: { contains: skillTitle, mode: 'insensitive' } },

@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { siteConfig, countries, jobRoles } from '@/config/site';
 import { prisma } from '@/lib/db';
+import { getMaxJobAgeDate } from '@/lib/utils';
 
 interface CountryRolePageProps {
   params: Promise<{ countrySlug: string; roleSlug: string }>;
@@ -90,10 +91,12 @@ export default async function CountryRolePage({ params, searchParams }: CountryR
 
   const currentPage = parseInt(filters.page || '1', 10) || 1;
   const perPage = 20;
+  const maxAgeDate = getMaxJobAgeDate();
 
   // Build filter conditions
   const whereConditions: any = {
     isActive: true,
+    postedAt: { gte: maxAgeDate },
     OR: role.keywords.map(keyword => ({
       title: { contains: keyword, mode: 'insensitive' },
     })),
