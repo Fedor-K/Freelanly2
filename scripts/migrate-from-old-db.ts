@@ -28,10 +28,13 @@ interface OldUser {
   id: number;
   username: string;
   email: string;
+  password: string | null;
   full_name: string | null;
   created_at: Date;
   stripe_customer_id: string | null;
+  subscription_id: string | null;
   subscription_status: string | null;
+  subscription_ends_at: Date | null;
   avatar_url: string | null;
 }
 
@@ -122,8 +125,9 @@ async function migrateUsers() {
   console.log('\n👤 Migrating users...');
 
   const oldUsers = await oldDb.$queryRaw<OldUser[]>`
-    SELECT id, username, email, full_name, created_at,
-           stripe_customer_id, subscription_status, avatar_url
+    SELECT id, username, email, password, full_name, created_at,
+           stripe_customer_id, subscription_id, subscription_status,
+           subscription_ends_at, avatar_url
     FROM users
     WHERE email IS NOT NULL
   `;
@@ -132,6 +136,8 @@ async function migrateUsers() {
 
   let migrated = 0;
   let skipped = 0;
+  let withPassword = 0;
+  let withSubscription = 0;
 
   for (const oldUser of oldUsers) {
     try {
@@ -145,13 +151,22 @@ async function migrateUsers() {
         continue;
       }
 
+      const hasPassword = !!oldUser.password;
+      const hasSubscription = oldUser.subscription_status === 'active';
+
+      if (hasPassword) withPassword++;
+      if (hasSubscription) withSubscription++;
+
       await newDb.user.create({
         data: {
           email: oldUser.email,
           name: oldUser.full_name || oldUser.username,
           image: oldUser.avatar_url,
+          password: oldUser.password, // bcrypt hash as-is
           stripeId: oldUser.stripe_customer_id,
+          stripeSubscriptionId: oldUser.subscription_id,
           plan: mapSubscriptionToPlan(oldUser.subscription_status),
+          subscriptionEndsAt: oldUser.subscription_ends_at,
           createdAt: oldUser.created_at || new Date(),
         }
       });
@@ -163,6 +178,8 @@ async function migrateUsers() {
   }
 
   console.log(`✓ Users migrated: ${migrated}, skipped: ${skipped}`);
+  console.log(`  - With password: ${withPassword}`);
+  console.log(`  - With active subscription: ${withSubscription}`);
   return migrated;
 }
 

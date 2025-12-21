@@ -17,9 +17,14 @@ model User {
   name          String?
   image         String?
 
+  // Auth (password for migrated users, null for magic link only)
+  password      String?   // bcrypt hash from old system
+
   // Stripe integration
-  stripeId      String?   @unique
-  plan          Plan      @default(FREE)
+  stripeId            String?   @unique
+  stripeSubscriptionId String?  // Active subscription ID
+  plan                Plan      @default(FREE)
+  subscriptionEndsAt  DateTime? // When current period ends
 
   // Limits tracking
   jobViewsToday Int       @default(0)
