@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
 import { queueCompanyEnrichmentBySlug } from '@/services/company-enrichment';
+import { cleanupOldJobs } from '@/services/job-cleanup';
 import type { ProcessingStats, LeverJob } from './types';
 
 export async function processLeverSource(dataSourceId: string): Promise<ProcessingStats> {
@@ -68,6 +69,9 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
         errorCount: 0,
       },
     });
+
+    // Cleanup old jobs after successful import
+    await cleanupOldJobs();
 
     return stats;
   } catch (error) {

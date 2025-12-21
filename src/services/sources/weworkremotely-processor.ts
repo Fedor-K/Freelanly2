@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
+import { cleanupOldJobs } from '@/services/job-cleanup';
 import type { ProcessingStats } from './types';
 
 const WWR_RSS_URL = 'https://weworkremotely.com/remote-jobs.rss';
@@ -68,6 +69,9 @@ export async function processWeWorkRemotelySource(dataSourceId: string): Promise
         errorCount: 0,
       },
     });
+
+    // Cleanup old jobs after successful import
+    await cleanupOldJobs();
 
     return stats;
   } catch (error) {

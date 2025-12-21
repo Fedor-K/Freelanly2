@@ -11,6 +11,7 @@ import { getApifySettings } from '@/lib/settings';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify, isFreeEmail } from '@/lib/utils';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
+import { cleanupOldJobs } from '@/services/job-cleanup';
 
 // Re-export for cron endpoint
 export { HIRING_SEARCH_QUERIES };
@@ -532,28 +533,6 @@ function calculateQualityScore(extracted: ExtractedJobData, post: LinkedInPost):
   if (!extracted.isRemote && !extracted.location) score -= 10;
 
   return Math.max(0, Math.min(100, score));
-}
-
-// Cleanup old jobs that are no longer shown on the site
-// Called automatically after each import
-export async function cleanupOldJobs(): Promise<{ deleted: number }> {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-  const deleted = await prisma.job.deleteMany({
-    where: {
-      OR: [
-        { isActive: false },
-        { postedAt: { lt: thirtyDaysAgo } }
-      ]
-    }
-  });
-
-  if (deleted.count > 0) {
-    console.log(`🗑️ Cleaned up ${deleted.count} old/inactive jobs`);
-  }
-
-  return { deleted: deleted.count };
 }
 
 export { processLinkedInPost };
