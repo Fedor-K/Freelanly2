@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { SalaryInsights, SalaryMarketData } from '@/components/jobs/SalaryInsights';
 import { ApplyButton } from '@/components/jobs/ApplyButton';
+import { SocialShare } from '@/components/jobs/SocialShare';
+import { JobViewTracker } from '@/components/jobs/JobViewTracker';
 import { formatDistanceToNow } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
@@ -150,6 +152,12 @@ export default async function JobPage({ params }: JobPageProps) {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <JobViewTracker
+        jobId={job.id}
+        jobTitle={job.title}
+        companyName={job.company.name}
+        category={job.category.name}
+      />
       <Header />
 
       <main className="flex-1">
@@ -365,6 +373,7 @@ export default async function JobPage({ params }: JobPageProps) {
               <Card className="sticky top-20">
                 <CardContent className="pt-6 space-y-4">
                   <ApplyButton
+                    jobId={job.id}
                     applyUrl={job.applyUrl}
                     applyEmail={job.applyEmail}
                     sourceUrl={job.sourceUrl}
@@ -375,6 +384,19 @@ export default async function JobPage({ params }: JobPageProps) {
                   <Button variant="outline" className="w-full">
                     Save Job
                   </Button>
+
+                  <Separator />
+
+                  {/* Share */}
+                  <div>
+                    <h3 className="font-semibold mb-3">Share this job</h3>
+                    <SocialShare
+                      jobId={job.id}
+                      url={jobUrl}
+                      title={`${job.title} at ${job.company.name}`}
+                      description={job.description?.slice(0, 200)}
+                    />
+                  </div>
 
                   <Separator />
 

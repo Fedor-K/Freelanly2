@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
+import { track } from '@/lib/analytics';
 
 interface JobFiltersProps {
   currentSearch?: string;
@@ -18,6 +19,7 @@ export function JobFilters({ currentSearch }: JobFiltersProps) {
 
     if (search.trim()) {
       params.set('q', search.trim());
+      track({ name: 'job_search', params: { query: search.trim() } });
     } else {
       params.delete('q');
     }

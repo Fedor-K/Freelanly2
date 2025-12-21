@@ -17,9 +17,11 @@ export async function GET() {
   const counterId = process.env.YANDEX_METRIKA_COUNTER_ID;
   const dashamailKey = process.env.DASHAMAIL_API_KEY;
 
-  // Test Yandex.Metrika - raw request
+  // Test Yandex.Metrika - Statistics API (not Management API)
   try {
-    const metrikaUrl = `https://api-metrika.yandex.net/management/v1/counter/${counterId}?oauth_token=${token}`;
+    const today = new Date().toISOString().split('T')[0];
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const metrikaUrl = `https://api-metrika.yandex.net/stat/v1/data?id=${counterId}&metrics=ym:s:visits,ym:s:users,ym:s:pageviews&date1=${weekAgo}&date2=${today}&oauth_token=${token}`;
     const response = await fetch(metrikaUrl);
     const responseText = await response.text();
 
