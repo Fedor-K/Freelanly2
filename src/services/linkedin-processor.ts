@@ -85,6 +85,9 @@ export async function fetchAndProcessLinkedInPosts(options?: {
       },
     });
 
+    // Cleanup old jobs after successful import
+    await cleanupOldJobs();
+
     return stats;
   } catch (error) {
     // Update import log with error
@@ -140,6 +143,9 @@ export async function processPostsFromDataset(datasetId: string): Promise<Proces
       },
     });
 
+    // Cleanup old jobs after successful import
+    await cleanupOldJobs();
+
     return stats;
   } catch (error) {
     await prisma.importLog.update({
@@ -193,6 +199,9 @@ export async function processPostsFromRun(runId: string): Promise<ProcessingStat
         completedAt: new Date(),
       },
     });
+
+    // Cleanup old jobs after successful import
+    await cleanupOldJobs();
 
     return stats;
   } catch (error) {
@@ -523,6 +532,28 @@ function calculateQualityScore(extracted: ExtractedJobData, post: LinkedInPost):
   if (!extracted.isRemote && !extracted.location) score -= 10;
 
   return Math.max(0, Math.min(100, score));
+}
+
+// Cleanup old jobs that are no longer shown on the site
+// Called automatically after each import
+export async function cleanupOldJobs(): Promise<{ deleted: number }> {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const deleted = await prisma.job.deleteMany({
+    where: {
+      OR: [
+        { isActive: false },
+        { postedAt: { lt: thirtyDaysAgo } }
+      ]
+    }
+  });
+
+  if (deleted.count > 0) {
+    console.log(`🗑️ Cleaned up ${deleted.count} old/inactive jobs`);
+  }
+
+  return { deleted: deleted.count };
 }
 
 export { processLinkedInPost };
