@@ -5,6 +5,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Card, CardContent } from '@/components/ui/card';
 import { siteConfig, countries, jobRoles } from '@/config/site';
 import { prisma } from '@/lib/db';
+import { getMaxJobAgeDate } from '@/lib/utils';
 
 export const metadata: Metadata = {
   title: 'Remote Jobs by Country - Find Work From Home Jobs Worldwide | Freelanly',
@@ -32,10 +33,16 @@ export default async function CountriesPage() {
   // Get job counts by country (by country code OR location name)
   let countryCounts: Record<string, number> = {};
   let totalJobs = 0;
+  const maxAgeDate = getMaxJobAgeDate();
 
   try {
-    // Count total jobs for "Worldwide"
-    totalJobs = await prisma.job.count({ where: { isActive: true } });
+    // Count total jobs for "Worldwide" (fresh jobs only)
+    totalJobs = await prisma.job.count({
+      where: {
+        isActive: true,
+        postedAt: { gte: maxAgeDate },
+      },
+    });
 
     // Count jobs for each country using both country code and location name
     const countPromises = countries
@@ -44,6 +51,7 @@ export default async function CountriesPage() {
         const count = await prisma.job.count({
           where: {
             isActive: true,
+            postedAt: { gte: maxAgeDate },
             OR: [
               { country: country.code },
               { location: { contains: country.name, mode: 'insensitive' } },
