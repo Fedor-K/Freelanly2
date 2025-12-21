@@ -6,7 +6,7 @@
  */
 
 import { prisma } from '@/lib/db';
-import { AlertSeverity, AlertType, Plan, RevenueEventType } from '@prisma/client';
+import { AlertSeverity, AlertType, Plan, Prisma, RevenueEventType } from '@prisma/client';
 
 // ============================================
 // TYPES
@@ -344,7 +344,7 @@ export async function recordRevenueEvent(
       type,
       amount,
       userId,
-      metadata: metadata || {},
+      metadata: (metadata || {}) as Prisma.InputJsonValue,
     },
   });
 
