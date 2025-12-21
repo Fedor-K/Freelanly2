@@ -5,7 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 
-const OLD_DB_URL = 'postgresql://neondb_owner:npg_NZUB6lxeQ1FM@ep-plain-voice-a5vn7mik.us-east-2.aws.neon.tech/neondb?sslmode=require';
+const OLD_DB_URL = 'postgresql://neondb_owner:npg_4yrSlM1RVCEi@ep-falling-mouse-a48a4w6b-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require';
 const NEW_DB_URL = 'postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require';
 
 async function getTableInfo(prisma: PrismaClient, dbName: string) {
