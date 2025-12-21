@@ -4,49 +4,58 @@
  */
 
 import { NextResponse } from 'next/server';
-import { testMetrikaConnection, getMetrikaLastNDays } from '@/lib/yandex-metrika-api';
-import { testDashaMailConnection, getEmailMarketingStats } from '@/lib/dashamail';
 
 export async function GET() {
   const results: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
     connections: {},
+    rawResponses: {},
     data: {},
   };
 
-  // Test Yandex.Metrika
-  try {
-    const metrikaConnected = await testMetrikaConnection();
-    (results.connections as Record<string, unknown>).yandexMetrika = metrikaConnected;
+  const token = process.env.YANDEX_METRIKA_TOKEN;
+  const counterId = process.env.YANDEX_METRIKA_COUNTER_ID;
+  const dashamailKey = process.env.DASHAMAIL_API_KEY;
 
-    if (metrikaConnected) {
-      const metrikaData = await getMetrikaLastNDays(7);
-      (results.data as Record<string, unknown>).yandexMetrika = metrikaData;
-    }
+  // Test Yandex.Metrika - raw request
+  try {
+    const metrikaUrl = `https://api-metrika.yandex.net/management/v1/counter/${counterId}?oauth_token=${token}`;
+    const response = await fetch(metrikaUrl);
+    const responseText = await response.text();
+
+    (results.connections as Record<string, unknown>).yandexMetrika = response.ok;
+    (results.rawResponses as Record<string, unknown>).yandexMetrika = {
+      status: response.status,
+      statusText: response.statusText,
+      body: responseText.substring(0, 500), // First 500 chars
+    };
   } catch (error) {
     (results.connections as Record<string, unknown>).yandexMetrika = false;
-    (results.connections as Record<string, unknown>).yandexMetrikaError = error instanceof Error ? error.message : 'Unknown error';
+    (results.rawResponses as Record<string, unknown>).yandexMetrikaError = error instanceof Error ? error.message : 'Unknown error';
   }
 
-  // Test DashaMail
+  // Test DashaMail - raw request
   try {
-    const dashamailConnected = await testDashaMailConnection();
-    (results.connections as Record<string, unknown>).dashaMail = dashamailConnected;
+    const dashamailUrl = `https://api.dashamail.com/?method=lists.get&api_key=${dashamailKey}`;
+    const response = await fetch(dashamailUrl);
+    const responseText = await response.text();
 
-    if (dashamailConnected) {
-      const emailStats = await getEmailMarketingStats();
-      (results.data as Record<string, unknown>).dashaMail = emailStats;
-    }
+    (results.connections as Record<string, unknown>).dashaMail = response.ok;
+    (results.rawResponses as Record<string, unknown>).dashaMail = {
+      status: response.status,
+      statusText: response.statusText,
+      body: responseText.substring(0, 500),
+    };
   } catch (error) {
     (results.connections as Record<string, unknown>).dashaMail = false;
-    (results.connections as Record<string, unknown>).dashaMailError = error instanceof Error ? error.message : 'Unknown error';
+    (results.rawResponses as Record<string, unknown>).dashaMailError = error instanceof Error ? error.message : 'Unknown error';
   }
 
-  // Environment check (без показа секретов)
+  // Environment check (без показа полных секретов)
   (results as Record<string, unknown>).envCheck = {
-    YANDEX_METRIKA_TOKEN: !!process.env.YANDEX_METRIKA_TOKEN,
-    YANDEX_METRIKA_COUNTER_ID: process.env.YANDEX_METRIKA_COUNTER_ID || 'not set',
-    DASHAMAIL_API_KEY: !!process.env.DASHAMAIL_API_KEY,
+    YANDEX_METRIKA_TOKEN: token ? `${token.substring(0, 10)}...` : 'not set',
+    YANDEX_METRIKA_COUNTER_ID: counterId || 'not set',
+    DASHAMAIL_API_KEY: dashamailKey ? `${dashamailKey.substring(0, 10)}...` : 'not set',
     DASHAMAIL_LIST_ID: process.env.DASHAMAIL_LIST_ID || 'not set',
     NEXT_PUBLIC_YANDEX_METRIKA_ID: process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID || 'not set',
     NEXT_PUBLIC_GA_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || 'not set',
