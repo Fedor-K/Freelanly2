@@ -64,6 +64,28 @@ async function getJob(jobSlug: string) {
   return job;
 }
 
+// Fetch similar jobs (same category, exclude current job)
+async function getSimilarJobs(jobId: string, categoryId: string, limit: number = 6) {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const jobs = await prisma.job.findMany({
+    where: {
+      id: { not: jobId },
+      categoryId: categoryId,
+      isActive: true,
+      postedAt: { gte: thirtyDaysAgo },
+    },
+    include: {
+      company: true,
+      category: true,
+    },
+    orderBy: { postedAt: 'desc' },
+    take: limit,
+  });
+  return jobs;
+}
+
 export async function generateMetadata({ params }: JobPageProps): Promise<Metadata> {
   const { companySlug, jobSlug } = await params;
   const job = await getJob(jobSlug);
@@ -116,6 +138,9 @@ export default async function JobPage({ params }: JobPageProps) {
 
   const isLinkedInPost = job.sourceType === 'UNSTRUCTURED';
   const jobUrl = buildJobUrl(job.company.slug, job.slug);
+
+  // Fetch similar jobs
+  const similarJobs = await getSimilarJobs(job.id, job.categoryId);
 
   // Fetch salary market data ONLY when job doesn't have real salary info
   // If job has salaryMin, we show actual salary from the job posting, not market estimates
@@ -447,6 +472,63 @@ export default async function JobPage({ params }: JobPageProps) {
               </Card>
             </div>
           </div>
+
+          {/* Similar Jobs Section */}
+          {similarJobs.length > 0 && (
+            <div className="mt-12">
+              <h2 className="text-2xl font-bold mb-6">Similar {job.category.name} Jobs</h2>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {similarJobs.map((similarJob) => (
+                  <Link
+                    key={similarJob.id}
+                    href={`/company/${similarJob.company.slug}/jobs/${similarJob.slug}`}
+                    className="block"
+                  >
+                    <Card className="h-full hover:shadow-md transition-shadow">
+                      <CardContent className="pt-4">
+                        <div className="flex gap-3">
+                          {similarJob.company.logo ? (
+                            <img
+                              src={similarJob.company.logo}
+                              alt={similarJob.company.name}
+                              className="w-10 h-10 rounded object-cover flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded bg-muted flex items-center justify-center text-sm font-bold flex-shrink-0">
+                              {similarJob.company.name.charAt(0)}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <h3 className="font-semibold text-sm line-clamp-2">{similarJob.title}</h3>
+                            <p className="text-sm text-muted-foreground truncate">{similarJob.company.name}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-muted-foreground">{similarJob.location}</span>
+                              {similarJob.salaryMin && (
+                                <>
+                                  <span className="text-xs text-muted-foreground">·</span>
+                                  <span className="text-xs font-medium text-green-600">
+                                    ${Math.round(similarJob.salaryMin / 1000)}K
+                                    {similarJob.salaryMax && `-${Math.round(similarJob.salaryMax / 1000)}K`}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+              <div className="mt-6 text-center">
+                <Link href={`/jobs/${job.category.slug}`}>
+                  <Button variant="outline">
+                    View all {job.category.name} jobs →
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
