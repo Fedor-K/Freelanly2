@@ -1,88 +1,22 @@
 import { Metadata } from 'next';
-import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { siteConfig } from '@/config/site';
+import { PricingCards } from './PricingCards';
 
 export const metadata: Metadata = {
-  title: 'Pricing - Free & Pro Plans for Job Seekers',
-  description: 'Choose the plan that fits your job search. Free tier with 20 job views/day or Pro at $19/month for unlimited access and email tracking.',
+  title: 'Pricing - Premium Plans for Job Seekers',
+  description: 'Get unlimited access to all jobs, full salary insights, and instant alerts. Weekly, monthly, and annual plans available.',
   keywords: ['freelanly pricing', 'job board pricing', 'remote jobs subscription'],
   openGraph: {
-    title: 'Freelanly Pricing - Free & Pro Plans',
-    description: 'Unlimited job views and email tracking for serious job seekers.',
+    title: 'Freelanly Pricing - Premium Plans',
+    description: 'Unlimited job views and full salary insights for serious job seekers.',
     url: `${siteConfig.url}/pricing`,
   },
   alternates: {
     canonical: `${siteConfig.url}/pricing`,
   },
 };
-
-const plans = [
-  {
-    name: 'Free',
-    price: '$0',
-    period: 'forever',
-    description: 'Perfect for casual job browsing',
-    features: [
-      '20 job views per day',
-      '5 applications per month',
-      'Basic job search',
-      'Access to LinkedIn posts',
-      'Limited salary data',
-    ],
-    limitations: [
-      'No email tracking',
-      'No saved searches',
-      'Limited filters',
-    ],
-    cta: 'Get Started',
-    href: '/jobs',
-    popular: false,
-  },
-  {
-    name: 'Pro',
-    price: '$19',
-    period: 'per month',
-    description: 'For serious job seekers',
-    features: [
-      'Unlimited job views',
-      '100 applications per month',
-      'Advanced search & filters',
-      'Full salary insights',
-      'Email tracking (opens, clicks)',
-      'Saved job searches',
-      'Priority support',
-      'Early access to new features',
-    ],
-    limitations: [],
-    cta: 'Start Pro Trial',
-    href: '/signup?plan=pro',
-    popular: true,
-  },
-  {
-    name: 'Enterprise',
-    price: 'Custom',
-    period: 'per month',
-    description: 'For teams and recruiters',
-    features: [
-      'Everything in Pro',
-      'Unlimited applications',
-      'Team collaboration',
-      'API access',
-      'Custom integrations',
-      'Dedicated account manager',
-      'SLA guarantee',
-    ],
-    limitations: [],
-    cta: 'Contact Sales',
-    href: 'mailto:sales@freelanly.com',
-    popular: false,
-  },
-];
 
 export default function PricingPage() {
   const structuredData = {
@@ -108,61 +42,83 @@ export default function PricingPage() {
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold mb-4">
-              Simple, Transparent Pricing
+              Find Your Next Remote Job Faster
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Start for free, upgrade when you need more power for your job search.
+              Get unlimited access to all jobs, full salary insights, and apply directly.
+              Start with a 7-day free trial.
             </p>
           </div>
 
-          {/* Plans Grid */}
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {plans.map((plan) => (
-              <Card
-                key={plan.name}
-                className={`relative ${plan.popular ? 'border-primary shadow-lg scale-105' : ''}`}
-              >
-                {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    Most Popular
-                  </Badge>
-                )}
-                <CardHeader>
-                  <CardTitle className="text-xl">{plan.name}</CardTitle>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold">{plan.price}</span>
-                    <span className="text-muted-foreground">/{plan.period}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {plan.description}
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3 mb-6">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-sm">
-                        <span className="text-green-500 mt-0.5">✓</span>
-                        {feature}
-                      </li>
-                    ))}
-                    {plan.limitations.map((limitation) => (
-                      <li key={limitation} className="flex items-start gap-2 text-sm text-muted-foreground">
-                        <span className="mt-0.5">✗</span>
-                        {limitation}
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    className="w-full"
-                    variant={plan.popular ? 'default' : 'outline'}
-                    asChild
-                  >
-                    <Link href={plan.href}>{plan.cta}</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {/* Plans */}
+          <PricingCards />
+
+          {/* Features comparison */}
+          <section className="mt-20 max-w-3xl mx-auto">
+            <h2 className="text-2xl font-bold text-center mb-8">
+              What You Get with Premium
+            </h2>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="border rounded-lg p-6">
+                <h3 className="font-semibold mb-4 text-muted-foreground">Free</h3>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-2 text-sm">
+                    <span className="text-green-500">✓</span>
+                    Browse all job listings
+                  </li>
+                  <li className="flex items-start gap-2 text-sm">
+                    <span className="text-green-500">✓</span>
+                    Save unlimited jobs
+                  </li>
+                  <li className="flex items-start gap-2 text-sm">
+                    <span className="text-green-500">✓</span>
+                    Basic salary insights (average only)
+                  </li>
+                  <li className="flex items-start gap-2 text-sm">
+                    <span className="text-green-500">✓</span>
+                    Daily email alerts
+                  </li>
+                  <li className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <span>✗</span>
+                    Full salary range & percentiles
+                  </li>
+                  <li className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <span>✗</span>
+                    Apply to jobs
+                  </li>
+                </ul>
+              </div>
+              <div className="border-2 border-primary rounded-lg p-6">
+                <h3 className="font-semibold mb-4 text-primary">Premium</h3>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-2 text-sm">
+                    <span className="text-green-500">✓</span>
+                    Everything in Free
+                  </li>
+                  <li className="flex items-start gap-2 text-sm">
+                    <span className="text-green-500">✓</span>
+                    <strong>Full salary insights</strong> (range, percentiles, source)
+                  </li>
+                  <li className="flex items-start gap-2 text-sm">
+                    <span className="text-green-500">✓</span>
+                    <strong>Apply to jobs directly</strong>
+                  </li>
+                  <li className="flex items-start gap-2 text-sm">
+                    <span className="text-green-500">✓</span>
+                    Instant email alerts
+                  </li>
+                  <li className="flex items-start gap-2 text-sm">
+                    <span className="text-green-500">✓</span>
+                    Application tracking
+                  </li>
+                  <li className="flex items-start gap-2 text-sm">
+                    <span className="text-green-500">✓</span>
+                    Priority support
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </section>
 
           {/* FAQ */}
           <section className="mt-20 max-w-3xl mx-auto">
@@ -175,7 +131,7 @@ export default function PricingPage() {
                   Can I cancel my subscription anytime?
                 </summary>
                 <p className="mt-2 text-muted-foreground">
-                  Yes, you can cancel your Pro subscription at any time. You'll continue to have access until the end of your billing period.
+                  Yes, you can cancel anytime. You'll continue to have Premium access until the end of your billing period.
                 </p>
               </details>
               <details className="border rounded-lg p-4">
@@ -183,7 +139,23 @@ export default function PricingPage() {
                   What payment methods do you accept?
                 </summary>
                 <p className="mt-2 text-muted-foreground">
-                  We accept all major credit cards (Visa, Mastercard, American Express) through our secure payment processor, Stripe.
+                  We accept all major credit and debit cards (Visa, Mastercard, American Express) through Stripe. PayPal and Apple Pay are also supported.
+                </p>
+              </details>
+              <details className="border rounded-lg p-4">
+                <summary className="font-medium cursor-pointer">
+                  How does the 7-day free trial work?
+                </summary>
+                <p className="mt-2 text-muted-foreground">
+                  Monthly and Annual plans include a 7-day free trial. You won't be charged until the trial ends. Cancel anytime during the trial and you won't be charged at all.
+                </p>
+              </details>
+              <details className="border rounded-lg p-4">
+                <summary className="font-medium cursor-pointer">
+                  Why is there no trial on the Weekly plan?
+                </summary>
+                <p className="mt-2 text-muted-foreground">
+                  The Weekly plan is designed for quick, urgent job searches. At €10 for a full week of access, it's already a low-commitment option to try Premium features.
                 </p>
               </details>
               <details className="border rounded-lg p-4">
@@ -191,31 +163,10 @@ export default function PricingPage() {
                   Do you offer refunds?
                 </summary>
                 <p className="mt-2 text-muted-foreground">
-                  We offer a 7-day money-back guarantee for Pro subscriptions. If you're not satisfied, contact us for a full refund.
-                </p>
-              </details>
-              <details className="border rounded-lg p-4">
-                <summary className="font-medium cursor-pointer">
-                  What is email tracking?
-                </summary>
-                <p className="mt-2 text-muted-foreground">
-                  Email tracking lets you know when employers open your application emails. This helps you follow up at the right time.
+                  We offer refunds on a case-by-case basis. If you're not satisfied, contact us within 7 days of your payment and we'll work something out.
                 </p>
               </details>
             </div>
-          </section>
-
-          {/* CTA */}
-          <section className="mt-16 text-center">
-            <h2 className="text-2xl font-bold mb-4">
-              Ready to find your next remote job?
-            </h2>
-            <p className="text-muted-foreground mb-6">
-              Join thousands of professionals who found their dream position through Freelanly.
-            </p>
-            <Button size="lg" asChild>
-              <Link href="/jobs">Browse Jobs</Link>
-            </Button>
           </section>
         </div>
       </main>
@@ -227,7 +178,6 @@ export default function PricingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
 
-      {/* FAQ Schema */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -240,23 +190,15 @@ export default function PricingPage() {
                 name: 'Can I cancel my subscription anytime?',
                 acceptedAnswer: {
                   '@type': 'Answer',
-                  text: 'Yes, you can cancel your Pro subscription at any time.',
+                  text: 'Yes, you can cancel anytime. You\'ll continue to have Premium access until the end of your billing period.',
                 },
               },
               {
                 '@type': 'Question',
-                name: 'What payment methods do you accept?',
+                name: 'How does the 7-day free trial work?',
                 acceptedAnswer: {
                   '@type': 'Answer',
-                  text: 'We accept all major credit cards through Stripe.',
-                },
-              },
-              {
-                '@type': 'Question',
-                name: 'Do you offer refunds?',
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: 'We offer a 7-day money-back guarantee for Pro subscriptions.',
+                  text: 'Monthly and Annual plans include a 7-day free trial. Cancel anytime during the trial and you won\'t be charged.',
                 },
               },
             ],

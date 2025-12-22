@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { SalaryInsights, SalaryMarketData } from '@/components/jobs/SalaryInsights';
+import { SalaryInsights, SalaryMarketData, UserPlan } from '@/components/jobs/SalaryInsights';
 import { ApplyButton } from '@/components/jobs/ApplyButton';
 import { SocialShare } from '@/components/jobs/SocialShare';
 import { JobViewTracker } from '@/components/jobs/JobViewTracker';
@@ -15,6 +15,7 @@ import { SaveJobButton } from '@/components/jobs/SaveJobButton';
 import { formatDistanceToNow } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
+import { auth } from '@/lib/auth';
 import { getSalaryInsights } from '@/services/salary-insights';
 
 export const dynamic = 'force-dynamic';
@@ -139,6 +140,19 @@ export default async function JobPage({ params }: JobPageProps) {
 
   const isLinkedInPost = job.sourceType === 'UNSTRUCTURED';
   const jobUrl = buildJobUrl(job.company.slug, job.slug);
+
+  // Get user session and plan
+  const session = await auth();
+  let userPlan: UserPlan = 'FREE';
+  if (session?.user?.id) {
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { plan: true },
+    });
+    if (user?.plan) {
+      userPlan = user.plan as UserPlan;
+    }
+  }
 
   // Fetch similar jobs
   const similarJobs = await getSimilarJobs(job.id, job.categoryId);
@@ -393,6 +407,7 @@ export default async function JobPage({ params }: JobPageProps) {
                 currency={job.salaryCurrency || 'USD'}
                 isEstimate={job.salaryIsEstimate}
                 marketData={salaryMarketData}
+                userPlan={userPlan}
               />
 
               {/* Apply Card */}
