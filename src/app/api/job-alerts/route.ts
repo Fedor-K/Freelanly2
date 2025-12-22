@@ -14,21 +14,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if subscriber already exists
-    const existing = await prisma.jobAlert.findUnique({
-      where: { email },
+    // Check if subscriber already exists with same email and filters
+    const existing = await prisma.jobAlert.findFirst({
+      where: {
+        email,
+        category: category || null,
+        keywords: keywords || null,
+      },
     });
 
     if (existing) {
-      // Update existing subscription
-      await prisma.jobAlert.update({
-        where: { email },
-        data: {
-          category: category || null,
-          keywords: keywords || null,
-          isActive: true,
-        },
-      });
+      // Reactivate if was inactive
+      if (!existing.isActive) {
+        await prisma.jobAlert.update({
+          where: { id: existing.id },
+          data: { isActive: true },
+        });
+      }
     } else {
       // Create new subscription
       await prisma.jobAlert.create({

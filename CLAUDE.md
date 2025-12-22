@@ -17,6 +17,48 @@ SEO-оптимизированная платформа для поиска уд
 - DeepSeek API (extraction + categorization)
 - Apify (LinkedIn scraping)
 - Apollo.io (company enrichment)
+- NextAuth v5 (authentication)
+- DashaMail (transactional emails)
+
+## Authentication & User Dashboard
+
+### Auth Setup (NextAuth v5)
+- **Providers**: Google OAuth + Magic Link (via DashaMail)
+- **Session**: Database strategy, 30-day lifetime
+- **Protected routes**: `/dashboard/*` via middleware
+
+**Files:**
+- `src/lib/auth.ts` — NextAuth configuration
+- `src/lib/auth-email.ts` — Magic Link email sender
+- `src/middleware.ts` — Route protection
+- `src/components/auth/SignInForm.tsx` — Login form
+- `src/components/auth/UserMenu.tsx` — Header user menu
+
+**Environment variables:**
+```
+AUTH_SECRET=xxx  # Generate: openssl rand -base64 32
+AUTH_URL=https://freelanly.com
+GOOGLE_CLIENT_ID=xxx
+GOOGLE_CLIENT_SECRET=xxx
+```
+
+### User Plans
+| Feature | FREE | PRO ($19/mo) |
+|---------|------|--------------|
+| Job views | 5/day | Unlimited |
+| Applications | 0 | 100/month |
+| Saved jobs | Unlimited | Unlimited |
+| Salary insights | Limited | Full |
+| Email tracking | No | Yes |
+
+### Dashboard Pages
+```
+/dashboard              — Overview, stats
+/dashboard/saved        — Saved jobs
+/dashboard/applications — Application tracking
+/dashboard/alerts       — Job alerts management
+/dashboard/settings     — Profile settings
+```
 
 ## Key Architecture Decisions
 
@@ -123,6 +165,13 @@ src/
 ├── config/site.ts                 # Categories, levels, countries config
 ├── config/salary-coefficients.ts  # Country salary coefficients
 ├── components/jobs/SalaryInsights.tsx  # Salary insights component
+├── lib/auth.ts                    # NextAuth configuration
+├── lib/auth-email.ts              # Magic Link email sender
+├── middleware.ts                  # Route protection
+├── app/auth/signin/page.tsx       # Sign in page
+├── app/dashboard/page.tsx         # User dashboard
+├── components/auth/UserMenu.tsx   # Header user menu
+├── components/auth/SignInForm.tsx # Login form component
 
 scripts/
 ├── cleanup-duplicate-companies.ts # Merge duplicate companies
@@ -227,6 +276,9 @@ npx prisma db push --force-reset
 17. **Multiple ATS sources** — added RemoteOK, WeWorkRemotely, HackerNews processors
 18. **Daily cron job** — all sources run automatically at 6:00 UTC
 19. **Salary re-extraction** — script to re-extract salaries from existing job descriptions
+20. **Authentication system** — NextAuth v5 with Google OAuth + Magic Link
+21. **User Dashboard** — `/dashboard` with saved jobs, applications, alerts tracking
+22. **User Menu** — header dropdown with profile, settings, logout
 
 ## Code Patterns
 

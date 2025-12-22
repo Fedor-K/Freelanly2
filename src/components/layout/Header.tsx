@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { siteConfig, mainCategories } from '@/config/site';
+import { UserMenu } from '@/components/auth/UserMenu';
 
 export function Header() {
   return (
@@ -53,6 +54,7 @@ export function Header() {
               Post a Job
             </Button>
           </Link>
+          <UserMenu />
         </div>
       </div>
     </header>
