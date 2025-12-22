@@ -5,6 +5,7 @@ import { processLeverSource } from './lever-processor';
 import { processRemoteOKSource } from './remoteok-processor';
 import { processWeWorkRemotelySource } from './weworkremotely-processor';
 import { processHackerNewsSource } from './hackernews-processor';
+import { notifySearchEngines } from '@/lib/indexing';
 
 export * from './types';
 
@@ -65,6 +66,16 @@ export async function processDataSource(dataSourceId: string): Promise<Processin
         completedAt: new Date(),
       },
     });
+
+    // Notify search engines about new jobs (IndexNow + Google)
+    if (stats.createdJobUrls && stats.createdJobUrls.length > 0) {
+      try {
+        await notifySearchEngines(stats.createdJobUrls);
+      } catch (indexError) {
+        console.error('[Sources] Search engine notification failed:', indexError);
+        // Don't fail the whole import if indexing fails
+      }
+    }
 
     console.log(`[Sources] Completed ${dataSource.name}: ${stats.created} created, ${stats.skipped} skipped, ${stats.failed} failed`);
     return stats;

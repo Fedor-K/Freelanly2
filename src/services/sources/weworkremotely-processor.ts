@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
 import { cleanupOldJobs } from '@/services/job-cleanup';
+import { buildJobUrl } from '@/lib/indexing';
 import type { ProcessingStats } from './types';
 
 const WWR_RSS_URL = 'https://weworkremotely.com/remote-jobs.rss';
@@ -22,6 +23,7 @@ export async function processWeWorkRemotelySource(dataSourceId: string): Promise
     skipped: 0,
     failed: 0,
     errors: [],
+    createdJobUrls: [],
   };
 
   const dataSource = await prisma.dataSource.findUnique({
@@ -50,9 +52,16 @@ export async function processWeWorkRemotelySource(dataSourceId: string): Promise
     for (const job of jobs) {
       try {
         const result = await processWWRJob(job);
-        if (result === 'created') stats.created++;
-        else if (result === 'updated') stats.updated++;
-        else if (result === 'skipped') stats.skipped++;
+        if (result.status === 'created') {
+          stats.created++;
+          if (result.companySlug && result.jobSlug) {
+            stats.createdJobUrls!.push(buildJobUrl(result.companySlug, result.jobSlug));
+          }
+        } else if (result.status === 'updated') {
+          stats.updated++;
+        } else if (result.status === 'skipped') {
+          stats.skipped++;
+        }
       } catch (error) {
         stats.failed++;
         stats.errors.push(`Job ${job.guid}: ${String(error)}`);
@@ -132,7 +141,7 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&nbsp;/g, ' ');
 }
 
-async function processWWRJob(item: WWRItem): Promise<'created' | 'updated' | 'skipped'> {
+async function processWWRJob(item: WWRItem): Promise<{ status: 'created' | 'updated' | 'skipped'; companySlug?: string; jobSlug?: string }> {
   const sourceUrl = item.link;
   const sourceId = `wwr-${item.guid}`;
 
@@ -147,7 +156,7 @@ async function processWWRJob(item: WWRItem): Promise<'created' | 'updated' | 'sk
   });
 
   if (existingJob) {
-    return 'skipped';
+    return { status: 'skipped' };
   }
 
   // Parse title format: "Company: Job Title"
@@ -205,7 +214,7 @@ async function processWWRJob(item: WWRItem): Promise<'created' | 'updated' | 'sk
     },
   });
 
-  return 'created';
+  return { status: 'created', companySlug: company.slug, jobSlug: slug };
 }
 
 function parseTitleFormat(title: string): { companyName: string | null; jobTitle: string | null } {
