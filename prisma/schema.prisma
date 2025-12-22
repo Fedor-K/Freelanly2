@@ -611,6 +611,7 @@ model DataSource {
   lastRunAt     DateTime?
   lastSuccessAt DateTime?
   totalImported Int          @default(0)
+  lastCreated   Int          @default(0)  // Jobs created in last run
   lastError     String?
   errorCount    Int          @default(0)
 

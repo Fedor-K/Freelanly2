@@ -74,6 +74,7 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
         lastRunAt: new Date(),
         lastSuccessAt: new Date(),
         totalImported: { increment: stats.created },
+        lastCreated: stats.created,
         lastError: null,
         errorCount: 0,
       },

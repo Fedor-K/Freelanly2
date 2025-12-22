@@ -18,6 +18,7 @@ interface DataSource {
   lastRunAt: string | null;
   lastSuccessAt: string | null;
   totalImported: number;
+  lastCreated: number;
   lastError: string | null;
   errorCount: number;
 }
@@ -297,7 +298,16 @@ export default function SourcesPage() {
                     <div className="flex items-center gap-4">
                       <div className="text-sm text-right">
                         <div className="text-muted-foreground">Last run: {formatDate(source.lastRunAt)}</div>
-                        <div className="font-medium">{source.totalImported} jobs imported</div>
+                        <div className="font-medium">
+                          {source.lastCreated > 0 ? (
+                            <span className="text-green-600">+{source.lastCreated} new</span>
+                          ) : source.lastRunAt ? (
+                            <span className="text-muted-foreground">no new jobs</span>
+                          ) : (
+                            <span className="text-muted-foreground">not run yet</span>
+                          )}
+                          <span className="text-muted-foreground font-normal ml-2">({source.totalImported} total)</span>
+                        </div>
                       </div>
 
                       <Badge
