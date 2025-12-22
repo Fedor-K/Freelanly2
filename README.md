@@ -37,6 +37,8 @@ Freelanly агрегирует hiring-посты из LinkedIn, извлекае
 - **30-дневная свежесть** — только актуальные вакансии (Google рекомендация)
 - **Auto Cleanup** — автоматическое удаление старых вакансий после каждого импорта
 - **Daily Cron** — автоматический запуск всех источников раз в день (6:00 UTC)
+- **n8n Integration** — real-time импорт LinkedIn постов через webhook
+- **Fuzzy Deduplication** — умная дедупликация по email domain + похожести title
 - **Authentication** — NextAuth v5 с Google OAuth и Magic Link
 - **User Dashboard** — сохранённые вакансии, алерты, настройки профиля
 - **Translation Alerts** — специальные фильтры для переводчиков (типы перевода + языковые пары)
@@ -106,9 +108,10 @@ Open [http://localhost:3000](http://localhost:3000)
 ┌─────────────────────────────────────────────────────────────────┐
 │                         ИСТОЧНИКИ                                │
 ├─────────────────────────────────────────────────────────────────┤
-│  LinkedIn (Apify)   │  Lever ATS    │  RemoteOK     │  WWR / HN    │
-│  - Hiring posts     │  - API        │  - API        │  - RSS/API   │
-│  - Unstructured     │  - Structured │  - Structured │  - Structured│
+│  LinkedIn (n8n)     │  Lever ATS    │  RemoteOK     │  WWR / HN    │
+│  - Real-time posts  │  - API        │  - API        │  - RSS/API   │
+│  - via Apify        │  - Structured │  - Structured │  - Structured│
+│  - Webhook          │               │               │              │
 └─────────────────────────────────────────────────────────────────┘
                                │
                                ▼
@@ -118,7 +121,7 @@ Open [http://localhost:3000](http://localhost:3000)
 │  1. Дедупликация          │  2. AI Extraction   │  3. Category  │
 │     - По sourceId/URL     │     - DeepSeek      │     - 21 cat  │
 │     - По title+company    │     - Title/Salary  │     - AI + kw │
-│     - Company matching    │     - Skills/Level  │     - Fallback│
+│     - Fuzzy (email+title) │     - Skills/Level  │     - Fallback│
 └─────────────────────────────────────────────────────────────────┘
                                │
                                ▼
@@ -177,7 +180,8 @@ src/
 │       ├── cron/
 │       │   └── fetch-linkedin/   # LinkedIn import trigger
 │       ├── webhooks/
-│       │   └── apify/            # Apify webhook handler
+│       │   ├── apify/            # Apify webhook handler
+│       │   └── linkedin-posts/   # n8n webhook for individual posts
 │       ├── user/                 # User API endpoints
 │       │   ├── alerts/           # Job alerts CRUD
 │       │   └── settings/         # User settings
@@ -522,9 +526,24 @@ model AlertLanguagePair {
 **Проверки:**
 1. По sourceId или sourceUrl (exact match)
 2. По title + companyId (case-insensitive)
+3. По email domain + похожести title (fuzzy, 60%+ Jaccard similarity)
 
 **Файлы:**
 - `src/services/linkedin-processor.ts` → `processLinkedInPost()`
+- `src/app/api/webhooks/linkedin-posts/route.ts` → `findSimilarJobByEmailDomain()`
+
+### Fuzzy Deduplication
+
+Для предотвращения дубликатов, когда одна компания публикует похожие вакансии:
+1. Извлекаем домен из email (напр. `tekwissen.in` из `job@tekwissen.in`)
+2. Ищем вакансии за 30 дней с тем же доменом
+3. Сравниваем title через Jaccard similarity (пересечение слов / объединение слов)
+4. Если similarity ≥ 60% → пропускаем как дубликат
+
+**Пример:**
+- `"English - Portuguese Translator"` vs `"English–Portuguese Translator"`
+- Оба нормализуются в `["english", "portuguese", "translator"]`
+- Similarity = 100% → дубликат
 
 ### Скрипты очистки
 
@@ -696,6 +715,7 @@ npx tsx scripts/recategorize-jobs.ts
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/webhooks/apify` | Apify run completion webhook |
+| POST | `/api/webhooks/linkedin-posts` | n8n webhook for individual LinkedIn posts |
 
 ### User (require auth)
 
@@ -908,9 +928,12 @@ model Job {
 - [x] **Authentication** (NextAuth v5 with Google OAuth + Magic Link)
 - [x] **User Dashboard** (saved jobs, alerts, settings)
 - [x] **Job Alerts** with translation-specific filters (language pairs)
+- [x] **Email notifications for job alerts** (DAILY cron at 7:00 UTC)
+- [x] **n8n webhook integration** — real-time LinkedIn posts via `/api/webhooks/linkedin-posts`
+- [x] **Fuzzy deduplication** — email domain + title similarity (60%+ threshold)
 - [ ] Stripe payments
 - [ ] Application tracking
-- [ ] Email notifications for job alerts
+- [ ] INSTANT/WEEKLY alert frequencies
 - [ ] SEO landing pages generator
 
 ---

@@ -18,14 +18,29 @@ interface JobAlert {
   id: string;
   category: string | null;
   keywords: string | null;
+  country: string | null;
+  level: string | null;
   frequency: string;
   isActive: boolean;
   languagePairs: LanguagePair[];
 }
 
+interface Country {
+  slug: string;
+  name: string;
+  code: string | null;
+}
+
+interface Level {
+  value: string;
+  label: string;
+}
+
 interface AlertsListProps {
   initialAlerts: JobAlert[];
   categories: readonly Category[];
+  countries: readonly Country[];
+  levels: readonly Level[];
 }
 
 // Translation types for the dropdown
@@ -72,7 +87,7 @@ const LANGUAGES = [
   { code: 'VI', name: 'Vietnamese' },
 ];
 
-export function AlertsList({ initialAlerts, categories }: AlertsListProps) {
+export function AlertsList({ initialAlerts, categories, countries, levels }: AlertsListProps) {
   const [alerts, setAlerts] = useState<JobAlert[]>(initialAlerts);
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -80,6 +95,8 @@ export function AlertsList({ initialAlerts, categories }: AlertsListProps) {
   // Form state
   const [category, setCategory] = useState('');
   const [keywords, setKeywords] = useState('');
+  const [country, setCountry] = useState('');
+  const [level, setLevel] = useState('');
   const [frequency, setFrequency] = useState('DAILY');
 
   // Translation-specific: array of language pairs
@@ -127,7 +144,13 @@ export function AlertsList({ initialAlerts, categories }: AlertsListProps) {
     setLoading(true);
 
     try {
-      const body: Record<string, unknown> = { category, keywords, frequency };
+      const body: Record<string, unknown> = {
+        category,
+        keywords,
+        country,
+        level,
+        frequency
+      };
 
       // Add language pairs if translation category
       if (isTranslationCategory && languagePairs.length > 0) {
@@ -147,6 +170,8 @@ export function AlertsList({ initialAlerts, categories }: AlertsListProps) {
         // Reset form
         setCategory('');
         setKeywords('');
+        setCountry('');
+        setLevel('');
         setFrequency('DAILY');
         setLanguagePairs([]);
         setCurrentType('');
@@ -196,6 +221,18 @@ export function AlertsList({ initialAlerts, categories }: AlertsListProps) {
     if (!slug) return 'All categories';
     const cat = categories.find((c) => c.slug === slug);
     return cat?.name || slug;
+  };
+
+  const getCountryName = (code: string | null) => {
+    if (!code) return null;
+    const c = countries.find((ct) => ct.code === code);
+    return c?.name || code;
+  };
+
+  const getLevelName = (value: string | null) => {
+    if (!value) return null;
+    const l = levels.find((lv) => lv.value === value);
+    return l?.label || value;
   };
 
   const getLanguageName = (code: string) => {
@@ -271,6 +308,44 @@ export function AlertsList({ initialAlerts, categories }: AlertsListProps) {
                 placeholder="e.g. React, Python, Remote"
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Country (optional)
+                </label>
+                <select
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="">Any country</option>
+                  {countries.map((c) => (
+                    <option key={c.slug} value={c.code || ''}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Level (optional)
+                </label>
+                <select
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="">Any level</option>
+                  {levels.map((l) => (
+                    <option key={l.value} value={l.value}>
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Translation-specific fields */}
@@ -464,11 +539,25 @@ export function AlertsList({ initialAlerts, categories }: AlertsListProps) {
                     <h3 className="font-semibold text-gray-900">
                       {getCategoryName(alert.category)}
                     </h3>
-                    {alert.keywords && (
-                      <p className="text-gray-600 mt-1">
-                        Keywords: {alert.keywords}
-                      </p>
-                    )}
+
+                    {/* Filters display */}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {alert.keywords && (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                          🔍 {alert.keywords}
+                        </span>
+                      )}
+                      {alert.country && (
+                        <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded">
+                          📍 {getCountryName(alert.country)}
+                        </span>
+                      )}
+                      {alert.level && (
+                        <span className="px-2 py-1 bg-green-50 text-green-700 text-xs rounded">
+                          📊 {getLevelName(alert.level)}
+                        </span>
+                      )}
+                    </div>
 
                     {/* Language pairs grouped by type */}
                     {Object.keys(groupedPairs).length > 0 && (

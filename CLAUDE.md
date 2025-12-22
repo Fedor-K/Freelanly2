@@ -6,6 +6,8 @@ SEO-оптимизированная платформа для поиска уд
 
 **Автоматизация:**
 - Daily cron at 6:00 UTC: fetches all sources
+- Daily cron at 7:00 UTC: sends job alert notifications
+- n8n workflow: scrapes LinkedIn posts every 15-20 min via Apify
 - Auto cleanup: removes jobs older than 30 days after each import
 - Company enrichment via Apollo.io
 
@@ -83,6 +85,67 @@ model AlertLanguagePair {
 - `src/app/api/user/alerts/route.ts` — CRUD endpoints
 - `prisma/schema.prisma` — JobAlert, AlertLanguagePair models
 
+### Email Notifications for Job Alerts
+Автоматическая рассылка уведомлений о новых вакансиях.
+
+**Matching Criteria:**
+- Category (optional)
+- Keywords (comma-separated, searches title + description)
+- Country (optional)
+- Level (optional)
+- Language Pairs (for translation category)
+
+**Frequencies:**
+- INSTANT — after each job import (TODO: integrate with import)
+- DAILY — 7:00 UTC (cron)
+- WEEKLY — Monday 7:00 UTC (TODO: separate cron)
+
+**Duplicate Prevention:**
+- AlertNotification model tracks sent job+alert pairs
+- Jobs are marked as sent after successful email delivery
+
+**Files:**
+- `src/services/alert-matcher.ts` — Matches jobs to alerts
+- `src/services/alert-notifications.ts` — Email generation and sending
+- `src/app/api/cron/send-alerts/route.ts` — Cron endpoint
+
+**Manual trigger:**
+```bash
+curl -X POST "http://localhost:3000/api/cron/send-alerts?frequency=DAILY" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+## n8n LinkedIn Posts Integration
+
+Отдельный workflow в n8n для real-time скрапинга LinkedIn постов.
+
+**Workflow:**
+1. Schedule Trigger (every 15-20 min)
+2. Rotator API (ротация ключевых слов)
+3. Apify Actor `harvestapi~linkedin-post-search`
+4. Get Dataset Items
+5. Send to Freelanly webhook (parallel to both servers)
+
+**Webhook endpoint:** `/api/webhooks/linkedin-posts`
+
+**Supported field formats:**
+- n8n mapped: `postUrl`, `postContent`, `author.linkedinUrl`
+- Raw Apify: `linkedinUrl`, `content`, `author.linkedinUrl`
+
+**Filtering:**
+- `no_title` — DeepSeek не смог извлечь title (не вакансия)
+- `no_corporate_email` — нет корпоративного email
+- `similar_job_exists` — fuzzy дубликат (см. ниже)
+- `duplicate` — точный дубликат по sourceUrl
+
+**Files:**
+- `src/app/api/webhooks/linkedin-posts/route.ts` — webhook handler
+
+**Environment variables:**
+```
+N8N_WEBHOOK_SECRET=xxx  # или APIFY_WEBHOOK_SECRET
+```
+
 ## Key Architecture Decisions
 
 ### 21 Job Categories
@@ -102,7 +165,9 @@ Other: support, education, research, consulting
 ### Deduplication
 - **Companies**: Search by slug OR name (case-insensitive), normalize name
 - **Jobs**: Check by sourceId/URL, then by title+company (case-insensitive)
+- **Fuzzy dedup**: Same email domain + similar title (60%+ Jaccard similarity) = duplicate
 - Files: `src/services/linkedin-processor.ts`, `src/services/sources/lever-processor.ts`
+- Fuzzy dedup: `src/app/api/webhooks/linkedin-posts/route.ts` → `findSimilarJobByEmailDomain()`
 
 ### Job Freshness
 - 30-day max age (Google recommendation)
@@ -170,6 +235,8 @@ src/
 ├── app/company/[slug]/jobs/[job]/page.tsx  # Job detail + Apply Now
 ├── app/api/cron/fetch-sources/route.ts    # Daily ATS cron endpoint
 ├── app/api/cron/fetch-linkedin/route.ts   # LinkedIn cron endpoint
+├── app/api/cron/send-alerts/route.ts      # Job alert notifications cron
+├── app/api/webhooks/linkedin-posts/route.ts # n8n webhook for individual posts
 ├── lib/deepseek.ts                # AI extraction + categorization (21 cats)
 ├── lib/utils.ts                   # Freshness, slugify, free email check
 ├── lib/bls.ts                     # BLS API client (US salary data)
@@ -178,6 +245,8 @@ src/
 ├── services/job-cleanup.ts        # Auto cleanup old jobs (30 days)
 ├── services/company-enrichment.ts # Apollo.io enrichment
 ├── services/salary-insights.ts    # Salary market data service
+├── services/alert-matcher.ts      # Match jobs to user alerts
+├── services/alert-notifications.ts # Send job alert emails
 ├── services/sources/
 │   ├── index.ts                   # Source orchestration + processAllSources()
 │   ├── lever-processor.ts         # Lever ATS processor
@@ -228,6 +297,17 @@ curl -X POST http://localhost:3000/api/cron/fetch-sources \
 ### Run LinkedIn import only
 ```bash
 curl -X POST http://localhost:3000/api/cron/fetch-linkedin \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+### Send job alert notifications
+```bash
+# DAILY alerts
+curl -X POST "http://localhost:3000/api/cron/send-alerts?frequency=DAILY" \
+  -H "Authorization: Bearer $CRON_SECRET"
+
+# WEEKLY alerts
+curl -X POST "http://localhost:3000/api/cron/send-alerts?frequency=WEEKLY" \
   -H "Authorization: Bearer $CRON_SECRET"
 ```
 
@@ -321,6 +401,11 @@ npx prisma db push --force-reset
 26. **Multiple language pairs** — AlertLanguagePair model for complex translator needs
 27. **Dashboard layout** — shared Header and Footer across all dashboard pages
 28. **User settings** — profile settings page with email preferences
+29. **Email notifications** — automated job alert emails via DashaMail
+30. **Alert matching** — matches jobs by category, keywords, country, level, language pairs
+31. **Daily alert cron** — runs at 7:00 UTC, sends DAILY frequency alerts
+32. **n8n webhook integration** — `/api/webhooks/linkedin-posts` for real-time LinkedIn scraping
+33. **Fuzzy deduplication** — same email domain + 60%+ title similarity = duplicate
 
 ## Code Patterns
 
@@ -360,8 +445,9 @@ await cleanupOldJobs();
 3. Apollo enrichment can match wrong company (e.g., "Mistral" → bakery instead of AI)
 4. Salary Insights only shown for annual salaries (YEAR period)
 5. Server runs on `/opt/freelanly2` with PM2 process `freelanly`
-6. **Cron job runs at 6:00 UTC** — check `/var/log/freelanly-cron.log` for logs
+6. **Cron jobs run at 6:00 and 7:00 UTC** — sources fetch at 6:00, alerts send at 7:00
 7. **Jobs auto-deleted after 30 days** — this is intentional, not a bug
+8. **Check cron logs** — `tail -f /var/log/freelanly-cron.log` for debugging
 
 ## Server Commands (Production)
 
@@ -389,4 +475,31 @@ crontab -l
 
 # Run sources manually
 curl -X POST http://localhost:3000/api/cron/fetch-sources -H "Authorization: Bearer $CRON_SECRET"
+```
+
+## Current Session Status (Dec 22, 2024)
+
+**Что сделано в этой сессии:**
+1. ✅ Создан webhook `/api/webhooks/linkedin-posts` для интеграции с n8n
+2. ✅ n8n workflow отправляет посты на сервер в реальном времени
+3. ✅ Добавлена fuzzy дедупликация (email domain + title similarity 60%+)
+4. ✅ Первая вакансия успешно создана через webhook (Hindi to Bengali Translator)
+
+**Известные проблемы:**
+- Apollo.io не всегда находит данные для небольших компаний (напр. King Media Network)
+- Если `logo = ""` — Apollo не нашёл данные; если `logo = null` — enrichment не запускался
+
+**Возможные следующие шаги:**
+1. Добавить fallback для логотипов (Clearbit, Google Favicon API)
+2. Добавить INSTANT алерты (отправка сразу после создания вакансии)
+3. Добавить WEEKLY cron для недельных алертов
+4. Stripe интеграция для платных планов
+5. Application tracking (отслеживание откликов)
+
+**Для деплоя последних изменений:**
+```bash
+cd /opt/freelanly2
+git fetch origin claude/review-changes-mjgqpbwqndzlx831-OBfGu
+git merge origin/claude/review-changes-mjgqpbwqndzlx831-OBfGu -m "Add n8n webhook + fuzzy dedup"
+npm run build && pm2 restart freelanly
 ```

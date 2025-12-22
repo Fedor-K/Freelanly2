@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { AlertsList } from './AlertsList';
-import { categories } from '@/config/site';
+import { categories, countries, levels } from '@/config/site';
 
 export const metadata: Metadata = {
   title: 'Job Alerts | Freelanly',
@@ -35,7 +35,12 @@ export default async function AlertsPage() {
           </p>
         </div>
 
-        <AlertsList initialAlerts={alerts} categories={categories} />
+        <AlertsList
+          initialAlerts={alerts}
+          categories={categories}
+          countries={countries}
+          levels={levels}
+        />
       </div>
     </div>
   );
