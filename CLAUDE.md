@@ -21,6 +21,7 @@ SEO-оптимизированная платформа для поиска уд
 - Apollo.io (company enrichment)
 - NextAuth v5 (authentication)
 - DashaMail (transactional emails)
+- Stripe (subscription payments)
 
 ## Authentication & User Dashboard
 
@@ -44,14 +45,53 @@ GOOGLE_CLIENT_ID=xxx
 GOOGLE_CLIENT_SECRET=xxx
 ```
 
-### User Plans
-| Feature | FREE | PRO ($19/mo) |
-|---------|------|--------------|
-| Job views | 5/day | Unlimited |
-| Applications | 0 | 100/month |
+### User Plans & Stripe Integration
+| Feature | FREE | PRO |
+|---------|------|-----|
+| Job views | Unlimited | Unlimited |
 | Saved jobs | Unlimited | Unlimited |
-| Salary insights | Limited | Full |
-| Email tracking | No | Yes |
+| Salary insights | Average only | Full (range, percentiles, source) |
+| INSTANT alerts | Yes | Yes |
+| Apply to jobs | Limited | Unlimited |
+
+**Pricing (EUR):**
+| Plan | Price | Trial |
+|------|-------|-------|
+| Weekly | €10/week | No trial |
+| Monthly | €20/month | 7-day trial |
+| Annual | €192/year | 7-day trial (save 20%) |
+
+**Stripe Price IDs:**
+```
+WEEKLY:  price_1Sh8hVKHJU6KLxM3W75Rystk
+MONTHLY: price_1S3HO0KHJU6KLxM30Jgoqizh
+ANNUAL:  price_1Sh8fcKHJU6KLxM3lCvLduFe
+```
+
+**Stripe Files:**
+- `src/lib/stripe.ts` — Stripe client, price config, checkout/portal helpers
+- `src/app/api/stripe/checkout/route.ts` — Create checkout session
+- `src/app/api/stripe/webhook/route.ts` — Handle Stripe events
+- `src/app/api/stripe/portal/route.ts` — Customer portal session
+- `src/app/pricing/page.tsx` — Pricing page
+- `src/app/pricing/PricingCards.tsx` — Checkout flow component
+
+**Webhook events handled:**
+- `checkout.session.completed` — Upgrade user to PRO
+- `customer.subscription.created/updated` — Sync subscription status
+- `customer.subscription.deleted` — Downgrade to FREE
+- `invoice.paid` — Record revenue event
+- `invoice.payment_failed` — Log failed payment
+
+**Environment variables:**
+```
+STRIPE_SECRET_KEY=sk_live_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+```
+
+**Configure Stripe webhook:**
+- URL: `https://freelanly.com/api/stripe/webhook`
+- Events: checkout.session.completed, customer.subscription.*, invoice.*
 
 ### Dashboard Pages
 ```
@@ -96,9 +136,18 @@ model AlertLanguagePair {
 - Language Pairs (for translation category)
 
 **Frequencies:**
-- INSTANT — after each job import (TODO: integrate with import)
+- INSTANT — sends immediately after job is created (integrated with job creation)
 - DAILY — 7:00 UTC (cron)
 - WEEKLY — Monday 7:00 UTC (TODO: separate cron)
+
+**INSTANT alerts implementation:**
+- `sendInstantAlertsForJob(jobId)` in `src/services/alert-notifications.ts`
+- Called after job creation in:
+  - `/api/webhooks/linkedin-posts` (n8n real-time)
+  - `linkedin-processor.ts` (batch import)
+- Checks job against all active INSTANT alerts
+- Sends email if criteria match (category, keywords, country, level, language pairs)
+- Uses AlertNotification to prevent duplicates
 
 **Duplicate Prevention:**
 - AlertNotification model tracks sent job+alert pairs
@@ -187,6 +236,28 @@ Other: support, education, research, consulting
 - Only jobs with corporate email (filter gmail, yahoo, etc.)
 - `src/lib/utils.ts` → `isFreeEmail()`
 
+### Company Logo Fallback
+When Apollo.io doesn't find a logo, fallback to Google Favicon API.
+
+**Priority:**
+1. Apollo logo (from enrichment)
+2. Google Favicon API (`google.com/s2/favicons?domain=DOMAIN&sz=128`)
+3. Placeholder with first letter of company name
+
+**Files:**
+- `src/lib/company-logo.ts` — `getCompanyLogoUrl()` utility
+- `src/components/ui/CompanyLogo.tsx` — Reusable component with error handling
+
+**Usage:**
+```tsx
+<CompanyLogo
+  name={company.name}
+  logo={company.logo}
+  website={company.website}
+  size="md"  // sm, md, lg, xl
+/>
+```
+
 ### Salary Insights
 Real market salary data displayed on job detail pages.
 
@@ -212,6 +283,11 @@ Real market salary data displayed on job detail pages.
 - Sample size (when available)
 - Source badge (BLS/Adzuna/Estimated)
 - "This job" position comparison
+
+**FREE vs PRO restrictions:**
+- FREE users: see average salary only, blurred preview of full data
+- PRO users: see full range, percentiles, source, sample size
+- Component accepts `userPlan` prop ('FREE' | 'PRO' | 'ENTERPRISE')
 
 **Files:**
 - `src/lib/bls.ts` — BLS API client
@@ -277,6 +353,16 @@ src/
 │   ├── alerts/[id]/route.ts       # Single alert operations
 │   └── settings/route.ts          # User settings
 ├── app/api/jobs/[id]/save/route.ts # Save/unsave job endpoint
+├── app/api/stripe/
+│   ├── checkout/route.ts          # Create Stripe checkout session
+│   ├── webhook/route.ts           # Handle Stripe webhook events
+│   └── portal/route.ts            # Customer portal session
+├── app/pricing/
+│   ├── page.tsx                   # Pricing page
+│   └── PricingCards.tsx           # Checkout flow component
+├── lib/stripe.ts                  # Stripe client and helpers
+├── lib/company-logo.ts            # Logo URL with Google Favicon fallback
+├── components/ui/CompanyLogo.tsx  # Company logo component
 
 scripts/
 ├── cleanup-duplicate-companies.ts # Merge duplicate companies
@@ -406,6 +492,10 @@ npx prisma db push --force-reset
 31. **Daily alert cron** — runs at 7:00 UTC, sends DAILY frequency alerts
 32. **n8n webhook integration** — `/api/webhooks/linkedin-posts` for real-time LinkedIn scraping
 33. **Fuzzy deduplication** — same email domain + 60%+ title similarity = duplicate
+34. **Stripe payments** — subscription plans (Weekly €10, Monthly €20, Annual €192)
+35. **Google Favicon fallback** — `CompanyLogo` component with Apollo → Favicon → Placeholder
+36. **INSTANT job alerts** — sends email immediately when matching job is created
+37. **Salary insights restrictions** — FREE users see average only, PRO sees full data
 
 ## Code Patterns
 
@@ -480,26 +570,39 @@ curl -X POST http://localhost:3000/api/cron/fetch-sources -H "Authorization: Bea
 ## Current Session Status (Dec 22, 2024)
 
 **Что сделано в этой сессии:**
-1. ✅ Создан webhook `/api/webhooks/linkedin-posts` для интеграции с n8n
-2. ✅ n8n workflow отправляет посты на сервер в реальном времени
-3. ✅ Добавлена fuzzy дедупликация (email domain + title similarity 60%+)
-4. ✅ Первая вакансия успешно создана через webhook (Hindi to Bengali Translator)
+1. ✅ Stripe payments integration (Weekly €10, Monthly €20, Annual €192)
+2. ✅ Google Favicon fallback для логотипов компаний
+3. ✅ INSTANT job alerts (отправка сразу после создания вакансии)
+4. ✅ FREE vs PRO ограничения для Salary Insights
+5. ✅ CompanyLogo компонент с обработкой ошибок
+
+**Stripe credentials (get from owner):**
+```
+STRIPE_SECRET_KEY=sk_live_xxx  # Get from Stripe Dashboard
+STRIPE_WEBHOOK_SECRET=whsec_xxx  # Get from webhook settings
+```
 
 **Известные проблемы:**
-- Apollo.io не всегда находит данные для небольших компаний (напр. King Media Network)
+- Apollo.io не всегда находит данные для небольших компаний → используется Google Favicon fallback
 - Если `logo = ""` — Apollo не нашёл данные; если `logo = null` — enrichment не запускался
 
 **Возможные следующие шаги:**
-1. Добавить fallback для логотипов (Clearbit, Google Favicon API)
-2. Добавить INSTANT алерты (отправка сразу после создания вакансии)
-3. Добавить WEEKLY cron для недельных алертов
-4. Stripe интеграция для платных планов
-5. Application tracking (отслеживание откликов)
+1. Добавить WEEKLY cron для недельных алертов
+2. Application tracking (отслеживание откликов)
+3. Onboarding wizard после первого входа
+4. Dashboard analytics для пользователей
 
 **Для деплоя последних изменений:**
 ```bash
 cd /opt/freelanly2
 git fetch origin claude/review-changes-mjgqpbwqndzlx831-OBfGu
-git merge origin/claude/review-changes-mjgqpbwqndzlx831-OBfGu -m "Add n8n webhook + fuzzy dedup"
+git merge origin/claude/review-changes-mjgqpbwqndzlx831-OBfGu -m "Add Stripe + Favicon + INSTANT alerts"
+npm install
 npm run build && pm2 restart freelanly
 ```
+
+**Настройка Stripe webhook (обязательно!):**
+1. Зайти в Stripe Dashboard → Webhooks
+2. Add endpoint: `https://freelanly.com/api/stripe/webhook`
+3. Select events: checkout.session.completed, customer.subscription.*, invoice.*
+4. Добавить STRIPE_WEBHOOK_SECRET в .env.local на сервере
