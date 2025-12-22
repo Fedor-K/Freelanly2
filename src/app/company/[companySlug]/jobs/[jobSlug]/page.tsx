@@ -200,7 +200,9 @@ export default async function JobPage({ params }: JobPageProps) {
         job.title,
         job.location,
         job.country,
-        job.categoryId
+        job.categoryId,
+        job.level,
+        job.category.slug
       );
       if (salaryData) {
         salaryMarketData = {
