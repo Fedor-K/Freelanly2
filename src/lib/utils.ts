@@ -69,14 +69,31 @@ export const FREE_EMAIL_PROVIDERS = [
 // Check if email is from a free provider
 export function isFreeEmail(email: string): boolean {
   if (!email || !email.includes('@')) return true;
-  const domain = email.split('@')[1]?.toLowerCase();
+  // Clean email first - take only the email part (before any comma, space, etc.)
+  const cleanEmail = email.split(/[,\s]/)[0].trim();
+  const domain = cleanEmail.split('@')[1]?.toLowerCase();
   if (!domain) return true;
   return FREE_EMAIL_PROVIDERS.includes(domain);
 }
 
-// Extract domain from email
+// Extract domain from email (handles malformed emails like "user@domain.com, extra text")
 export function extractDomainFromEmail(email: string): string | null {
   if (!email || !email.includes('@')) return null;
-  const domain = email.split('@')[1]?.toLowerCase();
-  return domain || null;
+  // Clean email first - take only the email part (before any comma, space, etc.)
+  const cleanEmail = email.split(/[,\s]/)[0].trim();
+  const domain = cleanEmail.split('@')[1]?.toLowerCase();
+  // Validate domain format (basic check)
+  if (!domain || !domain.includes('.')) return null;
+  return domain;
+}
+
+// Clean/validate email (handles AI-extracted emails with extra text)
+export function cleanEmail(email: string | null | undefined): string | null {
+  if (!email) return null;
+  // Take only the first email if multiple are present
+  const firstPart = email.split(/[,\s]/)[0].trim();
+  // Basic email validation regex
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(firstPart)) return null;
+  return firstPart.toLowerCase();
 }

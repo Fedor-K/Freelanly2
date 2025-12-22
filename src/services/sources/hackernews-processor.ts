@@ -90,6 +90,7 @@ export async function processHackerNewsSource(dataSourceId: string): Promise<Pro
         lastRunAt: new Date(),
         lastSuccessAt: new Date(),
         totalImported: { increment: stats.created },
+        lastCreated: stats.created,
         lastError: null,
         errorCount: 0,
         config: { storyId }, // Store the thread ID

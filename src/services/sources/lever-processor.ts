@@ -74,6 +74,7 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
         lastRunAt: new Date(),
         lastSuccessAt: new Date(),
         totalImported: { increment: stats.created },
+        lastCreated: stats.created,
         lastError: null,
         errorCount: 0,
       },
@@ -144,8 +145,9 @@ async function processLeverJob(
     });
   }
 
-  // Generate slug
-  const baseSlug = slugify(`${job.text}-${companySlug}`);
+  // Generate slug with Lever job ID suffix to guarantee uniqueness
+  const shortId = job.id.slice(-8);
+  const baseSlug = slugify(`${job.text}-${companySlug}-${shortId}`);
   const slug = await generateUniqueJobSlug(baseSlug);
 
   // Parse location

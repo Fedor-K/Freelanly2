@@ -559,6 +559,10 @@ model ImportLog {
   source        Source
   status        ImportStatus @default(RUNNING)
 
+  // Link to data source for company name
+  dataSourceId  String?
+  dataSource    DataSource? @relation(fields: [dataSourceId], references: [id], onDelete: SetNull)
+
   // Stats
   totalFetched  Int       @default(0)
   totalNew      Int       @default(0)
@@ -573,6 +577,7 @@ model ImportLog {
   completedAt   DateTime?
 
   @@index([source])
+  @@index([dataSourceId])
   @@index([startedAt(sort: Desc)])
 }
 
@@ -611,11 +616,15 @@ model DataSource {
   lastRunAt     DateTime?
   lastSuccessAt DateTime?
   totalImported Int          @default(0)
+  lastCreated   Int          @default(0)  // Jobs created in last run
   lastError     String?
   errorCount    Int          @default(0)
 
   // Rate limiting
   minInterval   Int          @default(3600) // Min seconds between runs
+
+  // Relations
+  importLogs    ImportLog[]
 
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt

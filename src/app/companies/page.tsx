@@ -5,6 +5,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { CompanyLogo } from '@/components/ui/CompanyLogo';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 
@@ -28,6 +29,7 @@ interface CompanyWithCount {
   slug: string;
   name: string;
   logo: string | null;
+  website: string | null;
   industry: string | null;
   size: string | null;
   headquarters: string | null;
@@ -63,6 +65,7 @@ export default async function CompaniesPage({
           slug: true,
           name: true,
           logo: true,
+          website: true,
           industry: true,
           size: true,
           headquarters: true,
@@ -183,17 +186,12 @@ export default async function CompaniesPage({
                       <Card className="h-full hover:shadow-md transition-shadow">
                         <CardContent className="pt-6">
                           <div className="flex items-start gap-3">
-                            {company.logo ? (
-                              <img
-                                src={company.logo}
-                                alt={company.name}
-                                className="w-12 h-12 rounded-lg object-cover"
-                              />
-                            ) : (
-                              <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-xl font-bold">
-                                {company.name.charAt(0)}
-                              </div>
-                            )}
+                            <CompanyLogo
+                              name={company.name}
+                              logo={company.logo}
+                              website={company.website}
+                              size="md"
+                            />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <h2 className="font-semibold truncate">{company.name}</h2>

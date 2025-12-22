@@ -96,7 +96,7 @@ export default async function CategoryLevelPage({ params, searchParams }: Catego
         where,
         include: {
           company: {
-            select: { name: true, slug: true, logo: true },
+            select: { name: true, slug: true, logo: true, website: true },
           },
         },
         orderBy: { postedAt: 'desc' },

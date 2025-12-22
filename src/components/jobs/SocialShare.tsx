@@ -10,10 +10,25 @@ interface SocialShareProps {
   description?: string;
 }
 
+// Safe encodeURIComponent that handles malformed Unicode
+function safeEncode(str: string): string {
+  try {
+    return encodeURIComponent(str);
+  } catch {
+    // Remove invalid Unicode characters and try again
+    const cleaned = str.replace(/[\uD800-\uDFFF]/g, '');
+    try {
+      return encodeURIComponent(cleaned);
+    } catch {
+      return '';
+    }
+  }
+}
+
 export function SocialShare({ jobId, url, title, description }: SocialShareProps) {
-  const encodedUrl = encodeURIComponent(url);
-  const encodedTitle = encodeURIComponent(title);
-  const encodedDesc = encodeURIComponent(description || '');
+  const encodedUrl = safeEncode(url);
+  const encodedTitle = safeEncode(title);
+  const encodedDesc = safeEncode(description || '');
 
   const shareLinks = {
     twitter: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`,

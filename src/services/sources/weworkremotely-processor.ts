@@ -74,6 +74,7 @@ export async function processWeWorkRemotelySource(dataSourceId: string): Promise
         lastRunAt: new Date(),
         lastSuccessAt: new Date(),
         totalImported: { increment: stats.created },
+        lastCreated: stats.created,
         lastError: null,
         errorCount: 0,
       },

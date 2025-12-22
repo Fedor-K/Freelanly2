@@ -5,6 +5,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { CompanyLogo } from '@/components/ui/CompanyLogo';
 import { siteConfig, companySizes } from '@/config/site';
 import { prisma } from '@/lib/db';
 
@@ -192,17 +193,12 @@ export default async function CompaniesHiringWorldwidePage({ searchParams }: Com
                     <Card className="h-full hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
                         <div className="flex items-start gap-4">
-                          {company.logo ? (
-                            <img
-                              src={company.logo}
-                              alt={company.name}
-                              className="w-12 h-12 rounded-lg object-cover"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-lg font-bold">
-                              {company.name.charAt(0)}
-                            </div>
-                          )}
+                          <CompanyLogo
+                            name={company.name}
+                            logo={company.logo}
+                            website={company.website}
+                            size="md"
+                          />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <h2 className="font-semibold truncate">{company.name}</h2>

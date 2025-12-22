@@ -1,14 +1,15 @@
 /**
- * Company Logo Utility with Google Favicon Fallback
+ * Company Logo Utility with Logo.dev Fallback
  *
  * Priority:
  * 1. Apollo logo (from enrichment)
- * 2. Google Favicon API (if domain available)
+ * 2. Logo.dev API (if domain available) - high quality company logos
  * 3. null (show placeholder)
  */
 
-// Google Favicon API - returns high quality favicons
-const GOOGLE_FAVICON_API = 'https://www.google.com/s2/favicons';
+// Logo.dev API (former Clearbit) - returns high quality company logos
+const LOGO_DEV_API = 'https://img.logo.dev';
+const LOGO_DEV_TOKEN = 'pk_A6k2yPZ4T6y5MZrbuUd9yA';
 
 // Extract domain from URL
 function extractDomainFromUrl(url: string | null | undefined): string | null {
@@ -28,7 +29,7 @@ function extractDomainFromEmail(email: string | null | undefined): string | null
   return match ? match[1].toLowerCase() : null;
 }
 
-// Free email providers that shouldn't be used for favicons
+// Free email providers that shouldn't be used for logos
 const FREE_EMAIL_PROVIDERS = new Set([
   'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com',
   'icloud.com', 'me.com', 'mac.com', 'aol.com', 'protonmail.com',
@@ -40,28 +41,32 @@ function isFreeEmailDomain(domain: string): boolean {
 }
 
 /**
- * Get Google Favicon URL for a domain
- * @param domain - The domain to get favicon for
- * @param size - Icon size (16, 32, 64, 128, 256)
+ * Get Logo.dev URL for a domain
+ * @param domain - The domain to get logo for
+ * @param size - Icon size (optional)
  */
-export function getGoogleFaviconUrl(domain: string, size: number = 128): string {
-  return `${GOOGLE_FAVICON_API}?domain=${encodeURIComponent(domain)}&sz=${size}`;
+export function getLogoDevUrl(domain: string, size?: number): string {
+  let url = `${LOGO_DEV_API}/${encodeURIComponent(domain)}?token=${LOGO_DEV_TOKEN}`;
+  if (size) {
+    url += `&size=${size}`;
+  }
+  return url;
 }
 
 /**
- * Get company logo URL with fallback to Google Favicon
+ * Get company logo URL with fallback to Logo.dev
  *
  * @param logo - Company's logo URL (from Apollo enrichment)
  * @param website - Company's website URL
  * @param email - Contact email (to extract domain)
- * @param size - Favicon size if using fallback
+ * @param size - Logo size if using fallback (optional)
  * @returns Logo URL or null if no fallback available
  */
 export function getCompanyLogoUrl(
   logo: string | null | undefined,
   website?: string | null,
   email?: string | null,
-  size: number = 128
+  size?: number
 ): string | null {
   // 1. Use Apollo logo if available (non-empty string)
   if (logo && logo.length > 0) {
@@ -71,13 +76,13 @@ export function getCompanyLogoUrl(
   // 2. Try to get domain from website
   const websiteDomain = extractDomainFromUrl(website);
   if (websiteDomain) {
-    return getGoogleFaviconUrl(websiteDomain, size);
+    return getLogoDevUrl(websiteDomain, size);
   }
 
   // 3. Try to get domain from email (if not free email)
   const emailDomain = extractDomainFromEmail(email);
   if (emailDomain && !isFreeEmailDomain(emailDomain)) {
-    return getGoogleFaviconUrl(emailDomain, size);
+    return getLogoDevUrl(emailDomain, size);
   }
 
   // 4. No fallback available

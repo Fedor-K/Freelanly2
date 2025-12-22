@@ -11,7 +11,7 @@ interface JobCardProps {
 }
 
 export function JobCard({ job }: JobCardProps) {
-  const salaryDisplay = formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency, job.salaryIsEstimate);
+  const salaryDisplay = formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency, job.salaryPeriod);
 
   return (
     <Card className="hover:shadow-md transition-shadow">
@@ -98,7 +98,7 @@ function formatSalary(
   min: number | null,
   max: number | null,
   currency: string | null,
-  isEstimate: boolean
+  period: string | null
 ): string | null {
   if (!min && !max) return null;
   const curr = currency || 'USD';
@@ -108,12 +108,33 @@ function formatSalary(
     maximumFractionDigits: 0,
   });
 
+  let salary: string;
   if (min && max) {
-    return `${formatter.format(min)} - ${formatter.format(max)}`;
+    salary = `${formatter.format(min)} - ${formatter.format(max)}`;
+  } else if (min) {
+    salary = `${formatter.format(min)}+`;
+  } else if (max) {
+    salary = `Up to ${formatter.format(max)}`;
+  } else {
+    return null;
   }
-  if (min) return `${formatter.format(min)}+`;
-  if (max) return `Up to ${formatter.format(max)}`;
-  return null;
+
+  // Add period suffix
+  const periodSuffix = formatSalaryPeriod(period);
+  return `${salary}${periodSuffix}`;
+}
+
+function formatSalaryPeriod(period: string | null): string {
+  const labels: Record<string, string> = {
+    'HOUR': '/hr',
+    'DAY': '/day',
+    'WEEK': '/wk',
+    'MONTH': '/mo',
+    'YEAR': '/yr',
+    'ONE_TIME': '',
+  };
+  // Default to /yr for annual salaries, empty for unknown
+  return period ? (labels[period] ?? '') : '';
 }
 
 function formatLevel(level: string): string {

@@ -77,6 +77,7 @@ export async function processRemoteOKSource(dataSourceId: string): Promise<Proce
         lastRunAt: new Date(),
         lastSuccessAt: new Date(),
         totalImported: { increment: stats.created },
+        lastCreated: stats.created,
         lastError: null,
         errorCount: 0,
       },

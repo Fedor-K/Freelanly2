@@ -18,6 +18,10 @@ interface ImportLog {
   errors: string[] | null;
   startedAt: string;
   completedAt: string | null;
+  dataSource: {
+    name: string;
+    companySlug: string | null;
+  } | null;
 }
 
 export default function LogsPage() {
@@ -109,7 +113,12 @@ export default function LogsPage() {
                     {getStatusIcon(log.status)}
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="font-medium">{log.source}</span>
+                        <span className="font-medium">
+                          {log.dataSource?.name || log.source}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {log.source}
+                        </span>
                         {getStatusBadge(log.status)}
                       </div>
 

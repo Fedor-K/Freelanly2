@@ -45,6 +45,7 @@ export async function processDataSource(dataSourceId: string): Promise<Processin
   const importLog = await prisma.importLog.create({
     data: {
       source: dataSource.sourceType,
+      dataSourceId: dataSourceId,
       status: 'RUNNING',
     },
   });
