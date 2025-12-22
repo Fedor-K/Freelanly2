@@ -49,12 +49,14 @@ export async function POST(request: NextRequest) {
   try {
     const body: N8nPostPayload = await request.json();
 
-    // Validate required fields
+    // Validate required fields - return 200 OK but skip if empty (don't break n8n flow)
     if (!body.postUrl || !body.postContent) {
-      return NextResponse.json(
-        { error: 'Missing required fields: postUrl, postContent' },
-        { status: 400 }
-      );
+      console.log('[LinkedInPosts] Skipping post with empty data');
+      return NextResponse.json({
+        success: true,
+        status: 'skipped',
+        reason: 'empty_data',
+      });
     }
 
     console.log(`[LinkedInPosts] Processing post: ${body.postUrl}`);
