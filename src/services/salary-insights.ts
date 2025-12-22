@@ -588,18 +588,14 @@ export async function getSalaryInsights(
     return cached;
   }
 
-  // 2. US jobs → BLS
+  // 2. US jobs → BLS only (skip unreliable DB calculation)
   if (countryCode === 'US') {
     const blsData = await fetchFromBLS(jobTitle, normalizedTitle);
     if (blsData) {
       return blsData;
     }
-
-    // Try database calculation for US
-    const dbData = await calculateFromDatabase(jobTitle, normalizedTitle, categoryId);
-    if (dbData) {
-      return dbData;
-    }
+    // If BLS fails, fall through to formula-based estimation
+    // (DB calculation was producing inflated salaries due to keyword matching)
   }
 
   // 3. Adzuna-supported countries
@@ -610,13 +606,8 @@ export async function getSalaryInsights(
     }
   }
 
-  // 4. Try legacy coefficient estimation (uses US baseline from BLS/DB)
-  const legacyEstimate = await estimateFromCoefficients(jobTitle, normalizedTitle, countryCode, categoryId);
-  if (legacyEstimate) {
-    return legacyEstimate;
-  }
-
-  // 5. Formula-based estimation: BaseSalary × Level × Country
+  // 4. Formula-based estimation: BaseSalary × Level × Country
+  // This uses research-based data and is more reliable than DB keyword matching
   // This is the most reliable fallback using research-based data
   console.log(`[SalaryInsights] Using formula-based estimation for "${normalizedTitle}" in ${countryCode}`);
   const formulaEstimate = await estimateFromFormula(
