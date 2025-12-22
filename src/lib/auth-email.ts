@@ -48,13 +48,13 @@ export async function sendMagicLinkEmail(
       from_email: process.env.DASHAMAIL_FROM_EMAIL || 'noreply@freelanly.com',
       from_name: 'Freelanly',
       subject: 'Войти в Freelanly',
-      html,
-      text,
+      message: html,
+      plain_text: text,
     });
 
     if (result.status !== 'success') {
-      console.error('[Auth Email] Failed to send magic link:', result.msg);
-      throw new Error(`Failed to send email: ${result.msg}`);
+      console.error('[Auth Email] Failed to send magic link:', result);
+      throw new Error(`Failed to send email: ${JSON.stringify(result)}`);
     }
 
     console.log(`[Auth Email] Magic link sent to ${email}`);
