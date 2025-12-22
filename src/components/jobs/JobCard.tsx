@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { CompanyLogo } from '@/components/ui/CompanyLogo';
 import type { JobCardData } from '@/types';
 import { formatDistanceToNow } from '@/lib/utils';
 import { SaveJobButton } from './SaveJobButton';
@@ -18,17 +19,12 @@ export function JobCard({ job }: JobCardProps) {
         <div className="flex gap-4">
           {/* Company Logo */}
           <div className="flex-shrink-0">
-            {job.company.logo ? (
-              <img
-                src={job.company.logo}
-                alt={job.company.name}
-                className="w-12 h-12 rounded-lg object-cover"
-              />
-            ) : (
-              <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-lg font-semibold">
-                {job.company.name.charAt(0)}
-              </div>
-            )}
+            <CompanyLogo
+              name={job.company.name}
+              logo={job.company.logo}
+              website={job.company.website}
+              size="md"
+            />
           </div>
 
           {/* Job Info */}
