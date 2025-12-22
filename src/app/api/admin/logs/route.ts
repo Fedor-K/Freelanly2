@@ -13,6 +13,14 @@ export async function GET(request: NextRequest) {
         orderBy: { startedAt: 'desc' },
         skip,
         take: limit,
+        include: {
+          dataSource: {
+            select: {
+              name: true,
+              companySlug: true,
+            },
+          },
+        },
       }),
       prisma.importLog.count(),
     ]);
