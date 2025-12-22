@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
-import { slugify, isFreeEmail, extractDomainFromEmail } from '@/lib/utils';
+import { slugify, isFreeEmail, extractDomainFromEmail, cleanEmail } from '@/lib/utils';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
@@ -120,8 +120,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Clean and validate email (handles AI-extracted emails with extra text)
+    const validatedEmail = cleanEmail(extracted.contactEmail);
+
     // Skip jobs without corporate email
-    if (!extracted.contactEmail || isFreeEmail(extracted.contactEmail)) {
+    if (!validatedEmail || isFreeEmail(validatedEmail)) {
       console.log(`[LinkedInPosts] No corporate email, skipping`);
       return NextResponse.json({
         success: true,
@@ -132,7 +135,7 @@ export async function POST(request: NextRequest) {
 
     // Check for similar job from same company (by email domain)
     const hasSimilarJob = await findSimilarJobByEmailDomain(
-      extracted.contactEmail,
+      validatedEmail,
       extracted.title
     );
 
@@ -220,7 +223,7 @@ export async function POST(request: NextRequest) {
         originalContent: postContent,
         authorLinkedIn: authorLinkedInUrl,
         authorName: authorName,
-        applyEmail: extracted.contactEmail,
+        applyEmail: validatedEmail,
         applyUrl: extracted.applyUrl,
         enrichmentStatus: 'COMPLETED',
         qualityScore: calculateQualityScore(extracted),
@@ -230,10 +233,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`[LinkedInPosts] Created job: ${job.slug}`);
 
-    // Queue company for enrichment
-    if (extracted.contactEmail) {
-      queueCompanyEnrichment(company.id, extracted.contactEmail);
-    }
+    // Queue company for enrichment with validated email
+    queueCompanyEnrichment(company.id, validatedEmail);
 
     // Notify search engines
     try {

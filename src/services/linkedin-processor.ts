@@ -9,7 +9,7 @@ import {
 } from '@/lib/apify';
 import { getApifySettings } from '@/lib/settings';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
-import { slugify, isFreeEmail } from '@/lib/utils';
+import { slugify, isFreeEmail, cleanEmail } from '@/lib/utils';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
@@ -308,8 +308,11 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     return { success: false, error: 'Could not extract job title' };
   }
 
+  // Clean and validate email (handles AI-extracted emails with extra text)
+  const validatedEmail = cleanEmail(extracted.contactEmail);
+
   // Skip jobs without corporate email (filter out gmail, yahoo, etc.)
-  if (!extracted.contactEmail || isFreeEmail(extracted.contactEmail)) {
+  if (!validatedEmail || isFreeEmail(validatedEmail)) {
     return { success: false, error: 'No corporate email - skipped' };
   }
 
@@ -384,7 +387,7 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
       originalContent: post.content,
       authorLinkedIn: post.authorLinkedInUrl,
       authorName: post.authorName,
-      applyEmail: extracted.contactEmail,
+      applyEmail: validatedEmail,
       applyUrl: extracted.applyUrl,
       enrichmentStatus: 'COMPLETED',
       qualityScore: calculateQualityScore(extracted, post),
@@ -392,10 +395,8 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     },
   });
 
-  // Queue company for background enrichment if corporate email
-  if (extracted.contactEmail) {
-    queueCompanyEnrichment(company.id, extracted.contactEmail);
-  }
+  // Queue company for background enrichment with validated email
+  queueCompanyEnrichment(company.id, validatedEmail);
 
   // Send INSTANT alerts for this job (non-blocking)
   sendInstantAlertsForJob(job.id).catch((err) => {
