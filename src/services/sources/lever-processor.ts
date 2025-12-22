@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
 import { queueCompanyEnrichmentBySlug } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
+import { buildJobUrl } from '@/lib/indexing';
 import type { ProcessingStats, LeverJob } from './types';
 
 export async function processLeverSource(dataSourceId: string): Promise<ProcessingStats> {
@@ -12,6 +13,7 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
     skipped: 0,
     failed: 0,
     errors: [],
+    createdJobUrls: [],
   };
 
   // Get the data source
@@ -49,9 +51,16 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
     for (const job of jobs) {
       try {
         const result = await processLeverJob(job, company.id, dataSource.companySlug);
-        if (result === 'created') stats.created++;
-        else if (result === 'updated') stats.updated++;
-        else if (result === 'skipped') stats.skipped++;
+        if (result.status === 'created') {
+          stats.created++;
+          if (result.jobSlug) {
+            stats.createdJobUrls!.push(buildJobUrl(company.slug, result.jobSlug));
+          }
+        } else if (result.status === 'updated') {
+          stats.updated++;
+        } else if (result.status === 'skipped') {
+          stats.skipped++;
+        }
       } catch (error) {
         stats.failed++;
         stats.errors.push(`Job ${job.id}: ${String(error)}`);
@@ -93,7 +102,7 @@ async function processLeverJob(
   job: LeverJob,
   companyId: string,
   companySlug: string
-): Promise<'created' | 'updated' | 'skipped'> {
+): Promise<{ status: 'created' | 'updated' | 'skipped'; jobSlug?: string }> {
   // Build full description (with RESPONSIBILITIES, QUALIFICATIONS, etc.)
   const fullDescription = buildDescription(job);
 
@@ -121,9 +130,9 @@ async function processLeverJob(
           updatedAt: new Date(),
         },
       });
-      return 'updated';
+      return { status: 'updated' };
     }
-    return 'skipped';
+    return { status: 'skipped' };
   }
 
   // Get category (check department first, then title as fallback)
@@ -184,7 +193,7 @@ async function processLeverJob(
     },
   });
 
-  return 'created';
+  return { status: 'created', jobSlug: slug };
 }
 
 async function findOrCreateCompany(name: string, slug: string) {

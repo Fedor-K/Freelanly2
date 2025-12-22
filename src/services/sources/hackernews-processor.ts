@@ -3,6 +3,7 @@ import { slugify, isFreeEmail } from '@/lib/utils';
 import { extractJobData, classifyJobCategory } from '@/lib/deepseek';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
+import { buildJobUrl } from '@/lib/indexing';
 import type { ProcessingStats } from './types';
 
 // HN Algolia API for searching "Who is Hiring" threads
@@ -25,6 +26,7 @@ export async function processHackerNewsSource(dataSourceId: string): Promise<Pro
     skipped: 0,
     failed: 0,
     errors: [],
+    createdJobUrls: [],
   };
 
   const dataSource = await prisma.dataSource.findUnique({
@@ -62,8 +64,14 @@ export async function processHackerNewsSource(dataSourceId: string): Promise<Pro
         }
 
         const result = await processHNComment(comment, storyId);
-        if (result === 'created') stats.created++;
-        else if (result === 'skipped') stats.skipped++;
+        if (result.status === 'created') {
+          stats.created++;
+          if (result.companySlug && result.jobSlug) {
+            stats.createdJobUrls!.push(buildJobUrl(result.companySlug, result.jobSlug));
+          }
+        } else if (result.status === 'skipped') {
+          stats.skipped++;
+        }
 
         processed++;
         // Rate limit for DeepSeek API
@@ -150,7 +158,7 @@ async function fetchThreadComments(storyId: number): Promise<HNComment[]> {
   return allComments;
 }
 
-async function processHNComment(comment: HNComment, storyId: number): Promise<'created' | 'skipped'> {
+async function processHNComment(comment: HNComment, storyId: number): Promise<{ status: 'created' | 'skipped'; companySlug?: string; jobSlug?: string }> {
   const sourceId = `hn-${comment.objectID}`;
   const sourceUrl = `https://news.ycombinator.com/item?id=${comment.objectID}`;
 
@@ -165,7 +173,7 @@ async function processHNComment(comment: HNComment, storyId: number): Promise<'c
   });
 
   if (existingJob) {
-    return 'skipped';
+    return { status: 'skipped' };
   }
 
   // Parse the comment text to extract job info
@@ -174,7 +182,7 @@ async function processHNComment(comment: HNComment, storyId: number): Promise<'c
   // Check for corporate email early - skip if no corporate email
   const email = extractEmail(text);
   if (!email || isFreeEmail(email)) {
-    return 'skipped'; // No corporate email
+    return { status: 'skipped' }; // No corporate email
   }
 
   // HN job posts usually start with "Company Name | Location | Role"
@@ -185,7 +193,7 @@ async function processHNComment(comment: HNComment, storyId: number): Promise<'c
   if (!parsedHeader.company || !parsedHeader.title) {
     extracted = await extractJobData(text);
     if (!extracted || !extracted.title) {
-      return 'skipped'; // Can't extract job info
+      return { status: 'skipped' }; // Can't extract job info
     }
   }
 
@@ -255,7 +263,7 @@ async function processHNComment(comment: HNComment, storyId: number): Promise<'c
     queueCompanyEnrichment(company.id, email);
   }
 
-  return 'created';
+  return { status: 'created', companySlug: company.slug, jobSlug: slug };
 }
 
 function parseHNJobHeader(text: string): {

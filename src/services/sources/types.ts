@@ -7,6 +7,8 @@ export interface ProcessingStats {
   skipped: number;
   failed: number;
   errors: string[];
+  // URLs of created jobs for search engine indexing
+  createdJobUrls?: string[];
 }
 
 export interface SourceProcessor {

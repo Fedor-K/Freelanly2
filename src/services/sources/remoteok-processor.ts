@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
 import { cleanupOldJobs } from '@/services/job-cleanup';
+import { buildJobUrl } from '@/lib/indexing';
 import type { ProcessingStats, RemoteOKJob } from './types';
 
 const REMOTEOK_API = 'https://remoteok.com/api';
@@ -13,6 +14,7 @@ export async function processRemoteOKSource(dataSourceId: string): Promise<Proce
     skipped: 0,
     failed: 0,
     errors: [],
+    createdJobUrls: [],
   };
 
   const dataSource = await prisma.dataSource.findUnique({
@@ -53,9 +55,16 @@ export async function processRemoteOKSource(dataSourceId: string): Promise<Proce
         }
 
         const result = await processRemoteOKJob(job);
-        if (result === 'created') stats.created++;
-        else if (result === 'updated') stats.updated++;
-        else if (result === 'skipped') stats.skipped++;
+        if (result.status === 'created') {
+          stats.created++;
+          if (result.companySlug && result.jobSlug) {
+            stats.createdJobUrls!.push(buildJobUrl(result.companySlug, result.jobSlug));
+          }
+        } else if (result.status === 'updated') {
+          stats.updated++;
+        } else if (result.status === 'skipped') {
+          stats.skipped++;
+        }
       } catch (error) {
         stats.failed++;
         stats.errors.push(`Job ${job.id}: ${String(error)}`);
@@ -91,7 +100,7 @@ export async function processRemoteOKSource(dataSourceId: string): Promise<Proce
   }
 }
 
-async function processRemoteOKJob(job: RemoteOKJob): Promise<'created' | 'updated' | 'skipped'> {
+async function processRemoteOKJob(job: RemoteOKJob): Promise<{ status: 'created' | 'updated' | 'skipped'; companySlug?: string; jobSlug?: string }> {
   const sourceId = `remoteok-${job.id}`;
   const sourceUrl = job.url || `https://remoteok.com/remote-jobs/${job.slug}`;
 
@@ -106,7 +115,7 @@ async function processRemoteOKJob(job: RemoteOKJob): Promise<'created' | 'update
   });
 
   if (existingJob) {
-    return 'skipped'; // RemoteOK doesn't provide update timestamps
+    return { status: 'skipped' }; // RemoteOK doesn't provide update timestamps
   }
 
   // Find or create company
@@ -158,7 +167,7 @@ async function processRemoteOKJob(job: RemoteOKJob): Promise<'created' | 'update
     },
   });
 
-  return 'created';
+  return { status: 'created', companySlug: company.slug, jobSlug: slug };
 }
 
 async function findOrCreateCompany(name: string, logo?: string) {
