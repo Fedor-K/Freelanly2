@@ -43,6 +43,37 @@ function formatSalaryPeriod(period: string): string {
   return labels[period] || '/year';
 }
 
+// Helper to format salary compactly for similar jobs cards
+function formatSalaryCompact(
+  min: number,
+  max: number | null,
+  currency: string | null,
+  period: string | null
+): string {
+  const curr = currency || 'USD';
+  const formatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: curr,
+    maximumFractionDigits: 0,
+    notation: 'compact',
+  });
+
+  const periodLabels: Record<string, string> = {
+    'HOUR': '/hr',
+    'DAY': '/day',
+    'WEEK': '/wk',
+    'MONTH': '/mo',
+    'YEAR': '/yr',
+    'ONE_TIME': '',
+  };
+  const periodSuffix = period ? (periodLabels[period] ?? '') : '';
+
+  if (max) {
+    return `${formatter.format(min)}-${formatter.format(max)}${periodSuffix}`;
+  }
+  return `${formatter.format(min)}+${periodSuffix}`;
+}
+
 // Helper to map salary period to Schema.org unitText
 function getSchemaUnitText(period: string): string | null {
   const schemaUnits: Record<string, string> = {
@@ -523,8 +554,7 @@ export default async function JobPage({ params }: JobPageProps) {
                                 <>
                                   <span className="text-xs text-muted-foreground">·</span>
                                   <span className="text-xs font-medium text-green-600">
-                                    ${Math.round(similarJob.salaryMin / 1000)}K
-                                    {similarJob.salaryMax && `-${Math.round(similarJob.salaryMax / 1000)}K`}
+                                    {formatSalaryCompact(similarJob.salaryMin, similarJob.salaryMax, similarJob.salaryCurrency, similarJob.salaryPeriod)}
                                   </span>
                                 </>
                               )}
