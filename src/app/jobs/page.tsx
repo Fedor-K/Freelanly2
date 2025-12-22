@@ -89,6 +89,7 @@ async function getJobs(
             name: true,
             slug: true,
             logo: true,
+            website: true,
           },
         },
       },

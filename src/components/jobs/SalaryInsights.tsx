@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 export interface CalculationDetails {
   method: string;
@@ -25,6 +27,8 @@ export interface SalaryMarketData {
   calculationDetails?: CalculationDetails;
 }
 
+export type UserPlan = 'FREE' | 'PRO' | 'ENTERPRISE';
+
 interface SalaryInsightsProps {
   jobTitle: string;
   location: string;
@@ -33,6 +37,7 @@ interface SalaryInsightsProps {
   currency?: string | null;
   isEstimate?: boolean;
   marketData?: SalaryMarketData | null;
+  userPlan?: UserPlan;
 }
 
 export function SalaryInsights({
@@ -43,6 +48,7 @@ export function SalaryInsights({
   currency = 'USD',
   isEstimate,
   marketData,
+  userPlan = 'FREE',
 }: SalaryInsightsProps) {
   const [showTooltip, setShowTooltip] = useState(false);
 
@@ -52,6 +58,7 @@ export function SalaryInsights({
   }
 
   const data = marketData;
+  const isPro = userPlan === 'PRO' || userPlan === 'ENTERPRISE';
 
   const formatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -93,6 +100,70 @@ export function SalaryInsights({
     }
   };
 
+  // FREE users see limited view
+  if (!isPro) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            📊 Salary Insights
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Market estimate for {jobTitle.toLowerCase()} roles
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Average Salary - visible to all */}
+          <div className="text-center p-4 bg-muted rounded-lg">
+            <p className="text-3xl font-bold">{formatK(data.avgSalary)}</p>
+            <p className="text-sm text-muted-foreground">Average Salary</p>
+          </div>
+
+          {/* Blurred/hidden content preview */}
+          <div className="relative">
+            <div className="blur-sm pointer-events-none select-none opacity-50">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Market Range</span>
+                  <span className="font-medium">$XX - $XXX</span>
+                </div>
+                <div className="h-8 bg-muted rounded-full" />
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">25th Percentile</span>
+                  <span>$XX,XXX</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">75th Percentile</span>
+                  <span>$XX,XXX</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Upgrade CTA overlay */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="bg-background/95 backdrop-blur-sm rounded-lg p-4 text-center shadow-lg border">
+                <p className="text-sm font-medium mb-2">
+                  Unlock full salary insights
+                </p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  See range, percentiles, and data source
+                </p>
+                <Button asChild size="sm">
+                  <Link href="/pricing">Upgrade to Pro</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground text-center">
+            Pro members get detailed salary breakdowns
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // PRO users see full view
   return (
     <Card>
       <CardHeader className="pb-2">

@@ -109,6 +109,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
               name: true,
               slug: true,
               logo: true,
+              website: true,
             },
           },
         },

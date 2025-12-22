@@ -7,6 +7,7 @@ export interface JobCardData {
     name: string;
     slug: string;
     logo: string | null;
+    website: string | null;
   };
   location: string | null;
   locationType: string;
@@ -42,6 +43,7 @@ export interface CompanyCardData {
   slug: string;
   name: string;
   logo: string | null;
+  website: string | null;
   industry: string | null;
   size: string | null;
   jobCount: number;

@@ -99,6 +99,7 @@ async function findMatchingJobs(
           name: true,
           slug: true,
           logo: true,
+          website: true,
         },
       },
       category: {

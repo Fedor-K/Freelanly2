@@ -4,6 +4,7 @@ import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/li
 import { slugify, isFreeEmail, extractDomainFromEmail } from '@/lib/utils';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
+import { sendInstantAlertsForJob } from '@/services/alert-notifications';
 
 /**
  * POST /api/webhooks/linkedin-posts
@@ -240,6 +241,11 @@ export async function POST(request: NextRequest) {
     } catch (indexError) {
       console.error('[LinkedInPosts] Search engine notification failed:', indexError);
     }
+
+    // Send INSTANT alerts for this job (non-blocking)
+    sendInstantAlertsForJob(job.id).catch((err) => {
+      console.error('[LinkedInPosts] Instant alerts failed:', err);
+    });
 
     return NextResponse.json({
       success: true,

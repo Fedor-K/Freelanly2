@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { SalaryInsights, SalaryMarketData } from '@/components/jobs/SalaryInsights';
+import { CompanyLogo } from '@/components/ui/CompanyLogo';
+import { SalaryInsights, SalaryMarketData, UserPlan } from '@/components/jobs/SalaryInsights';
 import { ApplyButton } from '@/components/jobs/ApplyButton';
 import { SocialShare } from '@/components/jobs/SocialShare';
 import { JobViewTracker } from '@/components/jobs/JobViewTracker';
@@ -15,6 +16,7 @@ import { SaveJobButton } from '@/components/jobs/SaveJobButton';
 import { formatDistanceToNow } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
+import { auth } from '@/lib/auth';
 import { getSalaryInsights } from '@/services/salary-insights';
 
 export const dynamic = 'force-dynamic';
@@ -140,6 +142,19 @@ export default async function JobPage({ params }: JobPageProps) {
   const isLinkedInPost = job.sourceType === 'UNSTRUCTURED';
   const jobUrl = buildJobUrl(job.company.slug, job.slug);
 
+  // Get user session and plan
+  const session = await auth();
+  let userPlan: UserPlan = 'FREE';
+  if (session?.user?.id) {
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { plan: true },
+    });
+    if (user?.plan) {
+      userPlan = user.plan as UserPlan;
+    }
+  }
+
   // Fetch similar jobs
   const similarJobs = await getSimilarJobs(job.id, job.categoryId);
 
@@ -204,17 +219,12 @@ export default async function JobPage({ params }: JobPageProps) {
             <div className="lg:col-span-2 space-y-6">
               {/* Job Header */}
               <div className="flex gap-4">
-                {job.company.logo ? (
-                  <img
-                    src={job.company.logo}
-                    alt={job.company.name}
-                    className="w-16 h-16 rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center text-2xl font-bold">
-                    {job.company.name.charAt(0)}
-                  </div>
-                )}
+                <CompanyLogo
+                  name={job.company.name}
+                  logo={job.company.logo}
+                  website={job.company.website}
+                  size="lg"
+                />
                 <div>
                   <h1 className="text-2xl font-bold">{job.title}</h1>
                   <Link
@@ -393,6 +403,7 @@ export default async function JobPage({ params }: JobPageProps) {
                 currency={job.salaryCurrency || 'USD'}
                 isEstimate={job.salaryIsEstimate}
                 marketData={salaryMarketData}
+                userPlan={userPlan}
               />
 
               {/* Apply Card */}
@@ -496,17 +507,13 @@ export default async function JobPage({ params }: JobPageProps) {
                     <Card className="h-full hover:shadow-md transition-shadow">
                       <CardContent className="pt-4">
                         <div className="flex gap-3">
-                          {similarJob.company.logo ? (
-                            <img
-                              src={similarJob.company.logo}
-                              alt={similarJob.company.name}
-                              className="w-10 h-10 rounded object-cover flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded bg-muted flex items-center justify-center text-sm font-bold flex-shrink-0">
-                              {similarJob.company.name.charAt(0)}
-                            </div>
-                          )}
+                          <CompanyLogo
+                            name={similarJob.company.name}
+                            logo={similarJob.company.logo}
+                            website={similarJob.company.website}
+                            size="sm"
+                            className="flex-shrink-0"
+                          />
                           <div className="min-w-0">
                             <h3 className="font-semibold text-sm line-clamp-2">{similarJob.title}</h3>
                             <p className="text-sm text-muted-foreground truncate">{similarJob.company.name}</p>
