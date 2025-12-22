@@ -226,6 +226,11 @@ model Job {
   skills        String[]    // ["React", "TypeScript", "Node.js"]
   benefits      String[]    // ["Health insurance", "401k", "Remote"]
 
+  // Translation-specific fields (only for translation category jobs)
+  translationTypes   TranslationType[]  // Types of translation work
+  sourceLanguages    String[]           // ISO codes: ["EN", "ES", "DE"]
+  targetLanguages    String[]           // ISO codes: ["RU", "FR", "ZH"]
+
   // Source tracking
   source        Source
   sourceType    SourceType  @default(STRUCTURED)
@@ -341,6 +346,18 @@ enum EnrichmentStatus {
   PROCESSING
   COMPLETED
   FAILED
+}
+
+// Translation-specific enums for language professionals
+enum TranslationType {
+  WRITTEN         // Written translation
+  INTERPRETATION  // Oral/verbal interpretation
+  LOCALIZATION    // Software/content localization
+  EDITING         // Editing/proofreading
+  TRANSCRIPTION   // Audio/video transcription
+  SUBTITLING      // Subtitling/captioning
+  MT_POST_EDITING // Machine translation post-editing
+  COPYWRITING     // Multilingual copywriting
 }
 
 // ============================================
@@ -468,6 +485,9 @@ model JobAlert {
   level         String?   // Level filter (JUNIOR, MID, SENIOR)
   frequency     AlertFrequency @default(DAILY)
 
+  // Translation-specific: multiple language pairs per alert
+  languagePairs AlertLanguagePair[]
+
   // Status
   isActive      Boolean   @default(true)
 
@@ -482,6 +502,24 @@ model JobAlert {
   @@index([email])
   @@index([userId])
   @@index([isActive])
+}
+
+// Language pair for translation job alerts
+// Example: user wants alerts for Written EN→RU, Written EN→DE, Interpretation DE→RU
+model AlertLanguagePair {
+  id              String    @id @default(cuid())
+
+  jobAlert        JobAlert  @relation(fields: [jobAlertId], references: [id], onDelete: Cascade)
+  jobAlertId      String
+
+  translationType String    // WRITTEN, INTERPRETATION, LOCALIZATION, etc.
+  sourceLanguage  String    // ISO 639-1: EN, RU, DE
+  targetLanguage  String    // ISO 639-1: RU, EN, DE
+
+  createdAt       DateTime  @default(now())
+
+  @@unique([jobAlertId, translationType, sourceLanguage, targetLanguage])
+  @@index([jobAlertId])
 }
 
 enum AlertFrequency {

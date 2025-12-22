@@ -55,10 +55,33 @@ GOOGLE_CLIENT_SECRET=xxx
 ```
 /dashboard              — Overview, stats
 /dashboard/saved        — Saved jobs
-/dashboard/applications — Application tracking
+/dashboard/applications — Application tracking (TODO)
 /dashboard/alerts       — Job alerts management
 /dashboard/settings     — Profile settings
 ```
+
+### Job Alerts for Translators
+Специальные фильтры для языковых профессий с поддержкой множественных языковых пар.
+
+**Translation Types:**
+- WRITTEN, INTERPRETATION, LOCALIZATION, EDITING
+- TRANSCRIPTION, SUBTITLING, MT_POST_EDITING, COPYWRITING
+
+**Language Pairs Model:**
+```prisma
+model AlertLanguagePair {
+  id              String   @id @default(cuid())
+  jobAlert        JobAlert @relation(...)
+  translationType String   // WRITTEN, INTERPRETATION, etc.
+  sourceLanguage  String   // ISO 639-1: EN, RU, DE
+  targetLanguage  String   // ISO 639-1: RU, EN, DE
+}
+```
+
+**Files:**
+- `src/app/dashboard/alerts/AlertsList.tsx` — UI for managing alerts
+- `src/app/api/user/alerts/route.ts` — CRUD endpoints
+- `prisma/schema.prisma` — JobAlert, AlertLanguagePair models
 
 ## Key Architecture Decisions
 
@@ -169,9 +192,22 @@ src/
 ├── lib/auth-email.ts              # Magic Link email sender
 ├── middleware.ts                  # Route protection
 ├── app/auth/signin/page.tsx       # Sign in page
-├── app/dashboard/page.tsx         # User dashboard
+├── app/dashboard/
+│   ├── page.tsx                   # Dashboard overview
+│   ├── layout.tsx                 # Dashboard layout (Header/Footer)
+│   ├── saved/page.tsx             # Saved jobs
+│   ├── alerts/
+│   │   ├── page.tsx               # Alerts page
+│   │   └── AlertsList.tsx         # Alerts management component
+│   └── settings/page.tsx          # User settings
 ├── components/auth/UserMenu.tsx   # Header user menu
 ├── components/auth/SignInForm.tsx # Login form component
+├── components/jobs/SaveJobButton.tsx # Save/unsave job button
+├── app/api/user/
+│   ├── alerts/route.ts            # Job alerts CRUD
+│   ├── alerts/[id]/route.ts       # Single alert operations
+│   └── settings/route.ts          # User settings
+├── app/api/jobs/[id]/save/route.ts # Save/unsave job endpoint
 
 scripts/
 ├── cleanup-duplicate-companies.ts # Merge duplicate companies
@@ -279,6 +315,12 @@ npx prisma db push --force-reset
 20. **Authentication system** — NextAuth v5 with Google OAuth + Magic Link
 21. **User Dashboard** — `/dashboard` with saved jobs, applications, alerts tracking
 22. **User Menu** — header dropdown with profile, settings, logout
+23. **Saved Jobs** — save/unsave jobs with SaveJobButton component
+24. **Job Alerts** — create alerts by category, keywords, country, level
+25. **Translation-specific alerts** — support for translation types + language pairs
+26. **Multiple language pairs** — AlertLanguagePair model for complex translator needs
+27. **Dashboard layout** — shared Header and Footer across all dashboard pages
+28. **User settings** — profile settings page with email preferences
 
 ## Code Patterns
 

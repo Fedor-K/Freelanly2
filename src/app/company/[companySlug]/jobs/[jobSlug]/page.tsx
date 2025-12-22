@@ -11,6 +11,7 @@ import { SalaryInsights, SalaryMarketData } from '@/components/jobs/SalaryInsigh
 import { ApplyButton } from '@/components/jobs/ApplyButton';
 import { SocialShare } from '@/components/jobs/SocialShare';
 import { JobViewTracker } from '@/components/jobs/JobViewTracker';
+import { SaveJobButton } from '@/components/jobs/SaveJobButton';
 import { formatDistanceToNow } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
@@ -406,9 +407,7 @@ export default async function JobPage({ params }: JobPageProps) {
                     companyName={job.company.name}
                     jobDescription={job.description}
                   />
-                  <Button variant="outline" className="w-full">
-                    Save Job
-                  </Button>
+                  <SaveJobButton jobId={job.id} variant="button" className="w-full" />
 
                   <Separator />
 

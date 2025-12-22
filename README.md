@@ -37,6 +37,9 @@ Freelanly агрегирует hiring-посты из LinkedIn, извлекае
 - **30-дневная свежесть** — только актуальные вакансии (Google рекомендация)
 - **Auto Cleanup** — автоматическое удаление старых вакансий после каждого импорта
 - **Daily Cron** — автоматический запуск всех источников раз в день (6:00 UTC)
+- **Authentication** — NextAuth v5 с Google OAuth и Magic Link
+- **User Dashboard** — сохранённые вакансии, алерты, настройки профиля
+- **Translation Alerts** — специальные фильтры для переводчиков (типы перевода + языковые пары)
 
 ---
 
@@ -53,6 +56,7 @@ Freelanly агрегирует hiring-посты из LinkedIn, извлекае
 | **Scraping** | Apify |
 | **Email** | DashaMail |
 | **Enrichment** | Apollo.io API |
+| **Auth** | NextAuth v5 (Google OAuth + Magic Link) |
 | **Payments** | Stripe |
 | **Hosting** | VPS + Docker / PM2 |
 
@@ -157,6 +161,15 @@ src/
 │   ├── companies/page.tsx        # All companies
 │   ├── country/
 │   │   └── [countrySlug]/        # Country SEO pages
+│   ├── auth/                     # Authentication pages
+│   │   ├── signin/               # Sign in page
+│   │   ├── verify-request/       # Magic link sent
+│   │   └── error/                # Auth error
+│   ├── dashboard/                # User dashboard
+│   │   ├── page.tsx              # Overview
+│   │   ├── saved/                # Saved jobs
+│   │   ├── alerts/               # Job alerts
+│   │   └── settings/             # Profile settings
 │   ├── admin/                    # Admin panel
 │   │   ├── sources/              # Manage data sources
 │   │   └── logs/                 # Import logs
@@ -165,6 +178,10 @@ src/
 │       │   └── fetch-linkedin/   # LinkedIn import trigger
 │       ├── webhooks/
 │       │   └── apify/            # Apify webhook handler
+│       ├── user/                 # User API endpoints
+│       │   ├── alerts/           # Job alerts CRUD
+│       │   └── settings/         # User settings
+│       ├── jobs/[id]/save/       # Save/unsave jobs
 │       └── admin/                # Admin API endpoints
 │
 ├── components/
@@ -172,13 +189,19 @@ src/
 │   ├── layout/
 │   │   ├── Header.tsx
 │   │   └── Footer.tsx
+│   ├── auth/
+│   │   ├── SignInForm.tsx        # Login form
+│   │   └── UserMenu.tsx          # Header user dropdown
 │   └── jobs/
 │       ├── JobCard.tsx
 │       ├── JobFilters.tsx        # Search filter component
+│       ├── SaveJobButton.tsx     # Save/unsave job button
 │       └── SalaryInsights.tsx    # Salary market data visualization
 │
 ├── lib/
 │   ├── db.ts                     # Prisma client
+│   ├── auth.ts                   # NextAuth v5 configuration
+│   ├── auth-email.ts             # Magic Link email sender
 │   ├── deepseek.ts               # DeepSeek AI (extraction + categorization)
 │   ├── apify.ts                  # Apify client
 │   ├── apollo.ts                 # Apollo.io enrichment
@@ -187,6 +210,8 @@ src/
 │   ├── dashamail.ts              # DashaMail email
 │   ├── settings.ts               # DB settings store
 │   └── utils.ts                  # Utilities (slugify, freshness, etc.)
+│
+├── middleware.ts                 # Route protection for /dashboard/*
 │
 ├── services/
 │   ├── linkedin-processor.ts     # LinkedIn → Job pipeline
@@ -349,6 +374,88 @@ POST /api/webhooks/apify
 - `src/config/salary-coefficients.ts` — Country coefficients (50+ countries)
 - `src/services/salary-insights.ts` — Main service
 - `src/components/jobs/SalaryInsights.tsx` — UI component
+
+---
+
+## Authentication & User Dashboard
+
+### Auth Setup (NextAuth v5)
+
+- **Providers**: Google OAuth + Magic Link (via DashaMail)
+- **Session**: Database strategy, 30-day lifetime
+- **Protected routes**: `/dashboard/*` via middleware
+
+**Environment variables:**
+```env
+AUTH_SECRET=xxx  # Generate: openssl rand -base64 32
+AUTH_URL=https://freelanly.com
+GOOGLE_CLIENT_ID=xxx
+GOOGLE_CLIENT_SECRET=xxx
+```
+
+**Файлы:**
+- `src/lib/auth.ts` — NextAuth configuration
+- `src/lib/auth-email.ts` — Magic Link email sender
+- `src/middleware.ts` — Route protection
+- `src/components/auth/SignInForm.tsx` — Login form
+- `src/components/auth/UserMenu.tsx` — Header user menu
+
+### User Plans
+
+| Feature | FREE | PRO ($19/mo) |
+|---------|------|--------------|
+| Job views | 5/day | Unlimited |
+| Applications | 0 | 100/month |
+| Saved jobs | Unlimited | Unlimited |
+| Salary insights | Limited | Full |
+| Email tracking | No | Yes |
+
+### Dashboard Pages
+
+```
+/dashboard              — Overview, stats
+/dashboard/saved        — Saved jobs
+/dashboard/applications — Application tracking (TODO)
+/dashboard/alerts       — Job alerts management
+/dashboard/settings     — Profile settings
+```
+
+### Job Alerts for Translators
+
+Специальные фильтры для языковых профессий:
+
+**Translation Types:**
+- WRITTEN — письменный перевод
+- INTERPRETATION — устный перевод
+- LOCALIZATION — локализация
+- EDITING — редактура
+- TRANSCRIPTION — транскрибирование
+- SUBTITLING — субтитры
+- MT_POST_EDITING — постредактирование MT
+- COPYWRITING — копирайтинг
+
+**Language Pairs:**
+Пользователь может добавить несколько языковых пар для каждого типа перевода:
+```
+Written Translation: RU→EN, EN→RU, EN→DE
+Interpretation: DE→RU, DE→EN
+```
+
+**Database Model:**
+```prisma
+model AlertLanguagePair {
+  id              String   @id @default(cuid())
+  jobAlert        JobAlert @relation(...)
+  translationType String   // WRITTEN, INTERPRETATION, etc.
+  sourceLanguage  String   // ISO 639-1: EN, RU, DE
+  targetLanguage  String   // ISO 639-1: RU, EN, DE
+}
+```
+
+**Файлы:**
+- `src/app/dashboard/alerts/AlertsList.tsx` — UI для управления алертами
+- `src/app/api/user/alerts/route.ts` — API эндпоинты
+- `prisma/schema.prisma` — модели JobAlert, AlertLanguagePair
 
 ---
 
@@ -590,6 +697,15 @@ npx tsx scripts/recategorize-jobs.ts
 |--------|----------|-------------|
 | POST | `/api/webhooks/apify` | Apify run completion webhook |
 
+### User (require auth)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST/DELETE | `/api/jobs/[id]/save` | Save/unsave a job |
+| GET/POST | `/api/user/alerts` | List/create job alerts |
+| PUT/DELETE | `/api/user/alerts/[id]` | Update/delete job alert |
+| GET/PUT | `/api/user/settings` | Get/update user settings |
+
 ### Admin (internal)
 
 | Method | Endpoint | Description |
@@ -789,10 +905,12 @@ model Job {
 - [x] Maintenance scripts
 - [x] **Salary Insights** (BLS + Adzuna + coefficients)
 - [x] **Real salary from job postings** (when available)
-- [ ] Authentication (NextAuth)
+- [x] **Authentication** (NextAuth v5 with Google OAuth + Magic Link)
+- [x] **User Dashboard** (saved jobs, alerts, settings)
+- [x] **Job Alerts** with translation-specific filters (language pairs)
 - [ ] Stripe payments
-- [ ] User dashboard
 - [ ] Application tracking
+- [ ] Email notifications for job alerts
 - [ ] SEO landing pages generator
 
 ---
