@@ -7,6 +7,7 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { CompanyLogo } from '@/components/ui/CompanyLogo';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
@@ -184,17 +185,13 @@ export default async function CompanyPage({ params, searchParams }: CompanyPageP
           {/* Company Header */}
           <header className="mb-8 pb-8 border-b">
             <div className="flex items-start gap-6">
-              {company.logo ? (
-                <img
-                  src={company.logo}
-                  alt={company.name}
-                  className="w-24 h-24 rounded-xl object-cover"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-xl bg-muted flex items-center justify-center text-4xl font-bold">
-                  {company.name.charAt(0)}
-                </div>
-              )}
+              <CompanyLogo
+                name={company.name}
+                logo={company.logo}
+                website={company.website}
+                size="xl"
+                className="w-24 h-24 rounded-xl text-4xl"
+              />
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <h1 className="text-3xl font-bold">{company.name}</h1>
