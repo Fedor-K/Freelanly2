@@ -237,15 +237,21 @@ Other: support, education, research, consulting
 - `src/lib/utils.ts` → `isFreeEmail()`
 
 ### Company Logo Fallback
-When Apollo.io doesn't find a logo, fallback to Google Favicon API.
+When Apollo.io doesn't find a logo, fallback to Logo.dev API (former Clearbit).
 
 **Priority:**
 1. Apollo logo (from enrichment)
-2. Google Favicon API (`google.com/s2/favicons?domain=DOMAIN&sz=128`)
+2. Logo.dev API (`img.logo.dev/DOMAIN?token=TOKEN`) - high quality company logos
 3. Placeholder with first letter of company name
 
+**Logo.dev credentials:**
+```
+Publishable key: pk_A6k2yPZ4T6y5MZrbuUd9yA (safe to share, used in frontend)
+Secret key: sk_S3uVup8yTSaIFQ_dz0khiA (server-side only)
+```
+
 **Files:**
-- `src/lib/company-logo.ts` — `getCompanyLogoUrl()` utility
+- `src/lib/company-logo.ts` — `getCompanyLogoUrl()`, `getLogoDevUrl()` utilities
 - `src/components/ui/CompanyLogo.tsx` — Reusable component with error handling
 
 **Usage:**
@@ -257,6 +263,26 @@ When Apollo.io doesn't find a logo, fallback to Google Favicon API.
   size="md"  // sm, md, lg, xl
 />
 ```
+
+### Salary Display
+Job cards and listings show salary with proper currency and period.
+
+**Format:**
+- Full format: `PKR 50,000 - PKR 100,000/mo`
+- Compact format (Similar Jobs): `PKR 50K-100K/mo`
+
+**Period suffixes:**
+- HOUR → `/hr`
+- DAY → `/day`
+- WEEK → `/wk`
+- MONTH → `/mo`
+- YEAR → `/yr`
+- ONE_TIME → (no suffix)
+
+**Files:**
+- `src/components/jobs/JobCard.tsx` — `formatSalary()`, `formatSalaryPeriod()`
+- `src/app/company/[companySlug]/jobs/[jobSlug]/page.tsx` — `formatSalaryCompact()` for Similar Jobs
+- `src/types/index.ts` — `JobCardData` includes `salaryPeriod`
 
 ### Salary Insights
 Real market salary data displayed on job detail pages.
@@ -496,6 +522,10 @@ npx prisma db push --force-reset
 35. **Google Favicon fallback** — `CompanyLogo` component with Apollo → Favicon → Placeholder
 36. **INSTANT job alerts** — sends email immediately when matching job is created
 37. **Salary insights restrictions** — FREE users see average only, PRO sees full data
+38. **Logo.dev integration** — switched from Google Favicon to Logo.dev (former Clearbit) for higher quality logos
+39. **Salary currency & period** — job cards now show proper currency (PKR, EUR, etc.) and period (/mo, /yr)
+40. **salaryPeriod in JobCardData** — added to type definition for proper salary display
+41. **Similar Jobs salary fix** — shows correct currency and period instead of hardcoded $...K format
 
 ## Code Patterns
 
@@ -569,12 +599,22 @@ curl -X POST http://localhost:3000/api/cron/fetch-sources -H "Authorization: Bea
 
 ## Current Session Status (Dec 22, 2024)
 
-**Что сделано в этой сессии:**
+**Что сделано в последних сессиях:**
 1. ✅ Stripe payments integration (Weekly €10, Monthly €20, Annual €192)
-2. ✅ Google Favicon fallback для логотипов компаний
+2. ✅ Logo.dev integration (бывший Clearbit) — высококачественные логотипы компаний
 3. ✅ INSTANT job alerts (отправка сразу после создания вакансии)
 4. ✅ FREE vs PRO ограничения для Salary Insights
-5. ✅ CompanyLogo компонент с обработкой ошибок
+5. ✅ CompanyLogo компонент с Logo.dev fallback
+6. ✅ Исправление отображения зарплаты — валюта + период (PKR 50K/mo вместо $50K)
+7. ✅ salaryPeriod добавлен в JobCardData
+8. ✅ Similar Jobs section — правильный формат зарплаты
+9. ✅ website добавлен во все запросы company для Logo fallback
+
+**Logo.dev credentials:**
+```
+Publishable key: pk_A6k2yPZ4T6y5MZrbuUd9yA
+Secret key: sk_S3uVup8yTSaIFQ_dz0khiA
+```
 
 **Stripe credentials (get from owner):**
 ```
@@ -583,8 +623,9 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx  # Get from webhook settings
 ```
 
 **Известные проблемы:**
-- Apollo.io не всегда находит данные для небольших компаний → используется Google Favicon fallback
+- Apollo.io не всегда находит данные для небольших компаний → используется Logo.dev fallback
 - Если `logo = ""` — Apollo не нашёл данные; если `logo = null` — enrichment не запускался
+- Logo.dev иногда не находит логотип для новых/малых компаний → показывается буква-placeholder
 
 **Возможные следующие шаги:**
 1. Добавить WEEKLY cron для недельных алертов
@@ -595,9 +636,8 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx  # Get from webhook settings
 **Для деплоя последних изменений:**
 ```bash
 cd /opt/freelanly2
-git fetch origin claude/review-changes-mjgqpbwqndzlx831-OBfGu
-git merge origin/claude/review-changes-mjgqpbwqndzlx831-OBfGu -m "Add Stripe + Favicon + INSTANT alerts"
-npm install
+git fetch origin claude/review-changes-mjh9fja4hh5i30r3-cBxYN
+git merge origin/claude/review-changes-mjh9fja4hh5i30r3-cBxYN
 npm run build && pm2 restart freelanly
 ```
 
