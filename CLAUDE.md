@@ -288,20 +288,33 @@ Job cards and listings show salary with proper currency and period.
 Real market salary data displayed on job detail pages.
 
 **Data Sources (priority order):**
-1. **US jobs** → BLS API (Bureau of Labor Statistics)
+1. **Cache** — 30 days in `SalaryBenchmark` table
+2. **US jobs** → BLS API (Bureau of Labor Statistics)
    - 40+ SOC occupation code mappings
    - Official government salary data
-2. **International** → Adzuna API (19 countries)
+3. **International** → Adzuna API (19 countries)
    - UK, DE, FR, AU, NL, AT, BE, BR, CA, IN, IT, MX, NZ, PL, RU, SG, ZA, ES, CH
-   - Histogram-based salary data with currency conversion
-3. **Other countries** → Coefficient-based estimation
-   - 50+ countries with coefficients relative to US (1.0)
-   - File: `src/config/salary-coefficients.ts`
-4. **Fallback** → Calculate from similar jobs in DB
+4. **Formula-based estimation** (primary fallback):
+   ```
+   Annual Salary = BaseSalary[category] × LevelMultiplier[level] × CountryCoefficient[country]
+   ```
 
-**Caching:**
-- 30 days in `SalaryBenchmark` table
-- Unique key: `jobTitle + country + region`
+**Formula Components:**
+- **Base salaries** (`src/config/salary-base.ts`): 21 categories, $60K-$130K range
+  - Engineering: $120K, DevOps: $130K, Product: $130K, QA: $121K
+  - Writing: $70K, Translation: $60K, Support: $60K
+- **Level multipliers** (`src/config/salary-coefficients.ts`):
+  - Intern: 0.30, Entry: 0.50, Junior: 0.65, Mid: 1.00
+  - Senior: 1.30, Lead: 1.50, Manager: 1.60, Director: 2.00, Executive: 2.80
+- **Country coefficients** (50+ countries):
+  - US: 1.00, Switzerland: 0.88, UK: 0.75, Germany: 0.70
+  - Poland: 0.35, Brazil: 0.28, India: 0.20, Pakistan: 0.18
+
+**Example calculation:**
+```
+Senior Engineer in Germany:
+$120,000 × 1.30 × 0.70 = $109,200/yr
+```
 
 **Component displays:**
 - Market range visualization (min-max with percentiles)
@@ -318,9 +331,15 @@ Real market salary data displayed on job detail pages.
 **Files:**
 - `src/lib/bls.ts` — BLS API client
 - `src/lib/adzuna.ts` — Adzuna API client
-- `src/config/salary-coefficients.ts` — Country coefficients
+- `src/config/salary-base.ts` — Base salaries by category (NEW)
+- `src/config/salary-coefficients.ts` — Level multipliers + country coefficients
 - `src/services/salary-insights.ts` — Main orchestration service
 - `src/components/jobs/SalaryInsights.tsx` — UI component
+
+**Clear salary cache (if needed):**
+```bash
+npx prisma db execute --stdin <<< "TRUNCATE TABLE \"SalaryBenchmark\";"
+```
 
 **Environment variables:**
 ```
@@ -357,7 +376,8 @@ src/
 │   ├── hackernews-processor.ts    # HackerNews Who is Hiring processor
 │   └── types.ts                   # Shared types
 ├── config/site.ts                 # Categories, levels, countries config
-├── config/salary-coefficients.ts  # Country salary coefficients
+├── config/salary-base.ts          # Base salaries by category ($60K-$130K)
+├── config/salary-coefficients.ts  # Level multipliers + country coefficients
 ├── components/jobs/SalaryInsights.tsx  # Salary insights component
 ├── lib/auth.ts                    # NextAuth configuration
 ├── lib/auth-email.ts              # Magic Link email sender
@@ -526,6 +546,11 @@ npx prisma db push --force-reset
 39. **Salary currency & period** — job cards now show proper currency (PKR, EUR, etc.) and period (/mo, /yr)
 40. **salaryPeriod in JobCardData** — added to type definition for proper salary display
 41. **Similar Jobs salary fix** — shows correct currency and period instead of hardcoded $...K format
+42. **Research-based salary formula** — `BaseSalary × Level × Country` with data from Levels.fyi, Glassdoor
+43. **salary-base.ts** — base salaries for 21 categories (Writing $70K, Engineering $120K, etc.)
+44. **Level multipliers** — Intern 0.30x to Executive 2.80x
+45. **Updated country coefficients** — Switzerland 0.88, UK 0.75, Pakistan 0.18, etc.
+46. **Removed DB keyword matching** — was producing inflated salaries ($157K for Copy Lead instead of $105K)
 
 ## Code Patterns
 
@@ -609,6 +634,19 @@ curl -X POST http://localhost:3000/api/cron/fetch-sources -H "Authorization: Bea
 7. ✅ salaryPeriod добавлен в JobCardData
 8. ✅ Similar Jobs section — правильный формат зарплаты
 9. ✅ website добавлен во все запросы company для Logo fallback
+10. ✅ **Research-based salary formula** — `BaseSalary × Level × Country`
+11. ✅ **salary-base.ts** — base salaries for 21 categories
+12. ✅ **Level multipliers** — Intern 0.30x to Executive 2.80x
+13. ✅ **Updated country coefficients** — based on Dec 2024 research
+14. ✅ **Removed DB keyword matching** — было причиной завышенных зарплат
+
+**Salary Formula Details:**
+```
+Annual Salary = BaseSalary[category] × LevelMultiplier[level] × CountryCoefficient[country]
+
+Example: Lead Writer in US
+$70,000 (writing) × 1.50 (lead) × 1.0 (US) = $105,000/yr
+```
 
 **Logo.dev credentials:**
 ```
@@ -626,6 +664,7 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx  # Get from webhook settings
 - Apollo.io не всегда находит данные для небольших компаний → используется Logo.dev fallback
 - Если `logo = ""` — Apollo не нашёл данные; если `logo = null` — enrichment не запускался
 - Logo.dev иногда не находит логотип для новых/малых компаний → показывается буква-placeholder
+- BLS API имеет дневной лимит запросов — при превышении используется formula estimation
 
 **Возможные следующие шаги:**
 1. Добавить WEEKLY cron для недельных алертов
@@ -636,9 +675,10 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx  # Get from webhook settings
 **Для деплоя последних изменений:**
 ```bash
 cd /opt/freelanly2
-git fetch origin claude/review-changes-mjh9fja4hh5i30r3-cBxYN
-git merge origin/claude/review-changes-mjh9fja4hh5i30r3-cBxYN
+git pull origin claude/review-changes-mjh9fja4hh5i30r3-cBxYN
 npm run build && pm2 restart freelanly
+# Очистить кеш зарплат если нужно:
+npx prisma db execute --stdin <<< "TRUNCATE TABLE \"SalaryBenchmark\";"
 ```
 
 **Настройка Stripe webhook (обязательно!):**
