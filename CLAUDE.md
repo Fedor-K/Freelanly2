@@ -8,6 +8,7 @@ SEO-оптимизированная платформа для поиска уд
 - Daily cron at 6:00 UTC: fetches all sources
 - Auto cleanup: removes jobs older than 30 days after each import
 - Company enrichment via Apollo.io
+- **Search engine indexing**: IndexNow (Bing, Yandex) + Google Indexing API
 
 ## Tech Stack
 
@@ -17,6 +18,7 @@ SEO-оптимизированная платформа для поиска уд
 - DeepSeek API (extraction + categorization)
 - Apify (LinkedIn scraping)
 - Apollo.io (company enrichment)
+- IndexNow + Google Indexing API (fast search indexing)
 
 ## Key Architecture Decisions
 
@@ -97,6 +99,51 @@ ADZUNA_APP_ID=xxx
 ADZUNA_APP_KEY=xxx
 ```
 
+### Search Engine Indexing
+Автоматическая отправка новых вакансий в поисковые системы для быстрой индексации.
+
+**Supported Services:**
+1. **IndexNow** — Bing, Yandex, Seznam, Naver (мгновенная индексация)
+2. **Google Indexing API** — Google (требует верификации)
+
+**How it works:**
+- После создания новой вакансии, URL автоматически отправляется в оба сервиса
+- IndexNow: до 10,000 URL за один запрос
+- Google: лимит 200 URL/день для новых сайтов
+
+**Files:**
+- `src/lib/indexing.ts` — main service (submitToIndexNow, submitToGoogle, notifySearchEngines)
+- `public/8b7cce5d...txt` — IndexNow verification key file
+- `scripts/test-indexnow.ts` — test IndexNow integration
+- `scripts/test-google-indexing.ts` — test Google API integration
+
+**Environment variables:**
+```
+INDEXNOW_KEY=8b7cce5d3476d3f372e3730abc9770c16f12eef9d2fd0a6855eec7678c71f06e
+GOOGLE_INDEXING_CREDENTIALS={"type":"service_account",...}  # Full JSON from Google Cloud
+```
+
+**Google Indexing API Setup:**
+1. Create Google Cloud project
+2. Enable Indexing API: https://console.cloud.google.com/apis/library/indexing.googleapis.com
+3. Create Service Account with JSON key
+4. Add service account to Google Search Console as **Owner**
+5. Set GOOGLE_INDEXING_CREDENTIALS in .env
+
+**Integration in processors:**
+All job processors return `createdJobUrls` array, which is sent to `notifySearchEngines()`:
+```typescript
+// In processor
+if (result.status === 'created' && result.jobSlug) {
+  stats.createdJobUrls.push(buildJobUrl(company.slug, result.jobSlug));
+}
+
+// After import
+if (stats.createdJobUrls.length > 0) {
+  await notifySearchEngines(stats.createdJobUrls);
+}
+```
+
 ## Important Files
 
 ```
@@ -109,6 +156,7 @@ src/
 ├── lib/utils.ts                   # Freshness, slugify, free email check
 ├── lib/bls.ts                     # BLS API client (US salary data)
 ├── lib/adzuna.ts                  # Adzuna API client (international salary)
+├── lib/indexing.ts                # IndexNow + Google Indexing API service
 ├── services/linkedin-processor.ts # LinkedIn → Job (with dedup)
 ├── services/job-cleanup.ts        # Auto cleanup old jobs (30 days)
 ├── services/company-enrichment.ts # Apollo.io enrichment
@@ -130,6 +178,8 @@ scripts/
 ├── recategorize-jobs.ts           # Fix miscategorized jobs
 ├── reextract-salaries.ts          # Re-extract salaries from job descriptions
 ├── cleanup-now.ts                 # One-time cleanup of old jobs
+├── test-indexnow.ts               # Test IndexNow integration
+├── test-google-indexing.ts        # Test Google Indexing API
 ```
 
 ## Common Tasks
@@ -144,6 +194,17 @@ curl -X POST http://localhost:3000/api/cron/fetch-sources \
 ```bash
 curl -X POST http://localhost:3000/api/cron/fetch-linkedin \
   -H "Authorization: Bearer $CRON_SECRET"
+```
+
+### Test search engine indexing
+```bash
+# Test IndexNow
+export INDEXNOW_KEY=8b7cce5d3476d3f372e3730abc9770c16f12eef9d2fd0a6855eec7678c71f06e
+npx tsx scripts/test-indexnow.ts
+
+# Test Google Indexing API
+export GOOGLE_INDEXING_CREDENTIALS='{"type":"service_account",...}'
+npx tsx scripts/test-google-indexing.ts
 ```
 
 ### Cleanup duplicates
@@ -227,6 +288,10 @@ npx prisma db push --force-reset
 17. **Multiple ATS sources** — added RemoteOK, WeWorkRemotely, HackerNews processors
 18. **Daily cron job** — all sources run automatically at 6:00 UTC
 19. **Salary re-extraction** — script to re-extract salaries from existing job descriptions
+20. **30-day freshness filter** — added to all country pages and landing pages
+21. **IndexNow integration** — instant indexing for Bing, Yandex, Seznam, Naver
+22. **Google Indexing API** — automatic submission of new jobs to Google
+23. **Search engine notifications** — all processors now notify search engines after creating jobs
 
 ## Code Patterns
 
@@ -240,8 +305,11 @@ npx prisma db push --force-reset
 1. Create processor in `src/services/sources/`
 2. Add source type to `prisma/schema.prisma` → `Source` enum
 3. Register processor in `src/services/sources/index.ts` → `SOURCE_PROCESSORS`
-4. Import and call `cleanupOldJobs()` at the end of processor
-5. Run `npx prisma db push` to update schema
+4. Return `jobSlug` when creating jobs for search engine indexing
+5. Collect URLs in `stats.createdJobUrls` array
+6. Call `notifySearchEngines()` after import (handled in index.ts)
+7. Import and call `cleanupOldJobs()` at the end of processor
+8. Run `npx prisma db push` to update schema
 
 ### Job Cleanup Integration
 All processors should call cleanup after successful import:
@@ -268,6 +336,9 @@ await cleanupOldJobs();
 5. Server runs on `/opt/freelanly2` with PM2 process `freelanly`
 6. **Cron job runs at 6:00 UTC** — check `/var/log/freelanly-cron.log` for logs
 7. **Jobs auto-deleted after 30 days** — this is intentional, not a bug
+8. **Google Indexing API limit** — 200 URLs/day for new sites, don't spam
+9. **IndexNow key** — verification file must exist at `public/{key}.txt`
+10. **Service account needs Owner access** in Google Search Console (not just Full)
 
 ## Server Commands (Production)
 
