@@ -145,8 +145,9 @@ async function processLeverJob(
     });
   }
 
-  // Generate slug
-  const baseSlug = slugify(`${job.text}-${companySlug}`);
+  // Generate slug with Lever job ID suffix to guarantee uniqueness
+  const shortId = job.id.slice(-8);
+  const baseSlug = slugify(`${job.text}-${companySlug}-${shortId}`);
   const slug = await generateUniqueJobSlug(baseSlug);
 
   // Parse location
