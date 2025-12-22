@@ -7,6 +7,7 @@
  * - Google Indexing API (requires setup)
  */
 
+import { createSign } from 'crypto';
 import { siteConfig } from '@/config/site';
 
 const INDEXNOW_KEY = process.env.INDEXNOW_KEY;
@@ -149,39 +150,46 @@ async function getGoogleJWT(credentials: {
     iat: now,
   };
 
-  // For proper JWT signing, we'd need a crypto library
-  // For now, use googleapis library approach or simple fetch to token endpoint
-  // This is a simplified version - in production use google-auth-library
+  const assertion = createJWTAssertion(header, payload, credentials.private_key);
 
   const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: createJWTAssertion(header, payload, credentials.private_key),
+      assertion,
     }),
   });
 
   const data = await tokenResponse.json();
+
+  if (!data.access_token) {
+    console.error('❌ Google OAuth error:', data);
+    throw new Error(data.error_description || data.error || 'Failed to get access token');
+  }
+
   return data.access_token;
 }
 
 /**
- * Create JWT assertion (simplified - needs proper implementation)
+ * Create JWT assertion with RS256 signing
  */
 function createJWTAssertion(
   header: object,
   payload: object,
   privateKey: string
 ): string {
-  // This is a placeholder - proper JWT signing requires crypto
-  // In production, use a library like jose or jsonwebtoken
   const base64Header = Buffer.from(JSON.stringify(header)).toString('base64url');
   const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signatureInput = `${base64Header}.${base64Payload}`;
 
-  // TODO: Implement proper RS256 signing
-  // For now, return empty - Google API won't work without proper signing
-  return `${base64Header}.${base64Payload}.`;
+  // Sign with RS256 using Node.js crypto
+  const sign = createSign('RSA-SHA256');
+  sign.update(signatureInput);
+  sign.end();
+  const signature = sign.sign(privateKey, 'base64url');
+
+  return `${signatureInput}.${signature}`;
 }
 
 /**
@@ -204,8 +212,14 @@ async function submitSingleToGoogle(url: string, accessToken: string): Promise<b
       }
     );
 
+    if (response.status !== 200) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error(`❌ Google Indexing error for ${url}:`, errorData);
+    }
+
     return response.status === 200;
-  } catch {
+  } catch (error) {
+    console.error(`❌ Google Indexing error for ${url}:`, error);
     return false;
   }
 }
