@@ -425,7 +425,7 @@ async function migrateJobAlerts() {
       const email = users[0].email;
 
       // Check if already exists in new DB
-      const existing = await newDb.jobAlert.findUnique({
+      const existing = await newDb.jobAlert.findFirst({
         where: { email }
       });
 

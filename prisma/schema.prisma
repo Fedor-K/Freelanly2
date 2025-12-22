@@ -8,12 +8,13 @@ datasource db {
 }
 
 // ============================================
-// USER & AUTH
+// USER & AUTH (NextAuth.js v5)
 // ============================================
 
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
+  emailVerified DateTime?
   name          String?
   image         String?
 
@@ -30,12 +31,60 @@ model User {
   jobViewsToday Int       @default(0)
   lastViewReset DateTime  @default(now())
 
+  // Resume URL (user's resume link)
+  resumeUrl     String?
+
   // Relations
+  accounts      Account[]
+  sessions      Session[]
   applications  Application[]
   savedJobs     SavedJob[]
+  jobAlerts     JobAlert[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+// NextAuth Account (for OAuth providers)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// NextAuth Session (for database sessions)
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// NextAuth Verification Token (for magic link)
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 enum Plan {
@@ -406,11 +455,18 @@ model LandingPage {
 
 model JobAlert {
   id            String    @id @default(cuid())
-  email         String    @unique
+  email         String
+
+  // User relation (optional - can be anonymous or linked to user)
+  user          User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String?
 
   // Preferences
   category      String?   // Category slug filter
   keywords      String?   // Keywords to match
+  country       String?   // Country filter
+  level         String?   // Level filter (JUNIOR, MID, SENIOR)
+  frequency     AlertFrequency @default(DAILY)
 
   // Status
   isActive      Boolean   @default(true)
@@ -422,8 +478,16 @@ model JobAlert {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  @@unique([userId, email, category, keywords]) // Prevent duplicate alerts
   @@index([email])
+  @@index([userId])
   @@index([isActive])
+}
+
+enum AlertFrequency {
+  INSTANT   // Send immediately when new job matches
+  DAILY     // Daily digest
+  WEEKLY    // Weekly digest
 }
 
 // ============================================
