@@ -19,6 +19,9 @@ export default async function AlertsPage() {
 
   const alerts = await prisma.jobAlert.findMany({
     where: { userId: session.user.id },
+    include: {
+      languagePairs: true,
+    },
     orderBy: { createdAt: 'desc' },
   });
 

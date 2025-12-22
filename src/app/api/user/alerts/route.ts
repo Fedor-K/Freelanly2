@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { AlertFrequency } from '@prisma/client';
 
-// GET /api/user/alerts - Get user's job alerts
+// Language pair type
+interface LanguagePair {
+  translationType: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+}
+
+// GET /api/user/alerts - Get user's job alerts with language pairs
 export async function GET() {
   try {
     const session = await auth();
@@ -12,6 +20,9 @@ export async function GET() {
 
     const alerts = await prisma.jobAlert.findMany({
       where: { userId: session.user.id },
+      include: {
+        languagePairs: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -37,11 +48,16 @@ export async function POST(request: NextRequest) {
       country,
       level,
       frequency,
-      // Translation-specific fields
-      translationType,
-      sourceLanguage,
-      targetLanguage,
-    } = body;
+      // Translation-specific: array of language pairs
+      languagePairs,
+    } = body as {
+      category?: string;
+      keywords?: string;
+      country?: string;
+      level?: string;
+      frequency?: string;
+      languagePairs?: LanguagePair[];
+    };
 
     // Validate frequency
     const validFrequencies = ['INSTANT', 'DAILY', 'WEEKLY'];
@@ -52,7 +68,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate translation type if provided
+    // Validate translation types if provided
     const validTranslationTypes = [
       'WRITTEN',
       'INTERPRETATION',
@@ -63,11 +79,22 @@ export async function POST(request: NextRequest) {
       'MT_POST_EDITING',
       'COPYWRITING',
     ];
-    if (translationType && !validTranslationTypes.includes(translationType)) {
-      return NextResponse.json(
-        { error: 'Invalid translation type' },
-        { status: 400 }
-      );
+
+    if (languagePairs && languagePairs.length > 0) {
+      for (const pair of languagePairs) {
+        if (!validTranslationTypes.includes(pair.translationType)) {
+          return NextResponse.json(
+            { error: `Invalid translation type: ${pair.translationType}` },
+            { status: 400 }
+          );
+        }
+        if (!pair.sourceLanguage || !pair.targetLanguage) {
+          return NextResponse.json(
+            { error: 'Language pair must have both source and target language' },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     const user = await prisma.user.findUnique({
@@ -79,6 +106,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Create alert with language pairs
     const alert = await prisma.jobAlert.create({
       data: {
         userId: session.user.id,
@@ -87,12 +115,22 @@ export async function POST(request: NextRequest) {
         keywords: keywords?.trim() || null,
         country: country || null,
         level: level || null,
-        frequency: frequency || 'DAILY',
+        frequency: (frequency as AlertFrequency) || AlertFrequency.DAILY,
         isActive: true,
-        // Translation-specific (only saved if category is translation)
-        translationType: category === 'translation' ? translationType || null : null,
-        sourceLanguage: category === 'translation' ? sourceLanguage || null : null,
-        targetLanguage: category === 'translation' ? targetLanguage || null : null,
+        // Create language pairs if translation category
+        languagePairs:
+          category === 'translation' && languagePairs && languagePairs.length > 0
+            ? {
+                create: languagePairs.map((pair) => ({
+                  translationType: pair.translationType,
+                  sourceLanguage: pair.sourceLanguage.toUpperCase(),
+                  targetLanguage: pair.targetLanguage.toUpperCase(),
+                })),
+              }
+            : undefined,
+      },
+      include: {
+        languagePairs: true,
       },
     });
 

@@ -485,10 +485,8 @@ model JobAlert {
   level         String?   // Level filter (JUNIOR, MID, SENIOR)
   frequency     AlertFrequency @default(DAILY)
 
-  // Translation-specific filters (only when category = 'translation')
-  translationType    String?   // TranslationType enum value
-  sourceLanguage     String?   // ISO code: "EN", "ES", etc.
-  targetLanguage     String?   // ISO code: "RU", "FR", etc.
+  // Translation-specific: multiple language pairs per alert
+  languagePairs AlertLanguagePair[]
 
   // Status
   isActive      Boolean   @default(true)
@@ -504,6 +502,24 @@ model JobAlert {
   @@index([email])
   @@index([userId])
   @@index([isActive])
+}
+
+// Language pair for translation job alerts
+// Example: user wants alerts for Written EN→RU, Written EN→DE, Interpretation DE→RU
+model AlertLanguagePair {
+  id              String    @id @default(cuid())
+
+  jobAlert        JobAlert  @relation(fields: [jobAlertId], references: [id], onDelete: Cascade)
+  jobAlertId      String
+
+  translationType String    // WRITTEN, INTERPRETATION, LOCALIZATION, etc.
+  sourceLanguage  String    // ISO 639-1: EN, RU, DE
+  targetLanguage  String    // ISO 639-1: RU, EN, DE
+
+  createdAt       DateTime  @default(now())
+
+  @@unique([jobAlertId, translationType, sourceLanguage, targetLanguage])
+  @@index([jobAlertId])
 }
 
 enum AlertFrequency {
