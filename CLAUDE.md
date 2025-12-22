@@ -6,6 +6,7 @@ SEO-оптимизированная платформа для поиска уд
 
 **Автоматизация:**
 - Daily cron at 6:00 UTC: fetches all sources
+- Daily cron at 7:00 UTC: sends job alert notifications
 - Auto cleanup: removes jobs older than 30 days after each import
 - Company enrichment via Apollo.io
 
@@ -82,6 +83,36 @@ model AlertLanguagePair {
 - `src/app/dashboard/alerts/AlertsList.tsx` — UI for managing alerts
 - `src/app/api/user/alerts/route.ts` — CRUD endpoints
 - `prisma/schema.prisma` — JobAlert, AlertLanguagePair models
+
+### Email Notifications for Job Alerts
+Автоматическая рассылка уведомлений о новых вакансиях.
+
+**Matching Criteria:**
+- Category (optional)
+- Keywords (comma-separated, searches title + description)
+- Country (optional)
+- Level (optional)
+- Language Pairs (for translation category)
+
+**Frequencies:**
+- INSTANT — after each job import (TODO: integrate with import)
+- DAILY — 7:00 UTC (cron)
+- WEEKLY — Monday 7:00 UTC (TODO: separate cron)
+
+**Duplicate Prevention:**
+- AlertNotification model tracks sent job+alert pairs
+- Jobs are marked as sent after successful email delivery
+
+**Files:**
+- `src/services/alert-matcher.ts` — Matches jobs to alerts
+- `src/services/alert-notifications.ts` — Email generation and sending
+- `src/app/api/cron/send-alerts/route.ts` — Cron endpoint
+
+**Manual trigger:**
+```bash
+curl -X POST "http://localhost:3000/api/cron/send-alerts?frequency=DAILY" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
 
 ## Key Architecture Decisions
 
@@ -170,6 +201,7 @@ src/
 ├── app/company/[slug]/jobs/[job]/page.tsx  # Job detail + Apply Now
 ├── app/api/cron/fetch-sources/route.ts    # Daily ATS cron endpoint
 ├── app/api/cron/fetch-linkedin/route.ts   # LinkedIn cron endpoint
+├── app/api/cron/send-alerts/route.ts      # Job alert notifications cron
 ├── lib/deepseek.ts                # AI extraction + categorization (21 cats)
 ├── lib/utils.ts                   # Freshness, slugify, free email check
 ├── lib/bls.ts                     # BLS API client (US salary data)
@@ -178,6 +210,8 @@ src/
 ├── services/job-cleanup.ts        # Auto cleanup old jobs (30 days)
 ├── services/company-enrichment.ts # Apollo.io enrichment
 ├── services/salary-insights.ts    # Salary market data service
+├── services/alert-matcher.ts      # Match jobs to user alerts
+├── services/alert-notifications.ts # Send job alert emails
 ├── services/sources/
 │   ├── index.ts                   # Source orchestration + processAllSources()
 │   ├── lever-processor.ts         # Lever ATS processor
@@ -228,6 +262,17 @@ curl -X POST http://localhost:3000/api/cron/fetch-sources \
 ### Run LinkedIn import only
 ```bash
 curl -X POST http://localhost:3000/api/cron/fetch-linkedin \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+### Send job alert notifications
+```bash
+# DAILY alerts
+curl -X POST "http://localhost:3000/api/cron/send-alerts?frequency=DAILY" \
+  -H "Authorization: Bearer $CRON_SECRET"
+
+# WEEKLY alerts
+curl -X POST "http://localhost:3000/api/cron/send-alerts?frequency=WEEKLY" \
   -H "Authorization: Bearer $CRON_SECRET"
 ```
 
@@ -321,6 +366,9 @@ npx prisma db push --force-reset
 26. **Multiple language pairs** — AlertLanguagePair model for complex translator needs
 27. **Dashboard layout** — shared Header and Footer across all dashboard pages
 28. **User settings** — profile settings page with email preferences
+29. **Email notifications** — automated job alert emails via DashaMail
+30. **Alert matching** — matches jobs by category, keywords, country, level, language pairs
+31. **Daily alert cron** — runs at 7:00 UTC, sends DAILY frequency alerts
 
 ## Code Patterns
 
@@ -360,8 +408,9 @@ await cleanupOldJobs();
 3. Apollo enrichment can match wrong company (e.g., "Mistral" → bakery instead of AI)
 4. Salary Insights only shown for annual salaries (YEAR period)
 5. Server runs on `/opt/freelanly2` with PM2 process `freelanly`
-6. **Cron job runs at 6:00 UTC** — check `/var/log/freelanly-cron.log` for logs
+6. **Cron jobs run at 6:00 and 7:00 UTC** — sources fetch at 6:00, alerts send at 7:00
 7. **Jobs auto-deleted after 30 days** — this is intentional, not a bug
+8. **Check cron logs** — `tail -f /var/log/freelanly-cron.log` for debugging
 
 ## Server Commands (Production)
 
