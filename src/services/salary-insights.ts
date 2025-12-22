@@ -14,7 +14,8 @@ import { prisma } from '@/lib/db';
 import { SalarySource } from '@prisma/client';
 import { fetchBLSSalary, findOccupationCode } from '@/lib/bls';
 import { fetchAdzunaSalary, isAdzunaCountry, convertToUSD } from '@/lib/adzuna';
-import { getCountryCoefficient, estimateSalaryForCountry } from '@/config/salary-coefficients';
+import { getCountryCoefficient, getLevelMultiplier } from '@/config/salary-coefficients';
+import { getBaseSalary, CATEGORY_BASE_SALARIES, DEFAULT_BASE_SALARY } from '@/config/salary-base';
 
 // Cache duration in days
 const CACHE_DURATION_DAYS = 30;
@@ -430,12 +431,75 @@ async function calculateFromDatabase(
 }
 
 /**
- * Estimate salary using country coefficients
+ * Estimate salary using formula: BaseSalary × LevelMultiplier × CountryCoefficient
+ *
+ * This is the primary estimation method that uses research-based data.
+ */
+async function estimateFromFormula(
+  jobTitle: string,
+  normalizedTitle: string,
+  country: string,
+  level?: string | null,
+  categorySlug?: string | null
+): Promise<SalaryInsightsData> {
+  // Get base salary for category (or fallback to default)
+  const baseSalary = categorySlug ? getBaseSalary(categorySlug) : DEFAULT_BASE_SALARY;
+  const categoryName = categorySlug || 'general';
+
+  // Get level multiplier
+  const levelMultiplier = getLevelMultiplier(level);
+  const levelName = level || 'MID';
+
+  // Get country coefficient
+  const countryCoeff = getCountryCoefficient(country);
+
+  // Calculate: BaseSalary × LevelMultiplier × CountryCoefficient
+  const calculatedSalary = Math.round(baseSalary * levelMultiplier * countryCoeff.coefficient);
+
+  // Generate salary range (±20% for min/max)
+  const minSalary = Math.round(calculatedSalary * 0.80);
+  const maxSalary = Math.round(calculatedSalary * 1.20);
+  const percentile25 = Math.round(calculatedSalary * 0.88);
+  const percentile75 = Math.round(calculatedSalary * 1.12);
+
+  const data: SalaryInsightsData = {
+    minSalary,
+    maxSalary,
+    avgSalary: calculatedSalary,
+    medianSalary: calculatedSalary,
+    percentile25,
+    percentile75,
+    sampleSize: 0, // Formula-based, no sample
+    source: 'ESTIMATED',
+    sourceLabel: `Estimated for ${countryCoeff.name}`,
+    country,
+    currency: 'USD',
+    jobTitle: normalizedTitle,
+    isEstimate: true,
+    calculationDetails: {
+      method: 'Formula: BaseSalary × Level × Country',
+      baselineSource: `${categoryName} category base ($${baseSalary.toLocaleString()})`,
+      baselineAvg: baseSalary,
+      coefficient: countryCoeff.coefficient,
+      coefficientName: `${levelName} (×${levelMultiplier}) × ${countryCoeff.name} (×${countryCoeff.coefficient})`,
+    },
+  };
+
+  // Cache the result
+  await cacheSalary(normalizedTitle, country, data);
+
+  return data;
+}
+
+/**
+ * Legacy: Estimate salary using country coefficients with US baseline lookup
+ * Kept for backward compatibility, but formula-based estimation is preferred.
  */
 async function estimateFromCoefficients(
   jobTitle: string,
   normalizedTitle: string,
-  country: string
+  country: string,
+  categoryId?: string
 ): Promise<SalaryInsightsData | null> {
   // First, try to get US baseline (from cache, BLS, or calculation)
   let usBaseline = await getCachedSalary(normalizedTitle, 'US');
@@ -447,29 +511,12 @@ async function estimateFromCoefficients(
 
   if (!usBaseline) {
     // Try database calculation
-    usBaseline = await calculateFromDatabase(jobTitle, normalizedTitle);
+    usBaseline = await calculateFromDatabase(jobTitle, normalizedTitle, categoryId);
   }
 
   if (!usBaseline) {
-    // Use a generic fallback based on job type
-    const occupation = findOccupationCode(jobTitle);
-    const genericSalary = occupation ? 100000 : 70000; // Tech vs non-tech default
-
-    usBaseline = {
-      minSalary: Math.round(genericSalary * 0.6),
-      maxSalary: Math.round(genericSalary * 1.5),
-      avgSalary: genericSalary,
-      medianSalary: genericSalary,
-      percentile25: Math.round(genericSalary * 0.75),
-      percentile75: Math.round(genericSalary * 1.25),
-      sampleSize: 0,
-      source: 'ESTIMATED',
-      sourceLabel: getSourceLabel('ESTIMATED'),
-      country: 'US',
-      currency: 'USD',
-      jobTitle: normalizedTitle,
-      isEstimate: true,
-    };
+    // No baseline found - return null to trigger formula-based estimation
+    return null;
   }
 
   // Apply country coefficient
@@ -513,17 +560,26 @@ async function estimateFromCoefficients(
 
 /**
  * Main function: Get salary insights for a job
+ *
+ * Priority:
+ * 1. Cache (30 days)
+ * 2. BLS API (US jobs)
+ * 3. Adzuna API (19 international countries)
+ * 4. Legacy coefficient estimation (US baseline from BLS/DB)
+ * 5. Formula-based estimation: BaseSalary × Level × Country
  */
 export async function getSalaryInsights(
   jobTitle: string,
   location?: string | null,
   country?: string | null,
-  categoryId?: string
+  categoryId?: string,
+  level?: string | null,
+  categorySlug?: string | null
 ): Promise<SalaryInsightsData | null> {
   const normalizedTitle = normalizeJobTitle(jobTitle);
   const countryCode = extractCountryCode(location, country);
 
-  console.log(`[SalaryInsights] Getting data for "${normalizedTitle}" in ${countryCode}`);
+  console.log(`[SalaryInsights] Getting data for "${normalizedTitle}" in ${countryCode} (level: ${level || 'N/A'}, category: ${categorySlug || 'N/A'})`);
 
   // 1. Check cache first
   const cached = await getCachedSalary(normalizedTitle, countryCode);
@@ -532,18 +588,14 @@ export async function getSalaryInsights(
     return cached;
   }
 
-  // 2. US jobs → BLS
+  // 2. US jobs → BLS only (skip unreliable DB calculation)
   if (countryCode === 'US') {
     const blsData = await fetchFromBLS(jobTitle, normalizedTitle);
     if (blsData) {
       return blsData;
     }
-
-    // Fallback to database calculation for US
-    const dbData = await calculateFromDatabase(jobTitle, normalizedTitle, categoryId);
-    if (dbData) {
-      return dbData;
-    }
+    // If BLS fails, fall through to formula-based estimation
+    // (DB calculation was producing inflated salaries due to keyword matching)
   }
 
   // 3. Adzuna-supported countries
@@ -554,16 +606,32 @@ export async function getSalaryInsights(
     }
   }
 
-  // 4. Fallback: coefficient-based estimation
-  const estimated = await estimateFromCoefficients(jobTitle, normalizedTitle, countryCode);
-  return estimated;
+  // 4. Formula-based estimation: BaseSalary × Level × Country
+  // This uses research-based data and is more reliable than DB keyword matching
+  // This is the most reliable fallback using research-based data
+  console.log(`[SalaryInsights] Using formula-based estimation for "${normalizedTitle}" in ${countryCode}`);
+  const formulaEstimate = await estimateFromFormula(
+    jobTitle,
+    normalizedTitle,
+    countryCode,
+    level,
+    categorySlug
+  );
+  return formulaEstimate;
 }
 
 /**
  * Batch get salary insights for multiple jobs (useful for list pages)
  */
 export async function batchGetSalaryInsights(
-  jobs: Array<{ id: string; title: string; location?: string | null; country?: string | null }>
+  jobs: Array<{
+    id: string;
+    title: string;
+    location?: string | null;
+    country?: string | null;
+    level?: string | null;
+    categorySlug?: string | null;
+  }>
 ): Promise<Map<string, SalaryInsightsData | null>> {
   const results = new Map<string, SalaryInsightsData | null>();
 
@@ -577,7 +645,14 @@ export async function batchGetSalaryInsights(
 
   for (const chunk of chunks) {
     const promises = chunk.map(async (job) => {
-      const data = await getSalaryInsights(job.title, job.location, job.country);
+      const data = await getSalaryInsights(
+        job.title,
+        job.location,
+        job.country,
+        undefined, // categoryId
+        job.level,
+        job.categorySlug
+      );
       results.set(job.id, data);
     });
 
