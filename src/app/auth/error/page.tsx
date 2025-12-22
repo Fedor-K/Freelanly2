@@ -1,8 +1,8 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Ошибка входа | Freelanly',
-  description: 'Произошла ошибка при входе',
+  title: 'Sign In Error | Freelanly',
+  description: 'An error occurred during sign in',
 };
 
 interface ErrorPageProps {
@@ -12,20 +12,20 @@ interface ErrorPageProps {
 }
 
 const errorMessages: Record<string, string> = {
-  Configuration: 'Ошибка конфигурации сервера. Обратитесь в поддержку.',
-  AccessDenied: 'Доступ запрещён.',
-  Verification: 'Ссылка для входа истекла или уже использована.',
-  OAuthSignin: 'Ошибка при входе через Google. Попробуйте снова.',
-  OAuthCallback: 'Ошибка при входе через Google. Попробуйте снова.',
-  OAuthCreateAccount: 'Не удалось создать аккаунт. Попробуйте другой способ входа.',
-  EmailCreateAccount: 'Не удалось создать аккаунт. Попробуйте снова.',
-  Callback: 'Ошибка при входе. Попробуйте снова.',
+  Configuration: 'Server configuration error. Please contact support.',
+  AccessDenied: 'Access denied.',
+  Verification: 'The sign in link has expired or has already been used.',
+  OAuthSignin: 'Error signing in with Google. Please try again.',
+  OAuthCallback: 'Error signing in with Google. Please try again.',
+  OAuthCreateAccount: 'Could not create account. Please try a different sign in method.',
+  EmailCreateAccount: 'Could not create account. Please try again.',
+  Callback: 'Error signing in. Please try again.',
   OAuthAccountNotLinked:
-    'Этот email уже используется с другим способом входа. Войдите тем способом, которым регистрировались.',
-  EmailSignin: 'Не удалось отправить письмо. Проверьте email и попробуйте снова.',
-  CredentialsSignin: 'Неверный email или пароль.',
-  SessionRequired: 'Войдите, чтобы получить доступ к этой странице.',
-  Default: 'Произошла ошибка. Попробуйте снова.',
+    'This email is already used with a different sign in method. Please sign in with the method you originally used.',
+  EmailSignin: 'Could not send email. Please check your email and try again.',
+  CredentialsSignin: 'Invalid email or password.',
+  SessionRequired: 'Please sign in to access this page.',
+  Default: 'An error occurred. Please try again.',
 };
 
 export default async function AuthErrorPage({ searchParams }: ErrorPageProps) {
@@ -59,7 +59,7 @@ export default async function AuthErrorPage({ searchParams }: ErrorPageProps) {
         </div>
 
         <h1 className="mt-6 text-2xl font-semibold text-gray-900">
-          Ошибка входа
+          Sign In Error
         </h1>
 
         <p className="mt-4 text-gray-600">{errorMessage}</p>
@@ -69,13 +69,13 @@ export default async function AuthErrorPage({ searchParams }: ErrorPageProps) {
             href="/auth/signin"
             className="inline-block px-6 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
           >
-            Попробовать снова
+            Try again
           </a>
           <a
             href="/"
             className="inline-block text-gray-500 hover:text-gray-700 text-sm"
           >
-            ← Вернуться на главную
+            ← Back to home
           </a>
         </div>
       </div>

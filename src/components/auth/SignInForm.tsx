@@ -58,9 +58,9 @@ export function SignInForm({ callbackUrl }: SignInFormProps) {
               />
             </svg>
           </div>
-          <h2 className="text-xl font-semibold mb-2">Проверьте почту</h2>
+          <h2 className="text-xl font-semibold mb-2">Check your email</h2>
           <p className="text-gray-600 mb-4">
-            Мы отправили ссылку для входа на
+            We sent a sign in link to
             <br />
             <span className="font-medium text-black">{email}</span>
           </p>
@@ -68,7 +68,7 @@ export function SignInForm({ callbackUrl }: SignInFormProps) {
             onClick={() => setEmailSent(false)}
             className="text-sm text-gray-500 hover:text-gray-700 underline"
           >
-            Использовать другой email
+            Use a different email
           </button>
         </div>
       </div>
@@ -101,7 +101,7 @@ export function SignInForm({ callbackUrl }: SignInFormProps) {
             d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
           />
         </svg>
-        <span className="font-medium">Войти через Google</span>
+        <span className="font-medium">Sign in with Google</span>
       </button>
 
       {/* Divider */}
@@ -110,7 +110,7 @@ export function SignInForm({ callbackUrl }: SignInFormProps) {
           <div className="w-full border-t border-gray-200" />
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="px-4 bg-white text-gray-500">или</span>
+          <span className="px-4 bg-white text-gray-500">or</span>
         </div>
       </div>
 
@@ -133,12 +133,12 @@ export function SignInForm({ callbackUrl }: SignInFormProps) {
           disabled={isLoading || !email}
           className="w-full mt-4 px-4 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isLoading ? 'Отправка...' : 'Получить ссылку для входа'}
+          {isLoading ? 'Sending...' : 'Get sign in link'}
         </button>
       </form>
 
       <p className="mt-4 text-center text-sm text-gray-500">
-        Мы отправим вам ссылку для входа. Пароль не нужен.
+        We&apos;ll send you a magic link. No password needed.
       </p>
     </div>
   );

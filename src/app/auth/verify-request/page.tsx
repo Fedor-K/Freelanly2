@@ -1,8 +1,8 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Проверьте почту | Freelanly',
-  description: 'Мы отправили вам ссылку для входа',
+  title: 'Check your email | Freelanly',
+  description: 'We sent you a sign in link',
 };
 
 export default function VerifyRequestPage() {
@@ -32,20 +32,20 @@ export default function VerifyRequestPage() {
         </div>
 
         <h1 className="mt-6 text-2xl font-semibold text-gray-900">
-          Проверьте почту
+          Check your email
         </h1>
 
         <p className="mt-4 text-gray-600">
-          Мы отправили вам ссылку для входа.
+          We sent you a sign in link.
           <br />
-          Перейдите по ней, чтобы войти в аккаунт.
+          Click the link to sign in to your account.
         </p>
 
         <div className="mt-8 p-4 bg-gray-100 rounded-lg">
           <p className="text-sm text-gray-600">
-            Не получили письмо? Проверьте папку «Спам» или{' '}
+            Didn&apos;t receive the email? Check your spam folder or{' '}
             <a href="/auth/signin" className="text-black underline hover:no-underline">
-              попробуйте снова
+              try again
             </a>
           </p>
         </div>
@@ -54,7 +54,7 @@ export default function VerifyRequestPage() {
           href="/"
           className="mt-8 inline-block text-gray-500 hover:text-gray-700 text-sm"
         >
-          ← Вернуться на главную
+          ← Back to home
         </a>
       </div>
     </div>

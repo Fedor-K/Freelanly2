@@ -4,8 +4,8 @@ import { auth } from '@/lib/auth';
 import { SignInForm } from '@/components/auth/SignInForm';
 
 export const metadata: Metadata = {
-  title: 'Войти | Freelanly',
-  description: 'Войдите в свой аккаунт Freelanly для доступа к сохранённым вакансиям и откликам',
+  title: 'Sign In | Freelanly',
+  description: 'Sign in to your Freelanly account to access saved jobs and applications',
 };
 
 interface SignInPageProps {
@@ -33,10 +33,10 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             Freelanly
           </a>
           <h1 className="mt-6 text-2xl font-semibold text-gray-900">
-            Войти в аккаунт
+            Sign in to your account
           </h1>
           <p className="mt-2 text-gray-600">
-            Сохраняйте вакансии и отслеживайте отклики
+            Save jobs and track your applications
           </p>
         </div>
 
@@ -45,10 +45,10 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-red-700 text-sm">
               {params.error === 'OAuthAccountNotLinked'
-                ? 'Этот email уже используется с другим способом входа.'
+                ? 'This email is already used with a different sign in method.'
                 : params.error === 'EmailSignin'
-                  ? 'Не удалось отправить письмо. Попробуйте снова.'
-                  : 'Произошла ошибка. Попробуйте снова.'}
+                  ? 'Failed to send email. Please try again.'
+                  : 'An error occurred. Please try again.'}
             </p>
           </div>
         )}
@@ -58,13 +58,13 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
         {/* Footer */}
         <p className="mt-8 text-center text-sm text-gray-500">
-          Продолжая, вы соглашаетесь с{' '}
+          By continuing, you agree to our{' '}
           <a href="/terms" className="underline hover:text-gray-700">
-            условиями использования
+            Terms of Service
           </a>{' '}
-          и{' '}
+          and{' '}
           <a href="/privacy" className="underline hover:text-gray-700">
-            политикой конфиденциальности
+            Privacy Policy
           </a>
         </p>
       </div>

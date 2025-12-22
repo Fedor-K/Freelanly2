@@ -35,7 +35,7 @@ export function UserMenu() {
         href="/auth/signin"
         className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
       >
-        Войти
+        Sign In
       </Link>
     );
   }
@@ -75,7 +75,7 @@ export function UserMenu() {
           {/* User info */}
           <div className="px-4 py-3 border-b">
             <p className="font-medium text-gray-900 truncate">
-              {user.name || 'Пользователь'}
+              {user.name || 'User'}
             </p>
             <p className="text-sm text-gray-500 truncate">{user.email}</p>
             <span
@@ -98,21 +98,21 @@ export function UserMenu() {
               onClick={() => setIsOpen(false)}
               className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
-              Личный кабинет
+              Dashboard
             </Link>
             <Link
               href="/dashboard/saved"
               onClick={() => setIsOpen(false)}
               className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
-              Сохранённые вакансии
+              Saved Jobs
             </Link>
             <Link
               href="/dashboard/applications"
               onClick={() => setIsOpen(false)}
               className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
-              Мои отклики
+              My Applications
             </Link>
             <Link
               href="/dashboard/alerts"
@@ -130,7 +130,7 @@ export function UserMenu() {
               onClick={() => setIsOpen(false)}
               className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
-              Настройки
+              Settings
             </Link>
             {user.plan === 'FREE' && (
               <Link
@@ -138,14 +138,14 @@ export function UserMenu() {
                 onClick={() => setIsOpen(false)}
                 className="block px-4 py-2 text-sm text-purple-600 font-medium hover:bg-purple-50"
               >
-                Перейти на PRO
+                Upgrade to PRO
               </Link>
             )}
             <button
               onClick={() => signOut({ callbackUrl: '/' })}
               className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
             >
-              Выйти
+              Sign Out
             </button>
           </div>
         </div>

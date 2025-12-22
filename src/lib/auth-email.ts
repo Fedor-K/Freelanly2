@@ -55,7 +55,7 @@ export async function sendMagicLinkEmail(
       to: email,
       from_email: process.env.DASHAMAIL_FROM_EMAIL || 'noreply@freelanly.com',
       from_name: 'Freelanly',
-      subject: 'Войти в Freelanly',
+      subject: 'Sign in to Freelanly',
       message: html,
       plain_text: text,
     });
@@ -144,16 +144,16 @@ function generateMagicLinkHtml(url: string): string {
   <div class="container">
     <div class="logo">Freelanly</div>
 
-    <h1>Войти в аккаунт</h1>
+    <h1>Sign in to your account</h1>
 
-    <p>Нажмите кнопку ниже, чтобы войти в свой аккаунт. Ссылка действительна 24 часа.</p>
+    <p>Click the button below to sign in to your account. This link is valid for 24 hours.</p>
 
-    <a href="${url}" class="button">Войти в Freelanly</a>
+    <a href="${url}" class="button">Sign in to Freelanly</a>
 
     <div class="footer">
-      <p>Если кнопка не работает, скопируйте эту ссылку в браузер:</p>
+      <p>If the button doesn't work, copy this link to your browser:</p>
       <p class="link">${url}</p>
-      <p style="margin-top: 16px;">Если вы не запрашивали вход, просто проигнорируйте это письмо.</p>
+      <p style="margin-top: 16px;">If you didn't request this, you can safely ignore this email.</p>
     </div>
   </div>
 </body>
@@ -163,18 +163,18 @@ function generateMagicLinkHtml(url: string): string {
 
 function generateMagicLinkText(url: string): string {
   return `
-Войти в Freelanly
+Sign in to Freelanly
 
-Перейдите по ссылке ниже, чтобы войти в свой аккаунт:
+Click the link below to sign in to your account:
 
 ${url}
 
-Ссылка действительна 24 часа.
+This link is valid for 24 hours.
 
-Если вы не запрашивали вход, просто проигнорируйте это письмо.
+If you didn't request this, you can safely ignore this email.
 
 ---
-Freelanly - Удалённые вакансии
+Freelanly - Remote Jobs
 https://freelanly.com
   `.trim();
 }

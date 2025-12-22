@@ -5,8 +5,8 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export const metadata: Metadata = {
-  title: 'Личный кабинет | Freelanly',
-  description: 'Управляйте своими вакансиями, откликами и настройками',
+  title: 'Dashboard | Freelanly',
+  description: 'Manage your saved jobs, applications, and settings',
 };
 
 export default async function DashboardPage() {
@@ -37,10 +37,10 @@ export default async function DashboardPage() {
       <div className="bg-white border-b">
         <div className="max-w-6xl mx-auto px-4 py-8">
           <h1 className="text-2xl font-bold">
-            Привет, {user.name?.split(' ')[0] || 'пользователь'}!
+            Hello, {user.name?.split(' ')[0] || 'there'}!
           </h1>
           <p className="mt-1 text-gray-600">
-            Добро пожаловать в личный кабинет
+            Welcome to your dashboard
           </p>
         </div>
       </div>
@@ -51,16 +51,16 @@ export default async function DashboardPage() {
           <div className="mb-8 p-6 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold">Перейдите на PRO</h2>
+                <h2 className="text-lg font-semibold">Upgrade to PRO</h2>
                 <p className="mt-1 text-purple-100">
-                  Безлимитные просмотры, отклики и полные данные о зарплатах
+                  Unlimited views, applications, and full salary insights
                 </p>
               </div>
               <Link
                 href="/pricing"
                 className="px-6 py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition-colors"
               >
-                Узнать больше
+                Learn more
               </Link>
             </div>
           </div>
@@ -90,7 +90,7 @@ export default async function DashboardPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{savedJobsCount}</p>
-                <p className="text-gray-600">Сохранённых вакансий</p>
+                <p className="text-gray-600">Saved Jobs</p>
               </div>
             </div>
           </Link>
@@ -117,7 +117,7 @@ export default async function DashboardPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{applicationsCount}</p>
-                <p className="text-gray-600">Откликов</p>
+                <p className="text-gray-600">Applications</p>
               </div>
             </div>
           </Link>
@@ -152,7 +152,7 @@ export default async function DashboardPage() {
 
         {/* Quick actions */}
         <div className="bg-white rounded-xl border p-6">
-          <h2 className="text-lg font-semibold mb-4">Быстрые действия</h2>
+          <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Link
               href="/jobs"
@@ -171,7 +171,7 @@ export default async function DashboardPage() {
                   d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                 />
               </svg>
-              <span>Найти вакансии</span>
+              <span>Find Jobs</span>
             </Link>
             <Link
               href="/dashboard/settings"
@@ -196,7 +196,7 @@ export default async function DashboardPage() {
                   d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                 />
               </svg>
-              <span>Настройки профиля</span>
+              <span>Profile Settings</span>
             </Link>
           </div>
         </div>
@@ -204,11 +204,11 @@ export default async function DashboardPage() {
         {/* Limits info for FREE users */}
         {user.plan === 'FREE' && (
           <div className="mt-8 bg-white rounded-xl border p-6">
-            <h2 className="text-lg font-semibold mb-4">Ваши лимиты</h2>
+            <h2 className="text-lg font-semibold mb-4">Your Limits</h2>
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600">Просмотры вакансий сегодня</span>
+                  <span className="text-gray-600">Job views today</span>
                   <span className="font-medium">{user.jobViewsToday} / 5</span>
                 </div>
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -219,11 +219,11 @@ export default async function DashboardPage() {
                 </div>
               </div>
               <p className="text-sm text-gray-500">
-                Лимиты сбрасываются каждый день в полночь.{' '}
+                Limits reset daily at midnight.{' '}
                 <Link href="/pricing" className="text-purple-600 hover:underline">
-                  Перейдите на PRO
+                  Upgrade to PRO
                 </Link>{' '}
-                для безлимитного доступа.
+                for unlimited access.
               </p>
             </div>
           </div>
