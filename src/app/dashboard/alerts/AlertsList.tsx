@@ -13,6 +13,50 @@ interface AlertsListProps {
   categories: readonly Category[];
 }
 
+// Translation types for the dropdown
+const TRANSLATION_TYPES = [
+  { value: 'WRITTEN', label: 'Written Translation' },
+  { value: 'INTERPRETATION', label: 'Interpretation (Oral)' },
+  { value: 'LOCALIZATION', label: 'Localization' },
+  { value: 'EDITING', label: 'Editing / Proofreading' },
+  { value: 'TRANSCRIPTION', label: 'Transcription' },
+  { value: 'SUBTITLING', label: 'Subtitling / Captioning' },
+  { value: 'MT_POST_EDITING', label: 'MT Post-Editing' },
+  { value: 'COPYWRITING', label: 'Multilingual Copywriting' },
+];
+
+// Common languages for the dropdown
+const LANGUAGES = [
+  { code: 'EN', name: 'English' },
+  { code: 'ES', name: 'Spanish' },
+  { code: 'DE', name: 'German' },
+  { code: 'FR', name: 'French' },
+  { code: 'RU', name: 'Russian' },
+  { code: 'ZH', name: 'Chinese' },
+  { code: 'JA', name: 'Japanese' },
+  { code: 'KO', name: 'Korean' },
+  { code: 'PT', name: 'Portuguese' },
+  { code: 'IT', name: 'Italian' },
+  { code: 'AR', name: 'Arabic' },
+  { code: 'NL', name: 'Dutch' },
+  { code: 'PL', name: 'Polish' },
+  { code: 'TR', name: 'Turkish' },
+  { code: 'UK', name: 'Ukrainian' },
+  { code: 'SV', name: 'Swedish' },
+  { code: 'CS', name: 'Czech' },
+  { code: 'DA', name: 'Danish' },
+  { code: 'FI', name: 'Finnish' },
+  { code: 'EL', name: 'Greek' },
+  { code: 'HE', name: 'Hebrew' },
+  { code: 'HI', name: 'Hindi' },
+  { code: 'HU', name: 'Hungarian' },
+  { code: 'ID', name: 'Indonesian' },
+  { code: 'NO', name: 'Norwegian' },
+  { code: 'RO', name: 'Romanian' },
+  { code: 'TH', name: 'Thai' },
+  { code: 'VI', name: 'Vietnamese' },
+];
+
 export function AlertsList({ initialAlerts, categories }: AlertsListProps) {
   const [alerts, setAlerts] = useState(initialAlerts);
   const [isCreating, setIsCreating] = useState(false);
@@ -23,24 +67,44 @@ export function AlertsList({ initialAlerts, categories }: AlertsListProps) {
   const [keywords, setKeywords] = useState('');
   const [frequency, setFrequency] = useState('DAILY');
 
+  // Translation-specific form state
+  const [translationType, setTranslationType] = useState('');
+  const [sourceLanguage, setSourceLanguage] = useState('');
+  const [targetLanguage, setTargetLanguage] = useState('');
+
+  const isTranslationCategory = category === 'translation';
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      const body: Record<string, string> = { category, keywords, frequency };
+
+      // Add translation fields if translation category
+      if (isTranslationCategory) {
+        if (translationType) body.translationType = translationType;
+        if (sourceLanguage) body.sourceLanguage = sourceLanguage;
+        if (targetLanguage) body.targetLanguage = targetLanguage;
+      }
+
       const res = await fetch('/api/user/alerts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category, keywords, frequency }),
+        body: JSON.stringify(body),
       });
 
       if (res.ok) {
         const newAlert = await res.json();
         setAlerts([newAlert, ...alerts]);
         setIsCreating(false);
+        // Reset form
         setCategory('');
         setKeywords('');
         setFrequency('DAILY');
+        setTranslationType('');
+        setSourceLanguage('');
+        setTargetLanguage('');
       }
     } catch (error) {
       console.error('Error creating alert:', error);
@@ -85,6 +149,18 @@ export function AlertsList({ initialAlerts, categories }: AlertsListProps) {
     if (!slug) return 'All categories';
     const cat = categories.find((c) => c.slug === slug);
     return cat?.name || slug;
+  };
+
+  const getLanguageName = (code: string | null) => {
+    if (!code) return null;
+    const lang = LANGUAGES.find((l) => l.code === code);
+    return lang?.name || code;
+  };
+
+  const getTranslationTypeName = (type: string | null) => {
+    if (!type) return null;
+    const t = TRANSLATION_TYPES.find((tt) => tt.value === type);
+    return t?.label || type;
   };
 
   return (
@@ -134,6 +210,73 @@ export function AlertsList({ initialAlerts, categories }: AlertsListProps) {
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
             </div>
+
+            {/* Translation-specific fields */}
+            {isTranslationCategory && (
+              <>
+                <div className="p-4 bg-purple-50 rounded-lg space-y-4">
+                  <p className="text-sm font-medium text-purple-700">
+                    Translation-specific filters
+                  </p>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Type of Work
+                    </label>
+                    <select
+                      value={translationType}
+                      onChange={(e) => setTranslationType(e.target.value)}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="">Any type</option>
+                      {TRANSLATION_TYPES.map((type) => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Source Language
+                      </label>
+                      <select
+                        value={sourceLanguage}
+                        onChange={(e) => setSourceLanguage(e.target.value)}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      >
+                        <option value="">Any</option>
+                        {LANGUAGES.map((lang) => (
+                          <option key={lang.code} value={lang.code}>
+                            {lang.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Target Language
+                      </label>
+                      <select
+                        value={targetLanguage}
+                        onChange={(e) => setTargetLanguage(e.target.value)}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      >
+                        <option value="">Any</option>
+                        {LANGUAGES.map((lang) => (
+                          <option key={lang.code} value={lang.code}>
+                            {lang.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -217,6 +360,21 @@ export function AlertsList({ initialAlerts, categories }: AlertsListProps) {
                     <p className="text-gray-600 mt-1">
                       Keywords: {alert.keywords}
                     </p>
+                  )}
+                  {/* Translation-specific info */}
+                  {alert.category === 'translation' && (alert.translationType || alert.sourceLanguage || alert.targetLanguage) && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {alert.translationType && (
+                        <span className="px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded">
+                          {getTranslationTypeName(alert.translationType)}
+                        </span>
+                      )}
+                      {(alert.sourceLanguage || alert.targetLanguage) && (
+                        <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded">
+                          {getLanguageName(alert.sourceLanguage) || 'Any'} → {getLanguageName(alert.targetLanguage) || 'Any'}
+                        </span>
+                      )}
+                    </div>
                   )}
                   <div className="flex items-center gap-3 mt-2">
                     <span className="text-sm text-gray-500">

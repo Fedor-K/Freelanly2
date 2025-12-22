@@ -226,6 +226,11 @@ model Job {
   skills        String[]    // ["React", "TypeScript", "Node.js"]
   benefits      String[]    // ["Health insurance", "401k", "Remote"]
 
+  // Translation-specific fields (only for translation category jobs)
+  translationTypes   TranslationType[]  // Types of translation work
+  sourceLanguages    String[]           // ISO codes: ["EN", "ES", "DE"]
+  targetLanguages    String[]           // ISO codes: ["RU", "FR", "ZH"]
+
   // Source tracking
   source        Source
   sourceType    SourceType  @default(STRUCTURED)
@@ -341,6 +346,18 @@ enum EnrichmentStatus {
   PROCESSING
   COMPLETED
   FAILED
+}
+
+// Translation-specific enums for language professionals
+enum TranslationType {
+  WRITTEN         // Written translation
+  INTERPRETATION  // Oral/verbal interpretation
+  LOCALIZATION    // Software/content localization
+  EDITING         // Editing/proofreading
+  TRANSCRIPTION   // Audio/video transcription
+  SUBTITLING      // Subtitling/captioning
+  MT_POST_EDITING // Machine translation post-editing
+  COPYWRITING     // Multilingual copywriting
 }
 
 // ============================================
@@ -467,6 +484,11 @@ model JobAlert {
   country       String?   // Country filter
   level         String?   // Level filter (JUNIOR, MID, SENIOR)
   frequency     AlertFrequency @default(DAILY)
+
+  // Translation-specific filters (only when category = 'translation')
+  translationType    String?   // TranslationType enum value
+  sourceLanguage     String?   // ISO code: "EN", "ES", etc.
+  targetLanguage     String?   // ISO code: "RU", "FR", etc.
 
   // Status
   isActive      Boolean   @default(true)

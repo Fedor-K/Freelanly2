@@ -31,13 +31,41 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { category, keywords, country, level, frequency } = body;
+    const {
+      category,
+      keywords,
+      country,
+      level,
+      frequency,
+      // Translation-specific fields
+      translationType,
+      sourceLanguage,
+      targetLanguage,
+    } = body;
 
     // Validate frequency
     const validFrequencies = ['INSTANT', 'DAILY', 'WEEKLY'];
     if (frequency && !validFrequencies.includes(frequency)) {
       return NextResponse.json(
         { error: 'Invalid frequency' },
+        { status: 400 }
+      );
+    }
+
+    // Validate translation type if provided
+    const validTranslationTypes = [
+      'WRITTEN',
+      'INTERPRETATION',
+      'LOCALIZATION',
+      'EDITING',
+      'TRANSCRIPTION',
+      'SUBTITLING',
+      'MT_POST_EDITING',
+      'COPYWRITING',
+    ];
+    if (translationType && !validTranslationTypes.includes(translationType)) {
+      return NextResponse.json(
+        { error: 'Invalid translation type' },
         { status: 400 }
       );
     }
@@ -61,6 +89,10 @@ export async function POST(request: NextRequest) {
         level: level || null,
         frequency: frequency || 'DAILY',
         isActive: true,
+        // Translation-specific (only saved if category is translation)
+        translationType: category === 'translation' ? translationType || null : null,
+        sourceLanguage: category === 'translation' ? sourceLanguage || null : null,
+        targetLanguage: category === 'translation' ? targetLanguage || null : null,
       },
     });
 

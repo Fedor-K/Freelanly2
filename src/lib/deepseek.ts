@@ -13,6 +13,17 @@ function getDeepSeekClient(): OpenAI {
   return _deepseek;
 }
 
+// Translation work types
+export type TranslationType =
+  | 'WRITTEN'
+  | 'INTERPRETATION'
+  | 'LOCALIZATION'
+  | 'EDITING'
+  | 'TRANSCRIPTION'
+  | 'SUBTITLING'
+  | 'MT_POST_EDITING'
+  | 'COPYWRITING';
+
 export interface ExtractedJobData {
   title: string | null;
   company: string | null;
@@ -29,6 +40,10 @@ export interface ExtractedJobData {
   contactMethod: 'email' | 'dm' | 'apply_link' | null;
   contactEmail: string | null;
   applyUrl: string | null;
+  // Translation-specific fields (populated for translation jobs)
+  translationTypes: TranslationType[];
+  sourceLanguages: string[];  // ISO 639-1 codes: ["EN", "ES"]
+  targetLanguages: string[];  // ISO 639-1 codes: ["RU", "FR"]
 }
 
 const EXTRACTION_PROMPT = `You are a job data extractor. Extract structured data from LinkedIn hiring posts.
@@ -49,6 +64,23 @@ Return a valid JSON object with these fields:
 - contactMethod: how to apply - "email", "dm", or "apply_link" (or null)
 - contactEmail: email address if mentioned (string or null)
 - applyUrl: application URL if mentioned (string or null)
+
+FOR TRANSLATION/LOCALIZATION JOBS ONLY, also extract:
+- translationTypes: array of translation work types mentioned. Use these exact values:
+  - WRITTEN (written translation, document translation)
+  - INTERPRETATION (oral/verbal interpretation, conference interpretation, consecutive/simultaneous)
+  - LOCALIZATION (software localization, game localization, website localization)
+  - EDITING (editing, proofreading, reviewing translations)
+  - TRANSCRIPTION (audio/video transcription)
+  - SUBTITLING (subtitling, captioning, closed captions)
+  - MT_POST_EDITING (machine translation post-editing, MTPE)
+  - COPYWRITING (multilingual copywriting, transcreation)
+- sourceLanguages: array of source language ISO 639-1 codes (uppercase), e.g., ["EN", "ES", "DE"]
+- targetLanguages: array of target language ISO 639-1 codes (uppercase), e.g., ["RU", "FR", "ZH"]
+
+Common language codes: EN (English), ES (Spanish), DE (German), FR (French), RU (Russian), ZH (Chinese), JA (Japanese), KO (Korean), PT (Portuguese), IT (Italian), AR (Arabic), NL (Dutch), PL (Polish), TR (Turkish), UK (Ukrainian), SV (Swedish)
+
+For non-translation jobs, set translationTypes, sourceLanguages, targetLanguages to empty arrays [].
 
 Be conservative - only extract what is explicitly stated. Don't infer or guess.
 Return ONLY valid JSON, no markdown or explanation.`;
@@ -71,7 +103,13 @@ export async function extractJobData(postText: string): Promise<ExtractedJobData
     if (!content) return null;
 
     const data = JSON.parse(content) as ExtractedJobData;
-    return data;
+    // Ensure translation fields have defaults
+    return {
+      ...data,
+      translationTypes: data.translationTypes || [],
+      sourceLanguages: data.sourceLanguages || [],
+      targetLanguages: data.targetLanguages || [],
+    };
   } catch (error) {
     console.error('DeepSeek extraction error:', error);
     return null;
