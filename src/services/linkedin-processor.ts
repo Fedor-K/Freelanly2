@@ -12,6 +12,7 @@ import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/li
 import { slugify, isFreeEmail } from '@/lib/utils';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
+import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 
 // Re-export for cron endpoint
 export { HIRING_SEARCH_QUERIES };
@@ -19,6 +20,8 @@ export { HIRING_SEARCH_QUERIES };
 interface ProcessedJob {
   success: boolean;
   jobId?: string;
+  companySlug?: string;
+  jobSlug?: string;
   error?: string;
 }
 
@@ -29,6 +32,7 @@ interface ProcessingStats {
   skipped: number;
   failed: number;
   errors: string[];
+  createdJobUrls: string[];
 }
 
 // Fetch and process LinkedIn hiring posts (triggers new Apify run)
@@ -45,6 +49,7 @@ export async function fetchAndProcessLinkedInPosts(options?: {
     skipped: 0,
     failed: 0,
     errors: [],
+    createdJobUrls: [],
   };
 
   // Create import log
@@ -86,6 +91,15 @@ export async function fetchAndProcessLinkedInPosts(options?: {
       },
     });
 
+    // Notify search engines about new jobs (IndexNow)
+    if (stats.createdJobUrls.length > 0) {
+      try {
+        await notifySearchEngines(stats.createdJobUrls);
+      } catch (indexError) {
+        console.error('[LinkedIn] Search engine notification failed:', indexError);
+      }
+    }
+
     // Cleanup old jobs after successful import
     await cleanupOldJobs();
 
@@ -114,6 +128,7 @@ export async function processPostsFromDataset(datasetId: string): Promise<Proces
     skipped: 0,
     failed: 0,
     errors: [],
+    createdJobUrls: [],
   };
 
   const importLog = await prisma.importLog.create({
@@ -144,6 +159,15 @@ export async function processPostsFromDataset(datasetId: string): Promise<Proces
       },
     });
 
+    // Notify search engines about new jobs (IndexNow)
+    if (stats.createdJobUrls.length > 0) {
+      try {
+        await notifySearchEngines(stats.createdJobUrls);
+      } catch (indexError) {
+        console.error('[LinkedIn] Search engine notification failed:', indexError);
+      }
+    }
+
     // Cleanup old jobs after successful import
     await cleanupOldJobs();
 
@@ -171,6 +195,7 @@ export async function processPostsFromRun(runId: string): Promise<ProcessingStat
     skipped: 0,
     failed: 0,
     errors: [],
+    createdJobUrls: [],
   };
 
   const importLog = await prisma.importLog.create({
@@ -201,6 +226,15 @@ export async function processPostsFromRun(runId: string): Promise<ProcessingStat
       },
     });
 
+    // Notify search engines about new jobs (IndexNow)
+    if (stats.createdJobUrls.length > 0) {
+      try {
+        await notifySearchEngines(stats.createdJobUrls);
+      } catch (indexError) {
+        console.error('[LinkedIn] Search engine notification failed:', indexError);
+      }
+    }
+
     // Cleanup old jobs after successful import
     await cleanupOldJobs();
 
@@ -228,6 +262,9 @@ async function processPostsBatch(posts: LinkedInPost[], stats: ProcessingStats):
 
       if (result.success && result.jobId) {
         stats.created++;
+        if (result.companySlug && result.jobSlug) {
+          stats.createdJobUrls.push(buildJobUrl(result.companySlug, result.jobSlug));
+        }
       } else if (result.error === 'duplicate') {
         stats.skipped++;
       } else {
@@ -359,7 +396,7 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     queueCompanyEnrichment(company.id, extracted.contactEmail);
   }
 
-  return { success: true, jobId: job.id };
+  return { success: true, jobId: job.id, companySlug: company.slug, jobSlug: slug };
 }
 
 // Extract company from headline like "Title at Company | More info"
