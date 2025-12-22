@@ -91,7 +91,7 @@ export default async function CompanyPage({ params, searchParams }: CompanyPageP
             postedAt: { gte: maxAgeDate },
           },
           include: {
-            company: { select: { name: true, slug: true, logo: true } },
+            company: { select: { name: true, slug: true, logo: true, website: true } },
           },
           orderBy: { postedAt: 'desc' },
           skip: (currentPage - 1) * perPage,

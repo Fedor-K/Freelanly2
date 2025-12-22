@@ -224,7 +224,7 @@ export default async function LandingPage({ params, searchParams }: LandingPageP
       prisma.job.findMany({
         where,
         include: {
-          company: { select: { name: true, slug: true, logo: true } },
+          company: { select: { name: true, slug: true, logo: true, website: true } },
         },
         orderBy: { postedAt: 'desc' },
         skip: (currentPage - 1) * perPage,

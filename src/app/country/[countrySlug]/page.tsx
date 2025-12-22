@@ -127,7 +127,7 @@ export default async function CountryPage({ params, searchParams }: CountryPageP
       prisma.job.findMany({
         where: whereConditions,
         include: {
-          company: { select: { name: true, slug: true, logo: true, size: true } },
+          company: { select: { name: true, slug: true, logo: true, website: true, size: true } },
         },
         orderBy: { postedAt: 'desc' },
         skip: (currentPage - 1) * perPage,

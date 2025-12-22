@@ -77,7 +77,7 @@ export default async function CompanyJobsPage({ params, searchParams }: CompanyJ
         prisma.job.findMany({
           where: jobWhere,
           include: {
-            company: { select: { name: true, slug: true, logo: true } },
+            company: { select: { name: true, slug: true, logo: true, website: true } },
           },
           orderBy: { postedAt: 'desc' },
           skip: (currentPage - 1) * perPage,

@@ -16,6 +16,7 @@ export interface JobCardData {
   salaryMin: number | null;
   salaryMax: number | null;
   salaryCurrency: string | null;
+  salaryPeriod: string | null;
   salaryIsEstimate: boolean;
   skills: string[];
   source: string;
