@@ -27,13 +27,29 @@ import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
  */
 
 interface N8nPostPayload {
-  postUrl: string;
-  postContent: string;
+  // Support both formats: n8n mapped fields OR raw Apify fields
+  postUrl?: string;
+  postContent?: string;
+  linkedinUrl?: string;  // Apify raw field
+  content?: string;      // Apify raw field
+  // Author fields (flat from n8n)
   'author.linkedinUrl'?: string;
   'author.name'?: string;
   'author.info'?: string;
   'author.type'?: string;
   'author.avatar.url'?: string;
+  // Author fields (nested from Apify)
+  authorLinkedinUrl?: string;
+  authorName?: string;
+  authorInfo?: string;
+  authorType?: string;
+  author?: {
+    linkedinUrl?: string;
+    name?: string;
+    info?: string;
+    type?: string;
+    avatar?: { url?: string };
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -49,8 +65,15 @@ export async function POST(request: NextRequest) {
   try {
     const body: N8nPostPayload = await request.json();
 
+    // Normalize fields - support both n8n mapped and raw Apify formats
+    const postUrl = body.postUrl || body.linkedinUrl;
+    const postContent = body.postContent || body.content;
+    const authorLinkedInUrl = body['author.linkedinUrl'] || body.authorLinkedinUrl || body.author?.linkedinUrl;
+    const authorName = body['author.name'] || body.authorName || body.author?.name || 'Unknown';
+    const authorHeadline = body['author.info'] || body.authorInfo || body.author?.info || null;
+
     // Validate required fields - return 200 OK but skip if empty (don't break n8n flow)
-    if (!body.postUrl || !body.postContent) {
+    if (!postUrl || !postContent) {
       console.log('[LinkedInPosts] Skipping post with empty data');
       return NextResponse.json({
         success: true,
@@ -59,17 +82,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(`[LinkedInPosts] Processing post: ${body.postUrl}`);
+    console.log(`[LinkedInPosts] Processing post: ${postUrl}`);
 
     // Extract post ID from URL
-    const postId = extractPostId(body.postUrl);
+    const postId = extractPostId(postUrl);
 
     // Check if already exists
     const existingJob = await prisma.job.findFirst({
       where: {
         OR: [
           { sourceId: postId },
-          { sourceUrl: body.postUrl },
+          { sourceUrl: postUrl },
         ],
       },
     });
@@ -85,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     // Extract job data using DeepSeek
     console.log(`[LinkedInPosts] Extracting data from post...`);
-    const extracted = await extractJobData(body.postContent);
+    const extracted = await extractJobData(postContent);
 
     if (!extracted || !extracted.title) {
       console.log(`[LinkedInPosts] Could not extract job title`);
@@ -105,11 +128,6 @@ export async function POST(request: NextRequest) {
         reason: 'no_corporate_email',
       });
     }
-
-    // Get author info from n8n flat fields
-    const authorName = body['author.name'] || 'Unknown';
-    const authorLinkedInUrl = body['author.linkedinUrl'] || null;
-    const authorHeadline = body['author.info'] || null;
 
     // Get company name
     const companyName = extracted.company ||
@@ -164,7 +182,7 @@ export async function POST(request: NextRequest) {
       data: {
         slug,
         title: extracted.title,
-        description: body.postContent,
+        description: postContent,
         companyId: company.id,
         categoryId: category.id,
         location: extracted.isRemote ? (extracted.location || 'Remote') : extracted.location,
@@ -181,9 +199,9 @@ export async function POST(request: NextRequest) {
         benefits: extracted.benefits,
         source: 'LINKEDIN',
         sourceType: 'UNSTRUCTURED',
-        sourceUrl: body.postUrl,
+        sourceUrl: postUrl,
         sourceId: postId,
-        originalContent: body.postContent,
+        originalContent: postContent,
         authorLinkedIn: authorLinkedInUrl,
         authorName: authorName,
         applyEmail: extracted.contactEmail,
