@@ -264,6 +264,7 @@ model Job {
   // Relations
   applications  Application[]
   savedBy       SavedJob[]
+  alertNotifications AlertNotification[]
 
   @@index([categoryId])
   @@index([companyId])
@@ -488,6 +489,9 @@ model JobAlert {
   // Translation-specific: multiple language pairs per alert
   languagePairs AlertLanguagePair[]
 
+  // Notifications sent
+  notifications AlertNotification[]
+
   // Status
   isActive      Boolean   @default(true)
 
@@ -526,6 +530,23 @@ enum AlertFrequency {
   INSTANT   // Send immediately when new job matches
   DAILY     // Daily digest
   WEEKLY    // Weekly digest
+}
+
+// Track which jobs have been sent to which alerts (to prevent duplicates)
+model AlertNotification {
+  id          String    @id @default(cuid())
+
+  jobAlert    JobAlert  @relation(fields: [jobAlertId], references: [id], onDelete: Cascade)
+  jobAlertId  String
+
+  job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId       String
+
+  sentAt      DateTime  @default(now())
+
+  @@unique([jobAlertId, jobId])  // Prevent sending same job twice to same alert
+  @@index([jobAlertId])
+  @@index([jobId])
 }
 
 // ============================================
