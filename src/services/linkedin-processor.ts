@@ -13,6 +13,7 @@ import { slugify, isFreeEmail } from '@/lib/utils';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
+import { sendInstantAlertsForJob } from '@/services/alert-notifications';
 
 // Re-export for cron endpoint
 export { HIRING_SEARCH_QUERIES };
@@ -395,6 +396,11 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
   if (extracted.contactEmail) {
     queueCompanyEnrichment(company.id, extracted.contactEmail);
   }
+
+  // Send INSTANT alerts for this job (non-blocking)
+  sendInstantAlertsForJob(job.id).catch((err) => {
+    console.error('[LinkedIn] Instant alerts failed:', err);
+  });
 
   return { success: true, jobId: job.id, companySlug: company.slug, jobSlug: slug };
 }

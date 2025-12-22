@@ -1,6 +1,7 @@
 import { sendApplicationEmail } from '@/lib/dashamail';
 import { AlertWithMatches, markJobsAsSent } from './alert-matcher';
 import { siteConfig } from '@/config/site';
+import { prisma } from '@/lib/db';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url;
 
@@ -241,4 +242,223 @@ export async function sendAlertNotifications(
   );
 
   return { sent, failed };
+}
+
+/**
+ * Send INSTANT alerts for a newly created job
+ * Called immediately after job creation
+ */
+export async function sendInstantAlertsForJob(jobId: string): Promise<{ sent: number; failed: number }> {
+  // Fetch the job with company and category
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: {
+      company: {
+        select: {
+          name: true,
+          slug: true,
+          logo: true,
+        },
+      },
+      category: {
+        select: {
+          slug: true,
+        },
+      },
+    },
+  });
+
+  if (!job) {
+    console.error(`[InstantAlerts] Job ${jobId} not found`);
+    return { sent: 0, failed: 0 };
+  }
+
+  // Find all active INSTANT alerts
+  const instantAlerts = await prisma.jobAlert.findMany({
+    where: {
+      isActive: true,
+      frequency: 'INSTANT',
+    },
+    include: {
+      languagePairs: true,
+      user: {
+        select: {
+          email: true,
+        },
+      },
+    },
+  });
+
+  if (instantAlerts.length === 0) {
+    console.log(`[InstantAlerts] No INSTANT alerts configured`);
+    return { sent: 0, failed: 0 };
+  }
+
+  console.log(`[InstantAlerts] Checking ${instantAlerts.length} INSTANT alerts for job: ${job.title}`);
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const alert of instantAlerts) {
+    // Check if this job matches the alert criteria
+    const matches = checkJobMatchesAlert(job, alert);
+
+    if (!matches) {
+      continue;
+    }
+
+    // Check if we already sent this job to this alert
+    const alreadySent = await prisma.alertNotification.findFirst({
+      where: {
+        jobAlertId: alert.id,
+        jobId: job.id,
+      },
+    });
+
+    if (alreadySent) {
+      continue;
+    }
+
+    // Get email from alert or user
+    const email = alert.email || alert.user?.email;
+    if (!email) {
+      continue;
+    }
+
+    // Send notification
+    const result = await sendAlertNotification({
+      alert: {
+        id: alert.id,
+        email,
+        userId: alert.userId,
+        category: alert.category,
+        keywords: alert.keywords,
+        country: alert.country,
+        level: alert.level,
+        frequency: alert.frequency,
+        languagePairs: alert.languagePairs.map((lp) => ({
+          translationType: lp.translationType,
+          sourceLanguage: lp.sourceLanguage,
+          targetLanguage: lp.targetLanguage,
+        })),
+        lastSentAt: alert.lastSentAt,
+      },
+      jobs: [{
+        id: job.id,
+        title: job.title,
+        slug: job.slug,
+        description: job.description,
+        company: job.company,
+        category: job.category,
+        country: job.country,
+        level: job.level,
+        salaryMin: job.salaryMin,
+        salaryMax: job.salaryMax,
+        salaryCurrency: job.salaryCurrency,
+        postedAt: job.postedAt,
+        translationTypes: job.translationTypes as string[],
+        sourceLanguages: job.sourceLanguages,
+        targetLanguages: job.targetLanguages,
+      }],
+    });
+
+    if (result.success) {
+      sent++;
+      console.log(`[InstantAlerts] Sent job "${job.title}" to ${email}`);
+    } else {
+      failed++;
+    }
+
+    // Small delay between sends
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  if (sent > 0) {
+    console.log(`[InstantAlerts] Job "${job.title}": ${sent} instant alerts sent`);
+  }
+
+  return { sent, failed };
+}
+
+/**
+ * Check if a job matches an alert's criteria
+ */
+function checkJobMatchesAlert(
+  job: {
+    category: { slug: string };
+    country: string | null;
+    level: string;
+    title: string;
+    description: string;
+    translationTypes: string[];
+    sourceLanguages: string[];
+    targetLanguages: string[];
+  },
+  alert: {
+    category: string | null;
+    keywords: string | null;
+    country: string | null;
+    level: string | null;
+    languagePairs: Array<{
+      translationType: string;
+      sourceLanguage: string;
+      targetLanguage: string;
+    }>;
+  }
+): boolean {
+  // Category filter
+  if (alert.category && job.category.slug !== alert.category) {
+    return false;
+  }
+
+  // Country filter
+  if (alert.country && job.country !== alert.country) {
+    return false;
+  }
+
+  // Level filter
+  if (alert.level && job.level !== alert.level) {
+    return false;
+  }
+
+  // Keywords filter
+  if (alert.keywords) {
+    const keywordList = alert.keywords
+      .toLowerCase()
+      .split(',')
+      .map((k) => k.trim())
+      .filter((k) => k);
+
+    const searchText = `${job.title} ${job.description}`.toLowerCase();
+    const hasKeyword = keywordList.some((keyword) => searchText.includes(keyword));
+
+    if (!hasKeyword) {
+      return false;
+    }
+  }
+
+  // Language pairs filter for translation category
+  if (alert.category === 'translation' && alert.languagePairs.length > 0) {
+    const hasMatchingPair = alert.languagePairs.some((alertPair) => {
+      const typeMatch =
+        job.translationTypes.length === 0 ||
+        job.translationTypes.includes(alertPair.translationType);
+
+      const sourceMatch =
+        job.sourceLanguages.length === 0 ||
+        job.sourceLanguages.includes(alertPair.sourceLanguage);
+
+      const targetMatch =
+        job.targetLanguages.length === 0 ||
+        job.targetLanguages.includes(alertPair.targetLanguage);
+
+      return typeMatch && sourceMatch && targetMatch;
+    });
+
+    if (!hasMatchingPair) {
+      return false;
+    }
+  }
+
+  return true;
 }
