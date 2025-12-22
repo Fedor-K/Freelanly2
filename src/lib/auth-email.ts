@@ -3,9 +3,17 @@
 const DASHAMAIL_API_URL = 'https://api.dashamail.com';
 
 interface DashaMailResponse {
-  status: 'success' | 'error';
-  msg?: string;
-  data?: Record<string, unknown>;
+  msg?: {
+    err_code: number;
+    text: string;
+    type: string;
+  };
+  err_code?: number;
+  text?: string;
+  data?: {
+    transaction_id?: string;
+    [key: string]: unknown;
+  };
 }
 
 async function apiCall(
@@ -52,12 +60,14 @@ export async function sendMagicLinkEmail(
       plain_text: text,
     });
 
-    if (result.status !== 'success') {
+    // DashaMail returns { msg: { err_code: 0, text: 'OK' }, data: { transaction_id: '...' } }
+    const errCode = result.msg?.err_code ?? result.err_code;
+    if (errCode !== 0) {
       console.error('[Auth Email] Failed to send magic link:', result);
       throw new Error(`Failed to send email: ${JSON.stringify(result)}`);
     }
 
-    console.log(`[Auth Email] Magic link sent to ${email}`);
+    console.log(`[Auth Email] Magic link sent to ${email}, transaction_id: ${result.data?.transaction_id}`);
   } catch (error) {
     console.error('[Auth Email] Error sending magic link:', error);
     throw error;
