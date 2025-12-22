@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
-import { slugify, isFreeEmail } from '@/lib/utils';
+import { slugify, isFreeEmail, extractDomainFromEmail } from '@/lib/utils';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 
@@ -126,6 +126,21 @@ export async function POST(request: NextRequest) {
         success: true,
         status: 'skipped',
         reason: 'no_corporate_email',
+      });
+    }
+
+    // Check for similar job from same company (by email domain)
+    const hasSimilarJob = await findSimilarJobByEmailDomain(
+      extracted.contactEmail,
+      extracted.title
+    );
+
+    if (hasSimilarJob) {
+      console.log(`[LinkedInPosts] Similar job already exists, skipping`);
+      return NextResponse.json({
+        success: true,
+        status: 'skipped',
+        reason: 'similar_job_exists',
       });
     }
 
@@ -414,6 +429,57 @@ function calculateQualityScore(extracted: ExtractedJobData): number {
   if (!extracted.isRemote && !extracted.location) score -= 10;
 
   return Math.max(0, Math.min(100, score));
+}
+
+// Calculate title similarity (simple word overlap)
+function calculateTitleSimilarity(title1: string, title2: string): number {
+  const normalize = (s: string) => s.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 2);
+
+  const words1 = new Set(normalize(title1));
+  const words2 = new Set(normalize(title2));
+
+  if (words1.size === 0 || words2.size === 0) return 0;
+
+  const intersection = [...words1].filter(w => words2.has(w)).length;
+  const union = new Set([...words1, ...words2]).size;
+
+  return intersection / union; // Jaccard similarity
+}
+
+// Check for similar job by email domain
+async function findSimilarJobByEmailDomain(
+  email: string,
+  title: string,
+  threshold: number = 0.6
+): Promise<boolean> {
+  const domain = extractDomainFromEmail(email);
+  if (!domain) return false;
+
+  // Find recent jobs with same email domain
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const recentJobs = await prisma.job.findMany({
+    where: {
+      applyEmail: { endsWith: `@${domain}` },
+      createdAt: { gte: thirtyDaysAgo },
+    },
+    select: { title: true },
+    take: 50,
+  });
+
+  for (const job of recentJobs) {
+    const similarity = calculateTitleSimilarity(title, job.title);
+    if (similarity >= threshold) {
+      console.log(`[LinkedInPosts] Similar job found: "${job.title}" (similarity: ${(similarity * 100).toFixed(0)}%)`);
+      return true;
+    }
+  }
+
+  return false;
 }
 
 // GET endpoint for testing
