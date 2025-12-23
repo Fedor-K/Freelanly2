@@ -11,40 +11,44 @@ async function main() {
   console.log('=== Re-extracting languages from translation jobs ===\n');
 
   // Find jobs that might be translation-related (by category OR by title)
-  // with empty languages
   const jobs = await prisma.job.findMany({
     where: {
-      AND: [
-        {
-          OR: [
-            { category: { slug: 'translation' } },
-            { title: { contains: 'translator', mode: 'insensitive' } },
-            { title: { contains: 'interpreter', mode: 'insensitive' } },
-            { title: { contains: 'localization', mode: 'insensitive' } },
-          ],
-        },
-        { originalContent: { not: null } },
-        // Empty arrays check - Prisma stores as []
-        { sourceLanguages: { equals: [] } },
+      OR: [
+        { category: { slug: 'translation' } },
+        { title: { contains: 'translator', mode: 'insensitive' } },
+        { title: { contains: 'interpreter', mode: 'insensitive' } },
+        { title: { contains: 'localization', mode: 'insensitive' } },
       ],
+      originalContent: { not: null },
     },
     select: {
       id: true,
       title: true,
       originalContent: true,
+      sourceLanguages: true,
+      targetLanguages: true,
       category: { select: { slug: true } },
     },
-    take: 100, // Process in batches
+    take: 100,
   });
 
-  console.log(`Found ${jobs.length} translation-related jobs without languages\n`);
+  console.log(`Found ${jobs.length} translation-related jobs\n`);
 
   let updated = 0;
   let failed = 0;
+  let skipped = 0;
 
   for (const job of jobs) {
+    // Skip if already has languages
+    if (job.sourceLanguages.length > 0 || job.targetLanguages.length > 0) {
+      console.log(`[SKIP] ${job.title} - already has languages`);
+      skipped++;
+      continue;
+    }
+
     if (!job.originalContent) {
       console.log(`[SKIP] ${job.title} - no original content`);
+      skipped++;
       continue;
     }
 
@@ -90,9 +94,10 @@ async function main() {
   }
 
   console.log('\n=== Summary ===');
-  console.log(`Total processed: ${jobs.length}`);
+  console.log(`Total found: ${jobs.length}`);
   console.log(`Updated: ${updated}`);
-  console.log(`Failed/Skipped: ${failed}`);
+  console.log(`Skipped: ${skipped}`);
+  console.log(`Failed: ${failed}`);
 }
 
 main()
