@@ -372,6 +372,29 @@ export default async function JobPage({ params }: JobPageProps) {
                           </div>
                         </div>
                       )}
+                      {(job.sourceLanguages.length > 0 || job.targetLanguages.length > 0) && (
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-2">Languages</p>
+                          <div className="flex flex-wrap gap-2">
+                            {job.sourceLanguages.length > 0 && (
+                              <div>
+                                <span className="text-xs text-muted-foreground">Source: </span>
+                                {job.sourceLanguages.map((lang) => (
+                                  <Badge key={lang} variant="secondary" className="text-xs mr-1">{lang}</Badge>
+                                ))}
+                              </div>
+                            )}
+                            {job.targetLanguages.length > 0 && (
+                              <div>
+                                <span className="text-xs text-muted-foreground">Target: </span>
+                                {job.targetLanguages.map((lang) => (
+                                  <Badge key={lang} variant="secondary" className="text-xs mr-1">{lang}</Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 

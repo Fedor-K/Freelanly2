@@ -86,6 +86,16 @@ export function JobCard({ job }: JobCardProps) {
                   {skill}
                 </Badge>
               ))}
+              {/* Language badges for translation jobs */}
+              {(job.sourceLanguages?.length > 0 || job.targetLanguages?.length > 0) && (
+                <>
+                  {getLanguageBadges(job.sourceLanguages, job.targetLanguages).map((lang) => (
+                    <Badge key={lang} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                      {lang}
+                    </Badge>
+                  ))}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -162,4 +172,14 @@ function formatJobType(type: string): string {
     TEMPORARY: 'Temporary',
   };
   return map[type] || type;
+}
+
+// Get unique languages for badges (max 3, then show +N)
+function getLanguageBadges(source: string[] = [], target: string[] = []): string[] {
+  const allLangs = [...new Set([...source, ...target])];
+  if (allLangs.length <= 3) {
+    return allLangs;
+  }
+  const remaining = allLangs.length - 2;
+  return [...allLangs.slice(0, 2), `+${remaining}`];
 }

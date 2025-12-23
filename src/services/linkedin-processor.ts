@@ -10,11 +10,10 @@ import {
 import { getApifySettings } from '@/lib/settings';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify, isFreeEmail, cleanEmail, extractDomainFromEmail } from '@/lib/utils';
-import { queueCompanyEnrichment } from '@/services/company-enrichment';
+import { validateAndEnrichCompany } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
-import { validateEmailDomainHasLogo } from '@/lib/company-logo';
 
 // Re-export for cron endpoint
 export { HIRING_SEARCH_QUERIES };
@@ -317,13 +316,6 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     return { success: false, error: 'No corporate email - skipped' };
   }
 
-  // Validate that email domain has a real company (Logo.dev check)
-  const hasValidLogo = await validateEmailDomainHasLogo(validatedEmail);
-  if (!hasValidLogo) {
-    console.log(`[LinkedIn] Unverified domain, skipping: ${validatedEmail}`);
-    return { success: false, error: 'unverified_domain' };
-  }
-
   // Get company name - EMAIL DOMAIN IS SOURCE OF TRUTH (who is actually hiring)
   // Priority: email domain → DeepSeek extraction → headline → author name
   const emailCompany = extractCompanyFromEmail(validatedEmail);
@@ -341,11 +333,26 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     email: validatedEmail,
   });
 
-  // Check for duplicate job by title + company (case-insensitive)
+  // Validate company via Apollo and check for logo
+  // This filters out fake recruiters with custom domains
+  const isValidCompany = await validateAndEnrichCompany(company.id, validatedEmail);
+
+  if (!isValidCompany) {
+    // Delete the company we just created (it's fake)
+    await prisma.company.delete({ where: { id: company.id } }).catch(() => {
+      // Ignore if company has other jobs
+    });
+    return { success: false, error: 'Company validation failed - Apollo unknown or no logo' };
+  }
+
+  // Check for duplicate job by title + company within last 10 days
+  // (allows same job title to be posted again after 10 days as a new vacancy)
+  const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
   const duplicateByTitle = await prisma.job.findFirst({
     where: {
       companyId: company.id,
       title: { equals: extracted.title, mode: 'insensitive' },
+      createdAt: { gte: tenDaysAgo },
     },
   });
 
@@ -394,6 +401,9 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
       salaryIsEstimate: !extracted.salaryMin,
       skills: extracted.skills,
       benefits: extracted.benefits,
+      translationTypes: extracted.translationTypes || [],
+      sourceLanguages: extracted.sourceLanguages || [],
+      targetLanguages: extracted.targetLanguages || [],
       source: 'LINKEDIN',
       sourceType: 'UNSTRUCTURED',
       sourceUrl: post.url,
@@ -409,8 +419,7 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     },
   });
 
-  // Queue company for background enrichment with validated email
-  queueCompanyEnrichment(company.id, validatedEmail);
+  // Note: Company enrichment is already done in validateAndEnrichCompany()
 
   // Send INSTANT alerts for this job (non-blocking)
   sendInstantAlertsForJob(job.id).catch((err) => {

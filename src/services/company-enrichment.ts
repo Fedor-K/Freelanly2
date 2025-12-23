@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { isFreeEmail, extractDomainFromEmail, slugify } from '@/lib/utils';
+import { validateDomainHasLogo } from '@/lib/company-logo';
 
 // Apollo.io Organization Enrichment API
 const APOLLO_API = 'https://api.apollo.io/api/v1/organizations/enrich';
@@ -207,6 +208,82 @@ export function queueCompanyEnrichment(companyId: string, email: string): void {
   enrichCompanyByDomain(companyId, domain).catch(err => {
     console.error(`Background enrichment failed for ${companyId}:`, err);
   });
+}
+
+/**
+ * Validate company via Apollo and check for logo (Apollo or Logo.dev)
+ * Used ONLY for LinkedIn sources to filter fake recruiters
+ *
+ * Flow:
+ * 1. Apollo doesn't know company → REJECT (fake)
+ * 2. Apollo knows, has logo → OK
+ * 3. Apollo knows, no logo → check Logo.dev with Apollo's website domain
+ * 4. Logo.dev has logo → OK
+ * 5. No logo anywhere → REJECT
+ *
+ * @returns true if company is valid and has logo, false if should be rejected
+ */
+export async function validateAndEnrichCompany(
+  companyId: string,
+  email: string
+): Promise<boolean> {
+  const domain = extractDomainFromEmail(email);
+  if (!domain) {
+    console.log(`[Validation] No domain from email: ${email}`);
+    return false;
+  }
+
+  try {
+    // 1. Check Apollo - this is the PRIMARY validator
+    console.log(`[Validation] Checking Apollo for domain: ${domain}`);
+    const apolloData = await fetchCompanyFromApollo(domain);
+
+    // If Apollo doesn't know this company - it's likely fake
+    if (!apolloData) {
+      console.log(`[Validation] Apollo doesn't know ${domain} - REJECTED as fake company`);
+      return false;
+    }
+
+    // Apollo knows this company - enrich it
+    console.log(`[Validation] Apollo found company: ${apolloData.name || domain}`);
+    await updateCompanyWithApolloData(companyId, apolloData, domain);
+
+    // 2. Check for logo - Apollo logo is preferred
+    if (apolloData.logo_url) {
+      console.log(`[Validation] Apollo logo found for ${domain} - APPROVED`);
+      return true;
+    }
+
+    // 3. No Apollo logo - try Logo.dev with Apollo's website domain
+    const websiteDomain = apolloData.website_url
+      ? extractDomainFromUrl(apolloData.website_url)
+      : domain;
+
+    if (websiteDomain) {
+      const hasLogoDevLogo = await validateDomainHasLogo(websiteDomain);
+      if (hasLogoDevLogo) {
+        console.log(`[Validation] Logo.dev logo found for ${websiteDomain} - APPROVED`);
+        return true;
+      }
+    }
+
+    // 4. Try Logo.dev with email domain (if different from website)
+    if (websiteDomain !== domain) {
+      const hasLogoDevLogo = await validateDomainHasLogo(domain);
+      if (hasLogoDevLogo) {
+        console.log(`[Validation] Logo.dev logo found for ${domain} - APPROVED`);
+        return true;
+      }
+    }
+
+    // 5. No logo found anywhere - reject
+    console.log(`[Validation] No logo found for ${domain} - REJECTED (no logo)`);
+    return false;
+  } catch (error) {
+    console.error(`[Validation] Error validating company:`, error);
+    // On error, be permissive - don't block the job
+    return true;
+  }
 }
 
 // Queue company enrichment by slug/name (for ATS companies without email)

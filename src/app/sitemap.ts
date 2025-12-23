@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next';
-import { siteConfig, categories, levels, locationTypes, countries, jobRoles } from '@/config/site';
+import { siteConfig, categories, levels, locationTypes, countries, jobRoles, languagePairs } from '@/config/site';
 import { prisma } from '@/lib/db';
 
 // Popular tech skills for programmatic pages
@@ -148,6 +148,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }))
   );
 
+  // Jobs by country pages: /jobs/country/[country]
+  const jobsByCountryPages: MetadataRoute.Sitemap = countries.map((country) => ({
+    url: `${baseUrl}/jobs/country/${country.slug}`,
+    lastModified: now,
+    changeFrequency: 'daily' as const,
+    priority: 0.85,
+  }));
+
+  // Translation language pair pages: /jobs/translation/[pair]
+  const translationPairPages: MetadataRoute.Sitemap = languagePairs.map((pair) => ({
+    url: `${baseUrl}/jobs/translation/${pair.slug}`,
+    lastModified: now,
+    changeFrequency: 'daily' as const,
+    priority: 0.85,
+  }));
+
   // Dynamic job pages from database - RRS format: /company/[company]/jobs/[job]
   let jobPages: MetadataRoute.Sitemap = [];
   let companyPages: MetadataRoute.Sitemap = [];
@@ -210,6 +226,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...categoryLandingPages,
     ...countryPages,
     ...countryRolePages,
+    ...jobsByCountryPages,
+    ...translationPairPages,
     ...companyPages,
     ...companyJobsPages,
     ...jobPages,

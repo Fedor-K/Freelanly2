@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Database, Linkedin, Globe, Plus, Play, Trash2, Building2, Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 interface DataSource {
@@ -23,13 +24,21 @@ interface DataSource {
   errorCount: number;
 }
 
+interface BulkValidationResult {
+  slug: string;
+  valid: boolean;
+  jobCount?: number;
+  error?: string;
+  added?: boolean;
+}
+
 export default function SourcesPage() {
   const [sources, setSources] = useState<DataSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newCompanySlug, setNewCompanySlug] = useState('');
+  const [companySlugsInput, setCompanySlugsInput] = useState('');
   const [validating, setValidating] = useState(false);
-  const [validationResult, setValidationResult] = useState<{ valid: boolean; jobCount?: number; error?: string } | null>(null);
+  const [bulkResults, setBulkResults] = useState<BulkValidationResult[]>([]);
   const [saving, setSaving] = useState(false);
   const [runningSourceId, setRunningSourceId] = useState<string | null>(null);
 
@@ -49,56 +58,79 @@ export default function SourcesPage() {
     }
   }
 
-  async function validateLever() {
-    if (!newCompanySlug.trim()) return;
-
-    setValidating(true);
-    setValidationResult(null);
-
-    try {
-      const res = await fetch('/api/admin/sources/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sourceType: 'LEVER',
-          companySlug: newCompanySlug.trim().toLowerCase(),
-        }),
-      });
-      const data = await res.json();
-      setValidationResult(data);
-    } catch (error) {
-      setValidationResult({ valid: false, error: String(error) });
-    } finally {
-      setValidating(false);
-    }
+  // Parse input into array of slugs
+  function parseSlugs(input: string): string[] {
+    return input
+      .split(/[,\n\r]+/)
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean)
+      .filter((v, i, a) => a.indexOf(v) === i); // unique
   }
 
-  async function addLeverSource() {
-    if (!validationResult?.valid) return;
+  async function validateBulk() {
+    const slugs = parseSlugs(companySlugsInput);
+    if (slugs.length === 0) return;
+
+    setValidating(true);
+    setBulkResults([]);
+
+    const results: BulkValidationResult[] = [];
+
+    for (const slug of slugs) {
+      // Check if already exists
+      const existingSource = sources.find(s => s.companySlug === slug);
+      if (existingSource) {
+        results.push({ slug, valid: false, error: 'Already added' });
+        setBulkResults([...results]);
+        continue;
+      }
+
+      try {
+        const res = await fetch('/api/admin/sources/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceType: 'LEVER', companySlug: slug }),
+        });
+        const data = await res.json();
+        results.push({ slug, valid: data.valid, jobCount: data.jobCount, error: data.error });
+      } catch (error) {
+        results.push({ slug, valid: false, error: String(error) });
+      }
+      setBulkResults([...results]);
+    }
+
+    setValidating(false);
+  }
+
+  async function addValidSources() {
+    const validSlugs = bulkResults.filter(r => r.valid && !r.added);
+    if (validSlugs.length === 0) return;
 
     setSaving(true);
-    try {
-      const res = await fetch('/api/admin/sources', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sourceType: 'LEVER',
-          companySlug: newCompanySlug.trim().toLowerCase(),
-          name: newCompanySlug.trim(),
-        }),
-      });
 
-      if (res.ok) {
-        setShowAddForm(false);
-        setNewCompanySlug('');
-        setValidationResult(null);
-        fetchSources();
+    for (const result of validSlugs) {
+      try {
+        const res = await fetch('/api/admin/sources', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceType: 'LEVER',
+            companySlug: result.slug,
+            name: result.slug,
+          }),
+        });
+
+        if (res.ok) {
+          result.added = true;
+          setBulkResults([...bulkResults]);
+        }
+      } catch (error) {
+        console.error('Failed to add source:', result.slug, error);
       }
-    } catch (error) {
-      console.error('Failed to add source:', error);
-    } finally {
-      setSaving(false);
     }
+
+    setSaving(false);
+    fetchSources();
   }
 
   async function runSource(sourceId: string) {
@@ -217,57 +249,97 @@ export default function SourcesPage() {
         {showAddForm && (
           <Card className="mb-4">
             <CardHeader>
-              <CardTitle className="text-lg">Add Lever Company</CardTitle>
+              <CardTitle className="text-lg">Add Lever Companies</CardTitle>
               <CardDescription>
-                Enter the company slug from their Lever careers page URL.
+                Enter company slugs from their Lever careers page URLs (one per line or comma-separated).
                 <br />
                 Example: For https://jobs.lever.co/<strong>appen</strong>, enter "appen"
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <Label htmlFor="companySlug">Company Slug</Label>
-                  <div className="flex gap-2 mt-1">
-                    <Input
-                      id="companySlug"
-                      placeholder="e.g., appen, netflix, stripe"
-                      value={newCompanySlug}
-                      onChange={(e) => {
-                        setNewCompanySlug(e.target.value);
-                        setValidationResult(null);
-                      }}
-                      onKeyDown={(e) => e.key === 'Enter' && validateLever()}
-                    />
-                    <Button onClick={validateLever} disabled={validating || !newCompanySlug.trim()}>
-                      {validating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Check'}
-                    </Button>
-                  </div>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="companySlugs">Company Slugs</Label>
+                  <Textarea
+                    id="companySlugs"
+                    placeholder="appen,
+netflix,
+stripe,
+figma"
+                    value={companySlugsInput}
+                    onChange={(e) => {
+                      setCompanySlugsInput(e.target.value);
+                      setBulkResults([]);
+                    }}
+                    rows={5}
+                    className="mt-1 font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {parseSlugs(companySlugsInput).length} companies to check
+                  </p>
                 </div>
+
+                <Button onClick={validateBulk} disabled={validating || parseSlugs(companySlugsInput).length === 0}>
+                  {validating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Checking {bulkResults.length}/{parseSlugs(companySlugsInput).length}...
+                    </>
+                  ) : (
+                    'Check All'
+                  )}
+                </Button>
               </div>
 
-              {validationResult && (
-                <div className={`mt-4 p-3 rounded-lg ${validationResult.valid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                  {validationResult.valid ? (
-                    <div className="flex items-center gap-2 text-green-700">
-                      <CheckCircle className="h-5 w-5" />
-                      <span>Valid! Found {validationResult.jobCount} active jobs</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-red-700">
-                      <XCircle className="h-5 w-5" />
-                      <span>{validationResult.error}</span>
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Bulk Results */}
+              {bulkResults.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <div className="text-sm font-medium">
+                    Results: {bulkResults.filter(r => r.valid).length} valid, {bulkResults.filter(r => !r.valid).length} invalid
+                  </div>
+                  <div className="max-h-48 overflow-y-auto space-y-1 border rounded p-2">
+                    {bulkResults.map((result) => (
+                      <div
+                        key={result.slug}
+                        className={`flex items-center justify-between text-sm p-1.5 rounded ${
+                          result.added
+                            ? 'bg-blue-50'
+                            : result.valid
+                            ? 'bg-green-50'
+                            : 'bg-red-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {result.added ? (
+                            <CheckCircle className="h-4 w-4 text-blue-600" />
+                          ) : result.valid ? (
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-red-600" />
+                          )}
+                          <span className="font-mono">{result.slug}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {result.added
+                            ? 'Added!'
+                            : result.valid
+                            ? `${result.jobCount} jobs`
+                            : result.error}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
 
-              {validationResult?.valid && (
-                <div className="mt-4">
-                  <Button onClick={addLeverSource} disabled={saving}>
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                    Add Source
-                  </Button>
+                  {bulkResults.some(r => r.valid && !r.added) && (
+                    <Button onClick={addValidSources} disabled={saving} className="mt-2">
+                      {saving ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Plus className="h-4 w-4 mr-2" />
+                      )}
+                      Add {bulkResults.filter(r => r.valid && !r.added).length} Valid Sources
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>

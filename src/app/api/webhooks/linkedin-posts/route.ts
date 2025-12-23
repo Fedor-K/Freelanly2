@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify, isFreeEmail, extractDomainFromEmail, cleanEmail } from '@/lib/utils';
-import { queueCompanyEnrichment } from '@/services/company-enrichment';
+import { validateAndEnrichCompany } from '@/services/company-enrichment';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
-import { validateEmailDomainHasLogo } from '@/lib/company-logo';
 
 /**
  * POST /api/webhooks/linkedin-posts
@@ -134,17 +133,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Validate that email domain has a real company (Logo.dev check)
-    const hasValidLogo = await validateEmailDomainHasLogo(validatedEmail);
-    if (!hasValidLogo) {
-      console.log(`[LinkedInPosts] Unverified domain, skipping: ${validatedEmail}`);
-      return NextResponse.json({
-        success: true,
-        status: 'skipped',
-        reason: 'unverified_domain',
-      });
-    }
-
     // Check for similar job from same company (by email domain)
     const hasSimilarJob = await findSimilarJobByEmailDomain(
       validatedEmail,
@@ -178,11 +166,31 @@ export async function POST(request: NextRequest) {
       email: validatedEmail,
     });
 
-    // Check for duplicate job by title + company
+    // Validate company via Apollo and check for logo
+    // This filters out fake recruiters with custom domains
+    const isValidCompany = await validateAndEnrichCompany(company.id, validatedEmail);
+
+    if (!isValidCompany) {
+      // Delete the company we just created (it's fake)
+      await prisma.company.delete({ where: { id: company.id } }).catch(() => {
+        // Ignore if company has other jobs
+      });
+      console.log(`[LinkedInPosts] Company validation failed: ${validatedEmail}`);
+      return NextResponse.json({
+        success: true,
+        status: 'skipped',
+        reason: 'company_validation_failed',
+      });
+    }
+
+    // Check for duplicate job by title + company within last 10 days
+    // (allows same job title to be posted again after 10 days as a new vacancy)
+    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
     const duplicateByTitle = await prisma.job.findFirst({
       where: {
         companyId: company.id,
         title: { equals: extracted.title, mode: 'insensitive' },
+        createdAt: { gte: tenDaysAgo },
       },
     });
 
@@ -235,6 +243,9 @@ export async function POST(request: NextRequest) {
         salaryIsEstimate: !extracted.salaryMin,
         skills: extracted.skills,
         benefits: extracted.benefits,
+        translationTypes: extracted.translationTypes || [],
+        sourceLanguages: extracted.sourceLanguages || [],
+        targetLanguages: extracted.targetLanguages || [],
         source: 'LINKEDIN',
         sourceType: 'UNSTRUCTURED',
         sourceUrl: postUrl,
@@ -252,8 +263,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`[LinkedInPosts] Created job: ${job.slug}`);
 
-    // Queue company for enrichment with validated email
-    queueCompanyEnrichment(company.id, validatedEmail);
+    // Note: Company enrichment is already done in validateAndEnrichCompany()
 
     // Notify search engines
     try {

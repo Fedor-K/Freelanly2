@@ -49,7 +49,14 @@ export interface ExtractedJobData {
 const EXTRACTION_PROMPT = `You are a job data extractor. Extract structured data from LinkedIn hiring posts.
 
 Return a valid JSON object with these fields:
-- title: job title (string or null)
+- title: job title following these SEO rules:
+  * Use Title Case (capitalize each word)
+  * Max 60 characters
+  * For translation/interpreter jobs with 1-2 languages: "[Language1]-[Language2] [Role]" (e.g., "Korean-English Translator", "Russian Medical Interpreter")
+  * For translation jobs with 3+ languages: "Multilingual [Role]" (e.g., "Multilingual Interpreter")
+  * Remove seniority levels from title (no "Fresher", "Entry Level", "Senior" - extract to level field instead)
+  * Use ONE main role only (not "Writer, Editor, Designer" - pick the primary one)
+  * Examples: "Korean-English Translator", "Full Stack Developer", "Content Writer", "Voice-over Artist"
 - company: ACTUAL company name that is hiring (string or null). IMPORTANT: Do NOT use generic terms like "Freelance Recruitment", "Remote Hiring", "Staffing Agency", "Recruitment", "Talent Acquisition" as company names. Only use specific company/organization names. If no specific company name is mentioned, return null.
 - isRemote: whether remote work is mentioned (boolean)
 - location: specific location if mentioned, e.g., "USA", "Europe", "Germany" (string or null)
@@ -58,7 +65,7 @@ Return a valid JSON object with these fields:
 - salaryCurrency: currency code like "USD", "EUR" (string or null)
 - salaryPeriod: salary period - one of: HOUR, DAY, WEEK, MONTH, YEAR, ONE_TIME (or null, default YEAR for annual salaries, ONE_TIME for project/task payments)
 - skills: array of technical skills/technologies mentioned (string[])
-- level: seniority level - one of: INTERN, ENTRY, JUNIOR, MID, SENIOR, LEAD, MANAGER, DIRECTOR, EXECUTIVE (or null)
+- level: seniority level - one of: INTERN, ENTRY, JUNIOR, MID, SENIOR, LEAD, MANAGER, DIRECTOR, EXECUTIVE (or null). Extract from title words like "Fresher"→ENTRY, "Junior"→JUNIOR, "Senior"→SENIOR, "Lead"→LEAD
 - type: employment type - one of: FULL_TIME, PART_TIME, CONTRACT, FREELANCE, INTERNSHIP (or null, default to FULL_TIME if unclear)
 - benefits: array of benefits mentioned like "health insurance", "401k", "unlimited PTO" (string[])
 - contactMethod: how to apply - "email", "dm", or "apply_link" (or null)
