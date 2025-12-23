@@ -199,6 +199,9 @@ async function processLeverJob(
 }
 
 async function findOrCreateCompany(name: string, slug: string) {
+  // Derive website from slug (e.g., "whoop" → "https://whoop.com")
+  const website = `https://${slug.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+
   // Search by slug OR by name (case-insensitive) to avoid duplicates
   let company = await prisma.company.findFirst({
     where: {
@@ -216,6 +219,7 @@ async function findOrCreateCompany(name: string, slug: string) {
       data: {
         slug: uniqueSlug,
         name,
+        website, // Set website from slug for Logo.dev fallback
         atsType: 'LEVER',
         atsId: slug,
         verified: true,
@@ -224,9 +228,19 @@ async function findOrCreateCompany(name: string, slug: string) {
 
     // Queue automatic enrichment for new company
     queueCompanyEnrichmentBySlug(company.id, uniqueSlug);
-  } else if (company.logo === null) {
+  } else {
+    // Update website if missing
+    if (!company.website) {
+      await prisma.company.update({
+        where: { id: company.id },
+        data: { website },
+      });
+      company.website = website;
+    }
     // Also enrich existing companies without logo
-    queueCompanyEnrichmentBySlug(company.id, company.slug);
+    if (company.logo === null) {
+      queueCompanyEnrichmentBySlug(company.id, company.slug);
+    }
   }
 
   return company;
