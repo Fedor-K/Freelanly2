@@ -14,6 +14,7 @@ import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
+import { validateEmailDomainHasLogo } from '@/lib/company-logo';
 
 // Re-export for cron endpoint
 export { HIRING_SEARCH_QUERIES };
@@ -314,6 +315,13 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
   // Skip jobs without corporate email (filter out gmail, yahoo, etc.)
   if (!validatedEmail || isFreeEmail(validatedEmail)) {
     return { success: false, error: 'No corporate email - skipped' };
+  }
+
+  // Validate that email domain has a real company (Logo.dev check)
+  const hasValidLogo = await validateEmailDomainHasLogo(validatedEmail);
+  if (!hasValidLogo) {
+    console.log(`[LinkedIn] Unverified domain, skipping: ${validatedEmail}`);
+    return { success: false, error: 'unverified_domain' };
   }
 
   // Get company name - EMAIL DOMAIN IS SOURCE OF TRUTH (who is actually hiring)

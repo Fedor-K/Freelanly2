@@ -99,3 +99,50 @@ export function shouldShowPlaceholder(
 ): boolean {
   return getCompanyLogoUrl(logo, website, email) === null;
 }
+
+/**
+ * Validate that a domain has a logo in Logo.dev
+ * This is used to filter out fake/invalid company domains
+ *
+ * @param domain - The domain to validate (e.g., "company.com")
+ * @returns true if Logo.dev has a logo for this domain, false otherwise
+ */
+export async function validateDomainHasLogo(domain: string): Promise<boolean> {
+  if (!domain || domain.length < 4) return false;
+
+  // Skip free email providers
+  if (isFreeEmailDomain(domain)) return false;
+
+  try {
+    const url = `${LOGO_DEV_API}/${encodeURIComponent(domain)}?token=${LOGO_DEV_TOKEN}`;
+
+    // Use HEAD request to check if logo exists without downloading it
+    const response = await fetch(url, {
+      method: 'HEAD',
+      // Short timeout - we just need to know if it exists
+      signal: AbortSignal.timeout(5000),
+    });
+
+    // Logo.dev returns 200 for valid logos, 404 for unknown domains
+    return response.ok;
+  } catch (error) {
+    // Network error or timeout - assume domain is invalid
+    console.log(`[Logo.dev] Validation failed for ${domain}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Validate domain from email address
+ *
+ * @param email - Email address to extract domain from
+ * @returns true if the email domain has a valid logo, false otherwise
+ */
+export async function validateEmailDomainHasLogo(email: string | null | undefined): Promise<boolean> {
+  if (!email) return false;
+
+  const domain = extractDomainFromEmail(email);
+  if (!domain) return false;
+
+  return validateDomainHasLogo(domain);
+}
