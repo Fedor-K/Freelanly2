@@ -11,16 +11,22 @@ async function main() {
   console.log('=== Re-extracting languages from translation jobs ===\n');
 
   // Find jobs that might be translation-related (by category OR by title)
+  // with empty languages
   const jobs = await prisma.job.findMany({
     where: {
-      OR: [
-        { category: { slug: 'translation' } },
-        { title: { contains: 'translator', mode: 'insensitive' } },
-        { title: { contains: 'interpreter', mode: 'insensitive' } },
-        { title: { contains: 'localization', mode: 'insensitive' } },
+      AND: [
+        {
+          OR: [
+            { category: { slug: 'translation' } },
+            { title: { contains: 'translator', mode: 'insensitive' } },
+            { title: { contains: 'interpreter', mode: 'insensitive' } },
+            { title: { contains: 'localization', mode: 'insensitive' } },
+          ],
+        },
+        { originalContent: { not: null } },
+        // Empty arrays check - Prisma stores as []
+        { sourceLanguages: { equals: [] } },
       ],
-      sourceLanguages: { isEmpty: true },
-      originalContent: { not: null },
     },
     select: {
       id: true,
