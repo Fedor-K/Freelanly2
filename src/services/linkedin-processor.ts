@@ -316,9 +316,11 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     return { success: false, error: 'No corporate email - skipped' };
   }
 
-  // Get company name from extraction or author headline
+  // Get company name from extraction or author headline or email domain
+  // Priority: DeepSeek extraction → headline → email domain → author name
   const companyName = extracted.company ||
     extractCompanyFromHeadline(post.authorHeadline) ||
+    extractCompanyFromEmail(validatedEmail) ||
     post.authorName;
 
   // Find or create company
@@ -423,6 +425,30 @@ function extractCompanyFromHeadline(headline: string | null): string | null {
   }
 
   return null;
+}
+
+// Extract company name from email domain (e.g., "vidhipatel@earlyjobs.co.in" → "EarlyJobs")
+function extractCompanyFromEmail(email: string | null): string | null {
+  if (!email) return null;
+
+  const match = email.match(/@([^.]+)\./);
+  if (!match || !match[1]) return null;
+
+  const domain = match[1];
+
+  // Skip if domain looks like a person's name (contains common name patterns)
+  if (domain.length < 3) return null;
+
+  // Convert to title case and handle common patterns
+  // "earlyjobs" → "EarlyJobs", "company" → "Company"
+  const formatted = domain
+    .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase → separate words
+    .replace(/[-_]/g, ' ') // hyphens/underscores → spaces
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join('');
+
+  return formatted;
 }
 
 // Get category display name
