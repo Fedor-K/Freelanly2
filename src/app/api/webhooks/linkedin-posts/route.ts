@@ -5,7 +5,6 @@ import { slugify, isFreeEmail, extractDomainFromEmail, cleanEmail } from '@/lib/
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
-import { validateEmailDomainHasLogo } from '@/lib/company-logo';
 
 /**
  * POST /api/webhooks/linkedin-posts
@@ -131,17 +130,6 @@ export async function POST(request: NextRequest) {
         success: true,
         status: 'skipped',
         reason: 'no_corporate_email',
-      });
-    }
-
-    // Validate that email domain has a real company (Logo.dev check)
-    const hasValidLogo = await validateEmailDomainHasLogo(validatedEmail);
-    if (!hasValidLogo) {
-      console.log(`[LinkedInPosts] Unverified domain, skipping: ${validatedEmail}`);
-      return NextResponse.json({
-        success: true,
-        status: 'skipped',
-        reason: 'unverified_domain',
       });
     }
 
