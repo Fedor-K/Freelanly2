@@ -381,43 +381,58 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
   // Map location type
   const locationType = mapLocationType(extracted.isRemote, extracted.location);
 
-  // Create job
-  const job = await prisma.job.create({
-    data: {
-      slug,
-      title: extracted.title,
-      description: post.content, // Original post as description
-      companyId: company.id,
-      categoryId: category.id,
-      location: extracted.isRemote ? (extracted.location || 'Remote') : extracted.location,
-      locationType,
-      country: extractCountryCode(extracted.location),
-      level: extracted.level || 'MID',
-      type: extracted.type || 'FULL_TIME',
-      salaryMin: extracted.salaryMin,
-      salaryMax: extracted.salaryMax,
-      salaryCurrency: extracted.salaryCurrency || 'USD',
-      salaryPeriod: extracted.salaryPeriod || 'YEAR',
-      salaryIsEstimate: !extracted.salaryMin,
-      skills: extracted.skills,
-      benefits: extracted.benefits,
-      translationTypes: extracted.translationTypes || [],
-      sourceLanguages: extracted.sourceLanguages || [],
-      targetLanguages: extracted.targetLanguages || [],
-      source: 'LINKEDIN',
-      sourceType: 'UNSTRUCTURED',
-      sourceUrl: post.url,
-      sourceId: post.id,
-      originalContent: post.content,
-      authorLinkedIn: post.authorLinkedInUrl,
-      authorName: post.authorName,
-      applyEmail: validatedEmail,
-      applyUrl: extracted.applyUrl,
-      enrichmentStatus: 'COMPLETED',
-      qualityScore: calculateQualityScore(extracted, post),
-      postedAt: post.postedAt,
-    },
-  });
+  // Create job (with unique constraint handling for race conditions)
+  let job;
+  try {
+    job = await prisma.job.create({
+      data: {
+        slug,
+        title: extracted.title,
+        description: post.content, // Original post as description
+        companyId: company.id,
+        categoryId: category.id,
+        location: extracted.isRemote ? (extracted.location || 'Remote') : extracted.location,
+        locationType,
+        country: extractCountryCode(extracted.location),
+        level: extracted.level || 'MID',
+        type: extracted.type || 'FULL_TIME',
+        salaryMin: extracted.salaryMin,
+        salaryMax: extracted.salaryMax,
+        salaryCurrency: extracted.salaryCurrency || 'USD',
+        salaryPeriod: extracted.salaryPeriod || 'YEAR',
+        salaryIsEstimate: !extracted.salaryMin,
+        skills: extracted.skills,
+        benefits: extracted.benefits,
+        translationTypes: extracted.translationTypes || [],
+        sourceLanguages: extracted.sourceLanguages || [],
+        targetLanguages: extracted.targetLanguages || [],
+        source: 'LINKEDIN',
+        sourceType: 'UNSTRUCTURED',
+        sourceUrl: post.url,
+        sourceId: post.id,
+        originalContent: post.content,
+        authorLinkedIn: post.authorLinkedInUrl,
+        authorName: post.authorName,
+        applyEmail: validatedEmail,
+        applyUrl: extracted.applyUrl,
+        enrichmentStatus: 'COMPLETED',
+        qualityScore: calculateQualityScore(extracted, post),
+        postedAt: post.postedAt,
+      },
+    });
+  } catch (createError: unknown) {
+    // Handle unique constraint violation (race condition - job already exists)
+    if (
+      createError &&
+      typeof createError === 'object' &&
+      'code' in createError &&
+      createError.code === 'P2002'
+    ) {
+      console.log(`[LinkedIn] Duplicate job (unique constraint), skipping: ${extracted.title}`);
+      return { success: false, error: 'duplicate' };
+    }
+    throw createError;
+  }
 
   // Note: Company enrichment is already done in validateAndEnrichCompany()
 
