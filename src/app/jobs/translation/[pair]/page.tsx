@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { siteConfig, languages, languagePairs } from '@/config/site';
 import { JobCard } from '@/components/jobs/JobCard';
-import { Pagination } from '@/components/ui/Pagination';
+import { Button } from '@/components/ui/button';
 
 interface PageProps {
   params: Promise<{ pair: string }>;
@@ -397,13 +397,27 @@ export default async function TranslationPairPage({ params, searchParams }: Page
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="mt-8">
-                <Pagination
-                  currentPage={page}
-                  totalPages={totalPages}
-                  basePath={`/jobs/translation/${pairSlug}`}
-                />
-              </div>
+              <nav className="mt-8 flex justify-center gap-2">
+                {page > 1 ? (
+                  <Link href={`/jobs/translation/${pairSlug}?page=${page - 1}`}>
+                    <Button variant="outline">Previous</Button>
+                  </Link>
+                ) : (
+                  <Button variant="outline" disabled>Previous</Button>
+                )}
+
+                <span className="flex items-center px-4 text-sm text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+
+                {page < totalPages ? (
+                  <Link href={`/jobs/translation/${pairSlug}?page=${page + 1}`}>
+                    <Button variant="outline">Next</Button>
+                  </Link>
+                ) : (
+                  <Button variant="outline" disabled>Next</Button>
+                )}
+              </nav>
             )}
           </div>
 
