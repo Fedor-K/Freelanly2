@@ -148,9 +148,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Validate extracted company name - ignore generic terms
+    const extractedCompany = isGenericCompanyName(extracted.company) ? null : extracted.company;
+
     // Get company name from extraction or author headline or email domain
-    // Priority: DeepSeek extraction → headline → email domain → author name
-    const companyName = extracted.company ||
+    // Priority: DeepSeek extraction (if valid) → headline → email domain → author name
+    const companyName = extractedCompany ||
       extractCompanyFromHeadline(authorHeadline) ||
       extractCompanyFromEmail(validatedEmail) ||
       authorName;
@@ -322,6 +325,31 @@ function extractCompanyFromEmail(email: string | null): string | null {
     .join('');
 
   return formatted;
+}
+
+// Check if company name is generic (not a real company name)
+const GENERIC_COMPANY_PATTERNS = [
+  /^freelance/i,
+  /^remote/i,
+  /recruitment$/i,
+  /hiring$/i,
+  /staffing/i,
+  /agency$/i,
+  /talent acquisition/i,
+  /^hr\s/i,
+  /^human resources/i,
+  /job board/i,
+  /career/i,
+  /employment/i,
+  /^we are hiring/i,
+  /^now hiring/i,
+];
+
+function isGenericCompanyName(name: string | null | undefined): boolean {
+  if (!name) return true;
+  const normalized = name.trim().toLowerCase();
+  if (normalized.length < 2) return true;
+  return GENERIC_COMPANY_PATTERNS.some(pattern => pattern.test(name));
 }
 
 // Get category display name

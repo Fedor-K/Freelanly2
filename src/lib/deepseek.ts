@@ -50,7 +50,7 @@ const EXTRACTION_PROMPT = `You are a job data extractor. Extract structured data
 
 Return a valid JSON object with these fields:
 - title: job title (string or null)
-- company: company name mentioned (string or null)
+- company: ACTUAL company name that is hiring (string or null). IMPORTANT: Do NOT use generic terms like "Freelance Recruitment", "Remote Hiring", "Staffing Agency", "Recruitment", "Talent Acquisition" as company names. Only use specific company/organization names. If no specific company name is mentioned, return null.
 - isRemote: whether remote work is mentioned (boolean)
 - location: specific location if mentioned, e.g., "USA", "Europe", "Germany" (string or null)
 - salaryMin: minimum salary if mentioned, as number (number or null)
