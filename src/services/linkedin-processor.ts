@@ -345,11 +345,14 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     return { success: false, error: 'Company validation failed - Apollo unknown or no logo' };
   }
 
-  // Check for duplicate job by title + company (case-insensitive)
+  // Check for duplicate job by title + company within last 10 days
+  // (allows same job title to be posted again after 10 days as a new vacancy)
+  const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
   const duplicateByTitle = await prisma.job.findFirst({
     where: {
       companyId: company.id,
       title: { equals: extracted.title, mode: 'insensitive' },
+      createdAt: { gte: tenDaysAgo },
     },
   });
 
