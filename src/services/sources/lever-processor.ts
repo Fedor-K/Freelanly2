@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { slugify } from '@/lib/utils';
+import { slugify, getMaxJobAgeDate } from '@/lib/utils';
 import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl } from '@/lib/indexing';
@@ -78,8 +78,17 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
     // Find or create company with real website
     const company = await findOrCreateCompany(dataSource.name, dataSource.companySlug, companyWebsite);
 
-    // Process each job
-    for (const job of jobs) {
+    // Filter out jobs older than 30 days (no point importing them)
+    const maxAgeDate = getMaxJobAgeDate();
+    const freshJobs = jobs.filter(job => new Date(job.createdAt) >= maxAgeDate);
+    const skippedOld = jobs.length - freshJobs.length;
+    if (skippedOld > 0) {
+      console.log(`[Lever] Skipping ${skippedOld} jobs older than 30 days`);
+      stats.skipped += skippedOld;
+    }
+
+    // Process each fresh job
+    for (const job of freshJobs) {
       try {
         const result = await processLeverJob(job, company.id, dataSource.companySlug);
         if (result.status === 'created') {
