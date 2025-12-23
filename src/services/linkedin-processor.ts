@@ -9,11 +9,12 @@ import {
 } from '@/lib/apify';
 import { getApifySettings } from '@/lib/settings';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
-import { slugify, isFreeEmail, cleanEmail } from '@/lib/utils';
+import { slugify, isFreeEmail, cleanEmail, extractDomainFromEmail } from '@/lib/utils';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
+import { validateEmailDomainHasLogo } from '@/lib/company-logo';
 
 // Re-export for cron endpoint
 export { HIRING_SEARCH_QUERIES };
@@ -316,15 +317,28 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     return { success: false, error: 'No corporate email - skipped' };
   }
 
-  // Get company name from extraction or author headline
-  const companyName = extracted.company ||
+  // Validate that email domain has a real company (Logo.dev check)
+  const hasValidLogo = await validateEmailDomainHasLogo(validatedEmail);
+  if (!hasValidLogo) {
+    console.log(`[LinkedIn] Unverified domain, skipping: ${validatedEmail}`);
+    return { success: false, error: 'unverified_domain' };
+  }
+
+  // Get company name - EMAIL DOMAIN IS SOURCE OF TRUTH (who is actually hiring)
+  // Priority: email domain → DeepSeek extraction → headline → author name
+  const emailCompany = extractCompanyFromEmail(validatedEmail);
+  const extractedCompany = isGenericCompanyName(extracted.company) ? null : extracted.company;
+
+  const companyName = emailCompany ||
+    extractedCompany ||
     extractCompanyFromHeadline(post.authorHeadline) ||
     post.authorName;
 
-  // Find or create company
+  // Find or create company (with email for website fallback)
   const company = await findOrCreateCompany({
     name: companyName,
     linkedinUrl: post.authorLinkedInUrl,
+    email: validatedEmail,
   });
 
   // Check for duplicate job by title + company (case-insensitive)
@@ -425,6 +439,57 @@ function extractCompanyFromHeadline(headline: string | null): string | null {
   return null;
 }
 
+// Extract company name from email domain (e.g., "vidhipatel@earlyjobs.co.in" → "EarlyJobs")
+function extractCompanyFromEmail(email: string | null): string | null {
+  if (!email) return null;
+
+  const match = email.match(/@([^.]+)\./);
+  if (!match || !match[1]) return null;
+
+  const domain = match[1];
+
+  // Skip if domain looks like a person's name (contains common name patterns)
+  if (domain.length < 3) return null;
+
+  // Convert to title case and handle common patterns
+  // "earlyjobs" → "EarlyJobs", "company" → "Company"
+  const formatted = domain
+    .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase → separate words
+    .replace(/[-_]/g, ' ') // hyphens/underscores → spaces
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join('');
+
+  return formatted;
+}
+
+// Check if company name is generic (not a real company name)
+// These are commonly extracted by AI from generic job post phrases
+const GENERIC_COMPANY_PATTERNS = [
+  /^freelance/i,
+  /^remote/i,
+  /recruitment$/i,
+  /hiring$/i,
+  /staffing/i,
+  /agency$/i,
+  /talent acquisition/i,
+  /^hr\s/i,
+  /^human resources/i,
+  /job board/i,
+  /career/i,
+  /employment/i,
+  /^we are hiring/i,
+  /^now hiring/i,
+];
+
+function isGenericCompanyName(name: string | null | undefined): boolean {
+  if (!name) return true;
+  const normalized = name.trim().toLowerCase();
+  if (normalized.length < 2) return true;
+
+  return GENERIC_COMPANY_PATTERNS.some(pattern => pattern.test(name));
+}
+
 // Get category display name
 function getCategoryName(slug: string): string {
   const names: Record<string, string> = {
@@ -461,6 +526,7 @@ function normalizeCompanyName(name: string): string {
 async function findOrCreateCompany(data: {
   name: string;
   linkedinUrl?: string | null;
+  email?: string | null;
 }) {
   const normalizedName = normalizeCompanyName(data.name);
   const slug = slugify(normalizedName);
@@ -481,15 +547,36 @@ async function findOrCreateCompany(data: {
   });
 
   if (company) {
+    // Update website if missing and we have email domain
+    if (!company.website && data.email) {
+      const domain = extractDomainFromEmail(data.email);
+      if (domain) {
+        await prisma.company.update({
+          where: { id: company.id },
+          data: { website: `https://${domain}` },
+        });
+        company.website = `https://${domain}`;
+      }
+    }
     return company;
   }
 
-  // Create new company (without enrichment to save costs)
+  // Derive website from email domain
+  let website: string | null = null;
+  if (data.email) {
+    const domain = extractDomainFromEmail(data.email);
+    if (domain) {
+      website = `https://${domain}`;
+    }
+  }
+
+  // Create new company with website from email domain
   company = await prisma.company.create({
     data: {
       slug: await generateUniqueSlug(slug, 'company'),
       name: normalizedName, // Use normalized name
       linkedinUrl: data.linkedinUrl,
+      website, // Set website from email domain for Logo.dev fallback
       verified: false,
     },
   });

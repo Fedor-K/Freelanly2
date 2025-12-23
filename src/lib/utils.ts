@@ -50,6 +50,7 @@ export const FREE_EMAIL_PROVIDERS = [
   'icloud.com',
   'aol.com',
   'zoho.com',
+  'zohomail.com',
   'gmx.com',
   'gmx.net',
   'fastmail.com',

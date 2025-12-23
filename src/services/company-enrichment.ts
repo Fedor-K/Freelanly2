@@ -222,6 +222,23 @@ export function queueCompanyEnrichmentBySlug(companyId: string, slug: string): v
   });
 }
 
+// Queue company enrichment by website URL (for Lever companies with real website)
+export function queueCompanyEnrichmentByWebsite(companyId: string, websiteUrl: string): void {
+  // Extract domain from website URL
+  const domain = extractDomainFromUrl(websiteUrl);
+  if (!domain) {
+    console.log(`Cannot extract domain from website: ${websiteUrl}`);
+    return;
+  }
+
+  console.log(`Queueing enrichment for company with domain ${domain} (from ${websiteUrl})`);
+
+  // Run enrichment in background (don't await)
+  enrichCompanyByDomain(companyId, domain).catch(err => {
+    console.error(`Background enrichment failed for ${companyId}:`, err);
+  });
+}
+
 // Get companies that need enrichment
 export async function getCompaniesForEnrichment(limit: number = 50): Promise<Array<{
   id: string;

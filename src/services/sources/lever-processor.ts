@@ -1,9 +1,34 @@
 import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
-import { queueCompanyEnrichmentBySlug } from '@/services/company-enrichment';
+import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl } from '@/lib/indexing';
 import type { ProcessingStats, LeverJob } from './types';
+
+// Fetch real company website from Lever job page footer
+async function fetchCompanyWebsiteFromLever(companySlug: string, jobId: string): Promise<string | null> {
+  try {
+    const jobPageUrl = `https://jobs.lever.co/${companySlug}/${jobId}`;
+    const response = await fetch(jobPageUrl);
+    if (!response.ok) return null;
+
+    const html = await response.text();
+
+    // Look for "Company Home Page" link in footer
+    const pattern = /href="(https?:\/\/[^"]+)"[^>]*>[^<]*Home\s*Page/i;
+    const match = html.match(pattern);
+
+    if (match && match[1]) {
+      console.log(`[Lever] Found company website: ${match[1]}`);
+      return match[1];
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`[Lever] Failed to fetch company website:`, error);
+    return null;
+  }
+}
 
 export async function processLeverSource(dataSourceId: string): Promise<ProcessingStats> {
   const stats: ProcessingStats = {
@@ -44,8 +69,14 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
     stats.total = jobs.length;
     console.log(`[Lever] Found ${jobs.length} jobs for ${dataSource.name}`);
 
-    // Find or create company
-    const company = await findOrCreateCompany(dataSource.name, dataSource.companySlug);
+    // Fetch real company website from Lever job page (use first job)
+    let companyWebsite: string | null = null;
+    if (jobs.length > 0) {
+      companyWebsite = await fetchCompanyWebsiteFromLever(dataSource.companySlug, jobs[0].id);
+    }
+
+    // Find or create company with real website
+    const company = await findOrCreateCompany(dataSource.name, dataSource.companySlug, companyWebsite);
 
     // Process each job
     for (const job of jobs) {
@@ -198,7 +229,10 @@ async function processLeverJob(
   return { status: 'created', jobSlug: slug };
 }
 
-async function findOrCreateCompany(name: string, slug: string) {
+async function findOrCreateCompany(name: string, slug: string, leverWebsite: string | null) {
+  // Use real website from Lever page, or fallback to slug-based guess
+  const website = leverWebsite || `https://${slug.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+
   // Search by slug OR by name (case-insensitive) to avoid duplicates
   let company = await prisma.company.findFirst({
     where: {
@@ -216,17 +250,36 @@ async function findOrCreateCompany(name: string, slug: string) {
       data: {
         slug: uniqueSlug,
         name,
+        website, // Set website from Lever page for Logo.dev fallback
         atsType: 'LEVER',
         atsId: slug,
         verified: true,
       },
     });
 
-    // Queue automatic enrichment for new company
-    queueCompanyEnrichmentBySlug(company.id, uniqueSlug);
-  } else if (company.logo === null) {
-    // Also enrich existing companies without logo
-    queueCompanyEnrichmentBySlug(company.id, company.slug);
+    // Queue automatic enrichment for new company using real website domain
+    if (leverWebsite) {
+      queueCompanyEnrichmentByWebsite(company.id, leverWebsite);
+    } else {
+      queueCompanyEnrichmentBySlug(company.id, uniqueSlug);
+    }
+  } else {
+    // Update website if missing or if we have a better one from Lever
+    if (leverWebsite && (!company.website || company.website.includes('.com') && !leverWebsite.includes('.com'))) {
+      await prisma.company.update({
+        where: { id: company.id },
+        data: { website },
+      });
+      company.website = website;
+    }
+    // Also enrich existing companies without logo using real domain
+    if (company.logo === null) {
+      if (leverWebsite) {
+        queueCompanyEnrichmentByWebsite(company.id, leverWebsite);
+      } else {
+        queueCompanyEnrichmentBySlug(company.id, company.slug);
+      }
+    }
   }
 
   return company;
