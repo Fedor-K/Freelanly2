@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
-import { queueCompanyEnrichmentBySlug } from '@/services/company-enrichment';
+import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl } from '@/lib/indexing';
 import type { ProcessingStats, LeverJob } from './types';
@@ -250,27 +250,35 @@ async function findOrCreateCompany(name: string, slug: string, leverWebsite: str
       data: {
         slug: uniqueSlug,
         name,
-        website, // Set website from slug for Logo.dev fallback
+        website, // Set website from Lever page for Logo.dev fallback
         atsType: 'LEVER',
         atsId: slug,
         verified: true,
       },
     });
 
-    // Queue automatic enrichment for new company
-    queueCompanyEnrichmentBySlug(company.id, uniqueSlug);
+    // Queue automatic enrichment for new company using real website domain
+    if (leverWebsite) {
+      queueCompanyEnrichmentByWebsite(company.id, leverWebsite);
+    } else {
+      queueCompanyEnrichmentBySlug(company.id, uniqueSlug);
+    }
   } else {
-    // Update website if missing
-    if (!company.website) {
+    // Update website if missing or if we have a better one from Lever
+    if (leverWebsite && (!company.website || company.website.includes('.com') && !leverWebsite.includes('.com'))) {
       await prisma.company.update({
         where: { id: company.id },
         data: { website },
       });
       company.website = website;
     }
-    // Also enrich existing companies without logo
+    // Also enrich existing companies without logo using real domain
     if (company.logo === null) {
-      queueCompanyEnrichmentBySlug(company.id, company.slug);
+      if (leverWebsite) {
+        queueCompanyEnrichmentByWebsite(company.id, leverWebsite);
+      } else {
+        queueCompanyEnrichmentBySlug(company.id, company.slug);
+      }
     }
   }
 
