@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { isFreeEmail, extractDomainFromEmail, slugify } from '@/lib/utils';
+import { validateDomainHasLogo } from '@/lib/company-logo';
 
 // Apollo.io Organization Enrichment API
 const APOLLO_API = 'https://api.apollo.io/api/v1/organizations/enrich';
@@ -207,6 +208,68 @@ export function queueCompanyEnrichment(companyId: string, email: string): void {
   enrichCompanyByDomain(companyId, domain).catch(err => {
     console.error(`Background enrichment failed for ${companyId}:`, err);
   });
+}
+
+/**
+ * Enrich company and validate that it has a logo (from Apollo or Logo.dev)
+ * This is a SYNCHRONOUS check used to filter out fake companies
+ *
+ * @returns true if company has a valid logo, false if should be rejected
+ */
+export async function enrichAndValidateCompanyLogo(
+  companyId: string,
+  email: string
+): Promise<boolean> {
+  const domain = extractDomainFromEmail(email);
+  if (!domain) return false;
+
+  try {
+    // 1. Try Apollo enrichment
+    const apolloData = await fetchCompanyFromApollo(domain);
+
+    if (apolloData) {
+      // Update company with Apollo data
+      await updateCompanyWithApolloData(companyId, apolloData, domain);
+
+      // If Apollo returned a logo, we're good
+      if (apolloData.logo_url) {
+        console.log(`[Enrichment] Apollo logo found for ${domain}`);
+        return true;
+      }
+
+      // If Apollo returned a website, try Logo.dev with that domain
+      if (apolloData.website_url) {
+        const websiteDomain = extractDomainFromUrl(apolloData.website_url);
+        if (websiteDomain && websiteDomain !== domain) {
+          const hasLogoDevLogo = await validateDomainHasLogo(websiteDomain);
+          if (hasLogoDevLogo) {
+            console.log(`[Enrichment] Logo.dev logo found for ${websiteDomain} (Apollo website)`);
+            return true;
+          }
+        }
+      }
+    }
+
+    // 2. Try Logo.dev with email domain directly
+    const hasLogoDevLogo = await validateDomainHasLogo(domain);
+    if (hasLogoDevLogo) {
+      console.log(`[Enrichment] Logo.dev logo found for ${domain}`);
+      // Update company website if not set
+      await prisma.company.update({
+        where: { id: companyId },
+        data: { website: `https://${domain}`, logo: '' },
+      });
+      return true;
+    }
+
+    // 3. No logo found anywhere
+    console.log(`[Enrichment] No logo found for ${domain} - company will be rejected`);
+    return false;
+  } catch (error) {
+    console.error(`[Enrichment] Error validating company ${companyId}:`, error);
+    // On error, be permissive - don't block the job
+    return true;
+  }
 }
 
 // Queue company enrichment by slug/name (for ATS companies without email)
