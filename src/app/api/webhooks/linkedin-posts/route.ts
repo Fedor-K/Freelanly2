@@ -151,11 +151,12 @@ export async function POST(request: NextRequest) {
     // Validate extracted company name - ignore generic terms
     const extractedCompany = isGenericCompanyName(extracted.company) ? null : extracted.company;
 
-    // Get company name from extraction or author headline or email domain
-    // Priority: DeepSeek extraction (if valid) → headline → email domain → author name
-    const companyName = extractedCompany ||
+    // Get company name - EMAIL DOMAIN IS SOURCE OF TRUTH (who is actually hiring)
+    // Priority: email domain → DeepSeek extraction → headline → author name
+    const emailCompany = extractCompanyFromEmail(validatedEmail);
+    const companyName = emailCompany ||
+      extractedCompany ||
       extractCompanyFromHeadline(authorHeadline) ||
-      extractCompanyFromEmail(validatedEmail) ||
       authorName;
 
     // Find or create company (with email for website fallback)
