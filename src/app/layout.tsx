@@ -21,9 +21,8 @@ export const metadata: Metadata = {
   creator: siteConfig.creator,
   publisher: siteConfig.creator,
   metadataBase: new URL(siteConfig.url),
-  alternates: {
-    canonical: siteConfig.url,
-  },
+  // Note: canonical is NOT set globally - each page must define its own
+  // to avoid all pages pointing to homepage
   openGraph: {
     type: "website",
     locale: "en_US",

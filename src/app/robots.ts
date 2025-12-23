@@ -10,10 +10,11 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/api/',
           '/admin/',
-          '/_next/',
           '/dashboard/',
           // Block filter query params from crawling (save crawl budget)
           '/jobs?*',
+          // Block only media files, allow JS/CSS for proper rendering
+          '/_next/static/media/',
         ],
       },
     ],
