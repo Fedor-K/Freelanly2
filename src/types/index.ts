@@ -19,6 +19,8 @@ export interface JobCardData {
   salaryPeriod: string | null;
   salaryIsEstimate: boolean;
   skills: string[];
+  sourceLanguages: string[];
+  targetLanguages: string[];
   source: string;
   sourceType: string;
   postedAt: Date;
