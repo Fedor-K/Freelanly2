@@ -10,10 +10,15 @@ import { extractJobData } from '../src/lib/deepseek';
 async function main() {
   console.log('=== Re-extracting languages from translation jobs ===\n');
 
-  // Find all translation jobs without extracted languages
+  // Find jobs that might be translation-related (by category OR by title)
   const jobs = await prisma.job.findMany({
     where: {
-      category: { slug: 'translation' },
+      OR: [
+        { category: { slug: 'translation' } },
+        { title: { contains: 'translator', mode: 'insensitive' } },
+        { title: { contains: 'interpreter', mode: 'insensitive' } },
+        { title: { contains: 'localization', mode: 'insensitive' } },
+      ],
       sourceLanguages: { isEmpty: true },
       originalContent: { not: null },
     },
@@ -21,11 +26,12 @@ async function main() {
       id: true,
       title: true,
       originalContent: true,
+      category: { select: { slug: true } },
     },
     take: 100, // Process in batches
   });
 
-  console.log(`Found ${jobs.length} translation jobs without languages\n`);
+  console.log(`Found ${jobs.length} translation-related jobs without languages\n`);
 
   let updated = 0;
   let failed = 0;
@@ -36,7 +42,7 @@ async function main() {
       continue;
     }
 
-    console.log(`Processing: ${job.title}`);
+    console.log(`Processing: ${job.title} (category: ${job.category?.slug || 'none'})`);
 
     try {
       const extracted = await extractJobData(job.originalContent);
