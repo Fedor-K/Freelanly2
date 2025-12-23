@@ -132,7 +132,9 @@ function extractCountryCode(location: string | null | undefined, country: string
 async function getCachedSalary(
   jobTitle: string,
   country: string,
-  region: string = ''
+  region: string = '',
+  level?: string | null,
+  categorySlug?: string | null
 ): Promise<SalaryInsightsData | null> {
   try {
     const cached = await prisma.salaryBenchmark.findFirst({
@@ -146,11 +148,27 @@ async function getCachedSalary(
     });
 
     if (cached) {
-      // For ESTIMATED source, include country name in label
+      // For ESTIMATED source, include country name in label and regenerate calculation details
       let sourceLabel = getSourceLabel(cached.source);
+      let calculationDetails: SalaryInsightsData['calculationDetails'] = undefined;
+
       if (cached.source === 'ESTIMATED') {
-        const coefficient = getCountryCoefficient(country);
-        sourceLabel = `Estimated for ${coefficient.name}`;
+        const countryCoeff = getCountryCoefficient(country);
+        sourceLabel = `Estimated for ${countryCoeff.name}`;
+
+        // Regenerate calculation details for tooltip
+        const baseSalary = categorySlug ? getBaseSalary(categorySlug) : DEFAULT_BASE_SALARY;
+        const categoryName = categorySlug || 'general';
+        const levelMultiplier = getLevelMultiplier(level);
+        const levelName = level || 'MID';
+
+        calculationDetails = {
+          method: 'Formula: BaseSalary × Level × Country',
+          baselineSource: `${categoryName} category base ($${baseSalary.toLocaleString()})`,
+          baselineAvg: baseSalary,
+          coefficient: countryCoeff.coefficient,
+          coefficientName: `${levelName} (×${levelMultiplier}) × ${countryCoeff.name} (×${countryCoeff.coefficient})`,
+        };
       }
 
       return {
@@ -167,6 +185,7 @@ async function getCachedSalary(
         currency: 'USD',
         jobTitle: cached.jobTitle,
         isEstimate: cached.source === 'ESTIMATED' || cached.source === 'CALCULATED',
+        calculationDetails,
       };
     }
 
@@ -582,7 +601,7 @@ export async function getSalaryInsights(
   console.log(`[SalaryInsights] Getting data for "${normalizedTitle}" in ${countryCode} (level: ${level || 'N/A'}, category: ${categorySlug || 'N/A'})`);
 
   // 1. Check cache first
-  const cached = await getCachedSalary(normalizedTitle, countryCode);
+  const cached = await getCachedSalary(normalizedTitle, countryCode, '', level, categorySlug);
   if (cached) {
     console.log(`[SalaryInsights] Cache hit for "${normalizedTitle}" in ${countryCode}`);
     return cached;
