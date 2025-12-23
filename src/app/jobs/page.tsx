@@ -5,7 +5,7 @@ import { Footer } from '@/components/layout/Footer';
 import { JobCard } from '@/components/jobs/JobCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { siteConfig, categories, levels, jobTypes } from '@/config/site';
+import { siteConfig, categories, levels, jobTypes, countries, techStacks, salaryRanges } from '@/config/site';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 import { JobFilters } from '@/components/jobs/JobFilters';
@@ -18,6 +18,9 @@ interface JobsPageProps {
     q?: string;
     level?: string | string[];
     type?: string | string[];
+    country?: string;
+    salary?: string;
+    skills?: string | string[];
   }>;
 }
 
@@ -52,6 +55,9 @@ async function getJobs(
     search?: string;
     levels?: string[];
     types?: string[];
+    country?: string;
+    salaryMin?: number;
+    skills?: string[];
   }
 ) {
   const maxAgeDate = getMaxJobAgeDate();
@@ -67,6 +73,7 @@ async function getJobs(
     where.OR = [
       { title: { contains: filters.search, mode: 'insensitive' } },
       { company: { name: { contains: filters.search, mode: 'insensitive' } } },
+      { skills: { hasSome: [filters.search] } },
     ];
   }
 
@@ -78,6 +85,36 @@ async function getJobs(
   // Type filter
   if (filters.types && filters.types.length > 0) {
     where.type = { in: filters.types };
+  }
+
+  // Country filter
+  if (filters.country) {
+    const countryData = countries.find(c => c.slug === filters.country);
+    if (countryData?.code) {
+      where.country = countryData.code;
+    } else if (filters.country === 'worldwide') {
+      // No filter for worldwide
+    }
+  }
+
+  // Salary filter
+  if (filters.salaryMin && filters.salaryMin > 0) {
+    where.salaryMin = { gte: filters.salaryMin };
+  }
+
+  // Skills filter
+  if (filters.skills && filters.skills.length > 0) {
+    // Get keywords for selected tech stacks
+    const skillKeywords: string[] = [];
+    for (const skillSlug of filters.skills) {
+      const techStack = techStacks.find(t => t.slug === skillSlug);
+      if (techStack) {
+        skillKeywords.push(...techStack.keywords);
+      }
+    }
+    if (skillKeywords.length > 0) {
+      where.skills = { hasSome: skillKeywords };
+    }
   }
 
   const [jobs, totalCount] = await Promise.all([
@@ -134,16 +171,30 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
   const params = await searchParams;
   const currentPage = Math.max(1, parseInt(params.page || '1', 10) || 1);
 
+  // Parse salary filter
+  const salaryRange = params.salary ? salaryRanges.find(r => r.value === params.salary) : null;
+
   const filters = {
     search: params.q,
     levels: toArray(params.level),
     types: toArray(params.type),
+    country: params.country,
+    salaryMin: salaryRange?.min,
+    skills: toArray(params.skills),
   };
 
   const { jobs, totalCount } = await getJobs(currentPage, filters);
   const totalPages = Math.ceil(totalCount / JOBS_PER_PAGE);
 
-  const hasFilters = filters.search || filters.levels.length > 0 || filters.types.length > 0;
+  const hasFilters = filters.search ||
+    filters.levels.length > 0 ||
+    filters.types.length > 0 ||
+    filters.country ||
+    filters.salaryMin ||
+    filters.skills.length > 0;
+
+  // Popular skills to show (top 12)
+  const popularSkills = techStacks.slice(0, 12);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -169,7 +220,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                 {/* Categories */}
                 <div>
                   <label className="text-sm font-medium mb-2 block">Category</label>
-                  <div className="space-y-1">
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
                     {categories.map((category) => (
                       <Link
                         key={category.slug}
@@ -182,17 +233,75 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                   </div>
                 </div>
 
+                {/* Country */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">🌍 Location</label>
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {countries.slice(0, 10).map((country) => {
+                      const isActive = filters.country === country.slug;
+                      const href = buildFilterUrl(
+                        { q: params.q, level: params.level, type: params.type, salary: params.salary, skills: params.skills },
+                        { country: isActive ? undefined : country.slug, page: undefined }
+                      );
+
+                      return (
+                        <Link
+                          key={country.slug}
+                          href={href}
+                          className={`flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-muted ${
+                            isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground'
+                          }`}
+                        >
+                          <span>{country.flag}</span>
+                          {country.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Salary */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">💰 Min Salary</label>
+                  <div className="space-y-1">
+                    {salaryRanges.slice(0, 5).map((range) => {
+                      const isActive = params.salary === range.value;
+                      const href = buildFilterUrl(
+                        { q: params.q, level: params.level, type: params.type, country: params.country, skills: params.skills },
+                        { salary: isActive ? undefined : range.value, page: undefined }
+                      );
+
+                      return (
+                        <Link
+                          key={range.value}
+                          href={href}
+                          className={`flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-muted ${
+                            isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground'
+                          }`}
+                        >
+                          <span className={`w-4 h-4 border rounded flex items-center justify-center ${
+                            isActive ? 'bg-primary border-primary text-white' : 'border-gray-300'
+                          }`}>
+                            {isActive && '✓'}
+                          </span>
+                          {range.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* Level */}
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Level</label>
+                  <label className="text-sm font-medium mb-2 block">📊 Experience</label>
                   <div className="space-y-1">
-                    {levels.map((level) => {
+                    {levels.slice(0, 6).map((level) => {
                       const isActive = filters.levels.includes(level.value);
                       const newLevels = isActive
                         ? filters.levels.filter((l) => l !== level.value)
                         : [...filters.levels, level.value];
                       const href = buildFilterUrl(
-                        { q: params.q, type: params.type },
+                        { q: params.q, type: params.type, country: params.country, salary: params.salary, skills: params.skills },
                         { level: newLevels.length > 0 ? newLevels : undefined, page: undefined }
                       );
 
@@ -218,7 +327,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
 
                 {/* Job Type */}
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Job Type</label>
+                  <label className="text-sm font-medium mb-2 block">📋 Job Type</label>
                   <div className="space-y-1">
                     {jobTypes.map((type) => {
                       const isActive = filters.types.includes(type.value);
@@ -226,7 +335,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                         ? filters.types.filter((t) => t !== type.value)
                         : [...filters.types, type.value];
                       const href = buildFilterUrl(
-                        { q: params.q, level: params.level },
+                        { q: params.q, level: params.level, country: params.country, salary: params.salary, skills: params.skills },
                         { type: newTypes.length > 0 ? newTypes : undefined, page: undefined }
                       );
 
@@ -249,6 +358,37 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                     })}
                   </div>
                 </div>
+
+                {/* Tech Stack */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">🛠️ Tech Stack</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {popularSkills.map((tech) => {
+                      const isActive = filters.skills.includes(tech.slug);
+                      const newSkills = isActive
+                        ? filters.skills.filter((s) => s !== tech.slug)
+                        : [...filters.skills, tech.slug];
+                      const href = buildFilterUrl(
+                        { q: params.q, level: params.level, type: params.type, country: params.country, salary: params.salary },
+                        { skills: newSkills.length > 0 ? newSkills : undefined, page: undefined }
+                      );
+
+                      return (
+                        <Link
+                          key={tech.slug}
+                          href={href}
+                          className={`text-xs px-2 py-1 rounded-full border transition-colors ${
+                            isActive
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-background hover:bg-muted border-border text-muted-foreground'
+                          }`}
+                        >
+                          {tech.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </aside>
 
@@ -259,9 +399,25 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                 <span className="text-sm text-muted-foreground">Filters:</span>
 
                 {filters.search && (
-                  <Link href={buildFilterUrl({ level: params.level, type: params.type }, { q: undefined })}>
+                  <Link href={buildFilterUrl({ level: params.level, type: params.type, country: params.country, salary: params.salary, skills: params.skills }, { q: undefined })}>
                     <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
                       Search: {filters.search} ×
+                    </Badge>
+                  </Link>
+                )}
+
+                {filters.country && (
+                  <Link href={buildFilterUrl({ q: params.q, level: params.level, type: params.type, salary: params.salary, skills: params.skills }, { country: undefined })}>
+                    <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
+                      {countries.find(c => c.slug === filters.country)?.flag} {countries.find(c => c.slug === filters.country)?.name} ×
+                    </Badge>
+                  </Link>
+                )}
+
+                {params.salary && (
+                  <Link href={buildFilterUrl({ q: params.q, level: params.level, type: params.type, country: params.country, skills: params.skills }, { salary: undefined })}>
+                    <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
+                      {salaryRanges.find(r => r.value === params.salary)?.label} ×
                     </Badge>
                   </Link>
                 )}
@@ -273,7 +429,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                     <Link
                       key={level}
                       href={buildFilterUrl(
-                        { q: params.q, type: params.type },
+                        { q: params.q, type: params.type, country: params.country, salary: params.salary, skills: params.skills },
                         { level: newLevels.length > 0 ? newLevels : undefined }
                       )}
                     >
@@ -291,12 +447,30 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                     <Link
                       key={type}
                       href={buildFilterUrl(
-                        { q: params.q, level: params.level },
+                        { q: params.q, level: params.level, country: params.country, salary: params.salary, skills: params.skills },
                         { type: newTypes.length > 0 ? newTypes : undefined }
                       )}
                     >
                       <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
                         {typeLabel} ×
+                      </Badge>
+                    </Link>
+                  );
+                })}
+
+                {filters.skills.map((skill) => {
+                  const techName = techStacks.find((t) => t.slug === skill)?.name || skill;
+                  const newSkills = filters.skills.filter((s) => s !== skill);
+                  return (
+                    <Link
+                      key={skill}
+                      href={buildFilterUrl(
+                        { q: params.q, level: params.level, type: params.type, country: params.country, salary: params.salary },
+                        { skills: newSkills.length > 0 ? newSkills : undefined }
+                      )}
+                    >
+                      <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
+                        {techName} ×
                       </Badge>
                     </Link>
                   );

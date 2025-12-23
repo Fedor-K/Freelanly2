@@ -7,7 +7,14 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/api/', '/admin/', '/_next/'],
+        disallow: [
+          '/api/',
+          '/admin/',
+          '/_next/',
+          '/dashboard/',
+          // Block filter query params from crawling (save crawl budget)
+          '/jobs?*',
+        ],
       },
     ],
     sitemap: `${siteConfig.url}/sitemap.xml`,
