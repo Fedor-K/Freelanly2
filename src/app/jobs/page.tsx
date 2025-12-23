@@ -213,7 +213,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
           <div className="flex gap-8">
             {/* Filters Sidebar */}
             <aside className="hidden lg:block w-64 flex-shrink-0">
-              <div className="sticky top-20 space-y-6">
+              <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto pr-2 space-y-6">
                 {/* Search */}
                 <JobFilters currentSearch={filters.search} />
 
