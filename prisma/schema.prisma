@@ -266,6 +266,7 @@ model Job {
   savedBy       SavedJob[]
   alertNotifications AlertNotification[]
 
+  @@unique([companyId, title], name: "unique_job_title_per_company")
   @@index([categoryId])
   @@index([companyId])
   @@index([postedAt(sort: Desc)])
