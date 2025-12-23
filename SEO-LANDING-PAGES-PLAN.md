@@ -1,5 +1,141 @@
 # SEO Landing Pages Implementation Plan
 
+## Решения с обоснованием
+
+### 1. LandingPage модель → ИСПОЛЬЗОВАТЬ (не удалять)
+
+**Решение**: Начать использовать существующую модель `LandingPage` вместо хардкода `skillKeywords`.
+
+**Обоснование**:
+- Динамическое управление через БД позволяет добавлять/редактировать страницы без деплоя
+- Можно отслеживать `jobCount` и `avgSalary` для каждой страницы
+- Админ-интерфейс для управления landing pages
+
+**Текущая проблема**: Модель есть в `prisma/schema.prisma`, но не используется. В `src/app/[landing]/page.tsx` используется хардкод:
+```typescript
+const skillKeywords: Record<string, {...}> = {
+  'react': { title: 'React', skills: ['React', 'React.js'], ... },
+  // ... 35 навыков захардкожены
+};
+```
+
+---
+
+### 2. CEO Analytics таблицы → ОСТАВИТЬ
+
+**Решение**: Не удалять таблицы `DailyMetric`, `MonthlyTarget`, `RevenueEvent`, `CEOAlert`.
+
+**Обоснование**:
+- Таблицы уже заполняются через Stripe webhook (`src/app/api/stripe/webhook/route.ts`)
+- Сервисы работают (`src/services/ceo-analytics.ts`, `src/services/analytics-collector.ts`)
+- Удаление = потеря накопленных данных
+- UI дашборд можно добавить позже
+
+---
+
+### 3. Приоритет → КАТЕГОРИИ ПЕРВЫМИ
+
+**Решение**: Сначала `/jobs/[category]` (21 страница), потом языковые пары.
+
+**Обоснование**:
+- 21 страница быстрее реализовать чем 100+ языковых пар
+- Категории охватывают все типы вакансий
+- Языковые пары — специфика только для translation категории
+
+---
+
+### 4. URL стран → ПОЛНЫЕ НАЗВАНИЯ (`/jobs/country/germany`)
+
+**Решение**: Использовать `/jobs/country/germany` вместо `/jobs/country/de`.
+
+**Обоснование** ([Google URL Best Practices](https://developers.google.com/search/docs/crawling-indexing/url-structure)):
+> "Google recommends organizing content so that URLs are constructed logically and in a manner that is most intelligible to humans."
+
+**Источники**:
+- [Shopify SEO URL Guide](https://www.shopify.com/blog/seo-url): "Friendly URLs contain words instead of long lists of numbers and letters. They are human readable."
+- [Screaming Frog URL Structure](https://www.screamingfrog.co.uk/learn-seo/url-structure/): "URLs should be human-readable and easy to interpret."
+
+**Пример**:
+- ✅ `/jobs/country/germany` — понятно пользователю
+- ❌ `/jobs/country/de` — требует знания ISO кодов
+
+---
+
+### 5. Комбинированные страницы → ПОЗЖЕ
+
+**Решение**: Не создавать `/jobs/engineering/senior/germany` сейчас.
+
+**Обоснование** ([Thin Content Penalty](https://www.semrush.com/blog/thin-content/)):
+> "Google penalizes sites with too many low-quality or shallow pages. Pages with little substance bring your overall website authority down."
+
+**Риски 9000+ страниц**:
+- Thin content: страницы с 0-5 вакансиями не имеют ценности
+- Crawl budget: Google тратит ресурсы на пустые страницы
+- Duplicate content: похожие страницы конкурируют друг с другом
+
+**Источники**:
+- [FatRank Thin Content](https://www.fatrank.com/thin-content-with-little-or-no-added-value/): "Google Panda penalizes sites with too many thin pages."
+- [Positional Blog](https://www.positional.com/blog/thin-content): "Too many pages with thin content bring your overall website authority down."
+
+**Когда добавлять**: Когда будет 500+ вакансий в основных категориях.
+
+---
+
+## SEO Требования (источники)
+
+### URL Structure
+
+**Источник**: [Job Boardly URL Guide](https://www.jobboardly.com/blog/seo-friendly-url-structure-examples-for-job-boards)
+> "A URL like `/marketing-jobs/chicago-il/senior-manager` is far more effective than `/jobs?id=12345`. Use a hierarchy like `/category/location/job-title`."
+
+**Наша структура**:
+```
+/jobs/[category]                    → /jobs/engineering
+/jobs/level/[level]                 → /jobs/level/senior
+/jobs/country/[country]             → /jobs/country/germany
+/jobs/translation/[source]-[target] → /jobs/translation/english-russian
+```
+
+### Canonical URLs для фильтров
+
+**Источник**: [Google Faceted Navigation](https://developers.google.com/search/docs/crawling-indexing/crawling-managing-faceted-navigation)
+> "Using rel='canonical' to specify which URL is the canonical version of a faceted navigation URL may decrease the crawl volume of non-canonical versions."
+
+**Источник**: [Ahrefs Faceted Navigation](https://ahrefs.com/blog/faceted-navigation/)
+> "Not all filters deserve equal treatment. Some facets align with real search demand and deserve indexation, while others generate endless low-value pages."
+
+**Наш подход**:
+- Каждая landing page = отдельный canonical URL
+- Страница `/jobs?category=engineering` → canonical на `/jobs/engineering`
+- Фильтры на странице категории → не индексируем
+
+### Google for Jobs Schema
+
+**Источник**: [Google JobPosting Documentation](https://developers.google.com/search/docs/appearance/structured-data/job-posting)
+
+**Обязательные поля**:
+- `title` — название вакансии
+- `description` — описание
+- `datePosted` — дата публикации
+- `hiringOrganization` — компания
+- `jobLocation` — локация
+
+**Для remote вакансий**:
+- `jobLocationType: "TELECOMMUTE"`
+- `applicantLocationRequirements` — обязательно указать страны
+
+**Источник**: [Search Engine Journal](https://www.searchenginejournal.com/google-clarifies-job-posting-structured-data-guidance/505284/)
+> "In January 2024, Google updated their guidance to recommend using both the Indexing API and a sitemap."
+
+### Expired Job Handling
+
+**Источник**: [SmartJobBoard SEO Guide](https://www.smartjobboard.com/blog/seo-for-job-boards/)
+> "The best practice is to redirect expired job pages to the search results page to show similar jobs, instead of displaying a 404 page."
+
+**Наш подход**: Вакансии старше 30 дней удаляются (`src/services/job-cleanup.ts`), страница показывает 404 с ссылкой на похожие вакансии.
+
+---
+
 ## Database Analysis Summary
 
 ### Tables Status
