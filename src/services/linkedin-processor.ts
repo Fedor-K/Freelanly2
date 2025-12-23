@@ -9,7 +9,7 @@ import {
 } from '@/lib/apify';
 import { getApifySettings } from '@/lib/settings';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
-import { slugify, isFreeEmail, cleanEmail } from '@/lib/utils';
+import { slugify, isFreeEmail, cleanEmail, extractDomainFromEmail } from '@/lib/utils';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
@@ -323,10 +323,11 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     extractCompanyFromEmail(validatedEmail) ||
     post.authorName;
 
-  // Find or create company
+  // Find or create company (with email for website fallback)
   const company = await findOrCreateCompany({
     name: companyName,
     linkedinUrl: post.authorLinkedInUrl,
+    email: validatedEmail,
   });
 
   // Check for duplicate job by title + company (case-insensitive)
@@ -487,6 +488,7 @@ function normalizeCompanyName(name: string): string {
 async function findOrCreateCompany(data: {
   name: string;
   linkedinUrl?: string | null;
+  email?: string | null;
 }) {
   const normalizedName = normalizeCompanyName(data.name);
   const slug = slugify(normalizedName);
@@ -507,15 +509,36 @@ async function findOrCreateCompany(data: {
   });
 
   if (company) {
+    // Update website if missing and we have email domain
+    if (!company.website && data.email) {
+      const domain = extractDomainFromEmail(data.email);
+      if (domain) {
+        await prisma.company.update({
+          where: { id: company.id },
+          data: { website: `https://${domain}` },
+        });
+        company.website = `https://${domain}`;
+      }
+    }
     return company;
   }
 
-  // Create new company (without enrichment to save costs)
+  // Derive website from email domain
+  let website: string | null = null;
+  if (data.email) {
+    const domain = extractDomainFromEmail(data.email);
+    if (domain) {
+      website = `https://${domain}`;
+    }
+  }
+
+  // Create new company with website from email domain
   company = await prisma.company.create({
     data: {
       slug: await generateUniqueSlug(slug, 'company'),
       name: normalizedName, // Use normalized name
       linkedinUrl: data.linkedinUrl,
+      website, // Set website from email domain for Logo.dev fallback
       verified: false,
     },
   });

@@ -155,10 +155,11 @@ export async function POST(request: NextRequest) {
       extractCompanyFromEmail(validatedEmail) ||
       authorName;
 
-    // Find or create company
+    // Find or create company (with email for website fallback)
     const company = await findOrCreateCompany({
       name: companyName,
       linkedinUrl: authorLinkedInUrl,
+      email: validatedEmail,
     });
 
     // Check for duplicate job by title + company
@@ -366,6 +367,7 @@ function normalizeCompanyName(name: string): string {
 async function findOrCreateCompany(data: {
   name: string;
   linkedinUrl?: string | null;
+  email?: string | null;
 }) {
   const normalizedName = normalizeCompanyName(data.name);
   const slug = slugify(normalizedName);
@@ -382,13 +384,37 @@ async function findOrCreateCompany(data: {
     },
   });
 
-  if (company) return company;
+  if (company) {
+    // Update website if missing and we have email domain
+    if (!company.website && data.email) {
+      const domain = extractDomainFromEmail(data.email);
+      if (domain) {
+        await prisma.company.update({
+          where: { id: company.id },
+          data: { website: `https://${domain}` },
+        });
+        company.website = `https://${domain}`;
+      }
+    }
+    return company;
+  }
 
+  // Derive website from email domain
+  let website: string | null = null;
+  if (data.email) {
+    const domain = extractDomainFromEmail(data.email);
+    if (domain) {
+      website = `https://${domain}`;
+    }
+  }
+
+  // Create new company with website from email domain
   company = await prisma.company.create({
     data: {
       slug: await generateUniqueSlug(slug, 'company'),
       name: normalizedName,
       linkedinUrl: data.linkedinUrl,
+      website, // Set website from email domain for Logo.dev fallback
       verified: false,
     },
   });
