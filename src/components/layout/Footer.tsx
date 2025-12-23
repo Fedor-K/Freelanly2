@@ -1,13 +1,13 @@
 import Link from 'next/link';
-import { siteConfig, categories, levels, countries } from '@/config/site';
+import { siteConfig, categories, levels, countries, languagePairs } from '@/config/site';
 
 export function Footer() {
   return (
     <footer className="border-t bg-muted/50">
       <div className="container py-12">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-8">
           {/* Brand */}
-          <div className="col-span-2 md:col-span-3 lg:col-span-1">
+          <div className="col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-1">
             <Link href="/" className="text-xl font-bold">
               {siteConfig.name}
             </Link>
@@ -57,7 +57,7 @@ export function Footer() {
               {countries.slice(0, 8).map((country) => (
                 <li key={country.slug}>
                   <Link
-                    href={`/country/${country.slug}`}
+                    href={`/jobs/country/${country.slug}`}
                     className="text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {country.flag} {country.name}
@@ -70,6 +70,31 @@ export function Footer() {
                   className="text-primary hover:underline transition-colors"
                 >
                   View all countries →
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Translation Jobs */}
+          <div>
+            <h3 className="font-semibold mb-3">Translation Jobs</h3>
+            <ul className="space-y-2 text-sm">
+              {languagePairs.slice(0, 8).map((pair) => (
+                <li key={pair.slug}>
+                  <Link
+                    href={`/jobs/translation/${pair.slug}`}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {pair.source.charAt(0).toUpperCase() + pair.source.slice(1)} → {pair.target.charAt(0).toUpperCase() + pair.target.slice(1)}
+                  </Link>
+                </li>
+              ))}
+              <li>
+                <Link
+                  href="/jobs/translation"
+                  className="text-primary hover:underline transition-colors"
+                >
+                  All translation jobs →
                 </Link>
               </li>
             </ul>
