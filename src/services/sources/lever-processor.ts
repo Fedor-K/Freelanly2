@@ -5,6 +5,31 @@ import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl } from '@/lib/indexing';
 import type { ProcessingStats, LeverJob } from './types';
 
+// Fetch real company website from Lever job page footer
+async function fetchCompanyWebsiteFromLever(companySlug: string, jobId: string): Promise<string | null> {
+  try {
+    const jobPageUrl = `https://jobs.lever.co/${companySlug}/${jobId}`;
+    const response = await fetch(jobPageUrl);
+    if (!response.ok) return null;
+
+    const html = await response.text();
+
+    // Look for "Company Home Page" link in footer
+    const pattern = /href="(https?:\/\/[^"]+)"[^>]*>[^<]*Home\s*Page/i;
+    const match = html.match(pattern);
+
+    if (match && match[1]) {
+      console.log(`[Lever] Found company website: ${match[1]}`);
+      return match[1];
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`[Lever] Failed to fetch company website:`, error);
+    return null;
+  }
+}
+
 export async function processLeverSource(dataSourceId: string): Promise<ProcessingStats> {
   const stats: ProcessingStats = {
     total: 0,
@@ -44,8 +69,14 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
     stats.total = jobs.length;
     console.log(`[Lever] Found ${jobs.length} jobs for ${dataSource.name}`);
 
-    // Find or create company
-    const company = await findOrCreateCompany(dataSource.name, dataSource.companySlug);
+    // Fetch real company website from Lever job page (use first job)
+    let companyWebsite: string | null = null;
+    if (jobs.length > 0) {
+      companyWebsite = await fetchCompanyWebsiteFromLever(dataSource.companySlug, jobs[0].id);
+    }
+
+    // Find or create company with real website
+    const company = await findOrCreateCompany(dataSource.name, dataSource.companySlug, companyWebsite);
 
     // Process each job
     for (const job of jobs) {
@@ -198,9 +229,9 @@ async function processLeverJob(
   return { status: 'created', jobSlug: slug };
 }
 
-async function findOrCreateCompany(name: string, slug: string) {
-  // Derive website from slug (e.g., "whoop" → "https://whoop.com")
-  const website = `https://${slug.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+async function findOrCreateCompany(name: string, slug: string, leverWebsite: string | null) {
+  // Use real website from Lever page, or fallback to slug-based guess
+  const website = leverWebsite || `https://${slug.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
 
   // Search by slug OR by name (case-insensitive) to avoid duplicates
   let company = await prisma.company.findFirst({
