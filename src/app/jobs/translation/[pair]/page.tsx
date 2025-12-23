@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { siteConfig, languages, languagePairs } from '@/config/site';
+import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
 import { JobCard } from '@/components/jobs/JobCard';
 import { Button } from '@/components/ui/button';
 
@@ -281,21 +283,23 @@ export default async function TranslationPairPage({ params, searchParams }: Page
   };
 
   return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
-      />
+    <div className="flex min-h-screen flex-col">
+      <Header />
+      <main className="flex-1">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        />
 
-      <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8">
         {/* Breadcrumbs */}
         <nav className="mb-6 text-sm text-gray-500">
           <ol className="flex items-center space-x-2">
@@ -571,7 +575,9 @@ export default async function TranslationPairPage({ params, searchParams }: Page
             </div>
           </div>
         </div>
-      </div>
-    </>
+        </div>
+      </main>
+      <Footer />
+    </div>
   );
 }
