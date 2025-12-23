@@ -211,62 +211,76 @@ export function queueCompanyEnrichment(companyId: string, email: string): void {
 }
 
 /**
- * Enrich company and validate that it has a logo (from Apollo or Logo.dev)
- * This is a SYNCHRONOUS check used to filter out fake companies
+ * Validate company via Apollo and check for logo (Apollo or Logo.dev)
+ * Used ONLY for LinkedIn sources to filter fake recruiters
  *
- * @returns true if company has a valid logo, false if should be rejected
+ * Flow:
+ * 1. Apollo doesn't know company → REJECT (fake)
+ * 2. Apollo knows, has logo → OK
+ * 3. Apollo knows, no logo → check Logo.dev with Apollo's website domain
+ * 4. Logo.dev has logo → OK
+ * 5. No logo anywhere → REJECT
+ *
+ * @returns true if company is valid and has logo, false if should be rejected
  */
-export async function enrichAndValidateCompanyLogo(
+export async function validateAndEnrichCompany(
   companyId: string,
   email: string
 ): Promise<boolean> {
   const domain = extractDomainFromEmail(email);
-  if (!domain) return false;
+  if (!domain) {
+    console.log(`[Validation] No domain from email: ${email}`);
+    return false;
+  }
 
   try {
-    // 1. Try Apollo enrichment
+    // 1. Check Apollo - this is the PRIMARY validator
+    console.log(`[Validation] Checking Apollo for domain: ${domain}`);
     const apolloData = await fetchCompanyFromApollo(domain);
 
-    if (apolloData) {
-      // Update company with Apollo data
-      await updateCompanyWithApolloData(companyId, apolloData, domain);
-
-      // If Apollo returned a logo, we're good
-      if (apolloData.logo_url) {
-        console.log(`[Enrichment] Apollo logo found for ${domain}`);
-        return true;
-      }
-
-      // If Apollo returned a website, try Logo.dev with that domain
-      if (apolloData.website_url) {
-        const websiteDomain = extractDomainFromUrl(apolloData.website_url);
-        if (websiteDomain && websiteDomain !== domain) {
-          const hasLogoDevLogo = await validateDomainHasLogo(websiteDomain);
-          if (hasLogoDevLogo) {
-            console.log(`[Enrichment] Logo.dev logo found for ${websiteDomain} (Apollo website)`);
-            return true;
-          }
-        }
-      }
+    // If Apollo doesn't know this company - it's likely fake
+    if (!apolloData) {
+      console.log(`[Validation] Apollo doesn't know ${domain} - REJECTED as fake company`);
+      return false;
     }
 
-    // 2. Try Logo.dev with email domain directly
-    const hasLogoDevLogo = await validateDomainHasLogo(domain);
-    if (hasLogoDevLogo) {
-      console.log(`[Enrichment] Logo.dev logo found for ${domain}`);
-      // Update company website if not set
-      await prisma.company.update({
-        where: { id: companyId },
-        data: { website: `https://${domain}`, logo: '' },
-      });
+    // Apollo knows this company - enrich it
+    console.log(`[Validation] Apollo found company: ${apolloData.name || domain}`);
+    await updateCompanyWithApolloData(companyId, apolloData, domain);
+
+    // 2. Check for logo - Apollo logo is preferred
+    if (apolloData.logo_url) {
+      console.log(`[Validation] Apollo logo found for ${domain} - APPROVED`);
       return true;
     }
 
-    // 3. No logo found anywhere
-    console.log(`[Enrichment] No logo found for ${domain} - company will be rejected`);
+    // 3. No Apollo logo - try Logo.dev with Apollo's website domain
+    const websiteDomain = apolloData.website_url
+      ? extractDomainFromUrl(apolloData.website_url)
+      : domain;
+
+    if (websiteDomain) {
+      const hasLogoDevLogo = await validateDomainHasLogo(websiteDomain);
+      if (hasLogoDevLogo) {
+        console.log(`[Validation] Logo.dev logo found for ${websiteDomain} - APPROVED`);
+        return true;
+      }
+    }
+
+    // 4. Try Logo.dev with email domain (if different from website)
+    if (websiteDomain !== domain) {
+      const hasLogoDevLogo = await validateDomainHasLogo(domain);
+      if (hasLogoDevLogo) {
+        console.log(`[Validation] Logo.dev logo found for ${domain} - APPROVED`);
+        return true;
+      }
+    }
+
+    // 5. No logo found anywhere - reject
+    console.log(`[Validation] No logo found for ${domain} - REJECTED (no logo)`);
     return false;
   } catch (error) {
-    console.error(`[Enrichment] Error validating company ${companyId}:`, error);
+    console.error(`[Validation] Error validating company:`, error);
     // On error, be permissive - don't block the job
     return true;
   }

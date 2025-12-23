@@ -10,7 +10,7 @@ import {
 import { getApifySettings } from '@/lib/settings';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify, isFreeEmail, cleanEmail, extractDomainFromEmail } from '@/lib/utils';
-import { queueCompanyEnrichment } from '@/services/company-enrichment';
+import { validateAndEnrichCompany } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
@@ -333,6 +333,18 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     email: validatedEmail,
   });
 
+  // Validate company via Apollo and check for logo
+  // This filters out fake recruiters with custom domains
+  const isValidCompany = await validateAndEnrichCompany(company.id, validatedEmail);
+
+  if (!isValidCompany) {
+    // Delete the company we just created (it's fake)
+    await prisma.company.delete({ where: { id: company.id } }).catch(() => {
+      // Ignore if company has other jobs
+    });
+    return { success: false, error: 'Company validation failed - Apollo unknown or no logo' };
+  }
+
   // Check for duplicate job by title + company (case-insensitive)
   const duplicateByTitle = await prisma.job.findFirst({
     where: {
@@ -401,8 +413,7 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     },
   });
 
-  // Queue company for background enrichment with validated email
-  queueCompanyEnrichment(company.id, validatedEmail);
+  // Note: Company enrichment is already done in validateAndEnrichCompany()
 
   // Send INSTANT alerts for this job (non-blocking)
   sendInstantAlertsForJob(job.id).catch((err) => {
