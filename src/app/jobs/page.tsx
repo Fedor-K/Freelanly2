@@ -11,7 +11,8 @@ import { getMaxJobAgeDate } from '@/lib/utils';
 import { JobFilters } from '@/components/jobs/JobFilters';
 import { MobileFilters } from '@/components/jobs/MobileFilters';
 
-export const dynamic = 'force-dynamic';
+// ISR: Revalidate every 60 seconds for fresh job listings
+export const revalidate = 60;
 
 interface JobsPageProps {
   searchParams: Promise<{

@@ -21,6 +21,7 @@ import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { getSalaryInsights } from '@/services/salary-insights';
 
+// force-dynamic required: auth() checks user session for PRO/FREE content
 export const dynamic = 'force-dynamic';
 
 interface JobPageProps {

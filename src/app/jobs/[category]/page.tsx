@@ -10,6 +10,9 @@ import { siteConfig, categories, levels, jobTypes, locationTypes } from '@/confi
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 
+// ISR: Revalidate every 60 seconds for fresh job listings
+export const revalidate = 60;
+
 interface CategoryPageProps {
   params: Promise<{ category: string }>;
   searchParams: Promise<{ page?: string; level?: string; type?: string; location?: string }>;
