@@ -52,6 +52,12 @@ async function apiCall(method: string, params: Record<string, any> = {}): Promis
   });
 
   const data = await response.json();
+
+  // Debug logging for API errors
+  if (data.response?.status !== 'success') {
+    console.error('[DashaMail] API error response:', JSON.stringify(data, null, 2));
+  }
+
   return data.response;
 }
 
@@ -72,7 +78,9 @@ export async function sendApplicationEmail(params: SendEmailParams): Promise<{ s
     if (result.status === 'success') {
       return { success: true, messageId: result.data?.message_id };
     } else {
-      return { success: false, error: result.msg };
+      // Ensure error is a string for proper logging
+      const errorMsg = result.msg || (result.data ? JSON.stringify(result.data) : 'Unknown DashaMail error');
+      return { success: false, error: errorMsg };
     }
   } catch (error) {
     console.error('DashaMail send error:', error);
