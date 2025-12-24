@@ -194,8 +194,21 @@ async function migrateBatchUsers(count: number) {
           const category = workTypeToCategory(filters.workType || '');
           const keywords = filters.workType || null;
 
-          const newAlert = await prisma.jobAlert.create({
-            data: {
+          // Use upsert to handle duplicates (unique constraint on userId, email, category, keywords)
+          const newAlert = await prisma.jobAlert.upsert({
+            where: {
+              userId_email_category_keywords: {
+                userId: newUser.id,
+                email: newUser.email,
+                category: category,
+                keywords: keywords,
+              },
+            },
+            update: {
+              isActive: oldAlert.is_active,
+              lastSentAt: oldAlert.last_sent_at,
+            },
+            create: {
               email: newUser.email,
               userId: newUser.id,
               category: category,
@@ -203,21 +216,30 @@ async function migrateBatchUsers(count: number) {
               isActive: oldAlert.is_active,
               lastSentAt: oldAlert.last_sent_at,
               frequency: 'DAILY',
-            }
+            },
           });
 
-          // Create language pair if present
+          // Create language pair if present (use upsert to handle duplicates)
           if (filters.sourceLanguage && filters.targetLanguage) {
             const sourceLang = normalizeLanguage(filters.sourceLanguage);
             const targetLang = normalizeLanguage(filters.targetLanguage);
 
-            await prisma.alertLanguagePair.create({
-              data: {
+            await prisma.alertLanguagePair.upsert({
+              where: {
+                jobAlertId_translationType_sourceLanguage_targetLanguage: {
+                  jobAlertId: newAlert.id,
+                  translationType: 'WRITTEN',
+                  sourceLanguage: sourceLang,
+                  targetLanguage: targetLang,
+                },
+              },
+              update: {},
+              create: {
                 jobAlertId: newAlert.id,
                 translationType: 'WRITTEN',
                 sourceLanguage: sourceLang,
                 targetLanguage: targetLang,
-              }
+              },
             });
           }
 
