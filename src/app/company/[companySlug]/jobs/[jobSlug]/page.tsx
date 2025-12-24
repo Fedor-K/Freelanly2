@@ -468,6 +468,7 @@ export default async function JobPage({ params }: JobPageProps) {
                     jobTitle={job.title}
                     companyName={job.company.name}
                     jobDescription={job.description}
+                    userPlan={userPlan}
                   />
                   <SaveJobButton jobId={job.id} variant="button" className="w-full" />
 

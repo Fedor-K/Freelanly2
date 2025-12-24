@@ -1,9 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { QuickApplyModal } from './QuickApplyModal';
 import { track } from '@/lib/analytics';
+import { Lock } from 'lucide-react';
+
+export type UserPlan = 'FREE' | 'PRO' | 'ENTERPRISE';
 
 interface ApplyButtonProps {
   jobId: string;
@@ -13,6 +17,7 @@ interface ApplyButtonProps {
   jobTitle: string;
   companyName: string;
   jobDescription: string;
+  userPlan?: UserPlan;
 }
 
 export function ApplyButton({
@@ -23,12 +28,26 @@ export function ApplyButton({
   jobTitle,
   companyName,
   jobDescription,
+  userPlan = 'FREE',
 }: ApplyButtonProps) {
   const [showQuickApply, setShowQuickApply] = useState(false);
+  const isPro = userPlan === 'PRO' || userPlan === 'ENTERPRISE';
 
   const handleApplyClick = (method: 'url' | 'email' | 'linkedin') => {
     track({ name: 'job_apply_click', params: { job_id: jobId, method } });
   };
+
+  // FREE users see upgrade prompt
+  if (!isPro) {
+    return (
+      <Button className="w-full" size="lg" asChild>
+        <Link href="/pricing" className="flex items-center gap-2">
+          <Lock className="h-4 w-4" />
+          Upgrade to Apply
+        </Link>
+      </Button>
+    );
+  }
 
   // Priority 1: Direct apply URL (ATS)
   if (applyUrl) {
