@@ -248,42 +248,43 @@ export default async function JobPage({ params }: JobPageProps) {
     }
   }
 
+  const isPro = userPlan === 'PRO' || userPlan === 'ENTERPRISE';
+
+  // Prepare description - mask contacts for FREE users
+  const displayDescription = isPro ? job.description : maskContactInfo(job.description);
+  const displayOriginalContent = isPro ? job.originalContent : maskContactInfo(job.originalContent);
+
   // Fetch similar jobs
   const similarJobs = await getSimilarJobs(job.id, job.categoryId);
 
-  // Fetch salary market data ONLY when job doesn't have real salary info
-  // If job has salaryMin, we show actual salary from the job posting, not market estimates
-  const shouldShowSalaryInsights = !job.salaryMin && job.salaryPeriod === 'YEAR';
-
+  // Always fetch salary market data - it's a market indicator regardless of whether job has salary
   let salaryMarketData: SalaryMarketData | null = null;
-  if (shouldShowSalaryInsights) {
-    try {
-      const salaryData = await getSalaryInsights(
-        job.title,
-        job.location,
-        job.country,
-        job.categoryId,
-        job.level,
-        job.category.slug
-      );
-      if (salaryData) {
-        salaryMarketData = {
-          avgSalary: salaryData.avgSalary,
-          minSalary: salaryData.minSalary,
-          maxSalary: salaryData.maxSalary,
-          medianSalary: salaryData.medianSalary,
-          percentile25: salaryData.percentile25,
-          percentile75: salaryData.percentile75,
-          sampleSize: salaryData.sampleSize,
-          source: salaryData.source,
-          sourceLabel: salaryData.sourceLabel,
-          isEstimate: salaryData.isEstimate,
-          calculationDetails: salaryData.calculationDetails,
-        };
-      }
-    } catch (error) {
-      console.error('[JobPage] Error fetching salary insights:', error);
+  try {
+    const salaryData = await getSalaryInsights(
+      job.title,
+      job.location,
+      job.country,
+      job.categoryId,
+      job.level,
+      job.category.slug
+    );
+    if (salaryData) {
+      salaryMarketData = {
+        avgSalary: salaryData.avgSalary,
+        minSalary: salaryData.minSalary,
+        maxSalary: salaryData.maxSalary,
+        medianSalary: salaryData.medianSalary,
+        percentile25: salaryData.percentile25,
+        percentile75: salaryData.percentile75,
+        sampleSize: salaryData.sampleSize,
+        source: salaryData.source,
+        sourceLabel: salaryData.sourceLabel,
+        isEstimate: salaryData.isEstimate,
+        calculationDetails: salaryData.calculationDetails,
+      };
     }
+  } catch (error) {
+    console.error('[JobPage] Error fetching salary insights:', error);
   }
 
   return (
@@ -524,6 +525,7 @@ export default async function JobPage({ params }: JobPageProps) {
                     jobTitle={job.title}
                     companyName={job.company.name}
                     jobDescription={job.description}
+                    userPlan={userPlan}
                   />
                   <SaveJobButton jobId={job.id} variant="button" className="w-full" />
 
