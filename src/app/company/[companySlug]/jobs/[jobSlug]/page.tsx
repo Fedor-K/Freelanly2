@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { ExpiredJobPage } from '@/components/jobs/ExpiredJobPage';
@@ -8,7 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { CompanyLogo } from '@/components/ui/CompanyLogo';
-import { SalaryInsights, SalaryMarketData, UserPlan } from '@/components/jobs/SalaryInsights';
+import { UserPlan } from '@/components/jobs/SalaryInsights';
+import { SalaryInsightsAsync } from '@/components/jobs/SalaryInsightsAsync';
+import { SalaryInsightsSkeleton } from '@/components/jobs/SalaryInsightsSkeleton';
 import { ApplyButton } from '@/components/jobs/ApplyButton';
 import { SocialShare } from '@/components/jobs/SocialShare';
 import { JobViewTracker } from '@/components/jobs/JobViewTracker';
@@ -16,11 +19,11 @@ import { SaveJobButton } from '@/components/jobs/SaveJobButton';
 import { StructuredDescription } from '@/components/jobs/StructuredDescription';
 import { formatDistanceToNow } from '@/lib/utils';
 import { maskLinksForFreeUsers } from '@/lib/content-mask';
-import { siteConfig } from '@/config/site';
+import { siteConfig, categories } from '@/config/site';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
-import { getSalaryInsights } from '@/services/salary-insights';
 
+// force-dynamic required: auth() checks user session for PRO/FREE content
 export const dynamic = 'force-dynamic';
 
 interface JobPageProps {
@@ -248,44 +251,12 @@ export default async function JobPage({ params }: JobPageProps) {
     }
   }
 
-  const isPro = userPlan === 'PRO' || userPlan === 'ENTERPRISE';
-
   // Prepare description - mask contacts for FREE users
-  const displayDescription = isPro ? job.description : maskContactInfo(job.description);
-  const displayOriginalContent = isPro ? job.originalContent : maskContactInfo(job.originalContent);
+  const displayDescription = maskLinksForFreeUsers(job.description, userPlan);
+  const displayOriginalContent = maskLinksForFreeUsers(job.originalContent, userPlan);
 
   // Fetch similar jobs
   const similarJobs = await getSimilarJobs(job.id, job.categoryId);
-
-  // Always fetch salary market data - it's a market indicator regardless of whether job has salary
-  let salaryMarketData: SalaryMarketData | null = null;
-  try {
-    const salaryData = await getSalaryInsights(
-      job.title,
-      job.location,
-      job.country,
-      job.categoryId,
-      job.level,
-      job.category.slug
-    );
-    if (salaryData) {
-      salaryMarketData = {
-        avgSalary: salaryData.avgSalary,
-        minSalary: salaryData.minSalary,
-        maxSalary: salaryData.maxSalary,
-        medianSalary: salaryData.medianSalary,
-        percentile25: salaryData.percentile25,
-        percentile75: salaryData.percentile75,
-        sampleSize: salaryData.sampleSize,
-        source: salaryData.source,
-        sourceLabel: salaryData.sourceLabel,
-        isEstimate: salaryData.isEstimate,
-        calculationDetails: salaryData.calculationDetails,
-      };
-    }
-  } catch (error) {
-    console.error('[JobPage] Error fetching salary insights:', error);
-  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -502,17 +473,22 @@ export default async function JobPage({ params }: JobPageProps) {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Salary Insights */}
-              <SalaryInsights
-                jobTitle={job.title}
-                location={job.location || 'Remote'}
-                salaryMin={job.salaryMin}
-                salaryMax={job.salaryMax}
-                currency={job.salaryCurrency || 'USD'}
-                isEstimate={job.salaryIsEstimate}
-                marketData={salaryMarketData}
-                userPlan={userPlan}
-              />
+              {/* Salary Insights - wrapped in Suspense for progressive loading */}
+              <Suspense fallback={<SalaryInsightsSkeleton />}>
+                <SalaryInsightsAsync
+                  jobTitle={job.title}
+                  location={job.location}
+                  country={job.country}
+                  categoryId={job.categoryId}
+                  level={job.level}
+                  categorySlug={job.category.slug}
+                  salaryMin={job.salaryMin}
+                  salaryMax={job.salaryMax}
+                  salaryCurrency={job.salaryCurrency}
+                  salaryIsEstimate={job.salaryIsEstimate}
+                  userPlan={userPlan}
+                />
+              </Suspense>
 
               {/* Apply Card */}
               <Card className="sticky top-20">
@@ -694,6 +670,9 @@ export default async function JobPage({ params }: JobPageProps) {
             validThrough: new Date(job.postedAt.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
             employmentType: job.type,
             experienceRequirements: getExperienceRequirements(job.level),
+            ...(getOccupationalCategory(job.category.slug) && {
+              occupationalCategory: getOccupationalCategory(job.category.slug),
+            }),
             identifier: {
               '@type': 'PropertyValue',
               name: job.company.name,
@@ -833,6 +812,16 @@ function getExperienceRequirements(level: string): string {
     EXECUTIVE: 'Executive - 15+ years with C-level experience',
   };
   return map[level] || 'Experience requirements vary';
+}
+
+// Get SOC occupation code for Schema.org occupationalCategory
+function getOccupationalCategory(categorySlug: string): string | undefined {
+  const category = categories.find((c) => c.slug === categorySlug);
+  if (category && 'socCode' in category && 'socTitle' in category) {
+    // Format: "SOC_CODE: Title" - Google recommended format
+    return `${category.socCode}: ${category.socTitle}`;
+  }
+  return undefined;
 }
 
 // Country code to full name for Schema.org
