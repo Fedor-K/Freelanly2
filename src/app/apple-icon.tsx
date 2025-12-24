@@ -14,18 +14,19 @@ export default function AppleIcon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-          borderRadius: '40px',
+          background: '#3B8BEB',
+          borderRadius: '32px',
         }}
       >
         <span
           style={{
-            fontSize: '100px',
+            fontSize: '90px',
             fontWeight: 'bold',
             color: 'white',
+            letterSpacing: '-4px',
           }}
         >
-          F
+          FL
         </span>
       </div>
     ),

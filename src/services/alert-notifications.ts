@@ -37,7 +37,10 @@ function generateJobAlertEmailHtml(
 
   const jobCards = jobs
     .map((job) => {
-      const jobUrl = `${APP_URL}/company/${job.company.slug}/jobs/${job.slug}`;
+      // Ensure we have valid slugs for URL generation
+      const companySlug = job.company?.slug || 'unknown';
+      const jobSlug = job.slug || job.id;
+      const jobUrl = `${APP_URL}/company/${companySlug}/jobs/${jobSlug}`;
       const salary =
         job.salaryMin && job.salaryMax
           ? `${job.salaryCurrency || '$'}${(job.salaryMin / 1000).toFixed(0)}K - ${(job.salaryMax / 1000).toFixed(0)}K`
@@ -52,9 +55,9 @@ function generateJobAlertEmailHtml(
               <tr>
                 <td width="60" valign="top">
                   ${
-                    job.company.logo
-                      ? `<img src="${job.company.logo}" alt="${job.company.name}" width="50" height="50" style="border-radius: 8px; object-fit: cover;">`
-                      : `<div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #666;">${job.company.name.charAt(0)}</div>`
+                    job.company?.logo
+                      ? `<img src="${job.company.logo}" alt="${job.company?.name || 'Company'}" width="50" height="50" style="border-radius: 8px; object-fit: cover;">`
+                      : `<div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #666;">${(job.company?.name || 'C').charAt(0)}</div>`
                   }
                 </td>
                 <td style="padding-left: 15px;">
@@ -62,7 +65,7 @@ function generateJobAlertEmailHtml(
                     ${job.title}
                   </a>
                   <div style="color: #666; font-size: 14px; margin-top: 4px;">
-                    ${job.company.name}${job.country ? ` • ${job.country}` : ''}
+                    ${job.company?.name || 'Unknown Company'}${job.country ? ` • ${job.country}` : ''}
                   </div>
                   ${salary ? `<div style="color: #22c55e; font-size: 14px; margin-top: 4px;">${salary}</div>` : ''}
                   <div style="margin-top: 10px;">
@@ -153,12 +156,15 @@ function generateJobAlertEmailText(
 
   const jobList = jobs
     .map((job) => {
-      const jobUrl = `${APP_URL}/company/${job.company.slug}/jobs/${job.slug}`;
+      const companySlug = job.company?.slug || 'unknown';
+      const jobSlug = job.slug || job.id;
+      const jobUrl = `${APP_URL}/company/${companySlug}/jobs/${jobSlug}`;
       const salary =
         job.salaryMin && job.salaryMax
           ? `${job.salaryCurrency || '$'}${(job.salaryMin / 1000).toFixed(0)}K - ${(job.salaryMax / 1000).toFixed(0)}K`
           : '';
-      return `${job.title}\n${job.company.name}${job.country ? ` • ${job.country}` : ''}${salary ? ` • ${salary}` : ''}\n${jobUrl}\n`;
+      const companyName = job.company?.name || 'Unknown Company';
+      return `${job.title}\n${companyName}${job.country ? ` • ${job.country}` : ''}${salary ? ` • ${salary}` : ''}\n${jobUrl}\n`;
     })
     .join('\n');
 
