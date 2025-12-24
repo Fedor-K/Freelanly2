@@ -132,6 +132,15 @@ export function UserMenu() {
             >
               Settings
             </Link>
+            {user.email === 'fedor.hatla@gmail.com' && (
+              <Link
+                href="/admin"
+                onClick={() => setIsOpen(false)}
+                className="block px-4 py-2 text-sm text-orange-600 font-medium hover:bg-orange-50"
+              >
+                Admin Panel
+              </Link>
+            )}
             {user.plan === 'FREE' && (
               <Link
                 href="/pricing"
