@@ -207,11 +207,12 @@ export async function getSubscriberStats(): Promise<SubscriberStats | null> {
 
     const errCode = result.msg?.err_code ?? result.err_code;
     if (errCode === 0 && result.data) {
+      const data = result.data as Record<string, unknown>;
       return {
-        total: result.data.members_count || 0,
-        active: result.data.members_active || 0,
-        unsubscribed: result.data.members_unsubscribed || 0,
-        bounced: result.data.members_bounced || 0,
+        total: Number(data.members_count) || 0,
+        active: Number(data.members_active) || 0,
+        unsubscribed: Number(data.members_unsubscribed) || 0,
+        bounced: Number(data.members_bounced) || 0,
       };
     }
     return null;
@@ -271,15 +272,15 @@ export async function getCampaignStats(campaignId: string): Promise<EmailCampaig
 
     const errCode = result.msg?.err_code ?? result.err_code;
     if (errCode === 0 && result.data) {
-      const data = result.data;
+      const data = result.data as Record<string, unknown>;
       const sent = Number(data.sent) || 0;
       const opened = Number(data.unique_opened) || 0;
       const clicked = Number(data.unique_clicked) || 0;
 
       return {
         campaignId,
-        name: String(data.name || ''),
-        sentAt: String(data.send_date || ''),
+        name: String(data.name ?? ''),
+        sentAt: String(data.send_date ?? ''),
         totalSent: sent,
         delivered: Number(data.delivered) || sent,
         opened,
