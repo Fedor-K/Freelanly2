@@ -44,33 +44,33 @@ export const mainCategories = [
   { slug: 'sales', name: 'Sales', icon: '💼' },
 ] as const;
 
-// All categories for the platform
+// All categories for the platform with SOC codes for Google Jobs
 export const categories = [
   // Tech
-  { slug: 'engineering', name: 'Engineering', icon: '💻', group: 'tech' },
-  { slug: 'design', name: 'Design', icon: '🎨', group: 'tech' },
-  { slug: 'data', name: 'Data & Analytics', icon: '📊', group: 'tech' },
-  { slug: 'devops', name: 'DevOps', icon: '🔧', group: 'tech' },
-  { slug: 'qa', name: 'QA & Testing', icon: '🧪', group: 'tech' },
-  { slug: 'security', name: 'Security', icon: '🔒', group: 'tech' },
+  { slug: 'engineering', name: 'Engineering', icon: '💻', group: 'tech', socCode: '15-1252.00', socTitle: 'Software Developers' },
+  { slug: 'design', name: 'Design', icon: '🎨', group: 'tech', socCode: '27-1024.00', socTitle: 'Graphic Designers' },
+  { slug: 'data', name: 'Data & Analytics', icon: '📊', group: 'tech', socCode: '15-2051.00', socTitle: 'Data Scientists' },
+  { slug: 'devops', name: 'DevOps', icon: '🔧', group: 'tech', socCode: '15-1244.00', socTitle: 'Network and Computer Systems Administrators' },
+  { slug: 'qa', name: 'QA & Testing', icon: '🧪', group: 'tech', socCode: '15-1253.00', socTitle: 'Software Quality Assurance Analysts and Testers' },
+  { slug: 'security', name: 'Security', icon: '🔒', group: 'tech', socCode: '15-1212.00', socTitle: 'Information Security Analysts' },
   // Business
-  { slug: 'product', name: 'Product', icon: '📦', group: 'business' },
-  { slug: 'marketing', name: 'Marketing', icon: '📣', group: 'business' },
-  { slug: 'sales', name: 'Sales', icon: '💼', group: 'business' },
-  { slug: 'finance', name: 'Finance', icon: '💰', group: 'business' },
-  { slug: 'hr', name: 'HR & Recruiting', icon: '👥', group: 'business' },
-  { slug: 'operations', name: 'Operations', icon: '⚙️', group: 'business' },
-  { slug: 'legal', name: 'Legal', icon: '⚖️', group: 'business' },
-  { slug: 'project-management', name: 'Project Management', icon: '📋', group: 'business' },
+  { slug: 'product', name: 'Product', icon: '📦', group: 'business', socCode: '11-2021.00', socTitle: 'Marketing Managers' },
+  { slug: 'marketing', name: 'Marketing', icon: '📣', group: 'business', socCode: '11-2021.00', socTitle: 'Marketing Managers' },
+  { slug: 'sales', name: 'Sales', icon: '💼', group: 'business', socCode: '41-3091.00', socTitle: 'Sales Representatives' },
+  { slug: 'finance', name: 'Finance', icon: '💰', group: 'business', socCode: '13-2011.00', socTitle: 'Accountants and Auditors' },
+  { slug: 'hr', name: 'HR & Recruiting', icon: '👥', group: 'business', socCode: '13-1071.00', socTitle: 'Human Resources Specialists' },
+  { slug: 'operations', name: 'Operations', icon: '⚙️', group: 'business', socCode: '11-1021.00', socTitle: 'General and Operations Managers' },
+  { slug: 'legal', name: 'Legal', icon: '⚖️', group: 'business', socCode: '23-1011.00', socTitle: 'Lawyers' },
+  { slug: 'project-management', name: 'Project Management', icon: '📋', group: 'business', socCode: '11-9199.00', socTitle: 'Project Management Specialists' },
   // Content & Creative
-  { slug: 'writing', name: 'Writing & Content', icon: '✍️', group: 'content' },
-  { slug: 'translation', name: 'Translation', icon: '🌐', group: 'content' },
-  { slug: 'creative', name: 'Creative & Media', icon: '🎬', group: 'content' },
+  { slug: 'writing', name: 'Writing & Content', icon: '✍️', group: 'content', socCode: '27-3043.00', socTitle: 'Writers and Authors' },
+  { slug: 'translation', name: 'Translation', icon: '🌐', group: 'content', socCode: '27-3091.00', socTitle: 'Interpreters and Translators' },
+  { slug: 'creative', name: 'Creative & Media', icon: '🎬', group: 'content', socCode: '27-1014.00', socTitle: 'Multimedia Artists and Animators' },
   // Other
-  { slug: 'support', name: 'Customer Support', icon: '🎧', group: 'other' },
-  { slug: 'education', name: 'Education', icon: '📚', group: 'other' },
-  { slug: 'research', name: 'Research', icon: '🔬', group: 'other' },
-  { slug: 'consulting', name: 'Consulting', icon: '💡', group: 'other' },
+  { slug: 'support', name: 'Customer Support', icon: '🎧', group: 'other', socCode: '43-4051.00', socTitle: 'Customer Service Representatives' },
+  { slug: 'education', name: 'Education', icon: '📚', group: 'other', socCode: '25-1011.00', socTitle: 'Business Teachers, Postsecondary' },
+  { slug: 'research', name: 'Research', icon: '🔬', group: 'other', socCode: '19-1042.00', socTitle: 'Medical Scientists' },
+  { slug: 'consulting', name: 'Consulting', icon: '💡', group: 'other', socCode: '13-1111.00', socTitle: 'Management Analysts' },
 ] as const;
 
 export const levels = [
