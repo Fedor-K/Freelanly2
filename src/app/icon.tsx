@@ -14,18 +14,19 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+          background: '#3B8BEB',
           borderRadius: '6px',
         }}
       >
         <span
           style={{
-            fontSize: '20px',
+            fontSize: '16px',
             fontWeight: 'bold',
             color: 'white',
+            letterSpacing: '-1px',
           }}
         >
-          F
+          FL
         </span>
       </div>
     ),
