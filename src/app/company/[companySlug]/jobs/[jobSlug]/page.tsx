@@ -249,11 +249,9 @@ export default async function JobPage({ params }: JobPageProps) {
     }
   }
 
-  const isPro = userPlan === 'PRO' || userPlan === 'ENTERPRISE';
-
   // Prepare description - mask contacts for FREE users
-  const displayDescription = isPro ? job.description : maskContactInfo(job.description);
-  const displayOriginalContent = isPro ? job.originalContent : maskContactInfo(job.originalContent);
+  const displayDescription = maskLinksForFreeUsers(job.description, userPlan);
+  const displayOriginalContent = maskLinksForFreeUsers(job.originalContent, userPlan);
 
   // Fetch similar jobs
   const similarJobs = await getSimilarJobs(job.id, job.categoryId);
