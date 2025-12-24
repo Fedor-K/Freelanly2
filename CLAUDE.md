@@ -561,6 +561,7 @@ npx prisma db push --force-reset
 52. **Salary Insights always visible** — shown on ALL jobs as market indicator (not just when no salary)
 53. **Apply button blocked for FREE** — shows "🔒 Upgrade to Apply" linking to /pricing
 54. **Contact info hidden for FREE** — emails, phones, @handles replaced with "[Upgrade to PRO to see contact]"
+55. **SEO: unblocked filter URLs** — removed robots.txt blocks for `/jobs?level=*`, `/jobs?country=*`, etc. (was blocking 200+ pages)
 
 ## Code Patterns
 
@@ -599,37 +600,42 @@ await cleanupOldJobs();
 2. After DB reset, must run `npm run db:seed` to restore categories
 3. Apollo enrichment can match wrong company (e.g., "Mistral" → bakery instead of AI)
 4. Salary Insights only shown for annual salaries (YEAR period)
-5. Server runs on `/opt/freelanly2` with PM2 process `freelanly`
-6. **Cron jobs run at 6:00 and 7:00 UTC** — sources fetch at 6:00, alerts send at 7:00
-7. **Jobs auto-deleted after 30 days** — this is intentional, not a bug
-8. **Check cron logs** — `tail -f /var/log/freelanly-cron.log` for debugging
+5. **Primary hosting: Vercel** — VPS (198.12.73.168) только для n8n
+6. **Vercel Cron Jobs** — crons настроены в vercel.json, логи в Vercel Dashboard
+7. **Cron schedule (UTC):** 6:00 fetch-sources, 6:30 fetch-linkedin, 7:00 DAILY alerts, Monday 7:00 WEEKLY alerts
+8. **Jobs auto-deleted after 30 days** — this is intentional, not a bug
 
-## Server Commands (Production)
+## Vercel Cron Jobs
+
+Cron jobs настроены в `vercel.json` и запускаются автоматически на Vercel.
+
+**Schedule (UTC):**
+| Cron | Time | Endpoint |
+|------|------|----------|
+| fetch-sources | 6:00 daily | `/api/cron/fetch-sources` |
+| fetch-linkedin | 6:30 daily | `/api/cron/fetch-linkedin` |
+| DAILY alerts | 7:00 daily | `/api/cron/send-alerts?frequency=DAILY` |
+| WEEKLY alerts | 7:00 Monday | `/api/cron/send-alerts?frequency=WEEKLY` |
+
+**Vercel Dashboard:**
+- Logs: Vercel → Project → Logs (filter by cron)
+- Cron status: Vercel → Project → Settings → Cron Jobs
+
+**Manual trigger:**
+```bash
+# Via Vercel Dashboard or curl (requires CRON_SECRET)
+curl -X GET "https://freelanly.com/api/cron/fetch-sources" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+## VPS Commands (n8n only)
 
 ```bash
-# SSH to server
+# SSH to VPS (only n8n runs here now)
 ssh root@198.12.73.168
 
-# App location
-cd /opt/freelanly2
-
-# Restart app
-pm2 restart freelanly
-
-# View app logs
-pm2 logs freelanly --lines 50
-
-# View cron logs
-tail -f /var/log/freelanly-cron.log
-
-# Rebuild after code changes
-git pull && npm run build && pm2 restart freelanly
-
-# View crontab
-crontab -l
-
-# Run sources manually
-curl -X POST http://localhost:3000/api/cron/fetch-sources -H "Authorization: Bearer $CRON_SECRET"
+# n8n is accessed via Cloudflare Tunnel
+# URL: https://n8n.freelanly.com
 ```
 
 ## Current Session Status (Dec 24, 2024)
@@ -650,6 +656,14 @@ curl -X POST http://localhost:3000/api/cron/fetch-sources -H "Authorization: Bea
 5. ✅ **Salary Insights всегда показывается** — как индикатор рынка на ВСЕХ вакансиях
 6. ✅ **Apply заблокирован для FREE** — кнопка "🔒 Upgrade to Apply" → /pricing
 7. ✅ **Контакты скрыты для FREE** — email, телефоны, @handles заменяются на "[Upgrade to PRO to see contact]"
+8. ✅ **Vercel Cron Jobs** — настроены в vercel.json:
+   - fetch-sources: 6:00 UTC daily
+   - fetch-linkedin: 6:30 UTC daily
+   - send-alerts DAILY: 7:00 UTC daily
+   - send-alerts WEEKLY: 7:00 UTC every Monday
+9. ✅ **SEO: unblocked filter URLs** — убраны блоки в robots.txt для `/jobs?level=*`, `/jobs?country=*`, etc.
+   - Было заблокировано 200+ страниц с фильтрами
+   - Теперь блокируются только `/api/`, `/admin/`, `/dashboard/`, `/auth/`
 
 **Hosting:**
 - **Primary:** Vercel (https://freelanly.com)
@@ -681,10 +695,10 @@ Secret key: sk_S3uVup8yTSaIFQ_dz0khiA
 - Salary Insights использует формулу если нет данных из BLS/Adzuna
 
 **Возможные следующие шаги:**
-1. WEEKLY cron для недельных алертов
+1. ~~WEEKLY cron для недельных алертов~~ ✅ Готово (vercel.json)
 2. Application tracking (отслеживание откликов)
 3. Onboarding wizard после первого входа
-4. Настроить Vercel Cron Jobs для автоматического запуска источников
+4. ~~Настроить Vercel Cron Jobs~~ ✅ Готово (vercel.json)
 
 **Vercel Deployment:**
 ```bash
