@@ -561,6 +561,7 @@ npx prisma db push --force-reset
 52. **Salary Insights always visible** — shown on ALL jobs as market indicator (not just when no salary)
 53. **Apply button blocked for FREE** — shows "🔒 Upgrade to Apply" linking to /pricing
 54. **Contact info hidden for FREE** — emails, phones, @handles replaced with "[Upgrade to PRO to see contact]"
+55. **SEO: unblocked filter URLs** — removed robots.txt blocks for `/jobs?level=*`, `/jobs?country=*`, etc. (was blocking 200+ pages)
 
 ## Code Patterns
 
@@ -660,6 +661,9 @@ ssh root@198.12.73.168
    - fetch-linkedin: 6:30 UTC daily
    - send-alerts DAILY: 7:00 UTC daily
    - send-alerts WEEKLY: 7:00 UTC every Monday
+9. ✅ **SEO: unblocked filter URLs** — убраны блоки в robots.txt для `/jobs?level=*`, `/jobs?country=*`, etc.
+   - Было заблокировано 200+ страниц с фильтрами
+   - Теперь блокируются только `/api/`, `/admin/`, `/dashboard/`, `/auth/`
 
 **Hosting:**
 - **Primary:** Vercel (https://freelanly.com)
