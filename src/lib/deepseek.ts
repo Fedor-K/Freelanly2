@@ -44,6 +44,10 @@ export interface ExtractedJobData {
   translationTypes: TranslationType[];
   sourceLanguages: string[];  // ISO 639-1 codes: ["EN", "ES"]
   targetLanguages: string[];  // ISO 639-1 codes: ["RU", "FR"]
+  // Structured description bullets (for SEO and UX)
+  summaryBullets: string[];      // 5-7 key responsibilities
+  requirementBullets: string[];  // 5-7 requirements
+  benefitBullets: string[];      // benefits if mentioned
 }
 
 const EXTRACTION_PROMPT = `You are a job data extractor. Extract structured data from LinkedIn hiring posts.
@@ -89,6 +93,17 @@ Common language codes: EN (English), ES (Spanish), DE (German), FR (French), RU 
 
 For non-translation jobs, set translationTypes, sourceLanguages, targetLanguages to empty arrays [].
 
+STRUCTURED SUMMARY (for better UX):
+- summaryBullets: array of 5-7 key job responsibilities. Each bullet is 1 sentence, max 15 words. Focus on what the person WILL DO.
+- requirementBullets: array of 5-7 requirements. Include education, experience, skills, qualifications. Each max 15 words.
+- benefitBullets: array of benefits mentioned (salary, perks, culture, work flexibility). Each max 15 words. Empty array if none mentioned.
+
+Rules for bullets:
+- Extract ONLY actionable, job-relevant information
+- REMOVE: legal disclaimers, EEO statements, company history, "about us" text, hashtags
+- Each bullet starts with action verb or noun (e.g., "Lead...", "3+ years...", "Competitive salary")
+- If a section cannot be extracted, return empty array []
+
 Be conservative - only extract what is explicitly stated. Don't infer or guess.
 Return ONLY valid JSON, no markdown or explanation.`;
 
@@ -110,12 +125,15 @@ export async function extractJobData(postText: string): Promise<ExtractedJobData
     if (!content) return null;
 
     const data = JSON.parse(content) as ExtractedJobData;
-    // Ensure translation fields have defaults
+    // Ensure all array fields have defaults
     return {
       ...data,
       translationTypes: data.translationTypes || [],
       sourceLanguages: data.sourceLanguages || [],
       targetLanguages: data.targetLanguages || [],
+      summaryBullets: data.summaryBullets || [],
+      requirementBullets: data.requirementBullets || [],
+      benefitBullets: data.benefitBullets || [],
     };
   } catch (error) {
     console.error('DeepSeek extraction error:', error);

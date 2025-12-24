@@ -13,6 +13,7 @@ import { ApplyButton } from '@/components/jobs/ApplyButton';
 import { SocialShare } from '@/components/jobs/SocialShare';
 import { JobViewTracker } from '@/components/jobs/JobViewTracker';
 import { SaveJobButton } from '@/components/jobs/SaveJobButton';
+import { StructuredDescription } from '@/components/jobs/StructuredDescription';
 import { formatDistanceToNow } from '@/lib/utils';
 import { maskLinksForFreeUsers } from '@/lib/content-mask';
 import { siteConfig } from '@/config/site';
@@ -439,53 +440,40 @@ export default async function JobPage({ params }: JobPageProps) {
                     </CardContent>
                   </Card>
 
-                  {/* Original Post */}
-                  <Card className="border-blue-200 bg-blue-50/50">
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        💬 Original LinkedIn Post
-                      </CardTitle>
-                      {job.authorName && (
-                        <p className="text-sm text-muted-foreground">
-                          Posted by {job.authorName}
-                        </p>
-                      )}
-                    </CardHeader>
-                    <CardContent>
-                      <div className="bg-white rounded-lg p-4 border whitespace-pre-wrap break-words text-sm overflow-hidden">
-                        {maskLinksForFreeUsers(job.originalContent, userPlan)}
-                      </div>
-                      <div className="mt-4 flex gap-2">
-                        {job.sourceUrl && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={job.sourceUrl} target="_blank" rel="noopener noreferrer">
-                              View on LinkedIn
-                            </a>
-                          </Button>
-                        )}
-                        {job.authorLinkedIn && (
-                          <Button variant="ghost" size="sm" asChild>
-                            <a href={job.authorLinkedIn} target="_blank" rel="noopener noreferrer">
-                              View Author Profile
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {/* Structured Description (if bullets available) or Original Post */}
+                  <StructuredDescription
+                    summaryBullets={job.summaryBullets}
+                    requirementBullets={job.requirementBullets}
+                    benefitBullets={job.benefitBullets}
+                    originalContent={maskLinksForFreeUsers(job.originalContent, userPlan)}
+                  />
+
+                  {/* LinkedIn source links */}
+                  <div className="flex gap-2">
+                    {job.sourceUrl && (
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={job.sourceUrl} target="_blank" rel="noopener noreferrer">
+                          View on LinkedIn
+                        </a>
+                      </Button>
+                    )}
+                    {job.authorLinkedIn && (
+                      <Button variant="ghost" size="sm" asChild>
+                        <a href={job.authorLinkedIn} target="_blank" rel="noopener noreferrer">
+                          View Author Profile
+                        </a>
+                      </Button>
+                    )}
+                  </div>
                 </>
               ) : (
-                /* Standard Job Description for ATS jobs */
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Job Description</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="prose prose-sm max-w-none whitespace-pre-wrap">
-                      {maskLinksForFreeUsers(job.description, userPlan)}
-                    </div>
-                  </CardContent>
-                </Card>
+                /* Standard Job Description for ATS jobs - with structured bullets if available */
+                <StructuredDescription
+                  summaryBullets={job.summaryBullets}
+                  requirementBullets={job.requirementBullets}
+                  benefitBullets={job.benefitBullets}
+                  originalContent={maskLinksForFreeUsers(job.description, userPlan)}
+                />
               )}
             </div>
 
