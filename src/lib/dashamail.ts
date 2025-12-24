@@ -111,7 +111,8 @@ export async function addSubscriber(
       email,
       merge: mergeFields,
     });
-    return result.status === 'success';
+    const errCode = result.msg?.err_code ?? result.err_code;
+    return errCode === 0;
   } catch (error) {
     console.error('DashaMail subscribe error:', error);
     return false;
@@ -204,7 +205,8 @@ export async function getSubscriberStats(): Promise<SubscriberStats | null> {
       list_id: config.listId,
     });
 
-    if (result.status === 'success' && result.data) {
+    const errCode = result.msg?.err_code ?? result.err_code;
+    if (errCode === 0 && result.data) {
       return {
         total: result.data.members_count || 0,
         active: result.data.members_active || 0,
@@ -229,7 +231,8 @@ export async function getCampaignsList(limit: number = 10): Promise<EmailCampaig
       limit,
     });
 
-    if (result.status === 'success' && result.data?.data) {
+    const errCode = result.msg?.err_code ?? result.err_code;
+    if (errCode === 0 && result.data?.data) {
       return result.data.data.map((campaign: Record<string, unknown>) => {
         const sent = Number(campaign.sent) || 0;
         const opened = Number(campaign.opened) || 0;
@@ -266,7 +269,8 @@ export async function getCampaignStats(campaignId: string): Promise<EmailCampaig
       campaign_id: campaignId,
     });
 
-    if (result.status === 'success' && result.data) {
+    const errCode = result.msg?.err_code ?? result.err_code;
+    if (errCode === 0 && result.data) {
       const data = result.data;
       const sent = Number(data.sent) || 0;
       const opened = Number(data.unique_opened) || 0;
@@ -332,7 +336,8 @@ export async function testDashaMailConnection(): Promise<boolean> {
     if (!config.apiKey) return false;
 
     const result = await apiCall('lists.get', {});
-    return result.status === 'success';
+    const errCode = result.msg?.err_code ?? result.err_code;
+    return errCode === 0;
   } catch {
     return false;
   }
