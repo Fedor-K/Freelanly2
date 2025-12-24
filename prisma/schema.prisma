@@ -243,6 +243,7 @@ model Job {
   authorName      String?   // Post author name
 
   // AI-structured description (for SEO and UX)
+  cleanDescription   String?    // AI-generated clean, readable description text
   summaryBullets     String[]   @default([])  // 5-7 key responsibilities
   requirementBullets String[]   @default([])  // 5-7 requirements
   benefitBullets     String[]   @default([])  // benefits if mentioned

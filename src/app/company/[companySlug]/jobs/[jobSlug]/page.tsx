@@ -440,8 +440,9 @@ export default async function JobPage({ params }: JobPageProps) {
                     </CardContent>
                   </Card>
 
-                  {/* Structured Description (if bullets available) or Original Post */}
+                  {/* Structured Description (AI-generated clean text) or Original Post */}
                   <StructuredDescription
+                    cleanDescription={job.cleanDescription}
                     summaryBullets={job.summaryBullets}
                     requirementBullets={job.requirementBullets}
                     benefitBullets={job.benefitBullets}
@@ -467,8 +468,9 @@ export default async function JobPage({ params }: JobPageProps) {
                   </div>
                 </>
               ) : (
-                /* Standard Job Description for ATS jobs - with structured bullets if available */
+                /* Standard Job Description for ATS jobs - with structured clean description if available */
                 <StructuredDescription
+                  cleanDescription={job.cleanDescription}
                   summaryBullets={job.summaryBullets}
                   requirementBullets={job.requirementBullets}
                   benefitBullets={job.benefitBullets}

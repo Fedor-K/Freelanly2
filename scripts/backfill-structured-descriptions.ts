@@ -1,8 +1,8 @@
 /**
- * Backfill structured descriptions for existing jobs
+ * Backfill clean descriptions for existing jobs
  *
- * This script extracts structured bullets (summaryBullets, requirementBullets, benefitBullets)
- * from existing job descriptions using DeepSeek AI.
+ * This script generates AI-rewritten clean descriptions from existing job posts
+ * using DeepSeek AI. It creates structured, readable text without clutter.
  *
  * Usage:
  *   npx tsx scripts/backfill-structured-descriptions.ts [limit]
@@ -21,43 +21,80 @@ const deepseek = new OpenAI({
   baseURL: 'https://api.deepseek.com/v1',
 });
 
-interface StructuredBullets {
+interface CleanDescriptionResult {
+  cleanDescription: string | null;
   summaryBullets: string[];
   requirementBullets: string[];
   benefitBullets: string[];
 }
 
-const BULLETS_EXTRACTION_PROMPT = `Extract structured information from this job description. Return a JSON object with these arrays:
+const CLEAN_DESCRIPTION_PROMPT = `Transform this job post into a professional, clean job description.
 
-- summaryBullets: 5-7 key job responsibilities. Each is 1 sentence, max 15 words. Focus on what the person WILL DO.
-- requirementBullets: 5-7 requirements. Include education, experience, skills, qualifications. Each max 15 words.
-- benefitBullets: benefits mentioned (salary, perks, culture, work flexibility). Each max 15 words. Empty array if none.
+Return a JSON object with:
+- cleanDescription: A professionally rewritten job description text
 
-Rules:
-- Extract ONLY actionable, job-relevant information
-- REMOVE: legal disclaimers, EEO statements, company history, "about us" text, hashtags
-- Each bullet starts with action verb or noun (e.g., "Lead...", "3+ years...", "Competitive salary")
-- If a section cannot be extracted, return empty array []
-- Return ONLY valid JSON, no markdown or explanation.`;
+Format for cleanDescription:
+1. Start with "About the Role" paragraph (2-3 sentences summarizing the position)
+2. "Key Responsibilities" section with bullet points (use "• " for bullets)
+3. "Requirements" section with bullet points
+4. "Benefits" section with bullet points (only if mentioned in original)
 
-async function extractBullets(content: string): Promise<StructuredBullets | null> {
+Rules for cleanDescription:
+- Write in professional, clear English
+- REMOVE all: emojis, hashtags, excessive punctuation (!!!), promotional phrases ("Amazing opportunity!!!")
+- REMOVE: EEO statements, legal disclaimers, "About Us" company history, application instructions
+- Keep ONLY job-relevant content: role, responsibilities, requirements, qualifications, benefits
+- Use proper capitalization and punctuation
+- Each section header on its own line, followed by content
+- For bullet points, use "• " prefix
+- Keep it concise but comprehensive (aim for 150-300 words)
+- If original is too short or lacks structure, write what you can extract professionally
+
+Example format:
+"About the Role
+We are looking for a Senior Developer to join our team. This role focuses on building scalable backend systems.
+
+Key Responsibilities
+• Design and implement RESTful APIs
+• Lead code reviews and mentor junior developers
+• Collaborate with product team on technical requirements
+
+Requirements
+• 5+ years of experience with Python or Node.js
+• Strong understanding of database design
+• Experience with cloud platforms (AWS, GCP)
+
+Benefits
+• Competitive salary and equity
+• Remote-first culture
+• Health insurance and 401k"
+
+Also include legacy bullet arrays for backwards compatibility:
+- summaryBullets: array of 5-7 key responsibilities (max 15 words each)
+- requirementBullets: array of 5-7 requirements (max 15 words each)
+- benefitBullets: array of benefits mentioned (empty array if none)
+
+Return ONLY valid JSON, no markdown or explanation.`;
+
+async function generateCleanDescription(content: string): Promise<CleanDescriptionResult | null> {
   try {
     const response = await deepseek.chat.completions.create({
       model: 'deepseek-chat',
       response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: BULLETS_EXTRACTION_PROMPT },
+        { role: 'system', content: CLEAN_DESCRIPTION_PROMPT },
         { role: 'user', content: content.slice(0, 8000) } // Limit content length
       ],
       temperature: 0.1,
-      max_tokens: 1000,
+      max_tokens: 2000,
     });
 
     const responseContent = response.choices[0]?.message?.content;
     if (!responseContent) return null;
 
-    const data = JSON.parse(responseContent) as StructuredBullets;
+    const data = JSON.parse(responseContent) as CleanDescriptionResult;
     return {
+      cleanDescription: data.cleanDescription || null,
       summaryBullets: data.summaryBullets || [],
       requirementBullets: data.requirementBullets || [],
       benefitBullets: data.benefitBullets || [],
@@ -69,15 +106,12 @@ async function extractBullets(content: string): Promise<StructuredBullets | null
 }
 
 async function backfillJobs(limit?: number) {
-  console.log('\n🚀 Starting structured descriptions backfill\n');
+  console.log('\n🚀 Starting clean description backfill\n');
 
-  // Find jobs without structured bullets
+  // Find jobs without cleanDescription
   const jobs = await prisma.job.findMany({
     where: {
-      AND: [
-        { summaryBullets: { isEmpty: true } },
-        { requirementBullets: { isEmpty: true } },
-      ]
+      cleanDescription: null,
     },
     select: {
       id: true,
@@ -90,10 +124,10 @@ async function backfillJobs(limit?: number) {
     take: limit,
   });
 
-  console.log(`📊 Found ${jobs.length} jobs without structured bullets\n`);
+  console.log(`📊 Found ${jobs.length} jobs without clean description\n`);
 
   if (jobs.length === 0) {
-    console.log('✅ All jobs already have structured bullets!');
+    console.log('✅ All jobs already have clean descriptions!');
     return;
   }
 
@@ -112,31 +146,23 @@ async function backfillJobs(limit?: number) {
 
     console.log(`🔄 [${processed}/${jobs.length}] Processing: ${job.title.slice(0, 50)}...`);
 
-    const bullets = await extractBullets(content);
+    const result = await generateCleanDescription(content);
 
-    if (bullets) {
-      const hasContent =
-        bullets.summaryBullets.length > 0 ||
-        bullets.requirementBullets.length > 0 ||
-        bullets.benefitBullets.length > 0;
-
-      if (hasContent) {
-        await prisma.job.update({
-          where: { id: job.id },
-          data: {
-            summaryBullets: bullets.summaryBullets,
-            requirementBullets: bullets.requirementBullets,
-            benefitBullets: bullets.benefitBullets,
-          },
-        });
-        updated++;
-        console.log(`   ✅ Updated: ${bullets.summaryBullets.length} summary, ${bullets.requirementBullets.length} requirements, ${bullets.benefitBullets.length} benefits`);
-      } else {
-        console.log(`   ⚠️ No bullets extracted (content may be too short)`);
-      }
+    if (result && result.cleanDescription) {
+      await prisma.job.update({
+        where: { id: job.id },
+        data: {
+          cleanDescription: result.cleanDescription,
+          summaryBullets: result.summaryBullets,
+          requirementBullets: result.requirementBullets,
+          benefitBullets: result.benefitBullets,
+        },
+      });
+      updated++;
+      console.log(`   ✅ Updated with clean description (${result.cleanDescription.length} chars)`);
     } else {
       failed++;
-      console.log(`   ❌ Failed to extract bullets`);
+      console.log(`   ❌ Failed to generate clean description`);
     }
 
     // Rate limiting - 500ms delay between requests

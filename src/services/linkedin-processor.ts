@@ -406,6 +406,7 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
         translationTypes: extracted.translationTypes || [],
         sourceLanguages: extracted.sourceLanguages || [],
         targetLanguages: extracted.targetLanguages || [],
+        cleanDescription: extracted.cleanDescription,
         summaryBullets: extracted.summaryBullets || [],
         requirementBullets: extracted.requirementBullets || [],
         benefitBullets: extracted.benefitBullets || [],
