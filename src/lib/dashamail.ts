@@ -234,7 +234,8 @@ export async function getCampaignsList(limit: number = 10): Promise<EmailCampaig
 
     const errCode = result.msg?.err_code ?? result.err_code;
     if (errCode === 0 && result.data?.data) {
-      return result.data.data.map((campaign: Record<string, unknown>) => {
+      const campaigns = result.data.data as Record<string, unknown>[];
+      return campaigns.map((campaign) => {
         const sent = Number(campaign.sent) || 0;
         const opened = Number(campaign.opened) || 0;
         const clicked = Number(campaign.clicked) || 0;
