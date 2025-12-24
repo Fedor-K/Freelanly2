@@ -1,8 +1,8 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { ExpiredJobPage } from '@/components/jobs/ExpiredJobPage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -120,12 +120,49 @@ async function getSimilarJobs(jobId: string, categoryId: string, limit: number =
   return jobs;
 }
 
+// Fetch recent jobs for expired job page
+async function getRecentJobs(limit: number = 6) {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const jobs = await prisma.job.findMany({
+    where: {
+      isActive: true,
+      postedAt: { gte: thirtyDaysAgo },
+    },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      location: true,
+      company: {
+        select: {
+          name: true,
+          slug: true,
+          logo: true,
+          website: true,
+        },
+      },
+    },
+    orderBy: { postedAt: 'desc' },
+    take: limit,
+  });
+  return jobs;
+}
+
 export async function generateMetadata({ params }: JobPageProps): Promise<Metadata> {
   const { companySlug, jobSlug } = await params;
   const job = await getJob(jobSlug);
 
   if (!job) {
-    return { title: 'Job Not Found' };
+    return {
+      title: 'Job No Longer Available | Freelanly',
+      description: 'This job posting has expired or is no longer accepting applications. Browse thousands of other remote opportunities on Freelanly.',
+      robots: {
+        index: false, // Don't index expired job pages
+        follow: true,
+      },
+    };
   }
 
   const jobUrl = buildJobUrl(job.company.slug, job.slug);
@@ -166,8 +203,11 @@ export default async function JobPage({ params }: JobPageProps) {
   const { companySlug, jobSlug } = await params;
   const job = await getJob(jobSlug);
 
+  // Job not found - show expired page
+  // The metadata sets robots: noindex to tell Google to remove from index
   if (!job) {
-    notFound();
+    const recentJobs = await getRecentJobs(6);
+    return <ExpiredJobPage jobSlug={jobSlug} similarJobs={recentJobs} />;
   }
 
   const isLinkedInPost = job.sourceType === 'UNSTRUCTURED';
