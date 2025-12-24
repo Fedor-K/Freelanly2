@@ -157,12 +157,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Translation language pair pages: /jobs/translation/[pair]
-  const translationPairPages: MetadataRoute.Sitemap = languagePairs.map((pair) => ({
-    url: `${baseUrl}/jobs/translation/${pair.slug}`,
-    lastModified: now,
-    changeFrequency: 'daily' as const,
-    priority: 0.85,
-  }));
+  // Filter out invalid pairs (same source and target language)
+  const translationPairPages: MetadataRoute.Sitemap = languagePairs
+    .filter((pair) => pair.source !== pair.target)
+    .map((pair) => ({
+      url: `${baseUrl}/jobs/translation/${pair.slug}`,
+      lastModified: now,
+      changeFrequency: 'daily' as const,
+      priority: 0.85,
+    }));
 
   // Dynamic job pages from database - RRS format: /company/[company]/jobs/[job]
   let jobPages: MetadataRoute.Sitemap = [];

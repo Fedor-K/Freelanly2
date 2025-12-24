@@ -52,7 +52,8 @@ GOOGLE_CLIENT_SECRET=xxx
 | Saved jobs | Unlimited | Unlimited |
 | Salary insights | Average only | Full (range, percentiles, source) |
 | INSTANT alerts | Yes | Yes |
-| Apply to jobs | Limited | Unlimited |
+| Apply to jobs | ❌ Blocked | ✅ Unlimited |
+| Contact info in descriptions | ❌ Hidden | ✅ Visible |
 
 **Pricing (EUR):**
 | Plan | Price | Trial |
@@ -416,6 +417,7 @@ scripts/
 ├── recategorize-jobs.ts           # Fix miscategorized jobs
 ├── reextract-salaries.ts          # Re-extract salaries from job descriptions
 ├── cleanup-now.ts                 # One-time cleanup of old jobs
+├── normalize-translation-titles.ts # Fix translation job titles (Arabic → English-Arabic)
 ```
 
 ## Common Tasks
@@ -551,6 +553,14 @@ npx prisma db push --force-reset
 44. **Level multipliers** — Intern 0.30x to Executive 2.80x
 45. **Updated country coefficients** — Switzerland 0.88, UK 0.75, Pakistan 0.18, etc.
 46. **Removed DB keyword matching** — was producing inflated salaries ($157K for Copy Lead instead of $105K)
+47. **Translation title normalization** — `normalizeTranslationTitle()` transforms "Arabic Translator" → "English-Arabic Translator"
+48. **Salary tooltip for cached data** — regenerate calculationDetails when loading from cache
+49. **SEO: robots.txt fix** — unblocked `/_next/static/` JS/CSS, only block `/_next/static/media/`
+50. **SEO: removed global canonical** — each page defines its own canonical URL
+51. **SEO: sitemap validation** — filter out invalid language pairs (source === target)
+52. **Salary Insights always visible** — shown on ALL jobs as market indicator (not just when no salary)
+53. **Apply button blocked for FREE** — shows "🔒 Upgrade to Apply" linking to /pricing
+54. **Contact info hidden for FREE** — emails, phones, @handles replaced with "[Upgrade to PRO to see contact]"
 
 ## Code Patterns
 
@@ -622,31 +632,33 @@ crontab -l
 curl -X POST http://localhost:3000/api/cron/fetch-sources -H "Authorization: Bearer $CRON_SECRET"
 ```
 
-## Current Session Status (Dec 22, 2024)
+## Current Session Status (Dec 24, 2024)
 
-**Что сделано в последних сессиях:**
-1. ✅ Stripe payments integration (Weekly €10, Monthly €20, Annual €192)
-2. ✅ Logo.dev integration (бывший Clearbit) — высококачественные логотипы компаний
-3. ✅ INSTANT job alerts (отправка сразу после создания вакансии)
-4. ✅ FREE vs PRO ограничения для Salary Insights
-5. ✅ CompanyLogo компонент с Logo.dev fallback
-6. ✅ Исправление отображения зарплаты — валюта + период (PKR 50K/mo вместо $50K)
-7. ✅ salaryPeriod добавлен в JobCardData
-8. ✅ Similar Jobs section — правильный формат зарплаты
-9. ✅ website добавлен во все запросы company для Logo fallback
-10. ✅ **Research-based salary formula** — `BaseSalary × Level × Country`
-11. ✅ **salary-base.ts** — base salaries for 21 categories
-12. ✅ **Level multipliers** — Intern 0.30x to Executive 2.80x
-13. ✅ **Updated country coefficients** — based on Dec 2024 research
-14. ✅ **Removed DB keyword matching** — было причиной завышенных зарплат
+**Что сделано в последней сессии:**
+1. ✅ **Translation title normalization** — `normalizeTranslationTitle()` в deepseek.ts
+   - "Arabic Translator" → "English-Arabic Translator"
+   - Script: `scripts/normalize-translation-titles.ts` для исправления существующих
+2. ✅ **Salary tooltip fix** — тултип с формулой теперь показывается для кешированных данных
+3. ✅ **SEO критические исправления:**
+   - robots.txt: разблокированы JS/CSS файлы (`/_next/static/`)
+   - layout.tsx: убран глобальный canonical (каждая страница свой)
+   - sitemap.ts: фильтрация невалидных языковых пар
+4. ✅ **Salary Insights всегда показывается** — как индикатор рынка на ВСЕХ вакансиях
+5. ✅ **Apply заблокирован для FREE** — кнопка "🔒 Upgrade to Apply" → /pricing
+6. ✅ **Контакты скрыты для FREE** — email, телефоны, @handles заменяются на "[Upgrade to PRO to see contact]"
 
-**Salary Formula Details:**
-```
-Annual Salary = BaseSalary[category] × LevelMultiplier[level] × CountryCoefficient[country]
+**FREE vs PRO ограничения:**
+| Feature | FREE | PRO |
+|---------|------|-----|
+| Apply to jobs | ❌ "Upgrade to Apply" | ✅ Apply Now |
+| Contact info | ❌ Hidden | ✅ Visible |
+| Salary Insights | Average only | Full data |
 
-Example: Lead Writer in US
-$70,000 (writing) × 1.50 (lead) × 1.0 (US) = $105,000/yr
-```
+**Новые файлы/функции:**
+- `src/lib/deepseek.ts` → `normalizeTranslationTitle()`
+- `src/lib/utils.ts` → `maskContactInfo()`
+- `src/components/jobs/ApplyButton.tsx` → accepts `userPlan` prop
+- `scripts/normalize-translation-titles.ts` — fix existing job titles
 
 **Logo.dev credentials:**
 ```
@@ -654,35 +666,28 @@ Publishable key: pk_A6k2yPZ4T6y5MZrbuUd9yA
 Secret key: sk_S3uVup8yTSaIFQ_dz0khiA
 ```
 
-**Stripe credentials (get from owner):**
-```
-STRIPE_SECRET_KEY=sk_live_xxx  # Get from Stripe Dashboard
-STRIPE_WEBHOOK_SECRET=whsec_xxx  # Get from webhook settings
-```
-
 **Известные проблемы:**
 - Apollo.io не всегда находит данные для небольших компаний → используется Logo.dev fallback
-- Если `logo = ""` — Apollo не нашёл данные; если `logo = null` — enrichment не запускался
-- Logo.dev иногда не находит логотип для новых/малых компаний → показывается буква-placeholder
 - BLS API имеет дневной лимит запросов — при превышении используется formula estimation
+- Salary Insights использует формулу если нет данных из BLS/Adzuna
 
 **Возможные следующие шаги:**
-1. Добавить WEEKLY cron для недельных алертов
+1. WEEKLY cron для недельных алертов
 2. Application tracking (отслеживание откликов)
 3. Onboarding wizard после первого входа
-4. Dashboard analytics для пользователей
+4. Скрипт нормализации тайтлов нужно запустить на сервере
 
-**Для деплоя последних изменений:**
+**Для деплоя:**
 ```bash
 cd /opt/freelanly2
-git pull origin claude/review-changes-mjh9fja4hh5i30r3-cBxYN
+git pull origin claude/review-changes-mji5ldctlmbjsbme-vqGYI
 npm run build && pm2 restart freelanly
-# Очистить кеш зарплат если нужно:
-npx prisma db execute --stdin <<< "TRUNCATE TABLE \"SalaryBenchmark\";"
+
+# Нормализовать тайтлы переводческих вакансий:
+npx tsx scripts/normalize-translation-titles.ts
 ```
 
 **Настройка Stripe webhook (обязательно!):**
-1. Зайти в Stripe Dashboard → Webhooks
+1. Stripe Dashboard → Webhooks
 2. Add endpoint: `https://freelanly.com/api/stripe/webhook`
-3. Select events: checkout.session.completed, customer.subscription.*, invoice.*
-4. Добавить STRIPE_WEBHOOK_SECRET в .env.local на сервере
+3. Events: checkout.session.completed, customer.subscription.*, invoice.*

@@ -51,6 +51,76 @@ export interface ExtractedJobData {
   benefitBullets: string[];      // benefits if mentioned (legacy)
 }
 
+// Common languages for translation job title detection
+const LANGUAGES = [
+  'Arabic', 'Bengali', 'Bulgarian', 'Chinese', 'Croatian', 'Czech', 'Danish',
+  'Dutch', 'English', 'Estonian', 'Finnish', 'French', 'German', 'Greek',
+  'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Italian', 'Japanese',
+  'Korean', 'Latvian', 'Lithuanian', 'Malay', 'Norwegian', 'Persian', 'Polish',
+  'Portuguese', 'Romanian', 'Russian', 'Serbian', 'Slovak', 'Slovenian',
+  'Spanish', 'Swedish', 'Thai', 'Turkish', 'Ukrainian', 'Urdu', 'Vietnamese'
+];
+
+// Translation-related role keywords
+const TRANSLATION_ROLES = [
+  'translator', 'interpreter', 'localization', 'localizer', 'transcriber',
+  'subtitler', 'captioner', 'linguist', 'language specialist'
+];
+
+/**
+ * Normalizes translation job titles to consistent format.
+ * Transforms "Arabic Translator" → "English-Arabic Translator"
+ * when only target language is specified (assumes English as source).
+ */
+export function normalizeTranslationTitle(title: string): string {
+  if (!title) return title;
+
+  const titleLower = title.toLowerCase();
+
+  // Check if this is a translation-related job
+  const isTranslationJob = TRANSLATION_ROLES.some(role => titleLower.includes(role));
+  if (!isTranslationJob) return title;
+
+  // Check if already has language pair format (e.g., "English-Arabic" or "Arabic-English")
+  const hasLanguagePair = LANGUAGES.some(lang1 =>
+    LANGUAGES.some(lang2 => {
+      const pair1 = `${lang1.toLowerCase()}-${lang2.toLowerCase()}`;
+      const pair2 = `${lang1.toLowerCase()} to ${lang2.toLowerCase()}`;
+      return titleLower.includes(pair1) || titleLower.includes(pair2);
+    })
+  );
+  if (hasLanguagePair) return title;
+
+  // Check if "Multilingual" is already present
+  if (titleLower.includes('multilingual')) return title;
+
+  // Find single language at the start of title
+  for (const lang of LANGUAGES) {
+    const langLower = lang.toLowerCase();
+
+    // Skip if it's English (we're adding English as source)
+    if (langLower === 'english') continue;
+
+    // Pattern: "Arabic Translator", "Spanish Medical Interpreter"
+    const startsWithLang = titleLower.startsWith(langLower + ' ');
+
+    if (startsWithLang) {
+      // Check that this language is followed by a role word (not another language)
+      const afterLang = title.substring(lang.length + 1);
+      const isFollowedByRole = TRANSLATION_ROLES.some(role =>
+        afterLang.toLowerCase().includes(role)
+      );
+
+      if (isFollowedByRole) {
+        // Transform: "Arabic Translator" → "English-Arabic Translator"
+        return `English-${title}`;
+      }
+    }
+  }
+
+  return title;
+}
+
 const EXTRACTION_PROMPT = `You are a job data extractor. Extract structured data from LinkedIn hiring posts.
 
 Return a valid JSON object with these fields:
@@ -160,9 +230,10 @@ export async function extractJobData(postText: string): Promise<ExtractedJobData
     if (!content) return null;
 
     const data = JSON.parse(content) as ExtractedJobData;
-    // Ensure all array fields have defaults
+    // Ensure translation fields have defaults and normalize title
     return {
       ...data,
+      title: data.title ? normalizeTranslationTitle(data.title) : null,
       translationTypes: data.translationTypes || [],
       sourceLanguages: data.sourceLanguages || [],
       targetLanguages: data.targetLanguages || [],

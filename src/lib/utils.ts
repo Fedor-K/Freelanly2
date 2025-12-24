@@ -98,3 +98,36 @@ export function cleanEmail(email: string | null | undefined): string | null {
   if (!emailRegex.test(firstPart)) return null;
   return firstPart.toLowerCase();
 }
+
+// Mask contact information (emails, phone numbers) in text
+// Used to hide contact details from FREE users
+const UPGRADE_TEXT = '[Upgrade to PRO to see contact]';
+
+export function maskContactInfo(text: string | null | undefined): string {
+  if (!text) return '';
+
+  let masked = text;
+
+  // Mask email addresses
+  // Pattern: word@word.word (handles most email formats)
+  masked = masked.replace(
+    /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+    UPGRADE_TEXT
+  );
+
+  // Mask phone numbers (various formats)
+  // US format: (123) 456-7890, 123-456-7890, 123.456.7890, 1234567890
+  // International: +1 123 456 7890, +44 20 7946 0958
+  masked = masked.replace(
+    /(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g,
+    UPGRADE_TEXT
+  );
+
+  // Mask Telegram/WhatsApp handles that look like @username
+  masked = masked.replace(
+    /@[a-zA-Z0-9_]{3,}/g,
+    UPGRADE_TEXT
+  );
+
+  return masked;
+}

@@ -21,9 +21,8 @@ export const metadata: Metadata = {
   creator: siteConfig.creator,
   publisher: siteConfig.creator,
   metadataBase: new URL(siteConfig.url),
-  alternates: {
-    canonical: siteConfig.url,
-  },
+  // Note: canonical is NOT set globally - each page must define its own
+  // to avoid all pages pointing to homepage
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -62,9 +61,14 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    // Add these when you have them
-    // google: 'your-google-verification-code',
-    // yandex: 'your-yandex-verification-code',
+    // To get your Google Search Console verification code:
+    // 1. Go to https://search.google.com/search-console
+    // 2. Add property → Enter https://freelanly.com
+    // 3. Choose "HTML tag" verification method
+    // 4. Copy the content value from the meta tag
+    // 5. Paste it below and redeploy
+    google: process.env.GOOGLE_SITE_VERIFICATION || '',
+    // yandex: process.env.YANDEX_VERIFICATION || '',
   },
   category: 'jobs',
 };

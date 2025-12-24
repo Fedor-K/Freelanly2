@@ -9,6 +9,7 @@ import { siteConfig, categories, levels, jobTypes, countries, techStacks, salary
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 import { JobFilters } from '@/components/jobs/JobFilters';
+import { MobileFilters } from '@/components/jobs/MobileFilters';
 
 export const dynamic = 'force-dynamic';
 
@@ -215,18 +216,41 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
   // Popular skills to show (top 12)
   const popularSkills = techStacks.slice(0, 12);
 
+  // Count active filters for mobile badge
+  const activeFilterCount =
+    (filters.search ? 1 : 0) +
+    filters.levels.length +
+    filters.types.length +
+    (filters.country ? 1 : 0) +
+    (filters.salaryMin ? 1 : 0) +
+    filters.skills.length;
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
 
       <main className="flex-1">
-        <div className="container py-8">
+        <div className="container py-6 sm:py-8">
           {/* Page Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Remote Jobs</h1>
-            <p className="text-muted-foreground">
-              {totalCount} jobs found
-            </p>
+          <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">Remote Jobs</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">
+                {totalCount} jobs found
+              </p>
+            </div>
+            {/* Mobile Filters Button */}
+            <MobileFilters
+              currentFilters={{
+                search: filters.search,
+                levels: filters.levels,
+                types: filters.types,
+                country: filters.country,
+                salary: params.salary,
+                skills: filters.skills,
+              }}
+              activeFilterCount={activeFilterCount}
+            />
           </div>
 
           <div className="flex gap-8">
