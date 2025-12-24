@@ -78,7 +78,9 @@ export async function submitToIndexNow(urls: string[]): Promise<IndexingResult> 
       }
     }
 
-    console.log(`✅ IndexNow: Submitted ${urls.length} URLs`);
+    const timestamp = new Date().toISOString();
+    console.log(`✅ IndexNow [${timestamp}]: Submitted ${urls.length} URLs:`);
+    urls.forEach(url => console.log(`   → ${url}`));
     return { service: 'IndexNow', success: true, status: 200 };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
