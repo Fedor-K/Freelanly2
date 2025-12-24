@@ -29,9 +29,18 @@ interface SendEmailParams {
 }
 
 interface DashaMailResponse {
-  status: 'success' | 'error';
-  msg?: string;
-  data?: any;
+  msg?: {
+    err_code: number;
+    text: string;
+    type: string;
+  };
+  err_code?: number;
+  text?: string;
+  data?: {
+    transaction_id?: string;
+    message_id?: string;
+    [key: string]: unknown;
+  };
 }
 
 async function apiCall(method: string, params: Record<string, any> = {}): Promise<DashaMailResponse> {
@@ -52,27 +61,38 @@ async function apiCall(method: string, params: Record<string, any> = {}): Promis
   });
 
   const data = await response.json();
+
+  // Debug logging for API errors
+  const errCode = data.response?.msg?.err_code ?? data.response?.err_code;
+  if (errCode !== 0) {
+    console.error('[DashaMail] API error response:', JSON.stringify(data, null, 2));
+  }
+
   return data.response;
 }
 
 export async function sendApplicationEmail(params: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     // Using transactional email API
+    // DashaMail requires 'message' for HTML and 'plain_text' for text (not 'html' and 'text')
     const result = await apiCall('transactional.send', {
       to: params.to,
       from_email: config.fromEmail,
       from_name: 'Freelanly',
       subject: params.subject,
-      html: params.html,
-      text: params.text || params.html.replace(/<[^>]*>/g, ''),
+      message: params.html,
+      plain_text: params.text || params.html.replace(/<[^>]*>/g, ''),
       reply_to: params.replyTo,
-      // attachments if needed
     });
 
-    if (result.status === 'success') {
-      return { success: true, messageId: result.data?.message_id };
+    // DashaMail returns { msg: { err_code: 0, text: 'OK' }, data: { transaction_id: '...' } } on success
+    const errCode = result.msg?.err_code ?? result.err_code;
+    if (errCode === 0) {
+      return { success: true, messageId: result.data?.transaction_id || result.data?.message_id };
     } else {
-      return { success: false, error: result.msg };
+      // Ensure error is a string for proper logging
+      const errorMsg = result.msg?.text || result.text || (result.data ? JSON.stringify(result.data) : 'Unknown DashaMail error');
+      return { success: false, error: errorMsg };
     }
   } catch (error) {
     console.error('DashaMail send error:', error);
@@ -91,7 +111,8 @@ export async function addSubscriber(
       email,
       merge: mergeFields,
     });
-    return result.status === 'success';
+    const errCode = result.msg?.err_code ?? result.err_code;
+    return errCode === 0;
   } catch (error) {
     console.error('DashaMail subscribe error:', error);
     return false;
@@ -184,12 +205,14 @@ export async function getSubscriberStats(): Promise<SubscriberStats | null> {
       list_id: config.listId,
     });
 
-    if (result.status === 'success' && result.data) {
+    const errCode = result.msg?.err_code ?? result.err_code;
+    if (errCode === 0 && result.data) {
+      const data = result.data as Record<string, unknown>;
       return {
-        total: result.data.members_count || 0,
-        active: result.data.members_active || 0,
-        unsubscribed: result.data.members_unsubscribed || 0,
-        bounced: result.data.members_bounced || 0,
+        total: Number(data.members_count) || 0,
+        active: Number(data.members_active) || 0,
+        unsubscribed: Number(data.members_unsubscribed) || 0,
+        bounced: Number(data.members_bounced) || 0,
       };
     }
     return null;
@@ -209,8 +232,10 @@ export async function getCampaignsList(limit: number = 10): Promise<EmailCampaig
       limit,
     });
 
-    if (result.status === 'success' && result.data?.data) {
-      return result.data.data.map((campaign: Record<string, unknown>) => {
+    const errCode = result.msg?.err_code ?? result.err_code;
+    if (errCode === 0 && result.data?.data) {
+      const campaigns = result.data.data as Record<string, unknown>[];
+      return campaigns.map((campaign) => {
         const sent = Number(campaign.sent) || 0;
         const opened = Number(campaign.opened) || 0;
         const clicked = Number(campaign.clicked) || 0;
@@ -246,16 +271,17 @@ export async function getCampaignStats(campaignId: string): Promise<EmailCampaig
       campaign_id: campaignId,
     });
 
-    if (result.status === 'success' && result.data) {
-      const data = result.data;
+    const errCode = result.msg?.err_code ?? result.err_code;
+    if (errCode === 0 && result.data) {
+      const data = result.data as Record<string, unknown>;
       const sent = Number(data.sent) || 0;
       const opened = Number(data.unique_opened) || 0;
       const clicked = Number(data.unique_clicked) || 0;
 
       return {
         campaignId,
-        name: String(data.name || ''),
-        sentAt: String(data.send_date || ''),
+        name: String(data.name ?? ''),
+        sentAt: String(data.send_date ?? ''),
         totalSent: sent,
         delivered: Number(data.delivered) || sent,
         opened,
@@ -312,7 +338,8 @@ export async function testDashaMailConnection(): Promise<boolean> {
     if (!config.apiKey) return false;
 
     const result = await apiCall('lists.get', {});
-    return result.status === 'success';
+    const errCode = result.msg?.err_code ?? result.err_code;
+    return errCode === 0;
   } catch {
     return false;
   }

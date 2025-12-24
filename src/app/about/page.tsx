@@ -78,41 +78,6 @@ export default function AboutPage() {
             </div>
           </section>
 
-          {/* Data Sources */}
-          <section className="max-w-4xl mx-auto mb-16">
-            <h2 className="text-2xl font-bold mb-8 text-center">Our Data Sources</h2>
-            <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="text-center">
-                <CardContent className="pt-6">
-                  <div className="text-4xl mb-2">💼</div>
-                  <h3 className="font-semibold">LinkedIn</h3>
-                  <p className="text-sm text-muted-foreground">Hiring posts from professionals</p>
-                </CardContent>
-              </Card>
-              <Card className="text-center">
-                <CardContent className="pt-6">
-                  <div className="text-4xl mb-2">🏢</div>
-                  <h3 className="font-semibold">Lever ATS</h3>
-                  <p className="text-sm text-muted-foreground">Direct company postings</p>
-                </CardContent>
-              </Card>
-              <Card className="text-center">
-                <CardContent className="pt-6">
-                  <div className="text-4xl mb-2">🌐</div>
-                  <h3 className="font-semibold">RemoteOK</h3>
-                  <p className="text-sm text-muted-foreground">Remote-first job board</p>
-                </CardContent>
-              </Card>
-              <Card className="text-center">
-                <CardContent className="pt-6">
-                  <div className="text-4xl mb-2">💻</div>
-                  <h3 className="font-semibold">WeWorkRemotely</h3>
-                  <p className="text-sm text-muted-foreground">Premium remote listings</p>
-                </CardContent>
-              </Card>
-            </div>
-          </section>
-
           {/* How We Work */}
           <section className="max-w-4xl mx-auto mb-16">
             <h2 className="text-2xl font-bold mb-8 text-center">How It Works</h2>

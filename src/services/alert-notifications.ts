@@ -205,10 +205,11 @@ export async function sendAlertNotification(
       );
       return { success: true };
     } else {
+      const errorMsg = typeof result.error === 'object' ? JSON.stringify(result.error) : result.error;
       console.error(
-        `[AlertNotifications] Failed to send to ${alert.email}: ${result.error}`
+        `[AlertNotifications] Failed to send to ${alert.email}: ${errorMsg}`
       );
-      return { success: false, error: result.error };
+      return { success: false, error: errorMsg };
     }
   } catch (error) {
     console.error(`[AlertNotifications] Error sending to ${alert.email}:`, error);

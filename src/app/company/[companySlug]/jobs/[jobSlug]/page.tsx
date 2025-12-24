@@ -440,24 +440,6 @@ export default async function JobPage({ params }: JobPageProps) {
                     benefitBullets={job.benefitBullets}
                     originalContent={maskLinksForFreeUsers(job.originalContent, userPlan)}
                   />
-
-                  {/* LinkedIn source links */}
-                  <div className="flex gap-2">
-                    {job.sourceUrl && (
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={job.sourceUrl} target="_blank" rel="noopener noreferrer">
-                          View on LinkedIn
-                        </a>
-                      </Button>
-                    )}
-                    {job.authorLinkedIn && (
-                      <Button variant="ghost" size="sm" asChild>
-                        <a href={job.authorLinkedIn} target="_blank" rel="noopener noreferrer">
-                          View Author Profile
-                        </a>
-                      </Button>
-                    )}
-                  </div>
                 </>
               ) : (
                 /* Standard Job Description for ATS jobs - with structured clean description if available */
@@ -504,6 +486,32 @@ export default async function JobPage({ params }: JobPageProps) {
                     userPlan={userPlan}
                   />
                   <SaveJobButton jobId={job.id} variant="button" className="w-full" />
+
+                  {/* LinkedIn Links - PRO only */}
+                  {userPlan !== 'FREE' && isLinkedInPost && (job.sourceUrl || job.authorLinkedIn) && (
+                    <div className="flex flex-col gap-2">
+                      {job.sourceUrl && (
+                        <Button variant="outline" size="sm" className="w-full" asChild>
+                          <a href={job.sourceUrl} target="_blank" rel="noopener noreferrer">
+                            <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                            </svg>
+                            View Original Post
+                          </a>
+                        </Button>
+                      )}
+                      {job.authorLinkedIn && (
+                        <Button variant="ghost" size="sm" className="w-full" asChild>
+                          <a href={job.authorLinkedIn} target="_blank" rel="noopener noreferrer">
+                            <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                            </svg>
+                            View Author Profile
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  )}
 
                   <Separator />
 
