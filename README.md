@@ -60,7 +60,7 @@ Freelanly агрегирует hiring-посты из LinkedIn, извлекае
 | **Enrichment** | Apollo.io API |
 | **Auth** | NextAuth v5 (Google OAuth + Magic Link) |
 | **Payments** | Stripe |
-| **Hosting** | VPS + Docker / PM2 |
+| **Hosting** | Vercel (primary) / VPS + PM2 (backup) |
 
 ---
 
@@ -784,7 +784,36 @@ CRON_SECRET="your-random-secret"
 
 ## Deployment
 
-### Option 1: PM2 (recommended)
+### Option 1: Vercel (recommended)
+
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Login to Vercel
+vercel login
+
+# Deploy to production
+vercel --prod
+```
+
+**Required Environment Variables in Vercel Dashboard:**
+- `DATABASE_URL` — Neon PostgreSQL connection string
+- `AUTH_SECRET` — NextAuth secret (generate: `openssl rand -base64 32`)
+- `AUTH_URL` — `https://freelanly.com`
+- `DEEPSEEK_API_KEY`, `APIFY_API_TOKEN`, `APOLLO_API_KEY`
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- All other env vars from `.env.example`
+
+**DNS Configuration (Cloudflare):**
+```
+freelanly.com  → A    → 76.76.21.21 (or Vercel-provided IP)
+www            → CNAME → cname.vercel-dns.com
+```
+
+**Note:** `prisma generate` runs automatically during build (configured in `package.json`).
+
+### Option 2: PM2 (VPS backup)
 
 ```bash
 # Initial setup
@@ -931,9 +960,10 @@ model Job {
 - [x] **Email notifications for job alerts** (DAILY cron at 7:00 UTC)
 - [x] **n8n webhook integration** — real-time LinkedIn posts via `/api/webhooks/linkedin-posts`
 - [x] **Fuzzy deduplication** — email domain + title similarity (60%+ threshold)
-- [ ] Stripe payments
+- [x] **Stripe payments** — Weekly €10, Monthly €20, Annual €192
+- [x] **Vercel deployment** — primary hosting with auto-deploy from GitHub
 - [ ] Application tracking
-- [ ] INSTANT/WEEKLY alert frequencies
+- [ ] WEEKLY alert frequency cron
 - [ ] SEO landing pages generator
 
 ---

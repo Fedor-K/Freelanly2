@@ -635,17 +635,25 @@ curl -X POST http://localhost:3000/api/cron/fetch-sources -H "Authorization: Bea
 ## Current Session Status (Dec 24, 2024)
 
 **Что сделано в последней сессии:**
-1. ✅ **Translation title normalization** — `normalizeTranslationTitle()` в deepseek.ts
+1. ✅ **Vercel deployment** — миграция с RackNerd VPS на Vercel
+   - Исправлен build: `prisma generate && next build` в package.json
+   - Добавлен vercel.json с buildCommand
+   - DNS настроен через Cloudflare (freelanly.com → Vercel)
+2. ✅ **Translation title normalization** — `normalizeTranslationTitle()` в deepseek.ts
    - "Arabic Translator" → "English-Arabic Translator"
    - Script: `scripts/normalize-translation-titles.ts` для исправления существующих
-2. ✅ **Salary tooltip fix** — тултип с формулой теперь показывается для кешированных данных
-3. ✅ **SEO критические исправления:**
+3. ✅ **Salary tooltip fix** — тултип с формулой теперь показывается для кешированных данных
+4. ✅ **SEO критические исправления:**
    - robots.txt: разблокированы JS/CSS файлы (`/_next/static/`)
    - layout.tsx: убран глобальный canonical (каждая страница свой)
    - sitemap.ts: фильтрация невалидных языковых пар
-4. ✅ **Salary Insights всегда показывается** — как индикатор рынка на ВСЕХ вакансиях
-5. ✅ **Apply заблокирован для FREE** — кнопка "🔒 Upgrade to Apply" → /pricing
-6. ✅ **Контакты скрыты для FREE** — email, телефоны, @handles заменяются на "[Upgrade to PRO to see contact]"
+5. ✅ **Salary Insights всегда показывается** — как индикатор рынка на ВСЕХ вакансиях
+6. ✅ **Apply заблокирован для FREE** — кнопка "🔒 Upgrade to Apply" → /pricing
+7. ✅ **Контакты скрыты для FREE** — email, телефоны, @handles заменяются на "[Upgrade to PRO to see contact]"
+
+**Hosting:**
+- **Primary:** Vercel (https://freelanly.com)
+- **Backup:** RackNerd VPS (198.12.73.168) — n8n остаётся там
 
 **FREE vs PRO ограничения:**
 | Feature | FREE | PRO |
@@ -659,6 +667,7 @@ curl -X POST http://localhost:3000/api/cron/fetch-sources -H "Authorization: Bea
 - `src/lib/utils.ts` → `maskContactInfo()`
 - `src/components/jobs/ApplyButton.tsx` → accepts `userPlan` prop
 - `scripts/normalize-translation-titles.ts` — fix existing job titles
+- `vercel.json` — Vercel build configuration
 
 **Logo.dev credentials:**
 ```
@@ -675,17 +684,25 @@ Secret key: sk_S3uVup8yTSaIFQ_dz0khiA
 1. WEEKLY cron для недельных алертов
 2. Application tracking (отслеживание откликов)
 3. Onboarding wizard после первого входа
-4. Скрипт нормализации тайтлов нужно запустить на сервере
+4. Настроить Vercel Cron Jobs для автоматического запуска источников
 
-**Для деплоя:**
+**Vercel Deployment:**
 ```bash
-cd /opt/freelanly2
-git pull origin claude/review-changes-mji5ldctlmbjsbme-vqGYI
-npm run build && pm2 restart freelanly
+# Deploy via CLI
+vercel --prod
 
-# Нормализовать тайтлы переводческих вакансий:
-npx tsx scripts/normalize-translation-titles.ts
+# Or auto-deploy via GitHub (merge to main)
 ```
+
+**DNS (Cloudflare):**
+```
+freelanly.com  → A    → 76.76.21.21 (Vercel)
+www            → CNAME → cname.vercel-dns.com
+n8n            → CNAME → cfargotunnel.com (остаётся на VPS)
+```
+
+**Environment Variables (Vercel Dashboard):**
+Все переменные из .env нужно добавить в Vercel → Settings → Environment Variables
 
 **Настройка Stripe webhook (обязательно!):**
 1. Stripe Dashboard → Webhooks
