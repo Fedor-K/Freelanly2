@@ -29,9 +29,18 @@ interface SendEmailParams {
 }
 
 interface DashaMailResponse {
-  status: 'success' | 'error';
-  msg?: string;
-  data?: any;
+  msg?: {
+    err_code: number;
+    text: string;
+    type: string;
+  };
+  err_code?: number;
+  text?: string;
+  data?: {
+    transaction_id?: string;
+    message_id?: string;
+    [key: string]: unknown;
+  };
 }
 
 async function apiCall(method: string, params: Record<string, any> = {}): Promise<DashaMailResponse> {
@@ -54,7 +63,8 @@ async function apiCall(method: string, params: Record<string, any> = {}): Promis
   const data = await response.json();
 
   // Debug logging for API errors
-  if (data.response?.status !== 'success') {
+  const errCode = data.response?.msg?.err_code ?? data.response?.err_code;
+  if (errCode !== 0) {
     console.error('[DashaMail] API error response:', JSON.stringify(data, null, 2));
   }
 
@@ -64,22 +74,24 @@ async function apiCall(method: string, params: Record<string, any> = {}): Promis
 export async function sendApplicationEmail(params: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     // Using transactional email API
+    // DashaMail requires 'message' for HTML and 'plain_text' for text (not 'html' and 'text')
     const result = await apiCall('transactional.send', {
       to: params.to,
       from_email: config.fromEmail,
       from_name: 'Freelanly',
       subject: params.subject,
-      html: params.html,
-      text: params.text || params.html.replace(/<[^>]*>/g, ''),
+      message: params.html,
+      plain_text: params.text || params.html.replace(/<[^>]*>/g, ''),
       reply_to: params.replyTo,
-      // attachments if needed
     });
 
-    if (result.status === 'success') {
-      return { success: true, messageId: result.data?.message_id };
+    // DashaMail returns { msg: { err_code: 0, text: 'OK' }, data: { transaction_id: '...' } } on success
+    const errCode = result.msg?.err_code ?? result.err_code;
+    if (errCode === 0) {
+      return { success: true, messageId: result.data?.transaction_id || result.data?.message_id };
     } else {
       // Ensure error is a string for proper logging
-      const errorMsg = result.msg || (result.data ? JSON.stringify(result.data) : 'Unknown DashaMail error');
+      const errorMsg = result.msg?.text || result.text || (result.data ? JSON.stringify(result.data) : 'Unknown DashaMail error');
       return { success: false, error: errorMsg };
     }
   } catch (error) {
