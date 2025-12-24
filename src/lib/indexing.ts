@@ -121,7 +121,12 @@ export async function submitToGoogle(urls: string[]): Promise<IndexingResult> {
     );
 
     const successCount = results.filter(r => r).length;
-    console.log(`✅ Google: Submitted ${successCount}/${urls.length} URLs`);
+    const timestamp = new Date().toISOString();
+    console.log(`✅ Google [${timestamp}]: Submitted ${successCount}/${urls.length} URLs:`);
+    urls.slice(0, 200).forEach((url, i) => {
+      const status = results[i] ? '✓' : '✗';
+      console.log(`   ${status} ${url}`);
+    });
 
     return {
       service: 'Google',
