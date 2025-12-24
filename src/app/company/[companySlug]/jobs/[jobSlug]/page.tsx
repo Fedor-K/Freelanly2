@@ -1,8 +1,8 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { ExpiredJobPage } from '@/components/jobs/ExpiredJobPage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +13,9 @@ import { ApplyButton } from '@/components/jobs/ApplyButton';
 import { SocialShare } from '@/components/jobs/SocialShare';
 import { JobViewTracker } from '@/components/jobs/JobViewTracker';
 import { SaveJobButton } from '@/components/jobs/SaveJobButton';
+import { StructuredDescription } from '@/components/jobs/StructuredDescription';
 import { formatDistanceToNow } from '@/lib/utils';
+import { maskLinksForFreeUsers } from '@/lib/content-mask';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
@@ -120,12 +122,49 @@ async function getSimilarJobs(jobId: string, categoryId: string, limit: number =
   return jobs;
 }
 
+// Fetch recent jobs for expired job page
+async function getRecentJobs(limit: number = 6) {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const jobs = await prisma.job.findMany({
+    where: {
+      isActive: true,
+      postedAt: { gte: thirtyDaysAgo },
+    },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      location: true,
+      company: {
+        select: {
+          name: true,
+          slug: true,
+          logo: true,
+          website: true,
+        },
+      },
+    },
+    orderBy: { postedAt: 'desc' },
+    take: limit,
+  });
+  return jobs;
+}
+
 export async function generateMetadata({ params }: JobPageProps): Promise<Metadata> {
   const { companySlug, jobSlug } = await params;
   const job = await getJob(jobSlug);
 
   if (!job) {
-    return { title: 'Job Not Found' };
+    return {
+      title: 'Job No Longer Available | Freelanly',
+      description: 'This job posting has expired or is no longer accepting applications. Browse thousands of other remote opportunities on Freelanly.',
+      robots: {
+        index: false, // Don't index expired job pages
+        follow: true,
+      },
+    };
   }
 
   const jobUrl = buildJobUrl(job.company.slug, job.slug);
@@ -134,8 +173,26 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
     : '';
   const description = `${job.title} at ${job.company.name}. ${job.location}.${salaryText} Apply now and join a top remote team!`;
 
+  // Truncate title to 60 chars for SEO
+  const fullTitle = `${job.title} at ${job.company.name} - Remote ${job.category.name} Job`;
+  const seoTitle = fullTitle.length > 60
+    ? `${job.title} at ${job.company.name}`.slice(0, 57) + '...'
+    : fullTitle;
+
+  // Build OG image URL with job details
+  const ogImageParams = new URLSearchParams({
+    title: job.title,
+    company: job.company.name,
+    location: job.location || 'Remote',
+    category: job.category.name,
+    ...(job.salaryMin && job.salaryMax && {
+      salary: `$${(job.salaryMin/1000).toFixed(0)}K-$${(job.salaryMax/1000).toFixed(0)}K`,
+    }),
+  });
+  const ogImageUrl = `${siteConfig.url}/api/og?${ogImageParams.toString()}`;
+
   return {
-    title: `${job.title} at ${job.company.name} - Remote ${job.category.name} Job`,
+    title: seoTitle,
     description,
     keywords: [
       job.title.toLowerCase(),
@@ -150,11 +207,13 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
       type: 'website',
       url: jobUrl,
       siteName: siteConfig.name,
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: `${job.title} at ${job.company.name}` }],
     },
     twitter: {
       card: 'summary_large_image',
       title: `${job.title} at ${job.company.name}`,
       description,
+      images: [ogImageUrl],
     },
     alternates: {
       canonical: jobUrl,
@@ -166,8 +225,11 @@ export default async function JobPage({ params }: JobPageProps) {
   const { companySlug, jobSlug } = await params;
   const job = await getJob(jobSlug);
 
+  // Job not found - show expired page
+  // The metadata sets robots: noindex to tell Google to remove from index
   if (!job) {
-    notFound();
+    const recentJobs = await getRecentJobs(6);
+    return <ExpiredJobPage jobSlug={jobSlug} similarJobs={recentJobs} />;
   }
 
   const isLinkedInPost = job.sourceType === 'UNSTRUCTURED';
@@ -259,7 +321,7 @@ export default async function JobPage({ params }: JobPageProps) {
                   size="lg"
                 />
                 <div>
-                  <h1 className="text-2xl font-bold">{job.title}</h1>
+                  <h1 className="text-2xl font-bold">{job.title} at {job.company.name}</h1>
                   <Link
                     href={`/company/${job.company.slug}`}
                     className="text-lg text-muted-foreground hover:underline"
@@ -398,53 +460,42 @@ export default async function JobPage({ params }: JobPageProps) {
                     </CardContent>
                   </Card>
 
-                  {/* Original Post */}
-                  <Card className="border-blue-200 bg-blue-50/50">
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        💬 Original LinkedIn Post
-                      </CardTitle>
-                      {job.authorName && (
-                        <p className="text-sm text-muted-foreground">
-                          Posted by {job.authorName}
-                        </p>
-                      )}
-                    </CardHeader>
-                    <CardContent>
-                      <div className="bg-white rounded-lg p-4 border whitespace-pre-wrap break-words text-sm overflow-hidden">
-                        {job.originalContent}
-                      </div>
-                      <div className="mt-4 flex gap-2">
-                        {job.sourceUrl && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={job.sourceUrl} target="_blank" rel="noopener noreferrer">
-                              View on LinkedIn
-                            </a>
-                          </Button>
-                        )}
-                        {job.authorLinkedIn && (
-                          <Button variant="ghost" size="sm" asChild>
-                            <a href={job.authorLinkedIn} target="_blank" rel="noopener noreferrer">
-                              View Author Profile
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {/* Structured Description (AI-generated clean text) or Original Post */}
+                  <StructuredDescription
+                    cleanDescription={job.cleanDescription}
+                    summaryBullets={job.summaryBullets}
+                    requirementBullets={job.requirementBullets}
+                    benefitBullets={job.benefitBullets}
+                    originalContent={maskLinksForFreeUsers(job.originalContent, userPlan)}
+                  />
+
+                  {/* LinkedIn source links */}
+                  <div className="flex gap-2">
+                    {job.sourceUrl && (
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={job.sourceUrl} target="_blank" rel="noopener noreferrer">
+                          View on LinkedIn
+                        </a>
+                      </Button>
+                    )}
+                    {job.authorLinkedIn && (
+                      <Button variant="ghost" size="sm" asChild>
+                        <a href={job.authorLinkedIn} target="_blank" rel="noopener noreferrer">
+                          View Author Profile
+                        </a>
+                      </Button>
+                    )}
+                  </div>
                 </>
               ) : (
-                /* Standard Job Description for ATS jobs */
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Job Description</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="prose prose-sm max-w-none whitespace-pre-wrap">
-                      {job.description}
-                    </div>
-                  </CardContent>
-                </Card>
+                /* Standard Job Description for ATS jobs - with structured clean description if available */
+                <StructuredDescription
+                  cleanDescription={job.cleanDescription}
+                  summaryBullets={job.summaryBullets}
+                  requirementBullets={job.requirementBullets}
+                  benefitBullets={job.benefitBullets}
+                  originalContent={maskLinksForFreeUsers(job.description, userPlan)}
+                />
               )}
             </div>
 
@@ -613,13 +664,20 @@ export default async function JobPage({ params }: JobPageProps) {
             '@context': 'https://schema.org',
             '@type': 'JobPosting',
             title: job.title,
-            description: job.originalContent || job.description,
+            description: job.cleanDescription || job.originalContent || job.description,
             datePosted: job.postedAt.toISOString(),
             hiringOrganization: {
               '@type': 'Organization',
               name: job.company.name,
               sameAs: job.company.website || undefined,
               logo: job.company.logo || undefined,
+              ...(job.applyEmail && {
+                contactPoint: {
+                  '@type': 'ContactPoint',
+                  email: job.applyEmail,
+                  contactType: 'HR',
+                },
+              }),
             },
             jobLocation: ['REMOTE', 'REMOTE_US', 'REMOTE_EU'].includes(job.locationType)
               ? undefined
@@ -627,19 +685,20 @@ export default async function JobPage({ params }: JobPageProps) {
                   '@type': 'Place',
                   address: {
                     '@type': 'PostalAddress',
-                    addressCountry: 'US',
+                    addressCountry: job.country || 'US',
                     addressLocality: job.location || undefined,
                   },
                 },
             validThrough: new Date(job.postedAt.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
             employmentType: job.type,
+            experienceRequirements: getExperienceRequirements(job.level),
             identifier: {
               '@type': 'PropertyValue',
               name: job.company.name,
               value: job.id,
             },
             directApply: !!(job.applyUrl || job.applyEmail),
-            ...(['REMOTE', 'REMOTE_US', 'REMOTE_EU'].includes(job.locationType) && {
+            ...(['REMOTE', 'REMOTE_US', 'REMOTE_EU', 'REMOTE_COUNTRY'].includes(job.locationType) && {
               jobLocationType: 'TELECOMMUTE',
               applicantLocationRequirements: job.locationType === 'REMOTE_US'
                 ? { '@type': 'Country', name: 'USA' }
@@ -650,6 +709,8 @@ export default async function JobPage({ params }: JobPageProps) {
                     { '@type': 'Country', name: 'Netherlands' },
                     { '@type': 'Country', name: 'United Kingdom' },
                   ]
+                : job.locationType === 'REMOTE_COUNTRY' && job.country
+                ? { '@type': 'Country', name: getCountryName(job.country) }
                 : undefined,
             }),
             ...(job.salaryMin && !job.salaryIsEstimate && getSchemaUnitText(job.salaryPeriod) && {
@@ -754,4 +815,60 @@ function formatSource(source: string): string {
     MANUAL: 'Direct',
   };
   return map[source] || source;
+}
+
+// Schema.org experienceRequirements based on job level
+function getExperienceRequirements(level: string): string {
+  const map: Record<string, string> = {
+    INTERN: 'No experience required - Internship',
+    ENTRY: 'Entry level - 0-1 years',
+    JUNIOR: 'Junior - 1-2 years experience',
+    MID: 'Mid-level - 2-5 years experience',
+    SENIOR: 'Senior - 5+ years experience',
+    LEAD: 'Lead - 7+ years experience',
+    MANAGER: 'Manager - 5+ years with leadership experience',
+    DIRECTOR: 'Director - 10+ years with executive experience',
+    EXECUTIVE: 'Executive - 15+ years with C-level experience',
+  };
+  return map[level] || 'Experience requirements vary';
+}
+
+// Country code to full name for Schema.org
+function getCountryName(code: string): string {
+  const map: Record<string, string> = {
+    US: 'United States',
+    GB: 'United Kingdom',
+    CA: 'Canada',
+    DE: 'Germany',
+    FR: 'France',
+    NL: 'Netherlands',
+    ES: 'Spain',
+    IT: 'Italy',
+    AU: 'Australia',
+    IN: 'India',
+    BR: 'Brazil',
+    MX: 'Mexico',
+    PL: 'Poland',
+    PT: 'Portugal',
+    IE: 'Ireland',
+    SE: 'Sweden',
+    CH: 'Switzerland',
+    AT: 'Austria',
+    BE: 'Belgium',
+    DK: 'Denmark',
+    NO: 'Norway',
+    FI: 'Finland',
+    SG: 'Singapore',
+    JP: 'Japan',
+    KR: 'South Korea',
+    NZ: 'New Zealand',
+    ZA: 'South Africa',
+    IL: 'Israel',
+    AE: 'United Arab Emirates',
+    PH: 'Philippines',
+    PK: 'Pakistan',
+    RU: 'Russia',
+    UA: 'Ukraine',
+  };
+  return map[code] || code;
 }

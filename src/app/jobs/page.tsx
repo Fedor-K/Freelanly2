@@ -26,27 +26,46 @@ interface JobsPageProps {
 
 const JOBS_PER_PAGE = 20;
 
-export const metadata: Metadata = {
-  title: 'Remote Jobs - Browse 1000+ Remote Work Positions | Freelanly',
-  description: 'Find remote jobs from LinkedIn posts and top companies. Filter by category, level, location, and salary. Updated hourly with new remote opportunities.',
-  keywords: [
-    'remote jobs',
-    'work from home jobs',
-    'remote work',
-    'remote developer jobs',
-    'remote design jobs',
-    'remote marketing jobs',
-  ],
-  openGraph: {
-    title: 'Remote Jobs - Browse All Positions',
-    description: 'Find remote jobs from LinkedIn posts and top companies. Filter by category, level, location, and salary.',
-    url: `${siteConfig.url}/jobs`,
-    siteName: siteConfig.name,
-  },
-  alternates: {
-    canonical: `${siteConfig.url}/jobs`,
-  },
-};
+export async function generateMetadata({ searchParams }: JobsPageProps): Promise<Metadata> {
+  const params = await searchParams;
+  const currentPage = Math.max(1, parseInt(params.page || '1', 10) || 1);
+
+  // Build pagination links
+  const prevPage = currentPage > 1 ? currentPage - 1 : null;
+  const nextPageExists = currentPage < 100; // Assume max 100 pages, actual check in component
+
+  // Build OG image URL
+  const ogImageUrl = `${siteConfig.url}/api/og?title=Remote%20Jobs&type=category&category=All%20Categories`;
+
+  return {
+    title: currentPage > 1
+      ? `Remote Jobs - Page ${currentPage} | Freelanly`
+      : 'Remote Jobs - Browse 1000+ Remote Work Positions | Freelanly',
+    description: 'Find remote jobs from LinkedIn posts and top companies. Filter by category, level, location, and salary. Updated hourly with new remote opportunities.',
+    keywords: [
+      'remote jobs',
+      'work from home jobs',
+      'remote work',
+      'remote developer jobs',
+      'remote design jobs',
+      'remote marketing jobs',
+    ],
+    openGraph: {
+      title: 'Remote Jobs - Browse All Positions',
+      description: 'Find remote jobs from LinkedIn posts and top companies. Filter by category, level, location, and salary.',
+      url: `${siteConfig.url}/jobs`,
+      siteName: siteConfig.name,
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: 'Remote Jobs on Freelanly' }],
+    },
+    alternates: {
+      canonical: `${siteConfig.url}/jobs`,
+    },
+    other: {
+      ...(prevPage && { 'link-prev': `${siteConfig.url}/jobs?page=${prevPage}` }),
+      ...(nextPageExists && { 'link-next': `${siteConfig.url}/jobs?page=${currentPage + 1}` }),
+    },
+  };
+}
 
 // Fetch jobs from database with filters
 async function getJobs(

@@ -44,6 +44,11 @@ export interface ExtractedJobData {
   translationTypes: TranslationType[];
   sourceLanguages: string[];  // ISO 639-1 codes: ["EN", "ES"]
   targetLanguages: string[];  // ISO 639-1 codes: ["RU", "FR"]
+  // AI-generated clean description (for SEO and UX)
+  cleanDescription: string | null; // Structured readable text with sections
+  summaryBullets: string[];      // 5-7 key responsibilities (legacy)
+  requirementBullets: string[];  // 5-7 requirements (legacy)
+  benefitBullets: string[];      // benefits if mentioned (legacy)
 }
 
 const EXTRACTION_PROMPT = `You are a job data extractor. Extract structured data from LinkedIn hiring posts.
@@ -89,6 +94,51 @@ Common language codes: EN (English), ES (Spanish), DE (German), FR (French), RU 
 
 For non-translation jobs, set translationTypes, sourceLanguages, targetLanguages to empty arrays [].
 
+CLEAN DESCRIPTION (for SEO and better UX):
+- cleanDescription: A professionally rewritten job description. Transform the raw post into a clean, structured, easy-to-read text.
+
+Format for cleanDescription:
+1. Start with "About the Role" paragraph (2-3 sentences summarizing the position)
+2. "Key Responsibilities" section with bullet points (use "• " for bullets)
+3. "Requirements" section with bullet points
+4. "Benefits" section with bullet points - ONLY include if benefits are explicitly mentioned in original. If no benefits mentioned, DO NOT include this section at all.
+
+Rules for cleanDescription:
+- Write in professional, clear English
+- REMOVE all: emojis, hashtags, excessive punctuation (!!!), promotional phrases ("Amazing opportunity!!!")
+- REMOVE: EEO statements, legal disclaimers, "About Us" company history, application instructions
+- Keep ONLY job-relevant content: role, responsibilities, requirements, qualifications, benefits
+- NEVER write "Not specified", "N/A", "None mentioned" or similar placeholders - just omit the section entirely
+- Use proper capitalization and punctuation
+- Each section header on its own line, followed by content
+- For bullet points, use "• " prefix
+- Keep it concise but comprehensive (aim for 150-300 words)
+- If original is too short or lacks structure, write what you can extract professionally
+
+Example format:
+"About the Role
+We are looking for a Senior Developer to join our team. This role focuses on building scalable backend systems.
+
+Key Responsibilities
+• Design and implement RESTful APIs
+• Lead code reviews and mentor junior developers
+• Collaborate with product team on technical requirements
+
+Requirements
+• 5+ years of experience with Python or Node.js
+• Strong understanding of database design
+• Experience with cloud platforms (AWS, GCP)
+
+Benefits
+• Competitive salary and equity
+• Remote-first culture
+• Health insurance and 401k"
+
+Also include legacy bullet fields for backwards compatibility:
+- summaryBullets: array of 5-7 key job responsibilities (max 15 words each)
+- requirementBullets: array of 5-7 requirements (max 15 words each)
+- benefitBullets: array of benefits mentioned (empty array if none)
+
 Be conservative - only extract what is explicitly stated. Don't infer or guess.
 Return ONLY valid JSON, no markdown or explanation.`;
 
@@ -103,19 +153,23 @@ export async function extractJobData(postText: string): Promise<ExtractedJobData
         { role: 'user', content: postText }
       ],
       temperature: 0.1,
-      max_tokens: 1000,
+      max_tokens: 2000, // Increased for cleanDescription
     });
 
     const content = response.choices[0]?.message?.content;
     if (!content) return null;
 
     const data = JSON.parse(content) as ExtractedJobData;
-    // Ensure translation fields have defaults
+    // Ensure all array fields have defaults
     return {
       ...data,
       translationTypes: data.translationTypes || [],
       sourceLanguages: data.sourceLanguages || [],
       targetLanguages: data.targetLanguages || [],
+      cleanDescription: data.cleanDescription || null,
+      summaryBullets: data.summaryBullets || [],
+      requirementBullets: data.requirementBullets || [],
+      benefitBullets: data.benefitBullets || [],
     };
   } catch (error) {
     console.error('DeepSeek extraction error:', error);
