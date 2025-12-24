@@ -101,13 +101,14 @@ Format for cleanDescription:
 1. Start with "About the Role" paragraph (2-3 sentences summarizing the position)
 2. "Key Responsibilities" section with bullet points (use "• " for bullets)
 3. "Requirements" section with bullet points
-4. "Benefits" section with bullet points (only if mentioned in original)
+4. "Benefits" section with bullet points - ONLY include if benefits are explicitly mentioned in original. If no benefits mentioned, DO NOT include this section at all.
 
 Rules for cleanDescription:
 - Write in professional, clear English
 - REMOVE all: emojis, hashtags, excessive punctuation (!!!), promotional phrases ("Amazing opportunity!!!")
 - REMOVE: EEO statements, legal disclaimers, "About Us" company history, application instructions
 - Keep ONLY job-relevant content: role, responsibilities, requirements, qualifications, benefits
+- NEVER write "Not specified", "N/A", "None mentioned" or similar placeholders - just omit the section entirely
 - Use proper capitalization and punctuation
 - Each section header on its own line, followed by content
 - For bullet points, use "• " prefix

@@ -15,6 +15,21 @@ interface StructuredDescriptionProps {
   benefitBullets?: string[];
 }
 
+// Check if content is a placeholder (should be hidden)
+function isPlaceholderContent(content: string[]): boolean {
+  if (content.length === 0) return true;
+  if (content.length === 1) {
+    const text = content[0].toLowerCase();
+    return text.includes('not specified') ||
+           text.includes('not mentioned') ||
+           text.includes('none mentioned') ||
+           text.includes('n/a') ||
+           text === 'none' ||
+           text === 'not available';
+  }
+  return false;
+}
+
 // Parse cleanDescription text into styled sections
 function parseCleanDescription(text: string) {
   const sections: { title: string; content: string[] }[] = [];
@@ -62,7 +77,10 @@ function parseCleanDescription(text: string) {
     sections.push(currentSection);
   }
 
-  return { introContent, sections };
+  // Filter out sections with placeholder content
+  const filteredSections = sections.filter(s => !isPlaceholderContent(s.content));
+
+  return { introContent, sections: filteredSections };
 }
 
 // Get section styling based on title
