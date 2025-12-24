@@ -73,6 +73,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.3,
     },
     {
+      url: `${baseUrl}/about`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.6,
+    },
+    {
       url: `${baseUrl}/country`,
       lastModified: now,
       changeFrequency: 'daily',
@@ -85,6 +91,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.85,
     },
   ];
+
+  // Pagination pages: /jobs?page=2 through /jobs?page=50
+  const jobsPaginationPages: MetadataRoute.Sitemap = Array.from({ length: 49 }, (_, i) => ({
+    url: `${baseUrl}/jobs?page=${i + 2}`,
+    lastModified: now,
+    changeFrequency: 'hourly' as const,
+    priority: 0.7,
+  }));
 
   // Category pages: /jobs/[category]
   const categoryPages: MetadataRoute.Sitemap = categories.map((cat) => ({
@@ -222,6 +236,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     ...staticPages,
+    ...jobsPaginationPages,
     ...categoryPages,
     ...categoryLevelPages,
     ...skillLandingPages,

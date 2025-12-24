@@ -98,12 +98,14 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     where.locationType = location.toUpperCase();
   }
 
-  // Fetch jobs with pagination
+  // Fetch jobs with pagination and additional stats for FAQ
   let jobs: any[] = [];
   let totalJobs = 0;
+  let avgSalary = 0;
+  let topCompanies: string[] = [];
 
   try {
-    [jobs, totalJobs] = await Promise.all([
+    const [jobsResult, countResult, salaryResult, companiesResult] = await Promise.all([
       prisma.job.findMany({
         where,
         include: {
@@ -121,7 +123,42 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         take: perPage,
       }),
       prisma.job.count({ where }),
+      // Get average salary for this category
+      prisma.job.aggregate({
+        where: {
+          ...where,
+          salaryMin: { gt: 10000 },
+          salaryIsEstimate: false,
+        },
+        _avg: { salaryMin: true, salaryMax: true },
+      }),
+      // Get top companies hiring in this category
+      prisma.job.groupBy({
+        by: ['companyId'],
+        where,
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
+        take: 5,
+      }),
     ]);
+
+    jobs = jobsResult;
+    totalJobs = countResult;
+
+    // Calculate average salary
+    if (salaryResult._avg.salaryMin && salaryResult._avg.salaryMax) {
+      avgSalary = Math.round((salaryResult._avg.salaryMin + salaryResult._avg.salaryMax) / 2);
+    }
+
+    // Get company names for top companies
+    if (companiesResult.length > 0) {
+      const companyIds = companiesResult.map(c => c.companyId);
+      const companies = await prisma.company.findMany({
+        where: { id: { in: companyIds } },
+        select: { name: true },
+      });
+      topCompanies = companies.map(c => c.name);
+    }
   } catch (error) {
     // Database might not be connected
     console.error('Failed to fetch jobs:', error);
@@ -357,28 +394,41 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
             </div>
           </section>
 
-          {/* FAQ Section for Rich Snippets */}
+          {/* FAQ Section for Rich Snippets - with dynamic data */}
           <section className="mt-12">
             <h2 className="text-2xl font-bold mb-4">Frequently Asked Questions</h2>
             <div className="space-y-4">
               <details className="border rounded-lg p-4">
                 <summary className="font-medium cursor-pointer">
-                  What is a remote {category.name.toLowerCase()} job?
+                  How many remote {category.name.toLowerCase()} jobs are available right now?
                 </summary>
                 <p className="mt-2 text-muted-foreground">
-                  A remote {category.name.toLowerCase()} job allows you to work from home or anywhere
-                  in the world. These positions offer flexibility while working on {category.name.toLowerCase()} tasks
-                  for companies that embrace distributed teams.
+                  Currently, there are <strong>{totalJobs} remote {category.name.toLowerCase()} positions</strong> available on Freelanly.
+                  New jobs are added daily from LinkedIn and top company career pages.
                 </p>
               </details>
               <details className="border rounded-lg p-4">
                 <summary className="font-medium cursor-pointer">
-                  What salary can I expect for a remote {category.name.toLowerCase()} position?
+                  What is the average salary for remote {category.name.toLowerCase()} jobs?
                 </summary>
                 <p className="mt-2 text-muted-foreground">
-                  Salaries for remote {category.name.toLowerCase()} positions vary based on experience,
-                  location, and company size. Entry-level roles typically start at $50,000-$70,000,
-                  while senior positions can exceed $120,000-$180,000 annually.
+                  {avgSalary > 0 ? (
+                    <>Based on current job postings, the average salary for remote {category.name.toLowerCase()} positions is approximately <strong>${avgSalary.toLocaleString()}/year</strong>. Salaries vary based on experience level, location, and company size.</>
+                  ) : (
+                    <>Salaries for remote {category.name.toLowerCase()} positions vary based on experience, location, and company size. Entry-level roles typically start at $50,000-$70,000, while senior positions can exceed $120,000-$180,000 annually.</>
+                  )}
+                </p>
+              </details>
+              <details className="border rounded-lg p-4">
+                <summary className="font-medium cursor-pointer">
+                  Which companies are hiring for remote {category.name.toLowerCase()} roles?
+                </summary>
+                <p className="mt-2 text-muted-foreground">
+                  {topCompanies.length > 0 ? (
+                    <>Top companies currently hiring for {category.name.toLowerCase()} positions include <strong>{topCompanies.join(', ')}</strong>, and many more. Browse our job listings to see all available opportunities.</>
+                  ) : (
+                    <>Many leading companies are hiring for remote {category.name.toLowerCase()} positions. Browse our job listings to discover opportunities from startups to Fortune 500 companies.</>
+                  )}
                 </p>
               </details>
               <details className="border rounded-lg p-4">
@@ -387,7 +437,8 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                 </summary>
                 <p className="mt-2 text-muted-foreground">
                   Browse our {category.name.toLowerCase()} job listings and click on any position that interests you.
-                  Each job posting includes application instructions - either a direct apply link or contact email.
+                  Each job posting includes application instructions — either a direct apply link or contact email.
+                  PRO members get full access to all contact information and can apply unlimited.
                 </p>
               </details>
             </div>
@@ -403,7 +454,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
 
-      {/* FAQ Schema */}
+      {/* FAQ Schema - with dynamic data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -413,18 +464,30 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
             mainEntity: [
               {
                 '@type': 'Question',
-                name: `What is a remote ${category.name.toLowerCase()} job?`,
+                name: `How many remote ${category.name.toLowerCase()} jobs are available right now?`,
                 acceptedAnswer: {
                   '@type': 'Answer',
-                  text: `A remote ${category.name.toLowerCase()} job allows you to work from home or anywhere in the world. These positions offer flexibility while working on ${category.name.toLowerCase()} tasks for companies that embrace distributed teams.`,
+                  text: `Currently, there are ${totalJobs} remote ${category.name.toLowerCase()} positions available on Freelanly. New jobs are added daily from LinkedIn and top company career pages.`,
                 },
               },
               {
                 '@type': 'Question',
-                name: `What salary can I expect for a remote ${category.name.toLowerCase()} position?`,
+                name: `What is the average salary for remote ${category.name.toLowerCase()} jobs?`,
                 acceptedAnswer: {
                   '@type': 'Answer',
-                  text: `Salaries for remote ${category.name.toLowerCase()} positions vary based on experience, location, and company size. Entry-level roles typically start at $50,000-$70,000, while senior positions can exceed $120,000-$180,000 annually.`,
+                  text: avgSalary > 0
+                    ? `Based on current job postings, the average salary for remote ${category.name.toLowerCase()} positions is approximately $${avgSalary.toLocaleString()}/year. Salaries vary based on experience level, location, and company size.`
+                    : `Salaries for remote ${category.name.toLowerCase()} positions vary based on experience, location, and company size. Entry-level roles typically start at $50,000-$70,000, while senior positions can exceed $120,000-$180,000 annually.`,
+                },
+              },
+              {
+                '@type': 'Question',
+                name: `Which companies are hiring for remote ${category.name.toLowerCase()} roles?`,
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: topCompanies.length > 0
+                    ? `Top companies currently hiring for ${category.name.toLowerCase()} positions include ${topCompanies.join(', ')}, and many more. Browse our job listings to see all available opportunities.`
+                    : `Many leading companies are hiring for remote ${category.name.toLowerCase()} positions. Browse our job listings to discover opportunities from startups to Fortune 500 companies.`,
                 },
               },
               {
@@ -432,7 +495,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                 name: `How do I apply for ${category.name.toLowerCase()} jobs on Freelanly?`,
                 acceptedAnswer: {
                   '@type': 'Answer',
-                  text: `Browse our ${category.name.toLowerCase()} job listings and click on any position that interests you. Each job posting includes application instructions - either a direct apply link or contact email.`,
+                  text: `Browse our ${category.name.toLowerCase()} job listings and click on any position that interests you. Each job posting includes application instructions — either a direct apply link or contact email. PRO members get full access to all contact information.`,
                 },
               },
             ],
