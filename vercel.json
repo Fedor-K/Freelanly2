@@ -1,3 +1,21 @@
 {
-  "buildCommand": "prisma generate && next build"
+  "buildCommand": "prisma generate && next build",
+  "crons": [
+    {
+      "path": "/api/cron/fetch-sources",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/fetch-linkedin",
+      "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/cron/send-alerts?frequency=DAILY",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/send-alerts?frequency=WEEKLY",
+      "schedule": "0 7 * * 1"
+    }
+  ]
 }
