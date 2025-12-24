@@ -26,7 +26,8 @@ interface OldLinkedInPost {
   id: number;
   post_url: string;
   post_content: string;
-  post_date: Date;
+  post_date: Date | null;
+  created_at: Date;
   author_name: string | null;
   author_linkedin_url: string | null;
   author_type: string | null;
@@ -60,6 +61,8 @@ interface LinkedInPost {
 
 // Transform old post to new format
 function transformOldPost(old: OldLinkedInPost): LinkedInPost {
+  // Use post_date if available, otherwise fall back to created_at
+  const postedAt = old.post_date || old.created_at;
   return {
     id: `old-${old.id}`, // Prefix to distinguish from new posts
     url: old.post_url,
@@ -71,8 +74,8 @@ function transformOldPost(old: OldLinkedInPost): LinkedInPost {
     authorHeadline: old.detected_work_type || null,
     authorAvatar: old.author_avatar_url,
     authorWebsite: old.company_domain ? `https://${old.company_domain}` : null,
-    postedAt: old.post_date,
-    postedAtTimestamp: old.post_date.getTime(),
+    postedAt: postedAt,
+    postedAtTimestamp: postedAt.getTime(),
     images: [],
   };
 }
@@ -91,7 +94,7 @@ async function migratePosts(limit?: number) {
     // 1. Count posts to migrate
     const countResult = await oldPool.query<{ count: string }>(
       `SELECT COUNT(*) as count FROM linkedin_posts
-       WHERE post_date >= $1 AND is_translator_job = true`,
+       WHERE created_at >= $1 AND is_translator_job = true`,
       [thirtyDaysAgo]
     );
     const totalPosts = parseInt(countResult.rows[0].count);
@@ -103,14 +106,14 @@ async function migratePosts(limit?: number) {
 
     const postsResult = await oldPool.query<OldLinkedInPost>(
       `SELECT
-        id, post_url, post_content, post_date,
+        id, post_url, post_content, post_date, created_at,
         author_name, author_linkedin_url, author_type, author_avatar_url,
         extracted_email, extracted_company, company_domain,
         standardized_title, detected_work_type, language_pairs, all_work_types,
         is_translator_job
        FROM linkedin_posts
-       WHERE post_date >= $1 AND is_translator_job = true
-       ORDER BY post_date DESC
+       WHERE created_at >= $1 AND is_translator_job = true
+       ORDER BY created_at DESC
        ${limitClause}`,
       [thirtyDaysAgo]
     );
