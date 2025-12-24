@@ -46,10 +46,14 @@ export async function submitToIndexNow(urls: string[]): Promise<IndexingResult> 
   }
 
   try {
+    const host = new URL(siteConfig.url).host;
+    const keyLocation = `${siteConfig.url}/${INDEXNOW_KEY}.txt`;
+
     for (const batch of batches) {
       const payload = {
-        host: new URL(siteConfig.url).host,
+        host,
         key: INDEXNOW_KEY,
+        keyLocation,
         urlList: batch,
       };
 
