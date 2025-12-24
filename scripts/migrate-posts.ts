@@ -38,7 +38,7 @@ interface OldLinkedInPost {
   detected_work_type: string | null;
   language_pairs: string[] | null;
   all_work_types: string[] | null;
-  status: string;
+  is_translator_job: boolean;
 }
 
 // LinkedInPost format expected by processor
@@ -91,11 +91,11 @@ async function migratePosts(limit?: number) {
     // 1. Count posts to migrate
     const countResult = await oldPool.query<{ count: string }>(
       `SELECT COUNT(*) as count FROM linkedin_posts
-       WHERE post_date >= $1 AND status = 'active'`,
+       WHERE post_date >= $1 AND is_translator_job = true`,
       [thirtyDaysAgo]
     );
     const totalPosts = parseInt(countResult.rows[0].count);
-    console.log(`📊 Total posts available (< 30 days, active): ${totalPosts}`);
+    console.log(`📊 Total posts available (< 30 days, is_translator_job=true): ${totalPosts}`);
 
     // 2. Fetch posts
     const limitClause = limit ? `LIMIT ${limit}` : '';
@@ -106,9 +106,10 @@ async function migratePosts(limit?: number) {
         id, post_url, post_content, post_date,
         author_name, author_linkedin_url, author_type, author_avatar_url,
         extracted_email, extracted_company, company_domain,
-        standardized_title, detected_work_type, language_pairs, all_work_types, status
+        standardized_title, detected_work_type, language_pairs, all_work_types,
+        is_translator_job
        FROM linkedin_posts
-       WHERE post_date >= $1 AND status = 'active'
+       WHERE post_date >= $1 AND is_translator_job = true
        ORDER BY post_date DESC
        ${limitClause}`,
       [thirtyDaysAgo]
