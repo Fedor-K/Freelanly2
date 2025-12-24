@@ -14,6 +14,7 @@ import { SocialShare } from '@/components/jobs/SocialShare';
 import { JobViewTracker } from '@/components/jobs/JobViewTracker';
 import { SaveJobButton } from '@/components/jobs/SaveJobButton';
 import { formatDistanceToNow } from '@/lib/utils';
+import { maskLinksForFreeUsers } from '@/lib/content-mask';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
@@ -452,7 +453,7 @@ export default async function JobPage({ params }: JobPageProps) {
                     </CardHeader>
                     <CardContent>
                       <div className="bg-white rounded-lg p-4 border whitespace-pre-wrap break-words text-sm overflow-hidden">
-                        {job.originalContent}
+                        {maskLinksForFreeUsers(job.originalContent, userPlan)}
                       </div>
                       <div className="mt-4 flex gap-2">
                         {job.sourceUrl && (
@@ -481,7 +482,7 @@ export default async function JobPage({ params }: JobPageProps) {
                   </CardHeader>
                   <CardContent>
                     <div className="prose prose-sm max-w-none whitespace-pre-wrap">
-                      {job.description}
+                      {maskLinksForFreeUsers(job.description, userPlan)}
                     </div>
                   </CardContent>
                 </Card>
