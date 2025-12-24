@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { getCompanyLogoUrl } from '@/lib/company-logo';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +12,7 @@ interface CompanyLogoProps {
   email?: string | null;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
+  priority?: boolean;
 }
 
 const sizeClasses = {
@@ -18,6 +20,13 @@ const sizeClasses = {
   md: 'w-12 h-12 text-lg',
   lg: 'w-16 h-16 text-2xl',
   xl: 'w-20 h-20 text-3xl',
+};
+
+const sizePx = {
+  sm: 32,
+  md: 48,
+  lg: 64,
+  xl: 80,
 };
 
 const faviconSizes = {
@@ -34,11 +43,13 @@ export function CompanyLogo({
   email,
   size = 'md',
   className,
+  priority = false,
 }: CompanyLogoProps) {
   const [imageError, setImageError] = useState(false);
 
   const faviconSize = faviconSizes[size];
   const logoUrl = getCompanyLogoUrl(logo, website, email, faviconSize);
+  const dimensions = sizePx[size];
 
   // Show placeholder if no logo URL or if image failed to load
   if (!logoUrl || imageError) {
@@ -49,6 +60,7 @@ export function CompanyLogo({
           sizeClasses[size],
           className
         )}
+        aria-label={`Logo placeholder for ${name}`}
       >
         {name.charAt(0).toUpperCase()}
       </div>
@@ -56,11 +68,16 @@ export function CompanyLogo({
   }
 
   return (
-    <img
+    <Image
       src={logoUrl}
-      alt={name}
+      alt={`${name} logo`}
+      width={dimensions}
+      height={dimensions}
       className={cn('rounded-lg object-cover', sizeClasses[size], className)}
       onError={() => setImageError(true)}
+      loading={priority ? 'eager' : 'lazy'}
+      priority={priority}
+      unoptimized // External URLs from Logo.dev
     />
   );
 }

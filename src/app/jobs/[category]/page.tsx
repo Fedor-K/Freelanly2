@@ -353,6 +353,42 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
               </div>
             </div>
           </section>
+
+          {/* FAQ Section for Rich Snippets */}
+          <section className="mt-12">
+            <h2 className="text-2xl font-bold mb-4">Frequently Asked Questions</h2>
+            <div className="space-y-4">
+              <details className="border rounded-lg p-4">
+                <summary className="font-medium cursor-pointer">
+                  What is a remote {category.name.toLowerCase()} job?
+                </summary>
+                <p className="mt-2 text-muted-foreground">
+                  A remote {category.name.toLowerCase()} job allows you to work from home or anywhere
+                  in the world. These positions offer flexibility while working on {category.name.toLowerCase()} tasks
+                  for companies that embrace distributed teams.
+                </p>
+              </details>
+              <details className="border rounded-lg p-4">
+                <summary className="font-medium cursor-pointer">
+                  What salary can I expect for a remote {category.name.toLowerCase()} position?
+                </summary>
+                <p className="mt-2 text-muted-foreground">
+                  Salaries for remote {category.name.toLowerCase()} positions vary based on experience,
+                  location, and company size. Entry-level roles typically start at $50,000-$70,000,
+                  while senior positions can exceed $120,000-$180,000 annually.
+                </p>
+              </details>
+              <details className="border rounded-lg p-4">
+                <summary className="font-medium cursor-pointer">
+                  How do I apply for {category.name.toLowerCase()} jobs on Freelanly?
+                </summary>
+                <p className="mt-2 text-muted-foreground">
+                  Browse our {category.name.toLowerCase()} job listings and click on any position that interests you.
+                  Each job posting includes application instructions - either a direct apply link or contact email.
+                </p>
+              </details>
+            </div>
+          </section>
         </div>
       </main>
 
@@ -362,6 +398,43 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+
+      {/* FAQ Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: [
+              {
+                '@type': 'Question',
+                name: `What is a remote ${category.name.toLowerCase()} job?`,
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: `A remote ${category.name.toLowerCase()} job allows you to work from home or anywhere in the world. These positions offer flexibility while working on ${category.name.toLowerCase()} tasks for companies that embrace distributed teams.`,
+                },
+              },
+              {
+                '@type': 'Question',
+                name: `What salary can I expect for a remote ${category.name.toLowerCase()} position?`,
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: `Salaries for remote ${category.name.toLowerCase()} positions vary based on experience, location, and company size. Entry-level roles typically start at $50,000-$70,000, while senior positions can exceed $120,000-$180,000 annually.`,
+                },
+              },
+              {
+                '@type': 'Question',
+                name: `How do I apply for ${category.name.toLowerCase()} jobs on Freelanly?`,
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: `Browse our ${category.name.toLowerCase()} job listings and click on any position that interests you. Each job posting includes application instructions - either a direct apply link or contact email.`,
+                },
+              },
+            ],
+          }),
+        }}
       />
     </div>
   );
