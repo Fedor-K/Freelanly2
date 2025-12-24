@@ -23,6 +23,7 @@ export function AnalyticsScripts() {
             (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
 
             ym(${analyticsConfig.yandexMetrika.id}, "init", {
+              ssr: true,
               clickmap: true,
               trackLinks: true,
               accurateTrackBounce: true,
