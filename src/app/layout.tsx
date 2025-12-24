@@ -4,6 +4,7 @@ import { siteConfig } from "@/config/site";
 import { AnalyticsScripts } from "@/components/analytics/AnalyticsScripts";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -145,6 +146,7 @@ export default function RootLayout({
         </SessionProvider>
         <AnalyticsScripts />
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
