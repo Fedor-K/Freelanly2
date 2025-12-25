@@ -638,87 +638,104 @@ ssh root@198.12.73.168
 # URL: https://n8n.freelanly.com
 ```
 
-## Current Session Status (Dec 24, 2024)
+## Current Session Status (Dec 25, 2024)
 
-**Что сделано в последней сессии:**
-1. ✅ **Vercel deployment** — миграция с RackNerd VPS на Vercel
-   - Исправлен build: `prisma generate && next build` в package.json
-   - Добавлен vercel.json с buildCommand
-   - DNS настроен через Cloudflare (freelanly.com → Vercel)
-2. ✅ **Translation title normalization** — `normalizeTranslationTitle()` в deepseek.ts
-   - "Arabic Translator" → "English-Arabic Translator"
-   - Script: `scripts/normalize-translation-titles.ts` для исправления существующих
-3. ✅ **Salary tooltip fix** — тултип с формулой теперь показывается для кешированных данных
-4. ✅ **SEO критические исправления:**
-   - robots.txt: разблокированы JS/CSS файлы (`/_next/static/`)
-   - layout.tsx: убран глобальный canonical (каждая страница свой)
-   - sitemap.ts: фильтрация невалидных языковых пар
-5. ✅ **Salary Insights всегда показывается** — как индикатор рынка на ВСЕХ вакансиях
-6. ✅ **Apply заблокирован для FREE** — кнопка "🔒 Upgrade to Apply" → /pricing
-7. ✅ **Контакты скрыты для FREE** — email, телефоны, @handles заменяются на "[Upgrade to PRO to see contact]"
-8. ✅ **Vercel Cron Jobs** — настроены в vercel.json:
-   - fetch-sources: 6:00 UTC daily
-   - fetch-linkedin: 6:30 UTC daily
-   - send-alerts DAILY: 7:00 UTC daily
-   - send-alerts WEEKLY: 7:00 UTC every Monday
-9. ✅ **SEO: unblocked filter URLs** — убраны блоки в robots.txt для `/jobs?level=*`, `/jobs?country=*`, etc.
-   - Было заблокировано 200+ страниц с фильтрами
-   - Теперь блокируются только `/api/`, `/admin/`, `/dashboard/`, `/auth/`
-
-**Hosting:**
-- **Primary:** Vercel (https://freelanly.com)
-- **Backup:** RackNerd VPS (198.12.73.168) — n8n остаётся там
-
-**FREE vs PRO ограничения:**
-| Feature | FREE | PRO |
-|---------|------|-----|
-| Apply to jobs | ❌ "Upgrade to Apply" | ✅ Apply Now |
-| Contact info | ❌ Hidden | ✅ Visible |
-| Salary Insights | Average only | Full data |
-
-**Новые файлы/функции:**
-- `src/lib/deepseek.ts` → `normalizeTranslationTitle()`
-- `src/lib/utils.ts` → `maskContactInfo()`
-- `src/components/jobs/ApplyButton.tsx` → accepts `userPlan` prop
-- `scripts/normalize-translation-titles.ts` — fix existing job titles
-- `vercel.json` — Vercel build configuration
-
-**Logo.dev credentials:**
-```
-Publishable key: pk_A6k2yPZ4T6y5MZrbuUd9yA
-Secret key: sk_S3uVup8yTSaIFQ_dz0khiA
-```
-
-**Известные проблемы:**
-- Apollo.io не всегда находит данные для небольших компаний → используется Logo.dev fallback
-- BLS API имеет дневной лимит запросов — при превышении используется formula estimation
-- Salary Insights использует формулу если нет данных из BLS/Adzuna
-
-**Возможные следующие шаги:**
-1. ~~WEEKLY cron для недельных алертов~~ ✅ Готово (vercel.json)
-2. Application tracking (отслеживание откликов)
-3. Onboarding wizard после первого входа
-4. ~~Настроить Vercel Cron Jobs~~ ✅ Готово (vercel.json)
-
-**Vercel Deployment:**
-```bash
-# Deploy via CLI
-vercel --prod
-
-# Or auto-deploy via GitHub (merge to main)
-```
+**Текущий хостинг:**
+- **Primary:** RackNerd VPS (198.12.73.168) + Cloudflare DNS
+- **n8n:** тот же VPS, доступ через Cloudflare Tunnel (n8n.freelanly.com)
 
 **DNS (Cloudflare):**
 ```
-freelanly.com  → A    → 76.76.21.21 (Vercel)
-www            → CNAME → cname.vercel-dns.com
-n8n            → CNAME → cfargotunnel.com (остаётся на VPS)
+freelanly.com  → A    → 198.12.73.168 (VPS) - Proxy OFF (серая тучка!)
+www            → A    → 198.12.73.168 (VPS) - Proxy OFF
+n8n            → CNAME → cfargotunnel.com (Proxy ON)
 ```
 
-**Environment Variables (Vercel Dashboard):**
-Все переменные из .env нужно добавить в Vercel → Settings → Environment Variables
+**⚠️ ВАЖНО: Cloudflare Proxy должен быть OFF (серая тучка) для основного домена!**
+Иначе из России не будет работать.
 
-**Настройка Stripe webhook (обязательно!):**
-1. Stripe Dashboard → Webhooks
-2. Add endpoint: `https://freelanly.com/api/stripe/webhook`
-3. Events: checkout.session.completed, customer.subscription.*, invoice.*
+**Что сделано в этой сессии (Dec 25):**
+1. ✅ **Удалён Vercel Analytics** — `@vercel/analytics` вызывал client-side ошибки на VPS
+   - Убран импорт и компонент `<Analytics />` из layout.tsx
+2. ✅ **Обновлён CSP** — добавлены домены внешних скриптов аналитики:
+   - mc.yandex.ru, googletagmanager.com, google-analytics.com, clarity.ms
+3. ✅ **Error boundaries** — добавлены для отладки:
+   - `src/app/error.tsx` — ловит ошибки в страницах
+   - `src/app/global-error.tsx` — ловит ошибки в root layout
+4. ✅ **Microsoft Clarity** — добавлен ID: `uqwmja72lg`
+   - Хардкодом в `src/lib/analytics.ts`
+5. ✅ **Миграция на VPS** — сайт теперь на VPS, не на Vercel
+   - nginx конфиг: `/etc/nginx/sites-available/freelanly.conf`
+   - PM2 для управления процессом
+   - SSL через Let's Encrypt
+
+**nginx конфиг (VPS):**
+```nginx
+server {
+    server_name freelanly.com www.freelanly.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+
+        # RSC streaming
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 300s;
+        gzip off;
+    }
+
+    listen 443 ssl;
+    ssl_certificate /etc/letsencrypt/live/freelanly.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/freelanly.com/privkey.pem;
+}
+```
+
+**⚠️ Известная проблема: Россия**
+- Из России RSC запросы (`?_rsc=xxx`) таймаутятся
+- Шапка и подвал грузятся, вакансии — нет
+- Ошибка: `GET /jobs?_rsc=xxx net::ERR_TIMED_OUT`
+- Причина: плохая связь между VPS (US) и Россией для streaming запросов
+- **Пока не решено** — нужен либо CDN, либо сервер ближе к России
+
+**VPS команды:**
+```bash
+# SSH
+ssh root@198.12.73.168
+
+# Проект
+cd /root/Freelanly2  # или найти: find / -name Freelanly2 -type d
+
+# Деплой
+git pull origin main
+npm run build
+pm2 restart all
+
+# Логи
+pm2 logs --lines 100
+tail -f /var/log/nginx/error.log
+
+# nginx
+nginx -t && systemctl reload nginx
+```
+
+**Email (работает):**
+- MX записи → Google Workspace (aspmx.l.google.com)
+- Отправка → DashaMail (SPF + DKIM настроены)
+- DKIM: `dm._domainkey` → DashaMail
+- SPF: `include:_spf.dashasender.ru`
+
+**Возможные следующие шаги:**
+1. Решить проблему доступа из России (CDN/edge server)
+2. Application tracking (отслеживание откликов)
+3. Склонировать проект на VPS если ещё не сделано
+4. Настроить cron jobs на VPS (вместо Vercel crons)
