@@ -5,6 +5,7 @@ import { slugify, isFreeEmail, extractDomainFromEmail, cleanEmail } from '@/lib/
 import { validateAndEnrichCompany } from '@/services/company-enrichment';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
+import { isRemoteFriendlyJob } from '@/lib/job-filter';
 
 /**
  * POST /api/webhooks/linkedin-posts
@@ -117,6 +118,17 @@ export async function POST(request: NextRequest) {
         success: true,
         status: 'skipped',
         reason: 'no_title',
+      });
+    }
+
+    // Check if job is remote-friendly (whitelist/blacklist filter)
+    const filterResult = isRemoteFriendlyJob(extracted.title, extracted.company);
+    if (!filterResult.isRemoteFriendly) {
+      console.log(`[LinkedInPosts] Skipping non-remote job: ${extracted.title} (${filterResult.reason})`);
+      return NextResponse.json({
+        success: true,
+        status: 'skipped',
+        reason: `not_remote_friendly_${filterResult.reason}`,
       });
     }
 

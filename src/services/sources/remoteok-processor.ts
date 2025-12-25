@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl } from '@/lib/indexing';
+import { isRemoteFriendlyJob } from '@/lib/job-filter';
 import type { ProcessingStats, RemoteOKJob } from './types';
 
 const REMOTEOK_API = 'https://remoteok.com/api';
@@ -102,6 +103,13 @@ export async function processRemoteOKSource(dataSourceId: string): Promise<Proce
 }
 
 async function processRemoteOKJob(job: RemoteOKJob): Promise<{ status: 'created' | 'updated' | 'skipped'; companySlug?: string; jobSlug?: string }> {
+  // Check if job is remote-friendly (whitelist/blacklist filter)
+  const filterResult = isRemoteFriendlyJob(job.position, job.company);
+  if (!filterResult.isRemoteFriendly) {
+    console.log(`[RemoteOK] Skipping non-remote job: ${job.position} (${filterResult.reason})`);
+    return { status: 'skipped' };
+  }
+
   const sourceId = `remoteok-${job.id}`;
   const sourceUrl = job.url || `https://remoteok.com/remote-jobs/${job.slug}`;
 

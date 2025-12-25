@@ -14,6 +14,7 @@ import { validateAndEnrichCompany } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
+import { isRemoteFriendlyJob } from '@/lib/job-filter';
 
 // Re-export for cron endpoint
 export { HIRING_SEARCH_QUERIES };
@@ -306,6 +307,12 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
 
   if (!extracted || !extracted.title) {
     return { success: false, error: 'Could not extract job title' };
+  }
+
+  // Check if job is remote-friendly (whitelist/blacklist filter)
+  const filterResult = isRemoteFriendlyJob(extracted.title, extracted.company);
+  if (!filterResult.isRemoteFriendly) {
+    return { success: false, error: `not_remote_friendly: ${filterResult.reason}` };
   }
 
   // Clean and validate email (handles AI-extracted emails with extra text)

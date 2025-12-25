@@ -4,6 +4,7 @@ import { extractJobData, classifyJobCategory } from '@/lib/deepseek';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl } from '@/lib/indexing';
+import { isRemoteFriendlyJob } from '@/lib/job-filter';
 import type { ProcessingStats } from './types';
 
 // HN Algolia API for searching "Who is Hiring" threads
@@ -201,6 +202,13 @@ async function processHNComment(comment: HNComment, storyId: number): Promise<{ 
   const companyName = parsedHeader.company || extracted?.company || comment.author;
   const jobTitle = parsedHeader.title || extracted?.title || 'Software Engineer';
   const location = parsedHeader.location || extracted?.location || 'Remote';
+
+  // Check if job is remote-friendly (whitelist/blacklist filter)
+  const filterResult = isRemoteFriendlyJob(jobTitle, companyName);
+  if (!filterResult.isRemoteFriendly) {
+    console.log(`[HN] Skipping non-remote job: ${jobTitle} (${filterResult.reason})`);
+    return { status: 'skipped' };
+  }
 
   // Find or create company
   const company = await findOrCreateCompany(companyName);

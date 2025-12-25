@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl } from '@/lib/indexing';
+import { isRemoteFriendlyJob } from '@/lib/job-filter';
 import type { ProcessingStats } from './types';
 
 const WWR_RSS_URL = 'https://weworkremotely.com/remote-jobs.rss';
@@ -165,6 +166,13 @@ async function processWWRJob(item: WWRItem): Promise<{ status: 'created' | 'upda
 
   if (!companyName || !jobTitle) {
     throw new Error('Could not parse job title');
+  }
+
+  // Check if job is remote-friendly (whitelist/blacklist filter)
+  const filterResult = isRemoteFriendlyJob(jobTitle, companyName);
+  if (!filterResult.isRemoteFriendly) {
+    console.log(`[WWR] Skipping non-remote job: ${jobTitle} (${filterResult.reason})`);
+    return { status: 'skipped' };
   }
 
   // Find or create company

@@ -4,6 +4,7 @@ import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl } from '@/lib/indexing';
 import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
+import { isRemoteFriendlyJob } from '@/lib/job-filter';
 import type { ProcessingStats, LeverJob } from './types';
 
 // Fetch real company website from Lever job page footer
@@ -153,7 +154,14 @@ async function processLeverJob(
   job: LeverJob,
   companyId: string,
   companySlug: string
-): Promise<{ status: 'created' | 'updated' | 'skipped'; jobSlug?: string }> {
+): Promise<{ status: 'created' | 'updated' | 'skipped'; jobSlug?: string; skipReason?: string }> {
+  // Check if job is remote-friendly (whitelist/blacklist filter)
+  const filterResult = isRemoteFriendlyJob(job.text);
+  if (!filterResult.isRemoteFriendly) {
+    console.log(`[Lever] Skipping non-remote job: ${job.text} (${filterResult.reason})`);
+    return { status: 'skipped', skipReason: filterResult.reason };
+  }
+
   // Build full description (with RESPONSIBILITIES, QUALIFICATIONS, etc.)
   const fullDescription = buildDescription(job);
 
