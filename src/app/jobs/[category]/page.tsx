@@ -7,6 +7,7 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { siteConfig, categories, levels, jobTypes, locationTypes } from '@/config/site';
+import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 
@@ -34,11 +35,8 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
     return { title: 'Category Not Found' };
   }
 
-  // Truncate title to 60 chars for SEO
-  const fullTitle = `Remote ${category.name} Jobs - Work From Home ${category.name} Positions`;
-  const seoTitle = fullTitle.length > 60
-    ? `Remote ${category.name} Jobs | Freelanly`.slice(0, 60)
-    : fullTitle;
+  // Use SEO utility for consistent title truncation (max 60 chars)
+  const seoTitle = truncateTitle(`Remote ${category.name} Jobs - Work From Home ${category.name} Positions`);
   const description = `Browse ${category.name.toLowerCase()} remote jobs. Find work from home ${category.name.toLowerCase()} positions at top companies. Updated daily with new opportunities.`;
 
   return {

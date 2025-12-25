@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CompanyLogo } from '@/components/ui/CompanyLogo';
 import { siteConfig } from '@/config/site';
+import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 
@@ -34,11 +35,8 @@ export async function generateMetadata({ params }: CompanyPageProps): Promise<Me
     return { title: 'Company Not Found' };
   }
 
-  // Truncate title to 60 chars for SEO
-  const fullTitle = `${company.name} Remote Jobs - Work at ${company.name}`;
-  const seoTitle = fullTitle.length > 60
-    ? `${company.name} Remote Jobs`.slice(0, 57) + '...'
-    : fullTitle;
+  // Use SEO utility for consistent title truncation (max 60 chars)
+  const seoTitle = truncateTitle(`${company.name} Remote Jobs - Work at ${company.name}`);
   const description = company.description
     ? company.description.slice(0, 155)
     : `Find remote jobs at ${company.name}. Browse open positions and apply to work at ${company.name}.`;

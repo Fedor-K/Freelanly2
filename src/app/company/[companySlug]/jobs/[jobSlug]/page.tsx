@@ -20,6 +20,7 @@ import { StructuredDescription } from '@/components/jobs/StructuredDescription';
 import { formatDistanceToNow } from '@/lib/utils';
 import { maskLinksForFreeUsers } from '@/lib/content-mask';
 import { siteConfig, categories } from '@/config/site';
+import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 
@@ -176,11 +177,8 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
     : '';
   const description = `${job.title} at ${job.company.name}. ${job.location}.${salaryText} Apply now and join a top remote team!`;
 
-  // Truncate title to 60 chars for SEO
-  const fullTitle = `${job.title} at ${job.company.name} - Remote ${job.category.name} Job`;
-  const seoTitle = fullTitle.length > 60
-    ? `${job.title} at ${job.company.name}`.slice(0, 57) + '...'
-    : fullTitle;
+  // Use SEO utility for consistent title truncation (max 60 chars)
+  const seoTitle = truncateTitle(`${job.title} at ${job.company.name} - Remote ${job.category.name} Job`);
 
   // Build OG image URL with job details
   const ogImageParams = new URLSearchParams({

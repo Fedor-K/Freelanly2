@@ -7,6 +7,7 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { siteConfig } from '@/config/site';
+import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 
@@ -32,11 +33,8 @@ export async function generateMetadata({ params }: CompanyJobsPageProps): Promis
     return { title: 'Jobs Not Found' };
   }
 
-  // Truncate title to 60 chars for SEO
-  const fullTitle = `Jobs at ${company.name} - All Open Positions`;
-  const seoTitle = fullTitle.length > 60
-    ? `Jobs at ${company.name}`.slice(0, 57) + '...'
-    : fullTitle;
+  // Use SEO utility for consistent title truncation (max 60 chars)
+  const seoTitle = truncateTitle(`Jobs at ${company.name} - All Open Positions`);
   const description = `Browse all remote job openings at ${company.name}. Find your next opportunity and apply today.`;
 
   return {
