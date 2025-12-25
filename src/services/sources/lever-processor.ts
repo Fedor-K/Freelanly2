@@ -3,6 +3,7 @@ import { slugify, getMaxJobAgeDate } from '@/lib/utils';
 import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl } from '@/lib/indexing';
+import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
 import type { ProcessingStats, LeverJob } from './types';
 
 // Fetch real company website from Lever job page footer
@@ -40,6 +41,9 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
     errors: [],
     createdJobUrls: [],
   };
+
+  // Reset DeepSeek usage stats for this run
+  resetDeepSeekUsageStats();
 
   // Get the data source
   const dataSource = await prisma.dataSource.findUnique({
@@ -123,6 +127,12 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
     // Cleanup old jobs after successful import
     await cleanupOldJobs();
 
+    // Log DeepSeek usage stats
+    const aiStats = getDeepSeekUsageStats();
+    if (aiStats.calls > 0) {
+      console.log(`[Lever] DeepSeek usage: ${aiStats.calls} calls, ${aiStats.inputTokens} input tokens, ${aiStats.outputTokens} output tokens, estimated cost: $${aiStats.estimatedCostUSD.toFixed(4)}`);
+    }
+
     return stats;
   } catch (error) {
     // Update data source with error
@@ -163,11 +173,18 @@ async function processLeverJob(
       existingJob.description !== fullDescription;
 
     if (needsUpdate) {
+      // Re-process through AI if updating
+      const aiData = await extractJobData(fullDescription);
+
       await prisma.job.update({
         where: { id: existingJob.id },
         data: {
           title: job.text,
           description: fullDescription,
+          cleanDescription: aiData?.cleanDescription || null,
+          summaryBullets: aiData?.summaryBullets || [],
+          requirementBullets: aiData?.requirementBullets || [],
+          benefitBullets: aiData?.benefitBullets || [],
           updatedAt: new Date(),
         },
       });
@@ -175,6 +192,10 @@ async function processLeverJob(
     }
     return { status: 'skipped' };
   }
+
+  // Process through DeepSeek AI for clean description
+  console.log(`[Lever] Processing through AI: ${job.text}`);
+  const aiData = await extractJobData(fullDescription);
 
   // Get category (check department first, then title as fallback)
   const categorySlug = mapDepartmentToCategory(job.categories.department, job.text);
@@ -204,12 +225,16 @@ async function processLeverJob(
   // Extract skills from tags/description
   const skills = extractSkillsFromDescription(fullDescription, job.categories.department);
 
-  // Create job
+  // Create job with AI-enhanced description
   await prisma.job.create({
     data: {
       slug,
       title: job.text,
       description: fullDescription,
+      cleanDescription: aiData?.cleanDescription || null,
+      summaryBullets: aiData?.summaryBullets || [],
+      requirementBullets: aiData?.requirementBullets || [],
+      benefitBullets: aiData?.benefitBullets || [],
       companyId,
       categoryId: category.id,
       location,
@@ -223,14 +248,14 @@ async function processLeverJob(
       salaryPeriod: mapSalaryInterval(job.salaryRange?.interval),
       salaryIsEstimate: false,
       skills,
-      benefits: [],
+      benefits: aiData?.benefits || [],
       source: 'LEVER',
       sourceType: 'STRUCTURED',
       sourceUrl: job.hostedUrl,
       sourceId: job.id,
       applyUrl: job.applyUrl,
       enrichmentStatus: 'COMPLETED',
-      qualityScore: 75, // ATS data is generally high quality
+      qualityScore: 80, // ATS + AI enhanced = higher quality
       postedAt: new Date(job.createdAt),
     },
   });
