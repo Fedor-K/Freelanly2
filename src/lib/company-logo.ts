@@ -16,7 +16,12 @@ function extractDomainFromUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   try {
     const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
-    return parsed.hostname.replace(/^www\./, '');
+    const hostname = parsed.hostname.replace(/^www\./, '');
+    // Validate hostname looks like a real domain (has dot, no encoded chars)
+    if (!hostname.includes('.') || hostname.includes('%')) {
+      return null;
+    }
+    return hostname;
   } catch {
     return null;
   }
