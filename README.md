@@ -60,7 +60,7 @@ Freelanly агрегирует hiring-посты из LinkedIn, извлекае
 | **Enrichment** | Apollo.io API |
 | **Auth** | NextAuth v5 (Google OAuth + Magic Link) |
 | **Payments** | Stripe |
-| **Hosting** | Vercel (primary) / VPS + PM2 (backup) |
+| **Hosting** | Replit (primary) |
 
 ---
 
@@ -784,36 +784,86 @@ CRON_SECRET="your-random-secret"
 
 ## Deployment
 
-### Option 1: Vercel (recommended)
+### Option 1: Replit (primary - recommended)
+
+Replit обеспечивает работу из России и других регионов без проблем с блокировками.
+
+**Первоначальная настройка:**
+1. Импортировать репозиторий из GitHub в Replit
+2. Добавить все environment variables в Secrets (Settings → Secrets)
+3. Deploy
+
+**Важные Secrets для Replit:**
+```
+DATABASE_URL=postgresql://user:pass@host.neon.tech/db?sslmode=require
+AUTH_SECRET=xxx  # openssl rand -base64 32
+AUTH_URL=https://freelanly.com  # ОБЯЗАТЕЛЬНО с https://
+CRON_SECRET=xxx
+DEEPSEEK_API_KEY=xxx
+APIFY_API_TOKEN=xxx
+APOLLO_API_KEY=xxx
+DASHAMAIL_API_KEY=xxx
+GOOGLE_CLIENT_ID=xxx
+GOOGLE_CLIENT_SECRET=xxx
+NEXT_PUBLIC_YANDEX_METRIKA_ID=103606747
+```
+
+**Подключение домена:**
+1. Replit → Settings → Domains → Add custom domain
+2. DNS (Cloudflare):
+   - Удалить старые A-записи
+   - Добавить CNAME: `freelanly.com` → `xxxx.replit.app` (Proxy OFF!)
+   - Добавить CNAME: `www` → `freelanly.com`
+
+### Shell Workflow (Replit)
+
+Все изменения делаются через Shell в Replit:
 
 ```bash
-# Install Vercel CLI
-npm i -g vercel
+# Посмотреть изменения
+git status
+git diff
 
-# Login to Vercel
-vercel login
+# Применить изменения из GitHub
+git pull origin main
 
-# Deploy to production
-vercel --prod
+# Редактирование файлов через sed
+sed -i 's/old_text/new_text/' path/to/file.ts
+
+# Закоммитить и запушить изменения
+git add .
+git commit -m "Description of changes"
+git push origin main
+
+# После изменений — Redeploy через UI Replit
+# (Deploy → Redeploy)
 ```
 
-**Required Environment Variables in Vercel Dashboard:**
-- `DATABASE_URL` — Neon PostgreSQL connection string
-- `AUTH_SECRET` — NextAuth secret (generate: `openssl rand -base64 32`)
-- `AUTH_URL` — `https://freelanly.com`
-- `DEEPSEEK_API_KEY`, `APIFY_API_TOKEN`, `APOLLO_API_KEY`
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- All other env vars from `.env.example`
+**Пример: изменение конфига**
+```bash
+# Проверить текущее значение
+grep -n "searchPattern" next.config.ts
 
-**DNS Configuration (Cloudflare):**
+# Изменить значение
+sed -i 's/oldValue/newValue/' next.config.ts
+
+# Убедиться что изменилось
+grep -n "searchPattern" next.config.ts
+
+# Закоммитить
+git add next.config.ts
+git commit -m "Update config"
+git push origin main
+
+# Затем Redeploy в UI
 ```
-freelanly.com  → A    → 76.76.21.21 (or Vercel-provided IP)
-www            → CNAME → cname.vercel-dns.com
-```
 
-**Note:** `prisma generate` runs automatically during build (configured in `package.json`).
+**Важно:**
+- После `git push` нужно делать Redeploy в Replit UI
+- Изменения в Secrets применяются сразу после Redeploy
+- Логи: Replit → Deployments → Logs
 
-### Option 2: PM2 (VPS backup)
+### Option 2: VPS + PM2 (backup)
 
 ```bash
 # Initial setup
@@ -832,9 +882,6 @@ npm run build
 pm2 start npm --name "freelanly" -- start -- -p 3001
 pm2 save
 pm2 startup  # auto-start after reboot
-
-# Setup daily cron (runs at 6:00 UTC)
-echo '0 6 * * * curl -s -X POST http://localhost:3000/api/cron/fetch-sources -H "Authorization: Bearer YOUR_CRON_SECRET" >> /var/log/freelanly-cron.log 2>&1' | crontab -
 ```
 
 ### Update (PM2)
@@ -846,28 +893,6 @@ npm install           # if dependencies changed
 npx prisma db push    # if schema changed
 npm run build
 pm2 restart freelanly
-```
-
-### Option 2: Docker
-
-```bash
-cd /opt
-git clone https://github.com/Fedor-K/Freelanly2.git freelanly
-cd freelanly
-cp .env.example .env
-nano .env
-
-docker compose up -d --build
-```
-
-### With Nginx + SSL
-
-```bash
-apt install nginx certbot python3-certbot-nginx -y
-cp deploy/nginx.conf /etc/nginx/sites-available/freelanly
-ln -s /etc/nginx/sites-available/freelanly /etc/nginx/sites-enabled/
-certbot --nginx -d your-domain.com
-nginx -t && systemctl reload nginx
 ```
 
 ---
@@ -961,7 +986,7 @@ model Job {
 - [x] **n8n webhook integration** — real-time LinkedIn posts via `/api/webhooks/linkedin-posts`
 - [x] **Fuzzy deduplication** — email domain + title similarity (60%+ threshold)
 - [x] **Stripe payments** — Weekly €10, Monthly €20, Annual €192
-- [x] **Vercel deployment** — primary hosting with auto-deploy from GitHub
+- [x] **Replit deployment** — primary hosting, works from Russia
 - [ ] Application tracking
 - [ ] WEEKLY alert frequency cron
 - [ ] SEO landing pages generator

@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
     '.replit.dev',
     '.replit.app',
   ],
-  
+
   // Image optimization
   images: {
     remotePatterns: [
@@ -51,8 +51,6 @@ const nextConfig: NextConfig = {
           {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
-          },
-          {
           },
         ],
       },

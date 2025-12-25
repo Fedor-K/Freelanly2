@@ -635,31 +635,129 @@ return {
 2. After DB reset, must run `npm run db:seed` to restore categories
 3. Apollo enrichment can match wrong company (e.g., "Mistral" → bakery instead of AI)
 4. Salary Insights only shown for annual salaries (YEAR period)
-5. **Primary hosting: Vercel** — VPS (198.12.73.168) только для n8n
-6. **Vercel Cron Jobs** — crons настроены в vercel.json, логи в Vercel Dashboard
-7. **Cron schedule (UTC):** 6:00 fetch-sources, 6:30 fetch-linkedin, 7:00 DAILY alerts, Monday 7:00 WEEKLY alerts
+5. **Primary hosting: Replit** — работает из России без проблем
+6. **VPS (198.12.73.168)** — только для n8n workflows
+7. **Cron jobs** — настраиваются в Replit Scheduled Deployments
 8. **Jobs auto-deleted after 30 days** — this is intentional, not a bug
 
-## Vercel Cron Jobs
+## Replit Hosting (Primary)
 
-Cron jobs настроены в `vercel.json` и запускаются автоматически на Vercel.
+**Почему Replit:**
+- Работает из России (Neon DB не блокируется)
+- Простой деплой через GitHub
+- Встроенный SSL
+- Secrets для env variables
 
-**Schedule (UTC):**
-| Cron | Time | Endpoint |
-|------|------|----------|
-| fetch-sources | 6:00 daily | `/api/cron/fetch-sources` |
-| fetch-linkedin | 6:30 daily | `/api/cron/fetch-linkedin` |
-| DAILY alerts | 7:00 daily | `/api/cron/send-alerts?frequency=DAILY` |
-| WEEKLY alerts | 7:00 Monday | `/api/cron/send-alerts?frequency=WEEKLY` |
+**Текущий хостинг:**
+- **Primary:** Replit (freelanly.replit.app → freelanly.com)
+- **n8n:** VPS 198.12.73.168 через Cloudflare Tunnel (n8n.freelanly.com)
 
-**Vercel Dashboard:**
-- Logs: Vercel → Project → Logs (filter by cron)
-- Cron status: Vercel → Project → Settings → Cron Jobs
+**DNS (Cloudflare):**
+```
+freelanly.com  → CNAME → xxxx.replit.app (Proxy OFF!)
+www            → CNAME → freelanly.com
+n8n            → CNAME → cfargotunnel.com (Proxy ON)
+```
+
+**⚠️ ВАЖНО: Cloudflare Proxy должен быть OFF (серая тучка) для основного домена!**
+
+### Replit Secrets (Environment Variables)
+
+Все env variables добавляются в Settings → Secrets:
+
+```
+DATABASE_URL=postgresql://user:pass@host.neon.tech/db?sslmode=require
+AUTH_SECRET=xxx
+AUTH_URL=https://freelanly.com  # ОБЯЗАТЕЛЬНО с https://
+CRON_SECRET=xxx
+DEEPSEEK_API_KEY=xxx
+APIFY_API_TOKEN=xxx
+APOLLO_API_KEY=xxx
+DASHAMAIL_API_KEY=xxx
+DASHAMAIL_FROM_EMAIL=info@freelanly.com
+DASHAMAIL_LIST_ID=358581
+GOOGLE_CLIENT_ID=xxx
+GOOGLE_CLIENT_SECRET=xxx
+NEXT_PUBLIC_YANDEX_METRIKA_ID=103606747
+BLS_API_KEY=xxx
+ADZUNA_APP_ID=xxx
+ADZUNA_APP_KEY=xxx
+STRIPE_SECRET_KEY=xxx
+STRIPE_WEBHOOK_SECRET=xxx
+```
+
+### Shell Workflow (Replit)
+
+Все изменения делаются через Shell в Replit:
+
+```bash
+# 1. Проверить текущее состояние
+git status
+git log --oneline -5
+
+# 2. Получить изменения из GitHub
+git pull origin main
+
+# 3. Редактирование файлов через sed
+# Простая замена:
+sed -i 's/old_text/new_text/' path/to/file.ts
+
+# Удаление строки с определённым текстом:
+sed -i '/text_to_delete/d' path/to/file.ts
+
+# Добавление текста после строки:
+sed -i '/after_this_line/a new_line_text' path/to/file.ts
+
+# 4. Проверить изменения
+git diff
+grep -n "search_pattern" path/to/file.ts
+
+# 5. Закоммитить и запушить
+git add .
+git commit -m "Description of changes"
+git push origin main
+
+# 6. ВАЖНО: После push — Redeploy в UI Replit
+# Deploy → Redeploy
+```
+
+**Примеры частых операций:**
+
+```bash
+# Изменить значение в конфиге
+sed -i "s/oldValue/newValue/" next.config.ts
+
+# Удалить CSP строку
+sed -i '/Content-Security-Policy/d' next.config.ts
+
+# Проверить что файл изменился
+cat next.config.ts | grep -A2 -B2 "keyword"
+
+# Посмотреть логи git
+git log --oneline -10
+```
+
+**Workflow после изменений:**
+1. Сделать изменения через `sed` или редактор
+2. `git diff` — проверить изменения
+3. `git add . && git commit -m "message"`
+4. `git push origin main`
+5. Replit UI → Deploy → Redeploy
+6. Проверить Deployments → Logs
+
+### Cron Jobs (Replit)
+
+Cron jobs настраиваются через Replit Scheduled Deployments или внешние сервисы:
 
 **Manual trigger:**
 ```bash
-# Via Vercel Dashboard or curl (requires CRON_SECRET)
-curl -X GET "https://freelanly.com/api/cron/fetch-sources" \
+curl -X POST "https://freelanly.com/api/cron/fetch-sources" \
+  -H "Authorization: Bearer $CRON_SECRET"
+
+curl -X POST "https://freelanly.com/api/cron/fetch-linkedin" \
+  -H "Authorization: Bearer $CRON_SECRET"
+
+curl -X POST "https://freelanly.com/api/cron/send-alerts?frequency=DAILY" \
   -H "Authorization: Bearer $CRON_SECRET"
 ```
 
@@ -675,93 +773,18 @@ ssh root@198.12.73.168
 
 ## Current Session Status (Dec 25, 2024)
 
-**Текущий хостинг:**
-- **Primary:** RackNerd VPS (198.12.73.168) + Cloudflare DNS
-- **n8n:** тот же VPS, доступ через Cloudflare Tunnel (n8n.freelanly.com)
+**Миграция на Replit завершена:**
+1. ✅ Сайт работает на Replit
+2. ✅ Домен freelanly.com подключен
+3. ✅ Работает из России
+4. ✅ AUTH_URL настроен правильно (https://freelanly.com)
+5. ✅ Яндекс.Метрика работает (tag.js с параметром ?id=)
+6. ✅ CSP удалён для упрощения (на раннем этапе не критично)
 
-**DNS (Cloudflare):**
-```
-freelanly.com  → A    → 198.12.73.168 (VPS) - Proxy OFF (серая тучка!)
-www            → A    → 198.12.73.168 (VPS) - Proxy OFF
-n8n            → CNAME → cfargotunnel.com (Proxy ON)
-```
-
-**⚠️ ВАЖНО: Cloudflare Proxy должен быть OFF (серая тучка) для основного домена!**
-Иначе из России не будет работать.
-
-**Что сделано в этой сессии (Dec 25):**
-1. ✅ **Удалён Vercel Analytics** — `@vercel/analytics` вызывал client-side ошибки на VPS
-   - Убран импорт и компонент `<Analytics />` из layout.tsx
-2. ✅ **Обновлён CSP** — добавлены домены внешних скриптов аналитики:
-   - mc.yandex.ru, googletagmanager.com, google-analytics.com, clarity.ms
-3. ✅ **Error boundaries** — добавлены для отладки:
-   - `src/app/error.tsx` — ловит ошибки в страницах
-   - `src/app/global-error.tsx` — ловит ошибки в root layout
-4. ✅ **Microsoft Clarity** — добавлен ID: `uqwmja72lg`
-   - Хардкодом в `src/lib/analytics.ts`
-5. ✅ **Миграция на VPS** — сайт теперь на VPS, не на Vercel
-   - nginx конфиг: `/etc/nginx/sites-available/freelanly.conf`
-   - PM2 для управления процессом
-   - SSL через Let's Encrypt
-
-**nginx конфиг (VPS):**
-```nginx
-server {
-    server_name freelanly.com www.freelanly.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-
-        # RSC streaming
-        proxy_buffering off;
-        proxy_request_buffering off;
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 300s;
-        gzip off;
-    }
-
-    listen 443 ssl;
-    ssl_certificate /etc/letsencrypt/live/freelanly.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/freelanly.com/privkey.pem;
-}
-```
-
-**⚠️ Известная проблема: Россия**
-- Из России RSC запросы (`?_rsc=xxx`) таймаутятся
-- Шапка и подвал грузятся, вакансии — нет
-- Ошибка: `GET /jobs?_rsc=xxx net::ERR_TIMED_OUT`
-- Причина: плохая связь между VPS (US) и Россией для streaming запросов
-- **Пока не решено** — нужен либо CDN, либо сервер ближе к России
-
-**VPS команды:**
-```bash
-# SSH
-ssh root@198.12.73.168
-
-# Проект
-cd /root/Freelanly2  # или найти: find / -name Freelanly2 -type d
-
-# Деплой
-git pull origin main
-npm run build
-pm2 restart all
-
-# Логи
-pm2 logs --lines 100
-tail -f /var/log/nginx/error.log
-
-# nginx
-nginx -t && systemctl reload nginx
-```
+**Что было исправлено:**
+- AUTH_URL без https:// вызывал "Invalid URL" — добавлен https://
+- Yandex Metrika не отправляла данные — добавлен ?id= к tag.js URL
+- CSP блокировал скрипты аналитики — CSP удалён полностью
 
 **Email (работает):**
 - MX записи → Google Workspace (aspmx.l.google.com)
@@ -769,8 +792,7 @@ nginx -t && systemctl reload nginx
 - DKIM: `dm._domainkey` → DashaMail
 - SPF: `include:_spf.dashasender.ru`
 
-**Возможные следующие шаги:**
-1. Решить проблему доступа из России (CDN/edge server)
+**Следующие шаги:**
+1. Настроить cron jobs (через Replit Scheduled или внешний сервис)
 2. Application tracking (отслеживание откликов)
-3. Склонировать проект на VPS если ещё не сделано
-4. Настроить cron jobs на VPS (вместо Vercel crons)
+3. n8n продолжает работать на VPS
