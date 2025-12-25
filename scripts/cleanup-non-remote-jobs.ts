@@ -239,6 +239,50 @@ async function cleanupNonRemoteJobs(dryRun: boolean) {
   // Show final count
   const remaining = await prisma.job.count();
   console.log(`📊 Jobs remaining in database: ${remaining}`);
+
+  // Delete orphaned companies (companies with no jobs)
+  console.log('\n🔍 Finding orphaned companies (no jobs left)...');
+
+  const orphanedCompanies = await prisma.company.findMany({
+    where: {
+      jobs: {
+        none: {}
+      }
+    },
+    select: {
+      id: true,
+      name: true,
+    }
+  });
+
+  if (orphanedCompanies.length === 0) {
+    console.log('✅ No orphaned companies found!');
+    return;
+  }
+
+  console.log(`🗑️  Found ${orphanedCompanies.length} orphaned companies to delete:\n`);
+
+  for (const company of orphanedCompanies.slice(0, 20)) {
+    console.log(`   - ${company.name}`);
+  }
+  if (orphanedCompanies.length > 20) {
+    console.log(`   ... and ${orphanedCompanies.length - 20} more`);
+  }
+
+  // Delete orphaned companies
+  const companyIds = orphanedCompanies.map(c => c.id);
+
+  await prisma.company.deleteMany({
+    where: {
+      id: { in: companyIds }
+    }
+  });
+
+  console.log(`\n✅ Deleted ${orphanedCompanies.length} orphaned companies!`);
+
+  // Final stats
+  const remainingCompanies = await prisma.company.count();
+  console.log(`📊 Companies remaining in database: ${remainingCompanies}`);
 }
 
 async function main() {
