@@ -563,6 +563,9 @@ npx prisma db push --force-reset
 54. **Contact info hidden for FREE** — emails, phones, @handles replaced with "[Upgrade to PRO to see contact]"
 55. **SEO: unblocked filter URLs** — removed robots.txt blocks for `/jobs?level=*`, `/jobs?country=*`, etc. (was blocking 200+ pages)
 56. **SEO: title truncation utility** — `truncateTitle()` in `src/lib/seo.ts` ensures all page titles ≤60 chars
+57. **Lever AI processing** — Lever jobs now go through DeepSeek AI for `cleanDescription` (same as LinkedIn)
+58. **DeepSeek cost monitoring** — `getDeepSeekUsageStats()` tracks tokens and estimated costs per run
+59. **Migration script** — `scripts/migrate-lever-descriptions.ts` for existing Lever jobs
 
 ## Code Patterns
 

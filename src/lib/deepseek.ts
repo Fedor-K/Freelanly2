@@ -212,6 +212,32 @@ Also include legacy bullet fields for backwards compatibility:
 Be conservative - only extract what is explicitly stated. Don't infer or guess.
 Return ONLY valid JSON, no markdown or explanation.`;
 
+// DeepSeek pricing (as of Dec 2024)
+// Input: $0.14 per 1M tokens, Output: $0.28 per 1M tokens
+const DEEPSEEK_PRICE_INPUT_PER_1M = 0.14;
+const DEEPSEEK_PRICE_OUTPUT_PER_1M = 0.28;
+
+// Track cumulative usage for monitoring
+let cumulativeUsage = {
+  inputTokens: 0,
+  outputTokens: 0,
+  calls: 0,
+  estimatedCostUSD: 0,
+};
+
+export function getDeepSeekUsageStats() {
+  return { ...cumulativeUsage };
+}
+
+export function resetDeepSeekUsageStats() {
+  cumulativeUsage = {
+    inputTokens: 0,
+    outputTokens: 0,
+    calls: 0,
+    estimatedCostUSD: 0,
+  };
+}
+
 export async function extractJobData(postText: string): Promise<ExtractedJobData | null> {
   try {
     const deepseek = getDeepSeekClient();
@@ -225,6 +251,21 @@ export async function extractJobData(postText: string): Promise<ExtractedJobData
       temperature: 0.1,
       max_tokens: 2000, // Increased for cleanDescription
     });
+
+    // Log token usage and cost
+    const usage = response.usage;
+    if (usage) {
+      const inputCost = (usage.prompt_tokens / 1_000_000) * DEEPSEEK_PRICE_INPUT_PER_1M;
+      const outputCost = (usage.completion_tokens / 1_000_000) * DEEPSEEK_PRICE_OUTPUT_PER_1M;
+      const totalCost = inputCost + outputCost;
+
+      cumulativeUsage.inputTokens += usage.prompt_tokens;
+      cumulativeUsage.outputTokens += usage.completion_tokens;
+      cumulativeUsage.calls++;
+      cumulativeUsage.estimatedCostUSD += totalCost;
+
+      console.log(`[DeepSeek] Tokens: ${usage.prompt_tokens} in / ${usage.completion_tokens} out | Cost: $${totalCost.toFixed(5)} | Cumulative: $${cumulativeUsage.estimatedCostUSD.toFixed(4)}`);
+    }
 
     const content = response.choices[0]?.message?.content;
     if (!content) return null;
