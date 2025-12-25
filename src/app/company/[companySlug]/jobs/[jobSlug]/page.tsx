@@ -20,6 +20,7 @@ import { StructuredDescription } from '@/components/jobs/StructuredDescription';
 import { formatDistanceToNow } from '@/lib/utils';
 import { maskLinksForFreeUsers } from '@/lib/content-mask';
 import { siteConfig, categories } from '@/config/site';
+import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 
@@ -93,66 +94,81 @@ function getSchemaUnitText(period: string): string | null {
 
 // Fetch job from database
 async function getJob(jobSlug: string) {
-  const job = await prisma.job.findUnique({
-    where: { slug: jobSlug },
-    include: {
-      company: true,
-      category: true,
-    },
-  });
-  return job;
+  try {
+    const job = await prisma.job.findUnique({
+      where: { slug: jobSlug },
+      include: {
+        company: true,
+        category: true,
+      },
+    });
+    return job;
+  } catch (error) {
+    console.error('Failed to fetch job:', error);
+    return null;
+  }
 }
 
 // Fetch similar jobs (same category, exclude current job)
 async function getSimilarJobs(jobId: string, categoryId: string, limit: number = 6) {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const jobs = await prisma.job.findMany({
-    where: {
-      id: { not: jobId },
-      categoryId: categoryId,
-      isActive: true,
-      postedAt: { gte: thirtyDaysAgo },
-    },
-    include: {
-      company: true,
-      category: true,
-    },
-    orderBy: { postedAt: 'desc' },
-    take: limit,
-  });
-  return jobs;
+    const jobs = await prisma.job.findMany({
+      where: {
+        id: { not: jobId },
+        categoryId: categoryId,
+        isActive: true,
+        postedAt: { gte: thirtyDaysAgo },
+      },
+      include: {
+        company: true,
+        category: true,
+      },
+      orderBy: { postedAt: 'desc' },
+      take: limit,
+    });
+    return jobs;
+  } catch (error) {
+    console.error('Failed to fetch similar jobs:', error);
+    return [];
+  }
 }
 
 // Fetch recent jobs for expired job page
 async function getRecentJobs(limit: number = 6) {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const jobs = await prisma.job.findMany({
-    where: {
-      isActive: true,
-      postedAt: { gte: thirtyDaysAgo },
-    },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      location: true,
-      company: {
-        select: {
-          name: true,
-          slug: true,
-          logo: true,
-          website: true,
+    const jobs = await prisma.job.findMany({
+      where: {
+        isActive: true,
+        postedAt: { gte: thirtyDaysAgo },
+      },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        location: true,
+        company: {
+          select: {
+            name: true,
+            slug: true,
+            logo: true,
+            website: true,
+          },
         },
       },
-    },
-    orderBy: { postedAt: 'desc' },
-    take: limit,
-  });
-  return jobs;
+      orderBy: { postedAt: 'desc' },
+      take: limit,
+    });
+    return jobs;
+  } catch (error) {
+    console.error('Failed to fetch recent jobs:', error);
+    return [];
+  }
 }
 
 export async function generateMetadata({ params }: JobPageProps): Promise<Metadata> {
@@ -176,11 +192,8 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
     : '';
   const description = `${job.title} at ${job.company.name}. ${job.location}.${salaryText} Apply now and join a top remote team!`;
 
-  // Truncate title to 60 chars for SEO
-  const fullTitle = `${job.title} at ${job.company.name} - Remote ${job.category.name} Job`;
-  const seoTitle = fullTitle.length > 60
-    ? `${job.title} at ${job.company.name}`.slice(0, 57) + '...'
-    : fullTitle;
+  // Use SEO utility for consistent title truncation (max 60 chars)
+  const seoTitle = truncateTitle(`${job.title} at ${job.company.name} - Remote ${job.category.name} Job`);
 
   // Build OG image URL with job details
   const ogImageParams = new URLSearchParams({

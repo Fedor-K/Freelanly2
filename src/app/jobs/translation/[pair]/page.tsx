@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { siteConfig, languages, languagePairs } from '@/config/site';
+import { truncateTitle } from '@/lib/seo';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { JobCard } from '@/components/jobs/JobCard';
@@ -61,11 +62,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const sourceName = getLanguageName(pair.source);
   const targetName = getLanguageName(pair.target);
-  const title = `${sourceName} to ${targetName} Translation Jobs | Remote ${sourceName}-${targetName} Translator`;
+  // Use SEO utility for consistent title truncation (max 60 chars)
+  const seoTitle = truncateTitle(`${sourceName} to ${targetName} Translation Jobs | Remote ${sourceName}-${targetName} Translator`);
   const description = `Find remote ${sourceName} to ${targetName} translation jobs. Apply to ${sourceName}-${targetName} translator positions at top companies. Updated daily.`;
 
   return {
-    title,
+    title: seoTitle,
     description,
     keywords: [
       `${sourceName} to ${targetName} translation jobs`,
@@ -77,7 +79,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       `translation jobs remote`,
     ],
     openGraph: {
-      title,
+      title: seoTitle,
       description,
       url: `${siteConfig.url}/jobs/translation/${pairSlug}`,
       siteName: siteConfig.name,
@@ -85,7 +87,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     twitter: {
       card: 'summary_large_image',
-      title,
+      title: seoTitle,
       description,
     },
     alternates: {

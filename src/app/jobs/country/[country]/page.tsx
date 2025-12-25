@@ -7,6 +7,7 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { siteConfig, countries, categories } from '@/config/site';
+import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 
@@ -29,11 +30,12 @@ export async function generateMetadata({ params }: CountryPageProps): Promise<Me
     return { title: 'Not Found' };
   }
 
-  const title = `Remote Jobs in ${country.name} - Work From Home Positions | Freelanly`;
+  // Use SEO utility for consistent title truncation (max 60 chars)
+  const seoTitle = truncateTitle(`Remote Jobs in ${country.name} - Work From Home Positions | Freelanly`);
   const description = `Find remote jobs available in ${country.name}. Browse work from home positions for ${country.name} residents. Updated daily.`;
 
   return {
-    title,
+    title: seoTitle,
     description,
     keywords: [
       `remote jobs ${country.name}`,
@@ -41,7 +43,7 @@ export async function generateMetadata({ params }: CountryPageProps): Promise<Me
       `${country.name} remote positions`,
     ],
     openGraph: {
-      title,
+      title: seoTitle,
       description,
       url: `${siteConfig.url}/jobs/country/${country.slug}`,
       siteName: siteConfig.name,

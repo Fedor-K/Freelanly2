@@ -7,6 +7,7 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { siteConfig } from '@/config/site';
+import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 
@@ -32,14 +33,15 @@ export async function generateMetadata({ params }: CompanyJobsPageProps): Promis
     return { title: 'Jobs Not Found' };
   }
 
-  const title = `Jobs at ${company.name} - All Open Positions`;
+  // Use SEO utility for consistent title truncation (max 60 chars)
+  const seoTitle = truncateTitle(`Jobs at ${company.name} - All Open Positions`);
   const description = `Browse all remote job openings at ${company.name}. Find your next opportunity and apply today.`;
 
   return {
-    title,
+    title: seoTitle,
     description,
     openGraph: {
-      title,
+      title: seoTitle,
       description,
       url: `${siteConfig.url}/company/${companySlug}/jobs`,
       type: 'website',

@@ -562,6 +562,7 @@ npx prisma db push --force-reset
 53. **Apply button blocked for FREE** — shows "🔒 Upgrade to Apply" linking to /pricing
 54. **Contact info hidden for FREE** — emails, phones, @handles replaced with "[Upgrade to PRO to see contact]"
 55. **SEO: unblocked filter URLs** — removed robots.txt blocks for `/jobs?level=*`, `/jobs?country=*`, etc. (was blocking 200+ pages)
+56. **SEO: title truncation utility** — `truncateTitle()` in `src/lib/seo.ts` ensures all page titles ≤60 chars
 
 ## Code Patterns
 
@@ -586,6 +587,37 @@ import { cleanupOldJobs } from '@/services/job-cleanup';
 // At the end of processor function:
 await cleanupOldJobs();
 ```
+
+### SEO: Page Title Truncation (REQUIRED)
+All dynamic pages MUST use `truncateTitle()` from `src/lib/seo.ts` to ensure titles are max 60 characters.
+
+**Utility:** `src/lib/seo.ts`
+```typescript
+import { truncateTitle } from '@/lib/seo';
+
+// In generateMetadata():
+const seoTitle = truncateTitle(`${company.name} Remote Jobs - Work at ${company.name}`);
+// Returns max 60 chars with "..." if truncated
+
+return {
+  title: seoTitle,
+  openGraph: { title: seoTitle, ... },
+  twitter: { title: seoTitle, ... },
+};
+```
+
+**Why:** Google truncates titles >60 chars in search results, causing SEO warnings.
+
+**Pages using this pattern:**
+- `/company/[companySlug]/page.tsx`
+- `/company/[companySlug]/jobs/page.tsx`
+- `/company/[companySlug]/jobs/[jobSlug]/page.tsx`
+- `/jobs/[category]/page.tsx`
+- `/jobs/[category]/[level]/page.tsx`
+- `/jobs/country/[country]/page.tsx`
+- `/jobs/translation/[pair]/page.tsx`
+- `/country/[countrySlug]/page.tsx`
+- `/country/[countrySlug]/jobs/[roleSlug]/page.tsx`
 
 ## Notes
 

@@ -138,27 +138,32 @@ async function getJobs(
     }
   }
 
-  const [jobs, totalCount] = await Promise.all([
-    prisma.job.findMany({
-      where,
-      include: {
-        company: {
-          select: {
-            name: true,
-            slug: true,
-            logo: true,
-            website: true,
+  try {
+    const [jobs, totalCount] = await Promise.all([
+      prisma.job.findMany({
+        where,
+        include: {
+          company: {
+            select: {
+              name: true,
+              slug: true,
+              logo: true,
+              website: true,
+            },
           },
         },
-      },
-      orderBy: { postedAt: 'desc' },
-      skip,
-      take: JOBS_PER_PAGE,
-    }),
-    prisma.job.count({ where }),
-  ]);
+        orderBy: { postedAt: 'desc' },
+        skip,
+        take: JOBS_PER_PAGE,
+      }),
+      prisma.job.count({ where }),
+    ]);
 
-  return { jobs, totalCount };
+    return { jobs, totalCount };
+  } catch (error) {
+    console.error('Failed to fetch jobs:', error);
+    return { jobs: [], totalCount: 0 };
+  }
 }
 
 // Helper to normalize array params

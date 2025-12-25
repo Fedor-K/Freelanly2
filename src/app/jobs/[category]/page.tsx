@@ -7,6 +7,7 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { siteConfig, categories, levels, jobTypes, locationTypes } from '@/config/site';
+import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 
@@ -34,11 +35,12 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
     return { title: 'Category Not Found' };
   }
 
-  const title = `Remote ${category.name} Jobs - Work From Home ${category.name} Positions`;
+  // Use SEO utility for consistent title truncation (max 60 chars)
+  const seoTitle = truncateTitle(`Remote ${category.name} Jobs - Work From Home ${category.name} Positions`);
   const description = `Browse ${category.name.toLowerCase()} remote jobs. Find work from home ${category.name.toLowerCase()} positions at top companies. Updated daily with new opportunities.`;
 
   return {
-    title,
+    title: seoTitle,
     description,
     keywords: [
       `remote ${category.name.toLowerCase()} jobs`,
@@ -48,7 +50,7 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
       `remote ${category.name.toLowerCase()} careers`,
     ],
     openGraph: {
-      title,
+      title: seoTitle,
       description,
       url: `${siteConfig.url}/jobs/${category.slug}`,
       type: 'website',
@@ -56,7 +58,7 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
     },
     twitter: {
       card: 'summary_large_image',
-      title,
+      title: seoTitle,
       description,
     },
     alternates: {

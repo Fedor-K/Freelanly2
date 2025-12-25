@@ -7,6 +7,7 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { siteConfig, categories, levels } from '@/config/site';
+import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 
@@ -41,11 +42,12 @@ export async function generateMetadata({ params }: CategoryLevelPageProps): Prom
     return { title: 'Not Found' };
   }
 
-  const title = `${level.label} Remote ${category.name} Jobs - ${level.label} ${category.name} Positions`;
+  // Use SEO utility for consistent title truncation (max 60 chars)
+  const seoTitle = truncateTitle(`${level.label} Remote ${category.name} Jobs - ${level.label} ${category.name} Positions`);
   const description = `Find ${level.label.toLowerCase()} ${category.name.toLowerCase()} remote jobs. Browse work from home ${level.label.toLowerCase()} ${category.name.toLowerCase()} positions at top companies.`;
 
   return {
-    title,
+    title: seoTitle,
     description,
     keywords: [
       `${level.label.toLowerCase()} ${category.name.toLowerCase()} jobs`,
@@ -54,7 +56,7 @@ export async function generateMetadata({ params }: CategoryLevelPageProps): Prom
       `work from home ${level.label.toLowerCase()} ${category.name.toLowerCase()}`,
     ],
     openGraph: {
-      title,
+      title: seoTitle,
       description,
       url: `${siteConfig.url}/jobs/${category.slug}/${levelSlug}`,
       type: 'website',

@@ -7,6 +7,7 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { siteConfig, countries, jobRoles } from '@/config/site';
+import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 
@@ -54,11 +55,12 @@ export async function generateMetadata({ params }: CountryRolePageProps): Promis
     return { title: 'Page Not Found' };
   }
 
-  const title = `Remote ${role.name} Jobs in ${country.name} ${country.flag} | Freelanly`;
+  // Use SEO utility for consistent title truncation (max 60 chars)
+  const seoTitle = truncateTitle(`Remote ${role.name} Jobs in ${country.name} ${country.flag} | Freelanly`);
   const description = `Find remote ${role.name} jobs in ${country.name}. Browse ${role.name} positions from top companies hiring ${country.name === 'Worldwide' ? 'globally' : `in ${country.name}`}. Apply today!`;
 
   return {
-    title,
+    title: seoTitle,
     description,
     keywords: [
       `remote ${role.name.toLowerCase()} ${country.name}`,
@@ -68,7 +70,7 @@ export async function generateMetadata({ params }: CountryRolePageProps): Promis
       `${country.name} ${role.name.toLowerCase()} jobs`,
     ],
     openGraph: {
-      title,
+      title: seoTitle,
       description,
       url: `${siteConfig.url}/country/${countrySlug}/jobs/${roleSlug}`,
       siteName: siteConfig.name,
