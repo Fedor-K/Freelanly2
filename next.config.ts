@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Allow Replit proxy domains
+  allowedDevOrigins: [
+    'e142b007-0d8f-4274-a4fd-bfc0664f7ce3-00-i2kmu8tllt1d.janeway.replit.dev',
+    '.replit.dev',
+    '.replit.app',
+  ],
+  
   // Image optimization
   images: {
     remotePatterns: [
