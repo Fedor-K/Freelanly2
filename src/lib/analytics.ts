@@ -23,8 +23,8 @@ export const analyticsConfig = {
 
   // Microsoft Clarity (бесплатные записи сессий)
   clarity: {
-    id: process.env.NEXT_PUBLIC_CLARITY_ID || '',
-    enabled: !!process.env.NEXT_PUBLIC_CLARITY_ID,
+    id: process.env.NEXT_PUBLIC_CLARITY_ID || 'uqwmja72lg',
+    enabled: true,
   },
 };
 
