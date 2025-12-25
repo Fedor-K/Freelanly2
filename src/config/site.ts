@@ -131,7 +131,7 @@ export const techStacks = [
   { slug: 'javascript', name: 'JavaScript', keywords: ['JavaScript', 'JS', 'ES6'] },
   { slug: 'nodejs', name: 'Node.js', keywords: ['Node.js', 'NodeJS', 'Node'] },
   { slug: 'java', name: 'Java', keywords: ['Java'] },
-  { slug: 'golang', name: 'Go', keywords: ['Go', 'Golang'] },
+  { slug: 'golang', name: 'Golang', keywords: ['Go', 'Golang'] },
   { slug: 'rust', name: 'Rust', keywords: ['Rust'] },
   { slug: 'aws', name: 'AWS', keywords: ['AWS', 'Amazon Web Services'] },
   { slug: 'kubernetes', name: 'Kubernetes', keywords: ['Kubernetes', 'K8s'] },

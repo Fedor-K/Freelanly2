@@ -18,12 +18,24 @@ export function formatDistanceToNow(date: Date | string): string {
   return `${Math.floor(diffInSeconds / 2592000)}mo ago`;
 }
 
-export function slugify(text: string): string {
-  return text
+export function slugify(text: string, maxLength: number = 50): string {
+  let slug = text
     .toLowerCase()
     .replace(/[^\w\s-]/g, '')
     .replace(/[\s_-]+/g, '-')
     .replace(/^-+|-+$/g, '');
+
+  // Truncate to maxLength, but don't cut in the middle of a word
+  if (slug.length > maxLength) {
+    slug = slug.substring(0, maxLength);
+    // Remove trailing partial word (after last hyphen)
+    const lastHyphen = slug.lastIndexOf('-');
+    if (lastHyphen > maxLength / 2) {
+      slug = slug.substring(0, lastHyphen);
+    }
+  }
+
+  return slug.replace(/-+$/, ''); // Remove trailing hyphens
 }
 
 // Job freshness: max age in days before a job is considered stale
