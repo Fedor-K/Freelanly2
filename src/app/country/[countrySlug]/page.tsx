@@ -40,11 +40,15 @@ export async function generateMetadata({ params }: CountryPageProps): Promise<Me
     return { title: 'Country Not Found' };
   }
 
-  const title = `Remote Jobs in ${country.name} ${country.flag} - Work From Home Jobs | Freelanly`;
+  // Truncate title to 60 chars for SEO
+  const fullTitle = `Remote Jobs in ${country.name} ${country.flag} - Work From Home Jobs | Freelanly`;
+  const seoTitle = fullTitle.length > 60
+    ? `Remote Jobs in ${country.name} ${country.flag}`.slice(0, 60)
+    : fullTitle;
   const description = `Find remote jobs in ${country.name}. Browse ${country.name === 'Worldwide' ? 'global' : country.name} remote work opportunities. Apply directly to companies hiring remote workers.`;
 
   return {
-    title,
+    title: seoTitle,
     description,
     keywords: [
       `remote jobs ${country.name}`,
@@ -54,7 +58,7 @@ export async function generateMetadata({ params }: CountryPageProps): Promise<Me
       `remote developer jobs ${country.name}`,
     ],
     openGraph: {
-      title,
+      title: seoTitle,
       description,
       url: `${siteConfig.url}/country/${countrySlug}`,
       siteName: siteConfig.name,

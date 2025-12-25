@@ -29,11 +29,15 @@ export async function generateMetadata({ params }: CountryPageProps): Promise<Me
     return { title: 'Not Found' };
   }
 
-  const title = `Remote Jobs in ${country.name} - Work From Home Positions | Freelanly`;
+  // Truncate title to 60 chars for SEO
+  const fullTitle = `Remote Jobs in ${country.name} - Work From Home Positions | Freelanly`;
+  const seoTitle = fullTitle.length > 60
+    ? `Remote Jobs in ${country.name} | Freelanly`.slice(0, 60)
+    : fullTitle;
   const description = `Find remote jobs available in ${country.name}. Browse work from home positions for ${country.name} residents. Updated daily.`;
 
   return {
-    title,
+    title: seoTitle,
     description,
     keywords: [
       `remote jobs ${country.name}`,
@@ -41,7 +45,7 @@ export async function generateMetadata({ params }: CountryPageProps): Promise<Me
       `${country.name} remote positions`,
     ],
     openGraph: {
-      title,
+      title: seoTitle,
       description,
       url: `${siteConfig.url}/jobs/country/${country.slug}`,
       siteName: siteConfig.name,

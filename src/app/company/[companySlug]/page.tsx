@@ -34,13 +34,17 @@ export async function generateMetadata({ params }: CompanyPageProps): Promise<Me
     return { title: 'Company Not Found' };
   }
 
-  const title = `${company.name} Remote Jobs - Work at ${company.name}`;
+  // Truncate title to 60 chars for SEO
+  const fullTitle = `${company.name} Remote Jobs - Work at ${company.name}`;
+  const seoTitle = fullTitle.length > 60
+    ? `${company.name} Remote Jobs`.slice(0, 57) + '...'
+    : fullTitle;
   const description = company.description
     ? company.description.slice(0, 155)
     : `Find remote jobs at ${company.name}. Browse open positions and apply to work at ${company.name}.`;
 
   return {
-    title,
+    title: seoTitle,
     description,
     keywords: [
       `${company.name} jobs`,
@@ -49,7 +53,7 @@ export async function generateMetadata({ params }: CompanyPageProps): Promise<Me
       `work at ${company.name}`,
     ],
     openGraph: {
-      title,
+      title: seoTitle,
       description,
       url: `${siteConfig.url}/company/${companySlug}`,
       type: 'website',

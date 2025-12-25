@@ -54,11 +54,15 @@ export async function generateMetadata({ params }: CountryRolePageProps): Promis
     return { title: 'Page Not Found' };
   }
 
-  const title = `Remote ${role.name} Jobs in ${country.name} ${country.flag} | Freelanly`;
+  // Truncate title to 60 chars for SEO
+  const fullTitle = `Remote ${role.name} Jobs in ${country.name} ${country.flag} | Freelanly`;
+  const seoTitle = fullTitle.length > 60
+    ? `Remote ${role.name} Jobs in ${country.name}`.slice(0, 57) + '...'
+    : fullTitle;
   const description = `Find remote ${role.name} jobs in ${country.name}. Browse ${role.name} positions from top companies hiring ${country.name === 'Worldwide' ? 'globally' : `in ${country.name}`}. Apply today!`;
 
   return {
-    title,
+    title: seoTitle,
     description,
     keywords: [
       `remote ${role.name.toLowerCase()} ${country.name}`,
@@ -68,7 +72,7 @@ export async function generateMetadata({ params }: CountryRolePageProps): Promis
       `${country.name} ${role.name.toLowerCase()} jobs`,
     ],
     openGraph: {
-      title,
+      title: seoTitle,
       description,
       url: `${siteConfig.url}/country/${countrySlug}/jobs/${roleSlug}`,
       siteName: siteConfig.name,

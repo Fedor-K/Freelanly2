@@ -32,14 +32,18 @@ export async function generateMetadata({ params }: CompanyJobsPageProps): Promis
     return { title: 'Jobs Not Found' };
   }
 
-  const title = `Jobs at ${company.name} - All Open Positions`;
+  // Truncate title to 60 chars for SEO
+  const fullTitle = `Jobs at ${company.name} - All Open Positions`;
+  const seoTitle = fullTitle.length > 60
+    ? `Jobs at ${company.name}`.slice(0, 57) + '...'
+    : fullTitle;
   const description = `Browse all remote job openings at ${company.name}. Find your next opportunity and apply today.`;
 
   return {
-    title,
+    title: seoTitle,
     description,
     openGraph: {
-      title,
+      title: seoTitle,
       description,
       url: `${siteConfig.url}/company/${companySlug}/jobs`,
       type: 'website',

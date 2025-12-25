@@ -34,11 +34,15 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
     return { title: 'Category Not Found' };
   }
 
-  const title = `Remote ${category.name} Jobs - Work From Home ${category.name} Positions`;
+  // Truncate title to 60 chars for SEO
+  const fullTitle = `Remote ${category.name} Jobs - Work From Home ${category.name} Positions`;
+  const seoTitle = fullTitle.length > 60
+    ? `Remote ${category.name} Jobs | Freelanly`.slice(0, 60)
+    : fullTitle;
   const description = `Browse ${category.name.toLowerCase()} remote jobs. Find work from home ${category.name.toLowerCase()} positions at top companies. Updated daily with new opportunities.`;
 
   return {
-    title,
+    title: seoTitle,
     description,
     keywords: [
       `remote ${category.name.toLowerCase()} jobs`,
@@ -48,7 +52,7 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
       `remote ${category.name.toLowerCase()} careers`,
     ],
     openGraph: {
-      title,
+      title: seoTitle,
       description,
       url: `${siteConfig.url}/jobs/${category.slug}`,
       type: 'website',
@@ -56,7 +60,7 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
     },
     twitter: {
       card: 'summary_large_image',
-      title,
+      title: seoTitle,
       description,
     },
     alternates: {

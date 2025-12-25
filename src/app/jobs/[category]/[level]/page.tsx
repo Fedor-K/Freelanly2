@@ -41,11 +41,15 @@ export async function generateMetadata({ params }: CategoryLevelPageProps): Prom
     return { title: 'Not Found' };
   }
 
-  const title = `${level.label} Remote ${category.name} Jobs - ${level.label} ${category.name} Positions`;
+  // Truncate title to 60 chars for SEO
+  const fullTitle = `${level.label} Remote ${category.name} Jobs - ${level.label} ${category.name} Positions`;
+  const seoTitle = fullTitle.length > 60
+    ? `${level.label} Remote ${category.name} Jobs`.slice(0, 57) + '...'
+    : fullTitle;
   const description = `Find ${level.label.toLowerCase()} ${category.name.toLowerCase()} remote jobs. Browse work from home ${level.label.toLowerCase()} ${category.name.toLowerCase()} positions at top companies.`;
 
   return {
-    title,
+    title: seoTitle,
     description,
     keywords: [
       `${level.label.toLowerCase()} ${category.name.toLowerCase()} jobs`,
@@ -54,7 +58,7 @@ export async function generateMetadata({ params }: CategoryLevelPageProps): Prom
       `work from home ${level.label.toLowerCase()} ${category.name.toLowerCase()}`,
     ],
     openGraph: {
-      title,
+      title: seoTitle,
       description,
       url: `${siteConfig.url}/jobs/${category.slug}/${levelSlug}`,
       type: 'website',
