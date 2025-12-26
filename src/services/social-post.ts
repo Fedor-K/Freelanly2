@@ -314,3 +314,83 @@ export async function getSocialQueueStats(): Promise<{
 
   return { pending, posted, failed };
 }
+
+/**
+ * Refill social queue with jobs that haven't been posted yet
+ * Called automatically when queue is running low
+ */
+export async function refillSocialQueue(options: {
+  minQueueSize?: number;  // Refill when pending < this (default: 5)
+  refillCount?: number;   // How many to add (default: 20)
+  maxAgeDays?: number;    // Only jobs newer than this (default: 14)
+} = {}): Promise<{ added: number; skipped: number }> {
+  const {
+    minQueueSize = 5,
+    refillCount = 20,
+    maxAgeDays = 14,
+  } = options;
+
+  // Check current queue size
+  const pendingCount = await prisma.socialPostQueue.count({
+    where: { status: 'PENDING' }
+  });
+
+  if (pendingCount >= minQueueSize) {
+    console.log(`[SocialQueue] Queue has ${pendingCount} pending, no refill needed`);
+    return { added: 0, skipped: 0 };
+  }
+
+  const toAdd = refillCount - pendingCount;
+  console.log(`[SocialQueue] Queue low (${pendingCount}), adding up to ${toAdd} jobs`);
+
+  // Get all job IDs already in queue (any status)
+  const existingInQueue = await prisma.socialPostQueue.findMany({
+    select: { jobId: true }
+  });
+  const queuedJobIds = new Set(existingInQueue.map(q => q.jobId));
+
+  // Find jobs to add:
+  // - REMOTE or HYBRID only
+  // - Has corporate email (applyEmail not null)
+  // - Created within maxAgeDays
+  // - Not already in queue
+  // - Order by createdAt DESC (newest first)
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - maxAgeDays);
+
+  const candidates = await prisma.job.findMany({
+    where: {
+      locationType: { in: ['REMOTE', 'HYBRID'] },
+      applyEmail: { not: null },
+      createdAt: { gte: cutoffDate },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: toAdd * 2, // Get more than needed to filter
+    select: { id: true, title: true, createdAt: true }
+  });
+
+  let added = 0;
+  let skipped = 0;
+
+  for (const job of candidates) {
+    if (added >= toAdd) break;
+
+    if (queuedJobIds.has(job.id)) {
+      skipped++;
+      continue;
+    }
+
+    await prisma.socialPostQueue.create({
+      data: {
+        jobId: job.id,
+        status: 'PENDING',
+      }
+    });
+
+    console.log(`[SocialQueue] Added: ${job.title}`);
+    added++;
+  }
+
+  console.log(`[SocialQueue] Refill complete: added ${added}, skipped ${skipped} (already in queue)`);
+  return { added, skipped };
+}

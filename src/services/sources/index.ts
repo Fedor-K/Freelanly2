@@ -2,8 +2,6 @@ import { prisma } from '@/lib/db';
 import { Source } from '@prisma/client';
 import type { ProcessingStats } from './types';
 import { processLeverSource } from './lever-processor';
-import { processRemoteOKSource } from './remoteok-processor';
-import { processWeWorkRemotelySource } from './weworkremotely-processor';
 import { processHackerNewsSource } from './hackernews-processor';
 import { notifySearchEngines } from '@/lib/indexing';
 
@@ -12,8 +10,6 @@ export * from './types';
 // Map source types to their processors
 const SOURCE_PROCESSORS: Partial<Record<Source, (dataSourceId: string) => Promise<ProcessingStats>>> = {
   LEVER: processLeverSource,
-  REMOTEOK: processRemoteOKSource,
-  WEWORKREMOTELY: processWeWorkRemotelySource,
   HACKERNEWS: processHackerNewsSource,
   // TODO: Add more processors
   // GREENHOUSE: processGreenhouseSource,
@@ -183,32 +179,6 @@ export async function validateDataSource(sourceType: Source, companySlug?: strin
       };
     }
 
-    if (sourceType === 'REMOTEOK') {
-      const response = await fetch('https://remoteok.com/api', {
-        headers: { 'User-Agent': 'Freelanly/1.0' },
-      });
-      if (!response.ok) {
-        return { valid: false, error: `RemoteOK API returned ${response.status}` };
-      }
-      const data = await response.json();
-      return {
-        valid: true,
-        name: 'RemoteOK',
-        jobCount: Array.isArray(data) ? data.length - 1 : 0,
-      };
-    }
-
-    if (sourceType === 'WEWORKREMOTELY') {
-      const response = await fetch('https://weworkremotely.com/remote-jobs.rss');
-      if (!response.ok) {
-        return { valid: false, error: `WWR RSS returned ${response.status}` };
-      }
-      return {
-        valid: true,
-        name: 'WeWorkRemotely',
-      };
-    }
-
     if (sourceType === 'HACKERNEWS') {
       return {
         valid: true,
@@ -232,8 +202,6 @@ export function getAvailableSourceTypes(): { type: Source; name: string; isAts: 
     { type: 'WORKABLE', name: 'Workable', isAts: true, requiresSlug: true },
     { type: 'SMARTRECRUITERS', name: 'SmartRecruiters', isAts: true, requiresSlug: true },
     // Aggregators
-    { type: 'REMOTEOK', name: 'RemoteOK', isAts: false, requiresSlug: false },
-    { type: 'WEWORKREMOTELY', name: 'WeWorkRemotely', isAts: false, requiresSlug: false },
     { type: 'HACKERNEWS', name: 'HackerNews Who is Hiring', isAts: false, requiresSlug: false },
     // LinkedIn (via Apify)
     { type: 'LINKEDIN', name: 'LinkedIn (Apify)', isAts: false, requiresSlug: false },

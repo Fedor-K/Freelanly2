@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { processNextSocialPost, getSocialQueueStats } from '@/services/social-post';
+import { processNextSocialPost, getSocialQueueStats, refillSocialQueue } from '@/services/social-post';
 
 /**
  * Cron endpoint for posting jobs to social media
@@ -20,6 +20,17 @@ export async function POST(request: NextRequest) {
   console.log('[Cron] Starting social post job...');
 
   try {
+    // Auto-refill queue if running low (< 5 pending)
+    const refillResult = await refillSocialQueue({
+      minQueueSize: 5,
+      refillCount: 20,
+      maxAgeDays: 14,
+    });
+
+    if (refillResult.added > 0) {
+      console.log(`[Cron] Refilled queue with ${refillResult.added} jobs`);
+    }
+
     // Get queue stats before processing
     const statsBefore = await getSocialQueueStats();
     console.log(`[Cron] Queue stats: ${statsBefore.pending} pending, ${statsBefore.posted} posted, ${statsBefore.failed} failed`);
@@ -28,7 +39,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: 'Queue is empty, nothing to post',
-        stats: statsBefore
+        stats: statsBefore,
+        refilled: refillResult.added,
       });
     }
 
@@ -43,7 +55,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: `Posted job ${result.jobId}`,
-        stats: statsAfter
+        stats: statsAfter,
+        refilled: refillResult.added,
       });
     } else {
       console.log(`[Cron] Failed to post: ${result.error}`);
@@ -51,7 +64,8 @@ export async function POST(request: NextRequest) {
         success: false,
         message: result.error,
         jobId: result.jobId,
-        stats: statsAfter
+        stats: statsAfter,
+        refilled: refillResult.added,
       });
     }
   } catch (error) {
