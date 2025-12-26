@@ -90,6 +90,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'daily',
       priority: 0.85,
     },
+    {
+      url: `${baseUrl}/blog`,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 0.8,
+    },
   ];
 
   // Pagination pages: /jobs?page=2 through /jobs?page=50
@@ -185,6 +191,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let jobPages: MetadataRoute.Sitemap = [];
   let companyPages: MetadataRoute.Sitemap = [];
   let companyJobsPages: MetadataRoute.Sitemap = [];
+  let blogPages: MetadataRoute.Sitemap = [];
+  let blogCategoryPages: MetadataRoute.Sitemap = [];
 
   try {
     // Fetch jobs with company info for new URL structure
@@ -229,6 +237,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'daily' as const,
       priority: 0.65,
     }));
+
+    // Blog posts: /blog/[slug]
+    const blogPosts = await prisma.blogPost.findMany({
+      where: { status: 'PUBLISHED' },
+      select: { slug: true, updatedAt: true },
+      orderBy: { publishedAt: 'desc' },
+      take: 1000,
+    });
+
+    blogPages = blogPosts.map((post) => ({
+      url: `${baseUrl}/blog/${post.slug}`,
+      lastModified: post.updatedAt,
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+    }));
+
+    // Blog categories: /blog/category/[category]
+    const blogCategories = await prisma.blogCategory.findMany({
+      select: { slug: true, updatedAt: true },
+    });
+
+    blogCategoryPages = blogCategories.map((cat) => ({
+      url: `${baseUrl}/blog/category/${cat.slug}`,
+      lastModified: cat.updatedAt,
+      changeFrequency: 'weekly' as const,
+      priority: 0.6,
+    }));
   } catch (error) {
     // Database might not be available during build
     console.log('Sitemap: Could not fetch dynamic pages from database');
@@ -249,5 +284,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...companyPages,
     ...companyJobsPages,
     ...jobPages,
+    ...blogPages,
+    ...blogCategoryPages,
   ];
 }

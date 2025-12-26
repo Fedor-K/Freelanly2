@@ -1089,3 +1089,90 @@ enum WinbackEmailType {
   DAY_14_SPECIAL_OFFER // 14 days: Special discount offer
   DAY_30_LAST_CHANCE   // 30 days: Last chance offer
 }
+
+// ============================================
+// BLOG
+// ============================================
+
+model BlogPost {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+
+  // Content
+  title         String
+  excerpt       String?           // Short description for cards
+  content       String   @db.Text // Full article content (Markdown/HTML)
+
+  // Category
+  category      BlogCategory @relation(fields: [categorySlug], references: [slug])
+  categorySlug  String
+
+  // SEO
+  metaTitle       String?         // Custom meta title (defaults to title)
+  metaDescription String?         // <=155 chars
+  keywords        String[]        // For meta keywords
+  canonicalUrl    String?         // If republished from elsewhere
+
+  // OG Image
+  ogImage       String?           // Custom OG image URL
+  ogImageAlt    String?           // Alt text for OG image
+
+  // Structure (auto-generated)
+  tableOfContents Json?           // [{level: 2, text: "...", id: "..."}]
+  readingTime     Int   @default(5) // Minutes
+
+  // FAQ for schema (extracted from content)
+  faqItems      Json?             // [{question: "...", answer: "..."}]
+
+  // Author (for E-E-A-T)
+  authorName    String  @default("Freelanly Team")
+  authorImage   String?
+  authorBio     String?
+
+  // Status
+  status        BlogPostStatus @default(DRAFT)
+  publishedAt   DateTime?
+  featuredAt    DateTime?       // If featured, when it was featured
+
+  // Stats
+  viewCount     Int     @default(0)
+
+  // Relations
+  relatedPosts  String[]        // Array of related post slugs
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([slug])
+  @@index([categorySlug])
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([featuredAt(sort: Desc)])
+}
+
+model BlogCategory {
+  slug          String   @id      // "salary-guides", "remote-job-hunting"
+  name          String            // "Salary Guides"
+  description   String?           // Category description for SEO
+  icon          String?           // Emoji or icon name
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+
+  // Stats
+  postCount     Int      @default(0)
+
+  // Relations
+  posts         BlogPost[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([slug])
+}
+
+enum BlogPostStatus {
+  DRAFT         // Not visible
+  PUBLISHED     // Live on site
+  ARCHIVED      // Hidden but not deleted
+}
