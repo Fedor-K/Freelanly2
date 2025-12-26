@@ -5,7 +5,7 @@ import { addSubscriber } from '@/lib/dashamail';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, category, keywords } = body;
+    const { email, category, keywords, frequency, source } = body;
 
     if (!email || !email.includes('@')) {
       return NextResponse.json(
@@ -13,6 +13,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Validate frequency if provided
+    const validFrequencies = ['INSTANT', 'DAILY', 'WEEKLY'];
+    const alertFrequency = validFrequencies.includes(frequency) ? frequency : 'WEEKLY';
 
     // Check if subscriber already exists with same email and filters
     const existing = await prisma.jobAlert.findFirst({
@@ -38,6 +42,7 @@ export async function POST(request: NextRequest) {
           email,
           category: category || null,
           keywords: keywords || null,
+          frequency: alertFrequency,
         },
       });
     }
@@ -47,7 +52,8 @@ export async function POST(request: NextRequest) {
       await addSubscriber(email, {
         category: category || 'all',
         keywords: keywords || '',
-        source: 'job_alert',
+        source: source || 'job_alert',
+        frequency: alertFrequency,
       });
     } catch (error) {
       console.error('Failed to add to DashaMail:', error);
