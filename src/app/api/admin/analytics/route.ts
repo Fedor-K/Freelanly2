@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getStripe, STRIPE_PRICES } from '@/lib/stripe';
 import { getEmailMarketingStats } from '@/lib/dashamail';
 import { getTrialEmailStats } from '@/services/trial-emails';
+import { getWinbackEmailStats } from '@/services/winback-emails';
 import Stripe from 'stripe';
 
 /**
@@ -36,6 +37,8 @@ export async function GET(request: NextRequest) {
       funnelData,
       jobData,
       trialEmailData,
+      winbackEmailData,
+      retentionData,
     ] = await Promise.all([
       getStripeMetrics(thirtyDaysAgo, now),
       getCancellationFeedbackStats(),
@@ -43,6 +46,8 @@ export async function GET(request: NextRequest) {
       getUserFunnelMetrics(thirtyDaysAgo, sevenDaysAgo),
       getJobMetrics(thirtyDaysAgo),
       getTrialEmailStats(),
+      getWinbackEmailStats(),
+      getRetentionOfferStats(),
     ]);
 
     return NextResponse.json({
@@ -66,6 +71,12 @@ export async function GET(request: NextRequest) {
 
       // Trial email onboarding
       trialEmails: trialEmailData,
+
+      // Win-back emails for churned users
+      winbackEmails: winbackEmailData,
+
+      // Retention offers (discount/pause at cancel)
+      retention: retentionData,
     });
   } catch (error) {
     console.error('[Analytics] Error:', error);
@@ -305,5 +316,39 @@ async function getJobMetrics(thirtyDaysAgo: Date) {
   } catch (error) {
     console.error('[Analytics] Jobs error:', error);
     return { total: 0, active: 0, new30d: 0, companies: 0 };
+  }
+}
+
+// ============================================
+// RETENTION OFFER METRICS
+// ============================================
+async function getRetentionOfferStats() {
+  try {
+    const [total, byType, last30Days] = await Promise.all([
+      prisma.retentionOffer.count(),
+      prisma.retentionOffer.groupBy({
+        by: ['offerType'],
+        _count: true,
+      }),
+      prisma.retentionOffer.count({
+        where: {
+          createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        },
+      }),
+    ]);
+
+    const byTypeMap: Record<string, number> = {};
+    for (const item of byType) {
+      byTypeMap[item.offerType] = item._count;
+    }
+
+    return {
+      total,
+      byType: byTypeMap,
+      last30Days,
+    };
+  } catch (error) {
+    console.error('[Analytics] Retention error:', error);
+    return { total: 0, byType: {}, last30Days: 0 };
   }
 }

@@ -7,6 +7,7 @@ SEO-оптимизированная платформа для поиска уд
 **Автоматизация:**
 - Daily cron at 6:00 UTC: fetches all sources
 - Daily cron at 7:00 UTC: sends job alert notifications
+- Daily cron at 10:00 UTC: sends win-back emails to churned users
 - Cron every 5 min: processes INSTANT alert queue (batched emails)
 - Hourly cron: sends trial onboarding emails (Day 0, 2, 5, 6, 7)
 - Cron every 15 min: posts 1 job to LinkedIn + Telegram via n8n
@@ -412,7 +413,9 @@ src/
 ├── app/api/cron/send-alerts/route.ts      # Job alert notifications cron
 ├── app/api/cron/process-instant-alerts/route.ts # Queue processor for INSTANT alerts
 ├── app/api/cron/send-trial-emails/route.ts # Trial onboarding emails cron
+├── app/api/cron/send-winback-emails/route.ts # Win-back emails for churned users
 ├── app/api/admin/analytics/route.ts       # Consolidated analytics endpoint
+├── app/api/user/apply-retention-offer/route.ts # Apply discount/pause at cancel
 ├── app/api/webhooks/linkedin-posts/route.ts # n8n webhook for individual posts
 ├── lib/deepseek.ts                # AI extraction + categorization (21 cats)
 ├── lib/utils.ts                   # Freshness, slugify, free email check
@@ -425,6 +428,7 @@ src/
 ├── services/alert-matcher.ts      # Match jobs to user alerts
 ├── services/alert-notifications.ts # Send job alert emails (queue-based)
 ├── services/trial-emails.ts       # Trial onboarding email sequence
+├── services/winback-emails.ts     # Win-back emails for churned users
 ├── services/sources/
 │   ├── index.ts                   # Source orchestration + processAllSources()
 │   ├── lever-processor.ts         # Lever ATS processor
@@ -640,6 +644,10 @@ npx prisma db push --force-reset
 73. **Consolidated analytics** — `/api/admin/analytics` aggregates all metrics
 74. **Trial email onboarding** — 5-email drip sequence (Day 0, 2, 5, 6, 7)
 75. **TrialEmail model** — tracks which emails sent to which trial users
+76. **Save Before Cancel** — offers discount/pause before showing cancel survey
+77. **RetentionOffer model** — tracks 50% discount and 1-month pause offers
+78. **Win-back emails** — 3-email sequence for churned users (Day 7, 14, 30)
+79. **WinbackEmail model** — tracks re-engagement emails and conversions
 
 ## Code Patterns
 

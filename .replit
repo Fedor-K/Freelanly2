@@ -88,3 +88,12 @@ action = "http"
 method = "POST"
 path = "/api/cron/send-trial-emails"
 headers = { Authorization = "Bearer ${CRON_SECRET}" }
+
+# Send win-back emails to churned users daily at 10:00 UTC
+[[deployment.scheduled]]
+trigger = "0 10 * * *"
+action = "http"
+[deployment.scheduled.http]
+method = "POST"
+path = "/api/cron/send-winback-emails"
+headers = { Authorization = "Bearer ${CRON_SECRET}" }

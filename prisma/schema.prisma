@@ -1022,3 +1022,70 @@ enum TrialEmailType {
   DAY_6_URGENCY       // Trial ending tomorrow
   DAY_7_LAST_CHANCE   // Last day reminder
 }
+
+// ============================================
+// RETENTION & WIN-BACK
+// ============================================
+
+// Track retention offers applied (discount, pause)
+model RetentionOffer {
+  id        String   @id @default(cuid())
+
+  // User reference
+  userId    String
+  email     String
+
+  // What was offered
+  offerType RetentionOfferType
+  accepted  Boolean  @default(true)
+
+  // Stripe info
+  stripeSubscriptionId String
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([email])
+  @@index([offerType])
+  @@index([createdAt])
+}
+
+enum RetentionOfferType {
+  DISCOUNT_50     // 50% off next month
+  PAUSE_1_MONTH   // Pause for 1 month
+}
+
+// Track win-back emails sent to churned users
+model WinbackEmail {
+  id        String   @id @default(cuid())
+
+  // User reference (by email, user might have deleted account)
+  email            String
+  stripeCustomerId String?
+
+  // Which email was sent
+  emailType WinbackEmailType
+
+  // Tracking
+  sentAt    DateTime @default(now())
+  openedAt  DateTime?
+  clickedAt DateTime?
+
+  // Did they come back?
+  resubscribedAt DateTime?
+
+  // Subscription info at time of churn
+  canceledAt     DateTime
+  planAtCancel   String?
+
+  @@unique([email, emailType]) // One email of each type per user
+  @@index([email])
+  @@index([emailType])
+  @@index([sentAt])
+}
+
+enum WinbackEmailType {
+  DAY_7_MISS_YOU      // 7 days after cancel: "We miss you"
+  DAY_14_SPECIAL_OFFER // 14 days: Special discount offer
+  DAY_30_LAST_CHANCE   // 30 days: Last chance offer
+}
