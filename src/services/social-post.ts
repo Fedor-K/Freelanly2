@@ -316,6 +316,108 @@ export async function getSocialQueueStats(): Promise<{
 }
 
 /**
+ * Get next post from queue and generate content
+ * Returns data for n8n to post, or null if queue is empty
+ */
+export async function getNextSocialPost(): Promise<{
+  queueItemId: string;
+  jobId: string;
+  jobTitle: string;
+  companyName: string;
+  postContent: string;
+  freelanlyUrl: string;
+  skills: string[];
+} | null> {
+  // Get next pending item (FIFO)
+  const next = await prisma.socialPostQueue.findFirst({
+    where: { status: 'PENDING' },
+    orderBy: { createdAt: 'asc' },
+    include: {
+      job: {
+        include: {
+          company: true
+        }
+      }
+    }
+  });
+
+  if (!next || !next.job) {
+    return null;
+  }
+
+  const job = next.job;
+
+  // Generate post text if not cached
+  let postText = next.postText;
+  if (!postText) {
+    postText = await generateSocialPost({
+      id: job.id,
+      title: job.title,
+      description: job.description,
+      cleanDescription: job.cleanDescription,
+      location: job.location,
+      country: job.country,
+      locationType: job.locationType,
+      salaryMin: job.salaryMin,
+      salaryMax: job.salaryMax,
+      salaryCurrency: job.salaryCurrency,
+      salaryPeriod: job.salaryPeriod,
+      level: job.level,
+      type: job.type,
+      skills: job.skills,
+      company: job.company,
+      slug: job.slug,
+    });
+
+    // Cache the generated text
+    await prisma.socialPostQueue.update({
+      where: { id: next.id },
+      data: { postText }
+    });
+  }
+
+  const freelanlyUrl = `https://freelanly.com/company/${job.company.slug}/jobs/${job.slug}`;
+
+  return {
+    queueItemId: next.id,
+    jobId: job.id,
+    jobTitle: job.title,
+    companyName: job.company.name,
+    postContent: postText,
+    freelanlyUrl,
+    skills: job.skills.slice(0, 5),
+  };
+}
+
+/**
+ * Mark queue item as posted
+ */
+export async function markAsPosted(queueItemId: string): Promise<void> {
+  await prisma.socialPostQueue.update({
+    where: { id: queueItemId },
+    data: {
+      status: 'POSTED',
+      postedAt: new Date(),
+    }
+  });
+  console.log(`[SocialPost] Marked ${queueItemId} as posted`);
+}
+
+/**
+ * Mark queue item as failed
+ */
+export async function markAsFailed(queueItemId: string, error: string): Promise<void> {
+  await prisma.socialPostQueue.update({
+    where: { id: queueItemId },
+    data: {
+      status: 'FAILED',
+      error,
+    }
+  });
+  console.log(`[SocialPost] Marked ${queueItemId} as failed: ${error}`);
+}
+
+/**
  * Refill social queue with jobs that haven't been posted yet
  * Called automatically when queue is running low
  */
