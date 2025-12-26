@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { sendNurtureEmailForAttempt } from '@/services/nurture-emails';
 
-// POST - Track when a FREE user tries to apply
+// POST - Track when a FREE user tries to apply and send nurture email
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     // Check if user is already PRO (shouldn't happen but just in case)
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { plan: true },
+      select: { plan: true, email: true, name: true },
     });
 
     if (user?.plan !== 'FREE') {
@@ -38,16 +39,21 @@ export async function POST(request: NextRequest) {
     });
 
     if (recentAttempt) {
-      // Already tracked, don't create duplicate
+      // Already tracked, don't create duplicate or send email again
       return NextResponse.json({ ok: true, existing: true });
     }
 
     // Create new apply attempt
-    await prisma.applyAttempt.create({
+    const attempt = await prisma.applyAttempt.create({
       data: {
         userId: session.user.id,
         jobId,
       },
+    });
+
+    // Send nurture email immediately (non-blocking)
+    sendNurtureEmailForAttempt(attempt.id).catch((err) => {
+      console.error('[ApplyAttempt] Nurture email failed:', err);
     });
 
     return NextResponse.json({ ok: true, tracked: true });

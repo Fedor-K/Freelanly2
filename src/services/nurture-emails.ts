@@ -15,8 +15,100 @@ interface NurtureStats {
 }
 
 /**
+ * Send nurture email immediately for a specific apply attempt
+ * Called directly when user hits the paywall
+ */
+export async function sendNurtureEmailForAttempt(attemptId: string): Promise<boolean> {
+  try {
+    const attempt = await prisma.applyAttempt.findUnique({
+      where: { id: attemptId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            plan: true,
+          },
+        },
+        job: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            salaryMin: true,
+            salaryMax: true,
+            salaryCurrency: true,
+            company: {
+              select: {
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!attempt) {
+      console.error('[Nurture] Attempt not found:', attemptId);
+      return false;
+    }
+
+    // Skip if user is PRO
+    if (attempt.user.plan !== 'FREE') {
+      return false;
+    }
+
+    // Generate email content
+    const jobUrl = `${siteConfig.url}/company/${attempt.job.company.slug}/jobs/${attempt.job.slug}`;
+    const pricingUrl = `${siteConfig.url}/pricing?utm_source=nurture&utm_medium=email&job=${attempt.job.id}`;
+
+    const salaryText = attempt.job.salaryMin && attempt.job.salaryMax
+      ? `${attempt.job.salaryCurrency || '$'}${(attempt.job.salaryMin / 1000).toFixed(0)}K - ${attempt.job.salaryCurrency || '$'}${(attempt.job.salaryMax / 1000).toFixed(0)}K`
+      : 'Competitive salary';
+
+    const html = generateNurtureEmailHtml({
+      userName: attempt.user.name || 'there',
+      jobTitle: attempt.job.title,
+      companyName: attempt.job.company.name,
+      salary: salaryText,
+      jobUrl,
+      pricingUrl,
+      isImmediate: true, // Different copy for immediate send
+    });
+
+    const subject = `Complete your application to "${attempt.job.title}" at ${attempt.job.company.name}`;
+
+    const result = await sendApplicationEmail({
+      to: attempt.user.email,
+      subject,
+      html,
+    });
+
+    if (result.success) {
+      await prisma.applyAttempt.update({
+        where: { id: attemptId },
+        data: {
+          nurtureEmailSent: true,
+          nurtureEmailSentAt: new Date(),
+        },
+      });
+      console.log(`[Nurture] Email sent to ${attempt.user.email} for job ${attempt.job.title}`);
+      return true;
+    } else {
+      console.error(`[Nurture] Failed to send email to ${attempt.user.email}:`, result.error);
+      return false;
+    }
+  } catch (error) {
+    console.error('[Nurture] Error sending immediate email:', error);
+    return false;
+  }
+}
+
+/**
  * Send nurture emails to users who tried to apply in the last 1-24 hours
- * and haven't received a nurture email yet
+ * and haven't received a nurture email yet (CRON FALLBACK)
  */
 export async function sendNurtureEmails(): Promise<NurtureStats> {
   const stats: NurtureStats = {
@@ -145,7 +237,12 @@ function generateNurtureEmailHtml(params: {
   salary: string;
   jobUrl: string;
   pricingUrl: string;
+  isImmediate?: boolean;
 }): string {
+  const introText = params.isImmediate
+    ? `You just found a great opportunity at ${params.companyName}. Start your free trial to apply:`
+    : `You found a great opportunity yesterday but couldn't apply. The job is still open:`;
+
   return `
 <!DOCTYPE html>
 <html>
@@ -173,7 +270,7 @@ function generateNurtureEmailHtml(params: {
   <div class="container">
     <h1>Hey ${params.userName}!</h1>
 
-    <p>You found a great opportunity yesterday but couldn't apply. The job is still open:</p>
+    <p>${introText}</p>
 
     <div class="job-card">
       <div class="job-title">${params.jobTitle}</div>
