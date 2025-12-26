@@ -702,18 +702,7 @@ export default async function JobPage({ params }: JobPageProps) {
             directApply: !!(job.applyUrl || job.applyEmail),
             ...(['REMOTE', 'REMOTE_US', 'REMOTE_EU', 'REMOTE_COUNTRY'].includes(job.locationType) && {
               jobLocationType: 'TELECOMMUTE',
-              applicantLocationRequirements: job.locationType === 'REMOTE_US'
-                ? { '@type': 'Country', name: 'USA' }
-                : job.locationType === 'REMOTE_EU'
-                ? [
-                    { '@type': 'Country', name: 'Germany' },
-                    { '@type': 'Country', name: 'France' },
-                    { '@type': 'Country', name: 'Netherlands' },
-                    { '@type': 'Country', name: 'United Kingdom' },
-                  ]
-                : job.locationType === 'REMOTE_COUNTRY' && job.country
-                ? { '@type': 'Country', name: getCountryName(job.country) }
-                : undefined,
+              applicantLocationRequirements: getApplicantLocationRequirements(job.locationType, job.country),
             }),
             ...(job.salaryMin && !job.salaryIsEstimate && getSchemaUnitText(job.salaryPeriod) && {
               baseSalary: {
@@ -839,6 +828,43 @@ function getExperienceRequirements(level: string): { '@type': string; monthsOfEx
     '@type': 'OccupationalExperienceRequirements',
     monthsOfExperience: months,
   };
+}
+
+// Get applicantLocationRequirements for remote jobs (required by Google)
+type LocationRequirement = { '@type': string; name: string };
+function getApplicantLocationRequirements(
+  locationType: string,
+  country: string | null
+): LocationRequirement | LocationRequirement[] {
+  switch (locationType) {
+    case 'REMOTE_US':
+      return { '@type': 'Country', name: 'United States' };
+    case 'REMOTE_EU':
+      return [
+        { '@type': 'Country', name: 'Germany' },
+        { '@type': 'Country', name: 'France' },
+        { '@type': 'Country', name: 'Netherlands' },
+        { '@type': 'Country', name: 'United Kingdom' },
+        { '@type': 'Country', name: 'Spain' },
+        { '@type': 'Country', name: 'Italy' },
+        { '@type': 'Country', name: 'Poland' },
+        { '@type': 'Country', name: 'Portugal' },
+        { '@type': 'Country', name: 'Ireland' },
+        { '@type': 'Country', name: 'Austria' },
+        { '@type': 'Country', name: 'Belgium' },
+      ];
+    case 'REMOTE_COUNTRY':
+      if (country) {
+        return { '@type': 'Country', name: getCountryName(country) };
+      }
+      // Fall through to worldwide if no country specified
+      return { '@type': 'Country', name: 'Worldwide' };
+    case 'REMOTE':
+    default:
+      // For worldwide remote jobs, use broad list of countries
+      // Google accepts "Worldwide" as a valid value
+      return { '@type': 'Country', name: 'Worldwide' };
+  }
 }
 
 // Get SOC occupation code for Schema.org occupationalCategory
