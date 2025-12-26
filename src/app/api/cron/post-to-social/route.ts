@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { processNextSocialPost, getSocialQueueStats, refillSocialQueue } from '@/services/social-post';
+import { getNextSocialPost, markAsPosted, markAsFailed, getSocialQueueStats, refillSocialQueue } from '@/services/social-post';
 
 /**
  * Cron endpoint for posting jobs to social media
- * Called every 15 minutes via Replit Scheduled Deployments or external cron
+ * Called every 15 minutes by n8n
+ * Returns post data for n8n to publish to Telegram/LinkedIn
  *
  * POST /api/cron/post-to-social
  * Authorization: Bearer $CRON_SECRET
@@ -31,49 +32,89 @@ export async function POST(request: NextRequest) {
       console.log(`[Cron] Refilled queue with ${refillResult.added} jobs`);
     }
 
-    // Get queue stats before processing
-    const statsBefore = await getSocialQueueStats();
-    console.log(`[Cron] Queue stats: ${statsBefore.pending} pending, ${statsBefore.posted} posted, ${statsBefore.failed} failed`);
+    // Get queue stats
+    const stats = await getSocialQueueStats();
+    console.log(`[Cron] Queue stats: ${stats.pending} pending, ${stats.posted} posted, ${stats.failed} failed`);
 
-    if (statsBefore.pending === 0) {
+    if (stats.pending === 0) {
+      // Return empty body - n8n should check this and skip posting
       return NextResponse.json({
         success: true,
-        message: 'Queue is empty, nothing to post',
-        stats: statsBefore,
-        refilled: refillResult.added,
+        hasPost: false,
+        message: 'Queue is empty',
+        stats,
+        body: null,
       });
     }
 
-    // Process one item from queue
-    const result = await processNextSocialPost();
+    // Get next post data (generates AI content if needed)
+    const postData = await getNextSocialPost();
 
-    // Get updated stats
-    const statsAfter = await getSocialQueueStats();
-
-    if (result.posted) {
-      console.log(`[Cron] Successfully posted job ${result.jobId}`);
+    if (!postData) {
       return NextResponse.json({
         success: true,
-        message: `Posted job ${result.jobId}`,
-        stats: statsAfter,
-        refilled: refillResult.added,
-      });
-    } else {
-      console.log(`[Cron] Failed to post: ${result.error}`);
-      return NextResponse.json({
-        success: false,
-        message: result.error,
-        jobId: result.jobId,
-        stats: statsAfter,
-        refilled: refillResult.added,
+        hasPost: false,
+        message: 'No post available',
+        stats,
+        body: null,
       });
     }
+
+    console.log(`[Cron] Returning post for job: ${postData.jobTitle}`);
+
+    // Return data for n8n to post
+    return NextResponse.json({
+      success: true,
+      hasPost: true,
+      stats,
+      body: {
+        postContent: postData.postContent,
+        freelanlyUrl: postData.freelanlyUrl,
+        workType: postData.jobTitle,
+        companyName: postData.companyName,
+        languages: postData.skills,
+        jobId: postData.jobId,
+        queueItemId: postData.queueItemId,
+      },
+    });
   } catch (error) {
     console.error('[Cron] Social post error:', error);
     return NextResponse.json(
       { error: 'Failed to process social post', details: String(error) },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * PATCH - Mark post as completed or failed (called by n8n after posting)
+ */
+export async function PATCH(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { queueItemId, status, error } = await request.json();
+
+    if (!queueItemId) {
+      return NextResponse.json({ error: 'queueItemId required' }, { status: 400 });
+    }
+
+    if (status === 'posted') {
+      await markAsPosted(queueItemId);
+      return NextResponse.json({ success: true, message: 'Marked as posted' });
+    } else if (status === 'failed') {
+      await markAsFailed(queueItemId, error || 'Unknown error');
+      return NextResponse.json({ success: true, message: 'Marked as failed' });
+    }
+
+    return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
 
