@@ -14,32 +14,27 @@ function getDeepSeekClient(): OpenAI {
   return _deepseek;
 }
 
-const SOCIAL_POST_PROMPT = `You are a social media copywriter for a job board. Create a concise, engaging job post for LinkedIn and Telegram.
+const SOCIAL_POST_PROMPT = `You are a social media copywriter for a job board. Create ONLY the body of a job post (title and skills will be added automatically by the system).
 
-IMPORTANT: Keep the language of the post EXACTLY THE SAME as the language of the original job description. If the job is in Russian, write in Russian. If in English, write in English.
+IMPORTANT: Keep the language EXACTLY THE SAME as the job description. Russian job = Russian post. English job = English post.
 
-Format:
-🎯 [Job Title]
-
+Generate ONLY this format (no title line - it's added automatically):
 📍 [Location/Remote status]
-💰 [Salary if available, skip line if no salary]
-🏢 [Company if known, skip line if no company]
+💰 [Salary if available, skip if no salary]
+🏢 [Company if known, skip if unknown]
 
-[2-3 sentence summary: what the role is about, key requirements, what makes it attractive. Be specific but concise. Highlight unique aspects.]
+[2-3 sentence summary: role description, key requirements, what makes it attractive]
 
 Rules:
-- Maximum 280 characters for the summary part (not counting emojis)
-- Be specific about requirements (e.g., "5+ years React" not "experience required")
-- Highlight salary if available (it's a big attractor)
-- Mention remote/location clearly
-- No hashtags
-- No links (link will be added automatically)
-- No promotional language like "Amazing opportunity!"
-- Professional but engaging tone
-- If company is unknown, skip the 🏢 line entirely
-- If no salary, skip the 💰 line entirely
+- Do NOT include job title (🎯) - it's added automatically
+- Maximum 280 characters for summary
+- Be specific (e.g., "5+ years React" not "experience required")
+- No hashtags, no links
+- Professional tone
+- Skip 💰 line if no salary
+- Skip 🏢 line if company unknown
 
-Return ONLY the formatted post text, no explanations.`;
+Return ONLY the formatted body text, nothing else.`;
 
 interface JobForSocialPost {
   id: string;
@@ -116,10 +111,10 @@ ${job.cleanDescription || job.description}
 
 /**
  * Fallback post generation without AI
+ * Note: Does NOT include title (🎯) - n8n template adds it from workType
  */
 function generateFallbackPost(job: JobForSocialPost): string {
-  const lines = [`🎯 ${job.title}`];
-  lines.push('');
+  const lines: string[] = [];
 
   // Location
   const location = job.location || (job.locationType === 'REMOTE' ? 'Remote' : 'Remote');

@@ -23,6 +23,7 @@ async function main() {
       data: {
         status: 'PENDING',
         error: null,
+        postText: null, // Clear cached text so it regenerates with new prompt
       }
     });
   }
