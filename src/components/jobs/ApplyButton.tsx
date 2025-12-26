@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { QuickApplyModal } from './QuickApplyModal';
+import { UpgradeModal } from './UpgradeModal';
 import { track } from '@/lib/analytics';
 import { Lock } from 'lucide-react';
 
@@ -31,21 +31,36 @@ export function ApplyButton({
   userPlan = 'FREE',
 }: ApplyButtonProps) {
   const [showQuickApply, setShowQuickApply] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const isPro = userPlan === 'PRO' || userPlan === 'ENTERPRISE';
 
   const handleApplyClick = (method: 'url' | 'email' | 'linkedin') => {
     track({ name: 'job_apply_click', params: { job_id: jobId, method } });
   };
 
-  // FREE users see upgrade prompt
+  // FREE users see upgrade modal
   if (!isPro) {
     return (
-      <Button className="w-full" size="lg" asChild>
-        <Link href="/pricing" className="flex items-center gap-2">
-          <Lock className="h-4 w-4" />
+      <>
+        <Button
+          className="w-full"
+          size="lg"
+          onClick={() => {
+            track({ name: 'upgrade_modal_open', params: { job_id: jobId } });
+            setShowUpgrade(true);
+          }}
+        >
+          <Lock className="mr-2 h-4 w-4" />
           Upgrade to Apply
-        </Link>
-      </Button>
+        </Button>
+        <UpgradeModal
+          open={showUpgrade}
+          onClose={() => setShowUpgrade(false)}
+          jobId={jobId}
+          jobTitle={jobTitle}
+          companyName={companyName}
+        />
+      </>
     );
   }
 

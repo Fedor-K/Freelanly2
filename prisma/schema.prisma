@@ -40,6 +40,7 @@ model User {
   applications  Application[]
   savedJobs     SavedJob[]
   jobAlerts     JobAlert[]
+  applyAttempts ApplyAttempt[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -272,6 +273,7 @@ model Job {
   savedBy       SavedJob[]
   alertNotifications AlertNotification[]
   socialPosts   SocialPostQueue[]
+  applyAttempts ApplyAttempt[]
 
   @@unique([companyId, title], name: "unique_job_title_per_company")
   @@index([categoryId])
@@ -898,4 +900,31 @@ enum SocialPostStatus {
   POSTED      // Successfully posted
   FAILED      // Failed to post
   SKIPPED     // Skipped (e.g., duplicate, low quality)
+}
+
+// ============================================
+// APPLY ATTEMPTS (for conversion tracking)
+// ============================================
+
+// Track when FREE users try to apply (for nurturing emails)
+model ApplyAttempt {
+  id        String   @id @default(cuid())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId     String
+
+  // Email nurture tracking
+  nurtureEmailSent Boolean  @default(false)
+  nurtureEmailSentAt DateTime?
+  converted        Boolean  @default(false) // Did they upgrade?
+  convertedAt      DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([jobId])
+  @@index([nurtureEmailSent, createdAt]) // For cron: find unsent
 }

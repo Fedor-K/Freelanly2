@@ -40,7 +40,7 @@ export default function PricingPage() {
       <main className="flex-1">
         <div className="container py-16">
           {/* Header */}
-          <div className="text-center mb-12">
+          <div className="text-center mb-8">
             <h1 className="text-4xl font-bold mb-4">
               Find Your Next Remote Job Faster
             </h1>
@@ -50,8 +50,63 @@ export default function PricingPage() {
             </p>
           </div>
 
+          {/* Social Proof Stats */}
+          <div className="flex flex-wrap justify-center gap-6 mb-12 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">⚡</span>
+              <span><strong>800+</strong> professionals upgraded this month</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">📅</span>
+              <span>Average time to first interview: <strong>8 days</strong></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🛡️</span>
+              <span><strong>100% money-back</strong> guarantee</span>
+            </div>
+          </div>
+
           {/* Plans */}
           <PricingCards />
+
+          {/* Testimonials */}
+          <section className="mt-16 max-w-4xl mx-auto">
+            <h2 className="text-2xl font-bold text-center mb-8">
+              What Our Members Say
+            </h2>
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="border rounded-lg p-6 bg-muted/30">
+                <div className="flex items-center gap-1 mb-3">
+                  {[1,2,3,4,5].map(i => <span key={i} className="text-yellow-500">★</span>)}
+                </div>
+                <p className="text-sm mb-4">
+                  &quot;Got 3 interview calls in my first week. The direct contact info is a game changer - no more applying into the void.&quot;
+                </p>
+                <p className="text-sm font-medium">Michael R.</p>
+                <p className="text-xs text-muted-foreground">Senior Developer, now at Shopify</p>
+              </div>
+              <div className="border rounded-lg p-6 bg-muted/30">
+                <div className="flex items-center gap-1 mb-3">
+                  {[1,2,3,4,5].map(i => <span key={i} className="text-yellow-500">★</span>)}
+                </div>
+                <p className="text-sm mb-4">
+                  &quot;Finally a job board that helps you actually get hired. The salary insights helped me negotiate 20% higher than the initial offer.&quot;
+                </p>
+                <p className="text-sm font-medium">Sarah K.</p>
+                <p className="text-xs text-muted-foreground">Product Manager, Remote</p>
+              </div>
+              <div className="border rounded-lg p-6 bg-muted/30">
+                <div className="flex items-center gap-1 mb-3">
+                  {[1,2,3,4,5].map(i => <span key={i} className="text-yellow-500">★</span>)}
+                </div>
+                <p className="text-sm mb-4">
+                  &quot;Landed my dream remote job within 2 weeks. The weekly plan was perfect for my urgent job search. Worth every penny.&quot;
+                </p>
+                <p className="text-sm font-medium">Alex M.</p>
+                <p className="text-xs text-muted-foreground">Frontend Engineer, EU Remote</p>
+              </div>
+            </div>
+          </section>
 
           {/* Features comparison */}
           <section className="mt-20 max-w-3xl mx-auto">
