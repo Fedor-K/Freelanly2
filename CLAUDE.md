@@ -620,6 +620,12 @@ npx prisma db push --force-reset
 61. **AI-generated social posts** — DeepSeek creates engaging post text from job descriptions
 62. **SocialPostQueue model** — tracks pending/posted/failed social media posts
 63. **Cron every 15 min** — `/api/cron/post-to-social` processes 1 job from queue
+64. **UpgradeModal** — social proof modal when FREE users try to apply (testimonials, upgrade count)
+65. **ApplyAttempt tracking** — tracks when FREE users try to apply for nurture emails
+66. **Nurture emails** — automated follow-up emails 1-24h after user hits paywall
+67. **Pricing page improvements** — testimonials, social proof stats, money-back guarantee
+68. **Google Indexing API** — auto-submit new jobs to Google Index
+69. **IndexNow** — instant notifications to Bing/Yandex when jobs are created
 
 ## Code Patterns
 
@@ -812,6 +818,12 @@ curl -X POST "https://freelanly.com/api/cron/fetch-linkedin" \
   -H "Authorization: Bearer $CRON_SECRET"
 
 curl -X POST "https://freelanly.com/api/cron/send-alerts?frequency=DAILY" \
+  -H "Authorization: Bearer $CRON_SECRET"
+
+curl -X POST "https://freelanly.com/api/cron/send-nurture" \
+  -H "Authorization: Bearer $CRON_SECRET"
+
+curl -X POST "https://freelanly.com/api/cron/submit-to-index" \
   -H "Authorization: Bearer $CRON_SECRET"
 ```
 
