@@ -7,6 +7,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { track } from '@/lib/analytics';
+import { categories } from '@/config/site';
 
 export function ExitIntentPopup() {
   const { showPopup, closePopup } = useExitIntent({
@@ -17,6 +18,7 @@ export function ExitIntentPopup() {
   });
 
   const [email, setEmail] = useState('');
+  const [category, setCategory] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -36,15 +38,20 @@ export function ExitIntentPopup() {
       // Track event
       track({
         name: 'job_alert_subscribe',
-        params: { source: 'exit_intent' }
+        params: {
+          source: 'exit_intent',
+          category: category || undefined,
+        }
       });
 
       // Subscribe to job alerts
+      const selectedCategory = category && category !== 'all' && category !== '' ? category : null;
       const response = await fetch('/api/job-alerts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email,
+          category: selectedCategory,
           frequency: 'WEEKLY',
           source: 'exit_intent',
         }),
@@ -111,31 +118,49 @@ export function ExitIntentPopup() {
 
             {/* Header */}
             <h2 className="text-xl font-bold text-center mb-2">
-              Don&apos;t miss your perfect remote job!
+              Get notified about new remote jobs
             </h2>
             <p className="text-center text-muted-foreground mb-6">
-              Get 50+ new remote jobs delivered to your inbox every week.
+              Weekly alerts for jobs matching your interests.
             </p>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3">
               <div>
                 <Input
                   type="email"
                   placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-12"
+                  className="h-11"
                   disabled={loading}
                 />
-                {error && (
-                  <p className="text-sm text-red-500 mt-1">{error}</p>
-                )}
               </div>
+
+              <div>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  disabled={loading}
+                  className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">Select category (optional)</option>
+                  <option value="all">All categories</option>
+                  {categories.map((cat) => (
+                    <option key={cat.slug} value={cat.slug}>
+                      {cat.icon} {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {error && (
+                <p className="text-sm text-red-500">{error}</p>
+              )}
 
               <Button
                 type="submit"
-                className="w-full h-12"
+                className="w-full h-11"
                 disabled={loading}
               >
                 {loading ? (
@@ -159,7 +184,7 @@ export function ExitIntentPopup() {
                     Subscribing...
                   </span>
                 ) : (
-                  'Subscribe for Free'
+                  'Create Alert'
                 )}
               </Button>
             </form>
