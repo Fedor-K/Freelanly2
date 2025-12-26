@@ -11,6 +11,7 @@
  * Apply at: https://developers.google.com/search/apis/indexing-api/v3/prereqs
  */
 
+import { createSign } from 'crypto';
 import { siteConfig } from '@/config/site';
 
 interface IndexingCredentials {
@@ -56,28 +57,61 @@ function getCredentials(): IndexingCredentials | null {
 }
 
 /**
- * Generate JWT token for Google API authentication
- *
- * Note: This is a placeholder. In production, you would:
- * 1. npm install google-auth-library
- * 2. Use GoogleAuth to generate tokens
- *
- * For now, we use a simple fetch-based approach
+ * Create JWT assertion for Google OAuth
+ */
+function createJWTAssertion(header: object, payload: object, privateKey: string): string {
+  const base64Header = Buffer.from(JSON.stringify(header)).toString('base64url');
+  const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signatureInput = `${base64Header}.${base64Payload}`;
+
+  const sign = createSign('RSA-SHA256');
+  sign.update(signatureInput);
+  sign.end();
+  const signature = sign.sign(privateKey, 'base64url');
+
+  return `${signatureInput}.${signature}`;
+}
+
+/**
+ * Generate access token for Google Indexing API
  */
 async function getAccessToken(): Promise<string | null> {
   const creds = getCredentials();
   if (!creds) return null;
 
-  // In a real implementation, you would generate a JWT and exchange it for an access token
-  // For now, return null to gracefully disable the feature
-  console.log('Google Indexing API: Set up google-auth-library for production use');
+  try {
+    const header = { alg: 'RS256', typ: 'JWT' };
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      iss: creds.client_email,
+      scope: 'https://www.googleapis.com/auth/indexing',
+      aud: 'https://oauth2.googleapis.com/token',
+      exp: now + 3600,
+      iat: now,
+    };
 
-  // Placeholder for future implementation:
-  // 1. Create JWT with RS256 signature
-  // 2. Exchange JWT for access token at https://oauth2.googleapis.com/token
-  // 3. Return the access token
+    const assertion = createJWTAssertion(header, payload, creds.private_key);
 
-  return null;
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion,
+      }),
+    });
+
+    const data = await response.json();
+    if (!data.access_token) {
+      console.error('Failed to get access token:', data);
+      return null;
+    }
+
+    return data.access_token;
+  } catch (error) {
+    console.error('Error getting access token:', error);
+    return null;
+  }
 }
 
 /**
