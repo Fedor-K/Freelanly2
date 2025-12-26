@@ -98,11 +98,15 @@ ${job.cleanDescription || job.description}
 
     const postText = response.choices[0]?.message?.content?.trim();
 
+    console.log(`[SocialPost] AI response received, length: ${postText?.length || 0}`);
+
     if (!postText) {
+      console.log(`[SocialPost] AI returned empty, using fallback`);
       // Fallback to simple format
       return generateFallbackPost(job);
     }
 
+    console.log(`[SocialPost] AI generated post: ${postText.substring(0, 150)}...`);
     return postText;
   } catch (error) {
     console.error('[SocialPost] AI generation error:', error);
@@ -233,25 +237,37 @@ export async function processNextSocialPost(): Promise<{ posted: boolean; jobId?
     // Build freelanly URL
     const freelanlyUrl = `https://freelanly.com/company/${job.company.slug}/jobs/${job.slug}`;
 
+    console.log(`[SocialPost] Preparing to send job ${jobId}:`);
+    console.log(`[SocialPost] - Title: ${job.title}`);
+    console.log(`[SocialPost] - Company: ${job.company.name} (slug: ${job.company.slug})`);
+    console.log(`[SocialPost] - Job slug: ${job.slug}`);
+    console.log(`[SocialPost] - URL: ${freelanlyUrl}`);
+    console.log(`[SocialPost] - PostText length: ${postText?.length || 0}`);
+    console.log(`[SocialPost] - PostText preview: ${postText?.substring(0, 100)}...`);
+
     // Send to n8n webhook (n8n template handles CTAs and links)
     const n8nWebhookUrl = process.env.N8N_SOCIAL_WEBHOOK_URL;
     if (!n8nWebhookUrl) {
       throw new Error('N8N_SOCIAL_WEBHOOK_URL not configured');
     }
 
+    const payload = {
+      workType: job.title,
+      postContent: postText,
+      freelanlyUrl,
+      languages: job.skills.slice(0, 5),
+      jobId: job.id,
+      companyName: job.company.name,
+    };
+
+    console.log(`[SocialPost] Sending payload to n8n:`, JSON.stringify(payload, null, 2));
+
     const response = await fetch(n8nWebhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        workType: job.title,
-        postContent: postText,
-        freelanlyUrl,
-        languages: job.skills.slice(0, 5),
-        jobId: job.id,
-        companyName: job.company.name,
-      })
+      body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
