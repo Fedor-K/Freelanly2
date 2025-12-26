@@ -7,6 +7,8 @@ SEO-оптимизированная платформа для поиска уд
 **Автоматизация:**
 - Daily cron at 6:00 UTC: fetches all sources
 - Daily cron at 7:00 UTC: sends job alert notifications
+- Cron every 5 min: processes INSTANT alert queue (batched emails)
+- Hourly cron: sends trial onboarding emails (Day 0, 2, 5, 6, 7)
 - Cron every 15 min: posts 1 job to LinkedIn + Telegram via n8n
 - n8n workflow: scrapes LinkedIn posts every 15-20 min via Apify
 - Auto cleanup: removes jobs older than 30 days after each import
@@ -408,6 +410,9 @@ src/
 ├── app/api/cron/fetch-sources/route.ts    # Daily ATS cron endpoint
 ├── app/api/cron/fetch-linkedin/route.ts   # LinkedIn cron endpoint
 ├── app/api/cron/send-alerts/route.ts      # Job alert notifications cron
+├── app/api/cron/process-instant-alerts/route.ts # Queue processor for INSTANT alerts
+├── app/api/cron/send-trial-emails/route.ts # Trial onboarding emails cron
+├── app/api/admin/analytics/route.ts       # Consolidated analytics endpoint
 ├── app/api/webhooks/linkedin-posts/route.ts # n8n webhook for individual posts
 ├── lib/deepseek.ts                # AI extraction + categorization (21 cats)
 ├── lib/utils.ts                   # Freshness, slugify, free email check
@@ -418,7 +423,8 @@ src/
 ├── services/company-enrichment.ts # Apollo.io enrichment
 ├── services/salary-insights.ts    # Salary market data service
 ├── services/alert-matcher.ts      # Match jobs to user alerts
-├── services/alert-notifications.ts # Send job alert emails
+├── services/alert-notifications.ts # Send job alert emails (queue-based)
+├── services/trial-emails.ts       # Trial onboarding email sequence
 ├── services/sources/
 │   ├── index.ts                   # Source orchestration + processAllSources()
 │   ├── lever-processor.ts         # Lever ATS processor
@@ -441,13 +447,15 @@ src/
 │   ├── alerts/
 │   │   ├── page.tsx               # Alerts page
 │   │   └── AlertsList.tsx         # Alerts management component
-│   └── settings/page.tsx          # User settings
+│   ├── settings/page.tsx          # User settings
+│   └── settings/CancelSubscriptionSection.tsx # Cancel with survey
 ├── components/auth/UserMenu.tsx   # Header user menu
 ├── components/auth/SignInForm.tsx # Login form component
 ├── components/jobs/SaveJobButton.tsx # Save/unsave job button
 ├── app/api/user/
 │   ├── alerts/route.ts            # Job alerts CRUD
 │   ├── alerts/[id]/route.ts       # Single alert operations
+│   ├── cancel-subscription/route.ts # Cancel with feedback survey
 │   └── settings/route.ts          # User settings
 ├── app/api/jobs/[id]/save/route.ts # Save/unsave job endpoint
 ├── app/api/stripe/
@@ -626,6 +634,12 @@ npx prisma db push --force-reset
 67. **Pricing page improvements** — testimonials, social proof stats, money-back guarantee
 68. **Google Indexing API** — auto-submit new jobs to Google Index
 69. **IndexNow** — instant notifications to Bing/Yandex when jobs are created
+70. **Queue-based INSTANT alerts** — emails batched per user instead of per job (prevents spam)
+71. **Cancellation survey** — collects feedback when users cancel subscription
+72. **CancellationFeedback model** — 8 reason options for churn analysis
+73. **Consolidated analytics** — `/api/admin/analytics` aggregates all metrics
+74. **Trial email onboarding** — 5-email drip sequence (Day 0, 2, 5, 6, 7)
+75. **TrialEmail model** — tracks which emails sent to which trial users
 
 ## Code Patterns
 

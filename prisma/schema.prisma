@@ -377,6 +377,9 @@ enum Source {
   HIMALAYAS         // Himalayas API
   WORKINGNOMADS     // WorkingNomads
   INDEED            // Indeed API
+  REMOTEOK          // RemoteOK jobs
+  WEWORKREMOTELY    // WeWorkRemotely
+  HACKERNEWS        // HackerNews Who is Hiring
 }
 
 enum SourceType {
@@ -980,4 +983,42 @@ visitorId String?  // For anonymous users (fingerprint or random ID)
   @@index([userId])
   @@index([visitorId])
   @@index([consentedAt])
+}
+
+// ============================================
+// TRIAL EMAIL ONBOARDING
+// ============================================
+
+// Track trial onboarding emails sent to users
+model TrialEmail {
+  id        String   @id @default(cuid())
+
+  // User reference (by Stripe customer ID, not our user - they might not exist yet)
+  stripeCustomerId String
+  email            String
+
+  // Which email was sent
+  emailType TrialEmailType
+
+  // Tracking
+  sentAt    DateTime @default(now())
+  openedAt  DateTime?  // If we track opens via pixel
+
+  // Stripe subscription info at time of sending
+  trialStartDate DateTime
+  trialEndDate   DateTime
+
+  @@unique([stripeCustomerId, emailType]) // One email of each type per customer
+  @@index([stripeCustomerId])
+  @@index([email])
+  @@index([emailType])
+  @@index([sentAt])
+}
+
+enum TrialEmailType {
+  DAY_0_WELCOME       // Welcome email on trial start
+  DAY_2_FEATURES      // Feature highlight
+  DAY_5_SOCIAL_PROOF  // Testimonials and success stories
+  DAY_6_URGENCY       // Trial ending tomorrow
+  DAY_7_LAST_CHANCE   // Last day reminder
 }

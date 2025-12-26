@@ -79,3 +79,12 @@ action = "http"
 method = "POST"
 path = "/api/cron/send-alerts?frequency=DAILY"
 headers = { Authorization = "Bearer ${CRON_SECRET}" }
+
+# Send trial onboarding emails every hour
+[[deployment.scheduled]]
+trigger = "0 * * * *"
+action = "http"
+[deployment.scheduled.http]
+method = "POST"
+path = "/api/cron/send-trial-emails"
+headers = { Authorization = "Bearer ${CRON_SECRET}" }

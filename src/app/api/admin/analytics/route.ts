@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getStripe, STRIPE_PRICES } from '@/lib/stripe';
 import { getEmailMarketingStats } from '@/lib/dashamail';
+import { getTrialEmailStats } from '@/services/trial-emails';
 import Stripe from 'stripe';
 
 /**
@@ -34,12 +35,14 @@ export async function GET(request: NextRequest) {
       emailData,
       funnelData,
       jobData,
+      trialEmailData,
     ] = await Promise.all([
       getStripeMetrics(thirtyDaysAgo, now),
       getCancellationFeedbackStats(),
       getEmailMarketingStats(),
       getUserFunnelMetrics(thirtyDaysAgo, sevenDaysAgo),
       getJobMetrics(thirtyDaysAgo),
+      getTrialEmailStats(),
     ]);
 
     return NextResponse.json({
@@ -60,6 +63,9 @@ export async function GET(request: NextRequest) {
 
       // Content metrics
       jobs: jobData,
+
+      // Trial email onboarding
+      trialEmails: trialEmailData,
     });
   } catch (error) {
     console.error('[Analytics] Error:', error);
