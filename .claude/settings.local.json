@@ -7,7 +7,9 @@
       "Bash(echo:*)",
       "Bash(openssl rand:*)",
       "Bash(git push:*)",
-      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" npx prisma db push:*)"
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" npx prisma db push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
