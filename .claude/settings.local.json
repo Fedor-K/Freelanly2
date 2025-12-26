@@ -4,7 +4,9 @@
       "Bash(npx prisma db push:*)",
       "Bash(npx tsc:*)",
       "Bash(npm run build:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(openssl rand:*)",
+      "Bash(git push:*)"
     ]
   }
 }
