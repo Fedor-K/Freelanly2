@@ -249,14 +249,12 @@ export async function processNextSocialPost(): Promise<{ posted: boolean; jobId?
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        body: {
-          workType: job.title,
-          postContent: fullPost,
-          freelanlyUrl,
-          languages: job.skills.slice(0, 5), // For backwards compatibility with n8n
-          jobId: job.id,
-          companyName: job.company.name,
-        }
+        workType: job.title,
+        postContent: fullPost,
+        freelanlyUrl,
+        languages: job.skills.slice(0, 5),
+        jobId: job.id,
+        companyName: job.company.name,
       })
     });
 
