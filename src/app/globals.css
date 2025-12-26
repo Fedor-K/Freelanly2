@@ -140,3 +140,33 @@
     padding-right: 2rem;
   }
 }
+
+/* Blog prose styles */
+.prose table a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 500;
+}
+
+.prose table a:hover {
+  color: #1d4ed8;
+}
+
+.dark .prose table a {
+  color: #60a5fa;
+}
+
+.dark .prose table a:hover {
+  color: #93c5fd;
+}
+
+/* Blog CTA blocks */
+.prose .not-prose {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.prose .not-prose a {
+  text-decoration: none;
+}
