@@ -44,6 +44,42 @@ model User {
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  // Cancellation feedback
+  cancellationFeedback CancellationFeedback[]
+}
+
+// Cancellation survey feedback
+model CancellationFeedback {
+  id        String   @id @default(cuid())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  reason    CancellationReason
+  otherText String?  // If reason is OTHER, user can explain
+  feedback  String?  // Additional comments
+
+  // Subscription info at time of cancellation
+  planAtCancellation String?  // weekly, monthly, annual
+  subscriptionId     String?  // Stripe subscription ID
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([reason])
+  @@index([createdAt])
+}
+
+enum CancellationReason {
+  TOO_EXPENSIVE       // Price is too high
+  NOT_ENOUGH_JOBS     // Not enough relevant jobs
+  FOUND_JOB           // Found a job (success!)
+  NOT_USING           // Not using the service enough
+  MISSING_FEATURES    // Missing features I need
+  TECHNICAL_ISSUES    // Technical problems
+  POOR_JOB_QUALITY    // Jobs don't match my skills
+  OTHER               // Other reason
 }
 
 // NextAuth Account (for OAuth providers)

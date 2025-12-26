@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { SettingsForm } from './SettingsForm';
+import { CancelSubscriptionSection } from './CancelSubscriptionSection';
 import { DeleteAccountSection } from './DeleteAccountSection';
 
 export const metadata: Metadata = {
@@ -25,6 +26,8 @@ export default async function SettingsPage() {
       resumeUrl: true,
       plan: true,
       createdAt: true,
+      subscriptionEndsAt: true,
+      stripeSubscriptionId: true,
     },
   });
 
@@ -74,6 +77,11 @@ export default async function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Cancel subscription (only for PRO users with active subscription) */}
+        {user.plan === 'PRO' && user.stripeSubscriptionId && (
+          <CancelSubscriptionSection subscriptionEndsAt={user.subscriptionEndsAt} />
+        )}
 
         {/* Delete account */}
         <DeleteAccountSection />
