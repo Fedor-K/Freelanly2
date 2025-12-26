@@ -221,6 +221,12 @@ async function processLeverJob(
   const locationType = mapWorkplaceType(job.workplaceType, location);
   const country = extractCountryCode(location);
 
+  // Filter: only REMOTE and HYBRID jobs (skip ONSITE)
+  if (locationType === 'ONSITE') {
+    console.log(`[Lever] Skipping ONSITE job: ${job.text}`);
+    return { status: 'skipped' };
+  }
+
   // Parse level from title or department
   const level = extractLevel(job.text);
 

@@ -224,6 +224,11 @@ async function processHNComment(comment: HNComment, storyId: number): Promise<{ 
     text.toLowerCase().includes('remote') ||
     parsedHeader.isRemote;
 
+  // Filter: only REMOTE jobs (skip ONSITE)
+  if (!isRemote) {
+    return { status: 'skipped' };
+  }
+
   // Extract level
   const level = extractLevel(jobTitle);
 

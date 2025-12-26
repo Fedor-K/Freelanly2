@@ -382,6 +382,11 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
   // Map location type
   const locationType = mapLocationType(extracted.isRemote, extracted.location);
 
+  // Filter: only REMOTE and HYBRID jobs (skip ONSITE)
+  if (locationType === 'ONSITE') {
+    return { success: false, error: 'ONSITE job - skipped' };
+  }
+
   // Create job (with unique constraint handling for race conditions)
   let job;
   try {

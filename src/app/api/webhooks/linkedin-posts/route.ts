@@ -224,6 +224,16 @@ export async function POST(request: NextRequest) {
     // Map location type
     const locationType = mapLocationType(extracted.isRemote, extracted.location);
 
+    // Filter: only REMOTE and HYBRID jobs (skip ONSITE)
+    if (locationType === 'ONSITE') {
+      console.log(`[LinkedInPosts] ONSITE job, skipping`);
+      return NextResponse.json({
+        success: true,
+        status: 'skipped',
+        reason: 'onsite_job',
+      });
+    }
+
     // Create job (with unique constraint handling for race conditions)
     let job;
     try {
