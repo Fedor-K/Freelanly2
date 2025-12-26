@@ -5,6 +5,7 @@ import { slugify, isFreeEmail, extractDomainFromEmail, cleanEmail } from '@/lib/
 import { validateAndEnrichCompany } from '@/services/company-enrichment';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
+import { addToSocialQueue } from '@/services/social-post';
 
 /**
  * POST /api/webhooks/linkedin-posts
@@ -298,6 +299,11 @@ export async function POST(request: NextRequest) {
     // Send INSTANT alerts for this job (non-blocking)
     sendInstantAlertsForJob(job.id).catch((err) => {
       console.error('[LinkedInPosts] Instant alerts failed:', err);
+    });
+
+    // Add to social post queue (non-blocking)
+    addToSocialQueue(job.id).catch((err) => {
+      console.error('[LinkedInPosts] Social queue failed:', err);
     });
 
     return NextResponse.json({

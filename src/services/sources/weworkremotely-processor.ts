@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl } from '@/lib/indexing';
+import { addToSocialQueue } from '@/services/social-post';
 import type { ProcessingStats } from './types';
 
 const WWR_RSS_URL = 'https://weworkremotely.com/remote-jobs.rss';
@@ -190,7 +191,7 @@ async function processWWRJob(item: WWRItem): Promise<{ status: 'created' | 'upda
   const level = extractLevel(jobTitle);
 
   // Create job
-  await prisma.job.create({
+  const createdJob = await prisma.job.create({
     data: {
       slug,
       title: jobTitle,
@@ -214,6 +215,9 @@ async function processWWRJob(item: WWRItem): Promise<{ status: 'created' | 'upda
       postedAt: new Date(item.pubDate),
     },
   });
+
+  // Add to social post queue
+  await addToSocialQueue(createdJob.id);
 
   return { status: 'created', companySlug: company.slug, jobSlug: slug };
 }

@@ -7,6 +7,7 @@ SEO-оптимизированная платформа для поиска уд
 **Автоматизация:**
 - Daily cron at 6:00 UTC: fetches all sources
 - Daily cron at 7:00 UTC: sends job alert notifications
+- Cron every 15 min: posts 1 job to LinkedIn + Telegram via n8n
 - n8n workflow: scrapes LinkedIn posts every 15-20 min via Apify
 - Auto cleanup: removes jobs older than 30 days after each import
 - Company enrichment via Apollo.io
@@ -194,6 +195,55 @@ curl -X POST "http://localhost:3000/api/cron/send-alerts?frequency=DAILY" \
 **Environment variables:**
 ```
 N8N_WEBHOOK_SECRET=xxx  # или APIFY_WEBHOOK_SECRET
+```
+
+## Social Post Queue (LinkedIn + Telegram)
+
+Автоматическая публикация вакансий в соцсети через очередь.
+
+**Как работает:**
+1. При создании вакансии (из любого источника) — добавляется в `SocialPostQueue`
+2. Cron каждые 15 минут — берёт 1 вакансию из очереди (FIFO)
+3. DeepSeek генерирует текст поста на основе вакансии
+4. Отправляется в n8n webhook → LinkedIn + Telegram
+
+**Почему очередь:**
+- Batch импорт (Lever) не спамит 20 постов сразу
+- Равномерное распределение постов во времени
+- Отслеживание что уже опубликовано
+
+**Files:**
+- `src/services/social-post.ts` — генерация постов, управление очередью
+- `src/app/api/cron/post-to-social/route.ts` — cron endpoint
+- `prisma/schema.prisma` → `SocialPostQueue` model
+
+**Cron trigger:**
+```bash
+curl -X POST "https://freelanly.com/api/cron/post-to-social" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+**Check queue status:**
+```bash
+curl "https://freelanly.com/api/cron/post-to-social" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+**Environment variables:**
+```
+N8N_SOCIAL_WEBHOOK_URL=https://n8n.freelanly.com/webhook/c78f8a78-bd4b-4254-af59-498b224a9e6f
+```
+
+**n8n workflow format (expected POST body):**
+```json
+{
+  "workType": "Senior Frontend Developer",
+  "postContent": "🎯 Senior Frontend Developer\n📍 Remote...",
+  "freelanlyUrl": "https://freelanly.com/company/xxx/jobs/yyy",
+  "languages": ["React", "TypeScript"],
+  "jobId": "cuid...",
+  "companyName": "Stripe"
+}
 ```
 
 ## Key Architecture Decisions
@@ -566,6 +616,10 @@ npx prisma db push --force-reset
 57. **Lever AI processing** — Lever jobs now go through DeepSeek AI for `cleanDescription` (same as LinkedIn)
 58. **DeepSeek cost monitoring** — `getDeepSeekUsageStats()` tracks tokens and estimated costs per run
 59. **Migration script** — `scripts/migrate-lever-descriptions.ts` for existing Lever jobs
+60. **Social Post Queue** — automatic posting to LinkedIn + Telegram via n8n with FIFO queue
+61. **AI-generated social posts** — DeepSeek creates engaging post text from job descriptions
+62. **SocialPostQueue model** — tracks pending/posted/failed social media posts
+63. **Cron every 15 min** — `/api/cron/post-to-social` processes 1 job from queue
 
 ## Code Patterns
 

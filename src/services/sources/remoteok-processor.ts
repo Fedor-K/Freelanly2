@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl } from '@/lib/indexing';
+import { addToSocialQueue } from '@/services/social-post';
 import type { ProcessingStats, RemoteOKJob } from './types';
 
 const REMOTEOK_API = 'https://remoteok.com/api';
@@ -139,7 +140,7 @@ async function processRemoteOKJob(job: RemoteOKJob): Promise<{ status: 'created'
   const level = extractLevel(job.position);
 
   // Create job
-  await prisma.job.create({
+  const createdJob = await prisma.job.create({
     data: {
       slug,
       title: job.position,
@@ -167,6 +168,9 @@ async function processRemoteOKJob(job: RemoteOKJob): Promise<{ status: 'created'
       postedAt: new Date(job.date),
     },
   });
+
+  // Add to social post queue
+  await addToSocialQueue(createdJob.id);
 
   return { status: 'created', companySlug: company.slug, jobSlug: slug };
 }

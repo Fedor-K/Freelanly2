@@ -4,6 +4,7 @@ import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl } from '@/lib/indexing';
 import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
+import { addToSocialQueue } from '@/services/social-post';
 import type { ProcessingStats, LeverJob } from './types';
 
 // Fetch real company website from Lever job page footer
@@ -100,6 +101,10 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
           if (result.jobSlug) {
             stats.createdJobUrls!.push(buildJobUrl(company.slug, result.jobSlug));
           }
+          // Add to social post queue
+          if (result.jobId) {
+            await addToSocialQueue(result.jobId);
+          }
         } else if (result.status === 'updated') {
           stats.updated++;
         } else if (result.status === 'skipped') {
@@ -153,7 +158,7 @@ async function processLeverJob(
   job: LeverJob,
   companyId: string,
   companySlug: string
-): Promise<{ status: 'created' | 'updated' | 'skipped'; jobSlug?: string }> {
+): Promise<{ status: 'created' | 'updated' | 'skipped'; jobSlug?: string; jobId?: string }> {
   // Build full description (with RESPONSIBILITIES, QUALIFICATIONS, etc.)
   const fullDescription = buildDescription(job);
 
@@ -226,7 +231,7 @@ async function processLeverJob(
   const skills = extractSkillsFromDescription(fullDescription, job.categories.department);
 
   // Create job with AI-enhanced description
-  await prisma.job.create({
+  const createdJob = await prisma.job.create({
     data: {
       slug,
       title: job.text,
@@ -260,7 +265,7 @@ async function processLeverJob(
     },
   });
 
-  return { status: 'created', jobSlug: slug };
+  return { status: 'created', jobSlug: slug, jobId: createdJob.id };
 }
 
 async function findOrCreateCompany(name: string, slug: string, leverWebsite: string | null) {

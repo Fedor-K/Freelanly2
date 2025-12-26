@@ -14,6 +14,7 @@ import { validateAndEnrichCompany } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
+import { addToSocialQueue } from '@/services/social-post';
 
 // Re-export for cron endpoint
 export { HIRING_SEARCH_QUERIES };
@@ -443,6 +444,11 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
   // Send INSTANT alerts for this job (non-blocking)
   sendInstantAlertsForJob(job.id).catch((err) => {
     console.error('[LinkedIn] Instant alerts failed:', err);
+  });
+
+  // Add to social post queue (non-blocking)
+  addToSocialQueue(job.id).catch((err) => {
+    console.error('[LinkedIn] Social queue failed:', err);
   });
 
   return { success: true, jobId: job.id, companySlug: company.slug, jobSlug: slug };

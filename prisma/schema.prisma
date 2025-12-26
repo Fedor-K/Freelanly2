@@ -271,6 +271,7 @@ model Job {
   applications  Application[]
   savedBy       SavedJob[]
   alertNotifications AlertNotification[]
+  socialPosts   SocialPostQueue[]
 
   @@unique([companyId, title], name: "unique_job_title_per_company")
   @@index([categoryId])
@@ -863,4 +864,38 @@ enum AlertSeverity {
   INFO
   WARNING
   CRITICAL
+}
+
+// ============================================
+// SOCIAL POST QUEUE
+// ============================================
+
+model SocialPostQueue {
+  id          String    @id @default(cuid())
+
+  // Job reference
+  job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId       String
+
+  // Generated content (cached to avoid re-generating)
+  postText    String?   @db.Text
+
+  // Status
+  status      SocialPostStatus @default(PENDING)
+
+  // Tracking
+  postedAt    DateTime?
+  error       String?
+
+  createdAt   DateTime  @default(now())
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum SocialPostStatus {
+  PENDING     // Waiting in queue
+  POSTED      // Successfully posted
+  FAILED      // Failed to post
+  SKIPPED     // Skipped (e.g., duplicate, low quality)
 }

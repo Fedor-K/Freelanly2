@@ -4,6 +4,7 @@ import { extractJobData, classifyJobCategory } from '@/lib/deepseek';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl } from '@/lib/indexing';
+import { addToSocialQueue } from '@/services/social-post';
 import type { ProcessingStats } from './types';
 
 // HN Algolia API for searching "Who is Hiring" threads
@@ -227,7 +228,7 @@ async function processHNComment(comment: HNComment, storyId: number): Promise<{ 
   const level = extractLevel(jobTitle);
 
   // Create job (email already extracted and validated above)
-  await prisma.job.create({
+  const createdJob = await prisma.job.create({
     data: {
       slug,
       title: jobTitle,
@@ -263,6 +264,9 @@ async function processHNComment(comment: HNComment, storyId: number): Promise<{ 
   if (email) {
     queueCompanyEnrichment(company.id, email);
   }
+
+  // Add to social post queue
+  await addToSocialQueue(createdJob.id);
 
   return { status: 'created', companySlug: company.slug, jobSlug: slug };
 }
