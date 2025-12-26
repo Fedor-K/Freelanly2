@@ -41,6 +41,7 @@ model User {
   savedJobs     SavedJob[]
   jobAlerts     JobAlert[]
   applyAttempts ApplyAttempt[]
+  cookieConsents CookieConsent[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -927,4 +928,37 @@ model ApplyAttempt {
   @@index([userId])
   @@index([jobId])
   @@index([nurtureEmailSent, createdAt]) // For cron: find unsent
+}
+
+// ============================================
+// COOKIE CONSENT (GDPR compliance)
+// ============================================
+
+model CookieConsent {
+  id        String   @id @default(cuid())
+
+  // User relation (optional - can be anonymous)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+visitorId String?  // For anonymous users (fingerprint or random ID)
+
+  // Consent details
+  necessary   Boolean @default(true)  // Always true, required cookies
+  analytics   Boolean @default(false) // Google Analytics, Yandex Metrika
+  marketing   Boolean @default(false) // Ads, remarketing
+  preferences Boolean @default(false) // Language, theme preferences
+
+  // Metadata
+  ipAddress   String?
+  userAgent   String?
+  consentedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // For tracking consent changes
+  version     Int @default(1) // Consent policy version
+
+  userId      String?
+
+  @@index([userId])
+  @@index([visitorId])
+  @@index([consentedAt])
 }

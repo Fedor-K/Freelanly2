@@ -26,7 +26,8 @@
       "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx tsx -e:*)",
       "Bash(npx tsx:*)",
       "Bash(npm install:*)",
-      "WebFetch(domain:webpulls.com)"
+      "WebFetch(domain:webpulls.com)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx prisma db push:*)"
     ]
   }
 }

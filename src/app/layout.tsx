@@ -4,6 +4,7 @@ import { siteConfig } from "@/config/site";
 import { AnalyticsScripts } from "@/components/analytics/AnalyticsScripts";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { ExitIntentPopup } from "@/components/ExitIntentPopup";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -143,6 +144,7 @@ export default function RootLayout({
         <SessionProvider>
           {children}
           <ExitIntentPopup />
+          <CookieConsentBanner />
         </SessionProvider>
         <AnalyticsScripts />
       </body>
