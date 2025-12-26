@@ -4,7 +4,7 @@ import { isFreeEmail } from '@/lib/utils';
 import { Source } from '@prisma/client';
 
 // Sources that come from Apify scraping (not verified)
-const APIFY_SOURCES: Source[] = [Source.LINKEDIN, Source.HACKERNEWS];
+const APIFY_SOURCES: Source[] = [Source.LINKEDIN];
 
 // POST - Cleanup jobs from Apify sources without corporate emails
 export async function POST() {
@@ -74,7 +74,7 @@ export async function POST() {
       success: true,
       deletedJobs: deletedJobs.count,
       deletedCompanies: deletedCompanies.count,
-      note: 'Only cleaned up Apify sources (LinkedIn, HackerNews). ATS jobs preserved.',
+      note: 'Only cleaned up Apify sources (LinkedIn). ATS jobs preserved.',
     });
   } catch (error) {
     console.error('Error during cleanup:', error);

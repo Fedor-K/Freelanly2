@@ -49,7 +49,6 @@ interface User {
   subscriptionEndsAt: string | null;
   createdAt: string;
   _count: {
-    savedJobs: number;
     jobAlerts: number;
   };
   jobAlerts: JobAlert[];
@@ -278,9 +277,6 @@ export default function UsersPage() {
                   <div className="flex items-center gap-4">
                     {/* Quick stats */}
                     <div className="hidden sm:flex items-center gap-4 text-sm text-muted-foreground">
-                      {user._count.savedJobs > 0 && (
-                        <span title="Saved jobs">💾 {user._count.savedJobs}</span>
-                      )}
                       {user.stats.totalAlerts > 0 && (
                         <span title="Alerts (active/total)">
                           🔔 {user.stats.activeAlerts}/{user.stats.totalAlerts}
@@ -328,10 +324,6 @@ export default function UsersPage() {
                           Activity Stats
                         </h4>
                         <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Saved Jobs</span>
-                            <span>{user._count.savedJobs}</span>
-                          </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Active Sessions</span>
                             <span>{user.stats.activeSessions}</span>

@@ -2,7 +2,6 @@ import { prisma } from '@/lib/db';
 import { Source } from '@prisma/client';
 import type { ProcessingStats } from './types';
 import { processLeverSource } from './lever-processor';
-import { processHackerNewsSource } from './hackernews-processor';
 import { notifySearchEngines } from '@/lib/indexing';
 
 export * from './types';
@@ -10,7 +9,6 @@ export * from './types';
 // Map source types to their processors
 const SOURCE_PROCESSORS: Partial<Record<Source, (dataSourceId: string) => Promise<ProcessingStats>>> = {
   LEVER: processLeverSource,
-  HACKERNEWS: processHackerNewsSource,
   // TODO: Add more processors
   // GREENHOUSE: processGreenhouseSource,
   // ASHBY: processAshbySource,
@@ -179,13 +177,6 @@ export async function validateDataSource(sourceType: Source, companySlug?: strin
       };
     }
 
-    if (sourceType === 'HACKERNEWS') {
-      return {
-        valid: true,
-        name: 'HackerNews Who is Hiring',
-      };
-    }
-
     return { valid: false, error: 'Unknown source type' };
   } catch (error) {
     return { valid: false, error: String(error) };
@@ -201,8 +192,6 @@ export function getAvailableSourceTypes(): { type: Source; name: string; isAts: 
     { type: 'ASHBY', name: 'Ashby', isAts: true, requiresSlug: true },
     { type: 'WORKABLE', name: 'Workable', isAts: true, requiresSlug: true },
     { type: 'SMARTRECRUITERS', name: 'SmartRecruiters', isAts: true, requiresSlug: true },
-    // Aggregators
-    { type: 'HACKERNEWS', name: 'HackerNews Who is Hiring', isAts: false, requiresSlug: false },
     // LinkedIn (via Apify)
     { type: 'LINKEDIN', name: 'LinkedIn (Apify)', isAts: false, requiresSlug: false },
   ];

@@ -21,7 +21,6 @@ export async function GET() {
         createdAt: true,
         _count: {
           select: {
-            savedJobs: true,
             jobAlerts: true,
           },
         },

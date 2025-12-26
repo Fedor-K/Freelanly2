@@ -46,43 +46,6 @@ export interface LeverJob {
   workplaceType?: string;  // remote, onsite, hybrid
 }
 
-export interface RemoteOKJob {
-  id: string;
-  slug: string;
-  company: string;
-  company_logo: string;
-  position: string;
-  tags: string[];
-  location: string;
-  salary_min?: number;
-  salary_max?: number;
-  date: string;
-  url: string;
-  description?: string;
-  apply_url?: string;
-}
-
-export interface WWRJob {
-  id: number;
-  title: string;
-  company: {
-    name: string;
-    logo_url?: string;
-  };
-  url: string;
-  location: string;
-  tags: string[];
-  date: string;
-}
-
-export interface HackerNewsJob {
-  id: number;
-  text: string;
-  by: string;
-  time: number;
-  parent: number;
-}
-
 // ATS API URL templates
 export const ATS_API_TEMPLATES: Record<string, string> = {
   LEVER: 'https://api.lever.co/v0/postings/{companySlug}?mode=json',
@@ -106,5 +69,5 @@ export function isAtsSource(sourceType: Source): boolean {
 
 // Check if source is an aggregator
 export function isAggregatorSource(sourceType: Source): boolean {
-  return ['REMOTEOK', 'WEWORKREMOTELY', 'HACKERNEWS', 'REMOTIVE', 'HIMALAYAS', 'WORKINGNOMADS', 'INDEED'].includes(sourceType);
+  return ['REMOTIVE', 'HIMALAYAS', 'WORKINGNOMADS', 'INDEED'].includes(sourceType);
 }

@@ -4,7 +4,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { CompanyLogo } from '@/components/ui/CompanyLogo';
 import type { JobCardData } from '@/types';
 import { formatDistanceToNow } from '@/lib/utils';
-import { SaveJobButton } from './SaveJobButton';
 
 interface JobCardProps {
   job: JobCardData;
@@ -44,12 +43,9 @@ export function JobCard({ job }: JobCardProps) {
                   {job.company.name}
                 </Link>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {formatDistanceToNow(job.postedAt)}
-                </span>
-                <SaveJobButton jobId={job.id} />
-              </div>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {formatDistanceToNow(job.postedAt)}
+              </span>
             </div>
 
             {/* Meta info */}

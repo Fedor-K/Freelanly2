@@ -15,7 +15,6 @@ import { SalaryInsightsSkeleton } from '@/components/jobs/SalaryInsightsSkeleton
 import { ApplyButton } from '@/components/jobs/ApplyButton';
 import { SocialShare } from '@/components/jobs/SocialShare';
 import { JobViewTracker } from '@/components/jobs/JobViewTracker';
-import { SaveJobButton } from '@/components/jobs/SaveJobButton';
 import { StructuredDescription } from '@/components/jobs/StructuredDescription';
 import { formatDistanceToNow } from '@/lib/utils';
 import { maskLinksForFreeUsers } from '@/lib/content-mask';
@@ -498,7 +497,6 @@ export default async function JobPage({ params }: JobPageProps) {
                     jobDescription={job.description}
                     userPlan={userPlan}
                   />
-                  <SaveJobButton jobId={job.id} variant="button" className="w-full" />
 
                   {/* LinkedIn Links - PRO only */}
                   {userPlan !== 'FREE' && isLinkedInPost && (job.sourceUrl || job.authorLinkedIn) && (

@@ -43,7 +43,6 @@ export async function DELETE() {
     // - Accounts (OAuth)
     // - Sessions
     // - Applications
-    // - SavedJobs
     // - JobAlerts
     // - ApplyAttempts
     // - CookieConsents

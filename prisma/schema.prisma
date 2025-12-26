@@ -38,7 +38,6 @@ model User {
   accounts      Account[]
   sessions      Session[]
   applications  Application[]
-  savedJobs     SavedJob[]
   jobAlerts     JobAlert[]
   applyAttempts ApplyAttempt[]
   cookieConsents CookieConsent[]
@@ -271,7 +270,6 @@ model Job {
 
   // Relations
   applications  Application[]
-  savedBy       SavedJob[]
   alertNotifications AlertNotification[]
   socialPosts   SocialPostQueue[]
   applyAttempts ApplyAttempt[]
@@ -338,9 +336,6 @@ enum Source {
   RSS               // RSS feeds
   MANUAL            // Manually added
   SCRAPE            // Web scraping
-  REMOTEOK          // RemoteOK API
-  WEWORKREMOTELY    // WeWorkRemotely
-  HACKERNEWS        // HackerNews Who is Hiring
   REMOTIVE          // Remotive API
   ARBEITNOW         // Arbeitnow API
   HIMALAYAS         // Himalayas API
@@ -423,26 +418,6 @@ enum ApplicationStatus {
   WITHDRAWN
 }
 
-// ============================================
-// SAVED JOBS
-// ============================================
-
-model SavedJob {
-  id        String   @id @default(cuid())
-
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-
-  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  jobId     String
-
-  notes     String?
-
-  createdAt DateTime @default(now())
-
-  @@unique([userId, jobId])
-  @@index([userId])
-}
 
 // ============================================
 // SEO LANDING PAGES
@@ -733,7 +708,6 @@ model DailyMetric {
 
   // === ENGAGEMENT METRICS ===
   jobApplications  Int @default(0)
-  savedJobs        Int @default(0)
   emailAlertSubs   Int @default(0)
 
   // === CONTENT METRICS ===
