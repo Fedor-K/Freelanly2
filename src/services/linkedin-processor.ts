@@ -456,6 +456,12 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     console.error('[LinkedIn] Social queue failed:', err);
   });
 
+  // Submit to Google Indexing API (non-blocking)
+  const jobUrl = buildJobUrl(company.slug, slug);
+  notifySearchEngines([jobUrl]).catch((err) => {
+    console.error('[LinkedIn] Search engine notification failed:', err);
+  });
+
   return { success: true, jobId: job.id, companySlug: company.slug, jobSlug: slug };
 }
 

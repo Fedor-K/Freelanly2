@@ -3,7 +3,7 @@ import { slugify, isFreeEmail } from '@/lib/utils';
 import { extractJobData, classifyJobCategory } from '@/lib/deepseek';
 import { queueCompanyEnrichment } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
-import { buildJobUrl } from '@/lib/indexing';
+import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { addToSocialQueue } from '@/services/social-post';
 import type { ProcessingStats } from './types';
 
@@ -272,6 +272,12 @@ async function processHNComment(comment: HNComment, storyId: number): Promise<{ 
 
   // Add to social post queue
   await addToSocialQueue(createdJob.id);
+
+  // Submit to Google Indexing API (non-blocking)
+  const jobUrl = buildJobUrl(company.slug, slug);
+  notifySearchEngines([jobUrl]).catch((err) => {
+    console.error('[HackerNews] Search engine notification failed:', err);
+  });
 
   return { status: 'created', companySlug: company.slug, jobSlug: slug };
 }

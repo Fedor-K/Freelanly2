@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db';
 import { slugify, getMaxJobAgeDate } from '@/lib/utils';
 import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@/services/company-enrichment';
 import { cleanupOldJobs } from '@/services/job-cleanup';
-import { buildJobUrl } from '@/lib/indexing';
+import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
 import { addToSocialQueue } from '@/services/social-post';
 import type { ProcessingStats, LeverJob } from './types';
@@ -269,6 +269,12 @@ async function processLeverJob(
       qualityScore: 80, // ATS + AI enhanced = higher quality
       postedAt: new Date(job.createdAt),
     },
+  });
+
+  // Submit to Google Indexing API (non-blocking)
+  const jobUrl = buildJobUrl(companySlug, slug);
+  notifySearchEngines([jobUrl]).catch((err) => {
+    console.error('[Lever] Search engine notification failed:', err);
   });
 
   return { status: 'created', jobSlug: slug, jobId: createdJob.id };
