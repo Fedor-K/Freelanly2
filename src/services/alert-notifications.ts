@@ -252,11 +252,11 @@ export async function sendAlertNotifications(
 }
 
 /**
- * Send INSTANT alerts for a newly created job
- * Called immediately after job creation
- * Groups by user email to prevent multiple emails for same job
+ * Queue INSTANT alerts for a newly created job
+ * Does NOT send email immediately - just creates PENDING records
+ * Cron job will process the queue and send grouped emails
  */
-export async function sendInstantAlertsForJob(jobId: string): Promise<{ sent: number; failed: number }> {
+export async function queueInstantAlertsForJob(jobId: string): Promise<{ queued: number }> {
   // Fetch the job with company and category
   const job = await prisma.job.findUnique({
     where: { id: jobId },
@@ -278,7 +278,7 @@ export async function sendInstantAlertsForJob(jobId: string): Promise<{ sent: nu
 
   if (!job) {
     console.error(`[InstantAlerts] Job ${jobId} not found`);
-    return { sent: 0, failed: 0 };
+    return { queued: 0 };
   }
 
   // Find all active INSTANT alerts
@@ -298,14 +298,10 @@ export async function sendInstantAlertsForJob(jobId: string): Promise<{ sent: nu
   });
 
   if (instantAlerts.length === 0) {
-    console.log(`[InstantAlerts] No INSTANT alerts configured`);
-    return { sent: 0, failed: 0 };
+    return { queued: 0 };
   }
 
-  console.log(`[InstantAlerts] Checking ${instantAlerts.length} INSTANT alerts for job: ${job.title}`);
-
-  // Group matching alerts by user email
-  const alertsByEmail = new Map<string, typeof instantAlerts>();
+  let queued = 0;
 
   for (const alert of instantAlerts) {
     // Check if this job matches the alert criteria
@@ -315,68 +311,147 @@ export async function sendInstantAlertsForJob(jobId: string): Promise<{ sent: nu
       continue;
     }
 
-    // Get email from alert or user
-    const email = alert.email || alert.user?.email;
-    if (!email) {
-      continue;
-    }
-
-    // Check if we already sent this job to this USER (not just this alert)
-    const alreadySentToUser = await prisma.alertNotification.findFirst({
+    // Check if already queued or sent for this alert
+    const existing = await prisma.alertNotification.findUnique({
       where: {
-        jobId: job.id,
-        jobAlert: {
-          OR: [
-            { email: email },
-            { user: { email: email } },
-          ],
+        jobAlertId_jobId: {
+          jobAlertId: alert.id,
+          jobId: job.id,
         },
       },
     });
 
-    if (alreadySentToUser) {
-      console.log(`[InstantAlerts] Job already sent to ${email}, skipping`);
-      continue;
+    if (existing) {
+      continue; // Already queued or sent
     }
 
-    // Group by email
-    const existing = alertsByEmail.get(email) || [];
-    existing.push(alert);
-    alertsByEmail.set(email, existing);
+    // Create PENDING notification (will be processed by cron)
+    await prisma.alertNotification.create({
+      data: {
+        jobAlertId: alert.id,
+        jobId: job.id,
+        status: 'PENDING',
+      },
+    });
+    queued++;
   }
 
-  if (alertsByEmail.size === 0) {
-    console.log(`[InstantAlerts] No matching alerts for job: ${job.title}`);
-    return { sent: 0, failed: 0 };
+  if (queued > 0) {
+    console.log(`[InstantAlerts] Queued job "${job.title}" for ${queued} alerts`);
+  }
+
+  return { queued };
+}
+
+/**
+ * Backward compatibility alias
+ * @deprecated Use queueInstantAlertsForJob instead
+ */
+export const sendInstantAlertsForJob = queueInstantAlertsForJob;
+
+/**
+ * Process the INSTANT alert queue
+ * Groups pending notifications by user email and sends ONE email per user
+ * Called by cron every 5-10 minutes
+ */
+export async function processInstantAlertQueue(): Promise<{ sent: number; failed: number; processed: number }> {
+  // Find all PENDING notifications for INSTANT alerts
+  const pendingNotifications = await prisma.alertNotification.findMany({
+    where: {
+      status: 'PENDING',
+      jobAlert: {
+        frequency: 'INSTANT',
+        isActive: true,
+      },
+    },
+    include: {
+      job: {
+        include: {
+          company: {
+            select: {
+              name: true,
+              slug: true,
+              logo: true,
+            },
+          },
+          category: {
+            select: {
+              slug: true,
+            },
+          },
+        },
+      },
+      jobAlert: {
+        include: {
+          languagePairs: true,
+          user: {
+            select: {
+              email: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: {
+      createdAt: 'asc',
+    },
+  });
+
+  if (pendingNotifications.length === 0) {
+    console.log(`[InstantAlerts] No pending notifications in queue`);
+    return { sent: 0, failed: 0, processed: 0 };
+  }
+
+  console.log(`[InstantAlerts] Processing ${pendingNotifications.length} pending notifications`);
+
+  // Group by user email
+  const notificationsByEmail = new Map<string, typeof pendingNotifications>();
+
+  for (const notification of pendingNotifications) {
+    const email = notification.jobAlert.email || notification.jobAlert.user?.email;
+    if (!email) continue;
+
+    const existing = notificationsByEmail.get(email) || [];
+    existing.push(notification);
+    notificationsByEmail.set(email, existing);
   }
 
   let sent = 0;
   let failed = 0;
+  const processedIds: string[] = [];
 
-  // Send ONE email per user
-  for (const [email, alerts] of alertsByEmail) {
-    // Use the first alert's category for email subject (or null for "All Categories")
-    const alertCategory = alerts[0].category;
+  // Send ONE email per user with all their pending jobs
+  for (const [email, notifications] of notificationsByEmail) {
+    // Dedupe jobs (same job might match multiple alerts for same user)
+    const uniqueJobs = new Map<string, typeof notifications[0]['job']>();
+    for (const n of notifications) {
+      if (!uniqueJobs.has(n.job.id)) {
+        uniqueJobs.set(n.job.id, n.job);
+      }
+    }
 
-    // Send notification
+    const jobs = Array.from(uniqueJobs.values());
+    const firstAlert = notifications[0].jobAlert;
+
+    // Send notification with all jobs
     const result = await sendAlertNotification({
       alert: {
-        id: alerts[0].id, // Use first alert's ID for unsubscribe link
+        id: firstAlert.id,
         email,
-        userId: alerts[0].userId,
-        category: alertCategory,
-        keywords: alerts[0].keywords,
-        country: alerts[0].country,
-        level: alerts[0].level,
-        frequency: alerts[0].frequency,
-        languagePairs: alerts[0].languagePairs.map((lp) => ({
+        userId: firstAlert.userId,
+        category: firstAlert.category,
+        keywords: firstAlert.keywords,
+        country: firstAlert.country,
+        level: firstAlert.level,
+        frequency: firstAlert.frequency,
+        languagePairs: firstAlert.languagePairs.map((lp) => ({
           translationType: lp.translationType,
           sourceLanguage: lp.sourceLanguage,
           targetLanguage: lp.targetLanguage,
         })),
-        lastSentAt: alerts[0].lastSentAt,
+        lastSentAt: firstAlert.lastSentAt,
       },
-      jobs: [{
+      jobs: jobs.map((job) => ({
         id: job.id,
         title: job.title,
         slug: job.slug,
@@ -392,34 +467,41 @@ export async function sendInstantAlertsForJob(jobId: string): Promise<{ sent: nu
         translationTypes: job.translationTypes as string[],
         sourceLanguages: job.sourceLanguages,
         targetLanguages: job.targetLanguages,
-      }],
+      })),
     });
 
     if (result.success) {
-      // Mark job as sent for ALL matching alerts of this user
-      for (const alert of alerts) {
-        await prisma.alertNotification.create({
-          data: {
-            jobAlertId: alert.id,
-            jobId: job.id,
-          },
-        });
+      // Mark all notifications as SENT
+      for (const n of notifications) {
+        processedIds.push(n.id);
       }
       sent++;
-      console.log(`[InstantAlerts] Sent job "${job.title}" to ${email} (${alerts.length} matching alerts)`);
+      console.log(`[InstantAlerts] Sent ${jobs.length} jobs to ${email}`);
     } else {
       failed++;
+      console.error(`[InstantAlerts] Failed to send to ${email}: ${result.error}`);
     }
 
     // Small delay between sends
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  if (sent > 0) {
-    console.log(`[InstantAlerts] Job "${job.title}": ${sent} users notified`);
+  // Mark processed notifications as SENT
+  if (processedIds.length > 0) {
+    await prisma.alertNotification.updateMany({
+      where: {
+        id: { in: processedIds },
+      },
+      data: {
+        status: 'SENT',
+        sentAt: new Date(),
+      },
+    });
   }
 
-  return { sent, failed };
+  console.log(`[InstantAlerts] Queue processed: ${sent} emails sent, ${failed} failed, ${processedIds.length} notifications processed`);
+
+  return { sent, failed, processed: processedIds.length };
 }
 
 /**

@@ -513,12 +513,18 @@ model AlertLanguagePair {
 }
 
 enum AlertFrequency {
-  INSTANT   // Send immediately when new job matches
+  INSTANT   // Queue for next batch (processed every 5-10 min)
   DAILY     // Daily digest
   WEEKLY    // Weekly digest
 }
 
+enum NotificationStatus {
+  PENDING   // Queued, waiting to be sent
+  SENT      // Successfully sent
+}
+
 // Track which jobs have been sent to which alerts (to prevent duplicates)
+// Also serves as queue for INSTANT alerts (status=PENDING)
 model AlertNotification {
   id          String    @id @default(cuid())
 
@@ -528,11 +534,14 @@ model AlertNotification {
   job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
   jobId       String
 
-  sentAt      DateTime  @default(now())
+  status      NotificationStatus @default(PENDING)
+  createdAt   DateTime  @default(now())
+  sentAt      DateTime?  // When actually sent (null if pending)
 
   @@unique([jobAlertId, jobId])  // Prevent sending same job twice to same alert
   @@index([jobAlertId])
   @@index([jobId])
+  @@index([status, createdAt])  // For queue processing
 }
 
 // ============================================
