@@ -24,6 +24,7 @@
     "apify-client": "^2.21.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "googleapis": "^169.0.0",
     "lucide-react": "^0.561.0",
     "next": "16.0.10",
     "next-auth": "^5.0.0-beta.30",

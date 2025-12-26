@@ -820,19 +820,25 @@ function formatSource(source: string): string {
 }
 
 // Schema.org experienceRequirements based on job level
-function getExperienceRequirements(level: string): string {
-  const map: Record<string, string> = {
-    INTERN: 'No experience required - Internship',
-    ENTRY: 'Entry level - 0-1 years',
-    JUNIOR: 'Junior - 1-2 years experience',
-    MID: 'Mid-level - 2-5 years experience',
-    SENIOR: 'Senior - 5+ years experience',
-    LEAD: 'Lead - 7+ years experience',
-    MANAGER: 'Manager - 5+ years with leadership experience',
-    DIRECTOR: 'Director - 10+ years with executive experience',
-    EXECUTIVE: 'Executive - 15+ years with C-level experience',
+// Using valid OccupationalExperienceRequirements format
+function getExperienceRequirements(level: string): { '@type': string; monthsOfExperience: number } | undefined {
+  const map: Record<string, number> = {
+    INTERN: 0,
+    ENTRY: 0,
+    JUNIOR: 12,
+    MID: 24,
+    SENIOR: 60,
+    LEAD: 84,
+    MANAGER: 60,
+    DIRECTOR: 120,
+    EXECUTIVE: 180,
   };
-  return map[level] || 'Experience requirements vary';
+  const months = map[level];
+  if (months === undefined) return undefined;
+  return {
+    '@type': 'OccupationalExperienceRequirements',
+    monthsOfExperience: months,
+  };
 }
 
 // Get SOC occupation code for Schema.org occupationalCategory

@@ -19,7 +19,13 @@
       "Bash(python3:*)",
       "Bash(cat:*)",
       "Bash(\"https://api-metrika.yandex.net/stat/v1/data?id=103606747&metrics=ym:s:visits&dimensions=ym:s:lastTrafficSource&date1=2025-12-01&date2=2025-12-26&limit=10\")",
-      "Bash(\"https://api-metrika.yandex.net/stat/v1/data?id=103606747&metrics=ym:s:visits&dimensions=ym:s:searchPhrase&date1=2025-12-01&date2=2025-12-26&limit=15&filters=ym:s:searchPhrase!n\")"
+      "Bash(\"https://api-metrika.yandex.net/stat/v1/data?id=103606747&metrics=ym:s:visits&dimensions=ym:s:searchPhrase&date1=2025-12-01&date2=2025-12-26&limit=15&filters=ym:s:searchPhrase!n\")",
+      "Bash(grep:*)",
+      "WebSearch",
+      "WebFetch(domain:dashamail.ru)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx tsx -e:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npm install:*)"
     ]
   }
 }
