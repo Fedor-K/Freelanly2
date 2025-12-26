@@ -27,14 +27,13 @@ Format:
 
 [2-3 sentence summary: what the role is about, key requirements, what makes it attractive. Be specific but concise. Highlight unique aspects.]
 
-🔗 More details: [URL will be added separately]
-
 Rules:
-- Maximum 280 characters for the summary part (not counting emojis and link)
+- Maximum 280 characters for the summary part (not counting emojis)
 - Be specific about requirements (e.g., "5+ years React" not "experience required")
 - Highlight salary if available (it's a big attractor)
 - Mention remote/location clearly
 - No hashtags
+- No links (link will be added automatically)
 - No promotional language like "Amazing opportunity!"
 - Professional but engaging tone
 - If company is unknown, skip the 🏢 line entirely
@@ -234,10 +233,7 @@ export async function processNextSocialPost(): Promise<{ posted: boolean; jobId?
     // Build freelanly URL
     const freelanlyUrl = `https://freelanly.com/company/${job.company.slug}/jobs/${job.slug}`;
 
-    // Add link to post
-    const fullPost = `${postText}\n\n🔗 More details: ${freelanlyUrl}\n\nGet more jobs like this on Freelanly.com - subscribe to job alerts!\n📱 Telegram: t.me/PCFTI`;
-
-    // Send to n8n webhook
+    // Send to n8n webhook (n8n template handles CTAs and links)
     const n8nWebhookUrl = process.env.N8N_SOCIAL_WEBHOOK_URL;
     if (!n8nWebhookUrl) {
       throw new Error('N8N_SOCIAL_WEBHOOK_URL not configured');
@@ -250,7 +246,7 @@ export async function processNextSocialPost(): Promise<{ posted: boolean; jobId?
       },
       body: JSON.stringify({
         workType: job.title,
-        postContent: fullPost,
+        postContent: postText,
         freelanlyUrl,
         languages: job.skills.slice(0, 5),
         jobId: job.id,
