@@ -15,6 +15,7 @@ import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
 import { addToSocialQueue } from '@/services/social-post';
+import { shouldSkipJob } from '@/lib/job-filter';
 
 // Re-export for cron endpoint
 export { HIRING_SEARCH_QUERIES };
@@ -382,9 +383,14 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
   // Map location type
   const locationType = mapLocationType(extracted.isRemote, extracted.location);
 
-  // Filter: only REMOTE and HYBRID jobs (skip ONSITE)
-  if (locationType === 'ONSITE') {
-    return { success: false, error: 'ONSITE job - skipped' };
+  // Apply global job filter (non-target titles, HYBRID/ONSITE, physical locations)
+  const filterResult = shouldSkipJob({
+    title: extracted.title,
+    location: extracted.location,
+    locationType,
+  });
+  if (filterResult.skip) {
+    return { success: false, error: `${filterResult.reason} - skipped` };
   }
 
   // Create job (with unique constraint handling for race conditions)

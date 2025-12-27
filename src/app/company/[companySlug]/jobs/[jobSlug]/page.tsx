@@ -821,10 +821,10 @@ function formatSource(source: string): string {
 
 // Schema.org experienceRequirements based on job level
 // Using valid OccupationalExperienceRequirements format
+// Note: monthsOfExperience must be positive, so we skip INTERN/ENTRY (0 months)
 function getExperienceRequirements(level: string): { '@type': string; monthsOfExperience: number } | undefined {
   const map: Record<string, number> = {
-    INTERN: 0,
-    ENTRY: 0,
+    // INTERN and ENTRY have no experience requirement - don't include in schema
     JUNIOR: 12,
     MID: 24,
     SENIOR: 60,
@@ -834,7 +834,8 @@ function getExperienceRequirements(level: string): { '@type': string; monthsOfEx
     EXECUTIVE: 180,
   };
   const months = map[level];
-  if (months === undefined) return undefined;
+  // Return undefined if level not found or has 0 months (Google requires positive value)
+  if (!months || months <= 0) return undefined;
   return {
     '@type': 'OccupationalExperienceRequirements',
     monthsOfExperience: months,

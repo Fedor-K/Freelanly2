@@ -6,6 +6,7 @@ import { validateAndEnrichCompany } from '@/services/company-enrichment';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
 import { addToSocialQueue } from '@/services/social-post';
+import { shouldSkipJob } from '@/lib/job-filter';
 
 /**
  * POST /api/webhooks/linkedin-posts
@@ -234,23 +235,18 @@ export async function POST(request: NextRequest) {
     // Map location type
     const locationType = mapLocationType(extracted.isRemote, extracted.location);
 
-    // Filter: only REMOTE and HYBRID jobs (skip ONSITE)
-    if (locationType === 'ONSITE') {
-      console.log(`[LinkedInPosts] ONSITE job, skipping`);
+    // Apply global job filter (non-target titles, HYBRID/ONSITE, physical locations)
+    const filterResult = shouldSkipJob({
+      title: extracted.title,
+      location: extracted.location,
+      locationType,
+    });
+    if (filterResult.skip) {
+      console.log(`[LinkedInPosts] Filtered out: ${extracted.title} (${filterResult.reason})`);
       return NextResponse.json({
         success: true,
         status: 'skipped',
-        reason: 'onsite_job',
-      });
-    }
-
-    // Filter: skip non-target audience jobs (medical, food service, retail, etc.)
-    if (isNonTargetJob(extracted.title)) {
-      console.log(`[LinkedInPosts] Non-target job, skipping: ${extracted.title}`);
-      return NextResponse.json({
-        success: true,
-        status: 'skipped',
-        reason: 'non_target_audience',
+        reason: filterResult.reason,
       });
     }
 
@@ -707,39 +703,6 @@ function isAnnouncementNotJob(title: string): boolean {
   ];
 
   return announcementPatterns.some((pattern) => lowerTitle.includes(pattern));
-}
-
-/**
- * Check if job title indicates non-target audience
- * (medical, food service, retail, physical labor)
- */
-function isNonTargetJob(title: string): boolean {
-  const lowerTitle = title.toLowerCase();
-
-  // Medical / Healthcare roles
-  const medicalKeywords = [
-    'nurse', 'nursing', ' rn', 'lpn', 'cna',
-    'therapist', 'physician', 'doctor', 'dentist',
-    'pharmacist', 'veterinar', 'caregiver', 'clinical care',
-    'home health', 'medical director',
-  ];
-
-  // Food service / Hospitality
-  const foodKeywords = [
-    'chef', 'cook ', 'barista', 'dishwasher', 'server',
-    'bartender', 'hostess', 'busser',
-  ];
-
-  // Retail / Physical labor
-  const retailKeywords = [
-    'cashier', 'retail store', 'store associate', 'store manager',
-    'janitor', 'custodian', 'housekeeper', 'security guard',
-    'warehouse', 'forklift', 'driver', 'delivery driver',
-  ];
-
-  const allKeywords = [...medicalKeywords, ...foodKeywords, ...retailKeywords];
-
-  return allKeywords.some((keyword) => lowerTitle.includes(keyword));
 }
 
 // GET endpoint for testing

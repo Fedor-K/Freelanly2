@@ -5,6 +5,7 @@ import { cleanupOldJobs } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
 import { addToSocialQueue } from '@/services/social-post';
+import { shouldSkipJob, isPhysicalLocation } from '@/lib/job-filter';
 import type { ProcessingStats, LeverJob } from './types';
 
 // Fetch real company website from Lever job page footer
@@ -222,15 +223,14 @@ async function processLeverJob(
   const locationType = mapWorkplaceType(job.workplaceType, location, aiData?.isRemote);
   const country = extractCountryCode(location);
 
-  // Filter: only REMOTE and HYBRID jobs (skip ONSITE)
-  if (locationType === 'ONSITE') {
-    console.log(`[Lever] Skipping ONSITE job: ${job.text}`);
-    return { status: 'skipped' };
-  }
-
-  // Filter: skip non-target audience jobs (medical, food service, retail, etc.)
-  if (isNonTargetJob(job.text)) {
-    console.log(`[Lever] Skipping non-target job: ${job.text}`);
+  // Apply global job filter (non-target titles, HYBRID/ONSITE, physical locations)
+  const filterResult = shouldSkipJob({
+    title: job.text,
+    location,
+    locationType,
+  });
+  if (filterResult.skip) {
+    console.log(`[Lever] Skipping job: ${job.text} (${filterResult.reason})`);
     return { status: 'skipped' };
   }
 
@@ -469,15 +469,29 @@ function mapWorkplaceType(workplaceType?: string, location?: string, aiIsRemote?
     return 'REMOTE';
   }
 
-  // No workplaceType from Lever - fall back to AI detection
-  if (aiIsRemote === true) {
-    const loc = location?.toLowerCase() || '';
+  const loc = location?.toLowerCase() || '';
+
+  // Check if location explicitly mentions remote/hybrid
+  if (loc.includes('remote') || loc.includes('work from home') || loc.includes('wfh')) {
     if (loc.includes('us only') || loc.includes('usa only') || loc.includes('united states only')) return 'REMOTE_US';
     if (loc.includes('eu only') || loc.includes('europe only') || loc.includes('emea only')) return 'REMOTE_EU';
     return 'REMOTE';
   }
+  if (loc.includes('hybrid')) return 'HYBRID';
 
-  // AI says not remote or couldn't determine - default to ONSITE (will be filtered out)
+  // No explicit remote indicator - check if it looks like a physical location
+  // Pattern: "City, ST" or "City, State" or "City, Country" = likely onsite
+  if (isPhysicalLocation(location || '')) {
+    console.log(`[Lever] Location "${location}" looks like physical address, treating as ONSITE`);
+    return 'ONSITE';
+  }
+
+  // Fall back to AI detection only if location is ambiguous
+  if (aiIsRemote === true) {
+    return 'REMOTE';
+  }
+
+  // Default to ONSITE (will be filtered out) - better safe than polluting with non-remote jobs
   return 'ONSITE';
 }
 
@@ -644,37 +658,4 @@ function extractSkillsFromDescription(description: string, department?: string):
   }
 
   return Array.from(skills).slice(0, 10); // Max 10 skills
-}
-
-/**
- * Check if job title indicates non-target audience
- * (medical, food service, retail, physical labor)
- */
-function isNonTargetJob(title: string): boolean {
-  const lowerTitle = title.toLowerCase();
-
-  // Medical / Healthcare roles
-  const medicalKeywords = [
-    'nurse', 'nursing', ' rn', 'lpn', 'cna',
-    'therapist', 'physician', 'doctor', 'dentist',
-    'pharmacist', 'veterinar', 'caregiver', 'clinical care',
-    'home health', 'medical director',
-  ];
-
-  // Food service / Hospitality
-  const foodKeywords = [
-    'chef', 'cook ', 'barista', 'dishwasher', 'server',
-    'bartender', 'hostess', 'busser',
-  ];
-
-  // Retail / Physical labor
-  const retailKeywords = [
-    'cashier', 'retail store', 'store associate', 'store manager',
-    'janitor', 'custodian', 'housekeeper', 'security guard',
-    'warehouse', 'forklift', 'driver', 'delivery driver',
-  ];
-
-  const allKeywords = [...medicalKeywords, ...foodKeywords, ...retailKeywords];
-
-  return allKeywords.some((keyword) => lowerTitle.includes(keyword));
 }
