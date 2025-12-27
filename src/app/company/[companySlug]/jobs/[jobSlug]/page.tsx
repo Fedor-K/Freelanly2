@@ -711,10 +711,9 @@ export default async function JobPage({ params }: JobPageProps) {
               value: job.id,
             },
             directApply: !!(job.applyUrl || job.applyEmail),
-            ...(['REMOTE', 'REMOTE_US', 'REMOTE_EU', 'REMOTE_COUNTRY'].includes(job.locationType) && {
-              jobLocationType: 'TELECOMMUTE',
-              applicantLocationRequirements: getApplicantLocationRequirements(job.locationType, job.country),
-            }),
+            // Always include for remote job platform - Google requires applicantLocationRequirements for TELECOMMUTE
+            jobLocationType: 'TELECOMMUTE',
+            applicantLocationRequirements: getApplicantLocationRequirements(job.locationType, job.country),
             ...(job.salaryMin && !job.salaryIsEstimate && getSchemaUnitText(job.salaryPeriod) && {
               baseSalary: {
                 '@type': 'MonetaryAmount',
