@@ -453,7 +453,6 @@ export async function refillSocialQueue(options: {
 
   // Find jobs to add:
   // - REMOTE or HYBRID only
-  // - Has corporate email (applyEmail not null)
   // - Created within maxAgeDays
   // - Not already in queue
   // - Order by createdAt DESC (newest first)
@@ -463,7 +462,6 @@ export async function refillSocialQueue(options: {
   const candidates = await prisma.job.findMany({
     where: {
       locationType: { in: ['REMOTE', 'HYBRID'] },
-      applyEmail: { not: null },
       createdAt: { gte: cutoffDate },
     },
     orderBy: { createdAt: 'desc' },

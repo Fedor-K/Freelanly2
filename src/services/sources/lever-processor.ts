@@ -450,14 +450,20 @@ function getCategoryName(slug: string): string {
 }
 
 function mapWorkplaceType(workplaceType?: string, location?: string): 'REMOTE' | 'REMOTE_US' | 'REMOTE_EU' | 'REMOTE_COUNTRY' | 'HYBRID' | 'ONSITE' {
-  if (workplaceType === 'remote') {
-    const loc = location?.toLowerCase() || '';
-    if (loc.includes('us') || loc.includes('united states') || loc.includes('usa')) return 'REMOTE_US';
-    if (loc.includes('eu') || loc.includes('europe') || loc.includes('emea')) return 'REMOTE_EU';
-    return 'REMOTE';
-  }
+  const loc = location?.toLowerCase() || '';
+
+  // Explicit onsite from Lever API
+  if (workplaceType === 'onsite') return 'ONSITE';
+
+  // Hybrid stays hybrid
   if (workplaceType === 'hybrid') return 'HYBRID';
-  return 'ONSITE';
+
+  // For remote job board: default to REMOTE (if not explicitly onsite)
+  // workplaceType === 'remote' OR undefined/missing
+  if (loc.includes('us only') || loc.includes('usa only') || loc.includes('united states only')) return 'REMOTE_US';
+  if (loc.includes('eu only') || loc.includes('europe only') || loc.includes('emea only')) return 'REMOTE_EU';
+
+  return 'REMOTE';
 }
 
 function extractCountryCode(location: string): string | null {

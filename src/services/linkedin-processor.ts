@@ -646,14 +646,23 @@ async function generateUniqueSlug(base: string, type: 'job' | 'company' = 'job')
   }
 }
 
-// Map location type
+// Map location type - default to REMOTE for remote job board
 function mapLocationType(isRemote: boolean, location: string | null): 'REMOTE' | 'REMOTE_US' | 'REMOTE_EU' | 'REMOTE_COUNTRY' | 'HYBRID' | 'ONSITE' {
-  if (!isRemote) return 'ONSITE';
-
   const loc = location?.toLowerCase() || '';
+
+  // Check for explicit on-site indicators
+  const onsiteKeywords = ['on-site', 'onsite', 'in-office', 'office-based', 'in office', 'at office', 'office location'];
+  const isExplicitlyOnsite = onsiteKeywords.some(kw => loc.includes(kw));
+
+  // For remote job board: default to REMOTE unless explicitly on-site
+  if (isExplicitlyOnsite && !isRemote) {
+    return 'ONSITE';
+  }
+
+  // Determine remote type based on location
   if (loc.includes('us only') || loc.includes('usa only') || loc.includes('united states only')) return 'REMOTE_US';
   if (loc.includes('eu only') || loc.includes('europe only') || loc.includes('emea')) return 'REMOTE_EU';
-  if (location && location.toLowerCase() !== 'remote' && location.toLowerCase() !== 'worldwide') return 'REMOTE_COUNTRY';
+  if (location && !['remote', 'worldwide', 'anywhere'].includes(loc)) return 'REMOTE_COUNTRY';
 
   return 'REMOTE';
 }
