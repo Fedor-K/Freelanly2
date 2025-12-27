@@ -93,17 +93,37 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  console.log(`[Stripe Webhook] Checkout completed for user ${userId}`);
+  console.log(`[Stripe Webhook] Checkout completed for user ${userId}, subscription ${subscriptionId}`);
 
-  // Update user with Stripe IDs
+  // Fetch subscription to get period end date
+  let subscriptionEndsAt: Date | null = null;
+  if (subscriptionId) {
+    try {
+      const { getStripe } = await import('@/lib/stripe');
+      const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
+      // Access current_period_end (exists on Subscription object)
+      const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end;
+      if (periodEnd) {
+        subscriptionEndsAt = new Date(periodEnd * 1000);
+        console.log(`[Stripe Webhook] Subscription ends at: ${subscriptionEndsAt.toISOString()}`);
+      }
+    } catch (err) {
+      console.error('[Stripe Webhook] Error fetching subscription:', err);
+    }
+  }
+
+  // Update user with Stripe IDs and subscription end date
   await prisma.user.update({
     where: { id: userId },
     data: {
       stripeId: customerId,
       stripeSubscriptionId: subscriptionId,
       plan: 'PRO',
+      subscriptionEndsAt,
     },
   });
+
+  console.log(`[Stripe Webhook] User ${userId} upgraded to PRO`);
 
   // Record revenue event
   await prisma.revenueEvent.create({

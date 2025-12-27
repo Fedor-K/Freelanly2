@@ -395,7 +395,19 @@ export default async function JobPage({ params }: JobPageProps) {
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Contact</p>
-                          <p className="font-medium">{job.applyEmail || 'DM on LinkedIn'}</p>
+                          <p className="font-medium">
+                            {job.applyEmail ? (
+                              userPlan === 'PRO' ? (
+                                job.applyEmail
+                              ) : (
+                                <Link href="/pricing" className="text-primary hover:underline">
+                                  Upgrade to PRO to see
+                                </Link>
+                              )
+                            ) : (
+                              'DM on LinkedIn'
+                            )}
+                          </p>
                         </div>
                       </div>
                       {job.skills.length > 0 && (
@@ -668,7 +680,8 @@ export default async function JobPage({ params }: JobPageProps) {
               name: job.company.name,
               sameAs: job.company.website || undefined,
               logo: job.company.logo || undefined,
-              ...(job.applyEmail && {
+              // Only include contact for PRO users to protect paywall
+              ...(job.applyEmail && userPlan === 'PRO' && {
                 contactPoint: {
                   '@type': 'ContactPoint',
                   email: job.applyEmail,

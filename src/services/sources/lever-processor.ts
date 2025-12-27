@@ -598,21 +598,36 @@ function buildDescription(job: LeverJob): string {
 function extractSkillsFromDescription(description: string, department?: string): string[] {
   const skills: Set<string> = new Set();
 
-  // Common tech skills to look for
+  // Common tech skills to look for (with word boundary matching)
+  // Short words like Go, AI, API need exact word matching to avoid false positives
   const techSkills = [
-    'JavaScript', 'TypeScript', 'Python', 'Java', 'Go', 'Golang', 'Rust', 'C++', 'C#',
+    'JavaScript', 'TypeScript', 'Python', 'Java', 'Golang', 'Rust', 'C++', 'C#',
     'React', 'Angular', 'Vue', 'Node.js', 'Next.js', 'Django', 'Rails', 'Spring',
     'AWS', 'GCP', 'Azure', 'Kubernetes', 'Docker', 'Terraform',
     'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'Elasticsearch',
-    'GraphQL', 'REST', 'API', 'Microservices',
-    'Machine Learning', 'AI', 'Data Science', 'TensorFlow', 'PyTorch',
+    'GraphQL', 'REST API', 'Microservices',
+    'Machine Learning', 'Data Science', 'TensorFlow', 'PyTorch',
     'Figma', 'Sketch', 'Adobe XD',
     'Agile', 'Scrum', 'CI/CD', 'Git',
   ];
 
+  // Short ambiguous skills that need word boundary matching
+  const shortSkills = ['Go', 'AI', 'API', 'ML', 'NLP'];
+
   const lowerDesc = description.toLowerCase();
+
+  // Match longer skills with simple includes
   for (const skill of techSkills) {
     if (lowerDesc.includes(skill.toLowerCase())) {
+      skills.add(skill);
+    }
+  }
+
+  // Match short skills with word boundaries to avoid false positives
+  // "Go" should not match "going", "AI" should not match "training"
+  for (const skill of shortSkills) {
+    const regex = new RegExp(`\\b${skill}\\b`, 'i');
+    if (regex.test(description)) {
       skills.add(skill);
     }
   }

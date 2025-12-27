@@ -34,7 +34,8 @@
       "WebFetch(domain:blog.remotive.com)",
       "WebFetch(domain:www.starterstory.com)",
       "WebFetch(domain:remotive.com)",
-      "WebFetch(domain:www.indeed.com)"
+      "WebFetch(domain:www.indeed.com)",
+      "Bash(ls:*)"
     ]
   }
 }
