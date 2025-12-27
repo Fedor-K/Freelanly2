@@ -124,6 +124,22 @@ export function isPhysicalLocation(location: string): boolean {
 
   if (knownCities.includes(lowerLoc)) return true;
 
+  // Standalone country names (without "remote" = physical presence required)
+  const physicalCountries = [
+    'china', 'japan', 'korea', 'south korea', 'taiwan', 'thailand', 'vietnam',
+    'indonesia', 'malaysia', 'philippines', 'india', 'pakistan', 'bangladesh',
+    'brazil', 'argentina', 'mexico', 'colombia', 'chile', 'peru',
+    'egypt', 'nigeria', 'south africa', 'kenya', 'morocco',
+    'turkey', 'saudi arabia', 'uae', 'united arab emirates', 'israel', 'qatar',
+    'australia', 'new zealand',
+    'russia', 'ukraine', 'poland', 'czech republic', 'romania', 'hungary',
+    'portugal', 'greece', 'sweden', 'norway', 'denmark', 'finland',
+    'austria', 'switzerland', 'belgium', 'netherlands', 'ireland',
+    'france', 'germany', 'italy', 'spain', 'united kingdom', 'uk', 'england',
+  ];
+
+  if (physicalCountries.includes(lowerLoc)) return true;
+
   // Pattern: "City, Country" or "City, Full State Name"
   const cityCountryPattern = /^[A-Za-z\s]+,\s*[A-Za-z\s]+$/;
   if (cityCountryPattern.test(loc)) {
@@ -161,11 +177,10 @@ export function shouldSkipJob(params: {
     return { skip: true, reason: `${locationType} requires office` };
   }
 
-  // Check if location looks like a physical address (only if locationType is not explicitly remote)
-  if (!locationType || (locationType !== 'REMOTE' && locationType !== 'REMOTE_US' && locationType !== 'REMOTE_EU')) {
-    if (location && isPhysicalLocation(location)) {
-      return { skip: true, reason: 'physical location' };
-    }
+  // Check if location looks like a physical address
+  // Always check - locationType might be incorrectly set (e.g. "China" marked as REMOTE)
+  if (location && isPhysicalLocation(location)) {
+    return { skip: true, reason: 'physical location' };
   }
 
   return { skip: false };

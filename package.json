@@ -27,6 +27,7 @@
     "clsx": "^2.1.1",
     "googleapis": "^169.0.0",
     "lucide-react": "^0.561.0",
+    "marked": "^17.0.1",
     "next": "16.0.10",
     "next-auth": "^5.0.0-beta.30",
     "openai": "^6.14.0",

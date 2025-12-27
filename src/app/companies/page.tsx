@@ -65,7 +65,18 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
   let totalCompanies = 0;
 
   try {
-    const where: any = {};
+    // Only show companies with active jobs (last 30 days)
+    const maxAgeDate = new Date();
+    maxAgeDate.setDate(maxAgeDate.getDate() - 30);
+
+    const where: any = {
+      jobs: {
+        some: {
+          isActive: true,
+          postedAt: { gte: maxAgeDate },
+        },
+      },
+    };
     if (industry) {
       where.industry = { contains: industry, mode: 'insensitive' };
     }
@@ -84,7 +95,7 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
           headquarters: true,
           verified: true,
           _count: {
-            select: { jobs: { where: { isActive: true } } },
+            select: { jobs: { where: { isActive: true, postedAt: { gte: maxAgeDate } } } },
           },
         },
         orderBy: [

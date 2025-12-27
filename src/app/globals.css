@@ -142,22 +142,23 @@
 }
 
 /* Blog prose styles */
-.prose table a {
+.prose a {
   color: #2563eb;
   text-decoration: underline;
   text-underline-offset: 2px;
   font-weight: 500;
+  transition: color 0.15s ease-in-out;
 }
 
-.prose table a:hover {
+.prose a:hover {
   color: #1d4ed8;
 }
 
-.dark .prose table a {
+.dark .prose a {
   color: #60a5fa;
 }
 
-.dark .prose table a:hover {
+.dark .prose a:hover {
   color: #93c5fd;
 }
 

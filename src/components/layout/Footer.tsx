@@ -130,6 +130,14 @@ export function Footer() {
               </li>
               <li>
                 <Link
+                  href="/blog"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Career Blog
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/remote-react-jobs"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
