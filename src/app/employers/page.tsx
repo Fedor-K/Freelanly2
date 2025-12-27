@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
-  title: 'Post Remote Jobs - Hire Top Remote Talent | Freelanly for Employers',
+  title: 'Post Remote Jobs - Hire Top Remote Talent',
   description: 'Post your remote job openings and reach thousands of qualified candidates. Free job posting, ATS integration, and applicant tracking.',
   keywords: [
     'post remote jobs',

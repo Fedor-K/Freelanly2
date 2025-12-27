@@ -71,7 +71,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
 
   if (!post) {
     return {
-      title: 'Article Not Found | Freelanly Blog',
+      title: 'Article Not Found',
       robots: { index: false },
     };
   }
@@ -82,7 +82,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   const ogImage = post.ogImage || `${siteConfig.url}/api/og/blog?title=${encodeURIComponent(post.title)}&category=${encodeURIComponent(post.category.name)}`;
 
   return {
-    title: `${title} | Freelanly Blog`,
+    title: title,
     description,
     keywords: post.keywords,
     authors: [{ name: post.authorName }],

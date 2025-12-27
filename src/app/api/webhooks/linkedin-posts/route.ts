@@ -121,6 +121,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Filter: skip personal announcements (not job postings)
+    if (isAnnouncementNotJob(extracted.title)) {
+      console.log(`[LinkedInPosts] Personal announcement, not a job: ${extracted.title}`);
+      return NextResponse.json({
+        success: true,
+        status: 'skipped',
+        reason: 'announcement_not_job',
+      });
+    }
+
     // Clean and validate email (handles AI-extracted emails with extra text)
     const validatedEmail = cleanEmail(extracted.contactEmail);
 
@@ -231,6 +241,16 @@ export async function POST(request: NextRequest) {
         success: true,
         status: 'skipped',
         reason: 'onsite_job',
+      });
+    }
+
+    // Filter: skip non-target audience jobs (medical, food service, retail, etc.)
+    if (isNonTargetJob(extracted.title)) {
+      console.log(`[LinkedInPosts] Non-target job, skipping: ${extracted.title}`);
+      return NextResponse.json({
+        success: true,
+        status: 'skipped',
+        reason: 'non_target_audience',
       });
     }
 
@@ -638,6 +658,88 @@ async function findSimilarJobByEmailDomain(
   }
 
   return false;
+}
+
+/**
+ * Check if the "title" is actually a personal announcement, not a job
+ * (research papers, promotions, achievements, etc.)
+ */
+function isAnnouncementNotJob(title: string): boolean {
+  const lowerTitle = title.toLowerCase();
+
+  // Patterns that indicate personal announcements, not jobs
+  const announcementPatterns = [
+    'research paper',
+    'paper publication',
+    'publication',
+    'accepted for',
+    'excited to share',
+    'excited to announce',
+    'thrilled to share',
+    'thrilled to announce',
+    'happy to announce',
+    'glad to share',
+    'proud to announce',
+    'proud to share',
+    'delighted to share',
+    'pleased to announce',
+    'honored to',
+    'awarded',
+    'won the',
+    'received the',
+    'promoted to',
+    'new role at',
+    'started as',
+    'starting as',
+    'new chapter',
+    'new journey',
+    'farewell',
+    'goodbye',
+    'last day at',
+    'anniversary at',
+    'years at',
+    'milestone',
+    'achievement',
+    'certification',
+    'certified',
+    'graduated',
+    'graduation',
+  ];
+
+  return announcementPatterns.some((pattern) => lowerTitle.includes(pattern));
+}
+
+/**
+ * Check if job title indicates non-target audience
+ * (medical, food service, retail, physical labor)
+ */
+function isNonTargetJob(title: string): boolean {
+  const lowerTitle = title.toLowerCase();
+
+  // Medical / Healthcare roles
+  const medicalKeywords = [
+    'nurse', 'nursing', ' rn', 'lpn', 'cna',
+    'therapist', 'physician', 'doctor', 'dentist',
+    'pharmacist', 'veterinar', 'caregiver', 'clinical care',
+    'home health', 'medical director',
+  ];
+
+  // Food service / Hospitality
+  const foodKeywords = [
+    'chef', 'cook ', 'barista', 'dishwasher', 'server',
+    'bartender', 'hostess', 'busser',
+  ];
+
+  // Retail / Physical labor
+  const retailKeywords = [
+    'cashier', 'retail store', 'store associate', 'store manager',
+    'janitor', 'custodian', 'housekeeper', 'security guard',
+    'warehouse', 'forklift', 'driver', 'delivery driver',
+  ];
+
+  const allKeywords = [...medicalKeywords, ...foodKeywords, ...retailKeywords];
+
+  return allKeywords.some((keyword) => lowerTitle.includes(keyword));
 }
 
 // GET endpoint for testing

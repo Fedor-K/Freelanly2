@@ -27,17 +27,25 @@ export async function generateStaticParams() {
 }
 
 // Generate metadata with rich SEO
-export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: CategoryPageProps): Promise<Metadata> {
   const { category: categorySlug } = await params;
+  const { location } = await searchParams;
   const category = categories.find((c) => c.slug === categorySlug);
 
   if (!category) {
-    return { title: 'Category Not Found' };
+    return {
+      title: 'Category Not Found',
+      robots: { index: false, follow: true },
+    };
   }
 
   // Use SEO utility for consistent title truncation (max 60 chars)
   const seoTitle = truncateTitle(`Remote ${category.name} Jobs - Work From Home ${category.name} Positions`);
   const description = `Browse ${category.name.toLowerCase()} remote jobs. Find work from home ${category.name.toLowerCase()} positions at top companies. Updated daily with new opportunities.`;
+
+  // Don't index onsite/hybrid filter pages (we're a remote job board)
+  const noIndexLocations = ['onsite', 'hybrid'];
+  const shouldNoIndex = location && noIndexLocations.includes(location.toLowerCase());
 
   return {
     title: seoTitle,
@@ -64,6 +72,12 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
     alternates: {
       canonical: `${siteConfig.url}/jobs/${category.slug}`,
     },
+    ...(shouldNoIndex && {
+      robots: {
+        index: false,
+        follow: true,
+      },
+    }),
   };
 }
 
@@ -290,19 +304,21 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                   </div>
                 </div>
 
-                {/* Location Filter */}
+                {/* Location Filter - only show remote options (we're a remote job board) */}
                 <div>
                   <h2 className="text-sm font-medium mb-2">Location</h2>
                   <div className="space-y-1">
-                    {locationTypes.map((loc) => (
-                      <Link
-                        key={loc.value}
-                        href={`/jobs/${category.slug}?location=${loc.value.toLowerCase()}`}
-                        className="block px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded"
-                      >
-                        {loc.label}
-                      </Link>
-                    ))}
+                    {locationTypes
+                      .filter((loc) => loc.value.startsWith('REMOTE'))
+                      .map((loc) => (
+                        <Link
+                          key={loc.value}
+                          href={`/jobs/${category.slug}?location=${loc.value.toLowerCase()}`}
+                          className="block px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded"
+                        >
+                          {loc.label}
+                        </Link>
+                      ))}
                   </div>
                 </div>
               </div>

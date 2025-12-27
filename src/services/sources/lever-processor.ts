@@ -218,12 +218,19 @@ async function processLeverJob(
 
   // Parse location
   const location = job.categories.location || 'Remote';
-  const locationType = mapWorkplaceType(job.workplaceType, location);
+  // Use Lever workplaceType if available, otherwise fall back to AI detection
+  const locationType = mapWorkplaceType(job.workplaceType, location, aiData?.isRemote);
   const country = extractCountryCode(location);
 
   // Filter: only REMOTE and HYBRID jobs (skip ONSITE)
   if (locationType === 'ONSITE') {
     console.log(`[Lever] Skipping ONSITE job: ${job.text}`);
+    return { status: 'skipped' };
+  }
+
+  // Filter: skip non-target audience jobs (medical, food service, retail, etc.)
+  if (isNonTargetJob(job.text)) {
+    console.log(`[Lever] Skipping non-target job: ${job.text}`);
     return { status: 'skipped' };
   }
 
@@ -449,21 +456,29 @@ function getCategoryName(slug: string): string {
   return names[slug] || slug;
 }
 
-function mapWorkplaceType(workplaceType?: string, location?: string): 'REMOTE' | 'REMOTE_US' | 'REMOTE_EU' | 'REMOTE_COUNTRY' | 'HYBRID' | 'ONSITE' {
-  const loc = location?.toLowerCase() || '';
-
-  // Explicit onsite from Lever API
+function mapWorkplaceType(workplaceType?: string, location?: string, aiIsRemote?: boolean): 'REMOTE' | 'REMOTE_US' | 'REMOTE_EU' | 'REMOTE_COUNTRY' | 'HYBRID' | 'ONSITE' {
+  // Lever API provides explicit workplaceType - trust it first
   if (workplaceType === 'onsite') return 'ONSITE';
-
-  // Hybrid stays hybrid
   if (workplaceType === 'hybrid') return 'HYBRID';
 
-  // For remote job board: default to REMOTE (if not explicitly onsite)
-  // workplaceType === 'remote' OR undefined/missing
-  if (loc.includes('us only') || loc.includes('usa only') || loc.includes('united states only')) return 'REMOTE_US';
-  if (loc.includes('eu only') || loc.includes('europe only') || loc.includes('emea only')) return 'REMOTE_EU';
+  // Remote from Lever API - check for regional restrictions
+  if (workplaceType === 'remote') {
+    const loc = location?.toLowerCase() || '';
+    if (loc.includes('us only') || loc.includes('usa only') || loc.includes('united states only')) return 'REMOTE_US';
+    if (loc.includes('eu only') || loc.includes('europe only') || loc.includes('emea only')) return 'REMOTE_EU';
+    return 'REMOTE';
+  }
 
-  return 'REMOTE';
+  // No workplaceType from Lever - fall back to AI detection
+  if (aiIsRemote === true) {
+    const loc = location?.toLowerCase() || '';
+    if (loc.includes('us only') || loc.includes('usa only') || loc.includes('united states only')) return 'REMOTE_US';
+    if (loc.includes('eu only') || loc.includes('europe only') || loc.includes('emea only')) return 'REMOTE_EU';
+    return 'REMOTE';
+  }
+
+  // AI says not remote or couldn't determine - default to ONSITE (will be filtered out)
+  return 'ONSITE';
 }
 
 function extractCountryCode(location: string): string | null {
@@ -614,4 +629,37 @@ function extractSkillsFromDescription(description: string, department?: string):
   }
 
   return Array.from(skills).slice(0, 10); // Max 10 skills
+}
+
+/**
+ * Check if job title indicates non-target audience
+ * (medical, food service, retail, physical labor)
+ */
+function isNonTargetJob(title: string): boolean {
+  const lowerTitle = title.toLowerCase();
+
+  // Medical / Healthcare roles
+  const medicalKeywords = [
+    'nurse', 'nursing', ' rn', 'lpn', 'cna',
+    'therapist', 'physician', 'doctor', 'dentist',
+    'pharmacist', 'veterinar', 'caregiver', 'clinical care',
+    'home health', 'medical director',
+  ];
+
+  // Food service / Hospitality
+  const foodKeywords = [
+    'chef', 'cook ', 'barista', 'dishwasher', 'server',
+    'bartender', 'hostess', 'busser',
+  ];
+
+  // Retail / Physical labor
+  const retailKeywords = [
+    'cashier', 'retail store', 'store associate', 'store manager',
+    'janitor', 'custodian', 'housekeeper', 'security guard',
+    'warehouse', 'forklift', 'driver', 'delivery driver',
+  ];
+
+  const allKeywords = [...medicalKeywords, ...foodKeywords, ...retailKeywords];
+
+  return allKeywords.some((keyword) => lowerTitle.includes(keyword));
 }

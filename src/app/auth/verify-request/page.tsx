@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Check your email | Freelanly',
+  title: 'Check your email',
   description: 'We sent you a sign in link',
 };
 

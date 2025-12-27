@@ -9,20 +9,37 @@ import { CompanyLogo } from '@/components/ui/CompanyLogo';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 
-export const metadata: Metadata = {
-  title: 'Companies Hiring Remotely - Top Remote Employers',
-  description: 'Discover companies hiring for remote positions. Browse top employers offering work from home opportunities worldwide.',
-  keywords: ['remote companies', 'companies hiring remotely', 'remote employers', 'work from home companies'],
-  openGraph: {
+interface CompaniesPageProps {
+  searchParams: Promise<{ page?: string; industry?: string }>;
+}
+
+export async function generateMetadata({ searchParams }: CompaniesPageProps): Promise<Metadata> {
+  const { industry } = await searchParams;
+
+  // Noindex filtered pages to avoid duplicate content and URL issues
+  const shouldNoindex = !!industry;
+
+  return {
     title: 'Companies Hiring Remotely - Top Remote Employers',
-    description: 'Discover companies hiring for remote positions.',
-    url: `${siteConfig.url}/companies`,
-    type: 'website',
-  },
-  alternates: {
-    canonical: `${siteConfig.url}/companies`,
-  },
-};
+    description: 'Discover companies hiring for remote positions. Browse top employers offering work from home opportunities worldwide.',
+    keywords: ['remote companies', 'companies hiring remotely', 'remote employers', 'work from home companies'],
+    ...(shouldNoindex && {
+      robots: {
+        index: false,
+        follow: true,
+      },
+    }),
+    openGraph: {
+      title: 'Companies Hiring Remotely - Top Remote Employers',
+      description: 'Discover companies hiring for remote positions.',
+      url: `${siteConfig.url}/companies`,
+      type: 'website',
+    },
+    alternates: {
+      canonical: `${siteConfig.url}/companies`,
+    },
+  };
+}
 
 interface CompanyWithCount {
   id: string;
@@ -39,11 +56,7 @@ interface CompanyWithCount {
   };
 }
 
-export default async function CompaniesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string; industry?: string }>;
-}) {
+export default async function CompaniesPage({ searchParams }: CompaniesPageProps) {
   const { page = '1', industry } = await searchParams;
   const currentPage = parseInt(page, 10) || 1;
   const perPage = 24;

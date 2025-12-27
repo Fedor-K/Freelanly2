@@ -39,10 +39,24 @@ export async function generateMetadata({ searchParams }: JobsPageProps): Promise
   // Build OG image URL
   const ogImageUrl = `${siteConfig.url}/api/og?title=Remote%20Jobs&type=category&category=All%20Categories`;
 
+  // Count active filters (excluding pagination)
+  const filterCount = [
+    params.q,
+    params.level,
+    params.type,
+    params.country,
+    params.salary,
+    params.skills,
+  ].filter(Boolean).length;
+
+  // Noindex pages with multiple filters to avoid duplicate content
+  // Single filter pages are OK for SEO, but combinations create thin/duplicate content
+  const shouldNoindex = filterCount >= 2;
+
   return {
     title: currentPage > 1
-      ? `Remote Jobs - Page ${currentPage} | Freelanly`
-      : 'Remote Jobs - Browse 1000+ Remote Work Positions | Freelanly',
+      ? `Remote Jobs - Page ${currentPage}`
+      : 'Remote Jobs - Browse 1000+ Remote Work Positions',
     description: 'Find remote jobs from LinkedIn posts and top companies. Filter by category, level, location, and salary. Updated hourly with new remote opportunities.',
     keywords: [
       'remote jobs',
@@ -52,6 +66,12 @@ export async function generateMetadata({ searchParams }: JobsPageProps): Promise
       'remote design jobs',
       'remote marketing jobs',
     ],
+    ...(shouldNoindex && {
+      robots: {
+        index: false,
+        follow: true,
+      },
+    }),
     openGraph: {
       title: 'Remote Jobs - Browse All Positions',
       description: 'Find remote jobs from LinkedIn posts and top companies. Filter by category, level, location, and salary.',

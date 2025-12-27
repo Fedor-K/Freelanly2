@@ -648,6 +648,11 @@ npx prisma db push --force-reset
 77. **RetentionOffer model** — tracks 50% discount and 1-month pause offers
 78. **Win-back emails** — 3-email sequence for churned users (Day 7, 14, 30)
 79. **WinbackEmail model** — tracks re-engagement emails and conversions
+80. **SEO: fixed meta outside head** — removed manual `<head>` from layout.tsx, let Next.js handle via metadata API
+81. **SEO: fixed double branding** — removed `| Freelanly` suffix from pages (layout template adds it)
+82. **Spam filter for LinkedIn** — `isAnnouncementNotJob()` filters research papers, promotions, certifications
+83. **SEO: noindex multi-filter URLs** — `/jobs?level=X&country=Y` pages are noindexed to prevent duplicate content
+84. **SEO: noindex /companies?industry=** — industry filter URLs blocked (have spaces in URLs)
 
 ## Code Patterns
 

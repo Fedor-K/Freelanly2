@@ -176,7 +176,7 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
 
   if (!job) {
     return {
-      title: 'Job No Longer Available | Freelanly',
+      title: 'Job No Longer Available',
       description: 'This job posting has expired or is no longer accepting applications. Browse thousands of other remote opportunities on Freelanly.',
       robots: {
         index: false, // Don't index expired job pages

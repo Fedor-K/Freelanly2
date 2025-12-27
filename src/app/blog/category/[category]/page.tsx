@@ -59,10 +59,13 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   const category = await getCategory(categorySlug);
 
   if (!category) {
-    return { title: 'Category Not Found' };
+    return {
+      title: 'Category Not Found',
+      robots: { index: false, follow: true },
+    };
   }
 
-  const title = category.metaTitle || `${category.name} - Remote Work Articles | Freelanly Blog`;
+  const title = category.metaTitle || `${category.name} - Remote Work Articles`;
   const description = category.metaDescription || category.description || `Browse all ${category.name.toLowerCase()} articles on the Freelanly Blog.`;
 
   return {

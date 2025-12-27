@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 import { SignInForm } from '@/components/auth/SignInForm';
 
 export const metadata: Metadata = {
-  title: 'Sign In | Freelanly',
+  title: 'Sign In',
   description: 'Sign in to your Freelanly account to access saved jobs and applications',
 };
 

@@ -4,7 +4,7 @@ import { Footer } from '@/components/layout/Footer';
 import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service | Freelanly',
+  title: 'Terms of Service',
   description: 'Terms of Service for Freelanly - Read our terms and conditions for using our job board platform.',
   alternates: {
     canonical: `${siteConfig.url}/terms`,

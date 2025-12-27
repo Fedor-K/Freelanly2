@@ -7,7 +7,7 @@ import { CancelSubscriptionSection } from './CancelSubscriptionSection';
 import { DeleteAccountSection } from './DeleteAccountSection';
 
 export const metadata: Metadata = {
-  title: 'Settings | Freelanly',
+  title: 'Settings',
   description: 'Manage your profile settings',
 };
 

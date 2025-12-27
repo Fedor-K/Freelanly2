@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: CountryPageProps): Promise<Me
   }
 
   // Use SEO utility for consistent title truncation (max 60 chars)
-  const seoTitle = truncateTitle(`Remote Jobs in ${country.name} ${country.flag} - Work From Home Jobs | Freelanly`);
+  const seoTitle = truncateTitle(`Remote Jobs in ${country.name} ${country.flag} - Work From Home`);
   const description = `Find remote jobs in ${country.name}. Browse ${country.name === 'Worldwide' ? 'global' : country.name} remote work opportunities. Apply directly to companies hiring remote workers.`;
 
   return {

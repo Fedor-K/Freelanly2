@@ -4,7 +4,7 @@ import { Footer } from '@/components/layout/Footer';
 import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy | Freelanly',
+  title: 'Privacy Policy',
   description: 'Privacy Policy for Freelanly - Learn how we collect, use, and protect your personal information.',
   alternates: {
     canonical: `${siteConfig.url}/privacy`,

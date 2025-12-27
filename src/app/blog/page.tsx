@@ -8,7 +8,7 @@ import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 
 export const metadata: Metadata = {
-  title: 'Blog - Remote Work Tips, Salary Guides & Career Advice | Freelanly',
+  title: 'Blog - Remote Work Tips, Salary Guides & Career Advice',
   description: 'Expert advice on finding remote jobs, negotiating salaries, and building a successful remote career. Updated weekly with the latest insights.',
   keywords: ['remote work blog', 'remote job tips', 'salary guides', 'career advice', 'work from home'],
   openGraph: {

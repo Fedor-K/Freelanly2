@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Sign In Error | Freelanly',
+  title: 'Sign In Error',
   description: 'An error occurred during sign in',
 };
 

@@ -28,11 +28,17 @@ export async function generateMetadata({ params }: CompanyPageProps): Promise<Me
       select: { name: true, description: true, industry: true },
     });
   } catch {
-    return { title: 'Company Not Found' };
+    return {
+      title: 'Company Not Found',
+      robots: { index: false, follow: true },
+    };
   }
 
   if (!company) {
-    return { title: 'Company Not Found' };
+    return {
+      title: 'Company Not Found',
+      robots: { index: false, follow: true },
+    };
   }
 
   // Use SEO utility for consistent title truncation (max 60 chars)

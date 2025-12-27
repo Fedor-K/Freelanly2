@@ -6,7 +6,7 @@ import { AlertsList } from './AlertsList';
 import { categories, countries, levels } from '@/config/site';
 
 export const metadata: Metadata = {
-  title: 'Job Alerts | Freelanly',
+  title: 'Job Alerts',
   description: 'Manage your job alerts',
 };
 

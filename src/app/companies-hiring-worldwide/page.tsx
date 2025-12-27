@@ -10,7 +10,7 @@ import { siteConfig, companySizes } from '@/config/site';
 import { prisma } from '@/lib/db';
 
 export const metadata: Metadata = {
-  title: 'Companies Hiring Worldwide - Remote Companies with Global Teams | Freelanly',
+  title: 'Companies Hiring Worldwide - Remote Companies with Global Teams',
   description: 'Discover companies hiring remote workers worldwide. Find remote-friendly employers offering work from anywhere opportunities. Browse 500+ companies with open positions.',
   keywords: [
     'companies hiring worldwide',

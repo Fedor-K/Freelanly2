@@ -8,7 +8,7 @@ import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: 'Remote Jobs by Country - Find Work From Home Jobs Worldwide | Freelanly',
+  title: 'Remote Jobs by Country - Find Work From Home Jobs Worldwide',
   description: 'Browse remote jobs by country. Find work from home opportunities in USA, UK, Germany, Canada, Australia and more. Apply to companies hiring remotely.',
   keywords: [
     'remote jobs by country',
