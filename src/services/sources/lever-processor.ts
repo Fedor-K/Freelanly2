@@ -208,9 +208,13 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
     const CONCURRENCY = 5; // 5 parallel DeepSeek API calls
     const limit = createLimiter(CONCURRENCY);
     let processed = 0;
+    let created = 0;
+    let skippedInProcess = 0;
+    const totalToProcess = jobsToProcess.length;
+    const startTime = Date.now();
 
     const companySlug = dataSource.companySlug!; // Already validated above
-    const processJob = async (job: LeverJob) => {
+    const processJob = async (job: LeverJob, index: number) => {
       try {
         const result = await processLeverJob(
           job,
@@ -220,11 +224,10 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
           dataSource.name
         );
         processed++;
-        if (processed % 10 === 0 || processed === jobsToProcess.length) {
-          console.log(`[Lever] Progress: ${processed}/${jobsToProcess.length} jobs processed`);
-        }
+
         if (result.status === 'created') {
           stats.created++;
+          created++;
           if (result.jobSlug) {
             stats.createdJobUrls!.push(buildJobUrl(company.slug, result.jobSlug));
           }
@@ -235,14 +238,22 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
           }
         } else if (result.status === 'skipped') {
           stats.skipped++;
+          skippedInProcess++;
         }
+
+        // Progress log every job
+        const elapsed = Math.round((Date.now() - startTime) / 1000);
+        const remaining = totalToProcess - processed;
+        const avgTime = elapsed / processed;
+        const eta = Math.round(remaining * avgTime);
+        console.log(`[Lever] ${processed}/${totalToProcess} | +${created} created | ${skippedInProcess} skipped | ETA: ${eta}s | ${job.text.slice(0, 40)}...`);
       } catch (error) {
         stats.failed++;
         stats.errors.push(`Job ${job.id}: ${String(error)}`);
       }
     };
 
-    await Promise.all(jobsToProcess.map(job => limit(() => processJob(job))));
+    await Promise.all(jobsToProcess.map((job, i) => limit(() => processJob(job, i))));
 
     // Update data source stats
     await prisma.dataSource.update({
