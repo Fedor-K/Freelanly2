@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: Record<string, unknown> = {};
-    if (filterTag) {
+    if (filterTag && filterTag !== 'all') {
       where.tags = { has: filterTag };
     }
     if (filterStatus === 'active') {
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     } else if (filterStatus === 'paused') {
       where.isActive = false;
     }
-    if (filterQuality) {
+    if (filterQuality && filterQuality !== 'all') {
       where.qualityStatus = filterQuality;
     }
 

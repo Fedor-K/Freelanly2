@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -141,6 +141,36 @@ export default function SourcesPage() {
 
   // Tag input state
   const [newTagInput, setNewTagInput] = useState<Record<string, string>>({});
+
+  // Bulk run progress state
+  const [bulkRunProgress, setBulkRunProgress] = useState<{
+    isRunning: boolean;
+    currentIndex: number;
+    totalCount: number;
+    currentSourceName: string;
+    stats: {
+      created: number;
+      skipped: number;
+      failed: number;
+      errors: string[];
+    };
+    startTime: number;
+    cancelRequested: boolean;
+  } | null>(null);
+
+  const cancelRequestedRef = useRef(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  // Timer for elapsed time
+  useEffect(() => {
+    if (!bulkRunProgress?.isRunning) return;
+
+    const interval = setInterval(() => {
+      setElapsedTime(Math.floor((Date.now() - bulkRunProgress.startTime) / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [bulkRunProgress?.isRunning, bulkRunProgress?.startTime]);
 
   useEffect(() => {
     fetchSources();
@@ -386,6 +416,97 @@ export default function SourcesPage() {
     }
   }
 
+  // Run all active sources sequentially with progress
+  async function runAllSourcesWithProgress() {
+    // Get active sources
+    const activeSources = sources.filter(s => s.isActive);
+    if (activeSources.length === 0) {
+      alert('No active sources to run');
+      return;
+    }
+
+    // Reset cancel flag
+    cancelRequestedRef.current = false;
+    setElapsedTime(0);
+
+    // Initialize progress state
+    setBulkRunProgress({
+      isRunning: true,
+      currentIndex: 0,
+      totalCount: activeSources.length,
+      currentSourceName: activeSources[0].name,
+      stats: { created: 0, skipped: 0, failed: 0, errors: [] },
+      startTime: Date.now(),
+      cancelRequested: false,
+    });
+
+    const stats = { created: 0, skipped: 0, failed: 0, errors: [] as string[] };
+
+    for (let i = 0; i < activeSources.length; i++) {
+      // Check if cancel was requested
+      if (cancelRequestedRef.current) {
+        break;
+      }
+
+      const source = activeSources[i];
+
+      // Update current source
+      setBulkRunProgress(prev => prev ? {
+        ...prev,
+        currentIndex: i,
+        currentSourceName: source.name,
+      } : null);
+
+      try {
+        const res = await fetch(`/api/admin/sources/${source.id}/run`, {
+          method: 'POST',
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          stats.created += data.stats?.created || 0;
+          stats.skipped += data.stats?.skipped || 0;
+        } else {
+          stats.failed++;
+          stats.errors.push(`${source.name}: ${data.error}`);
+        }
+      } catch (error) {
+        stats.failed++;
+        stats.errors.push(`${source.name}: ${String(error)}`);
+      }
+
+      // Update stats
+      setBulkRunProgress(prev => prev ? {
+        ...prev,
+        stats: { ...stats },
+      } : null);
+    }
+
+    // Complete
+    setBulkRunProgress(prev => prev ? {
+      ...prev,
+      isRunning: false,
+      currentIndex: cancelRequestedRef.current ? prev.currentIndex : activeSources.length,
+      cancelRequested: cancelRequestedRef.current,
+    } : null);
+
+    // Refresh sources list
+    fetchSources();
+  }
+
+  function cancelBulkRun() {
+    cancelRequestedRef.current = true;
+    setBulkRunProgress(prev => prev ? {
+      ...prev,
+      cancelRequested: true,
+    } : null);
+  }
+
+  function closeBulkRunProgress() {
+    setBulkRunProgress(null);
+    cancelRequestedRef.current = false;
+  }
+
   const leverSources = sources.filter(s => s.sourceType === 'LEVER');
 
   const formatDate = (date: string | null) => {
@@ -403,6 +524,13 @@ export default function SourcesPage() {
     if (score >= 70) return 'text-green-600';
     if (score >= 40) return 'text-yellow-600';
     return 'text-red-600';
+  };
+
+  const formatElapsedTime = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs}s`;
   };
 
   return (
@@ -508,19 +636,111 @@ export default function SourcesPage() {
           size="sm"
           onClick={() => {
             if (confirm('Run ALL active sources? This may take a while.')) {
-              bulkOperation('run-all');
+              runAllSourcesWithProgress();
             }
           }}
-          disabled={bulkLoading !== null}
+          disabled={bulkLoading !== null || bulkRunProgress?.isRunning}
         >
-          {bulkLoading === 'run-all' ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Play className="h-4 w-4 mr-2" />
-          )}
+          <Play className="h-4 w-4 mr-2" />
           Run All Active
         </Button>
       </div>
+
+      {/* Bulk Run Progress Modal */}
+      {bulkRunProgress && (
+        <Card className="mb-4 border-2 border-primary/20 bg-primary/5">
+          <CardContent className="pt-4">
+            <div className="space-y-4">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {bulkRunProgress.isRunning ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  ) : bulkRunProgress.cancelRequested ? (
+                    <XCircle className="h-5 w-5 text-yellow-600" />
+                  ) : (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  )}
+                  <span className="font-semibold">
+                    {bulkRunProgress.isRunning
+                      ? 'Running sources...'
+                      : bulkRunProgress.cancelRequested
+                      ? 'Cancelled'
+                      : 'Completed'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {formatElapsedTime(elapsedTime)}
+                  </span>
+                  {bulkRunProgress.isRunning ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={cancelBulkRun}
+                      disabled={bulkRunProgress.cancelRequested}
+                    >
+                      {bulkRunProgress.cancelRequested ? 'Stopping...' : 'Cancel'}
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={closeBulkRunProgress}>
+                      Close
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-muted-foreground truncate max-w-[300px]">
+                    {bulkRunProgress.isRunning ? bulkRunProgress.currentSourceName : 'Done'}
+                  </span>
+                  <span className="font-medium">
+                    {bulkRunProgress.currentIndex + (bulkRunProgress.isRunning ? 1 : 0)} / {bulkRunProgress.totalCount}
+                  </span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{
+                      width: `${((bulkRunProgress.currentIndex + (bulkRunProgress.isRunning ? 0.5 : 0)) / bulkRunProgress.totalCount) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="flex gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-green-600 font-semibold">+{bulkRunProgress.stats.created}</span>
+                  <span className="text-muted-foreground">created</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 font-semibold">{bulkRunProgress.stats.skipped}</span>
+                  <span className="text-muted-foreground">skipped</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-red-600 font-semibold">{bulkRunProgress.stats.failed}</span>
+                  <span className="text-muted-foreground">failed</span>
+                </div>
+              </div>
+
+              {/* Errors */}
+              {bulkRunProgress.stats.errors.length > 0 && (
+                <div className="text-sm">
+                  <div className="text-red-600 font-medium mb-1">Errors:</div>
+                  <div className="max-h-24 overflow-y-auto space-y-1 text-muted-foreground">
+                    {bulkRunProgress.stats.errors.slice(-5).map((err, i) => (
+                      <div key={i} className="truncate">{err}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters & Sorting */}
       <div className="flex flex-wrap gap-3 mb-4 p-3 bg-muted/30 rounded-lg">
