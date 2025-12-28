@@ -27,38 +27,28 @@ export async function GET() {
       },
     });
 
-    // Calculate total imported and last run stats
-    const sourcesWithStats = await Promise.all(
-      sources.map(async (source) => {
-        // Get total imported jobs count
-        const totalImported = await prisma.importedJob.count({
-          where: {
-            importLog: {
-              dataSourceId: source.id,
-            },
-          },
-        });
+    // Calculate stats for each source
+    const sourcesWithStats = sources.map((source) => {
+      const lastLog = source.importLogs[0];
 
-        const lastLog = source.importLogs[0];
-
-        return {
-          id: source.id,
-          name: source.name,
-          sourceType: source.sourceType,
-          companySlug: source.companySlug,
-          isActive: source.isActive,
-          lastRunAt: lastLog?.startedAt || null,
-          lastSuccessAt: lastLog?.status === 'COMPLETED' ? lastLog.completedAt : null,
-          totalImported,
-          lastCreated: lastLog?._count?.importedJobs || 0,
-          lastSkipped: lastLog?._count?.filteredJobs || 0,
-          lastError: lastLog?.status === 'FAILED' && lastLog.errors
-            ? (Array.isArray(lastLog.errors) ? (lastLog.errors as string[])[0] : String(lastLog.errors))
-            : null,
-          errorCount: 0, // Could calculate from logs if needed
-        };
-      })
-    );
+      return {
+        id: source.id,
+        name: source.name,
+        sourceType: source.sourceType,
+        companySlug: source.companySlug,
+        isActive: source.isActive,
+        lastRunAt: lastLog?.startedAt || null,
+        lastSuccessAt: lastLog?.status === 'COMPLETED' ? lastLog.completedAt : null,
+        // Use totalImported from DataSource (persisted), not from ImportedJob (cleaned up after 20 days)
+        totalImported: source.totalImported,
+        lastCreated: lastLog?._count?.importedJobs || 0,
+        lastSkipped: lastLog?._count?.filteredJobs || 0,
+        lastError: lastLog?.status === 'FAILED' && lastLog.errors
+          ? (Array.isArray(lastLog.errors) ? (lastLog.errors as string[])[0] : String(lastLog.errors))
+          : null,
+        errorCount: source.errorCount,
+      };
+    });
 
     // Group by source type
     const grouped: Record<string, typeof sourcesWithStats> = {};
