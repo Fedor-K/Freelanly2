@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify, isFreeEmail, extractDomainFromEmail, cleanEmail } from '@/lib/utils';
+import { ensureSalaryData } from '@/lib/salary-estimation';
 import { validateAndEnrichCompany } from '@/services/company-enrichment';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
@@ -250,6 +251,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Get country code for salary estimation
+    const countryCode = extractCountryCode(extracted.location);
+
+    // Get actual or estimated salary data
+    const salaryData = extracted.salaryMin ? {
+      salaryMin: extracted.salaryMin,
+      salaryMax: extracted.salaryMax,
+      salaryCurrency: extracted.salaryCurrency || 'USD',
+      salaryPeriod: extracted.salaryPeriod || 'YEAR',
+      salaryIsEstimate: false,
+    } : ensureSalaryData({ salaryMin: null }, category.slug, extracted.level || 'MID', countryCode);
+
     // Create job (with unique constraint handling for race conditions)
     let job;
     try {
@@ -262,14 +275,10 @@ export async function POST(request: NextRequest) {
           categoryId: category.id,
           location: extracted.isRemote ? (extracted.location || 'Remote') : extracted.location,
           locationType,
-          country: extractCountryCode(extracted.location),
+          country: countryCode,
           level: extracted.level || 'MID',
           type: extracted.type || 'FULL_TIME',
-          salaryMin: extracted.salaryMin,
-          salaryMax: extracted.salaryMax,
-          salaryCurrency: extracted.salaryCurrency || 'USD',
-          salaryPeriod: extracted.salaryPeriod || 'YEAR',
-          salaryIsEstimate: !extracted.salaryMin,
+          ...salaryData,
           skills: extracted.skills,
           benefits: extracted.benefits,
           translationTypes: extracted.translationTypes || [],

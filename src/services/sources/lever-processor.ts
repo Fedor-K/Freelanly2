@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { slugify, getMaxJobAgeDate } from '@/lib/utils';
+import { ensureSalaryData } from '@/lib/salary-estimation';
 
 // Simple concurrency limiter
 function createLimiter(concurrency: number) {
@@ -344,6 +345,15 @@ async function processLeverJob(
   // Extract skills from tags/description
   const skills = extractSkillsFromDescription(fullDescription, job.categories.department);
 
+  // Get actual or estimated salary data
+  const actualSalary = job.salaryRange?.min ? {
+    salaryMin: job.salaryRange.min,
+    salaryMax: job.salaryRange.max,
+    salaryCurrency: job.salaryRange.currency || 'USD',
+    salaryPeriod: mapSalaryInterval(job.salaryRange.interval),
+    salaryIsEstimate: false,
+  } : ensureSalaryData({ salaryMin: null }, category.slug, level, country);
+
   // Create job with AI-enhanced description
   const createdJob = await prisma.job.create({
     data: {
@@ -361,11 +371,7 @@ async function processLeverJob(
       country,
       level,
       type: jobType,
-      salaryMin: job.salaryRange?.min,
-      salaryMax: job.salaryRange?.max,
-      salaryCurrency: job.salaryRange?.currency || 'USD',
-      salaryPeriod: mapSalaryInterval(job.salaryRange?.interval),
-      salaryIsEstimate: false,
+      ...actualSalary,
       skills,
       benefits: aiData?.benefits || [],
       source: 'LEVER',

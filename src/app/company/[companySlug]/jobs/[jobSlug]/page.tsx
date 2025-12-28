@@ -714,7 +714,7 @@ export default async function JobPage({ params }: JobPageProps) {
             // Always include for remote job platform - Google requires applicantLocationRequirements for TELECOMMUTE
             jobLocationType: 'TELECOMMUTE',
             applicantLocationRequirements: getApplicantLocationRequirements(job.locationType, job.country),
-            ...(job.salaryMin && !job.salaryIsEstimate && getSchemaUnitText(job.salaryPeriod) && {
+            ...(job.salaryMin && getSchemaUnitText(job.salaryPeriod) && {
               baseSalary: {
                 '@type': 'MonetaryAmount',
                 currency: job.salaryCurrency || 'USD',

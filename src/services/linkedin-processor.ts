@@ -10,6 +10,7 @@ import {
 import { getApifySettings } from '@/lib/settings';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify, isFreeEmail, cleanEmail, extractDomainFromEmail } from '@/lib/utils';
+import { ensureSalaryData } from '@/lib/salary-estimation';
 import { validateAndEnrichCompany } from '@/services/company-enrichment';
 import { cleanupOldJobs, cleanupOldParsingLogs } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
@@ -519,6 +520,18 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     return { success: false, error: `${filterResult.reason} - skipped` };
   }
 
+  // Get country code for salary estimation
+  const countryCode = extractCountryCode(extracted.location);
+
+  // Get actual or estimated salary data
+  const salaryData = extracted.salaryMin ? {
+    salaryMin: extracted.salaryMin,
+    salaryMax: extracted.salaryMax,
+    salaryCurrency: extracted.salaryCurrency || 'USD',
+    salaryPeriod: extracted.salaryPeriod || 'YEAR',
+    salaryIsEstimate: false,
+  } : ensureSalaryData({ salaryMin: null }, category.slug, extracted.level || 'MID', countryCode);
+
   // Create job (with unique constraint handling for race conditions)
   let job;
   try {
@@ -531,14 +544,10 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
         categoryId: category.id,
         location: extracted.isRemote ? (extracted.location || 'Remote') : extracted.location,
         locationType,
-        country: extractCountryCode(extracted.location),
+        country: countryCode,
         level: extracted.level || 'MID',
         type: extracted.type || 'FULL_TIME',
-        salaryMin: extracted.salaryMin,
-        salaryMax: extracted.salaryMax,
-        salaryCurrency: extracted.salaryCurrency || 'USD',
-        salaryPeriod: extracted.salaryPeriod || 'YEAR',
-        salaryIsEstimate: !extracted.salaryMin,
+        ...salaryData,
         skills: extracted.skills,
         benefits: extracted.benefits,
         translationTypes: extracted.translationTypes || [],
