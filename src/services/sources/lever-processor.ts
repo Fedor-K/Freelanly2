@@ -25,6 +25,7 @@ import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
 import { addToSocialQueue } from '@/services/social-post';
 import { shouldSkipJob, isPhysicalLocation } from '@/lib/job-filter';
+import { isBlockedCompany } from '@/config/company-blacklist';
 import type { ProcessingStats, ProcessorContext, LeverJob } from './types';
 import type { FilterReason } from '@prisma/client';
 
@@ -81,6 +82,12 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
 
   if (!dataSource.companySlug) {
     throw new Error('Company slug is required for Lever source');
+  }
+
+  // Check if company is blacklisted
+  if (isBlockedCompany(dataSource.companySlug, dataSource.name)) {
+    console.log(`[Lever] BLOCKED: ${dataSource.name} is in company blacklist`);
+    return stats;
   }
 
   const apiUrl = dataSource.apiUrl ||
