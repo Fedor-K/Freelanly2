@@ -13,6 +13,7 @@ import { Clock, Calendar, Share2, ArrowLeft } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 import { formatDistanceToNow } from '@/lib/utils';
+import { marked } from 'marked';
 
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
@@ -212,7 +213,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               {/* Article Content */}
               <div
                 className="prose prose-lg max-w-none prose-headings:scroll-mt-24"
-                dangerouslySetInnerHTML={{ __html: post.content }}
+                dangerouslySetInnerHTML={{ __html: marked.parse(post.content) as string }}
               />
 
               {/* Share */}
