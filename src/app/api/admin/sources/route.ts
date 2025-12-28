@@ -52,7 +52,9 @@ export async function GET() {
           totalImported,
           lastCreated: lastLog?._count?.importedJobs || 0,
           lastSkipped: lastLog?._count?.filteredJobs || 0,
-          lastError: lastLog?.status === 'FAILED' ? lastLog.errorMessage : null,
+          lastError: lastLog?.status === 'FAILED' && lastLog.errors
+            ? (Array.isArray(lastLog.errors) ? (lastLog.errors as string[])[0] : String(lastLog.errors))
+            : null,
           errorCount: 0, // Could calculate from logs if needed
         };
       })
