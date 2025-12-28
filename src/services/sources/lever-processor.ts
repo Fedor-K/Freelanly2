@@ -217,7 +217,7 @@ async function processLeverJob(
       });
       return { status: 'updated' };
     }
-    return { status: 'skipped', filterReason: 'DUPLICATE' };
+    return { status: 'skipped' }; // Duplicates are not "filtered", just already exist
   }
 
   // Process through DeepSeek AI for clean description
