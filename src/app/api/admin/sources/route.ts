@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import { Source } from '@prisma/client';
 import { getAvailableSourceTypes, validateDataSource, buildAtsApiUrl } from '@/services/sources';
 
-// GET /api/admin/sources - List all data sources
+// GET /api/admin/sources - List all data sources with stats
 export async function GET() {
   try {
     const sources = await prisma.dataSource.findMany({
@@ -11,11 +11,56 @@ export async function GET() {
         { sourceType: 'asc' },
         { name: 'asc' },
       ],
+      include: {
+        importLogs: {
+          orderBy: { startedAt: 'desc' },
+          take: 1,
+          include: {
+            _count: {
+              select: {
+                importedJobs: true,
+                filteredJobs: true,
+              },
+            },
+          },
+        },
+      },
     });
 
+    // Calculate total imported and last run stats
+    const sourcesWithStats = await Promise.all(
+      sources.map(async (source) => {
+        // Get total imported jobs count
+        const totalImported = await prisma.importedJob.count({
+          where: {
+            importLog: {
+              dataSourceId: source.id,
+            },
+          },
+        });
+
+        const lastLog = source.importLogs[0];
+
+        return {
+          id: source.id,
+          name: source.name,
+          sourceType: source.sourceType,
+          companySlug: source.companySlug,
+          isActive: source.isActive,
+          lastRunAt: lastLog?.startedAt || null,
+          lastSuccessAt: lastLog?.status === 'COMPLETED' ? lastLog.completedAt : null,
+          totalImported,
+          lastCreated: lastLog?._count?.importedJobs || 0,
+          lastSkipped: lastLog?._count?.filteredJobs || 0,
+          lastError: lastLog?.status === 'FAILED' ? lastLog.errorMessage : null,
+          errorCount: 0, // Could calculate from logs if needed
+        };
+      })
+    );
+
     // Group by source type
-    const grouped: Record<string, typeof sources> = {};
-    for (const source of sources) {
+    const grouped: Record<string, typeof sourcesWithStats> = {};
+    for (const source of sourcesWithStats) {
       if (!grouped[source.sourceType]) {
         grouped[source.sourceType] = [];
       }
@@ -23,7 +68,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      sources,
+      sources: sourcesWithStats,
       grouped,
       sourceTypes: getAvailableSourceTypes(),
     });

@@ -5,10 +5,21 @@ import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Database, Linkedin, Globe, Plus, Play, Trash2, Building2, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import {
+  Linkedin,
+  Plus,
+  Play,
+  Trash2,
+  Building2,
+  Loader2,
+  CheckCircle,
+  XCircle,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+} from 'lucide-react';
 
 interface DataSource {
   id: string;
@@ -20,6 +31,7 @@ interface DataSource {
   lastSuccessAt: string | null;
   totalImported: number;
   lastCreated: number;
+  lastSkipped: number;
   lastError: string | null;
   errorCount: number;
 }
@@ -32,6 +44,36 @@ interface BulkValidationResult {
   added?: boolean;
 }
 
+interface SkippedJob {
+  id: string;
+  title: string;
+  reason: string;
+}
+
+interface AddedJob {
+  id: string;
+  title: string;
+  slug: string;
+  companySlug: string;
+}
+
+interface ParsingDetails {
+  addedJobs: AddedJob[];
+  skippedJobs: SkippedJob[];
+}
+
+const FILTER_REASON_LABELS: Record<string, string> = {
+  NON_TARGET_TITLE: 'non-target title',
+  PHYSICAL_LOCATION: 'physical location',
+  DUPLICATE: 'duplicate',
+  SIMILAR_EXISTS: 'similar exists',
+  NO_TITLE: 'no title extracted',
+  NO_EMAIL: 'no corporate email',
+  SPAM: 'spam/announcement',
+  TOO_OLD: 'older than 30 days',
+  OTHER: 'other',
+};
+
 export default function SourcesPage() {
   const [sources, setSources] = useState<DataSource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +83,9 @@ export default function SourcesPage() {
   const [bulkResults, setBulkResults] = useState<BulkValidationResult[]>([]);
   const [saving, setSaving] = useState(false);
   const [runningSourceId, setRunningSourceId] = useState<string | null>(null);
+  const [expandedSourceId, setExpandedSourceId] = useState<string | null>(null);
+  const [parsingDetails, setParsingDetails] = useState<Record<string, ParsingDetails>>({});
+  const [loadingDetails, setLoadingDetails] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSources();
@@ -55,6 +100,42 @@ export default function SourcesPage() {
       console.error('Failed to fetch sources:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchParsingDetails(sourceId: string) {
+    if (parsingDetails[sourceId]) return; // Already loaded
+
+    setLoadingDetails(sourceId);
+    try {
+      const res = await fetch(`/api/admin/parsing?dataSourceId=${sourceId}`);
+      const data = await res.json();
+      if (data.success && data.data.length > 0) {
+        const group = data.data[0];
+        const lastRun = group.runs[0];
+        if (lastRun) {
+          setParsingDetails(prev => ({
+            ...prev,
+            [sourceId]: {
+              addedJobs: lastRun.addedJobs || [],
+              skippedJobs: lastRun.filteredJobs || [],
+            },
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch parsing details:', error);
+    } finally {
+      setLoadingDetails(null);
+    }
+  }
+
+  function toggleExpanded(sourceId: string) {
+    if (expandedSourceId === sourceId) {
+      setExpandedSourceId(null);
+    } else {
+      setExpandedSourceId(sourceId);
+      fetchParsingDetails(sourceId);
     }
   }
 
@@ -133,7 +214,8 @@ export default function SourcesPage() {
     fetchSources();
   }
 
-  async function runSource(sourceId: string) {
+  async function runSource(sourceId: string, e: React.MouseEvent) {
+    e.stopPropagation();
     setRunningSourceId(sourceId);
     try {
       const res = await fetch(`/api/admin/sources/${sourceId}/run`, {
@@ -141,8 +223,18 @@ export default function SourcesPage() {
       });
       const data = await res.json();
       if (data.success) {
+        // Clear cached parsing details to force reload
+        setParsingDetails(prev => {
+          const newDetails = { ...prev };
+          delete newDetails[sourceId];
+          return newDetails;
+        });
         alert(`Import completed: ${data.stats.created} created, ${data.stats.skipped} skipped, ${data.stats.failed} failed`);
         fetchSources();
+        // If this source is expanded, reload details
+        if (expandedSourceId === sourceId) {
+          fetchParsingDetails(sourceId);
+        }
       } else {
         alert(`Error: ${data.error}`);
       }
@@ -153,7 +245,8 @@ export default function SourcesPage() {
     }
   }
 
-  async function deleteSource(sourceId: string, name: string) {
+  async function deleteSource(sourceId: string, name: string, e: React.MouseEvent) {
+    e.stopPropagation();
     if (!confirm(`Delete source "${name}"?`)) return;
 
     try {
@@ -168,7 +261,8 @@ export default function SourcesPage() {
     }
   }
 
-  async function toggleSource(sourceId: string, isActive: boolean) {
+  async function toggleSource(sourceId: string, isActive: boolean, e: React.MouseEvent) {
+    e.stopPropagation();
     try {
       await fetch(`/api/admin/sources/${sourceId}`, {
         method: 'PATCH',
@@ -183,7 +277,6 @@ export default function SourcesPage() {
 
   // Group sources by type
   const leverSources = sources.filter(s => s.sourceType === 'LEVER');
-  const otherSources = sources.filter(s => s.sourceType !== 'LEVER');
 
   const formatDate = (date: string | null) => {
     if (!date) return 'Never';
@@ -350,12 +443,27 @@ figma"
         {loading ? (
           <div className="text-center py-8 text-muted-foreground">Loading...</div>
         ) : leverSources.length > 0 ? (
-          <div className="grid gap-3">
-            {leverSources.map((source) => (
-              <Card key={source.id}>
-                <CardContent className="py-4">
-                  <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            {leverSources.map((source) => {
+              const isExpanded = expandedSourceId === source.id;
+              const details = parsingDetails[source.id];
+              const isLoadingDetails = loadingDetails === source.id;
+
+              return (
+                <Card key={source.id} className="overflow-hidden">
+                  {/* Header row - clickable */}
+                  <div
+                    className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => toggleExpanded(source.id)}
+                  >
                     <div className="flex items-center gap-3">
+                      <div className="text-muted-foreground">
+                        {isExpanded ? (
+                          <ChevronDown className="h-5 w-5" />
+                        ) : (
+                          <ChevronRight className="h-5 w-5" />
+                        )}
+                      </div>
                       <div className="p-2 bg-purple-100 rounded-lg">
                         <Building2 className="h-5 w-5 text-purple-600" />
                       </div>
@@ -370,22 +478,26 @@ figma"
                     <div className="flex items-center gap-4">
                       <div className="text-sm text-right">
                         <div className="text-muted-foreground">Last run: {formatDate(source.lastRunAt)}</div>
-                        <div className="font-medium">
+                        <div>
                           {source.lastCreated > 0 ? (
-                            <span className="text-green-600">+{source.lastCreated} new</span>
+                            <span className="text-green-600 font-medium">+{source.lastCreated}</span>
                           ) : source.lastRunAt ? (
-                            <span className="text-muted-foreground">no new jobs</span>
-                          ) : (
-                            <span className="text-muted-foreground">not run yet</span>
+                            <span className="text-muted-foreground">+0</span>
+                          ) : null}
+                          {source.lastRunAt && (
+                            <>
+                              <span className="text-muted-foreground mx-1">/</span>
+                              <span className="text-muted-foreground">-{source.lastSkipped || 0}</span>
+                            </>
                           )}
-                          <span className="text-muted-foreground font-normal ml-2">({source.totalImported} total)</span>
+                          <span className="text-muted-foreground ml-2">({source.totalImported} total)</span>
                         </div>
                       </div>
 
                       <Badge
                         variant={source.isActive ? 'default' : 'secondary'}
                         className="cursor-pointer"
-                        onClick={() => toggleSource(source.id, source.isActive)}
+                        onClick={(e) => toggleSource(source.id, source.isActive, e)}
                       >
                         {source.isActive ? 'active' : 'paused'}
                       </Badge>
@@ -394,7 +506,7 @@ figma"
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => runSource(source.id)}
+                          onClick={(e) => runSource(source.id, e)}
                           disabled={runningSourceId === source.id}
                         >
                           {runningSourceId === source.id ? (
@@ -406,7 +518,7 @@ figma"
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => deleteSource(source.id, source.name)}
+                          onClick={(e) => deleteSource(source.id, source.name, e)}
                         >
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
@@ -414,14 +526,75 @@ figma"
                     </div>
                   </div>
 
+                  {/* Expanded content */}
+                  {isExpanded && (
+                    <div className="border-t bg-muted/30 px-4 py-4">
+                      {isLoadingDetails ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : details ? (
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {/* Added jobs */}
+                          <div>
+                            <h4 className="text-sm font-medium text-green-700 mb-2">
+                              Added ({details.addedJobs.length})
+                            </h4>
+                            {details.addedJobs.length > 0 ? (
+                              <div className="space-y-1 max-h-64 overflow-y-auto">
+                                {details.addedJobs.map((job) => (
+                                  <a
+                                    key={job.id}
+                                    href={`/company/${job.companySlug}/jobs/${job.slug}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 text-sm py-1.5 px-2 hover:bg-green-50 rounded transition-colors group"
+                                  >
+                                    <span className="truncate flex-1">{job.title}</span>
+                                    <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                                  </a>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground italic">—</p>
+                            )}
+                          </div>
+
+                          {/* Skipped jobs */}
+                          <div>
+                            <h4 className="text-sm font-medium text-muted-foreground mb-2">
+                              Skipped ({details.skippedJobs.length})
+                            </h4>
+                            {details.skippedJobs.length > 0 ? (
+                              <div className="space-y-2 max-h-64 overflow-y-auto">
+                                {details.skippedJobs.map((job) => (
+                                  <div key={job.id} className="py-1.5 px-2">
+                                    <div className="text-sm truncate">{job.title}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {FILTER_REASON_LABELS[job.reason] || job.reason}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground italic">—</p>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No parsing data available</p>
+                      )}
+                    </div>
+                  )}
+
                   {source.lastError && (
-                    <div className="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded">
+                    <div className="border-t px-4 py-2 text-sm text-red-600 bg-red-50">
                       Error: {source.lastError}
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         ) : (
           <Card>

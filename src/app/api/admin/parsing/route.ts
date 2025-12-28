@@ -1,9 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
 // GET /api/admin/parsing - Get parsing stats for last 20 days
-export async function GET() {
+// Optional: ?dataSourceId=xxx to filter by specific source
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const dataSourceId = searchParams.get('dataSourceId');
+
     const twentyDaysAgo = new Date();
     twentyDaysAgo.setDate(twentyDaysAgo.getDate() - 20);
 
@@ -11,6 +15,7 @@ export async function GET() {
     const importLogs = await prisma.importLog.findMany({
       where: {
         startedAt: { gte: twentyDaysAgo },
+        ...(dataSourceId ? { dataSourceId } : {}),
       },
       include: {
         dataSource: {
