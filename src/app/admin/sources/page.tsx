@@ -161,6 +161,23 @@ export default function SourcesPage() {
   const cancelRequestedRef = useRef(false);
   const [elapsedTime, setElapsedTime] = useState(0);
 
+  // Discovery state
+  const [showDiscovery, setShowDiscovery] = useState(false);
+  const [discoveryQuery, setDiscoveryQuery] = useState('site:jobs.lever.co');
+  const [discoveryMaxPages, setDiscoveryMaxPages] = useState(10);
+  const [discoveryProgress, setDiscoveryProgress] = useState<{
+    status: 'idle' | 'running' | 'completed' | 'error' | 'cancelled';
+    currentPage: number;
+    totalPages: number;
+    foundSlugs: string[];
+    newSlugs: string[];
+    existingSlugs: string[];
+    errors: string[];
+    startTime: number;
+  } | null>(null);
+  const [addingDiscovered, setAddingDiscovered] = useState(false);
+  const [selectedDiscoveredSlugs, setSelectedDiscoveredSlugs] = useState<Set<string>>(new Set());
+
   // Timer for elapsed time
   useEffect(() => {
     if (!bulkRunProgress?.isRunning) return;
@@ -507,6 +524,123 @@ export default function SourcesPage() {
     cancelRequestedRef.current = false;
   }
 
+  // Discovery functions
+  async function startDiscovery() {
+    try {
+      const res = await fetch('/api/admin/sources/discover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'start',
+          searchQuery: discoveryQuery,
+          maxPages: discoveryMaxPages,
+        }),
+      });
+
+      if (res.ok) {
+        setDiscoveryProgress({
+          status: 'running',
+          currentPage: 0,
+          totalPages: discoveryMaxPages,
+          foundSlugs: [],
+          newSlugs: [],
+          existingSlugs: [],
+          errors: [],
+          startTime: Date.now(),
+        });
+        // Start polling for progress
+        pollDiscoveryProgress();
+      }
+    } catch (error) {
+      console.error('Failed to start discovery:', error);
+    }
+  }
+
+  async function pollDiscoveryProgress() {
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/admin/sources/discover');
+        const data = await res.json();
+
+        if (data.progress) {
+          setDiscoveryProgress(data.progress);
+
+          if (data.progress.status === 'running') {
+            setTimeout(poll, 1000);
+          } else {
+            // Discovery completed, update selected slugs to include all new ones
+            setSelectedDiscoveredSlugs(new Set(data.progress.newSlugs));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to poll discovery progress:', error);
+      }
+    };
+
+    poll();
+  }
+
+  async function cancelDiscovery() {
+    try {
+      await fetch('/api/admin/sources/discover', { method: 'DELETE' });
+    } catch (error) {
+      console.error('Failed to cancel discovery:', error);
+    }
+  }
+
+  async function addDiscoveredSources() {
+    const slugsToAdd = Array.from(selectedDiscoveredSlugs);
+    if (slugsToAdd.length === 0) return;
+
+    setAddingDiscovered(true);
+    try {
+      const res = await fetch('/api/admin/sources/discover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add',
+          slugs: slugsToAdd,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        fetchSources();
+        setDiscoveryProgress(null);
+        setSelectedDiscoveredSlugs(new Set());
+      } else {
+        alert(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      alert(`Error: ${error}`);
+    } finally {
+      setAddingDiscovered(false);
+    }
+  }
+
+  function toggleDiscoveredSlug(slug: string) {
+    setSelectedDiscoveredSlugs(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(slug)) {
+        newSet.delete(slug);
+      } else {
+        newSet.add(slug);
+      }
+      return newSet;
+    });
+  }
+
+  function selectAllNewSlugs() {
+    if (discoveryProgress?.newSlugs) {
+      setSelectedDiscoveredSlugs(new Set(discoveryProgress.newSlugs));
+    }
+  }
+
+  function deselectAllSlugs() {
+    setSelectedDiscoveredSlugs(new Set());
+  }
+
   const leverSources = sources.filter(s => s.sourceType === 'LEVER');
 
   const formatDate = (date: string | null) => {
@@ -843,10 +977,16 @@ export default function SourcesPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">Lever ATS Companies ({leverSources.length})</h2>
-          <Button onClick={() => setShowAddForm(!showAddForm)} variant="outline" size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Company
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setShowDiscovery(!showDiscovery)} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Discover New
+            </Button>
+            <Button onClick={() => setShowAddForm(!showAddForm)} variant="outline" size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Manual
+            </Button>
+          </div>
         </div>
 
         {/* Add Form */}
@@ -946,6 +1086,220 @@ figma"
                   )}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Discovery Section */}
+        {showDiscovery && (
+          <Card className="mb-4 border-2 border-blue-200 bg-blue-50/30">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <RefreshCw className="h-5 w-5" />
+                Discover Lever Companies
+              </CardTitle>
+              <CardDescription>
+                Search Google to find companies using Lever ATS. This will scrape search results and extract company slugs.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Search settings */}
+                {!discoveryProgress && (
+                  <div className="flex flex-wrap gap-4 items-end">
+                    <div className="flex-1 min-w-[200px]">
+                      <Label htmlFor="discoveryQuery">Search Query</Label>
+                      <Input
+                        id="discoveryQuery"
+                        value={discoveryQuery}
+                        onChange={(e) => setDiscoveryQuery(e.target.value)}
+                        placeholder="site:jobs.lever.co"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="w-32">
+                      <Label htmlFor="maxPages">Max Pages</Label>
+                      <Input
+                        id="maxPages"
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={discoveryMaxPages}
+                        onChange={(e) => setDiscoveryMaxPages(parseInt(e.target.value) || 10)}
+                        className="mt-1"
+                      />
+                    </div>
+                    <Button onClick={startDiscovery}>
+                      <Play className="h-4 w-4 mr-2" />
+                      Start Discovery
+                    </Button>
+                  </div>
+                )}
+
+                {/* Progress */}
+                {discoveryProgress && (
+                  <div className="space-y-4">
+                    {/* Status header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {discoveryProgress.status === 'running' ? (
+                          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                        ) : discoveryProgress.status === 'completed' ? (
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                        ) : discoveryProgress.status === 'error' ? (
+                          <XCircle className="h-5 w-5 text-red-600" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-yellow-600" />
+                        )}
+                        <span className="font-medium">
+                          {discoveryProgress.status === 'running'
+                            ? 'Searching Google...'
+                            : discoveryProgress.status === 'completed'
+                            ? 'Discovery Complete'
+                            : discoveryProgress.status === 'error'
+                            ? 'Discovery Error'
+                            : 'Discovery Cancelled'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {discoveryProgress.status === 'running' ? (
+                          <Button variant="outline" size="sm" onClick={cancelDiscovery}>
+                            Cancel
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={() => setDiscoveryProgress(null)}>
+                            Close
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-muted-foreground">
+                          Page {discoveryProgress.currentPage} of {discoveryProgress.totalPages}
+                        </span>
+                        <span className="font-medium">
+                          {discoveryProgress.foundSlugs.length} companies found
+                        </span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-600 transition-all duration-300"
+                          style={{
+                            width: `${(discoveryProgress.currentPage / discoveryProgress.totalPages) * 100}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="flex gap-6 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="text-green-600 font-semibold">{discoveryProgress.newSlugs.length}</span>
+                        <span className="text-muted-foreground">new companies</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500 font-semibold">{discoveryProgress.existingSlugs.length}</span>
+                        <span className="text-muted-foreground">already added</span>
+                      </div>
+                    </div>
+
+                    {/* Errors */}
+                    {discoveryProgress.errors.length > 0 && (
+                      <div className="text-sm">
+                        <div className="text-red-600 font-medium mb-1">Errors:</div>
+                        <div className="text-muted-foreground">
+                          {discoveryProgress.errors.slice(-3).map((err, i) => (
+                            <div key={i}>{err}</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Results list */}
+                    {discoveryProgress.status !== 'running' && discoveryProgress.newSlugs.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">
+                            New Companies ({discoveryProgress.newSlugs.length})
+                          </span>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" onClick={selectAllNewSlugs}>
+                              Select All
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={deselectAllSlugs}>
+                              Deselect All
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto border rounded p-2 space-y-1">
+                          {discoveryProgress.newSlugs.map((slug) => (
+                            <label
+                              key={slug}
+                              className={`flex items-center gap-2 text-sm p-1.5 rounded cursor-pointer hover:bg-muted ${
+                                selectedDiscoveredSlugs.has(slug) ? 'bg-green-50' : ''
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedDiscoveredSlugs.has(slug)}
+                                onChange={() => toggleDiscoveredSlug(slug)}
+                                className="rounded"
+                              />
+                              <span className="font-mono">{slug}</span>
+                              <a
+                                href={`https://jobs.lever.co/${slug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-auto text-muted-foreground hover:text-foreground"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </label>
+                          ))}
+                        </div>
+
+                        {/* Add button */}
+                        <Button
+                          onClick={addDiscoveredSources}
+                          disabled={addingDiscovered || selectedDiscoveredSlugs.size === 0}
+                          className="mt-3"
+                        >
+                          {addingDiscovered ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <Plus className="h-4 w-4 mr-2" />
+                          )}
+                          Add {selectedDiscoveredSlugs.size} Selected Companies
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* No results message */}
+                    {discoveryProgress.status !== 'running' && discoveryProgress.newSlugs.length === 0 && (
+                      <div className="text-sm text-muted-foreground text-center py-4">
+                        No new companies found. Try a different search query.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Search suggestions */}
+                {!discoveryProgress && (
+                  <div className="text-sm text-muted-foreground">
+                    <p className="font-medium mb-2">Search query tips:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li><code className="bg-muted px-1 rounded">site:jobs.lever.co</code> — all Lever companies</li>
+                      <li><code className="bg-muted px-1 rounded">site:jobs.lever.co remote</code> — remote-friendly companies</li>
+                      <li><code className="bg-muted px-1 rounded">site:jobs.lever.co software engineer</code> — tech companies</li>
+                      <li><code className="bg-muted px-1 rounded">site:jobs.lever.co fintech</code> — fintech companies</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         )}
