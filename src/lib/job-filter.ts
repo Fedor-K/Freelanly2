@@ -70,6 +70,33 @@ export function isNonTargetJob(title: string): boolean {
     'lead generation representative',
   ];
 
+  // Finance / Accounting (not digital specialists)
+  const financeKeywords = [
+    'accountant', 'accounting', 'controller', 'controllership',
+    'bookkeeper', 'bookkeeping', 'auditor', 'tax preparer',
+    'payroll specialist', 'accounts payable', 'accounts receivable',
+    'financial controller', 'assistant controller',
+    'revenue accountant', 'staff accountant', 'senior accountant',
+    'cpa ', ' cpa', 'certified public accountant',
+  ];
+
+  // Industry-specific consulting (not tech/digital)
+  const industryConsultingKeywords = [
+    'life sciences', 'pharmaceutical', 'biotech consultant',
+    'healthcare consultant', 'clinical consultant',
+    'manufacturing consultant', 'supply chain consultant',
+    'oil and gas', 'mining consultant', 'energy consultant',
+    'agriculture consultant', 'farming consultant',
+  ];
+
+  // Sales operations / Revenue operations (corporate, not digital sales/marketing)
+  const corpSalesKeywords = [
+    'sales operations', 'revenue operations', 'revops',
+    'sales enablement manager', 'field representative',
+    'territory manager', 'regional sales director',
+    'district manager', 'area manager',
+  ];
+
   const allKeywords = [
     ...medicalKeywords,
     ...foodKeywords,
@@ -78,6 +105,9 @@ export function isNonTargetJob(title: string): boolean {
     ...logisticsKeywords,
     ...onsiteKeywords,
     ...physicalSalesKeywords,
+    ...financeKeywords,
+    ...industryConsultingKeywords,
+    ...corpSalesKeywords,
   ];
 
   return allKeywords.some((keyword) => lowerTitle.includes(keyword));
@@ -143,6 +173,30 @@ export function isPhysicalLocation(location: string): boolean {
   // Pattern: "City, Country" or "City, Full State Name"
   const cityCountryPattern = /^[A-Za-z\s]+,\s*[A-Za-z\s]+$/;
   if (cityCountryPattern.test(loc)) {
+    return true;
+  }
+
+  // Pattern: "Country - City" or "State - City" (e.g., "France - Paris", "Massachusetts - Boston")
+  const countryDashCityPattern = /^[A-Za-z\s]+ - [A-Za-z\s]+$/;
+  if (countryDashCityPattern.test(loc)) {
+    return true;
+  }
+
+  // Pattern: "State - City" for US (e.g., "California - San Francisco")
+  const usStateFullNames = [
+    'alabama', 'alaska', 'arizona', 'arkansas', 'california', 'colorado',
+    'connecticut', 'delaware', 'florida', 'georgia', 'hawaii', 'idaho',
+    'illinois', 'indiana', 'iowa', 'kansas', 'kentucky', 'louisiana',
+    'maine', 'maryland', 'massachusetts', 'michigan', 'minnesota',
+    'mississippi', 'missouri', 'montana', 'nebraska', 'nevada',
+    'new hampshire', 'new jersey', 'new mexico', 'new york', 'north carolina',
+    'north dakota', 'ohio', 'oklahoma', 'oregon', 'pennsylvania',
+    'rhode island', 'south carolina', 'south dakota', 'tennessee', 'texas',
+    'utah', 'vermont', 'virginia', 'washington', 'west virginia',
+    'wisconsin', 'wyoming',
+  ];
+  const locParts = lowerLoc.split(' - ');
+  if (locParts.length === 2 && usStateFullNames.includes(locParts[0].trim())) {
     return true;
   }
 

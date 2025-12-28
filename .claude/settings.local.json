@@ -35,7 +35,12 @@
       "WebFetch(domain:www.starterstory.com)",
       "WebFetch(domain:remotive.com)",
       "WebFetch(domain:www.indeed.com)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(npx prisma generate)",
+      "WebFetch(domain:www.upwork.com)",
+      "WebFetch(domain:remoteok.com)",
+      "WebFetch(domain:www.fiverr.com)",
+      "WebFetch(domain:support.upwork.com)"
     ]
   }
 }
