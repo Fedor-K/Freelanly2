@@ -40,7 +40,9 @@
       "WebFetch(domain:www.upwork.com)",
       "WebFetch(domain:remoteok.com)",
       "WebFetch(domain:www.fiverr.com)",
-      "WebFetch(domain:support.upwork.com)"
+      "WebFetch(domain:support.upwork.com)",
+      "Bash(node:*)",
+      "Bash(git restore:*)"
     ]
   }
 }
