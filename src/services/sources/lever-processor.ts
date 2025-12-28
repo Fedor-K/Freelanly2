@@ -255,7 +255,7 @@ async function processLeverJob(
   const locationType = mapWorkplaceType(job.workplaceType, location, aiData?.isRemote);
   const country = extractCountryCode(location);
 
-  // Apply global job filter (non-target titles, HYBRID/ONSITE, physical locations)
+  // Apply global job filter (whitelist-based profession matching)
   const filterResult = shouldSkipJob({
     title: job.text,
     location,
@@ -263,13 +263,7 @@ async function processLeverJob(
   });
   if (filterResult.skip) {
     console.log(`[Lever] Skipping job: ${job.text} (${filterResult.reason})`);
-    // Map filter reason to FilterReason enum
-    const filterReason: FilterReason = filterResult.reason?.includes('non-target')
-      ? 'NON_TARGET_TITLE'
-      : filterResult.reason?.includes('physical') || filterResult.reason?.includes('HYBRID') || filterResult.reason?.includes('ONSITE')
-        ? 'PHYSICAL_LOCATION'
-        : 'OTHER';
-    return { status: 'skipped', filterReason };
+    return { status: 'skipped', filterReason: 'NON_TARGET_TITLE' as FilterReason };
   }
 
   // Parse level from title or department
