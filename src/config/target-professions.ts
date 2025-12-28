@@ -7,8 +7,11 @@
 
 // Engineering / Development
 const ENGINEERING_PATTERNS = [
-  // Roles
-  'developer', 'engineer', 'programmer', 'coder', 'architect',
+  // Roles (singular, plural)
+  'developer', 'developers', 'engineer', 'engineers',
+  'programmer', 'coder', 'architect',
+  // Specific engineering types (to avoid matching "mechanical engineering" etc)
+  'software engineering', 'ai engineering', 'data engineering', 'ml engineering',
   'technical lead', 'tech lead', 'team lead', 'engineering manager',
   'cto', 'vp engineer', 'head of engineer',
   // Specializations
@@ -32,17 +35,19 @@ const ENGINEERING_PATTERNS = [
 const DATA_PATTERNS = [
   'data scientist', 'data analyst', 'data engineer',
   'ml engineer', 'machine learning', 'ai engineer', 'artificial intelligence',
+  'ai/ml', 'ml/ai', // Combined AI/ML
   'analytics engineer', 'bi developer', 'bi analyst', 'business intelligence',
-  'bi manager', 'bi lead', // BI leadership
+  'bi manager', 'bi lead', 'bi engineering', 'bi director', // BI roles
   'statistician', 'quantitative',
   'deep learning', 'nlp', 'natural language', 'computer vision',
   'big data', 'etl', 'data warehouse', 'data pipeline',
-  'data operations', 'data steward', 'data ops', // Data operations
+  'data operations', 'data steward', 'data ops', 'data governance', // Data operations
   // AI roles
   'ai consultant', 'ml practice', 'ai practice', 'genai', 'gen ai',
   'ai evaluator', 'data annotator', // AI training data
-  'product analytics', // Product data role
-  'vp data', 'head of data', 'vp infrastructure', // Data leadership
+  'ai solutions', 'ai services', // AI business
+  'product analytics', 'marketing analytics', // Analytics roles
+  'vp data', 'head of data', 'vp infrastructure', 'director of data', // Data leadership
 ];
 
 // DevOps & Infrastructure
@@ -50,8 +55,9 @@ const DEVOPS_PATTERNS = [
   'devops', 'sre', 'site reliability',
   'platform engineer', 'infrastructure engineer',
   'system admin', 'sysadmin', 'sysops', 'systems engineer',
+  'system administrator', 'systems administrator', // Full form
   'network engineer', 'cloud engineer',
-  'database admin', 'dba',
+  'database admin', 'dba', 'database administrator', // Full form
   'aws', 'azure', 'gcp', 'google cloud',
   'kubernetes', 'docker', 'terraform',
   // Tech admins
@@ -75,6 +81,7 @@ const QA_PATTERNS = [
   'test engineer', 'test automation', 'automation engineer',
   'sdet', 'qa lead', 'qa manager',
   'manual tester', 'automation tester',
+  'quality engineering', 'director of quality', // Quality leadership
 ];
 
 // Design
@@ -89,6 +96,7 @@ const DESIGN_PATTERNS = [
 const PRODUCT_PATTERNS = [
   'product manager', 'product owner', 'apm',
   'product lead', 'solution owner', // Product leadership
+  'product management', 'director of product', // Product roles
   'program manager', 'project manager', 'pmo',
   'scrum master', 'agile coach',
   'technical program manager', 'tpm',
@@ -166,7 +174,7 @@ const LEGAL_PATTERNS = [
   'compliance manager', 'compliance officer', 'compliance analyst',
   'contract manager', 'paralegal',
   'privacy', 'data protection', 'gdpr',
-  'general counsel', 'head of legal', 'vp legal',
+  'general counsel', 'head of legal', 'vp legal', 'legal director',
 ];
 
 // Operations
@@ -200,12 +208,13 @@ export const TARGET_PROFESSION_PATTERNS: string[] = [
 ];
 
 // Build regex for efficient matching
-// Using word boundaries where appropriate
+// Using word boundaries to prevent false positives (e.g., "cto" matching "director")
 const patternString = TARGET_PROFESSION_PATTERNS
   .map(p => {
     // Escape special regex chars except those we use intentionally
     const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return escaped;
+    // Add word boundaries to all patterns to prevent partial matches
+    return `\\b${escaped}\\b`;
   })
   .join('|');
 
@@ -250,6 +259,16 @@ const BLACKLIST_PATTERNS = [
   // Generic customer service (not tech support)
   'customer care', 'customer service representative',
   'call center', 'contact center',
+  // Hardware/Physical engineering (not software)
+  'mechanical engineer', 'electrical engineer', 'civil engineer',
+  'structural engineer', 'chemical engineer', 'aerospace engineer',
+  'hardware engineer', 'manufacturing engineer', 'industrial engineer',
+  'pcb designer', 'hardware test', 'hardware design',
+  'engineer, electrical', 'engineer, mechanical', 'engineer, civil',
+  'project engineer', // Usually construction/mechanical
+  // Non-tech accounting
+  'staff accountant', 'lead accountant', 'senior accountant', 'associate accountant',
+  'junior accountant', 'accountant ii', 'accountant iii',
 ];
 
 const BLACKLIST_REGEX = new RegExp(`\\b(${BLACKLIST_PATTERNS.join('|')})\\b`, 'i');

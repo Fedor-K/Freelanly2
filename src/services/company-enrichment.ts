@@ -60,10 +60,10 @@ function formatHeadquarters(org: ApolloOrganization): string | null {
 
 // Fetch company data from Apollo API
 async function fetchCompanyFromApollo(domain: string): Promise<ApolloOrganization | null> {
-  const apolloApiKey = process.env.APOLLO_API_KEY;
+  const apolloApiKey = process.env.APOLLO_API_KEY1;
 
   if (!apolloApiKey) {
-    console.warn('APOLLO_API_KEY not set, skipping enrichment');
+    console.warn('APOLLO_API_KEY1 not set, skipping enrichment');
     return null;
   }
 
