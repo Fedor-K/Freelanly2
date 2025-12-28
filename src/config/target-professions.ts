@@ -163,7 +163,7 @@ const HR_PATTERNS = [
 // Finance
 const FINANCE_PATTERNS = [
   'financial analyst', 'fp&a', 'finance analyst',
-  'accountant', 'controller', 'bookkeeper',
+  'controller',
   'cfo', 'vp finance', 'finance manager', 'finance director',
   'treasury', 'financial planning',
 ];
@@ -266,9 +266,8 @@ const BLACKLIST_PATTERNS = [
   'pcb designer', 'hardware test', 'hardware design',
   'engineer, electrical', 'engineer, mechanical', 'engineer, civil',
   'project engineer', // Usually construction/mechanical
-  // Non-tech accounting
-  'staff accountant', 'lead accountant', 'senior accountant', 'associate accountant',
-  'junior accountant', 'accountant ii', 'accountant iii',
+  // Accounting (all)
+  'accountant',
 ];
 
 const BLACKLIST_REGEX = new RegExp(`\\b(${BLACKLIST_PATTERNS.join('|')})\\b`, 'i');
