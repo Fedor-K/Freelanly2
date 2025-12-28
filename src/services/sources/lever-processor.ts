@@ -1,5 +1,24 @@
 import { prisma } from '@/lib/db';
 import { slugify, getMaxJobAgeDate } from '@/lib/utils';
+
+// Simple concurrency limiter
+function createLimiter(concurrency: number) {
+  let active = 0;
+  const queue: (() => void)[] = [];
+
+  return async <T>(fn: () => Promise<T>): Promise<T> => {
+    while (active >= concurrency) {
+      await new Promise<void>(resolve => queue.push(resolve));
+    }
+    active++;
+    try {
+      return await fn();
+    } finally {
+      active--;
+      queue.shift()?.();
+    }
+  };
+}
 import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@/services/company-enrichment';
 import { cleanupOldJobs, cleanupOldParsingLogs } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
@@ -127,20 +146,10 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
     const filteredByWhitelist: LeverJob[] = [];
 
     for (const job of freshJobs) {
-      // Check if already exists
+      // Check if already exists - skip without AI processing
       if (existingSourceIds.has(job.id) || existingSourceUrls.has(job.hostedUrl)) {
-        // Job exists - check if needs update (without AI call)
-        const existing = existingJobMap.get(job.id) || existingJobMap.get(job.hostedUrl);
-        if (existing) {
-          const fullDescription = buildDescription(job);
-          const needsUpdate = existing.title !== job.text || existing.description !== fullDescription;
-          if (!needsUpdate) {
-            stats.skipped++;
-            continue; // Skip completely - no change
-          }
-        }
-        jobsToProcess.push(job); // Needs update
-        continue;
+        stats.skipped++;
+        continue; // Already in DB - no need to reprocess
       }
 
       // New job - apply whitelist filter BEFORE AI processing
@@ -195,18 +204,25 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
 
     console.log(`[Lever] Processing ${jobsToProcess.length} jobs (${freshJobs.length - jobsToProcess.length} skipped early)`);
 
-    // Process only jobs that passed pre-filtering
-    for (const job of jobsToProcess) {
+    // Process NEW jobs in parallel with concurrency limit
+    const CONCURRENCY = 5; // 5 parallel DeepSeek API calls
+    const limit = createLimiter(CONCURRENCY);
+    let processed = 0;
+
+    const companySlug = dataSource.companySlug!; // Already validated above
+    const processJob = async (job: LeverJob) => {
       try {
-        const isExisting = existingSourceIds.has(job.id) || existingSourceUrls.has(job.hostedUrl);
         const result = await processLeverJob(
           job,
           company.id,
-          dataSource.companySlug,
+          companySlug,
           importLogId,
-          dataSource.name,
-          isExisting ? existingJobMap.get(job.id) || existingJobMap.get(job.hostedUrl) : undefined
+          dataSource.name
         );
+        processed++;
+        if (processed % 10 === 0 || processed === jobsToProcess.length) {
+          console.log(`[Lever] Progress: ${processed}/${jobsToProcess.length} jobs processed`);
+        }
         if (result.status === 'created') {
           stats.created++;
           if (result.jobSlug) {
@@ -217,8 +233,6 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
             await addToSocialQueue(result.jobId);
             stats.createdJobIds!.push(result.jobId);
           }
-        } else if (result.status === 'updated') {
-          stats.updated++;
         } else if (result.status === 'skipped') {
           stats.skipped++;
         }
@@ -226,7 +240,9 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
         stats.failed++;
         stats.errors.push(`Job ${job.id}: ${String(error)}`);
       }
-    }
+    };
+
+    await Promise.all(jobsToProcess.map(job => limit(() => processJob(job))));
 
     // Update data source stats
     await prisma.dataSource.update({
@@ -273,34 +289,12 @@ async function processLeverJob(
   companyId: string,
   companySlug: string,
   importLogId: string,
-  companyName: string,
-  existingJob?: { id: string; title: string; description: string } // Pre-fetched existing job
-): Promise<{ status: 'created' | 'updated' | 'skipped'; jobSlug?: string; jobId?: string; filterReason?: FilterReason }> {
+  companyName: string
+): Promise<{ status: 'created' | 'skipped'; jobSlug?: string; jobId?: string; filterReason?: FilterReason }> {
   // Build full description (with RESPONSIBILITIES, QUALIFICATIONS, etc.)
   const fullDescription = buildDescription(job);
 
-  // Handle existing job update (already checked in batch, so just update)
-  if (existingJob) {
-    // Re-process through AI if updating
-    console.log(`[Lever] Updating job through AI: ${job.text}`);
-    const aiData = await extractJobData(fullDescription);
-
-    await prisma.job.update({
-      where: { id: existingJob.id },
-      data: {
-        title: job.text,
-        description: fullDescription,
-        cleanDescription: aiData?.cleanDescription || null,
-        summaryBullets: aiData?.summaryBullets || [],
-        requirementBullets: aiData?.requirementBullets || [],
-        benefitBullets: aiData?.benefitBullets || [],
-        updatedAt: new Date(),
-      },
-    });
-    return { status: 'updated' };
-  }
-
-  // NEW JOB: Process through DeepSeek AI for clean description
+  // Process through DeepSeek AI for clean description
   console.log(`[Lever] Processing new job through AI: ${job.text}`);
   const aiData = await extractJobData(fullDescription);
 
