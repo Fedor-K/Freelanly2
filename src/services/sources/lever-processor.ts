@@ -154,6 +154,7 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
         lastSuccessAt: new Date(),
         totalImported: { increment: stats.created },
         lastCreated: stats.created,
+        lastFetched: stats.total, // Track fetched count for conversion rate
         lastError: null,
         errorCount: 0,
       },

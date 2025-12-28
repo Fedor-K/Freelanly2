@@ -2,15 +2,47 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { Source } from '@prisma/client';
 import { getAvailableSourceTypes, validateDataSource, buildAtsApiUrl } from '@/services/sources';
+import { getSourcesOverview, getAvailableTags } from '@/services/source-scoring';
 
 // GET /api/admin/sources - List all data sources with stats
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const sortBy = searchParams.get('sortBy') || 'name';
+    const sortOrder = searchParams.get('sortOrder') || 'asc';
+    const filterTag = searchParams.get('tag');
+    const filterStatus = searchParams.get('status'); // active, paused, all
+    const filterQuality = searchParams.get('quality'); // high, medium, low
+
+    // Build where clause
+    const where: Record<string, unknown> = {};
+    if (filterTag) {
+      where.tags = { has: filterTag };
+    }
+    if (filterStatus === 'active') {
+      where.isActive = true;
+    } else if (filterStatus === 'paused') {
+      where.isActive = false;
+    }
+    if (filterQuality) {
+      where.qualityStatus = filterQuality;
+    }
+
+    // Build orderBy
+    const orderBy: Record<string, string>[] = [];
+    if (sortBy === 'score') {
+      orderBy.push({ score: sortOrder === 'asc' ? 'asc' : 'desc' });
+    } else if (sortBy === 'totalImported') {
+      orderBy.push({ totalImported: sortOrder === 'asc' ? 'asc' : 'desc' });
+    } else if (sortBy === 'lastRunAt') {
+      orderBy.push({ lastRunAt: sortOrder === 'asc' ? 'asc' : 'desc' });
+    } else {
+      orderBy.push({ name: 'asc' });
+    }
+
     const sources = await prisma.dataSource.findMany({
-      orderBy: [
-        { sourceType: 'asc' },
-        { name: 'asc' },
-      ],
+      where,
+      orderBy,
       include: {
         importLogs: {
           orderBy: { startedAt: 'desc' },
@@ -39,14 +71,21 @@ export async function GET() {
         isActive: source.isActive,
         lastRunAt: lastLog?.startedAt || null,
         lastSuccessAt: lastLog?.status === 'COMPLETED' ? lastLog.completedAt : null,
-        // Use totalImported from DataSource (persisted), not from ImportedJob (cleaned up after 20 days)
         totalImported: source.totalImported,
         lastCreated: lastLog?._count?.importedJobs || 0,
         lastSkipped: lastLog?._count?.filteredJobs || 0,
+        lastFetched: source.lastFetched,
         lastError: lastLog?.status === 'FAILED' && lastLog.errors
           ? (Array.isArray(lastLog.errors) ? (lastLog.errors as string[])[0] : String(lastLog.errors))
           : null,
         errorCount: source.errorCount,
+        // New scoring fields
+        tags: source.tags,
+        score: source.score,
+        conversionRate: source.conversionRate,
+        qualityStatus: source.qualityStatus,
+        weeklyImported: source.weeklyImported,
+        lastScoreAt: source.lastScoreAt,
       };
     });
 
@@ -59,10 +98,18 @@ export async function GET() {
       grouped[source.sourceType].push(source);
     }
 
+    // Get overview stats and available tags
+    const [overview, availableTags] = await Promise.all([
+      getSourcesOverview(),
+      getAvailableTags(),
+    ]);
+
     return NextResponse.json({
       sources: sourcesWithStats,
       grouped,
       sourceTypes: getAvailableSourceTypes(),
+      overview,
+      availableTags,
     });
   } catch (error) {
     console.error('Failed to fetch sources:', error);

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import {
   Linkedin,
   Plus,
@@ -19,6 +20,15 @@ import {
   ChevronDown,
   ChevronRight,
   ExternalLink,
+  RefreshCw,
+  Pause,
+  PlayCircle,
+  Tag,
+  X,
+  ArrowUpDown,
+  Filter,
+  BarChart3,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface DataSource {
@@ -32,8 +42,31 @@ interface DataSource {
   totalImported: number;
   lastCreated: number;
   lastSkipped: number;
+  lastFetched: number;
   lastError: string | null;
   errorCount: number;
+  // New scoring fields
+  tags: string[];
+  score: number | null;
+  conversionRate: number | null;
+  qualityStatus: string | null;
+  weeklyImported: number;
+  lastScoreAt: string | null;
+}
+
+interface Overview {
+  total: number;
+  active: number;
+  paused: number;
+  withErrors: number;
+  byQuality: {
+    high: number;
+    medium: number;
+    low: number;
+    unscored: number;
+  };
+  totalImported: number;
+  weeklyImported: number;
 }
 
 interface BulkValidationResult {
@@ -74,8 +107,16 @@ const FILTER_REASON_LABELS: Record<string, string> = {
   OTHER: 'other',
 };
 
+const QUALITY_COLORS: Record<string, string> = {
+  high: 'bg-green-100 text-green-800',
+  medium: 'bg-yellow-100 text-yellow-800',
+  low: 'bg-red-100 text-red-800',
+};
+
 export default function SourcesPage() {
   const [sources, setSources] = useState<DataSource[]>([]);
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [companySlugsInput, setCompanySlugsInput] = useState('');
@@ -87,15 +128,39 @@ export default function SourcesPage() {
   const [parsingDetails, setParsingDetails] = useState<Record<string, ParsingDetails>>({});
   const [loadingDetails, setLoadingDetails] = useState<string | null>(null);
 
+  // Filter & Sort state
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterQuality, setFilterQuality] = useState<string>('all');
+  const [filterTag, setFilterTag] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('name');
+  const [sortOrder, setSortOrder] = useState<string>('asc');
+
+  // Bulk operations state
+  const [bulkLoading, setBulkLoading] = useState<string | null>(null);
+  const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
+
+  // Tag input state
+  const [newTagInput, setNewTagInput] = useState<Record<string, string>>({});
+
   useEffect(() => {
     fetchSources();
-  }, []);
+  }, [filterStatus, filterQuality, filterTag, sortBy, sortOrder]);
 
   async function fetchSources() {
+    setLoading(true);
     try {
-      const res = await fetch('/api/admin/sources');
+      const params = new URLSearchParams();
+      if (filterStatus !== 'all') params.set('status', filterStatus);
+      if (filterQuality !== 'all') params.set('quality', filterQuality);
+      if (filterTag !== 'all') params.set('tag', filterTag);
+      params.set('sortBy', sortBy);
+      params.set('sortOrder', sortOrder);
+
+      const res = await fetch(`/api/admin/sources?${params}`);
       const data = await res.json();
       setSources(data.sources || []);
+      setOverview(data.overview || null);
+      setAvailableTags(data.availableTags || []);
     } catch (error) {
       console.error('Failed to fetch sources:', error);
     } finally {
@@ -104,7 +169,7 @@ export default function SourcesPage() {
   }
 
   async function fetchParsingDetails(sourceId: string) {
-    if (parsingDetails[sourceId]) return; // Already loaded
+    if (parsingDetails[sourceId]) return;
 
     setLoadingDetails(sourceId);
     try {
@@ -139,13 +204,12 @@ export default function SourcesPage() {
     }
   }
 
-  // Parse input into array of slugs
   function parseSlugs(input: string): string[] {
     return input
       .split(/[,\n\r]+/)
       .map(s => s.trim().toLowerCase())
       .filter(Boolean)
-      .filter((v, i, a) => a.indexOf(v) === i); // unique
+      .filter((v, i, a) => a.indexOf(v) === i);
   }
 
   async function validateBulk() {
@@ -158,7 +222,6 @@ export default function SourcesPage() {
     const results: BulkValidationResult[] = [];
 
     for (const slug of slugs) {
-      // Check if already exists
       const existingSource = sources.find(s => s.companySlug === slug);
       if (existingSource) {
         results.push({ slug, valid: false, error: 'Already added' });
@@ -223,7 +286,6 @@ export default function SourcesPage() {
       });
       const data = await res.json();
       if (data.success) {
-        // Clear cached parsing details to force reload
         setParsingDetails(prev => {
           const newDetails = { ...prev };
           delete newDetails[sourceId];
@@ -231,7 +293,6 @@ export default function SourcesPage() {
         });
         alert(`Import completed: ${data.stats.created} created, ${data.stats.skipped} skipped, ${data.stats.failed} failed`);
         fetchSources();
-        // If this source is expanded, reload details
         if (expandedSourceId === sourceId) {
           fetchParsingDetails(sourceId);
         }
@@ -275,7 +336,56 @@ export default function SourcesPage() {
     }
   }
 
-  // Group sources by type
+  async function addTag(sourceId: string, tag: string) {
+    if (!tag.trim()) return;
+    try {
+      await fetch(`/api/admin/sources/${sourceId}/tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tag: tag.trim() }),
+      });
+      setNewTagInput(prev => ({ ...prev, [sourceId]: '' }));
+      fetchSources();
+    } catch (error) {
+      console.error('Failed to add tag:', error);
+    }
+  }
+
+  async function removeTag(sourceId: string, tag: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    try {
+      await fetch(`/api/admin/sources/${sourceId}/tags?tag=${encodeURIComponent(tag)}`, {
+        method: 'DELETE',
+      });
+      fetchSources();
+    } catch (error) {
+      console.error('Failed to remove tag:', error);
+    }
+  }
+
+  // Bulk operations
+  async function bulkOperation(action: string, filter?: Record<string, unknown>) {
+    setBulkLoading(action);
+    try {
+      const res = await fetch('/api/admin/sources/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, filter }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        fetchSources();
+      } else {
+        alert(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      alert(`Error: ${error}`);
+    } finally {
+      setBulkLoading(null);
+    }
+  }
+
   const leverSources = sources.filter(s => s.sourceType === 'LEVER');
 
   const formatDate = (date: string | null) => {
@@ -288,6 +398,13 @@ export default function SourcesPage() {
     });
   };
 
+  const getScoreColor = (score: number | null) => {
+    if (score === null) return 'text-gray-400';
+    if (score >= 70) return 'text-green-600';
+    if (score >= 40) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
   return (
     <div>
       <div className="mb-8">
@@ -295,6 +412,180 @@ export default function SourcesPage() {
         <p className="text-muted-foreground mt-1">
           Configure and manage job data sources
         </p>
+      </div>
+
+      {/* Overview Stats */}
+      {overview && (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <div className="text-2xl font-bold">{overview.total}</div>
+              <div className="text-xs text-muted-foreground">Total Sources</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <div className="text-2xl font-bold text-green-600">{overview.active}</div>
+              <div className="text-xs text-muted-foreground">Active</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <div className="text-2xl font-bold text-gray-500">{overview.paused}</div>
+              <div className="text-xs text-muted-foreground">Paused</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <div className="text-2xl font-bold text-red-600">{overview.withErrors}</div>
+              <div className="text-xs text-muted-foreground">With Errors</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <div className="text-2xl font-bold text-green-600">{overview.byQuality.high}</div>
+              <div className="text-xs text-muted-foreground">High Quality</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <div className="text-2xl font-bold">{overview.totalImported.toLocaleString()}</div>
+              <div className="text-xs text-muted-foreground">Total Imported</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <div className="text-2xl font-bold text-blue-600">+{overview.weeklyImported}</div>
+              <div className="text-xs text-muted-foreground">This Week</div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Bulk Actions */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => bulkOperation('recalculate-scores')}
+          disabled={bulkLoading !== null}
+        >
+          {bulkLoading === 'recalculate-scores' ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <RefreshCw className="h-4 w-4 mr-2" />
+          )}
+          Recalculate Scores
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => bulkOperation('enable', { isActive: false })}
+          disabled={bulkLoading !== null}
+        >
+          {bulkLoading === 'enable' ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <PlayCircle className="h-4 w-4 mr-2" />
+          )}
+          Enable All Paused
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => bulkOperation('disable', { qualityStatus: 'low' })}
+          disabled={bulkLoading !== null}
+        >
+          {bulkLoading === 'disable' ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <Pause className="h-4 w-4 mr-2" />
+          )}
+          Pause Low Quality
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (confirm('Run ALL active sources? This may take a while.')) {
+              bulkOperation('run-all');
+            }
+          }}
+          disabled={bulkLoading !== null}
+        >
+          {bulkLoading === 'run-all' ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <Play className="h-4 w-4 mr-2" />
+          )}
+          Run All Active
+        </Button>
+      </div>
+
+      {/* Filters & Sorting */}
+      <div className="flex flex-wrap gap-3 mb-4 p-3 bg-muted/30 rounded-lg">
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="text-sm border rounded px-2 py-1"
+          >
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          <select
+            value={filterQuality}
+            onChange={(e) => setFilterQuality(e.target.value)}
+            className="text-sm border rounded px-2 py-1"
+          >
+            <option value="all">All Quality</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+
+        {availableTags.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Tag className="h-4 w-4 text-muted-foreground" />
+            <select
+              value={filterTag}
+              onChange={(e) => setFilterTag(e.target.value)}
+              className="text-sm border rounded px-2 py-1"
+            >
+              <option value="all">All Tags</option>
+              {availableTags.map(tag => (
+                <option key={tag} value={tag}>{tag}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 ml-auto">
+          <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="text-sm border rounded px-2 py-1"
+          >
+            <option value="name">Name</option>
+            <option value="score">Score</option>
+            <option value="totalImported">Total Imported</option>
+            <option value="lastRunAt">Last Run</option>
+          </select>
+          <button
+            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            className="text-sm px-2 py-1 border rounded hover:bg-muted"
+          >
+            {sortOrder === 'asc' ? '↑' : '↓'}
+          </button>
+        </div>
       </div>
 
       {/* Apify LinkedIn - hardcoded for now */}
@@ -331,7 +622,7 @@ export default function SourcesPage() {
       {/* Lever Sources */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Lever ATS Companies</h2>
+          <h2 className="text-xl font-semibold">Lever ATS Companies ({leverSources.length})</h2>
           <Button onClick={() => setShowAddForm(!showAddForm)} variant="outline" size="sm">
             <Plus className="h-4 w-4 mr-2" />
             Add Company
@@ -346,7 +637,7 @@ export default function SourcesPage() {
               <CardDescription>
                 Enter company slugs from their Lever careers page URLs (one per line or comma-separated).
                 <br />
-                Example: For https://jobs.lever.co/<strong>appen</strong>, enter "appen"
+                Example: For https://jobs.lever.co/<strong>appen</strong>, enter &quot;appen&quot;
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -468,16 +759,53 @@ figma"
                         <Building2 className="h-5 w-5 text-purple-600" />
                       </div>
                       <div>
-                        <div className="font-medium">{source.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          jobs.lever.co/{source.companySlug}
+                        <div className="font-medium flex items-center gap-2">
+                          {source.name}
+                          {source.qualityStatus && (
+                            <Badge
+                              variant="outline"
+                              className={`text-xs ${QUALITY_COLORS[source.qualityStatus] || ''}`}
+                            >
+                              {source.qualityStatus}
+                            </Badge>
+                          )}
+                          {source.errorCount > 0 && (
+                            <AlertTriangle className="h-4 w-4 text-red-500" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span>jobs.lever.co/{source.companySlug}</span>
+                          {source.tags.length > 0 && (
+                            <div className="flex gap-1">
+                              {source.tags.map(tag => (
+                                <Badge
+                                  key={tag}
+                                  variant="secondary"
+                                  className="text-xs cursor-pointer hover:bg-destructive hover:text-destructive-foreground"
+                                  onClick={(e) => removeTag(source.id, tag, e)}
+                                >
+                                  {tag}
+                                  <X className="h-3 w-3 ml-1" />
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-4">
-                      <div className="text-sm text-right">
-                        <div className="text-muted-foreground">Last run: {formatDate(source.lastRunAt)}</div>
+                      {/* Score */}
+                      <div className="text-right min-w-[60px]">
+                        <div className={`text-lg font-bold ${getScoreColor(source.score)}`}>
+                          {source.score !== null ? source.score : '—'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">score</div>
+                      </div>
+
+                      {/* Stats */}
+                      <div className="text-sm text-right min-w-[120px]">
+                        <div className="text-muted-foreground">Last: {formatDate(source.lastRunAt)}</div>
                         <div>
                           {source.lastCreated > 0 ? (
                             <span className="text-green-600 font-medium">+{source.lastCreated}</span>
@@ -507,12 +835,13 @@ figma"
                           variant="ghost"
                           size="icon"
                           onClick={(e) => runSource(source.id, e)}
-                          disabled={runningSourceId === source.id}
+                          disabled={runningSourceId === source.id || !source.isActive}
+                          title={!source.isActive ? 'Enable source first' : 'Run import'}
                         >
                           {runningSourceId === source.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            <Play className="h-4 w-4" />
+                            <Play className={`h-4 w-4 ${!source.isActive ? 'opacity-30' : ''}`} />
                           )}
                         </Button>
                         <Button
@@ -529,6 +858,29 @@ figma"
                   {/* Expanded content */}
                   {isExpanded && (
                     <div className="border-t bg-muted/30 px-4 py-4">
+                      {/* Tags management */}
+                      <div className="mb-4 flex items-center gap-2">
+                        <Tag className="h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Add tag..."
+                          value={newTagInput[source.id] || ''}
+                          onChange={(e) => setNewTagInput(prev => ({ ...prev, [source.id]: e.target.value }))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              addTag(source.id, newTagInput[source.id] || '');
+                            }
+                          }}
+                          className="w-32 h-8 text-sm"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => addTag(source.id, newTagInput[source.id] || '')}
+                        >
+                          Add
+                        </Button>
+                      </div>
+
                       {isLoadingDetails ? (
                         <div className="flex items-center justify-center py-4">
                           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -599,7 +951,7 @@ figma"
         ) : (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
-              No Lever companies added yet. Click "Add Company" to get started.
+              No Lever companies added yet. Click &quot;Add Company&quot; to get started.
             </CardContent>
           </Card>
         )}

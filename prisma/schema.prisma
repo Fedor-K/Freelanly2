@@ -714,11 +714,20 @@ model DataSource {
   lastSuccessAt DateTime?
   totalImported Int          @default(0)
   lastCreated   Int          @default(0)  // Jobs created in last run
+  lastFetched   Int          @default(0)  // Jobs fetched in last run (before filtering)
   lastError     String?
   errorCount    Int          @default(0)
 
   // Rate limiting
   minInterval   Int          @default(3600) // Min seconds between runs
+
+  // Quality & Scoring
+  tags          String[]     // ["tech", "healthcare", "retail", "finance"]
+  score         Float?       // 0-100 quality score
+  conversionRate Float?      // % of fetched jobs that pass whitelist
+  qualityStatus String?      // "high", "medium", "low"
+  lastScoreAt   DateTime?    // When score was last calculated
+  weeklyImported Int         @default(0)  // Jobs imported in last 7 days
 
   // Relations
   importLogs    ImportLog[]
@@ -729,6 +738,8 @@ model DataSource {
   @@unique([sourceType, companySlug]) // Can't have duplicate company for same ATS
   @@index([sourceType])
   @@index([isActive])
+  @@index([score])
+  @@index([qualityStatus])
 }
 
 // ============================================

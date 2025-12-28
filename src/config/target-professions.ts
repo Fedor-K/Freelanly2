@@ -33,9 +33,16 @@ const DATA_PATTERNS = [
   'data scientist', 'data analyst', 'data engineer',
   'ml engineer', 'machine learning', 'ai engineer', 'artificial intelligence',
   'analytics engineer', 'bi developer', 'bi analyst', 'business intelligence',
+  'bi manager', 'bi lead', // BI leadership
   'statistician', 'quantitative',
   'deep learning', 'nlp', 'natural language', 'computer vision',
   'big data', 'etl', 'data warehouse', 'data pipeline',
+  'data operations', 'data steward', 'data ops', // Data operations
+  // AI roles
+  'ai consultant', 'ml practice', 'ai practice', 'genai', 'gen ai',
+  'ai evaluator', 'data annotator', // AI training data
+  'product analytics', // Product data role
+  'vp data', 'head of data', 'vp infrastructure', // Data leadership
 ];
 
 // DevOps & Infrastructure
@@ -47,6 +54,10 @@ const DEVOPS_PATTERNS = [
   'database admin', 'dba',
   'aws', 'azure', 'gcp', 'google cloud',
   'kubernetes', 'docker', 'terraform',
+  // Tech admins
+  'zendesk admin', 'salesforce admin', 'salesforce administrator',
+  'it support', 'it professional', 'it specialist',
+  'technology manager', 'it manager', 'vp it', // IT leadership
 ];
 
 // Security
@@ -77,6 +88,7 @@ const DESIGN_PATTERNS = [
 // Product & Project
 const PRODUCT_PATTERNS = [
   'product manager', 'product owner', 'apm',
+  'product lead', 'solution owner', // Product leadership
   'program manager', 'project manager', 'pmo',
   'scrum master', 'agile coach',
   'technical program manager', 'tpm',
@@ -103,6 +115,7 @@ const CONTENT_PATTERNS = [
   'copywriter', 'content writer', 'technical writer', 'writer',
   'editor', 'copy editor', 'managing editor',
   'translator', 'localization', 'interpreter', 'linguist',
+  'translation reviewer', 'language lead', 'language specialist', // Translation QA
   'video editor', 'video producer', 'videographer',
   'animator', '3d artist', 'motion graphics',
   'content creator', 'content manager',
@@ -113,6 +126,8 @@ const SALES_PATTERNS = [
   'account executive',
   'business development', 'bdr', 'sdr', 'sales development',
   'sales engineer', 'solutions engineer', 'solution architect', 'pre-sales', 'presales',
+  'solutions consultant', 'solution consultant', // Tech pre-sales
+  'technical account manager', // Tech account management
   'sales manager', 'sales director', 'head of sales', 'vp sales',
   'partnerships', 'partner manager', 'channel manager', 'alliance manager',
   'enterprise sales', 'saas sales', 'software sales', 'tech sales',
@@ -159,8 +174,10 @@ const OPERATIONS_PATTERNS = [
   'operations manager', 'operations analyst', 'ops manager',
   'business operations', 'revops', 'revenue operations',
   'strategy', 'business analyst', 'strategy analyst',
+  'integration analyst', 'systems analyst', // Tech operations
   'chief of staff', 'executive assistant',
   'coo', 'vp operations', 'head of operations',
+  'gm ai', 'general manager ai', // AI leadership
 ];
 
 // Combine all patterns
