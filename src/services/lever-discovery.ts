@@ -2,17 +2,15 @@
  * Lever Company Discovery Service
  *
  * Scrapes Google search results to find companies using Lever ATS.
- * Uses Puppeteer with stealth plugin to avoid detection.
+ * Uses Puppeteer to automate browser.
  */
 
 import { prisma } from '@/lib/db';
 
 // Dynamic import for puppeteer to avoid build issues
 async function getPuppeteer() {
-  const puppeteer = (await import('puppeteer-extra')).default;
-  const StealthPlugin = (await import('puppeteer-extra-plugin-stealth')).default;
-  puppeteer.use(StealthPlugin());
-  return puppeteer;
+  const puppeteer = await import('puppeteer');
+  return puppeteer.default;
 }
 
 export interface DiscoveryProgress {

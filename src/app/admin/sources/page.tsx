@@ -1099,206 +1099,49 @@ figma"
                 Discover Lever Companies
               </CardTitle>
               <CardDescription>
-                Search Google to find companies using Lever ATS. This will scrape search results and extract company slugs.
+                Find new companies using Lever ATS by searching Google. Run the script locally and paste results below.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* Search settings */}
-                {!discoveryProgress && (
-                  <div className="flex flex-wrap gap-4 items-end">
-                    <div className="flex-1 min-w-[200px]">
-                      <Label htmlFor="discoveryQuery">Search Query</Label>
-                      <Input
-                        id="discoveryQuery"
-                        value={discoveryQuery}
-                        onChange={(e) => setDiscoveryQuery(e.target.value)}
-                        placeholder="site:jobs.lever.co"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div className="w-32">
-                      <Label htmlFor="maxPages">Max Pages</Label>
-                      <Input
-                        id="maxPages"
-                        type="number"
-                        min={1}
-                        max={100}
-                        value={discoveryMaxPages}
-                        onChange={(e) => setDiscoveryMaxPages(parseInt(e.target.value) || 10)}
-                        className="mt-1"
-                      />
-                    </div>
-                    <Button onClick={startDiscovery}>
-                      <Play className="h-4 w-4 mr-2" />
-                      Start Discovery
-                    </Button>
+                {/* Instructions */}
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <h4 className="font-medium mb-2">How to discover new companies:</h4>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
+                    <li>Run the discovery script on your local machine or VPS:</li>
+                    <code className="block bg-background rounded p-2 mt-1 mb-2 text-xs overflow-x-auto">
+                      npx tsx scripts/discover-lever-companies.ts &quot;site:jobs.lever.co&quot; 20
+                    </code>
+                    <li>The script will output a list of company slugs</li>
+                    <li>Copy the slugs and paste them in the <strong>Add Manual</strong> form above</li>
+                  </ol>
+                </div>
+
+                {/* Search query examples */}
+                <div className="text-sm">
+                  <p className="font-medium mb-2">Example search queries:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <code className="bg-muted px-2 py-1 rounded text-xs">site:jobs.lever.co</code>
+                    <span className="text-muted-foreground text-xs">All companies</span>
+                    <code className="bg-muted px-2 py-1 rounded text-xs">site:jobs.lever.co remote</code>
+                    <span className="text-muted-foreground text-xs">Remote-friendly</span>
+                    <code className="bg-muted px-2 py-1 rounded text-xs">site:jobs.lever.co software engineer</code>
+                    <span className="text-muted-foreground text-xs">Tech companies</span>
+                    <code className="bg-muted px-2 py-1 rounded text-xs">site:jobs.lever.co fintech</code>
+                    <span className="text-muted-foreground text-xs">Fintech</span>
+                    <code className="bg-muted px-2 py-1 rounded text-xs">site:jobs.lever.co healthcare</code>
+                    <span className="text-muted-foreground text-xs">Healthcare</span>
                   </div>
-                )}
+                </div>
 
-                {/* Progress */}
-                {discoveryProgress && (
-                  <div className="space-y-4">
-                    {/* Status header */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {discoveryProgress.status === 'running' ? (
-                          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-                        ) : discoveryProgress.status === 'completed' ? (
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                        ) : discoveryProgress.status === 'error' ? (
-                          <XCircle className="h-5 w-5 text-red-600" />
-                        ) : (
-                          <XCircle className="h-5 w-5 text-yellow-600" />
-                        )}
-                        <span className="font-medium">
-                          {discoveryProgress.status === 'running'
-                            ? 'Searching Google...'
-                            : discoveryProgress.status === 'completed'
-                            ? 'Discovery Complete'
-                            : discoveryProgress.status === 'error'
-                            ? 'Discovery Error'
-                            : 'Discovery Cancelled'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {discoveryProgress.status === 'running' ? (
-                          <Button variant="outline" size="sm" onClick={cancelDiscovery}>
-                            Cancel
-                          </Button>
-                        ) : (
-                          <Button variant="outline" size="sm" onClick={() => setDiscoveryProgress(null)}>
-                            Close
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Progress bar */}
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-muted-foreground">
-                          Page {discoveryProgress.currentPage} of {discoveryProgress.totalPages}
-                        </span>
-                        <span className="font-medium">
-                          {discoveryProgress.foundSlugs.length} companies found
-                        </span>
-                      </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-blue-600 transition-all duration-300"
-                          style={{
-                            width: `${(discoveryProgress.currentPage / discoveryProgress.totalPages) * 100}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Stats */}
-                    <div className="flex gap-6 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="text-green-600 font-semibold">{discoveryProgress.newSlugs.length}</span>
-                        <span className="text-muted-foreground">new companies</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500 font-semibold">{discoveryProgress.existingSlugs.length}</span>
-                        <span className="text-muted-foreground">already added</span>
-                      </div>
-                    </div>
-
-                    {/* Errors */}
-                    {discoveryProgress.errors.length > 0 && (
-                      <div className="text-sm">
-                        <div className="text-red-600 font-medium mb-1">Errors:</div>
-                        <div className="text-muted-foreground">
-                          {discoveryProgress.errors.slice(-3).map((err, i) => (
-                            <div key={i}>{err}</div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Results list */}
-                    {discoveryProgress.status !== 'running' && discoveryProgress.newSlugs.length > 0 && (
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium">
-                            New Companies ({discoveryProgress.newSlugs.length})
-                          </span>
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="sm" onClick={selectAllNewSlugs}>
-                              Select All
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={deselectAllSlugs}>
-                              Deselect All
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="max-h-64 overflow-y-auto border rounded p-2 space-y-1">
-                          {discoveryProgress.newSlugs.map((slug) => (
-                            <label
-                              key={slug}
-                              className={`flex items-center gap-2 text-sm p-1.5 rounded cursor-pointer hover:bg-muted ${
-                                selectedDiscoveredSlugs.has(slug) ? 'bg-green-50' : ''
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedDiscoveredSlugs.has(slug)}
-                                onChange={() => toggleDiscoveredSlug(slug)}
-                                className="rounded"
-                              />
-                              <span className="font-mono">{slug}</span>
-                              <a
-                                href={`https://jobs.lever.co/${slug}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="ml-auto text-muted-foreground hover:text-foreground"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            </label>
-                          ))}
-                        </div>
-
-                        {/* Add button */}
-                        <Button
-                          onClick={addDiscoveredSources}
-                          disabled={addingDiscovered || selectedDiscoveredSlugs.size === 0}
-                          className="mt-3"
-                        >
-                          {addingDiscovered ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          ) : (
-                            <Plus className="h-4 w-4 mr-2" />
-                          )}
-                          Add {selectedDiscoveredSlugs.size} Selected Companies
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* No results message */}
-                    {discoveryProgress.status !== 'running' && discoveryProgress.newSlugs.length === 0 && (
-                      <div className="text-sm text-muted-foreground text-center py-4">
-                        No new companies found. Try a different search query.
-                      </div>
-                    )}
+                {/* Quick tip */}
+                <div className="flex items-start gap-2 text-sm text-muted-foreground bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <strong>Tip:</strong> Run multiple searches with different keywords to find more companies.
+                    Each search returns ~100 results. Duplicates are automatically filtered when adding.
                   </div>
-                )}
-
-                {/* Search suggestions */}
-                {!discoveryProgress && (
-                  <div className="text-sm text-muted-foreground">
-                    <p className="font-medium mb-2">Search query tips:</p>
-                    <ul className="list-disc list-inside space-y-1">
-                      <li><code className="bg-muted px-1 rounded">site:jobs.lever.co</code> — all Lever companies</li>
-                      <li><code className="bg-muted px-1 rounded">site:jobs.lever.co remote</code> — remote-friendly companies</li>
-                      <li><code className="bg-muted px-1 rounded">site:jobs.lever.co software engineer</code> — tech companies</li>
-                      <li><code className="bg-muted px-1 rounded">site:jobs.lever.co fintech</code> — fintech companies</li>
-                    </ul>
-                  </div>
-                )}
+                </div>
               </div>
             </CardContent>
           </Card>

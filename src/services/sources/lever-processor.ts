@@ -95,7 +95,7 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
     if (oldJobs.length > 0) {
       console.log(`[Lever] Skipping ${oldJobs.length} jobs older than 30 days`);
       stats.skipped += oldJobs.length;
-      // Log old jobs as skipped
+      // Log old jobs as skipped (batch insert)
       await prisma.filteredJob.createMany({
         data: oldJobs.map(job => ({
           importLogId,
@@ -108,10 +108,105 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
       });
     }
 
-    // Process each fresh job
+    // OPTIMIZATION 1: Batch fetch all existing job sourceIds in one query
+    const existingJobs = await prisma.job.findMany({
+      where: {
+        OR: [
+          { sourceId: { in: freshJobs.map(j => j.id) } },
+          { sourceUrl: { in: freshJobs.map(j => j.hostedUrl) } },
+        ],
+      },
+      select: { sourceId: true, sourceUrl: true, title: true, description: true, id: true },
+    });
+    const existingSourceIds = new Set(existingJobs.map(j => j.sourceId));
+    const existingSourceUrls = new Set(existingJobs.map(j => j.sourceUrl));
+    const existingJobMap = new Map(existingJobs.map(j => [j.sourceId || j.sourceUrl, j]));
+
+    // OPTIMIZATION 2: Pre-filter jobs by whitelist BEFORE any processing
+    const jobsToProcess: LeverJob[] = [];
+    const filteredByWhitelist: LeverJob[] = [];
+
     for (const job of freshJobs) {
+      // Check if already exists
+      if (existingSourceIds.has(job.id) || existingSourceUrls.has(job.hostedUrl)) {
+        // Job exists - check if needs update (without AI call)
+        const existing = existingJobMap.get(job.id) || existingJobMap.get(job.hostedUrl);
+        if (existing) {
+          const fullDescription = buildDescription(job);
+          const needsUpdate = existing.title !== job.text || existing.description !== fullDescription;
+          if (!needsUpdate) {
+            stats.skipped++;
+            continue; // Skip completely - no change
+          }
+        }
+        jobsToProcess.push(job); // Needs update
+        continue;
+      }
+
+      // New job - apply whitelist filter BEFORE AI processing
+      const location = job.categories.location || 'Remote';
+      const locationType = mapWorkplaceType(job.workplaceType, location, undefined);
+      const filterResult = shouldSkipJob({
+        title: job.text,
+        location,
+        locationType,
+      });
+
+      if (filterResult.skip) {
+        filteredByWhitelist.push(job);
+        stats.skipped++;
+      } else {
+        jobsToProcess.push(job);
+      }
+    }
+
+    // Batch log filtered jobs
+    if (filteredByWhitelist.length > 0) {
+      console.log(`[Lever] Skipping ${filteredByWhitelist.length} jobs not matching whitelist`);
+      await prisma.filteredJob.createMany({
+        data: filteredByWhitelist.map(job => ({
+          importLogId,
+          title: job.text,
+          company: dataSource.name,
+          location: job.categories.location || null,
+          sourceUrl: job.hostedUrl,
+          reason: 'NON_TARGET_TITLE' as const,
+        })),
+      });
+    }
+
+    // Early exit if nothing to process
+    if (jobsToProcess.length === 0) {
+      console.log(`[Lever] No new jobs to process for ${dataSource.name}`);
+      // Still update stats
+      await prisma.dataSource.update({
+        where: { id: dataSourceId },
+        data: {
+          lastRunAt: new Date(),
+          lastSuccessAt: new Date(),
+          lastFetched: stats.total,
+          lastCreated: 0,
+          lastError: null,
+          errorCount: 0,
+        },
+      });
+      return stats;
+    }
+
+    console.log(`[Lever] Processing ${jobsToProcess.length} jobs (${freshJobs.length - jobsToProcess.length} skipped early)`);
+
+    // Process only jobs that passed pre-filtering
+    for (const job of jobsToProcess) {
       try {
-        const result = await processLeverJob(job, company.id, dataSource.companySlug, importLogId, dataSource.name);
+        const isExisting = existingSourceIds.has(job.id) || existingSourceUrls.has(job.hostedUrl);
+        const result = await processLeverJob(
+          job,
+          company.id,
+          dataSource.companySlug,
+          importLogId,
+          dataSource.name,
+          isExisting ? existingJobMap.get(job.id) || existingJobMap.get(job.hostedUrl) : undefined
+        );
         if (result.status === 'created') {
           stats.created++;
           if (result.jobSlug) {
@@ -126,19 +221,6 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
           stats.updated++;
         } else if (result.status === 'skipped') {
           stats.skipped++;
-          // Log filtered job if there's a filter reason
-          if (result.filterReason) {
-            await prisma.filteredJob.create({
-              data: {
-                importLogId,
-                title: job.text,
-                company: dataSource.name,
-                location: job.categories.location || null,
-                sourceUrl: job.hostedUrl,
-                reason: result.filterReason,
-              },
-            });
-          }
         }
       } catch (error) {
         stats.failed++;
@@ -191,49 +273,35 @@ async function processLeverJob(
   companyId: string,
   companySlug: string,
   importLogId: string,
-  companyName: string
+  companyName: string,
+  existingJob?: { id: string; title: string; description: string } // Pre-fetched existing job
 ): Promise<{ status: 'created' | 'updated' | 'skipped'; jobSlug?: string; jobId?: string; filterReason?: FilterReason }> {
   // Build full description (with RESPONSIBILITIES, QUALIFICATIONS, etc.)
   const fullDescription = buildDescription(job);
 
-  // Check if job already exists
-  const existingJob = await prisma.job.findFirst({
-    where: {
-      OR: [
-        { sourceId: job.id },
-        { sourceUrl: job.hostedUrl },
-      ],
-    },
-  });
-
+  // Handle existing job update (already checked in batch, so just update)
   if (existingJob) {
-    // Update if description changed (compare full built description)
-    const needsUpdate = existingJob.title !== job.text ||
-      existingJob.description !== fullDescription;
+    // Re-process through AI if updating
+    console.log(`[Lever] Updating job through AI: ${job.text}`);
+    const aiData = await extractJobData(fullDescription);
 
-    if (needsUpdate) {
-      // Re-process through AI if updating
-      const aiData = await extractJobData(fullDescription);
-
-      await prisma.job.update({
-        where: { id: existingJob.id },
-        data: {
-          title: job.text,
-          description: fullDescription,
-          cleanDescription: aiData?.cleanDescription || null,
-          summaryBullets: aiData?.summaryBullets || [],
-          requirementBullets: aiData?.requirementBullets || [],
-          benefitBullets: aiData?.benefitBullets || [],
-          updatedAt: new Date(),
-        },
-      });
-      return { status: 'updated' };
-    }
-    return { status: 'skipped', filterReason: 'DUPLICATE' };
+    await prisma.job.update({
+      where: { id: existingJob.id },
+      data: {
+        title: job.text,
+        description: fullDescription,
+        cleanDescription: aiData?.cleanDescription || null,
+        summaryBullets: aiData?.summaryBullets || [],
+        requirementBullets: aiData?.requirementBullets || [],
+        benefitBullets: aiData?.benefitBullets || [],
+        updatedAt: new Date(),
+      },
+    });
+    return { status: 'updated' };
   }
 
-  // Process through DeepSeek AI for clean description
-  console.log(`[Lever] Processing through AI: ${job.text}`);
+  // NEW JOB: Process through DeepSeek AI for clean description
+  console.log(`[Lever] Processing new job through AI: ${job.text}`);
   const aiData = await extractJobData(fullDescription);
 
   // Get category (check department first, then title as fallback)
@@ -250,22 +318,10 @@ async function processLeverJob(
   const baseSlug = slugify(`${job.text}-${companySlug}-${shortId}`);
   const slug = await generateUniqueJobSlug(baseSlug);
 
-  // Parse location
+  // Parse location (whitelist filter already applied in batch pre-processing)
   const location = job.categories.location || 'Remote';
-  // Use Lever workplaceType if available, otherwise fall back to AI detection
   const locationType = mapWorkplaceType(job.workplaceType, location, aiData?.isRemote);
   const country = extractCountryCode(location);
-
-  // Apply global job filter (whitelist-based profession matching)
-  const filterResult = shouldSkipJob({
-    title: job.text,
-    location,
-    locationType,
-  });
-  if (filterResult.skip) {
-    console.log(`[Lever] Skipping job: ${job.text} (${filterResult.reason})`);
-    return { status: 'skipped', filterReason: 'NON_TARGET_TITLE' as FilterReason };
-  }
 
   // Parse level from title or department
   const level = extractLevel(job.text);
