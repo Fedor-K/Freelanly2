@@ -61,6 +61,7 @@ const FILTER_REASON_LABELS: Record<string, string> = {
   NO_TITLE: 'no title extracted',
   NO_EMAIL: 'no corporate email',
   SPAM: 'spam/announcement',
+  TOO_OLD: 'older than 30 days',
   OTHER: 'other',
 };
 

@@ -91,10 +91,21 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
     // Filter out jobs older than 30 days (no point importing them)
     const maxAgeDate = getMaxJobAgeDate();
     const freshJobs = jobs.filter(job => new Date(job.createdAt) >= maxAgeDate);
-    const skippedOld = jobs.length - freshJobs.length;
-    if (skippedOld > 0) {
-      console.log(`[Lever] Skipping ${skippedOld} jobs older than 30 days`);
-      stats.skipped += skippedOld;
+    const oldJobs = jobs.filter(job => new Date(job.createdAt) < maxAgeDate);
+    if (oldJobs.length > 0) {
+      console.log(`[Lever] Skipping ${oldJobs.length} jobs older than 30 days`);
+      stats.skipped += oldJobs.length;
+      // Log old jobs as skipped
+      await prisma.filteredJob.createMany({
+        data: oldJobs.map(job => ({
+          importLogId,
+          title: job.text,
+          company: dataSource.name,
+          location: job.categories.location || null,
+          sourceUrl: job.hostedUrl,
+          reason: 'TOO_OLD' as const,
+        })),
+      });
     }
 
     // Process each fresh job
