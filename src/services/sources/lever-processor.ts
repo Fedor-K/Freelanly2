@@ -1,12 +1,13 @@
 import { prisma } from '@/lib/db';
 import { slugify, getMaxJobAgeDate } from '@/lib/utils';
 import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@/services/company-enrichment';
-import { cleanupOldJobs } from '@/services/job-cleanup';
+import { cleanupOldJobs, cleanupOldParsingLogs } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
 import { addToSocialQueue } from '@/services/social-post';
 import { shouldSkipJob, isPhysicalLocation } from '@/lib/job-filter';
-import type { ProcessingStats, LeverJob } from './types';
+import type { ProcessingStats, ProcessorContext, LeverJob } from './types';
+import type { FilterReason } from '@prisma/client';
 
 // Fetch real company website from Lever job page footer
 async function fetchCompanyWebsiteFromLever(companySlug: string, jobId: string): Promise<string | null> {
@@ -33,7 +34,9 @@ async function fetchCompanyWebsiteFromLever(companySlug: string, jobId: string):
   }
 }
 
-export async function processLeverSource(dataSourceId: string): Promise<ProcessingStats> {
+export async function processLeverSource(context: ProcessorContext): Promise<ProcessingStats> {
+  const { importLogId, dataSourceId } = context;
+
   const stats: ProcessingStats = {
     total: 0,
     created: 0,
@@ -42,6 +45,7 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
     failed: 0,
     errors: [],
     createdJobUrls: [],
+    createdJobIds: [],
   };
 
   // Reset DeepSeek usage stats for this run
@@ -96,7 +100,7 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
     // Process each fresh job
     for (const job of freshJobs) {
       try {
-        const result = await processLeverJob(job, company.id, dataSource.companySlug);
+        const result = await processLeverJob(job, company.id, dataSource.companySlug, importLogId, dataSource.name);
         if (result.status === 'created') {
           stats.created++;
           if (result.jobSlug) {
@@ -105,11 +109,25 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
           // Add to social post queue
           if (result.jobId) {
             await addToSocialQueue(result.jobId);
+            stats.createdJobIds!.push(result.jobId);
           }
         } else if (result.status === 'updated') {
           stats.updated++;
         } else if (result.status === 'skipped') {
           stats.skipped++;
+          // Log filtered job if there's a filter reason
+          if (result.filterReason) {
+            await prisma.filteredJob.create({
+              data: {
+                importLogId,
+                title: job.text,
+                company: dataSource.name,
+                location: job.categories.location || null,
+                sourceUrl: job.hostedUrl,
+                reason: result.filterReason,
+              },
+            });
+          }
         }
       } catch (error) {
         stats.failed++;
@@ -132,6 +150,7 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
 
     // Cleanup old jobs after successful import
     await cleanupOldJobs();
+    await cleanupOldParsingLogs();
 
     // Log DeepSeek usage stats
     const aiStats = getDeepSeekUsageStats();
@@ -158,8 +177,10 @@ export async function processLeverSource(dataSourceId: string): Promise<Processi
 async function processLeverJob(
   job: LeverJob,
   companyId: string,
-  companySlug: string
-): Promise<{ status: 'created' | 'updated' | 'skipped'; jobSlug?: string; jobId?: string }> {
+  companySlug: string,
+  importLogId: string,
+  companyName: string
+): Promise<{ status: 'created' | 'updated' | 'skipped'; jobSlug?: string; jobId?: string; filterReason?: FilterReason }> {
   // Build full description (with RESPONSIBILITIES, QUALIFICATIONS, etc.)
   const fullDescription = buildDescription(job);
 
@@ -196,7 +217,7 @@ async function processLeverJob(
       });
       return { status: 'updated' };
     }
-    return { status: 'skipped' };
+    return { status: 'skipped', filterReason: 'DUPLICATE' };
   }
 
   // Process through DeepSeek AI for clean description
@@ -231,7 +252,13 @@ async function processLeverJob(
   });
   if (filterResult.skip) {
     console.log(`[Lever] Skipping job: ${job.text} (${filterResult.reason})`);
-    return { status: 'skipped' };
+    // Map filter reason to FilterReason enum
+    const filterReason: FilterReason = filterResult.reason?.includes('non-target')
+      ? 'NON_TARGET_TITLE'
+      : filterResult.reason?.includes('physical') || filterResult.reason?.includes('HYBRID') || filterResult.reason?.includes('ONSITE')
+        ? 'PHYSICAL_LOCATION'
+        : 'OTHER';
+    return { status: 'skipped', filterReason };
   }
 
   // Parse level from title or department

@@ -309,6 +309,7 @@ model Job {
   alertNotifications AlertNotification[]
   socialPosts   SocialPostQueue[]
   applyAttempts ApplyAttempt[]
+  importedJobs  ImportedJob[]
 
   @@unique([companyId, title], name: "unique_job_title_per_company")
   @@index([categoryId])
@@ -610,6 +611,10 @@ model ImportLog {
   startedAt     DateTime  @default(now())
   completedAt   DateTime?
 
+  // Relations
+  filteredJobs  FilteredJob[]
+  importedJobs  ImportedJob[]
+
   @@index([source])
   @@index([dataSourceId])
   @@index([startedAt(sort: Desc)])
@@ -620,6 +625,63 @@ enum ImportStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+// Filtered jobs - stored for 20 days for debugging
+model FilteredJob {
+  id            String       @id @default(cuid())
+
+  // Link to import run
+  importLog     ImportLog    @relation(fields: [importLogId], references: [id], onDelete: Cascade)
+  importLogId   String
+
+  // Job info (what was filtered)
+  title         String
+  company       String       // Company name at time of filtering
+  location      String?
+  sourceUrl     String?      // Original URL if available
+
+  // Filter reason
+  reason        FilterReason
+
+  // Raw data for debugging (optional)
+  rawData       Json?
+
+  createdAt     DateTime     @default(now())
+
+  @@index([importLogId])
+  @@index([reason])
+  @@index([createdAt])
+}
+
+enum FilterReason {
+  NON_TARGET_TITLE      // Medical, food, logistics, etc.
+  PHYSICAL_LOCATION     // On-site job, specific city
+  DUPLICATE             // Exact duplicate by sourceUrl or title+company
+  SIMILAR_EXISTS        // Fuzzy duplicate (same email domain + similar title)
+  NO_TITLE              // AI couldn't extract title
+  NO_EMAIL              // No corporate email found
+  SPAM                  // Announcement, not a job
+  OTHER                 // Other reason
+}
+
+// Track which jobs were created in each import run
+model ImportedJob {
+  id            String       @id @default(cuid())
+
+  // Link to import run
+  importLog     ImportLog    @relation(fields: [importLogId], references: [id], onDelete: Cascade)
+  importLogId   String
+
+  // Link to created job
+  job           Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId         String
+
+  createdAt     DateTime     @default(now())
+
+  @@unique([importLogId, jobId])
+  @@index([importLogId])
+  @@index([jobId])
 }
 
 // ============================================

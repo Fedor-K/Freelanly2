@@ -1,13 +1,13 @@
 import { prisma } from '@/lib/db';
 import { Source } from '@prisma/client';
-import type { ProcessingStats } from './types';
+import type { ProcessingStats, ProcessorContext } from './types';
 import { processLeverSource } from './lever-processor';
 import { notifySearchEngines } from '@/lib/indexing';
 
 export * from './types';
 
 // Map source types to their processors
-const SOURCE_PROCESSORS: Partial<Record<Source, (dataSourceId: string) => Promise<ProcessingStats>>> = {
+const SOURCE_PROCESSORS: Partial<Record<Source, (context: ProcessorContext) => Promise<ProcessingStats>>> = {
   LEVER: processLeverSource,
   // TODO: Add more processors
   // GREENHOUSE: processGreenhouseSource,
@@ -45,7 +45,18 @@ export async function processDataSource(dataSourceId: string): Promise<Processin
   });
 
   try {
-    const stats = await processor(dataSourceId);
+    const stats = await processor({ importLogId: importLog.id, dataSourceId });
+
+    // Create ImportedJob records for tracking
+    if (stats.createdJobIds && stats.createdJobIds.length > 0) {
+      await prisma.importedJob.createMany({
+        data: stats.createdJobIds.map((jobId) => ({
+          importLogId: importLog.id,
+          jobId,
+        })),
+        skipDuplicates: true,
+      });
+    }
 
     // Update import log
     await prisma.importLog.update({

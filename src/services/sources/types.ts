@@ -9,11 +9,18 @@ export interface ProcessingStats {
   errors: string[];
   // URLs of created jobs for search engine indexing
   createdJobUrls?: string[];
+  // IDs of created jobs for linking to ImportLog
+  createdJobIds?: string[];
+}
+
+export interface ProcessorContext {
+  importLogId: string;
+  dataSourceId: string;
 }
 
 export interface SourceProcessor {
   sourceType: Source;
-  process(dataSourceId: string): Promise<ProcessingStats>;
+  process(context: ProcessorContext): Promise<ProcessingStats>;
 }
 
 export interface LeverJob {

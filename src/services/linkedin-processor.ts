@@ -11,11 +11,12 @@ import { getApifySettings } from '@/lib/settings';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify, isFreeEmail, cleanEmail, extractDomainFromEmail } from '@/lib/utils';
 import { validateAndEnrichCompany } from '@/services/company-enrichment';
-import { cleanupOldJobs } from '@/services/job-cleanup';
+import { cleanupOldJobs, cleanupOldParsingLogs } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
 import { addToSocialQueue } from '@/services/social-post';
 import { shouldSkipJob } from '@/lib/job-filter';
+import type { FilterReason } from '@prisma/client';
 
 // Re-export for cron endpoint
 export { HIRING_SEARCH_QUERIES };
@@ -28,6 +29,14 @@ interface ProcessedJob {
   error?: string;
 }
 
+interface FilteredJobInfo {
+  title: string;
+  company: string;
+  location: string | null;
+  sourceUrl: string | null;
+  reason: FilterReason;
+}
+
 interface ProcessingStats {
   total: number;
   processed: number;
@@ -36,6 +45,8 @@ interface ProcessingStats {
   failed: number;
   errors: string[];
   createdJobUrls: string[];
+  createdJobIds: string[];
+  filteredJobs: FilteredJobInfo[];
 }
 
 // Fetch and process LinkedIn hiring posts (triggers new Apify run)
@@ -53,6 +64,8 @@ export async function fetchAndProcessLinkedInPosts(options?: {
     failed: 0,
     errors: [],
     createdJobUrls: [],
+    createdJobIds: [],
+    filteredJobs: [],
   };
 
   // Create import log
@@ -80,6 +93,31 @@ export async function fetchAndProcessLinkedInPosts(options?: {
     // 2. Process posts
     await processPostsBatch(posts, stats);
 
+    // Save ImportedJob records
+    if (stats.createdJobIds.length > 0) {
+      await prisma.importedJob.createMany({
+        data: stats.createdJobIds.map((jobId) => ({
+          importLogId: importLog.id,
+          jobId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    // Save FilteredJob records
+    if (stats.filteredJobs.length > 0) {
+      await prisma.filteredJob.createMany({
+        data: stats.filteredJobs.map((fj) => ({
+          importLogId: importLog.id,
+          title: fj.title,
+          company: fj.company,
+          location: fj.location,
+          sourceUrl: fj.sourceUrl,
+          reason: fj.reason,
+        })),
+      });
+    }
+
     // Update import log
     await prisma.importLog.update({
       where: { id: importLog.id },
@@ -105,6 +143,7 @@ export async function fetchAndProcessLinkedInPosts(options?: {
 
     // Cleanup old jobs after successful import
     await cleanupOldJobs();
+    await cleanupOldParsingLogs();
 
     return stats;
   } catch (error) {
@@ -132,6 +171,8 @@ export async function processPostsFromDataset(datasetId: string): Promise<Proces
     failed: 0,
     errors: [],
     createdJobUrls: [],
+    createdJobIds: [],
+    filteredJobs: [],
   };
 
   const importLog = await prisma.importLog.create({
@@ -148,6 +189,31 @@ export async function processPostsFromDataset(datasetId: string): Promise<Proces
     console.log(`Fetched ${posts.length} posts from dataset`);
 
     await processPostsBatch(posts, stats);
+
+    // Save ImportedJob records
+    if (stats.createdJobIds.length > 0) {
+      await prisma.importedJob.createMany({
+        data: stats.createdJobIds.map((jobId) => ({
+          importLogId: importLog.id,
+          jobId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    // Save FilteredJob records
+    if (stats.filteredJobs.length > 0) {
+      await prisma.filteredJob.createMany({
+        data: stats.filteredJobs.map((fj) => ({
+          importLogId: importLog.id,
+          title: fj.title,
+          company: fj.company,
+          location: fj.location,
+          sourceUrl: fj.sourceUrl,
+          reason: fj.reason,
+        })),
+      });
+    }
 
     await prisma.importLog.update({
       where: { id: importLog.id },
@@ -173,6 +239,7 @@ export async function processPostsFromDataset(datasetId: string): Promise<Proces
 
     // Cleanup old jobs after successful import
     await cleanupOldJobs();
+    await cleanupOldParsingLogs();
 
     return stats;
   } catch (error) {
@@ -199,6 +266,8 @@ export async function processPostsFromRun(runId: string): Promise<ProcessingStat
     failed: 0,
     errors: [],
     createdJobUrls: [],
+    createdJobIds: [],
+    filteredJobs: [],
   };
 
   const importLog = await prisma.importLog.create({
@@ -215,6 +284,31 @@ export async function processPostsFromRun(runId: string): Promise<ProcessingStat
     console.log(`Fetched ${posts.length} posts from run`);
 
     await processPostsBatch(posts, stats);
+
+    // Save ImportedJob records
+    if (stats.createdJobIds.length > 0) {
+      await prisma.importedJob.createMany({
+        data: stats.createdJobIds.map((jobId) => ({
+          importLogId: importLog.id,
+          jobId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    // Save FilteredJob records
+    if (stats.filteredJobs.length > 0) {
+      await prisma.filteredJob.createMany({
+        data: stats.filteredJobs.map((fj) => ({
+          importLogId: importLog.id,
+          title: fj.title,
+          company: fj.company,
+          location: fj.location,
+          sourceUrl: fj.sourceUrl,
+          reason: fj.reason,
+        })),
+      });
+    }
 
     await prisma.importLog.update({
       where: { id: importLog.id },
@@ -240,6 +334,7 @@ export async function processPostsFromRun(runId: string): Promise<ProcessingStat
 
     // Cleanup old jobs after successful import
     await cleanupOldJobs();
+    await cleanupOldParsingLogs();
 
     return stats;
   } catch (error) {
@@ -256,6 +351,17 @@ export async function processPostsFromRun(runId: string): Promise<ProcessingStat
   }
 }
 
+// Map error message to FilterReason
+function mapErrorToFilterReason(error: string): FilterReason | null {
+  if (error === 'duplicate') return 'DUPLICATE';
+  if (error.includes('No corporate email')) return 'NO_EMAIL';
+  if (error.includes('Could not extract job title')) return 'NO_TITLE';
+  if (error.includes('Company validation failed')) return 'NO_EMAIL'; // Apollo validation = no legit company
+  if (error.includes('non-target')) return 'NON_TARGET_TITLE';
+  if (error.includes('physical') || error.includes('ONSITE') || error.includes('HYBRID')) return 'PHYSICAL_LOCATION';
+  return 'OTHER';
+}
+
 // Process a batch of posts
 async function processPostsBatch(posts: LinkedInPost[], stats: ProcessingStats): Promise<void> {
   for (const post of posts) {
@@ -265,15 +371,28 @@ async function processPostsBatch(posts: LinkedInPost[], stats: ProcessingStats):
 
       if (result.success && result.jobId) {
         stats.created++;
+        stats.createdJobIds.push(result.jobId);
         if (result.companySlug && result.jobSlug) {
           stats.createdJobUrls.push(buildJobUrl(result.companySlug, result.jobSlug));
         }
       } else if (result.error === 'duplicate') {
         stats.skipped++;
+        // Don't log duplicates as filtered - they're just skipped
       } else {
         stats.failed++;
         if (result.error) {
           stats.errors.push(result.error);
+          // Track filtered job
+          const reason = mapErrorToFilterReason(result.error);
+          if (reason) {
+            stats.filteredJobs.push({
+              title: post.content.slice(0, 100), // First 100 chars as title
+              company: post.authorName || 'Unknown',
+              location: null,
+              sourceUrl: post.url,
+              reason,
+            });
+          }
         }
       }
 

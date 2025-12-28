@@ -11,6 +11,7 @@ import {
   FileText,
   Settings,
   ChevronDown,
+  Filter,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,7 @@ const navigation = [
     ],
   },
   { name: 'Import Logs', href: '/admin/logs', icon: FileText },
+  { name: 'Parsing Stats', href: '/admin/parsing', icon: Filter },
 ];
 
 function NavItem({
