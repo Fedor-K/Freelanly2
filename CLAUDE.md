@@ -653,6 +653,10 @@ npx prisma db push --force-reset
 82. **Spam filter for LinkedIn** — `isAnnouncementNotJob()` filters research papers, promotions, certifications
 83. **SEO: noindex multi-filter URLs** — `/jobs?level=X&country=Y` pages are noindexed to prevent duplicate content
 84. **SEO: noindex /companies?industry=** — industry filter URLs blocked (have spaces in URLs)
+85. **Blog post formatting** — proper markdown with links, tables, cross-linking between posts
+86. **Auto salary estimation** — all new jobs get estimated salary via formula if not provided
+87. **BLS matching fix** — conservative occupation code matching (no keyword fallbacks)
+88. **Salary discrepancy fix** — fixed 316 jobs showing wrong Salary Insights due to BLS mismatch
 
 ## Code Patterns
 
