@@ -7,8 +7,6 @@ import { Button } from '@/components/ui/button';
 import {
   ChevronDown,
   ChevronRight,
-  CheckCircle,
-  XCircle,
   Clock,
   Database,
   Loader2,
@@ -56,25 +54,14 @@ interface SourceGroup {
 }
 
 const FILTER_REASON_LABELS: Record<string, string> = {
-  NON_TARGET_TITLE: 'Non-target title',
-  PHYSICAL_LOCATION: 'Physical location',
-  DUPLICATE: 'Duplicate',
-  SIMILAR_EXISTS: 'Similar exists',
-  NO_TITLE: 'No title extracted',
-  NO_EMAIL: 'No corporate email',
-  SPAM: 'Spam/announcement',
-  OTHER: 'Other',
-};
-
-const FILTER_REASON_COLORS: Record<string, string> = {
-  NON_TARGET_TITLE: 'bg-orange-100 text-orange-700',
-  PHYSICAL_LOCATION: 'bg-blue-100 text-blue-700',
-  DUPLICATE: 'bg-gray-100 text-gray-700',
-  SIMILAR_EXISTS: 'bg-purple-100 text-purple-700',
-  NO_TITLE: 'bg-red-100 text-red-700',
-  NO_EMAIL: 'bg-yellow-100 text-yellow-700',
-  SPAM: 'bg-pink-100 text-pink-700',
-  OTHER: 'bg-gray-100 text-gray-600',
+  NON_TARGET_TITLE: 'non-target title',
+  PHYSICAL_LOCATION: 'physical location',
+  DUPLICATE: 'duplicate',
+  SIMILAR_EXISTS: 'similar exists',
+  NO_TITLE: 'no title extracted',
+  NO_EMAIL: 'no corporate email',
+  SPAM: 'spam/announcement',
+  OTHER: 'other',
 };
 
 export default function ParsingDashboardPage() {
@@ -225,14 +212,10 @@ export default function ParsingDashboardPage() {
                       {formatDate(group.lastRunAt)}
                     </div>
 
-                    <div className="flex items-center gap-1 text-green-600">
-                      <CheckCircle className="h-4 w-4" />
-                      <span className="font-medium">+{group.totalAdded}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1 text-red-500">
-                      <XCircle className="h-4 w-4" />
-                      <span className="font-medium">-{group.totalFiltered}</span>
+                    <div className="text-sm">
+                      <span className="text-green-600 font-medium">+{group.totalAdded}</span>
+                      <span className="text-muted-foreground mx-1">/</span>
+                      <span className="text-muted-foreground">-{group.totalFiltered}</span>
                     </div>
                   </div>
                 </div>
@@ -267,56 +250,47 @@ export default function ParsingDashboardPage() {
                             <div className="grid md:grid-cols-2 gap-4">
                               {/* Added jobs */}
                               <div>
-                                <h4 className="text-sm font-medium text-green-700 mb-2 flex items-center gap-1">
-                                  <CheckCircle className="h-4 w-4" />
-                                  Добавлено ({run.addedJobs.length})
+                                <h4 className="text-sm font-medium text-green-700 mb-2">
+                                  Added ({run.addedJobs.length})
                                 </h4>
                                 {run.addedJobs.length > 0 ? (
-                                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                                  <div className="space-y-1 max-h-64 overflow-y-auto">
                                     {run.addedJobs.map((job) => (
                                       <a
                                         key={job.id}
                                         href={`/company/${job.companySlug}/jobs/${job.slug}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center gap-2 text-sm p-2 bg-green-50 rounded hover:bg-green-100 transition-colors group"
+                                        className="flex items-center gap-2 text-sm py-1.5 px-2 hover:bg-green-50 rounded transition-colors group"
                                       >
                                         <span className="truncate flex-1">{job.title}</span>
-                                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                                       </a>
                                     ))}
                                   </div>
                                 ) : (
-                                  <p className="text-sm text-muted-foreground">No jobs added</p>
+                                  <p className="text-sm text-muted-foreground italic">—</p>
                                 )}
                               </div>
 
-                              {/* Filtered jobs */}
+                              {/* Skipped jobs */}
                               <div>
-                                <h4 className="text-sm font-medium text-red-700 mb-2 flex items-center gap-1">
-                                  <XCircle className="h-4 w-4" />
-                                  Отфильтровано ({run.filteredJobs.length})
+                                <h4 className="text-sm font-medium text-muted-foreground mb-2">
+                                  Skipped ({run.filteredJobs.length})
                                 </h4>
                                 {run.filteredJobs.length > 0 ? (
-                                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                                  <div className="space-y-2 max-h-64 overflow-y-auto">
                                     {run.filteredJobs.map((job) => (
-                                      <div
-                                        key={job.id}
-                                        className="flex items-center justify-between text-sm p-2 bg-red-50 rounded"
-                                      >
-                                        <span className="truncate flex-1 mr-2">{job.title}</span>
-                                        <span
-                                          className={`text-xs px-2 py-0.5 rounded ${
-                                            FILTER_REASON_COLORS[job.reason] || 'bg-gray-100'
-                                          }`}
-                                        >
+                                      <div key={job.id} className="py-1.5 px-2">
+                                        <div className="text-sm truncate">{job.title}</div>
+                                        <div className="text-xs text-muted-foreground">
                                           {FILTER_REASON_LABELS[job.reason] || job.reason}
-                                        </span>
+                                        </div>
                                       </div>
                                     ))}
                                   </div>
                                 ) : (
-                                  <p className="text-sm text-muted-foreground">No jobs filtered</p>
+                                  <p className="text-sm text-muted-foreground italic">—</p>
                                 )}
                               </div>
                             </div>

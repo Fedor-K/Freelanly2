@@ -377,7 +377,14 @@ async function processPostsBatch(posts: LinkedInPost[], stats: ProcessingStats):
         }
       } else if (result.error === 'duplicate') {
         stats.skipped++;
-        // Don't log duplicates as filtered - they're just skipped
+        // Log duplicates as skipped
+        stats.filteredJobs.push({
+          title: post.content.slice(0, 100),
+          company: post.authorName || 'Unknown',
+          location: null,
+          sourceUrl: post.url,
+          reason: 'DUPLICATE',
+        });
       } else {
         stats.failed++;
         if (result.error) {
