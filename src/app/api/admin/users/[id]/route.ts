@@ -45,7 +45,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     // Delete related data first (cascade doesn't always work)
     await prisma.$transaction([
-      prisma.alertNotification.deleteMany({ where: { alert: { userId: id } } }),
+      prisma.alertNotification.deleteMany({ where: { jobAlert: { userId: id } } }),
       prisma.alertLanguagePair.deleteMany({ where: { jobAlert: { userId: id } } }),
       prisma.jobAlert.deleteMany({ where: { userId: id } }),
       prisma.savedJob.deleteMany({ where: { userId: id } }),
