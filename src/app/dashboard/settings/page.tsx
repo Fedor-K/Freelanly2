@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { SettingsForm } from './SettingsForm';
 import { CancelSubscriptionSection } from './CancelSubscriptionSection';
 import { DeleteAccountSection } from './DeleteAccountSection';
+import { ManageSubscriptionButton } from './ManageSubscriptionButton';
 
 export const metadata: Metadata = {
   title: 'Settings',
@@ -28,6 +29,7 @@ export default async function SettingsPage() {
       createdAt: true,
       subscriptionEndsAt: true,
       stripeSubscriptionId: true,
+      stripeId: true,
     },
   });
 
@@ -76,6 +78,16 @@ export default async function SettingsPage() {
               </span>
             </div>
           </div>
+
+          {/* Manage Subscription button for users with Stripe account */}
+          {user.stripeId && (
+            <div className="mt-6 pt-4 border-t">
+              <p className="text-sm text-gray-600 mb-3">
+                Update payment method, view invoices, or change your plan
+              </p>
+              <ManageSubscriptionButton />
+            </div>
+          )}
         </div>
 
         {/* Cancel subscription (only for PRO users with active subscription) */}
