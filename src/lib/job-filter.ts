@@ -1,13 +1,24 @@
 /**
- * Job filtering module - filters jobs based on target professions
+ * ============================================================================
+ * JOB IMPORT RULE — ЕДИНСТВЕННОЕ ПРАВИЛО ФИЛЬТРАЦИИ
+ * ============================================================================
  *
- * NEW APPROACH (Dec 2024):
- * - WHITELIST: Only import jobs matching target professions
- * - Location type (remote/hybrid/onsite) is NO LONGER a filter
- * - All location types are imported if profession matches
- * - Users can filter by location type on the frontend
+ * Вакансия импортируется ТОЛЬКО если title соответствует whitelist профессий.
  *
- * Target audience: tech/digital professionals
+ * ПРАВИЛО:
+ * 1. Blacklist (приоритет) → запрещённые слова в title → НЕ импортировать
+ * 2. Whitelist → целевые профессии в title → импортировать
+ * 3. Ни то, ни другое → НЕ импортировать
+ *
+ * ЧТО НЕ ФИЛЬТРУЕТСЯ:
+ * - Тип локации (REMOTE/HYBRID/ONSITE) — все импортируются
+ * - Страна
+ * - Уровень (Junior/Senior)
+ *
+ * Фильтрация по локации происходит на ФРОНТЕНДЕ, не при импорте.
+ *
+ * ЕДИНСТВЕННЫЙ ИСТОЧНИК ПРАВДЫ: src/config/target-professions.ts
+ * ============================================================================
  */
 
 import { shouldImportByProfession } from '@/config/target-professions';
@@ -154,12 +165,16 @@ export function isNonRemoteLocationType(locationType: string | null | undefined)
 }
 
 /**
- * Main filter function: returns true if job should be SKIPPED
+ * ============================================================================
+ * shouldSkipJob — ГЛАВНАЯ ФУНКЦИЯ ФИЛЬТРАЦИИ
+ * ============================================================================
  *
- * NEW LOGIC:
- * - Only checks if profession is in whitelist
- * - Does NOT filter by location type anymore
- * - Hybrid/Onsite jobs with matching professions are imported
+ * Возвращает { skip: true } если вакансию НЕ нужно импортировать.
+ *
+ * Проверяет ТОЛЬКО title по whitelist/blacklist профессий.
+ * НЕ проверяет: locationType, location, country, level.
+ *
+ * @see src/config/target-professions.ts — единственный источник правды
  */
 export function shouldSkipJob(params: {
   title: string;
@@ -168,13 +183,12 @@ export function shouldSkipJob(params: {
 }): { skip: boolean; reason?: string } {
   const { title } = params;
 
-  // Check if profession matches our target audience
+  // Единственная проверка: соответствует ли title whitelist профессий
   if (!shouldImportByProfession(title)) {
     return { skip: true, reason: 'non-target profession' };
   }
 
-  // Location type is NO LONGER a filter
-  // All location types (remote, hybrid, onsite) are now imported
+  // locationType НЕ является фильтром — все типы импортируются
 
   return { skip: false };
 }

@@ -289,6 +289,32 @@ N8N_SOCIAL_WEBHOOK_URL=https://n8n.freelanly.com/webhook/c78f8a78-bd4b-4254-af59
 
 ## Key Architecture Decisions
 
+### ⚠️ Job Import Rule (ЕДИНСТВЕННОЕ ПРАВИЛО)
+
+**Вакансия импортируется ТОЛЬКО если её title соответствует whitelist целевых профессий.**
+
+```
+ПРАВИЛО ИМПОРТА:
+1. Blacklist (приоритет) → title содержит запрещённые слова → НЕ импортировать
+2. Whitelist → title содержит целевые профессии → импортировать
+3. Ни то, ни другое → НЕ импортировать
+```
+
+**Что НЕ является фильтром при импорте:**
+- ❌ Тип локации (REMOTE/HYBRID/ONSITE) — НЕ фильтруется
+- ❌ Страна
+- ❌ Уровень (Junior/Senior)
+
+**Фильтрация по локации** происходит на фронтенде пользователем, не при импорте.
+
+**Файлы:**
+- `src/config/target-professions.ts` — whitelist/blacklist паттерны (ЕДИНСТВЕННЫЙ ИСТОЧНИК ПРАВДЫ)
+- `src/lib/job-filter.ts` → `shouldSkipJob()` — применяет правило
+- Все процессоры (Lever, LinkedIn, etc.) используют `shouldSkipJob()`
+
+**Blacklist примеры:** driver, nurse, accountant, teacher, cook, warehouse, mechanic
+**Whitelist примеры:** developer, engineer, designer, product manager, data scientist, marketing manager
+
 ### 21 Job Categories
 ```
 Tech: engineering, design, data, devops, qa, security

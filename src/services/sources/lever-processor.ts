@@ -1,3 +1,18 @@
+/**
+ * ============================================================================
+ * LEVER PROCESSOR
+ * ============================================================================
+ *
+ * Импортирует вакансии из Lever ATS.
+ *
+ * ПРАВИЛО ФИЛЬТРАЦИИ (см. src/config/target-professions.ts):
+ * - Импортируются ТОЛЬКО вакансии с title из whitelist профессий
+ * - Тип локации (REMOTE/HYBRID/ONSITE) НЕ фильтруется — все импортируются
+ * - Фильтрация по локации — на фронтенде
+ *
+ * ============================================================================
+ */
+
 import { prisma } from '@/lib/db';
 import { slugify, getMaxJobAgeDate } from '@/lib/utils';
 import { ensureSalaryData } from '@/lib/salary-estimation';
@@ -149,7 +164,12 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
     const existingSourceUrls = new Set(existingJobs.map(j => j.sourceUrl));
     const existingJobMap = new Map(existingJobs.map(j => [j.sourceId || j.sourceUrl, j]));
 
-    // OPTIMIZATION 2: Pre-filter jobs by whitelist BEFORE any processing
+    // =========================================================================
+    // ФИЛЬТРАЦИЯ ПО WHITELIST ПРОФЕССИЙ
+    // Единственное правило: title должен соответствовать whitelist
+    // locationType НЕ фильтруется — REMOTE/HYBRID/ONSITE все импортируются
+    // См. src/config/target-professions.ts
+    // =========================================================================
     const jobsToProcess: LeverJob[] = [];
     const filteredByWhitelist: LeverJob[] = [];
 
@@ -160,7 +180,7 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
         continue; // Already in DB - no need to reprocess
       }
 
-      // New job - apply whitelist filter BEFORE AI processing
+      // ЕДИНСТВЕННЫЙ ФИЛЬТР: whitelist профессий по title
       const location = job.categories.location || 'Remote';
       const locationType = mapWorkplaceType(job.workplaceType, location, undefined);
       const filterResult = shouldSkipJob({
