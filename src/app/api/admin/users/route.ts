@@ -102,9 +102,19 @@ export async function GET(request: NextRequest) {
     });
 
     // Calculate stats for each user
+    // Session lifetime is 30 days, so lastLogin = expires - 30 days
+    const SESSION_LIFETIME_DAYS = 30;
     const usersWithStats = users.map(user => {
       const activeSessions = user.sessions.filter(s => new Date(s.expires) > now);
       const lastSession = user.sessions[0];
+
+      // Calculate actual login date from session expiry
+      let lastLoginAt = null;
+      if (lastSession) {
+        const expiryDate = new Date(lastSession.expires);
+        lastLoginAt = new Date(expiryDate.getTime() - SESSION_LIFETIME_DAYS * 24 * 60 * 60 * 1000);
+      }
+
       const totalNotificationsSent = user.jobAlerts.reduce(
         (sum, alert) => sum + alert._count.notifications,
         0
@@ -114,7 +124,7 @@ export async function GET(request: NextRequest) {
       return {
         ...user,
         stats: {
-          lastLoginAt: lastSession ? lastSession.expires : null,
+          lastLoginAt,
           activeSessions: activeSessions.length,
           activeAlerts,
           totalAlerts: user.jobAlerts.length,

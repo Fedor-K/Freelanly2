@@ -22,7 +22,6 @@ import {
   Trash2,
   Filter,
   X,
-  Bookmark,
   FileText,
 } from 'lucide-react';
 
@@ -44,7 +43,6 @@ interface UserStats {
   activeAlerts: number;
   totalAlerts: number;
   totalNotificationsSent: number;
-  savedJobs: number;
   applications: number;
 }
 
@@ -60,7 +58,6 @@ interface User {
   emailVerified: string | null;
   _count: {
     jobAlerts: number;
-    savedJobs: number;
     applications: number;
   };
   jobAlerts: JobAlert[];
@@ -421,10 +418,16 @@ export default function UsersPage() {
                           <span>{user.name || 'No name'}</span>
                           <span>·</span>
                           <span>Joined {formatDate(user.createdAt)}</span>
+                          {user.emailVerified && (
+                            <>
+                              <span>·</span>
+                              <span className="text-green-600">Verified {formatDate(user.emailVerified)}</span>
+                            </>
+                          )}
                           {user.stats.lastLoginAt && (
                             <>
                               <span>·</span>
-                              <span>Last: {formatDateTime(user.stats.lastLoginAt)}</span>
+                              <span>Last login: {formatDateTime(user.stats.lastLoginAt)}</span>
                             </>
                           )}
                         </div>
@@ -438,12 +441,6 @@ export default function UsersPage() {
                           <span title="Alerts (active/total)" className="flex items-center gap-1">
                             <Bell className="h-3 w-3" />
                             {user.stats.activeAlerts}/{user.stats.totalAlerts}
-                          </span>
-                        )}
-                        {user.stats.savedJobs > 0 && (
-                          <span title="Saved jobs" className="flex items-center gap-1">
-                            <Bookmark className="h-3 w-3" />
-                            {user.stats.savedJobs}
                           </span>
                         )}
                         {user.stats.applications > 0 && (
@@ -506,12 +503,22 @@ export default function UsersPage() {
                           </h4>
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Active Sessions</span>
-                              <span>{user.stats.activeSessions}</span>
+                              <span className="text-muted-foreground">Registered</span>
+                              <span>{formatDate(user.createdAt)}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Saved Jobs</span>
-                              <span>{user.stats.savedJobs}</span>
+                              <span className="text-muted-foreground">Email Verified</span>
+                              <span className={user.emailVerified ? 'text-green-600' : 'text-yellow-600'}>
+                                {user.emailVerified ? formatDate(user.emailVerified) : 'Not verified'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Last Login</span>
+                              <span>{user.stats.lastLoginAt ? formatDateTime(user.stats.lastLoginAt) : 'Never'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Active Sessions</span>
+                              <span>{user.stats.activeSessions}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Applications</span>
