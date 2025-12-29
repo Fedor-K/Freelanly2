@@ -79,15 +79,31 @@ export default async function SettingsPage() {
             </div>
           </div>
 
-          {/* Manage Subscription button for users with Stripe account */}
-          {user.stripeId && (
-            <div className="mt-6 pt-4 border-t">
-              <p className="text-sm text-gray-600 mb-3">
-                Update payment method, view invoices, or change your plan
-              </p>
-              <ManageSubscriptionButton />
-            </div>
-          )}
+          {/* Subscription management */}
+          <div className="mt-6 pt-4 border-t">
+            {user.stripeId ? (
+              <>
+                <p className="text-sm text-gray-600 mb-3">
+                  Update payment method, view invoices, or change your plan
+                </p>
+                <ManageSubscriptionButton />
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600 mb-3">
+                  {user.plan === 'FREE'
+                    ? 'Upgrade to PRO to unlock all features'
+                    : 'Link your subscription to manage billing'}
+                </p>
+                <a
+                  href="/pricing"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+                >
+                  {user.plan === 'FREE' ? 'Upgrade to PRO' : 'View Plans'}
+                </a>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Cancel subscription (only for PRO users with active subscription) */}
