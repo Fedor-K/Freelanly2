@@ -487,7 +487,7 @@ export default async function JobPage({ params }: JobPageProps) {
                   country={job.country}
                   categoryId={job.categoryId}
                   level={job.level}
-                  categorySlug={job.category.slug}
+                  categorySlug={job.category?.slug ?? null}
                   salaryMin={job.salaryMin}
                   salaryMax={job.salaryMax}
                   salaryCurrency={job.salaryCurrency}

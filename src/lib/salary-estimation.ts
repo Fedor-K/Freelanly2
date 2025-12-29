@@ -33,7 +33,8 @@ export function calculateEstimatedSalary(
 ): EstimatedSalary {
   const baseSalary = getBaseSalary(categorySlug || 'support');
   const levelMultiplier = getLevelMultiplier(level);
-  const countryData = getCountryCoefficient(country);
+  // Default to US for remote jobs without country (matches salary-insights.ts logic)
+  const countryData = getCountryCoefficient(country || 'US');
 
   // Calculate estimated annual salary in USD
   const estimatedUSD = Math.round(baseSalary * levelMultiplier * countryData.coefficient);
