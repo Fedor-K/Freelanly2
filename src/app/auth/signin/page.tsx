@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { SignInForm } from '@/components/auth/SignInForm';
+import { RegistrationForm } from '@/components/auth/RegistrationForm';
 
 export const metadata: Metadata = {
   title: 'Sign In',
@@ -33,10 +33,10 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             Freelanly
           </a>
           <h1 className="mt-6 text-2xl font-semibold text-gray-900">
-            Sign in to your account
+            Get Started Free
           </h1>
           <p className="mt-2 text-gray-600">
-            Save jobs and track your applications
+            Create an account to apply to jobs and get instant alerts
           </p>
         </div>
 
@@ -53,8 +53,10 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           </div>
         )}
 
-        {/* Sign in form */}
-        <SignInForm callbackUrl={params.callbackUrl} />
+        {/* Registration form */}
+        <div className="bg-white p-8 rounded-xl shadow-sm border">
+          <RegistrationForm callbackUrl={params.callbackUrl} />
+        </div>
 
         {/* Footer */}
         <p className="mt-8 text-center text-sm text-gray-500">

@@ -508,6 +508,7 @@ export default async function JobPage({ params }: JobPageProps) {
                     companyName={job.company.name}
                     jobDescription={job.description}
                     userPlan={userPlan}
+                    isAuthenticated={!!session}
                   />
 
                   {/* LinkedIn Links - PRO only */}

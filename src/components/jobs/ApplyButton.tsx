@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { QuickApplyModal } from './QuickApplyModal';
 import { UpgradeModal } from './UpgradeModal';
+import { RegistrationModal } from '@/components/auth/RegistrationModal';
 import { track } from '@/lib/analytics';
-import { Lock } from 'lucide-react';
+import { Lock, LogIn } from 'lucide-react';
 
 export type UserPlan = 'FREE' | 'PRO' | 'ENTERPRISE';
 
@@ -18,6 +19,7 @@ interface ApplyButtonProps {
   companyName: string;
   jobDescription: string;
   userPlan?: UserPlan;
+  isAuthenticated?: boolean;
 }
 
 export function ApplyButton({
@@ -29,16 +31,44 @@ export function ApplyButton({
   companyName,
   jobDescription,
   userPlan = 'FREE',
+  isAuthenticated = false,
 }: ApplyButtonProps) {
   const [showQuickApply, setShowQuickApply] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [showRegistration, setShowRegistration] = useState(false);
   const isPro = userPlan === 'PRO' || userPlan === 'ENTERPRISE';
 
   const handleApplyClick = (method: 'url' | 'email' | 'linkedin') => {
     track({ name: 'job_apply_click', params: { job_id: jobId, method } });
   };
 
-  // FREE users see upgrade modal
+  // Unauthenticated users see registration modal
+  if (!isAuthenticated) {
+    return (
+      <>
+        <Button
+          className="w-full"
+          size="lg"
+          onClick={() => {
+            track({ name: 'registration_modal_open', params: { job_id: jobId } });
+            setShowRegistration(true);
+          }}
+        >
+          <LogIn className="mr-2 h-4 w-4" />
+          Login to Apply
+        </Button>
+        <RegistrationModal
+          open={showRegistration}
+          onClose={() => setShowRegistration(false)}
+          jobId={jobId}
+          jobTitle={jobTitle}
+          companyName={companyName}
+        />
+      </>
+    );
+  }
+
+  // Authenticated FREE users see upgrade modal
   if (!isPro) {
     return (
       <>

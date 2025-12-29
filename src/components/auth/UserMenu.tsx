@@ -3,10 +3,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
+import { RegistrationModal } from './RegistrationModal';
 
 export function UserMenu() {
   const { data: session, status } = useSession();
   const [isOpen, setIsOpen] = useState(false);
+  const [showRegistration, setShowRegistration] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu when clicking outside
@@ -28,15 +30,21 @@ export function UserMenu() {
     );
   }
 
-  // Not logged in - show sign in button
+  // Not logged in - show sign in button that opens modal
   if (!session?.user) {
     return (
-      <Link
-        href="/auth/signin"
-        className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
-      >
-        Sign In
-      </Link>
+      <>
+        <button
+          onClick={() => setShowRegistration(true)}
+          className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+        >
+          Sign In
+        </button>
+        <RegistrationModal
+          open={showRegistration}
+          onClose={() => setShowRegistration(false)}
+        />
+      </>
     );
   }
 

@@ -44,7 +44,8 @@
       "Bash(node:*)",
       "Bash(git restore:*)",
       "Bash(APOLLO_API_KEY1=\"3qf8GsG-C_CAxjFH35WtNA\" DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx tsx:*)",
-      "Bash(APOLLO_API_KEY1=\"3qf8GsG-C_CAxjFH35WtNA\" DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx tsx -e \"\nconst { enrichCompaniesByName } = require\\(''''./src/services/company-enrichment''''\\);\n\nasync function main\\(\\) {\n  console.log\\(''''Starting enrichment...''''\\);\n  const stats = await enrichCompaniesByName\\(100\\);\n  console.log\\(''''\\\\n=== RESULTS ===''''\\);\n  console.log\\(''''Total:'''', stats.total\\);\n  console.log\\(''''Enriched:'''', stats.enriched\\);\n  console.log\\(''''Skipped \\(no Apollo data\\):'''', stats.skipped\\);\n  console.log\\(''''Failed:'''', stats.failed\\);\n}\n\nmain\\(\\);\n\")"
+      "Bash(APOLLO_API_KEY1=\"3qf8GsG-C_CAxjFH35WtNA\" DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx tsx -e \"\nconst { enrichCompaniesByName } = require\\(''''./src/services/company-enrichment''''\\);\n\nasync function main\\(\\) {\n  console.log\\(''''Starting enrichment...''''\\);\n  const stats = await enrichCompaniesByName\\(100\\);\n  console.log\\(''''\\\\n=== RESULTS ===''''\\);\n  console.log\\(''''Total:'''', stats.total\\);\n  console.log\\(''''Enriched:'''', stats.enriched\\);\n  console.log\\(''''Skipped \\(no Apollo data\\):'''', stats.skipped\\);\n  console.log\\(''''Failed:'''', stats.failed\\);\n}\n\nmain\\(\\);\n\")",
+      "WebFetch(domain:www.freelanly.com)"
     ]
   }
 }

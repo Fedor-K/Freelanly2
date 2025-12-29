@@ -49,6 +49,44 @@ GOOGLE_CLIENT_ID=xxx
 GOOGLE_CLIENT_SECRET=xxx
 ```
 
+### Registration Flow (2-Step Funnel)
+Пользователи регистрируются через форму при попытке откликнуться на вакансию.
+
+**Flow:**
+1. User clicks "Login to Apply" on job page (unauthenticated)
+2. RegistrationModal opens with form:
+   - Email (required)
+   - Name (optional)
+   - Categories (multi-select dropdown, required)
+   - Country (optional)
+   - Language pairs (conditional, if translation selected)
+3. User submits → `/api/auth/register` creates:
+   - User record (pre-created, not verified yet)
+   - JobAlerts (one per category, frequency=INSTANT)
+4. Magic link sent via DashaMail
+5. User clicks link → verified, redirected to /dashboard
+6. User receives INSTANT alerts for matching jobs
+7. FREE user hits paywall when trying to apply → UpgradeModal → /pricing
+
+**Why 2-step funnel:**
+- Captures email BEFORE paywall (unlike direct /pricing flow)
+- Auto-subscribes to job alerts → nurture emails → conversion
+- Previous experience: 3% conversion rate with this model
+
+**Files:**
+- `src/components/auth/RegistrationForm.tsx` — Reusable registration form component
+- `src/components/auth/RegistrationModal.tsx` — Modal wrapper for RegistrationForm
+- `src/app/api/auth/register/route.ts` — Creates user + alerts
+- `src/app/auth/signin/page.tsx` — Uses RegistrationForm (full page)
+- `src/components/auth/UserMenu.tsx` — "Sign In" opens RegistrationModal
+- `src/components/jobs/ApplyButton.tsx` — Shows "Login to Apply" for unauth users
+- `src/app/pricing/PricingCards.tsx` — Shows RegistrationModal on subscribe click
+
+**ApplyButton behavior:**
+- `isAuthenticated=false` → "Login to Apply" → RegistrationModal
+- `isAuthenticated=true, userPlan=FREE` → "Upgrade to Apply" → UpgradeModal
+- `isAuthenticated=true, userPlan=PRO` → "Apply Now" → actual apply
+
 ### User Plans & Stripe Integration
 | Feature | FREE | PRO |
 |---------|------|-----|
@@ -453,8 +491,10 @@ src/
 │   │   └── AlertsList.tsx         # Alerts management component
 │   ├── settings/page.tsx          # User settings
 │   └── settings/CancelSubscriptionSection.tsx # Cancel with survey
-├── components/auth/UserMenu.tsx   # Header user menu
-├── components/auth/SignInForm.tsx # Login form component
+├── components/auth/UserMenu.tsx   # Header user menu (opens RegistrationModal)
+├── components/auth/RegistrationForm.tsx # Reusable registration form
+├── components/auth/RegistrationModal.tsx # Modal wrapper for RegistrationForm
+├── app/api/auth/register/route.ts # Pre-registration API (creates user + alerts)
 ├── components/jobs/SaveJobButton.tsx # Save/unsave job button
 ├── app/api/user/
 │   ├── alerts/route.ts            # Job alerts CRUD
@@ -657,6 +697,8 @@ npx prisma db push --force-reset
 86. **Auto salary estimation** — all new jobs get estimated salary via formula if not provided
 87. **BLS matching fix** — conservative occupation code matching (no keyword fallbacks)
 88. **Salary discrepancy fix** — fixed 316 jobs showing wrong Salary Insights due to BLS mismatch
+89. **2-step registration funnel** — RegistrationModal with multi-select categories, auto-creates INSTANT job alerts
+90. **Login to Apply** — unauthenticated users see "Login to Apply" → registration form instead of direct paywall
 
 ## Code Patterns
 
@@ -712,6 +754,102 @@ return {
 - `/jobs/translation/[pair]/page.tsx`
 - `/country/[countrySlug]/page.tsx`
 - `/country/[countrySlug]/jobs/[roleSlug]/page.tsx`
+
+### Blog Content Guidelines (REQUIRED)
+
+All blog posts MUST follow these quality standards. Reference: `/blog/remote-work-statistics-2026`
+
+**❌ НЕ ДЕЛАТЬ (SEO-мусор):**
+- Округлённые цифры без источников ("28% of workers...")
+- Размытые ссылки ("Stanford research shows...")
+- Generic советы ("Tips for job seekers")
+- Bullet-point списки без контекста
+- Предсказания будущего без данных
+
+**✅ ДЕЛАТЬ (качественная аналитика):**
+
+1. **Конкретные источники с датами и ссылками:**
+```markdown
+❌ "Stanford research shows remote workers are more productive"
+✅ "[Bureau of Labor Statistics](https://www.bls.gov/news.release/flex2.nr0.htm) data from Q1 2024 shows the U.S. telework rate reached **22.9%**"
+✅ "Stanford economist Nicholas Bloom's landmark [2024 Nature publication](https://www.nature.com/articles/s41586-024-07500-2) studying 1,612 Trip.com employees"
+```
+
+2. **Точные цифры, не округлённые:**
+```markdown
+❌ "About 30% of workers"
+✅ "**34.6 million Americans** telework regularly—representing **22.1%** of the workforce"
+```
+
+3. **Показывать противоречия в данных (не cherry-picking):**
+```markdown
+✅ "Fortune/LinkedIn: remote workers earn **9.7% more**"
+✅ "However, Levels.fyi data specific to tech tells a different story: **~8% remote discount**"
+✅ "Yet NBER research reveals that at the same company/level, remote pays **1.1% premium**"
+```
+
+4. **Контекст и сравнения:**
+```markdown
+❌ "Remote work has increased"
+✅ "22.9%—up from 19.6% year-over-year... compared to just **6.5%** pre-pandemic in 2019, demonstrating **3.5x higher** than baseline"
+```
+
+5. **Внутренние ссылки на Freelanly (перелинковка):**
+```markdown
+📖 **Related:** [Remote Developer Salaries 2026](/blog/remote-developer-salaries-2026-complete-guide) | [Browse Remote Jobs](/jobs)
+
+🎯 **Find your role:** [Remote DevOps Jobs](/jobs/devops) | [Remote Marketing Jobs](/jobs/marketing)
+
+🌍 **Work from anywhere:** [Remote Jobs in Germany](/jobs/country/germany) | [Remote Jobs in UK](/jobs/country/united-kingdom)
+```
+
+6. **Внешние ссылки на источники (inline):**
+```markdown
+[Gallup's May 2024 survey](https://www.gallup.com/workplace/511994/future-office-arrived-hybrid.aspx) of remote-capable jobs...
+[Stack Overflow's 2024 Developer Survey](https://survey.stackoverflow.co/2024/) (65,437 respondents)...
+```
+
+7. **Секция источников в конце:**
+```markdown
+## Key sources
+
+- [Bureau of Labor Statistics](https://www.bls.gov/) — U.S. employment and telework data
+- [Stanford WFH Research](https://wfhresearch.com/) — Nicholas Bloom's remote work studies
+- [Gallup Workplace](https://www.gallup.com/workplace/) — Employee engagement surveys
+- [Levels.fyi](https://www.levels.fyi/) — Tech compensation data
+```
+
+8. **CTA в конце статьи:**
+```markdown
+🎯 **Ready to find your next remote role?** [Browse all remote jobs on Freelanly](/jobs)
+```
+
+**Структура статьи:**
+1. Вступление с ключевыми цифрами и источниками
+2. "📖 Related:" блок с перелинковкой
+3. Разделы с H2 заголовками, данными и inline-ссылками
+4. Таблицы с конкретными данными (не generic)
+5. CTA блоки между разделами ("🎯 Find your role:", "🌍 Work from anywhere:")
+6. "## Key sources" секция в конце
+7. Финальный CTA
+
+**Частые источники для ссылок:**
+- BLS: `https://www.bls.gov/`
+- Stanford WFH: `https://wfhresearch.com/`
+- Gallup: `https://www.gallup.com/workplace/`
+- McKinsey: `https://www.mckinsey.com/`
+- Stack Overflow Survey: `https://survey.stackoverflow.co/`
+- Levels.fyi: `https://www.levels.fyi/`
+- GitHub Octoverse: `https://github.blog/news-insights/octoverse/`
+- Buffer State of Remote: `https://buffer.com/state-of-remote-work`
+- FlexJobs: `https://www.flexjobs.com/`
+
+**Внутренние страницы для перелинковки:**
+- `/jobs` — все вакансии
+- `/jobs/[category]` — по категориям (engineering, marketing, design, etc.)
+- `/jobs/country/[country]` — по странам
+- `/blog/[slug]` — другие статьи блога
+- `/pricing` — страница тарифов
 
 ## Notes
 

@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { RegistrationModal } from '@/components/auth/RegistrationModal';
 import { PRICE_INFO, type PriceKey } from '@/lib/stripe';
 
 const plans: Array<{
@@ -19,16 +19,18 @@ const plans: Array<{
 
 export function PricingCards() {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const [loading, setLoading] = useState<PriceKey | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<PriceKey | null>(null);
 
   const handleSubscribe = async (priceKey: PriceKey) => {
     setError(null);
 
-    // If not logged in, redirect to sign in
+    // If not logged in, show registration modal
     if (!session?.user) {
-      router.push(`/auth/signin?callbackUrl=/pricing&plan=${priceKey}`);
+      setSelectedPlan(priceKey);
+      setShowRegistration(true);
       return;
     }
 
@@ -163,6 +165,13 @@ export function PricingCards() {
       <p className="text-center text-sm text-muted-foreground">
         Secure payment powered by Stripe. Cancel anytime.
       </p>
+
+      {/* Registration Modal */}
+      <RegistrationModal
+        open={showRegistration}
+        onClose={() => setShowRegistration(false)}
+        callbackUrl={selectedPlan ? `/pricing?plan=${selectedPlan}` : '/pricing'}
+      />
     </div>
   );
 }

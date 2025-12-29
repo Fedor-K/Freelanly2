@@ -48,6 +48,7 @@ export type AnalyticsEvent =
   | { name: 'job_alert_unsubscribe'; params: Record<string, never> }
 
   // Conversion events
+  | { name: 'registration_modal_open'; params: { job_id: string } }
   | { name: 'upgrade_modal_open'; params: { job_id: string } }
   | { name: 'upgrade_click'; params: { source: 'paywall' | 'pricing' | 'banner' | 'email' } }
   | { name: 'upgrade_complete'; params: { plan: 'pro' | 'enterprise'; amount: number } }
