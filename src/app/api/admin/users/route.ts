@@ -71,7 +71,6 @@ export async function GET(request: NextRequest) {
         _count: {
           select: {
             jobAlerts: true,
-            savedJobs: true,
             applications: true,
           },
         },
@@ -120,7 +119,6 @@ export async function GET(request: NextRequest) {
           activeAlerts,
           totalAlerts: user.jobAlerts.length,
           totalNotificationsSent,
-          savedJobs: user._count.savedJobs,
           applications: user._count.applications,
         },
       };

@@ -48,7 +48,6 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       prisma.alertNotification.deleteMany({ where: { jobAlert: { userId: id } } }),
       prisma.alertLanguagePair.deleteMany({ where: { jobAlert: { userId: id } } }),
       prisma.jobAlert.deleteMany({ where: { userId: id } }),
-      prisma.savedJob.deleteMany({ where: { userId: id } }),
       prisma.application.deleteMany({ where: { userId: id } }),
       prisma.applyAttempt.deleteMany({ where: { userId: id } }),
       prisma.session.deleteMany({ where: { userId: id } }),
