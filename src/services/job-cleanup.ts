@@ -2,6 +2,35 @@ import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 
 /**
+ * Cleanup orphaned companies (companies with no jobs)
+ * Should run after job cleanup to remove companies whose jobs were deleted
+ */
+export async function cleanupOrphanedCompanies(): Promise<{ deleted: number }> {
+  const orphanedCompanies = await prisma.company.findMany({
+    where: {
+      jobs: { none: {} }
+    },
+    select: { id: true }
+  });
+
+  if (orphanedCompanies.length === 0) {
+    return { deleted: 0 };
+  }
+
+  const deleted = await prisma.company.deleteMany({
+    where: {
+      id: { in: orphanedCompanies.map(c => c.id) }
+    }
+  });
+
+  if (deleted.count > 0) {
+    console.log(`🗑️ Cleaned up ${deleted.count} orphaned companies (no jobs)`);
+  }
+
+  return { deleted: deleted.count };
+}
+
+/**
  * Cleanup old/inactive jobs that are no longer shown on the site
  * Jobs older than 7 days (MAX_JOB_AGE_DAYS) or inactive are deleted
  */

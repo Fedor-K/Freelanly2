@@ -36,7 +36,7 @@ function createLimiter(concurrency: number) {
   };
 }
 import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@/services/company-enrichment';
-import { cleanupOldJobs, cleanupOldParsingLogs } from '@/services/job-cleanup';
+import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
 import { addToSocialQueue } from '@/services/social-post';
@@ -297,8 +297,9 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
       },
     });
 
-    // Cleanup old jobs after successful import
+    // Cleanup old jobs and orphaned companies after successful import
     await cleanupOldJobs();
+    await cleanupOrphanedCompanies();
     await cleanupOldParsingLogs();
 
     // Log DeepSeek usage stats

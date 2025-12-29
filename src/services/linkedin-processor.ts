@@ -12,7 +12,7 @@ import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/li
 import { slugify, isFreeEmail, cleanEmail, extractDomainFromEmail } from '@/lib/utils';
 import { ensureSalaryData } from '@/lib/salary-estimation';
 import { validateAndEnrichCompany } from '@/services/company-enrichment';
-import { cleanupOldJobs, cleanupOldParsingLogs } from '@/services/job-cleanup';
+import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
 import { addToSocialQueue } from '@/services/social-post';
@@ -142,8 +142,9 @@ export async function fetchAndProcessLinkedInPosts(options?: {
       }
     }
 
-    // Cleanup old jobs after successful import
+    // Cleanup old jobs and orphaned companies after successful import
     await cleanupOldJobs();
+    await cleanupOrphanedCompanies();
     await cleanupOldParsingLogs();
 
     return stats;
@@ -238,8 +239,9 @@ export async function processPostsFromDataset(datasetId: string): Promise<Proces
       }
     }
 
-    // Cleanup old jobs after successful import
+    // Cleanup old jobs and orphaned companies after successful import
     await cleanupOldJobs();
+    await cleanupOrphanedCompanies();
     await cleanupOldParsingLogs();
 
     return stats;
@@ -333,8 +335,9 @@ export async function processPostsFromRun(runId: string): Promise<ProcessingStat
       }
     }
 
-    // Cleanup old jobs after successful import
+    // Cleanup old jobs and orphaned companies after successful import
     await cleanupOldJobs();
+    await cleanupOrphanedCompanies();
     await cleanupOldParsingLogs();
 
     return stats;
