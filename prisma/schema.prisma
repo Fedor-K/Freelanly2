@@ -662,7 +662,7 @@ enum FilterReason {
   NO_TITLE              // AI couldn't extract title
   NO_EMAIL              // No corporate email found
   SPAM                  // Announcement, not a job
-  TOO_OLD               // Job older than 30 days
+  TOO_OLD               // Job older than 7 days (MAX_JOB_AGE_DAYS)
   OTHER                 // Other reason
 }
 

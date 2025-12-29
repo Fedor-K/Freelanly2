@@ -12,7 +12,7 @@ SEO-оптимизированная платформа для поиска уд
 - Hourly cron: sends trial onboarding emails (Day 0, 2, 5, 6, 7)
 - Cron every 15 min: posts 1 job to LinkedIn + Telegram via n8n
 - n8n workflow: scrapes LinkedIn posts every 15-20 min via Apify
-- Auto cleanup: removes jobs older than 30 days after each import
+- Auto cleanup: removes jobs older than 7 days after each import
 - Company enrichment via Apollo.io
 
 ## Tech Stack
@@ -289,15 +289,18 @@ N8N_SOCIAL_WEBHOOK_URL=https://n8n.freelanly.com/webhook/c78f8a78-bd4b-4254-af59
 
 ## Key Architecture Decisions
 
-### ⚠️ Job Import Rule (ЕДИНСТВЕННОЕ ПРАВИЛО)
+### ⚠️ Job Import Rules (ЕДИНСТВЕННЫЕ ПРАВИЛА)
 
-**Вакансия импортируется ТОЛЬКО если её title соответствует whitelist целевых профессий.**
+**Вакансия импортируется ТОЛЬКО если:**
+1. Title соответствует whitelist целевых профессий
+2. Вакансия не старше 7 дней
 
 ```
 ПРАВИЛО ИМПОРТА:
-1. Blacklist (приоритет) → title содержит запрещённые слова → НЕ импортировать
-2. Whitelist → title содержит целевые профессии → импортировать
-3. Ни то, ни другое → НЕ импортировать
+1. TOO_OLD → вакансия старше 7 дней → НЕ импортировать
+2. Blacklist (приоритет) → title содержит запрещённые слова → НЕ импортировать
+3. Whitelist → title содержит целевые профессии → импортировать
+4. Ни то, ни другое → НЕ импортировать
 ```
 
 **Что НЕ является фильтром при импорте:**
@@ -308,6 +311,7 @@ N8N_SOCIAL_WEBHOOK_URL=https://n8n.freelanly.com/webhook/c78f8a78-bd4b-4254-af59
 **Фильтрация по локации** происходит на фронтенде пользователем, не при импорте.
 
 **Файлы:**
+- `src/lib/utils.ts` → `MAX_JOB_AGE_DAYS = 7` — максимальный возраст вакансии
 - `src/config/target-professions.ts` — whitelist/blacklist паттерны (ЕДИНСТВЕННЫЙ ИСТОЧНИК ПРАВДЫ)
 - `src/lib/job-filter.ts` → `shouldSkipJob()` — применяет правило
 - Все процессоры (Lever, LinkedIn, etc.) используют `shouldSkipJob()`
@@ -337,8 +341,8 @@ Other: support, education, research, consulting
 - Fuzzy dedup: `src/app/api/webhooks/linkedin-posts/route.ts` → `findSimilarJobByEmailDomain()`
 
 ### Job Freshness
-- 30-day max age (Google recommendation)
-- `src/lib/utils.ts` → `MAX_JOB_AGE_DAYS`, `getMaxJobAgeDate()`
+- **7-day max age** (reduced for better relevance)
+- `src/lib/utils.ts` → `MAX_JOB_AGE_DAYS = 7`, `getMaxJobAgeDate()`
 
 ### Filters (/jobs page)
 - URL-based state: `?q=search&level=SENIOR&type=FULL_TIME`
@@ -486,7 +490,7 @@ src/
 ├── lib/bls.ts                     # BLS API client (US salary data)
 ├── lib/adzuna.ts                  # Adzuna API client (international salary)
 ├── services/linkedin-processor.ts # LinkedIn → Job (with dedup)
-├── services/job-cleanup.ts        # Auto cleanup old jobs (30 days)
+├── services/job-cleanup.ts        # Auto cleanup old jobs (7 days)
 ├── services/company-enrichment.ts # Apollo.io enrichment
 ├── services/salary-insights.ts    # Salary market data service
 ├── services/alert-matcher.ts      # Match jobs to user alerts
@@ -650,7 +654,7 @@ npx prisma db push --force-reset
 13. **DB salary filter** — MIN_ANNUAL_SALARY = $10000 to filter out hourly rates stored incorrectly
 14. **Graceful error handling** — SalaryBenchmark table missing doesn't crash the app
 15. **Real salary display** — show actual salary from job posting when available (not just market estimates)
-16. **Auto job cleanup** — automatic deletion of jobs older than 30 days after each import
+16. **Auto job cleanup** — automatic deletion of jobs older than 7 days after each import
 17. **Multiple ATS sources** — added RemoteOK, WeWorkRemotely, HackerNews processors
 18. **Daily cron job** — all sources run automatically at 6:00 UTC
 19. **Salary re-extraction** — script to re-extract salaries from existing job descriptions
@@ -893,7 +897,7 @@ All blog posts MUST follow these quality standards. Reference: `/blog/remote-wor
 5. **Primary hosting: Replit** — работает из России без проблем
 6. **VPS (198.12.73.168)** — только для n8n workflows
 7. **Cron jobs** — настраиваются в Replit Scheduled Deployments
-8. **Jobs auto-deleted after 30 days** — this is intentional, not a bug
+8. **Jobs auto-deleted after 7 days** — this is intentional for freshness, not a bug
 
 ## Replit Hosting (Primary)
 

@@ -130,12 +130,12 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
     // Find or create company with real website
     const company = await findOrCreateCompany(dataSource.name, dataSource.companySlug, companyWebsite);
 
-    // Filter out jobs older than 30 days (no point importing them)
+    // Filter out jobs older than 7 days (MAX_JOB_AGE_DAYS)
     const maxAgeDate = getMaxJobAgeDate();
     const freshJobs = jobs.filter(job => new Date(job.createdAt) >= maxAgeDate);
     const oldJobs = jobs.filter(job => new Date(job.createdAt) < maxAgeDate);
     if (oldJobs.length > 0) {
-      console.log(`[Lever] Skipping ${oldJobs.length} jobs older than 30 days`);
+      console.log(`[Lever] Skipping ${oldJobs.length} jobs older than 7 days`);
       stats.skipped += oldJobs.length;
       // Log old jobs as skipped (batch insert)
       await prisma.filteredJob.createMany({

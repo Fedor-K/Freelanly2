@@ -1,18 +1,18 @@
 import { prisma } from '@/lib/db';
+import { getMaxJobAgeDate } from '@/lib/utils';
 
 /**
  * Cleanup old/inactive jobs that are no longer shown on the site
- * Jobs older than 30 days or inactive are deleted
+ * Jobs older than 7 days (MAX_JOB_AGE_DAYS) or inactive are deleted
  */
 export async function cleanupOldJobs(): Promise<{ deleted: number }> {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const maxAgeDate = getMaxJobAgeDate(); // 7 days
 
   const deleted = await prisma.job.deleteMany({
     where: {
       OR: [
         { isActive: false },
-        { postedAt: { lt: thirtyDaysAgo } }
+        { postedAt: { lt: maxAgeDate } }
       ]
     }
   });
