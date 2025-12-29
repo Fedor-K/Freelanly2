@@ -23,6 +23,7 @@ import {
   Filter,
   X,
   FileText,
+  Send,
 } from 'lucide-react';
 
 interface JobAlert {
@@ -89,6 +90,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [sendingPortal, setSendingPortal] = useState<string | null>(null);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
   // Search & Filters
@@ -183,6 +185,26 @@ export default function UsersPage() {
       alert('Failed to delete user');
     } finally {
       setDeleting(null);
+    }
+  }
+
+  async function sendPortalLink(userId: string, email: string) {
+    if (!confirm(`Send Stripe portal link to ${email}?`)) return;
+
+    setSendingPortal(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/send-portal-link`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Portal link sent to ${email}`);
+      } else {
+        alert(`Failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Failed to send portal link:', error);
+      alert('Failed to send portal link');
+    } finally {
+      setSendingPortal(null);
     }
   }
 
@@ -402,16 +424,28 @@ export default function UsersPage() {
                             </Badge>
                           )}
                           {user.stripeId && (
-                            <a
-                              href={getStripeUrl(user.stripeId)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center"
-                            >
-                              <Badge variant="outline" className="text-xs hover:bg-gray-100 cursor-pointer">
-                                Stripe <ExternalLink className="h-3 w-3 ml-1" />
-                              </Badge>
-                            </a>
+                            <>
+                              <a
+                                href={getStripeUrl(user.stripeId)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center"
+                              >
+                                <Badge variant="outline" className="text-xs hover:bg-gray-100 cursor-pointer">
+                                  Stripe <ExternalLink className="h-3 w-3 ml-1" />
+                                </Badge>
+                              </a>
+                              <button
+                                onClick={() => sendPortalLink(user.id, user.email)}
+                                disabled={sendingPortal === user.id}
+                                className="inline-flex items-center"
+                                title="Send portal link to user's email"
+                              >
+                                <Badge variant="outline" className="text-xs hover:bg-blue-50 cursor-pointer text-blue-600 border-blue-300">
+                                  {sendingPortal === user.id ? 'Sending...' : 'Send Portal'} <Send className="h-3 w-3 ml-1" />
+                                </Badge>
+                              </button>
+                            </>
                           )}
                         </div>
                         <div className="text-sm text-muted-foreground flex flex-wrap gap-x-2">
