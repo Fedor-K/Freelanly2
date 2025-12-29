@@ -1,19 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
 /**
  * Get cancellation feedback stats
- * Protected by CRON_SECRET
+ * Admin pages are protected by middleware/layout
  */
-export async function GET(request: NextRequest) {
-  // Verify admin secret
-  const authHeader = request.headers.get('authorization');
-  const adminSecret = process.env.CRON_SECRET;
-
-  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export async function GET() {
   try {
     // Get all feedback
     const allFeedback = await prisma.cancellationFeedback.findMany({

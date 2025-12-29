@@ -1,15 +1,63 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Get date ranges
+    const { searchParams } = new URL(request.url);
+
+    // Pagination
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const skip = (page - 1) * limit;
+
+    // Search
+    const search = searchParams.get('search') || '';
+
+    // Filters
+    const planFilter = searchParams.get('plan'); // FREE, PRO, ENTERPRISE
+    const hasAlerts = searchParams.get('hasAlerts'); // true, false
+    const hasStripe = searchParams.get('hasStripe'); // true, false
+
+    // Build where clause
+    const where: Record<string, unknown> = {};
+
+    if (search) {
+      where.OR = [
+        { email: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (planFilter && ['FREE', 'PRO', 'ENTERPRISE'].includes(planFilter)) {
+      where.plan = planFilter;
+    }
+
+    if (hasAlerts === 'true') {
+      where.jobAlerts = { some: {} };
+    } else if (hasAlerts === 'false') {
+      where.jobAlerts = { none: {} };
+    }
+
+    if (hasStripe === 'true') {
+      where.stripeId = { not: null };
+    } else if (hasStripe === 'false') {
+      where.stripeId = null;
+    }
+
+    // Get date ranges for stats
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
+    // Get total count for pagination
+    const totalUsers = await prisma.user.count({ where });
+
+    // Get users with pagination
     const users = await prisma.user.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
       select: {
         id: true,
         email: true,
@@ -19,12 +67,14 @@ export async function GET() {
         stripeSubscriptionId: true,
         subscriptionEndsAt: true,
         createdAt: true,
+        emailVerified: true,
         _count: {
           select: {
             jobAlerts: true,
+            savedJobs: true,
+            applications: true,
           },
         },
-        // Include job alerts with details
         jobAlerts: {
           select: {
             id: true,
@@ -41,31 +91,25 @@ export async function GET() {
           },
           orderBy: { createdAt: 'desc' },
         },
-        // Include sessions for login tracking
         sessions: {
           select: {
             id: true,
             expires: true,
           },
           orderBy: { expires: 'desc' },
-          take: 10,
+          take: 5,
         },
       },
     });
 
     // Calculate stats for each user
     const usersWithStats = users.map(user => {
-      // Count active sessions (not expired)
       const activeSessions = user.sessions.filter(s => new Date(s.expires) > now);
       const lastSession = user.sessions[0];
-
-      // Calculate total notifications sent
       const totalNotificationsSent = user.jobAlerts.reduce(
         (sum, alert) => sum + alert._count.notifications,
         0
       );
-
-      // Active alerts count
       const activeAlerts = user.jobAlerts.filter(a => a.isActive).length;
 
       return {
@@ -76,49 +120,51 @@ export async function GET() {
           activeAlerts,
           totalAlerts: user.jobAlerts.length,
           totalNotificationsSent,
+          savedJobs: user._count.savedJobs,
+          applications: user._count.applications,
         },
       };
     });
 
-    // Calculate overall stats
-    const totalUsers = users.length;
-    const proUsers = users.filter(u => u.plan === 'PRO' || u.plan === 'ENTERPRISE').length;
-    const freeUsers = users.filter(u => u.plan === 'FREE').length;
-
-    // Active users (have sessions in last 7/30 days)
-    const activeUsersLast7Days = users.filter(u =>
-      u.sessions.some(s => new Date(s.expires) > sevenDaysAgo)
-    ).length;
-    const activeUsersLast30Days = users.filter(u =>
-      u.sessions.some(s => new Date(s.expires) > thirtyDaysAgo)
-    ).length;
-
-    // Conversion rate (users who were FREE and are now PRO)
-    const conversionRate = totalUsers > 0 ? ((proUsers / totalUsers) * 100).toFixed(1) : '0';
-
-    // New users last 7/30 days
-    const newUsersLast7Days = users.filter(u =>
-      new Date(u.createdAt) > sevenDaysAgo
-    ).length;
-    const newUsersLast30Days = users.filter(u =>
-      new Date(u.createdAt) > thirtyDaysAgo
-    ).length;
+    // Calculate overall stats (for all users, not just current page)
+    const [allUsers, proCount, activeIn7Days, activeIn30Days, newIn7Days, newIn30Days] = await Promise.all([
+      prisma.user.count(),
+      prisma.user.count({ where: { plan: { in: ['PRO', 'ENTERPRISE'] } } }),
+      prisma.user.count({
+        where: {
+          sessions: { some: { expires: { gt: sevenDaysAgo } } },
+        },
+      }),
+      prisma.user.count({
+        where: {
+          sessions: { some: { expires: { gt: thirtyDaysAgo } } },
+        },
+      }),
+      prisma.user.count({ where: { createdAt: { gt: sevenDaysAgo } } }),
+      prisma.user.count({ where: { createdAt: { gt: thirtyDaysAgo } } }),
+    ]);
 
     const overallStats = {
-      totalUsers,
-      proUsers,
-      freeUsers,
-      conversionRate: parseFloat(conversionRate),
-      activeUsersLast7Days,
-      activeUsersLast30Days,
-      newUsersLast7Days,
-      newUsersLast30Days,
+      totalUsers: allUsers,
+      proUsers: proCount,
+      freeUsers: allUsers - proCount,
+      conversionRate: allUsers > 0 ? parseFloat(((proCount / allUsers) * 100).toFixed(1)) : 0,
+      activeUsersLast7Days: activeIn7Days,
+      activeUsersLast30Days: activeIn30Days,
+      newUsersLast7Days: newIn7Days,
+      newUsersLast30Days: newIn30Days,
     };
 
     return NextResponse.json({
       success: true,
       users: usersWithStats,
       overallStats,
+      pagination: {
+        page,
+        limit,
+        total: totalUsers,
+        totalPages: Math.ceil(totalUsers / limit),
+      },
     });
   } catch (error) {
     console.error('Error fetching users:', error);

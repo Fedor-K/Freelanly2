@@ -4,23 +4,22 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
-  Briefcase,
-  Building2,
   Users,
   Database,
   FileText,
   Settings,
   ChevronDown,
+  TrendingUp,
+  XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-  { name: 'Jobs', href: '/admin/jobs', icon: Briefcase },
-  { name: 'Companies', href: '/admin/companies', icon: Building2 },
   { name: 'Users', href: '/admin/users', icon: Users },
-  { name: 'Subscribers', href: '/admin/subscribers', icon: Users },
+  { name: 'Analytics', href: '/admin/analytics', icon: TrendingUp },
+  { name: 'Cancellations', href: '/admin/cancellations', icon: XCircle },
   {
     name: 'Sources',
     icon: Database,

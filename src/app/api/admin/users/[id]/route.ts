@@ -38,3 +38,30 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  try {
+    const { id } = await context.params;
+
+    // Delete related data first (cascade doesn't always work)
+    await prisma.$transaction([
+      prisma.alertNotification.deleteMany({ where: { alert: { userId: id } } }),
+      prisma.alertLanguagePair.deleteMany({ where: { jobAlert: { userId: id } } }),
+      prisma.jobAlert.deleteMany({ where: { userId: id } }),
+      prisma.savedJob.deleteMany({ where: { userId: id } }),
+      prisma.application.deleteMany({ where: { userId: id } }),
+      prisma.applyAttempt.deleteMany({ where: { userId: id } }),
+      prisma.session.deleteMany({ where: { userId: id } }),
+      prisma.account.deleteMany({ where: { userId: id } }),
+      prisma.user.delete({ where: { id } }),
+    ]);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete user', details: String(error) },
+      { status: 500 }
+    );
+  }
+}
