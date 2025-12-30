@@ -128,7 +128,7 @@ const BLACKLIST_EDUCATION_TRADITIONAL = [
   'teacher', 'substitute teacher', 'classroom',
   'professor', 'lecturer', 'adjunct',
   'paraprofessional', 'teacher aide', 'teaching assistant',
-  'principal', 'school administrator', 'dean',
+  'school principal', 'school administrator', 'dean',
   'librarian', 'school counselor',
   'tutor', // physical tutoring
   'daycare', 'childcare', 'preschool',
@@ -257,25 +257,40 @@ const WHITELIST_ENGINEERING = [
   'frontend developer', 'front-end developer', 'front end developer',
   'backend developer', 'back-end developer', 'back end developer',
   'fullstack developer', 'full-stack developer', 'full stack developer',
+  'frontend engineer', 'front-end engineer', 'front end engineer',
+  'backend engineer', 'back-end engineer', 'back end engineer',
+  'fullstack engineer', 'full-stack engineer', 'full stack engineer',
   'web developer', 'mobile developer', 'app developer',
-  'ios developer', 'android developer',
+  'ios developer', 'android developer', 'ios engineer', 'android engineer',
   'react developer', 'vue developer', 'angular developer',
-  'node developer', 'nodejs developer',
+  'react engineer', 'vue engineer', 'angular engineer',
+  'node developer', 'nodejs developer', 'node engineer',
   'python developer', 'java developer', 'golang developer', 'go developer',
+  'python engineer', 'java engineer', 'golang engineer', 'go engineer',
   'rust developer', 'ruby developer', 'rails developer',
+  'rust engineer', 'ruby engineer', 'rails engineer',
   'php developer', 'laravel developer', 'django developer',
+  'php engineer', 'laravel engineer', 'django engineer',
   '.net developer', 'c# developer', 'dotnet developer',
+  '.net engineer', 'c# engineer', 'dotnet engineer', 'c++ engineer',
   'blockchain developer', 'smart contract developer', 'web3 developer', 'solidity',
+  'blockchain engineer', 'smart contract engineer', 'web3 engineer',
   'game developer', 'unity developer', 'unreal developer',
+  'game engineer', 'unity engineer', 'unreal engineer',
   'wordpress developer', 'shopify developer', 'webflow developer',
-  'api developer', 'integration developer',
-  'embedded developer', 'firmware developer',
+  'api developer', 'integration developer', 'api engineer', 'integration engineer',
+  'embedded developer', 'firmware developer', 'embedded engineer', 'firmware engineer',
   // Engineering titles (with software context)
   'software engineering', 'application engineer',
   'technical lead', 'tech lead', 'engineering manager',
   'vp engineering', 'vp of engineering', 'head of engineering', 'cto',
-  'principal engineer', 'staff engineer', 'senior software engineer',
+  'principal engineer', 'staff engineer', 'senior engineer',
+  'senior software engineer', 'lead engineer', 'lead software engineer',
   'engineering director', 'director of engineering',
+  // SDET variations
+  'software development engineer in test', 'software engineer in test',
+  // Generic terms (digital context)
+  'developer', 'programmer', 'coder',
 ];
 
 const WHITELIST_DATA = [
@@ -290,6 +305,8 @@ const WHITELIST_DATA = [
   'etl developer', 'data warehouse', 'data platform',
   'ai/ml', 'ml/ai', 'genai', 'generative ai',
   'prompt engineer', 'ai trainer', 'data annotator',
+  'data architect', 'analytics architect',
+  'deployed engineer', 'forward deployed',
 ];
 
 const WHITELIST_DEVOPS = [
@@ -309,8 +326,9 @@ const WHITELIST_QA = [
   'qa engineer', 'qa analyst', 'quality assurance engineer',
   'test engineer', 'test automation', 'automation engineer',
   'sdet', 'software test', 'quality engineer',
-  'performance tester', 'load tester',
-  'qa lead', 'qa manager', 'test lead',
+  'performance tester', 'load tester', 'qa tester', 'tester',
+  'qa lead', 'qa manager', 'test lead', 'test manager',
+  'quality assurance tester', 'quality assurance analyst',
 ];
 
 const WHITELIST_SECURITY = [
@@ -325,12 +343,14 @@ const WHITELIST_SECURITY = [
 
 const WHITELIST_DESIGN = [
   'ui designer', 'ux designer', 'ui/ux', 'ux/ui', 'uiux',
+  'ui developer', 'ux developer',
   'product designer', 'digital product designer',
   'visual designer', 'graphic designer', 'web designer',
-  'interaction designer', 'motion designer', 'motion graphics',
+  'interaction designer', 'motion designer', 'motion designers', 'motion graphics',
   'brand designer', 'creative director', 'art director',
   'design lead', 'head of design', 'design manager',
   'figma', 'sketch designer',
+  '3d designer', '3d artist', '3d modeler',
 ];
 
 const WHITELIST_PRODUCT = [
@@ -361,7 +381,8 @@ const WHITELIST_MARKETING = [
   'brand manager', 'brand strategist',
   'marketing analyst', 'marketing ops', 'marketing operations',
   'growth manager', 'growth lead', 'head of growth',
-  'demand generation', 'demand gen', 'lead generation',
+  'demand generation', 'demand gen', 'lead generation', 'lead gen',
+  'lead gen manager', 'leadgen', 'traffic manager', 'traffic acquisition',
   'vp marketing', 'head of marketing', 'cmo', 'chief marketing',
   'content strategist', 'content lead',
   'affiliate marketing', 'influencer marketing', 'partnership marketing',
@@ -372,16 +393,19 @@ const WHITELIST_CONTENT = [
   'ux writer', 'seo writer', 'blog writer',
   'editor', 'copy editor', 'content editor', 'managing editor',
   'content strategist', 'content manager', 'content lead',
+  'content creator', 'content producer', 'content specialist',
   'ghostwriter', 'scriptwriter',
 ];
 
 const WHITELIST_VIDEO_AUDIO = [
   'video editor', 'video producer', 'youtube editor',
+  'videographer', 'cinematographer',
   'motion graphics designer', 'after effects',
   'animator', '2d animator', '3d animator',
   'sound designer', 'audio engineer', 'podcast editor',
-  'voice over', 'voiceover artist',
+  'voice over', 'voiceover artist', 'voice artist',
   'colorist', 'vfx artist', 'visual effects',
+  'music producer', 'audio producer', 'composer',
 ];
 
 const WHITELIST_TRANSLATION = [
@@ -418,7 +442,8 @@ const WHITELIST_SUPPORT = [
   'customer success associate', 'customer success specialist',
   'customer experience', 'cx specialist',
   'implementation manager', 'implementation specialist',
-  'onboarding specialist', 'onboarding manager',
+  'onboarding specialist', 'onboarding manager', 'onboarding',
+  'global onboarding',
 ];
 
 const WHITELIST_HR = [
