@@ -1,6 +1,9 @@
 /**
  * ============================================================================
- * TARGET PROFESSIONS v2.0 — ЕДИНСТВЕННЫЙ ИСТОЧНИК ПРАВДЫ ДЛЯ ФИЛЬТРАЦИИ
+ * TARGET PROFESSIONS v2.1 — ЕДИНСТВЕННЫЙ ИСТОЧНИК ПРАВДЫ ДЛЯ ФИЛЬТРАЦИИ
+ * ============================================================================
+ *
+ * v2.1: Added "supply chain" to logistics blacklist
  * ============================================================================
  *
  * ПРАВИЛО ИМПОРТА:
@@ -65,6 +68,7 @@ const BLACKLIST_LOGISTICS = [
   'logistics coordinator', 'dispatch', 'dispatcher',
   'freight', 'dock worker', 'material handler',
   'cargo', 'longshoreman', 'stevedore',
+  'supply chain', // Supply Chain roles are logistics, not target remote
 ];
 
 const BLACKLIST_FIELD_OUTDOOR = [
