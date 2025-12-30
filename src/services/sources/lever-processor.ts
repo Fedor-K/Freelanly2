@@ -554,7 +554,14 @@ function mapDepartmentToCategory(department?: string, title?: string): string {
   if (combined.includes('legal') || combined.includes('lawyer') || combined.includes('attorney') || combined.includes('paralegal')) return 'legal';
   if (combined.includes('consultant')) return 'consulting';
 
-  return 'engineering';
+  // Healthcare/Health Plan → operations (not engineering!)
+  if (combined.includes('health') || combined.includes('medical') || combined.includes('clinical') || combined.includes('pharmacy')) return 'operations';
+
+  // Performance/Manager without specific category → operations
+  if (combined.includes('performance') || combined.includes('manager')) return 'operations';
+
+  // Default: support (NOT engineering - that was causing misclassification)
+  return 'support';
 }
 
 function getCategoryName(slug: string): string {
