@@ -39,6 +39,7 @@ export const PRICE_INFO: Record<PriceKey, {
   price: string;
   pricePerDay: string;
   period: string;
+  periodLabel: string;
   description: string;
   hasTrial: boolean;
   popular?: boolean;
@@ -50,17 +51,19 @@ export const PRICE_INFO: Record<PriceKey, {
     price: '€15',
     pricePerDay: '€0.50',
     period: 'month',
+    periodLabel: 'per month',
     description: 'Cancel anytime',
     hasTrial: false,
+    popular: true,
   },
   quarterly: {
-    name: 'Quarterly',
+    name: 'Quarterly (3 months)',
     price: '€35',
     pricePerDay: '€0.39',
     period: '3 months',
+    periodLabel: 'for 3 months',
     description: 'Save 22% vs monthly',
     hasTrial: false,
-    popular: true,
     savings: 'Save 22%',
     originalPrice: '€45',
   },
@@ -69,7 +72,8 @@ export const PRICE_INFO: Record<PriceKey, {
     price: '€150',
     pricePerDay: '€0.41',
     period: 'year',
-    description: 'Best value',
+    periodLabel: 'per year',
+    description: 'Save 17% vs monthly',
     hasTrial: false,
     savings: 'Save 17%',
     originalPrice: '€180',

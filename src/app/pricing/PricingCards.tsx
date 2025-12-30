@@ -12,8 +12,8 @@ const plans: Array<{
   key: PriceKey;
   badge?: string;
 }> = [
-  { key: 'monthly' },
-  { key: 'quarterly', badge: 'Most Popular' },
+  { key: 'monthly', badge: 'Most Popular' },
+  { key: 'quarterly' },
   { key: 'annual', badge: 'Best Value' },
 ];
 
@@ -78,49 +78,50 @@ export function PricingCards() {
           return (
             <Card
               key={key}
-              className={`relative ${isPopular ? 'border-primary shadow-lg md:scale-105' : ''}`}
+              className={`relative ${isPopular ? 'border-primary border-2 shadow-lg md:scale-105' : ''}`}
             >
               {badge && (
                 <Badge
-                  className="absolute -top-3 left-1/2 -translate-x-1/2"
+                  className="absolute -top-3 left-1/2 -translate-x-1/2 px-3"
                   variant={isPopular ? 'default' : 'secondary'}
                 >
                   {badge}
                 </Badge>
               )}
 
-              <CardHeader className="text-center pb-2">
-                <CardTitle className="text-lg">{info.name}</CardTitle>
+              <CardHeader className="text-center pb-2 pt-6">
+                <CardTitle className="text-lg font-semibold">{info.name}</CardTitle>
+
+                {/* Savings badge for non-monthly */}
+                {info.savings && (
+                  <p className="text-sm text-green-600 font-medium mt-1">
+                    {info.description}
+                  </p>
+                )}
 
                 {/* Price per day */}
-                <p className="text-sm text-muted-foreground mt-2">
+                <p className="text-sm text-muted-foreground mt-3">
                   {info.pricePerDay} per day • Cancel anytime
                 </p>
 
-                {/* Main price */}
-                <div className="mt-3">
+                {/* Main price with strikethrough */}
+                <div className="mt-4 mb-1">
                   {info.originalPrice && (
-                    <span className="text-lg text-muted-foreground line-through mr-2">
+                    <span className="text-xl text-muted-foreground line-through mr-2">
                       {info.originalPrice}
                     </span>
                   )}
                   <span className="text-4xl font-bold">{info.price}</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {key === 'quarterly' ? 'for 3 months' : `per ${info.period}`}
+                  {info.periodLabel}
                 </p>
-
-                {/* Savings badge */}
-                {info.savings && (
-                  <p className="text-sm text-green-600 font-medium mt-2">
-                    {info.savings}
-                  </p>
-                )}
               </CardHeader>
 
               <CardContent className="pt-4">
                 <Button
                   className="w-full"
+                  size="lg"
                   variant={isPopular ? 'default' : 'outline'}
                   onClick={() => handleSubscribe(key)}
                   disabled={loading !== null}
@@ -146,7 +147,7 @@ export function PricingCards() {
                       Processing...
                     </span>
                   ) : (
-                    'Get Started'
+                    'Select'
                   )}
                 </Button>
 
