@@ -378,9 +378,6 @@ enum Source {
   HIMALAYAS         // Himalayas API
   WORKINGNOMADS     // WorkingNomads
   INDEED            // Indeed API
-  REMOTEOK          // RemoteOK jobs
-  WEWORKREMOTELY    // WeWorkRemotely
-  HACKERNEWS        // HackerNews Who is Hiring
 }
 
 enum SourceType {
