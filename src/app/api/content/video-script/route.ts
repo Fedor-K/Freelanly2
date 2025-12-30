@@ -1,6 +1,56 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
+// Short Video Maker config
+const VIDEO_CONFIG = {
+  voice: 'af_heart', // Warm female voice
+  music: 'hopeful' as const,
+  captionPosition: 'bottom' as const,
+  orientation: 'portrait' as const,
+  musicVolume: 'low' as const,
+};
+
+// Search terms by topic for Pexels background videos
+const SEARCH_TERMS: Record<string, string[]> = {
+  job: ['remote work', 'laptop office'],
+  hiring: ['business meeting', 'team collaboration'],
+  salary: ['money success', 'business growth'],
+  developer: ['coding programming', 'software developer'],
+  designer: ['creative design', 'digital art'],
+  marketing: ['digital marketing', 'social media'],
+  cta: ['career success', 'happy professional'],
+  company: ['modern office', 'corporate building'],
+  remote: ['home office', 'work from home'],
+  default: ['professional business', 'office work'],
+};
+
+function getSearchTerms(text: string): string[] {
+  const lowerText = text.toLowerCase();
+  if (lowerText.includes('developer') || lowerText.includes('engineer')) return SEARCH_TERMS.developer;
+  if (lowerText.includes('designer') || lowerText.includes('design')) return SEARCH_TERMS.designer;
+  if (lowerText.includes('marketing')) return SEARCH_TERMS.marketing;
+  if (lowerText.includes('salary') || lowerText.includes('$') || lowerText.includes('€')) return SEARCH_TERMS.salary;
+  if (lowerText.includes('hiring') || lowerText.includes('position')) return SEARCH_TERMS.hiring;
+  if (lowerText.includes('apply') || lowerText.includes('freelanly')) return SEARCH_TERMS.cta;
+  if (lowerText.includes('remote')) return SEARCH_TERMS.remote;
+  if (lowerText.includes('company') || lowerText.includes('corp')) return SEARCH_TERMS.company;
+  if (lowerText.includes('job') || lowerText.includes('alert')) return SEARCH_TERMS.job;
+  return SEARCH_TERMS.default;
+}
+
+function textToScenes(text: string): Array<{ text: string; searchTerms: string[] }> {
+  // Split by sentences or logical breaks
+  const sentences = text
+    .split(/[.!?\n]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+
+  return sentences.map(sentence => ({
+    text: sentence,
+    searchTerms: getSearchTerms(sentence),
+  }));
+}
+
 /**
  * GET /api/content/video-script
  * Returns ready-to-use video scripts for Short Video Maker
@@ -78,11 +128,12 @@ Link in bio!`;
     success: true,
     type: 'job-alert',
     jobId: job.id,
+    jobUrl: `https://freelanly.com/company/${job.company.slug}/jobs/${job.slug}`,
     script,
-    // For Short Video Maker API
-    videoRequest: {
-      text: script,
-      voice: 'af_heart', // Warm female voice
+    // Ready for Short Video Maker API
+    shortVideoMaker: {
+      scenes: textToScenes(script),
+      config: VIDEO_CONFIG,
     },
   });
 }
@@ -139,9 +190,9 @@ Find these jobs at freelanly dot com.`;
     type: 'salary-reveal',
     category: category.name,
     script,
-    videoRequest: {
-      text: script,
-      voice: 'af_heart',
+    shortVideoMaker: {
+      scenes: textToScenes(script),
+      config: VIDEO_CONFIG,
     },
   });
 }
@@ -177,9 +228,9 @@ Apply at freelanly dot com. Link in bio!`;
     type: 'top-jobs',
     count: jobs.length,
     script,
-    videoRequest: {
-      text: script,
-      voice: 'af_heart',
+    shortVideoMaker: {
+      scenes: textToScenes(script),
+      config: VIDEO_CONFIG,
     },
   });
 }
@@ -222,9 +273,9 @@ Link in bio!`;
     company: topCompany.name,
     openPositions: topCompany.count,
     script,
-    videoRequest: {
-      text: script,
-      voice: 'af_heart',
+    shortVideoMaker: {
+      scenes: textToScenes(script),
+      config: VIDEO_CONFIG,
     },
   });
 }

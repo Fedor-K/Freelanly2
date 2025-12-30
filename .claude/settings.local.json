@@ -52,7 +52,9 @@
       "WebFetch(domain:n8n.io)",
       "Bash(npm uninstall:*)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(git branch:*)",
+      "Bash(git show:*)"
     ]
   }
 }

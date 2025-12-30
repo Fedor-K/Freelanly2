@@ -174,27 +174,84 @@ Link in bio!"
 
 ## План внедрения
 
-### Шаг 1: Настройка VPS
-- [ ] Установить Docker на VPS (198.12.73.168)
-- [ ] Запустить Short Video Maker контейнер
-- [ ] Получить Pexels API Key (бесплатно)
-- [ ] Проверить работу через curl
+### Шаг 1: Настройка VPS ✅
+- [x] Установить Docker на VPS (198.12.73.168)
+- [x] Запустить Short Video Maker контейнер (порт 3123)
+- [x] Получить Pexels API Key
 
-### Шаг 2: API endpoints на Freelanly
-- [ ] Создать `/api/jobs/featured`
-- [ ] Создать `/api/jobs/top`
-- [ ] Задеплоить на Replit
+**Перезапуск контейнера с Pexels API:**
+```bash
+ssh root@198.12.73.168
+
+# Остановить старый контейнер
+docker stop short-video-maker
+docker rm short-video-maker
+
+# Запустить с Pexels API key
+docker run -d --name short-video-maker -p 3123:3123 \
+  -e PEXELS_API_KEY=6YaYKaH1QrUMZAYPqgsor3FAyKLvRg1CQoBWpi1ahQKAhfQU9FIFRAnG \
+  --restart unless-stopped \
+  gyoridavid/short-video-maker:latest-tiny
+
+# Проверить логи
+docker logs -f short-video-maker
+```
+
+### Шаг 2: API endpoints на Freelanly ✅
+- [x] Создать `/api/content/featured-job` (вместо /api/jobs/featured)
+- [x] Создать `/api/content/top-jobs` (вместо /api/jobs/top)
+- [x] Создать `/api/content/video-script` — готовые скрипты с форматом Short Video Maker
+- [x] Создать `/api/content/salary-stats`
+- [ ] Задеплоить обновления на Replit
 
 ### Шаг 3: n8n Workflows
-- [ ] Создать workflow для картинок (APITemplate.io или Shotstack)
-- [ ] Создать workflow для видео (Short Video Maker)
-- [ ] Настроить cron расписание
+- [x] Создать workflow для видео: `n8n-workflows/video-social-posting.json`
+- [ ] Импортировать в n8n (http://46.173.20.46)
+- [ ] Настроить cron расписание (2 раза в день)
+- [ ] Добавить ноды для TikTok/Instagram
 
 ### Шаг 4: Социальные аккаунты
 - [ ] Pinterest Business Account + API
-- [ ] Instagram Business через Facebook + API
-- [ ] TikTok Developer Account + API
-- [ ] YouTube Channel + API
+- [ ] Instagram Business через Facebook Graph API
+- [ ] TikTok Developer Account + Content Posting API
+- [ ] YouTube Channel + Data API v3
+
+---
+
+## n8n Workflow Import
+
+**Файл:** `n8n-workflows/video-social-posting.json`
+
+**Как импортировать:**
+1. Открыть n8n: http://46.173.20.46
+2. Нажать "..." → "Import from File"
+3. Выбрать `video-social-posting.json`
+4. Активировать workflow
+
+**Workflow flow:**
+```
+Schedule (каждые 12ч)
+    ↓
+GET freelanly.com/api/content/video-script
+    ↓
+POST 198.12.73.168:3123/api/short-video
+    ↓
+Wait 2 min → Check Status → Loop until ready
+    ↓
+Download Video (MP4)
+    ↓
+Prepare Post Data (caption, hashtags)
+    ↓
+[Добавить ноды для TikTok/Instagram/YouTube]
+```
+
+**API Endpoints:**
+| Endpoint | Описание |
+|----------|----------|
+| `GET /api/content/video-script?type=job-alert` | Скрипт для одной вакансии |
+| `GET /api/content/video-script?type=top-jobs` | Топ-3 вакансии по зарплате |
+| `GET /api/content/video-script?type=salary-reveal` | Зарплаты по категории |
+| `GET /api/content/video-script?type=company-hiring` | Компания с наибольшим наймом |
 
 ---
 

@@ -1,0 +1,304 @@
+{
+  "name": "Freelanly Video Social Posting v6",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 12
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://freelanly.com/api/content/video-script?type=job-alert",
+        "options": {}
+      },
+      "id": "get-script",
+      "name": "Get Script",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const script = $input.first().json.script;\nconst jobId = $input.first().json.jobId;\n\n// Detect job category from script\nconst lower = script.toLowerCase();\nlet category = 'general';\n\nif (lower.includes('developer') || lower.includes('engineer') || lower.includes('software') || lower.includes('backend') || lower.includes('frontend') || lower.includes('fullstack')) {\n  category = 'engineering';\n} else if (lower.includes('designer') || lower.includes('ux') || lower.includes('ui') || lower.includes('graphic') || lower.includes('creative')) {\n  category = 'design';\n} else if (lower.includes('marketing') || lower.includes('seo') || lower.includes('content') || lower.includes('social media') || lower.includes('growth')) {\n  category = 'marketing';\n} else if (lower.includes('sales') || lower.includes('account executive') || lower.includes('business development')) {\n  category = 'sales';\n} else if (lower.includes('product manager') || lower.includes('product owner') || lower.includes('scrum')) {\n  category = 'product';\n} else if (lower.includes('data') || lower.includes('analyst') || lower.includes('analytics') || lower.includes('machine learning') || lower.includes('ai ')) {\n  category = 'data';\n} else if (lower.includes('hr') || lower.includes('recruiter') || lower.includes('talent') || lower.includes('people')) {\n  category = 'hr';\n} else if (lower.includes('finance') || lower.includes('accountant') || lower.includes('financial')) {\n  category = 'finance';\n} else if (lower.includes('support') || lower.includes('customer success') || lower.includes('community')) {\n  category = 'support';\n} else if (lower.includes('writer') || lower.includes('copywriter') || lower.includes('editor')) {\n  category = 'writing';\n}\n\n// Category-specific search terms for Pexels\nconst categoryTerms = {\n  engineering: ['coding on laptop', 'software developer typing', 'programming code screen', 'tech startup office', 'developer workspace'],\n  design: ['creative studio workspace', 'designer working tablet', 'modern design office', 'creative team brainstorm', 'artistic workspace'],\n  marketing: ['digital marketing team', 'social media analytics', 'marketing strategy meeting', 'creative campaign planning', 'brand presentation'],\n  sales: ['business handshake deal', 'sales team meeting', 'professional presentation', 'corporate success celebration', 'business negotiation'],\n  product: ['product roadmap planning', 'agile team standup', 'whiteboard strategy', 'team collaboration meeting', 'product launch'],\n  data: ['data visualization charts', 'analytics dashboard screen', 'data science workspace', 'business intelligence', 'charts and graphs'],\n  hr: ['job interview meeting', 'team onboarding welcome', 'diverse team collaboration', 'hiring process', 'workplace culture'],\n  finance: ['financial analysis charts', 'business accounting', 'corporate finance meeting', 'investment planning', 'financial success'],\n  support: ['customer service team', 'help desk support', 'customer success meeting', 'support team collaboration', 'happy customer'],\n  writing: ['writer typing laptop', 'content creation workspace', 'creative writing coffee', 'journalist working', 'editorial office'],\n  general: ['modern remote workspace', 'professional home office', 'successful career path', 'business growth success', 'happy professional working']\n};\n\nconst terms = categoryTerms[category] || categoryTerms.general;\n\n// Split into sentences\nconst sentences = script\n  .split(/[.!?\\n]+/)\n  .map(s => s.trim())\n  .filter(s => s.length > 0);\n\n// Create scenes with category-themed search terms\nconst scenes = sentences.map((text, index) => {\n  const searchTerms = [terms[index % terms.length]];\n  return { text, searchTerms };\n});\n\nreturn [{\n  json: {\n    script: script,\n    jobId: jobId,\n    category: category,\n    scenes: scenes,\n    config: {\n      voice: \"af_heart\",\n      music: \"hopeful\",\n      captionPosition: \"bottom\",\n      orientation: \"portrait\",\n      musicVolume: \"low\"\n    }\n  }\n}];"
+      },
+      "id": "build-payload",
+      "name": "Build Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://198.12.73.168:3123/api/short-video",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"scenes\": {{ JSON.stringify($json.scenes) }},\n  \"config\": {{ JSON.stringify($json.config) }}\n}",
+        "options": {}
+      },
+      "id": "create-video",
+      "name": "Create Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "minutes"
+      },
+      "id": "wait-5min",
+      "name": "Wait 5 min",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [880, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://198.12.73.168:3123/api/short-video/{{ $('Create Video').item.json.videoId }}/status",
+        "options": {}
+      },
+      "id": "check-status",
+      "name": "Check Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "ready-check",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "ready",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-ready",
+      "name": "Ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1320, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://198.12.73.168:3123/api/short-video/{{ $('Create Video').item.json.videoId }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "download-video",
+      "name": "Download Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "vid",
+              "name": "videoId",
+              "value": "={{ $('Create Video').item.json.videoId }}",
+              "type": "string"
+            },
+            {
+              "id": "url",
+              "name": "videoUrl",
+              "value": "=http://198.12.73.168:3123/api/short-video/{{ $('Create Video').item.json.videoId }}",
+              "type": "string"
+            },
+            {
+              "id": "cat",
+              "name": "category",
+              "value": "={{ $('Build Payload').item.json.category }}",
+              "type": "string"
+            },
+            {
+              "id": "cap",
+              "name": "caption",
+              "value": "={{ $('Build Payload').item.json.script.split('\\n')[0] + ' ' + $('Build Payload').item.json.script.split('\\n')[1] }} #remotework #remotejobs #hiring #{{ $('Build Payload').item.json.category }}jobs",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-post",
+      "name": "Prepare Post",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1760, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error",
+              "name": "error",
+              "value": "Video generation timed out or failed",
+              "type": "string"
+            },
+            {
+              "id": "vid",
+              "name": "videoId",
+              "value": "={{ $('Create Video').item.json.videoId }}",
+              "type": "string"
+            },
+            {
+              "id": "status",
+              "name": "status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "handle-timeout",
+      "name": "Handle Timeout",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1540, 200]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Get Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Script": {
+      "main": [
+        [
+          {
+            "node": "Build Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Payload": {
+      "main": [
+        [
+          {
+            "node": "Create Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Video": {
+      "main": [
+        [
+          {
+            "node": "Wait 5 min",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 5 min": {
+      "main": [
+        [
+          {
+            "node": "Check Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Status": {
+      "main": [
+        [
+          {
+            "node": "Ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ready?": {
+      "main": [
+        [
+          {
+            "node": "Download Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Timeout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Video": {
+      "main": [
+        [
+          {
+            "node": "Prepare Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-12-30T17:45:00.000Z",
+  "versionId": "6"
+}
