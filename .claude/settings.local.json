@@ -48,7 +48,11 @@
       "WebFetch(domain:developers.google.com)",
       "WebFetch(domain:www.jobboardly.com)",
       "WebFetch(domain:schema.org)",
-      "WebFetch(domain:creatomate.com)"
+      "WebFetch(domain:creatomate.com)",
+      "WebFetch(domain:n8n.io)",
+      "Bash(npm uninstall:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }
