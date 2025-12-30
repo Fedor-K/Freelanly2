@@ -212,14 +212,6 @@ const BLACKLIST_LEGAL_TRADITIONAL = [
   'public defender', 'prosecutor', 'district attorney',
 ];
 
-const BLACKLIST_INTERPRETERS_PHYSICAL = [
-  // On-site/conference interpreters (require physical presence)
-  'conference interpreter', 'court interpreter', 'medical interpreter',
-  'on-site interpreter', 'onsite interpreter',
-  'simultaneous interpreter', 'consecutive interpreter',
-  'escort interpreter', 'liaison interpreter',
-];
-
 const BLACKLIST_MISC = [
   // Generic non-jobs
   'volunteer', 'internship unpaid', 'stipend only',
@@ -258,7 +250,6 @@ const BLACKLIST_PATTERNS = [
   ...BLACKLIST_BEAUTY,
   ...BLACKLIST_AGRICULTURE,
   ...BLACKLIST_LEGAL_TRADITIONAL,
-  ...BLACKLIST_INTERPRETERS_PHYSICAL,
   ...BLACKLIST_MISC,
 ];
 
