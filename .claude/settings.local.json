@@ -47,7 +47,8 @@
       "WebFetch(domain:freelanly.com)",
       "WebFetch(domain:developers.google.com)",
       "WebFetch(domain:www.jobboardly.com)",
-      "WebFetch(domain:schema.org)"
+      "WebFetch(domain:schema.org)",
+      "WebFetch(domain:creatomate.com)"
     ]
   }
 }
