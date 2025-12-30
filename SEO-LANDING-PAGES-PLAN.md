@@ -177,9 +177,6 @@ const skillKeywords: Record<string, {...}> = {
 #### Implemented ✅
 - LINKEDIN (via Apify)
 - LEVER (ATS integration)
-- REMOTEOK (API)
-- WEWORKREMOTELY (scraper)
-- HACKERNEWS (Who is Hiring parser)
 
 #### Not Implemented (Placeholders)
 - GREENHOUSE, ASHBY, WORKABLE, BAMBOO, SMARTRECRUITERS, WORKDAY

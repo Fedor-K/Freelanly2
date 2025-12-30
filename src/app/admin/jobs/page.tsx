@@ -22,7 +22,7 @@ interface Job {
 }
 
 type TimeFilter = '24h' | '7d' | '30d' | 'all';
-type SourceFilter = 'all' | 'LEVER' | 'LINKEDIN' | 'REMOTEOK' | 'WEWORKREMOTELY' | 'HACKERNEWS';
+type SourceFilter = 'all' | 'LEVER' | 'LINKEDIN';
 
 export default function AdminJobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -67,9 +67,6 @@ export default function AdminJobsPage() {
   const sourceColors: Record<string, string> = {
     LEVER: 'bg-blue-100 text-blue-800',
     LINKEDIN: 'bg-sky-100 text-sky-800',
-    REMOTEOK: 'bg-green-100 text-green-800',
-    WEWORKREMOTELY: 'bg-purple-100 text-purple-800',
-    HACKERNEWS: 'bg-orange-100 text-orange-800',
   };
 
   return (
@@ -114,7 +111,7 @@ export default function AdminJobsPage() {
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Source:</span>
             <div className="flex gap-1 flex-wrap">
-              {(['all', 'LEVER', 'LINKEDIN', 'REMOTEOK', 'WEWORKREMOTELY', 'HACKERNEWS'] as SourceFilter[]).map((source) => (
+              {(['all', 'LEVER', 'LINKEDIN'] as SourceFilter[]).map((source) => (
                 <button
                   key={source}
                   onClick={() => setSourceFilter(source)}

@@ -8,7 +8,7 @@ import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
   title: 'About Freelanly - Remote Jobs Platform',
-  description: 'Learn about Freelanly, the remote job aggregation platform. We collect job postings from LinkedIn, Lever, RemoteOK, and more to help you find your dream remote position.',
+  description: 'Learn about Freelanly, the remote job aggregation platform. We collect job postings from LinkedIn, company career pages, and more to help you find your dream remote position.',
   alternates: {
     canonical: `${siteConfig.url}/about`,
   },
@@ -175,7 +175,7 @@ export default function AboutPage() {
               '@type': 'Organization',
               name: 'Freelanly',
               url: siteConfig.url,
-              description: 'Remote job aggregation platform that collects job postings from LinkedIn, Lever, RemoteOK, and more.',
+              description: 'Remote job aggregation platform that collects job postings from LinkedIn, company career pages, and more.',
               foundingDate: '2024',
               contactPoint: {
                 '@type': 'ContactPoint',

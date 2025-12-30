@@ -258,10 +258,9 @@ export default async function Home() {
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-2xl font-bold mb-4">About Freelanly</h2>
             <p className="text-muted-foreground mb-6">
-              Freelanly is a remote job aggregation platform that collects job postings from LinkedIn,
-              company career pages (Lever ATS), and popular remote job boards like RemoteOK and WeWorkRemotely.
-              Our AI extracts structured information from job posts, making it easy to compare opportunities
-              and find your perfect remote position.
+              Freelanly is a remote job aggregation platform that collects job postings from LinkedIn
+              and company career pages (Lever ATS). Our AI extracts structured information from job posts,
+              making it easy to compare opportunities and find your perfect remote position.
             </p>
             <Link href="/about" className="text-primary hover:underline">
               Learn more about us →

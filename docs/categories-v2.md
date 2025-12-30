@@ -1,6 +1,6 @@
 # Freelanly Categories v2.0
 
-На основе анализа Upwork, Fiverr, WWR, RemoteOK, FlexJobs.
+На основе анализа Upwork, Fiverr, FlexJobs.
 
 ## Принципы отбора
 

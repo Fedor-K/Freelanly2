@@ -2,7 +2,7 @@
 
 ## Quick Summary
 
-SEO-оптимизированная платформа для поиска удалённых вакансий. Агрегация из LinkedIn (Apify), ATS (Lever), RemoteOK, WeWorkRemotely, HackerNews. AI extraction через DeepSeek.
+SEO-оптимизированная платформа для поиска удалённых вакансий. Агрегация из LinkedIn (Apify) и ATS (Lever). AI extraction через DeepSeek.
 
 **Автоматизация:**
 - Daily cron at 6:00 UTC: fetches all sources

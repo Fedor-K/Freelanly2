@@ -1380,9 +1380,8 @@ figma"
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           {[
             { name: 'Greenhouse', desc: 'ATS integration' },
-            { name: 'RemoteOK', desc: 'Remote job board' },
-            { name: 'WeWorkRemotely', desc: 'Remote jobs' },
-            { name: 'HackerNews', desc: 'Who is Hiring' },
+            { name: 'Ashby', desc: 'ATS integration' },
+            { name: 'Workable', desc: 'ATS integration' },
           ].map((item) => (
             <Card key={item.name} className="opacity-50">
               <CardHeader className="py-4">

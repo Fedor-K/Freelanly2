@@ -26,7 +26,7 @@ Freelanly агрегирует hiring-посты из LinkedIn, извлекае
 ### Ключевые особенности
 
 - **LinkedIn Integration** — парсинг hiring-постов через Apify
-- **Multi-ATS Integration** — импорт вакансий из Lever, RemoteOK, WeWorkRemotely, HackerNews
+- **Multi-ATS Integration** — импорт вакансий из Lever
 - **AI Extraction** — извлечение данных из постов через DeepSeek (salary, benefits, skills)
 - **Real Salary Display** — показ реальной зарплаты из вакансии, когда доступна
 - **21 категория** — точная классификация вакансий
@@ -108,10 +108,10 @@ Open [http://localhost:3000](http://localhost:3000)
 ┌─────────────────────────────────────────────────────────────────┐
 │                         ИСТОЧНИКИ                                │
 ├─────────────────────────────────────────────────────────────────┤
-│  LinkedIn (n8n)     │  Lever ATS    │  RemoteOK     │  WWR / HN    │
-│  - Real-time posts  │  - API        │  - API        │  - RSS/API   │
-│  - via Apify        │  - Structured │  - Structured │  - Structured│
-│  - Webhook          │               │               │              │
+│  LinkedIn (n8n)     │  Lever ATS                                   │
+│  - Real-time posts  │  - API                                       │
+│  - via Apify        │  - Structured                                │
+│  - Webhook          │                                              │
 └─────────────────────────────────────────────────────────────────┘
                                │
                                ▼
@@ -225,9 +225,6 @@ src/
 │   └── sources/
 │       ├── index.ts              # Source orchestration
 │       ├── lever-processor.ts    # Lever ATS processor
-│       ├── remoteok-processor.ts # RemoteOK processor
-│       ├── weworkremotely-processor.ts  # WWR processor
-│       ├── hackernews-processor.ts      # HN Who is Hiring processor
 │       └── types.ts              # Shared types
 │
 ├── config/
@@ -301,39 +298,6 @@ POST /api/webhooks/apify
 2. Select "LEVER" as source type
 3. Enter company slug (e.g., "netflix")
 4. Save and run
-
-### 3. RemoteOK
-
-**Процесс:**
-1. Fetch jobs from RemoteOK API (`/api`)
-2. Parse structured JSON data
-3. Extract salary, location, tags
-4. Auto cleanup after import
-
-**Файлы:**
-- `src/services/sources/remoteok-processor.ts`
-
-### 4. WeWorkRemotely
-
-**Процесс:**
-1. Fetch jobs from WWR RSS feed
-2. Parse RSS items
-3. Extract job data from descriptions
-4. Auto cleanup after import
-
-**Файлы:**
-- `src/services/sources/weworkremotely-processor.ts`
-
-### 5. HackerNews Who is Hiring
-
-**Процесс:**
-1. Fetch monthly "Who is Hiring" thread
-2. Parse individual comments as job posts
-3. Extract company, title, location via AI
-4. Auto cleanup after import
-
-**Файлы:**
-- `src/services/sources/hackernews-processor.ts`
 
 ### Company Enrichment
 
@@ -608,7 +572,7 @@ export function getMaxJobAgeDate(): Date {
 - `src/services/job-cleanup.ts` — сервис очистки
 
 **Интеграция:**
-- Вызывается в конце каждого процессора (LinkedIn, Lever, RemoteOK, WWR, HN)
+- Вызывается в конце каждого процессора (LinkedIn, Lever)
 
 ---
 
@@ -708,7 +672,7 @@ npx tsx scripts/recategorize-jobs.ts
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/cron/fetch-linkedin` | Trigger LinkedIn import |
-| POST | `/api/cron/fetch-sources` | Trigger all ATS sources (Lever, RemoteOK, WWR, HN) |
+| POST | `/api/cron/fetch-sources` | Trigger all ATS sources (Lever) |
 
 ### Webhooks
 
@@ -964,9 +928,6 @@ model Job {
 - [x] DeepSeek integration (extraction + categorization)
 - [x] Apify integration
 - [x] Lever ATS integration
-- [x] **RemoteOK integration**
-- [x] **WeWorkRemotely integration**
-- [x] **HackerNews Who is Hiring integration**
 - [x] DashaMail integration
 - [x] Apollo.io company enrichment
 - [x] LinkedIn processor with deduplication

@@ -690,10 +690,10 @@ model DataSource {
   id            String       @id @default(cuid())
 
   // Display info
-  name          String       // "Appen", "Netflix", "RemoteOK"
+  name          String       // "Appen", "Netflix", etc.
 
   // Source type
-  sourceType    Source       // LEVER, GREENHOUSE, REMOTEOK, etc.
+  sourceType    Source       // LEVER, GREENHOUSE, LINKEDIN, etc.
 
   // For ATS sources - company identifier
   companySlug   String?      // "appen", "netflix" (null for aggregators)
