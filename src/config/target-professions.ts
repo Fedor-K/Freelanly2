@@ -351,6 +351,7 @@ const WHITELIST_DESIGN = [
   'design lead', 'head of design', 'design manager',
   'figma', 'sketch designer',
   '3d designer', '3d artist', '3d modeler',
+  'designer', // generic - matches "Marketing Designer", etc.
 ];
 
 const WHITELIST_PRODUCT = [
