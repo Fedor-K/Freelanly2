@@ -38,9 +38,9 @@ function createLimiter(concurrency: number) {
 import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@/services/company-enrichment';
 import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
-import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
+import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats, isTargetRemoteJob } from '@/lib/deepseek';
 import { addToSocialQueue } from '@/services/social-post';
-import { shouldSkipJob, isPhysicalLocation } from '@/lib/job-filter';
+import { isPhysicalLocation } from '@/lib/job-filter';
 import { isBlockedCompany } from '@/config/company-blacklist';
 import type { ProcessingStats, ProcessorContext, LeverJob } from './types';
 import type { FilterReason } from '@prisma/client';
@@ -165,43 +165,44 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
     const existingJobMap = new Map(existingJobs.map(j => [j.sourceId || j.sourceUrl, j]));
 
     // =========================================================================
-    // ФИЛЬТРАЦИЯ ПО WHITELIST ПРОФЕССИЙ
-    // Единственное правило: title должен соответствовать whitelist
+    // AI ФИЛЬТРАЦИЯ ВАКАНСИЙ
+    // Используем DeepSeek для определения подходящих remote-профессий
     // locationType НЕ фильтруется — REMOTE/HYBRID/ONSITE все импортируются
-    // См. src/config/target-professions.ts
     // =========================================================================
     const jobsToProcess: LeverJob[] = [];
-    const filteredByWhitelist: LeverJob[] = [];
+    const filteredByAI: { job: LeverJob; reason: string }[] = [];
 
+    // First pass: filter out existing jobs
+    const newJobs: LeverJob[] = [];
     for (const job of freshJobs) {
-      // Check if already exists - skip without AI processing
       if (existingSourceIds.has(job.id) || existingSourceUrls.has(job.hostedUrl)) {
         stats.skipped++;
         continue; // Already in DB - no need to reprocess
       }
-
-      // ЕДИНСТВЕННЫЙ ФИЛЬТР: whitelist профессий по title
-      const location = job.categories.location || 'Remote';
-      const locationType = mapWorkplaceType(job.workplaceType, location, undefined);
-      const filterResult = shouldSkipJob({
-        title: job.text,
-        location,
-        locationType,
-      });
-
-      if (filterResult.skip) {
-        filteredByWhitelist.push(job);
-        stats.skipped++;
-      } else {
-        jobsToProcess.push(job);
-      }
+      newJobs.push(job);
     }
 
+    // AI Filter: process in parallel with concurrency limit
+    console.log(`[Lever] Running AI filter on ${newJobs.length} new jobs...`);
+    const AI_FILTER_CONCURRENCY = 10;
+    const aiFilterLimit = createLimiter(AI_FILTER_CONCURRENCY);
+
+    await Promise.all(newJobs.map(job => aiFilterLimit(async () => {
+      const filterResult = await isTargetRemoteJob(job.text);
+
+      if (filterResult.import) {
+        jobsToProcess.push(job);
+      } else {
+        filteredByAI.push({ job, reason: filterResult.reason });
+        stats.skipped++;
+      }
+    })));
+
     // Batch log filtered jobs
-    if (filteredByWhitelist.length > 0) {
-      console.log(`[Lever] Skipping ${filteredByWhitelist.length} jobs not matching whitelist`);
+    if (filteredByAI.length > 0) {
+      console.log(`[Lever] AI filtered ${filteredByAI.length} jobs as non-target`);
       await prisma.filteredJob.createMany({
-        data: filteredByWhitelist.map(job => ({
+        data: filteredByAI.map(({ job, reason }) => ({
           importLogId,
           title: job.text,
           company: dataSource.name,

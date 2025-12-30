@@ -382,4 +382,84 @@ Examples:
   }
 }
 
+/**
+ * AI-based job filter: determines if a job is suitable for our remote job board
+ * Returns true if job should be imported, false if it should be skipped
+ */
+export async function isTargetRemoteJob(title: string): Promise<{ import: boolean; reason: string }> {
+  try {
+    const deepseek = getDeepSeekClient();
+    const response = await deepseek.chat.completions.create({
+      model: 'deepseek-chat',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a job classifier for a REMOTE digital jobs board.
+Determine if this job title is suitable for our platform.
+
+IMPORT (YES) - Digital/knowledge work that can be done remotely:
+- Software developers, engineers, programmers
+- Designers (UI/UX, graphic, product)
+- Data analysts, scientists, ML engineers
+- Product managers, project managers
+- Marketing, SEO, content, growth
+- Sales (remote/inside sales), account managers
+- Writers, copywriters, editors
+- Translators, interpreters (remote)
+- Customer support, success (remote)
+- HR, recruiters (remote)
+- Finance, accounting (remote)
+- Legal, compliance (remote)
+- Researchers, consultants
+
+SKIP (NO) - Physical/on-site jobs NOT suitable:
+- Drivers, delivery, trucking, CDL
+- Nurses, doctors, healthcare workers
+- Warehouse, logistics, supply chain operations
+- Construction, electricians, plumbers
+- Retail, cashiers, store workers
+- Manufacturing, assembly, machine operators
+- Restaurant, food service, hospitality
+- Security guards, janitors, cleaners
+- Field technicians, installers
+- Teachers (classroom), tutors (in-person)
+
+Respond ONLY with JSON: {"import": true/false, "reason": "brief reason"}`
+        },
+        { role: 'user', content: `Job title: ${title}` }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0,
+      max_tokens: 100,
+    });
+
+    // Track usage
+    const usage = response.usage;
+    if (usage) {
+      const inputCost = (usage.prompt_tokens / 1_000_000) * DEEPSEEK_PRICE_INPUT_PER_1M;
+      const outputCost = (usage.completion_tokens / 1_000_000) * DEEPSEEK_PRICE_OUTPUT_PER_1M;
+      cumulativeUsage.inputTokens += usage.prompt_tokens;
+      cumulativeUsage.outputTokens += usage.completion_tokens;
+      cumulativeUsage.calls++;
+      cumulativeUsage.estimatedCostUSD += inputCost + outputCost;
+    }
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      return { import: false, reason: 'AI response empty' };
+    }
+
+    const result = JSON.parse(content) as { import: boolean; reason: string };
+    console.log(`[AI Filter] "${title}" → ${result.import ? 'IMPORT' : 'SKIP'}: ${result.reason}`);
+    return result;
+  } catch (error) {
+    console.error('[AI Filter] Error:', error);
+    // On error, fall back to simple keyword check
+    const lower = title.toLowerCase();
+    const skipKeywords = ['driver', 'nurse', 'warehouse', 'construction', 'retail', 'cashier', 'cook', 'chef'];
+    const skip = skipKeywords.some(kw => lower.includes(kw));
+    return { import: !skip, reason: skip ? 'Fallback: matched skip keyword' : 'Fallback: no skip keywords' };
+  }
+}
+
 export { getDeepSeekClient as deepseek };
