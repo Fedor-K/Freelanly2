@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * TARGET PROFESSIONS — ЕДИНСТВЕННЫЙ ИСТОЧНИК ПРАВДЫ ДЛЯ ФИЛЬТРАЦИИ ВАКАНСИЙ
+ * TARGET PROFESSIONS v2.0 — ЕДИНСТВЕННЫЙ ИСТОЧНИК ПРАВДЫ ДЛЯ ФИЛЬТРАЦИИ
  * ============================================================================
  *
  * ПРАВИЛО ИМПОРТА:
@@ -8,287 +8,551 @@
  * 2. Whitelist → title содержит целевые профессии → импортировать
  * 3. Ни то, ни другое → НЕ импортировать
  *
- * ЧТО НЕ ФИЛЬТРУЕТСЯ:
- * - Тип локации (REMOTE/HYBRID/ONSITE) — все импортируются
- * - Страна, уровень — не фильтруются
- *
- * Фильтрация по локации — на фронтенде пользователем.
+ * ПРИНЦИП: Лучше пропустить хорошую вакансию, чем проиндексировать мусор
  *
  * Используется в: src/lib/job-filter.ts → shouldSkipJob()
  * ============================================================================
  */
 
-// Engineering / Development
-const ENGINEERING_PATTERNS = [
-  // Roles (singular, plural)
-  'developer', 'developers', 'engineer', 'engineers',
-  'programmer', 'coder', 'architect',
-  // Specific engineering types (to avoid matching "mechanical engineering" etc)
-  'software engineering', 'ai engineering', 'data engineering', 'ml engineering',
-  'technical lead', 'tech lead', 'team lead', 'engineering manager',
-  'cto', 'vp engineer', 'head of engineer',
-  // Specializations
-  'frontend', 'front-end', 'front end',
-  'backend', 'back-end', 'back end',
-  'fullstack', 'full-stack', 'full stack',
-  'web developer', 'mobile developer',
+// ============================================================================
+// BLACKLIST — ЗАПРЕЩЁННЫЕ ПРОФЕССИИ (проверяется ПЕРВЫМ)
+// ============================================================================
+
+const BLACKLIST_HEALTHCARE = [
+  'nurse', 'nursing', 'rn ', 'lpn', 'cna', 'caregiver',
+  'doctor', 'physician', 'md ', 'surgeon', 'dentist',
+  'therapist', 'physical therapist', 'occupational therapist', 'speech therapist',
+  'pharmacist', 'pharmacy', 'veterinarian', 'vet tech',
+  'medical assistant', 'healthcare aide', 'health aide',
+  'clinical', 'patient care', 'hospice', 'home health',
+  'phlebotomist', 'radiologist', 'sonographer', 'emt', 'paramedic',
+  'optometrist', 'chiropractor', 'podiatrist',
+];
+
+const BLACKLIST_CONSTRUCTION = [
+  'construction', 'contractor', 'foreman', 'superintendent',
+  'electrician', 'plumber', 'hvac', 'welder', 'carpenter',
+  'mason', 'roofer', 'painter', 'drywall', 'flooring',
+  'locksmith', 'glazier', 'ironworker', 'pipefitter',
+  'heavy equipment', 'crane operator', 'excavator',
+  'framer', 'tiler', 'plasterer', 'bricklayer',
+];
+
+const BLACKLIST_MANUFACTURING = [
+  'manufacturing', 'production worker', 'assembly', 'assembler',
+  'machine operator', 'cnc operator', 'press operator',
+  'quality inspector', 'manufacturing qa', 'line worker',
+  'factory', 'plant operator', 'process operator',
+  'toolmaker', 'machinist', 'mill operator', 'lathe',
+  'fabricator', 'welder', 'solderer',
+];
+
+const BLACKLIST_RETAIL_HOSPITALITY = [
+  'retail', 'cashier', 'store clerk', 'sales associate',
+  'store manager', 'retail manager', 'merchandiser', 'stocker',
+  'cook', 'chef', 'sous chef', 'line cook', 'prep cook',
+  'barista', 'bartender', 'server', 'waiter', 'waitress',
+  'host', 'hostess', 'busser', 'dishwasher',
+  'hotel', 'front desk', 'concierge', 'bellhop', 'housekeeper', 'housekeeping',
+  'restaurant manager', 'kitchen manager', 'food service',
+  'sommelier', 'maitre d', 'banquet',
+];
+
+const BLACKLIST_LOGISTICS = [
+  'driver', 'truck driver', 'delivery driver', 'cdl',
+  'courier', 'delivery', 'shipping', 'receiving',
+  'warehouse', 'forklift', 'picker', 'packer', 'loader',
+  'logistics coordinator', 'dispatch', 'dispatcher',
+  'freight', 'dock worker', 'material handler',
+  'cargo', 'longshoreman', 'stevedore',
+];
+
+const BLACKLIST_FIELD_OUTDOOR = [
+  // Technicians (physical, not IT)
+  'field technician', 'field service', 'field engineer',
+  'installation technician', 'service technician',
+  'maintenance technician', 'maintenance worker',
+  'facilities technician', 'building maintenance',
+  'sound technician', 'audio technician', 'stage technician',
+  'lighting technician', 'av technician', 'broadcast technician',
+  'wardrobe technician', 'costume technician',
+  'equipment technician', 'lab technician',
+  'hvac technician', 'refrigeration technician',
+  'cable technician', 'telecommunications technician',
+  'appliance technician', 'repair technician',
+  // Environment/Outdoor
+  'landscaper', 'landscape', 'landscaping', 'groundskeeper',
+  'horticulturist', 'arborist', 'gardener',
+  'ecologist', 'environmental scientist', 'wetland',
+  'restoration', 'conservation', 'wildlife',
+  'surveyor', 'land surveyor', 'geologist',
+  'park ranger', 'forest', 'agriculture',
+];
+
+const BLACKLIST_SECURITY_CLEANING = [
+  'security guard', 'security officer', 'armed security',
+  'janitor', 'custodian', 'cleaner', 'cleaning',
+  'maintenance', 'handyman', 'porter',
+  'pest control', 'exterminator',
+];
+
+const BLACKLIST_OFFICE_TRADITIONAL = [
+  'receptionist', 'front desk clerk', 'office manager',
+  'mail room', 'file clerk', 'records clerk',
+  'office assistant', 'office coordinator',
+];
+
+const BLACKLIST_ENTERTAINMENT_EVENTS = [
+  // Stage/Production (physical)
+  'stagehand', 'rigger', 'grip', 'gaffer',
+  'wardrobe', 'costume', 'makeup artist', 'hair stylist',
+  'props', 'set designer', 'scenic',
+  'camera operator', 'boom operator',
+  // Events (physical presence)
+  'event coordinator', 'event manager', 'event planner',
+  'wedding', 'catering', 'banquet',
+  'conference coordinator', 'trade show',
+  'venue manager', 'box office',
+];
+
+const BLACKLIST_SOCIAL_WORK = [
+  'counselor', 'case manager', 'social worker',
+  'youth worker', 'residential counselor', 'group home',
+  'substance abuse', 'behavioral health', 'mental health counselor',
+  'probation officer', 'parole officer',
+  'child welfare', 'foster care', 'adoption',
+  'crisis counselor', 'hotline',
+];
+
+const BLACKLIST_EDUCATION_TRADITIONAL = [
+  'teacher', 'substitute teacher', 'classroom',
+  'professor', 'lecturer', 'adjunct',
+  'paraprofessional', 'teacher aide', 'teaching assistant',
+  'principal', 'school administrator', 'dean',
+  'librarian', 'school counselor',
+  'tutor', // physical tutoring
+  'daycare', 'childcare', 'preschool',
+];
+
+const BLACKLIST_AUTOMOTIVE = [
+  'mechanic', 'auto mechanic', 'automotive technician',
+  'body shop', 'collision repair', 'tire technician',
+  'oil change', 'lube tech', 'service advisor',
+  'detailer', 'car wash',
+];
+
+const BLACKLIST_PHYSICAL_ENGINEERING = [
+  'mechanical engineer', 'electrical engineer', 'civil engineer',
+  'structural engineer', 'chemical engineer', 'aerospace engineer',
+  'hardware engineer', 'manufacturing engineer', 'industrial engineer',
+  'process engineer', 'plant engineer', 'facilities engineer',
+  'project engineer', 'field engineer', 'site engineer',
+  'pcb designer', 'hardware design', 'hardware test',
+  'rf engineer', 'power engineer', 'controls engineer',
+  'biomedical engineer', 'nuclear engineer', 'marine engineer',
+  'mining engineer', 'petroleum engineer', 'geological engineer',
+  'environmental engineer', 'agricultural engineer',
+  'test engineer, hardware', 'validation engineer, hardware',
+];
+
+const BLACKLIST_ACCOUNTING = [
+  'accountant', 'staff accountant', 'senior accountant',
+  'bookkeeper', 'bookkeeping',
+  'accounts payable', 'accounts receivable', 'ap/ar', 'a/p', 'a/r',
+  'payroll', 'payroll specialist', 'payroll clerk',
+  'auditor', 'internal auditor', 'external auditor',
+  'tax preparer', 'tax specialist', 'tax accountant',
+  'collections', 'collector', 'credit analyst',
+  'controller', 'assistant controller',
+  'billing', 'billing specialist', 'invoicing',
+  'cpa', 'certified public accountant',
+];
+
+const BLACKLIST_SALES_FIELD = [
+  'field sales', 'outside sales', 'door to door', 'door-to-door',
+  'canvasser', 'canvassing',
+  'territory manager', 'territory sales', 'regional sales',
+  'area manager', 'district manager', 'zone manager',
+  'brand ambassador', 'promoter', 'demonstrator',
+  'retail sales', 'in-store sales',
+  'route sales', 'delivery sales',
+];
+
+const BLACKLIST_PROPERTY = [
+  'property manager', 'apartment manager', 'building manager',
+  'leasing agent', 'leasing consultant', 'real estate agent',
+  'realtor', 'property inspector', 'home inspector',
+  'superintendent', 'building superintendent',
+  'facilities manager', 'facilities coordinator',
+];
+
+const BLACKLIST_BEAUTY = [
+  'hairdresser', 'hair stylist', 'barber', 'beautician',
+  'nail technician', 'esthetician', 'massage therapist',
+  'personal trainer', 'fitness instructor', 'gym',
+  'yoga instructor', 'pilates', 'aerobics',
+  'spa', 'salon',
+];
+
+const BLACKLIST_AGRICULTURE = [
+  'farm', 'farmer', 'ranch', 'rancher', 'agricultural',
+  'harvest', 'crop', 'livestock', 'dairy',
+  'fisherman', 'fishing', 'aquaculture',
+];
+
+const BLACKLIST_LEGAL_TRADITIONAL = [
+  'attorney', 'lawyer', 'legal counsel', 'general counsel',
+  'litigation', 'court', 'judge', 'court reporter',
+  'public defender', 'prosecutor', 'district attorney',
+];
+
+const BLACKLIST_MISC = [
+  // Generic non-jobs
+  'volunteer', 'internship unpaid', 'stipend only',
+  // Physical labor
+  'laborer', 'labor', 'hand', 'helper',
+  // Military/Government physical
+  'police', 'officer', 'firefighter', 'fire fighter',
+  'corrections', 'detention', 'prison',
+  // Funeral/Cemetery
+  'funeral', 'mortician', 'cemetery',
+  // Religious
+  'pastor', 'minister', 'priest', 'rabbi', 'imam',
+  // Airlines (physical)
+  'flight attendant', 'cabin crew', 'pilot', 'co-pilot',
+  'ground crew', 'baggage handler', 'ramp agent',
+];
+
+// Combine all blacklist patterns
+const BLACKLIST_PATTERNS = [
+  ...BLACKLIST_HEALTHCARE,
+  ...BLACKLIST_CONSTRUCTION,
+  ...BLACKLIST_MANUFACTURING,
+  ...BLACKLIST_RETAIL_HOSPITALITY,
+  ...BLACKLIST_LOGISTICS,
+  ...BLACKLIST_FIELD_OUTDOOR,
+  ...BLACKLIST_SECURITY_CLEANING,
+  ...BLACKLIST_OFFICE_TRADITIONAL,
+  ...BLACKLIST_ENTERTAINMENT_EVENTS,
+  ...BLACKLIST_SOCIAL_WORK,
+  ...BLACKLIST_EDUCATION_TRADITIONAL,
+  ...BLACKLIST_AUTOMOTIVE,
+  ...BLACKLIST_PHYSICAL_ENGINEERING,
+  ...BLACKLIST_ACCOUNTING,
+  ...BLACKLIST_SALES_FIELD,
+  ...BLACKLIST_PROPERTY,
+  ...BLACKLIST_BEAUTY,
+  ...BLACKLIST_AGRICULTURE,
+  ...BLACKLIST_LEGAL_TRADITIONAL,
+  ...BLACKLIST_MISC,
+];
+
+// ============================================================================
+// WHITELIST — РАЗРЕШЁННЫЕ ПРОФЕССИИ (специфичные термины)
+// ============================================================================
+
+const WHITELIST_ENGINEERING = [
+  // Software Engineering (specific)
+  'software engineer', 'software developer',
+  'frontend developer', 'front-end developer', 'front end developer',
+  'backend developer', 'back-end developer', 'back end developer',
+  'fullstack developer', 'full-stack developer', 'full stack developer',
+  'web developer', 'mobile developer', 'app developer',
   'ios developer', 'android developer',
-  'react native', 'flutter',
-  'software', 'application', 'platform',
-  // Technologies in title
-  'java developer', 'python', 'javascript', 'typescript',
-  'golang', 'go developer', 'rust', 'c\\+\\+', 'c#', '\\.net', 'dotnet',
-  'php', 'ruby', 'scala', 'kotlin', 'swift',
-  'node', 'react', 'vue', 'angular', 'next\\.js', 'nuxt',
-  'django', 'rails', 'spring', 'laravel',
-  'blockchain', 'web3', 'solidity', 'smart contract',
+  'react developer', 'vue developer', 'angular developer',
+  'node developer', 'nodejs developer',
+  'python developer', 'java developer', 'golang developer', 'go developer',
+  'rust developer', 'ruby developer', 'rails developer',
+  'php developer', 'laravel developer', 'django developer',
+  '.net developer', 'c# developer', 'dotnet developer',
+  'blockchain developer', 'smart contract developer', 'web3 developer', 'solidity',
+  'game developer', 'unity developer', 'unreal developer',
+  'wordpress developer', 'shopify developer', 'webflow developer',
+  'api developer', 'integration developer',
+  'embedded developer', 'firmware developer',
+  // Engineering titles (with software context)
+  'software engineering', 'application engineer',
+  'technical lead', 'tech lead', 'engineering manager',
+  'vp engineering', 'vp of engineering', 'head of engineering', 'cto',
+  'principal engineer', 'staff engineer', 'senior software engineer',
+  'engineering director', 'director of engineering',
 ];
 
-// Data & AI
-const DATA_PATTERNS = [
+const WHITELIST_DATA = [
   'data scientist', 'data analyst', 'data engineer',
-  'ml engineer', 'machine learning', 'ai engineer', 'artificial intelligence',
-  'ai/ml', 'ml/ai', // Combined AI/ML
-  'analytics engineer', 'bi developer', 'bi analyst', 'business intelligence',
-  'bi manager', 'bi lead', 'bi engineering', 'bi director', // BI roles
-  'statistician', 'quantitative',
-  'deep learning', 'nlp', 'natural language', 'computer vision',
-  'big data', 'etl', 'data warehouse', 'data pipeline',
-  'data operations', 'data steward', 'data ops', 'data governance', // Data operations
-  // AI roles
-  'ai consultant', 'ml practice', 'ai practice', 'genai', 'gen ai',
-  'ai evaluator', 'data annotator', // AI training data
-  'ai solutions', 'ai services', // AI business
-  'product analytics', 'marketing analytics', // Analytics roles
-  'vp data', 'head of data', 'vp infrastructure', 'director of data', // Data leadership
+  'machine learning engineer', 'ml engineer', 'ai engineer',
+  'business intelligence', 'bi developer', 'bi analyst', 'bi engineer',
+  'analytics engineer', 'data visualization',
+  'quantitative analyst', 'quant developer',
+  'nlp engineer', 'computer vision engineer', 'deep learning',
+  'ai researcher', 'ml researcher', 'research scientist, ai',
+  'data ops', 'dataops', 'data governance', 'data steward',
+  'etl developer', 'data warehouse', 'data platform',
+  'ai/ml', 'ml/ai', 'genai', 'generative ai',
+  'prompt engineer', 'ai trainer', 'data annotator',
 ];
 
-// DevOps & Infrastructure
-const DEVOPS_PATTERNS = [
-  'devops', 'sre', 'site reliability',
+const WHITELIST_DEVOPS = [
+  'devops engineer', 'devops', 'sre', 'site reliability',
   'platform engineer', 'infrastructure engineer',
-  'system admin', 'sysadmin', 'sysops', 'systems engineer',
-  'system administrator', 'systems administrator', // Full form
-  'network engineer', 'cloud engineer',
-  'database admin', 'dba', 'database administrator', // Full form
-  'aws', 'azure', 'gcp', 'google cloud',
-  'kubernetes', 'docker', 'terraform',
-  // Tech admins
-  'zendesk admin', 'salesforce admin', 'salesforce administrator',
-  'it support', 'it professional', 'it specialist',
-  'technology manager', 'it manager', 'vp it', // IT leadership
+  'cloud engineer', 'aws engineer', 'azure engineer', 'gcp engineer',
+  'kubernetes engineer', 'k8s', 'docker',
+  'terraform', 'infrastructure as code',
+  'systems administrator', 'system administrator', 'sysadmin', 'linux admin',
+  'database administrator', 'dba', 'postgres', 'mysql admin',
+  'release engineer', 'build engineer', 'ci/cd',
+  'network engineer', // remote network config
+  'cloud architect', 'solutions architect',
 ];
 
-// Security
-const SECURITY_PATTERNS = [
-  'security engineer', 'security analyst', 'security architect',
-  'cybersecurity', 'cyber security', 'infosec', 'information security',
-  'penetration tester', 'pentester', 'ethical hacker',
-  'soc analyst', 'security operations',
-  'ciso', 'security lead', 'security manager',
-];
-
-// QA & Testing
-const QA_PATTERNS = [
-  'qa', 'quality assurance', 'tester', 'testing',
+const WHITELIST_QA = [
+  'qa engineer', 'qa analyst', 'quality assurance engineer',
   'test engineer', 'test automation', 'automation engineer',
-  'sdet', 'qa lead', 'qa manager',
-  'manual tester', 'automation tester',
-  'quality engineering', 'director of quality', // Quality leadership
+  'sdet', 'software test', 'quality engineer',
+  'performance tester', 'load tester',
+  'qa lead', 'qa manager', 'test lead',
 ];
 
-// Design
-const DESIGN_PATTERNS = [
-  'designer', 'ux', 'ui', 'ux/ui', 'ui/ux',
-  'product designer', 'visual designer', 'graphic designer', 'web designer',
-  'interaction designer', 'motion designer',
-  'design lead', 'head of design', 'creative director', 'art director',
+const WHITELIST_SECURITY = [
+  'security engineer', 'security analyst', 'security architect',
+  'cybersecurity', 'cyber security', 'information security', 'infosec',
+  'penetration tester', 'pentester', 'ethical hacker', 'red team',
+  'soc analyst', 'security operations', 'blue team',
+  'application security', 'appsec', 'cloud security',
+  'security researcher', 'vulnerability',
+  'ciso', 'chief information security',
 ];
 
-// Product & Project
-const PRODUCT_PATTERNS = [
-  'product manager', 'product owner', 'apm',
-  'product lead', 'solution owner', // Product leadership
-  'product management', 'director of product', // Product roles
-  'program manager', 'project manager', 'pmo',
-  'scrum master', 'agile coach',
-  'technical program manager', 'tpm',
-  'cpo', 'vp product', 'head of product', 'chief product',
+const WHITELIST_DESIGN = [
+  'ui designer', 'ux designer', 'ui/ux', 'ux/ui', 'uiux',
+  'product designer', 'digital product designer',
+  'visual designer', 'graphic designer', 'web designer',
+  'interaction designer', 'motion designer', 'motion graphics',
+  'brand designer', 'creative director', 'art director',
+  'design lead', 'head of design', 'design manager',
+  'figma', 'sketch designer',
 ];
 
-// Marketing (Digital)
-const MARKETING_PATTERNS = [
-  'marketing manager', 'digital marketing', 'online marketing',
-  'growth manager', 'growth hacker', 'head of growth',
-  'content marketing', 'content strategist',
-  'social media manager', 'community manager',
-  'performance marketing', 'paid media', 'media buyer',
-  'marketing analyst', 'marketing operations', 'marketing ops',
-  'cmo', 'vp marketing', 'head of marketing',
-  'seo', 'sem', 'ppc', 'paid ads', 'paid search',
-  'email marketing', 'crm manager', 'lifecycle',
+const WHITELIST_PRODUCT = [
+  'product manager', 'product owner', 'technical product manager',
+  'product lead', 'senior product manager', 'group product manager',
+  'vp product', 'vp of product', 'head of product', 'cpo', 'chief product',
+  'product director', 'director of product',
+  'product analyst', 'product ops', 'product operations',
+  'growth product manager',
+];
+
+const WHITELIST_PROJECT = [
+  'project manager', 'technical project manager', 'it project manager',
+  'program manager', 'technical program manager', 'tpm',
+  'scrum master', 'agile coach', 'delivery manager',
+  'pmo', 'project management',
+];
+
+const WHITELIST_MARKETING = [
+  'marketing manager', 'digital marketing', 'growth marketing',
+  'performance marketing', 'content marketing',
+  'seo specialist', 'seo manager', 'sem specialist', 'sem manager',
+  'ppc specialist', 'ppc manager', 'paid media', 'media buyer',
+  'social media manager', 'social media specialist',
+  'community manager', 'community lead',
+  'email marketing', 'email specialist', 'marketing automation',
+  'crm manager', 'crm specialist', 'lifecycle marketing',
   'brand manager', 'brand strategist',
-  'demand generation', 'demand gen',
+  'marketing analyst', 'marketing ops', 'marketing operations',
+  'growth manager', 'growth lead', 'head of growth',
+  'demand generation', 'demand gen', 'lead generation',
+  'vp marketing', 'head of marketing', 'cmo', 'chief marketing',
+  'content strategist', 'content lead',
+  'affiliate marketing', 'influencer marketing', 'partnership marketing',
 ];
 
-// Content & Creative
-const CONTENT_PATTERNS = [
-  'copywriter', 'content writer', 'technical writer', 'writer',
-  'editor', 'copy editor', 'managing editor',
-  'translator', 'localization', 'interpreter', 'linguist',
-  'translation reviewer', 'language lead', 'language specialist', // Translation QA
-  'video editor', 'video producer', 'videographer',
-  'animator', '3d artist', 'motion graphics',
-  'content creator', 'content manager',
+const WHITELIST_CONTENT = [
+  'copywriter', 'content writer', 'technical writer',
+  'ux writer', 'seo writer', 'blog writer',
+  'editor', 'copy editor', 'content editor', 'managing editor',
+  'content strategist', 'content manager', 'content lead',
+  'ghostwriter', 'scriptwriter',
 ];
 
-// Sales (Tech/SaaS) - be specific to avoid retail sales
-const SALES_PATTERNS = [
-  'account executive',
-  'business development', 'bdr', 'sdr', 'sales development',
-  'sales engineer', 'solutions engineer', 'solution architect', 'pre-sales', 'presales',
-  'solutions consultant', 'solution consultant', // Tech pre-sales
-  'technical account manager', // Tech account management
-  'sales manager', 'sales director', 'head of sales', 'vp sales',
-  'partnerships', 'partner manager', 'channel manager', 'alliance manager',
-  'enterprise sales', 'saas sales', 'software sales', 'tech sales',
-  'inside sales', // tech inside sales
+const WHITELIST_VIDEO_AUDIO = [
+  'video editor', 'video producer', 'youtube editor',
+  'motion graphics designer', 'after effects',
+  'animator', '2d animator', '3d animator',
+  'sound designer', 'audio engineer', 'podcast editor',
+  'voice over', 'voiceover artist',
+  'colorist', 'vfx artist', 'visual effects',
 ];
 
-// Customer Success & Support
-const CUSTOMER_PATTERNS = [
-  'customer success', 'csm', 'customer success manager',
-  'customer support', 'support engineer', 'support specialist',
-  'technical support', 'tech support', 'help desk',
-  'customer experience', 'cx manager',
-  'implementation manager', 'onboarding', 'client success',
+const WHITELIST_TRANSLATION = [
+  'translator', 'localization specialist', 'localization engineer',
+  'localization manager', 'localization lead',
+  'interpreter', // remote interpreter
+  'transcriptionist', 'subtitler', 'captioner',
+  'translation project manager', 'language specialist',
+  'localization qa', 'linguistic qa',
 ];
 
-// HR & Recruiting
-const HR_PATTERNS = [
-  'recruiter', 'technical recruiter', 'sourcer', 'talent sourcer',
-  'talent acquisition', 'recruiting manager', 'recruitment',
-  'hr manager', 'hr business partner', 'hrbp',
+const WHITELIST_SALES = [
+  'account executive', 'ae ',
+  'sales development representative', 'sdr',
+  'business development representative', 'bdr',
+  'business development manager', 'bdm',
+  'sales engineer', 'solutions engineer', 'pre-sales engineer',
+  'presales', 'pre-sales',
+  'solutions consultant', 'solution architect',
+  'customer success manager', 'csm', 'customer success lead',
+  'account manager', 'strategic account',
+  'partnership manager', 'partner manager', 'channel manager',
+  'inside sales', 'saas sales', 'enterprise sales',
+  'sales manager', 'sales director', 'vp sales', 'head of sales',
+  'revenue operations', 'revops',
+];
+
+const WHITELIST_SUPPORT = [
+  'customer support', 'customer support specialist',
+  'customer service specialist', // not "representative"
+  'technical support', 'tech support', 'support engineer',
+  'support specialist', 'it support', 'it helpdesk',
+  'help desk analyst', 'helpdesk',
+  'customer success associate', 'customer success specialist',
+  'customer experience', 'cx specialist',
+  'implementation manager', 'implementation specialist',
+  'onboarding specialist', 'onboarding manager',
+];
+
+const WHITELIST_HR = [
+  'recruiter', 'technical recruiter', 'it recruiter',
+  'sourcer', 'talent sourcer',
+  'talent acquisition', 'recruiting coordinator', 'recruiting manager',
+  'hr business partner', 'hrbp',
   'people operations', 'people ops', 'people partner',
-  'hr director', 'head of people', 'vp people', 'chro',
+  'employer branding', 'talent brand',
+  'compensation analyst', 'total rewards',
+  'head of people', 'vp people', 'chief people officer',
 ];
 
-// Finance
-const FINANCE_PATTERNS = [
-  'financial analyst', 'fp&a', 'finance analyst',
-  'controller',
-  'cfo', 'vp finance', 'finance manager', 'finance director',
-  'treasury', 'financial planning',
+const WHITELIST_FINANCE = [
+  'financial analyst', 'fp&a', 'fpa analyst',
+  'finance analyst', 'senior financial analyst',
+  'investment analyst', 'equity research', 'research analyst',
+  'financial modeler', 'valuation analyst',
+  'pricing analyst', 'budget analyst',
+  'treasury analyst', 'treasury manager',
+  'finance manager', 'finance director', 'vp finance', 'cfo',
 ];
 
-// Legal
-const LEGAL_PATTERNS = [
-  'legal counsel', 'lawyer', 'attorney',
-  'compliance manager', 'compliance officer', 'compliance analyst',
-  'contract manager', 'paralegal',
-  'privacy', 'data protection', 'gdpr',
-  'general counsel', 'head of legal', 'vp legal', 'legal director',
+const WHITELIST_LEGAL = [
+  'legal writer', 'legal content',
+  'contract analyst', 'contract manager', 'contracts specialist',
+  'legal researcher', 'legal research',
+  'compliance specialist', 'compliance analyst', 'compliance manager',
+  'privacy analyst', 'privacy specialist', 'data protection', 'dpo',
+  'gdpr specialist', 'ccpa',
+  'paralegal', 'legal assistant',
+  'legal operations', 'legal ops',
+  'ip analyst', 'patent analyst',
 ];
 
-// Operations
-const OPERATIONS_PATTERNS = [
-  'operations manager', 'operations analyst', 'ops manager',
-  'business operations', 'revops', 'revenue operations',
-  'strategy', 'business analyst', 'strategy analyst',
-  'integration analyst', 'systems analyst', // Tech operations
+const WHITELIST_EDUCATION = [
+  'instructional designer', 'e-learning developer', 'elearning',
+  'course creator', 'curriculum developer', 'curriculum designer',
+  'lms administrator', 'lms specialist',
+  'training specialist', 'training manager', 'learning specialist',
+  'corporate trainer', 'technical trainer',
+  'educational content', 'learning designer',
+];
+
+const WHITELIST_RESEARCH = [
+  'ux researcher', 'user researcher', 'design researcher',
+  'market researcher', 'market research analyst',
+  'research analyst', 'research associate',
+  'insights analyst', 'consumer insights',
+  'competitive intelligence', 'competitive analyst',
+  'survey researcher', 'quantitative researcher', 'qualitative researcher',
+];
+
+const WHITELIST_OPERATIONS = [
+  'operations manager', 'business operations',
+  'operations analyst', 'ops analyst',
+  'revops', 'revenue operations', 'sales operations',
+  'business analyst', 'strategy analyst',
   'chief of staff', 'executive assistant',
-  'coo', 'vp operations', 'head of operations',
-  'gm ai', 'general manager ai', // AI leadership
+  'virtual assistant', 'va ',
+  'administrative assistant', 'admin assistant',
+  'data entry specialist', 'data entry clerk',
+  'research assistant',
+  'operations lead', 'head of operations', 'vp operations', 'coo',
 ];
 
-// Combine all patterns
-export const TARGET_PROFESSION_PATTERNS: string[] = [
-  ...ENGINEERING_PATTERNS,
-  ...DATA_PATTERNS,
-  ...DEVOPS_PATTERNS,
-  ...SECURITY_PATTERNS,
-  ...QA_PATTERNS,
-  ...DESIGN_PATTERNS,
-  ...PRODUCT_PATTERNS,
-  ...MARKETING_PATTERNS,
-  ...CONTENT_PATTERNS,
-  ...SALES_PATTERNS,
-  ...CUSTOMER_PATTERNS,
-  ...HR_PATTERNS,
-  ...FINANCE_PATTERNS,
-  ...LEGAL_PATTERNS,
-  ...OPERATIONS_PATTERNS,
+const WHITELIST_CONSULTING = [
+  'management consultant', 'strategy consultant',
+  'technology consultant', 'it consultant',
+  'digital transformation', 'digital consultant',
+  'salesforce consultant', 'sap consultant', 'oracle consultant',
+  'implementation consultant', 'functional consultant',
+  'marketing consultant', 'seo consultant',
+  'business consultant', 'advisory',
 ];
 
-// Build regex for efficient matching
-// Using word boundaries to prevent false positives (e.g., "cto" matching "director")
-const patternString = TARGET_PROFESSION_PATTERNS
+// Combine all whitelist patterns
+const WHITELIST_PATTERNS = [
+  ...WHITELIST_ENGINEERING,
+  ...WHITELIST_DATA,
+  ...WHITELIST_DEVOPS,
+  ...WHITELIST_QA,
+  ...WHITELIST_SECURITY,
+  ...WHITELIST_DESIGN,
+  ...WHITELIST_PRODUCT,
+  ...WHITELIST_PROJECT,
+  ...WHITELIST_MARKETING,
+  ...WHITELIST_CONTENT,
+  ...WHITELIST_VIDEO_AUDIO,
+  ...WHITELIST_TRANSLATION,
+  ...WHITELIST_SALES,
+  ...WHITELIST_SUPPORT,
+  ...WHITELIST_HR,
+  ...WHITELIST_FINANCE,
+  ...WHITELIST_LEGAL,
+  ...WHITELIST_EDUCATION,
+  ...WHITELIST_RESEARCH,
+  ...WHITELIST_OPERATIONS,
+  ...WHITELIST_CONSULTING,
+];
+
+// ============================================================================
+// REGEX BUILDERS
+// ============================================================================
+
+// Build blacklist regex with word boundaries
+const blacklistPatternString = BLACKLIST_PATTERNS
   .map(p => {
-    // Escape special regex chars except those we use intentionally
+    // Escape special regex chars
     const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // Add word boundaries to all patterns to prevent partial matches
     return `\\b${escaped}\\b`;
   })
   .join('|');
 
-const TARGET_REGEX = new RegExp(`(${patternString})`, 'i');
+const BLACKLIST_REGEX = new RegExp(`(${blacklistPatternString})`, 'i');
 
-/**
- * Check if a job title matches our target professions
- * @param title - Job title to check
- * @returns true if the job is relevant to our audience
- */
-export function isTargetProfession(title: string): boolean {
-  if (!title) return false;
-  return TARGET_REGEX.test(title);
-}
+// Build whitelist regex with word boundaries
+const whitelistPatternString = WHITELIST_PATTERNS
+  .map(p => {
+    const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return `\\b${escaped}\\b`;
+  })
+  .join('|');
 
-// Explicit blacklist for edge cases that might slip through
-const BLACKLIST_PATTERNS = [
-  // Logistics/Physical
-  'driver', 'delivery', 'courier', 'warehouse', 'forklift',
-  // Healthcare
-  'nurse', 'nursing', 'doctor', 'physician', 'medical assistant', 'healthcare aide',
-  // Education (non-EdTech)
-  'teacher', 'instructor', 'professor', 'tutor',
-  // Food/Hospitality
-  'cook', 'chef', 'barista', 'cashier', 'waiter', 'waitress', 'bartender',
-  // Construction/Trades
-  'construction', 'plumber', 'electrician', 'carpenter', 'mechanic',
-  // Retail
-  'retail associate', 'store manager', 'sales associate', 'store clerk',
-  'retail account manager', 'retail sales',
-  // Cleaning
-  'janitor', 'cleaner', 'housekeeper', 'custodian',
-  // Physical security (not cyber)
-  'security guard', 'security officer',
-  // Field/Door-to-door sales
-  'field sales', 'outside sales', 'door to door', 'door-to-door',
-  'sales representative', 'brand ambassador', 'canvasser',
-  'territory manager', 'area manager', 'district manager',
-  // Finance back-office (not analyst)
-  'accounts receivable', 'accounts payable', 'collections',
-  'bookkeeper', 'payroll',
-  // Generic customer service (not tech support)
-  'customer care', 'customer service representative',
-  'call center', 'contact center',
-  // Hardware/Physical engineering (not software)
-  'mechanical engineer', 'electrical engineer', 'civil engineer',
-  'structural engineer', 'chemical engineer', 'aerospace engineer',
-  'hardware engineer', 'manufacturing engineer', 'industrial engineer',
-  'pcb designer', 'hardware test', 'hardware design',
-  'engineer, electrical', 'engineer, mechanical', 'engineer, civil',
-  'project engineer', // Usually construction/mechanical
-  // Accounting (all)
-  'accountant',
-];
+const WHITELIST_REGEX = new RegExp(`(${whitelistPatternString})`, 'i');
 
-const BLACKLIST_REGEX = new RegExp(`\\b(${BLACKLIST_PATTERNS.join('|')})\\b`, 'i');
+// ============================================================================
+// PUBLIC API
+// ============================================================================
 
 /**
  * Check if a job title is explicitly blacklisted
  * @param title - Job title to check
- * @returns true if the job should be excluded
+ * @returns true if the job should be EXCLUDED
  */
 export function isBlacklistedProfession(title: string): boolean {
   if (!title) return false;
@@ -296,7 +560,23 @@ export function isBlacklistedProfession(title: string): boolean {
 }
 
 /**
+ * Check if a job title matches our target professions whitelist
+ * @param title - Job title to check
+ * @returns true if the job is relevant to our audience
+ */
+export function isTargetProfession(title: string): boolean {
+  if (!title) return false;
+  return WHITELIST_REGEX.test(title);
+}
+
+/**
  * Main function: Check if job should be imported
+ *
+ * RULE ORDER:
+ * 1. Blacklist check (priority) → if matches → SKIP
+ * 2. Whitelist check → if matches → IMPORT
+ * 3. No match → SKIP
+ *
  * @param title - Job title to check
  * @returns true if job should be imported, false if should be skipped
  */
@@ -309,3 +589,7 @@ export function shouldImportByProfession(title: string): boolean {
   // Then check whitelist
   return isTargetProfession(title);
 }
+
+// Export for testing/debugging
+export const TARGET_PROFESSION_PATTERNS = WHITELIST_PATTERNS;
+export const BLOCKED_PROFESSION_PATTERNS = BLACKLIST_PATTERNS;
