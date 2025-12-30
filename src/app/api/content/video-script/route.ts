@@ -10,45 +10,148 @@ const VIDEO_CONFIG = {
   musicVolume: 'low' as const,
 };
 
-// Search terms by topic for Pexels background videos
-const SEARCH_TERMS: Record<string, string[]> = {
-  job: ['remote work', 'laptop office'],
-  hiring: ['business meeting', 'team collaboration'],
-  salary: ['money success', 'business growth'],
-  developer: ['coding programming', 'software developer'],
-  designer: ['creative design', 'digital art'],
-  marketing: ['digital marketing', 'social media'],
-  cta: ['career success', 'happy professional'],
-  company: ['modern office', 'corporate building'],
-  remote: ['home office', 'work from home'],
-  default: ['professional business', 'office work'],
+// TESTED Pexels search terms that return high-quality videos
+// Each scene type has reliable terms that consistently work
+const SCENE_VIDEOS = {
+  // Hook scenes - attention grabbing
+  hook: ['notification alert', 'exciting news', 'smartphone notification'],
+
+  // Work/content scenes by category
+  tech: ['coding laptop', 'software development', 'programming computer'],
+  design: ['creative workspace', 'designer tablet', 'digital design'],
+  business: ['business professional', 'corporate office', 'business meeting'],
+  remote: ['home office setup', 'remote work laptop', 'work from home'],
+
+  // Salary/money scenes
+  money: ['counting money', 'dollar bills', 'financial success'],
+
+  // CTA scenes - call to action
+  cta: ['thumbs up success', 'happy celebration', 'phone mobile app'],
+
+  // Generic professional scenes
+  professional: ['business laptop', 'office workspace', 'professional working'],
 };
 
-function getSearchTerms(text: string): string[] {
-  const lowerText = text.toLowerCase();
-  if (lowerText.includes('developer') || lowerText.includes('engineer')) return SEARCH_TERMS.developer;
-  if (lowerText.includes('designer') || lowerText.includes('design')) return SEARCH_TERMS.designer;
-  if (lowerText.includes('marketing')) return SEARCH_TERMS.marketing;
-  if (lowerText.includes('salary') || lowerText.includes('$') || lowerText.includes('€')) return SEARCH_TERMS.salary;
-  if (lowerText.includes('hiring') || lowerText.includes('position')) return SEARCH_TERMS.hiring;
-  if (lowerText.includes('apply') || lowerText.includes('freelanly')) return SEARCH_TERMS.cta;
-  if (lowerText.includes('remote')) return SEARCH_TERMS.remote;
-  if (lowerText.includes('company') || lowerText.includes('corp')) return SEARCH_TERMS.company;
-  if (lowerText.includes('job') || lowerText.includes('alert')) return SEARCH_TERMS.job;
-  return SEARCH_TERMS.default;
+type SceneType = 'hook' | 'content' | 'salary' | 'cta';
+
+interface Scene {
+  text: string;
+  searchTerms: string[];
 }
 
-function textToScenes(text: string): Array<{ text: string; searchTerms: string[] }> {
-  // Split by sentences or logical breaks
-  const sentences = text
-    .split(/[.!?\n]+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
+// Build scenes with fixed structure: HOOK → CONTENT → CTA
+function buildJobAlertScenes(
+  jobTitle: string,
+  companyName: string,
+  salary: string | null,
+  location: string,
+  jobType: string
+): Scene[] {
+  const scenes: Scene[] = [];
 
-  return sentences.map(sentence => ({
-    text: sentence,
-    searchTerms: getSearchTerms(sentence),
-  }));
+  // Scene 1: HOOK (attention grabber)
+  scenes.push({
+    text: "Hot job alert!",
+    searchTerms: SCENE_VIDEOS.hook,
+  });
+
+  // Scene 2: COMPANY + ROLE (main content)
+  const isTech = /developer|engineer|programmer|devops|sre/i.test(jobTitle);
+  const isDesign = /designer|ux|ui|creative/i.test(jobTitle);
+  const videoType = isTech ? SCENE_VIDEOS.tech : isDesign ? SCENE_VIDEOS.design : SCENE_VIDEOS.business;
+
+  scenes.push({
+    text: `${companyName} is hiring a ${jobTitle}.`,
+    searchTerms: videoType,
+  });
+
+  // Scene 3: SALARY + LOCATION (if salary exists)
+  if (salary) {
+    scenes.push({
+      text: `${salary}. ${location}.`,
+      searchTerms: SCENE_VIDEOS.money,
+    });
+  } else {
+    scenes.push({
+      text: `Location: ${location}. ${jobType} position.`,
+      searchTerms: SCENE_VIDEOS.remote,
+    });
+  }
+
+  // Scene 4: CTA
+  scenes.push({
+    text: "Apply now at freelanly dot com!",
+    searchTerms: SCENE_VIDEOS.cta,
+  });
+
+  return scenes;
+}
+
+function buildSalaryRevealScenes(
+  categoryName: string,
+  entryRange: string | null,
+  midRange: string | null,
+  seniorRange: string | null
+): Scene[] {
+  const scenes: Scene[] = [];
+
+  scenes.push({
+    text: `How much do Remote ${categoryName} make?`,
+    searchTerms: SCENE_VIDEOS.hook,
+  });
+
+  if (entryRange) {
+    scenes.push({
+      text: `Entry level: ${entryRange}.`,
+      searchTerms: SCENE_VIDEOS.money,
+    });
+  }
+
+  if (midRange) {
+    scenes.push({
+      text: `Mid level: ${midRange}.`,
+      searchTerms: SCENE_VIDEOS.money,
+    });
+  }
+
+  if (seniorRange) {
+    scenes.push({
+      text: `Senior level: ${seniorRange}.`,
+      searchTerms: SCENE_VIDEOS.money,
+    });
+  }
+
+  scenes.push({
+    text: "Find your salary at freelanly dot com!",
+    searchTerms: SCENE_VIDEOS.cta,
+  });
+
+  return scenes;
+}
+
+function buildTopJobsScenes(
+  jobs: Array<{ title: string; company: string; salary: string }>
+): Scene[] {
+  const scenes: Scene[] = [];
+
+  scenes.push({
+    text: `Top ${jobs.length} highest paying remote jobs!`,
+    searchTerms: SCENE_VIDEOS.hook,
+  });
+
+  jobs.forEach((job, i) => {
+    scenes.push({
+      text: `Number ${i + 1}: ${job.title} at ${job.company}, ${job.salary}.`,
+      searchTerms: i === 0 ? SCENE_VIDEOS.money : SCENE_VIDEOS.professional,
+    });
+  });
+
+  scenes.push({
+    text: "Apply at freelanly dot com!",
+    searchTerms: SCENE_VIDEOS.cta,
+  });
+
+  return scenes;
 }
 
 /**
@@ -115,14 +218,19 @@ async function generateJobAlertScript(jobId: string | null) {
 
   const salary = formatSalary(job);
   const location = job.location || 'Remote';
+  const jobType = job.type.replace('_', ' ').toLowerCase();
 
-  const script = `Hot job alert!
-${job.company.name} is hiring a ${job.title}.
-${salary ? `Salary: ${salary}.` : ''}
-Location: ${location}.
-This is a ${job.type.replace('_', ' ').toLowerCase()} position.
-Apply now at freelanly dot com.
-Link in bio!`;
+  // Build structured scenes
+  const scenes = buildJobAlertScenes(
+    job.title,
+    job.company.name,
+    salary,
+    location,
+    jobType
+  );
+
+  // Also build a readable script
+  const script = scenes.map(s => s.text).join(' ');
 
   return NextResponse.json({
     success: true,
@@ -130,11 +238,8 @@ Link in bio!`;
     jobId: job.id,
     jobUrl: `https://freelanly.com/company/${job.company.slug}/jobs/${job.slug}`,
     script,
-    // Ready for Short Video Maker API
-    shortVideoMaker: {
-      scenes: textToScenes(script),
-      config: VIDEO_CONFIG,
-    },
+    scenes,
+    config: VIDEO_CONFIG,
   });
 }
 
@@ -179,21 +284,17 @@ async function generateSalaryRevealScript(categorySlug: string | null) {
   const mid = getRange(byLevel.MID);
   const senior = getRange(byLevel.SENIOR);
 
-  const script = `How much do Remote ${category.name} professionals make?
-${entry ? `Entry level: ${entry} per year.` : ''}
-${mid ? `Mid level: ${mid} per year.` : ''}
-${senior ? `Senior level: ${senior} per year.` : ''}
-Find these jobs at freelanly dot com.`;
+  // Build structured scenes
+  const scenes = buildSalaryRevealScenes(category.name, entry, mid, senior);
+  const script = scenes.map(s => s.text).join(' ');
 
   return NextResponse.json({
     success: true,
     type: 'salary-reveal',
     category: category.name,
     script,
-    shortVideoMaker: {
-      scenes: textToScenes(script),
-      config: VIDEO_CONFIG,
-    },
+    scenes,
+    config: VIDEO_CONFIG,
   });
 }
 
@@ -214,24 +315,23 @@ async function generateTopJobsScript(categorySlug: string | null) {
     return NextResponse.json({ error: 'No jobs found' }, { status: 404 });
   }
 
-  const jobLines = jobs.map((job, i) => {
-    const salary = job.salaryMax || job.salaryMin || 0;
-    return `Number ${i + 1}: ${job.title} at ${job.company.name}, ${Math.round(salary / 1000)}K per year.`;
-  });
+  // Build structured scenes
+  const jobsForScenes = jobs.map(job => ({
+    title: job.title,
+    company: job.company.name,
+    salary: `$${Math.round((job.salaryMax || job.salaryMin || 0) / 1000)}K`,
+  }));
 
-  const script = `${jobs.length} highest paying remote jobs this week!
-${jobLines.join('\n')}
-Apply at freelanly dot com. Link in bio!`;
+  const scenes = buildTopJobsScenes(jobsForScenes);
+  const script = scenes.map(s => s.text).join(' ');
 
   return NextResponse.json({
     success: true,
     type: 'top-jobs',
     count: jobs.length,
     script,
-    shortVideoMaker: {
-      scenes: textToScenes(script),
-      config: VIDEO_CONFIG,
-    },
+    scenes,
+    config: VIDEO_CONFIG,
   });
 }
 
@@ -262,10 +362,14 @@ async function generateCompanyHiringScript() {
     return NextResponse.json({ error: 'No companies found' }, { status: 404 });
   }
 
-  const script = `${topCompany.name} is hiring!
-They have ${topCompany.count} open remote positions right now.
-Check them out at freelanly dot com.
-Link in bio!`;
+  // Build structured scenes
+  const scenes: Scene[] = [
+    { text: `${topCompany.name} is hiring!`, searchTerms: SCENE_VIDEOS.hook },
+    { text: `They have ${topCompany.count} open remote positions.`, searchTerms: SCENE_VIDEOS.business },
+    { text: `Check them out at freelanly dot com!`, searchTerms: SCENE_VIDEOS.cta },
+  ];
+
+  const script = scenes.map(s => s.text).join(' ');
 
   return NextResponse.json({
     success: true,
@@ -273,10 +377,8 @@ Link in bio!`;
     company: topCompany.name,
     openPositions: topCompany.count,
     script,
-    shortVideoMaker: {
-      scenes: textToScenes(script),
-      config: VIDEO_CONFIG,
-    },
+    scenes,
+    config: VIDEO_CONFIG,
   });
 }
 

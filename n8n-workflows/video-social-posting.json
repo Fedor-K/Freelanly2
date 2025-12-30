@@ -1,5 +1,5 @@
 {
-  "name": "Freelanly Video Social Posting v8",
+  "name": "Freelanly Video Social Posting v9",
   "nodes": [
     {
       "parameters": {
@@ -27,16 +27,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const script = $input.first().json.script;\nconst jobId = $input.first().json.jobId;\nconst lower = script.toLowerCase();\nlet category = 'general';\n\nif (lower.includes('developer') || lower.includes('engineer')) category = 'engineering';\nelse if (lower.includes('designer')) category = 'design';\nelse if (lower.includes('marketing')) category = 'marketing';\nelse if (lower.includes('sales')) category = 'sales';\nelse if (lower.includes('data')) category = 'data';\n\nconst categoryTerms = {\n  engineering: ['coding on laptop', 'software developer', 'programming code'],\n  design: ['creative studio', 'designer working', 'modern design'],\n  marketing: ['digital marketing', 'social media', 'marketing strategy'],\n  sales: ['business meeting', 'sales team', 'professional presentation'],\n  data: ['data visualization', 'analytics dashboard', 'charts graphs'],\n  general: ['remote workspace', 'home office', 'career success']\n};\n\nconst terms = categoryTerms[category] || categoryTerms.general;\nconst sentences = script.split(/[.!?\\n]+/).map(s => s.trim()).filter(s => s.length > 0);\nconst scenes = sentences.map((text, i) => ({ text, searchTerms: [terms[i % terms.length]] }));\n\nreturn [{\n  json: {\n    script,\n    jobId,\n    category,\n    scenes,\n    config: {\n      voice: 'af_heart',\n      music: 'hopeful',\n      captionPosition: 'bottom',\n      orientation: 'portrait',\n      musicVolume: 'low'\n    }\n  }\n}];"
-      },
-      "id": "build-payload",
-      "name": "Build Payload",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [440, 0]
-    },
-    {
-      "parameters": {
         "method": "POST",
         "url": "http://198.12.73.168:3123/api/short-video",
         "sendBody": true,
@@ -48,7 +38,7 @@
       "name": "Create Video",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [660, 0]
+      "position": [440, 0]
     },
     {
       "parameters": {
@@ -174,7 +164,7 @@
             {
               "id": "cap",
               "name": "caption",
-              "value": "={{ $('Build Payload').item.json.script.substring(0, 100) }} #remotework #remotejobs #hiring",
+              "value": "={{ $('Get Script').item.json.script.substring(0, 100) }} #remotework #remotejobs #hiring",
               "type": "string"
             }
           ]
@@ -285,9 +275,6 @@
       "main": [[{"node": "Get Script", "type": "main", "index": 0}]]
     },
     "Get Script": {
-      "main": [[{"node": "Build Payload", "type": "main", "index": 0}]]
-    },
-    "Build Payload": {
       "main": [[{"node": "Create Video", "type": "main", "index": 0}]]
     },
     "Create Video": {
@@ -331,5 +318,5 @@
   "tags": [],
   "triggerCount": 1,
   "updatedAt": "2025-12-30T21:00:00.000Z",
-  "versionId": "8"
+  "versionId": "9"
 }
