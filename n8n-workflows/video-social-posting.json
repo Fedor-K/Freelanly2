@@ -1,5 +1,5 @@
 {
-  "name": "Freelanly Video Social Posting v9",
+  "name": "Freelanly Video Social Posting v10",
   "nodes": [
     {
       "parameters": {
@@ -317,6 +317,6 @@
   "staticData": null,
   "tags": [],
   "triggerCount": 1,
-  "updatedAt": "2025-12-30T21:00:00.000Z",
-  "versionId": "9"
+  "updatedAt": "2025-12-31T00:45:00.000Z",
+  "versionId": "10"
 }
