@@ -49,7 +49,7 @@ const BLACKLIST_MANUFACTURING = [
 
 const BLACKLIST_RETAIL_HOSPITALITY = [
   'retail', 'cashier', 'store clerk', 'sales associate',
-  'store manager', 'retail manager', 'merchandiser', 'stocker',
+  'store manager', 'store operations', 'retail manager', 'merchandiser', 'stocker',
   'cook', 'chef', 'sous chef', 'line cook', 'prep cook',
   'barista', 'bartender', 'server', 'waiter', 'waitress',
   'host', 'hostess', 'busser', 'dishwasher',

@@ -499,6 +499,9 @@ function mapDepartmentToCategory(department?: string, title?: string): string {
   const t = (title || '').toLowerCase();
   const combined = `${d} ${t}`;
 
+  // PRIORITY: Check title for engineer/developer FIRST (overrides department)
+  if (t.includes('engineer') || t.includes('developer') || t.includes('programmer')) return 'engineering';
+
   // Tech
   if (d.includes('engineer') || d.includes('develop') || d.includes('software') || d.includes('tech')) return 'engineering';
   if (d.includes('design') || d.includes('ux') || d.includes('ui') || d.includes('creative')) return 'design';
