@@ -46,7 +46,7 @@ export default function PricingPage() {
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Get unlimited access to all jobs, full salary insights, and apply directly.
-              Start with a 7-day free trial.
+              Cancel anytime.
             </p>
           </div>
 
@@ -199,18 +199,18 @@ export default function PricingPage() {
               </details>
               <details className="border rounded-lg p-4">
                 <summary className="font-medium cursor-pointer">
-                  How does the 7-day free trial work?
+                  Which plan should I choose?
                 </summary>
                 <p className="mt-2 text-muted-foreground">
-                  Monthly and Annual plans include a 7-day free trial. You won't be charged until the trial ends. Cancel anytime during the trial and you won't be charged at all.
+                  Most job searches take 1-3 months. We recommend the Quarterly plan for the best value. If you need quick access, start with Monthly and upgrade anytime.
                 </p>
               </details>
               <details className="border rounded-lg p-4">
                 <summary className="font-medium cursor-pointer">
-                  Why is there no trial on the Weekly plan?
+                  What happens after I subscribe?
                 </summary>
                 <p className="mt-2 text-muted-foreground">
-                  The Weekly plan is designed for quick, urgent job searches. At €10 for a full week of access, it's already a low-commitment option to try Premium features.
+                  You get instant access to all Premium features: apply to unlimited jobs, see full salary data, and get priority job alerts. Start applying right away!
                 </p>
               </details>
               <details className="border rounded-lg p-4">
@@ -250,10 +250,10 @@ export default function PricingPage() {
               },
               {
                 '@type': 'Question',
-                name: 'How does the 7-day free trial work?',
+                name: 'Which plan should I choose?',
                 acceptedAnswer: {
                   '@type': 'Answer',
-                  text: 'Monthly and Annual plans include a 7-day free trial. Cancel anytime during the trial and you won\'t be charged.',
+                  text: 'Most job searches take 1-3 months. We recommend the Quarterly plan for the best value.',
                 },
               },
             ],

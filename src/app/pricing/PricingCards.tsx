@@ -12,8 +12,8 @@ const plans: Array<{
   key: PriceKey;
   badge?: string;
 }> = [
-  { key: 'weekly' },
-  { key: 'monthly', badge: 'Most Popular' },
+  { key: 'monthly' },
+  { key: 'quarterly', badge: 'Most Popular' },
   { key: 'annual', badge: 'Best Value' },
 ];
 
@@ -91,33 +91,34 @@ export function PricingCards() {
 
               <CardHeader className="text-center pb-2">
                 <CardTitle className="text-lg">{info.name}</CardTitle>
-                <div className="mt-4">
+
+                {/* Price per day */}
+                <p className="text-sm text-muted-foreground mt-2">
+                  {info.pricePerDay} per day • Cancel anytime
+                </p>
+
+                {/* Main price */}
+                <div className="mt-3">
+                  {info.originalPrice && (
+                    <span className="text-lg text-muted-foreground line-through mr-2">
+                      {info.originalPrice}
+                    </span>
+                  )}
                   <span className="text-4xl font-bold">{info.price}</span>
-                  <span className="text-muted-foreground">/{info.period}</span>
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  {key === 'quarterly' ? 'for 3 months' : `per ${info.period}`}
+                </p>
+
+                {/* Savings badge */}
                 {info.savings && (
-                  <p className="text-sm text-green-600 font-medium mt-1">
+                  <p className="text-sm text-green-600 font-medium mt-2">
                     {info.savings}
                   </p>
                 )}
-                <p className="text-sm text-muted-foreground mt-2">
-                  {info.description}
-                </p>
               </CardHeader>
 
               <CardContent className="pt-4">
-                <div className="space-y-3 mb-6">
-                  {info.hasTrial ? (
-                    <p className="text-sm text-center text-green-600 font-medium">
-                      7-day free trial included
-                    </p>
-                  ) : (
-                    <p className="text-sm text-center text-muted-foreground">
-                      No trial - instant access
-                    </p>
-                  )}
-                </div>
-
                 <Button
                   className="w-full"
                   variant={isPopular ? 'default' : 'outline'}
@@ -144,8 +145,6 @@ export function PricingCards() {
                       </svg>
                       Processing...
                     </span>
-                  ) : info.hasTrial ? (
-                    'Start Free Trial'
                   ) : (
                     'Get Started'
                   )}

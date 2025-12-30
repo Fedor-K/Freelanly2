@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     // Validate price key
     if (!priceKey || !Object.keys(STRIPE_PRICES).includes(priceKey)) {
       return NextResponse.json(
-        { error: 'Invalid price key. Use: weekly, monthly, or annual' },
+        { error: 'Invalid price key. Use: monthly, quarterly, or annual' },
         { status: 400 }
       );
     }

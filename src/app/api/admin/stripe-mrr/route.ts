@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
     // Calculate MRR from active subscriptions
     let totalMRR = 0;
     const subscriptionsByPlan: Record<string, { count: number; mrr: number }> = {
-      weekly: { count: 0, mrr: 0 },
       monthly: { count: 0, mrr: 0 },
+      quarterly: { count: 0, mrr: 0 },
       annual: { count: 0, mrr: 0 },
       other: { count: 0, mrr: 0 },
     };
@@ -63,8 +63,8 @@ export async function GET(request: NextRequest) {
 
       // Convert to monthly amount (MRR)
       let monthlyAmount = 0;
-      if (interval === 'week') {
-        monthlyAmount = (amount * 4.33) / intervalCount; // ~4.33 weeks per month
+      if (interval === 'month' && intervalCount === 3) {
+        monthlyAmount = amount / 3; // quarterly
       } else if (interval === 'month') {
         monthlyAmount = amount / intervalCount;
       } else if (interval === 'year') {
@@ -75,12 +75,12 @@ export async function GET(request: NextRequest) {
 
       // Categorize by plan
       const priceId = price.id;
-      if (priceId === STRIPE_PRICES.weekly) {
-        subscriptionsByPlan.weekly.count++;
-        subscriptionsByPlan.weekly.mrr += monthlyAmount;
-      } else if (priceId === STRIPE_PRICES.monthly) {
+      if (priceId === STRIPE_PRICES.monthly) {
         subscriptionsByPlan.monthly.count++;
         subscriptionsByPlan.monthly.mrr += monthlyAmount;
+      } else if (priceId === STRIPE_PRICES.quarterly) {
+        subscriptionsByPlan.quarterly.count++;
+        subscriptionsByPlan.quarterly.mrr += monthlyAmount;
       } else if (priceId === STRIPE_PRICES.annual) {
         subscriptionsByPlan.annual.count++;
         subscriptionsByPlan.annual.mrr += monthlyAmount;
@@ -163,13 +163,13 @@ export async function GET(request: NextRequest) {
       subscriptions: {
         total: activeSubscriptions.data.length,
         byPlan: {
-          weekly: {
-            count: subscriptionsByPlan.weekly.count,
-            mrr: formatAmount(subscriptionsByPlan.weekly.mrr),
-          },
           monthly: {
             count: subscriptionsByPlan.monthly.count,
             mrr: formatAmount(subscriptionsByPlan.monthly.mrr),
+          },
+          quarterly: {
+            count: subscriptionsByPlan.quarterly.count,
+            mrr: formatAmount(subscriptionsByPlan.quarterly.mrr),
           },
           annual: {
             count: subscriptionsByPlan.annual.count,

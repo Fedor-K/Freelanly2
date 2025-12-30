@@ -102,7 +102,7 @@ async function getStripeMetrics(thirtyDaysAgo: Date, now: Date) {
 
     // Calculate MRR
     let totalMRR = 0;
-    const byPlan = { weekly: { count: 0, mrr: 0 }, monthly: { count: 0, mrr: 0 }, annual: { count: 0, mrr: 0 } };
+    const byPlan = { monthly: { count: 0, mrr: 0 }, quarterly: { count: 0, mrr: 0 }, annual: { count: 0, mrr: 0 } };
 
     for (const sub of activeSubscriptions.data) {
       const item = sub.items.data[0];
@@ -111,17 +111,18 @@ async function getStripeMetrics(thirtyDaysAgo: Date, now: Date) {
       const price = item.price as Stripe.Price;
       const amount = price.unit_amount || 0;
       const interval = price.recurring?.interval;
+      const intervalCount = price.recurring?.interval_count || 1;
 
       let monthlyAmount = 0;
-      if (interval === 'week') monthlyAmount = amount * 4.33;
+      if (interval === 'month' && intervalCount === 3) monthlyAmount = amount / 3; // quarterly
       else if (interval === 'month') monthlyAmount = amount;
       else if (interval === 'year') monthlyAmount = amount / 12;
 
       totalMRR += monthlyAmount;
 
       const priceId = price.id;
-      if (priceId === STRIPE_PRICES.weekly) { byPlan.weekly.count++; byPlan.weekly.mrr += monthlyAmount; }
-      else if (priceId === STRIPE_PRICES.monthly) { byPlan.monthly.count++; byPlan.monthly.mrr += monthlyAmount; }
+      if (priceId === STRIPE_PRICES.monthly) { byPlan.monthly.count++; byPlan.monthly.mrr += monthlyAmount; }
+      else if (priceId === STRIPE_PRICES.quarterly) { byPlan.quarterly.count++; byPlan.quarterly.mrr += monthlyAmount; }
       else if (priceId === STRIPE_PRICES.annual) { byPlan.annual.count++; byPlan.annual.mrr += monthlyAmount; }
     }
 
@@ -160,8 +161,8 @@ async function getStripeMetrics(thirtyDaysAgo: Date, now: Date) {
         active: activeSubscriptions.data.length,
         trialing: trialingSubscriptions.data.length,
         byPlan: {
-          weekly: { count: byPlan.weekly.count, mrr: (byPlan.weekly.mrr / 100).toFixed(2) },
           monthly: { count: byPlan.monthly.count, mrr: (byPlan.monthly.mrr / 100).toFixed(2) },
+          quarterly: { count: byPlan.quarterly.count, mrr: (byPlan.quarterly.mrr / 100).toFixed(2) },
           annual: { count: byPlan.annual.count, mrr: (byPlan.annual.mrr / 100).toFixed(2) },
         },
       },

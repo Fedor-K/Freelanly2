@@ -97,18 +97,18 @@ GOOGLE_CLIENT_SECRET=xxx
 | Apply to jobs | ❌ Blocked | ✅ Unlimited |
 | Contact info in descriptions | ❌ Hidden | ✅ Visible |
 
-**Pricing (EUR):**
-| Plan | Price | Trial |
-|------|-------|-------|
-| Weekly | €10/week | No trial |
-| Monthly | €20/month | 7-day trial |
-| Annual | €192/year | 7-day trial (save 20%) |
+**Pricing (EUR) — No trials:**
+| Plan | Price | Per Day | Savings |
+|------|-------|---------|---------|
+| Monthly | €15/month | €0.50 | — |
+| Quarterly | €35/3 months | €0.39 | Save 22% |
+| Annual | €150/year | €0.41 | Save 17% |
 
 **Stripe Price IDs:**
 ```
-WEEKLY:  price_1Sh8hVKHJU6KLxM3W75Rystk
-MONTHLY: price_1S3HO0KHJU6KLxM30Jgoqizh
-ANNUAL:  price_1Sh8fcKHJU6KLxM3lCvLduFe
+MONTHLY:   price_1Sk2G8KHJU6KLxM31y73p1lD
+QUARTERLY: price_1Sk2I0KHJU6KLxM33CN9mn0E
+ANNUAL:    price_1Sk2JYKHJU6KLxM3QE0ffgxt
 ```
 
 **Stripe Files:**

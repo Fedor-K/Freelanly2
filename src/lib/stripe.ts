@@ -26,9 +26,9 @@ export const stripe = {
 
 // Price IDs from Stripe Dashboard
 export const STRIPE_PRICES = {
-  weekly: 'price_1Sh8hVKHJU6KLxM3W75Rystk',   // €10/week, no trial
-  monthly: 'price_1S3HO0KHJU6KLxM30Jgoqizh',  // €20/month, 7-day trial
-  annual: 'price_1Sh8fcKHJU6KLxM3lCvLduFe',   // €192/year, 7-day trial
+  monthly: 'price_1Sk2G8KHJU6KLxM31y73p1lD',    // €15/month, no trial
+  quarterly: 'price_1Sk2I0KHJU6KLxM33CN9mn0E',  // €35/3 months, no trial
+  annual: 'price_1Sk2JYKHJU6KLxM3QE0ffgxt',     // €150/year, no trial
 } as const;
 
 export type PriceKey = keyof typeof STRIPE_PRICES;
@@ -37,34 +37,42 @@ export type PriceKey = keyof typeof STRIPE_PRICES;
 export const PRICE_INFO: Record<PriceKey, {
   name: string;
   price: string;
+  pricePerDay: string;
   period: string;
   description: string;
   hasTrial: boolean;
   popular?: boolean;
   savings?: string;
+  originalPrice?: string;
 }> = {
-  weekly: {
-    name: 'Weekly',
-    price: '€10',
-    period: 'week',
-    description: 'Quick access for urgent job search',
-    hasTrial: false,
-  },
   monthly: {
     name: 'Monthly',
-    price: '€20',
+    price: '€15',
+    pricePerDay: '€0.50',
     period: 'month',
-    description: 'Most popular choice',
-    hasTrial: true,
+    description: 'Cancel anytime',
+    hasTrial: false,
+  },
+  quarterly: {
+    name: 'Quarterly',
+    price: '€35',
+    pricePerDay: '€0.39',
+    period: '3 months',
+    description: 'Save 22% vs monthly',
+    hasTrial: false,
     popular: true,
+    savings: 'Save 22%',
+    originalPrice: '€45',
   },
   annual: {
     name: 'Annual',
-    price: '€192',
+    price: '€150',
+    pricePerDay: '€0.41',
     period: 'year',
-    description: 'Best value - save 20%',
-    hasTrial: true,
-    savings: 'Save €48/year',
+    description: 'Best value',
+    hasTrial: false,
+    savings: 'Save 17%',
+    originalPrice: '€180',
   },
 };
 

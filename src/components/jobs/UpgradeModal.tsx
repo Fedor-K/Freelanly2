@@ -156,11 +156,11 @@ export function UpgradeModal({ open, onClose, jobId, jobTitle, companyName }: Up
         <div className="space-y-2 pt-2">
           <Button className="w-full" size="lg" asChild>
             <Link href="/pricing">
-              Start 7-Day Free Trial
+              Upgrade to Premium
             </Link>
           </Button>
           <p className="text-center text-xs text-muted-foreground">
-            Cancel anytime. No credit card required for trial.
+            Starting at €0.39/day. Cancel anytime.
           </p>
         </div>
       </DialogContent>
