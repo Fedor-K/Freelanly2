@@ -11,12 +11,14 @@ import {
   ChevronDown,
   TrendingUp,
   XCircle,
+  Briefcase,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { name: 'Jobs', href: '/admin/jobs', icon: Briefcase },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Analytics', href: '/admin/analytics', icon: TrendingUp },
   { name: 'Cancellations', href: '/admin/cancellations', icon: XCircle },
