@@ -142,7 +142,7 @@ const BLACKLIST_AUTOMOTIVE = [
 ];
 
 const BLACKLIST_PHYSICAL_ENGINEERING = [
-  'mechanical engineer', 'electrical engineer', 'civil engineer',
+  'mechanical engineer', 'mechanical engineering', 'electrical engineer', 'civil engineer',
   'structural engineer', 'chemical engineer', 'aerospace engineer',
   'hardware engineer', 'manufacturing engineer', 'industrial engineer',
   'process engineer', 'plant engineer', 'facilities engineer',
@@ -153,10 +153,16 @@ const BLACKLIST_PHYSICAL_ENGINEERING = [
   'mining engineer', 'petroleum engineer', 'geological engineer',
   'environmental engineer', 'agricultural engineer',
   'test engineer, hardware', 'validation engineer, hardware',
+  // CAD/Hardware engineering
+  'cad engineer', 'cad backend', 'cad automation', 'catia',
+  'solidworks engineer', 'autocad',
+  // Physical process engineering
+  'energetics', 'energetic', 'propulsion', 'combustion',
 ];
 
 const BLACKLIST_ACCOUNTING = [
   'accountant', 'staff accountant', 'senior accountant',
+  'accounting', 'accounting consultant', 'accounting specialist',
   'bookkeeper', 'bookkeeping',
   'accounts payable', 'accounts receivable', 'ap/ar', 'a/p', 'a/r',
   'payroll', 'payroll specialist', 'payroll clerk',
@@ -206,6 +212,14 @@ const BLACKLIST_LEGAL_TRADITIONAL = [
   'public defender', 'prosecutor', 'district attorney',
 ];
 
+const BLACKLIST_INTERPRETERS_PHYSICAL = [
+  // On-site/conference interpreters (require physical presence)
+  'conference interpreter', 'court interpreter', 'medical interpreter',
+  'on-site interpreter', 'onsite interpreter',
+  'simultaneous interpreter', 'consecutive interpreter',
+  'escort interpreter', 'liaison interpreter',
+];
+
 const BLACKLIST_MISC = [
   // Generic non-jobs
   'volunteer', 'internship unpaid', 'stipend only',
@@ -244,6 +258,7 @@ const BLACKLIST_PATTERNS = [
   ...BLACKLIST_BEAUTY,
   ...BLACKLIST_AGRICULTURE,
   ...BLACKLIST_LEGAL_TRADITIONAL,
+  ...BLACKLIST_INTERPRETERS_PHYSICAL,
   ...BLACKLIST_MISC,
 ];
 
