@@ -386,7 +386,40 @@ Examples:
  * AI-based job filter: determines if a job is suitable for our remote job board
  * Returns true if job should be imported, false if it should be skipped
  */
-export async function isTargetRemoteJob(title: string): Promise<{ import: boolean; reason: string }> {
+export async function isTargetRemoteJob(title: string, company?: string): Promise<{ import: boolean; reason: string }> {
+  // Pre-filter: Skip known gig platforms
+  const gigPlatforms = ['appen', 'lionbridge', 'clickworker', 'telus', 'welocalize', 'transperfect', 'rws'];
+  if (company && gigPlatforms.some(p => company.toLowerCase().includes(p))) {
+    console.log(`[AI Filter] "${title}" → SKIP: Gig platform (${company})`);
+    return { import: false, reason: `Gig platform: ${company}` };
+  }
+
+  // Pre-filter: Skip accelerator/internship programs
+  const skipPatterns = [
+    /accelerator\s*program/i,
+    /internship\s*program/i,
+    /fellowship\s*program/i,
+    /graduate\s*program/i,
+    /trainee\s*program/i,
+    /apprentice/i,
+  ];
+  if (skipPatterns.some(p => p.test(title))) {
+    console.log(`[AI Filter] "${title}" → SKIP: Training/accelerator program`);
+    return { import: false, reason: 'Training/accelerator program, not a regular job' };
+  }
+
+  // Pre-filter: Skip non-English titles (detect common non-English patterns)
+  const nonEnglishPatterns = [
+    /\b(funcional|desenvolvedor|analista|gerente|coordenador|engenheiro)\b/i, // Portuguese
+    /\b(ingeniero|gerente|coordinador|desarrollador|especialista)\b/i, // Spanish (no analista - too close to analyst)
+    /\b(ingénieur|analyste|développeur|gestionnaire|conseiller)\b/i, // French
+    /\b(entwickler|sachbearbeiter|leiter|koordinator|berater)\b/i, // German (no analyst - it's English)
+  ];
+  if (nonEnglishPatterns.some(p => p.test(title))) {
+    console.log(`[AI Filter] "${title}" → SKIP: Non-English title`);
+    return { import: false, reason: 'Non-English job title' };
+  }
+
   try {
     const deepseek = getDeepSeekClient();
     const response = await deepseek.chat.completions.create({
@@ -394,7 +427,7 @@ export async function isTargetRemoteJob(title: string): Promise<{ import: boolea
       messages: [
         {
           role: 'system',
-          content: `You are a job classifier for a REMOTE digital jobs board.
+          content: `You are a strict job classifier for a REMOTE digital jobs board.
 Determine if this job title is suitable for our platform.
 
 IMPORT (YES) - Digital/knowledge work that can be done remotely:
@@ -412,9 +445,9 @@ IMPORT (YES) - Digital/knowledge work that can be done remotely:
 - Legal, compliance (remote)
 - Researchers, consultants
 
-SKIP (NO) - Physical/on-site jobs NOT suitable:
+SKIP (NO) - NOT suitable for our platform:
 - Drivers, delivery, trucking, CDL
-- Nurses, doctors, healthcare workers
+- Nurses, doctors, healthcare workers (clinical)
 - Warehouse, logistics, supply chain operations
 - Construction, electricians, plumbers
 - Retail, cashiers, store workers
@@ -423,6 +456,11 @@ SKIP (NO) - Physical/on-site jobs NOT suitable:
 - Security guards, janitors, cleaners
 - Field technicians, installers
 - Teachers (classroom), tutors (in-person)
+- Gig/microtask jobs (data labeling, content evaluation, annotation projects)
+- "Video Relevance", "Image Annotation", "Data Collection" projects
+- Healthcare administration/management (non-tech)
+
+Be STRICT. When in doubt, SKIP.
 
 Respond ONLY with JSON: {"import": true/false, "reason": "brief reason"}`
         },

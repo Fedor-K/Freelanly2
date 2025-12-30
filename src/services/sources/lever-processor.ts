@@ -188,7 +188,7 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
     const aiFilterLimit = createLimiter(AI_FILTER_CONCURRENCY);
 
     await Promise.all(newJobs.map(job => aiFilterLimit(async () => {
-      const filterResult = await isTargetRemoteJob(job.text);
+      const filterResult = await isTargetRemoteJob(job.text, dataSource.name);
 
       if (filterResult.import) {
         jobsToProcess.push(job);
