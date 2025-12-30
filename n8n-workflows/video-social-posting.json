@@ -1,5 +1,5 @@
 {
-  "name": "Freelanly Video Social Posting v7",
+  "name": "Freelanly Video Social Posting v8",
   "nodes": [
     {
       "parameters": {
@@ -52,26 +52,62 @@
     },
     {
       "parameters": {
-        "amount": 5,
-        "unit": "minutes"
+        "assignments": {
+          "assignments": [
+            {
+              "id": "vid",
+              "name": "videoId",
+              "value": "={{ $json.videoId }}",
+              "type": "string"
+            },
+            {
+              "id": "retry",
+              "name": "retryCount",
+              "value": "0",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
       },
-      "id": "wait-5min",
-      "name": "Wait 5 min",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
+      "id": "init-retry",
+      "name": "Init Retry Counter",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [880, 0]
     },
     {
       "parameters": {
+        "amount": 2,
+        "unit": "minutes"
+      },
+      "id": "wait-2min",
+      "name": "Wait 2 min",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1100, 0]
+    },
+    {
+      "parameters": {
         "method": "GET",
-        "url": "=http://198.12.73.168:3123/api/short-video/{{ $('Create Video').item.json.videoId }}/status",
+        "url": "=http://198.12.73.168:3123/api/short-video/{{ $json.videoId }}/status",
         "options": {}
       },
       "id": "check-status",
       "name": "Check Status",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1100, 0]
+      "position": [1320, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst prevVideoId = $('Init Retry Counter').item.json.videoId || $('Increment Retry').item?.json?.videoId;\nconst prevRetry = $('Init Retry Counter').item.json.retryCount ?? $('Increment Retry').item?.json?.retryCount ?? 0;\n\nreturn [{\n  json: {\n    status: input.status,\n    videoId: prevVideoId,\n    retryCount: prevRetry\n  }\n}];"
+      },
+      "id": "merge-status",
+      "name": "Merge Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 0]
     },
     {
       "parameters": {
@@ -99,12 +135,12 @@
       "name": "Ready?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1320, 0]
+      "position": [1760, 0]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "=http://198.12.73.168:3123/api/short-video/{{ $('Create Video').item.json.videoId }}",
+        "url": "=http://198.12.73.168:3123/api/short-video/{{ $json.videoId }}",
         "options": {
           "response": {
             "response": {
@@ -117,7 +153,7 @@
       "name": "Download Video",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1540, 0]
+      "position": [1980, -100]
     },
     {
       "parameters": {
@@ -126,13 +162,13 @@
             {
               "id": "vid",
               "name": "videoId",
-              "value": "={{ $('Create Video').item.json.videoId }}",
+              "value": "={{ $json.videoId }}",
               "type": "string"
             },
             {
               "id": "url",
               "name": "videoUrl",
-              "value": "=http://198.12.73.168:3123/api/short-video/{{ $('Create Video').item.json.videoId }}",
+              "value": "=http://198.12.73.168:3123/api/short-video/{{ $json.videoId }}",
               "type": "string"
             },
             {
@@ -149,7 +185,61 @@
       "name": "Prepare Post",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1760, 0]
+      "position": [2200, -100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "retry-check",
+              "leftValue": "={{ $json.retryCount }}",
+              "rightValue": 5,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-can-retry",
+      "name": "Can Retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1980, 100]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "vid",
+              "name": "videoId",
+              "value": "={{ $json.videoId }}",
+              "type": "string"
+            },
+            {
+              "id": "retry",
+              "name": "retryCount",
+              "value": "={{ $json.retryCount + 1 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "increment-retry",
+      "name": "Increment Retry",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2200, 50]
     },
     {
       "parameters": {
@@ -158,13 +248,13 @@
             {
               "id": "error",
               "name": "error",
-              "value": "Video generation timed out or failed",
+              "value": "Video generation timed out after 5 retries (10 min)",
               "type": "string"
             },
             {
               "id": "vid",
               "name": "videoId",
-              "value": "={{ $('Create Video').item.json.videoId }}",
+              "value": "={{ $json.videoId }}",
               "type": "string"
             },
             {
@@ -172,6 +262,12 @@
               "name": "status",
               "value": "={{ $json.status }}",
               "type": "string"
+            },
+            {
+              "id": "retries",
+              "name": "retries",
+              "value": "={{ $json.retryCount }}",
+              "type": "number"
             }
           ]
         },
@@ -181,7 +277,7 @@
       "name": "Handle Timeout",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1540, 200]
+      "position": [2200, 200]
     }
   ],
   "connections": {
@@ -195,22 +291,37 @@
       "main": [[{"node": "Create Video", "type": "main", "index": 0}]]
     },
     "Create Video": {
-      "main": [[{"node": "Wait 5 min", "type": "main", "index": 0}]]
+      "main": [[{"node": "Init Retry Counter", "type": "main", "index": 0}]]
     },
-    "Wait 5 min": {
+    "Init Retry Counter": {
+      "main": [[{"node": "Wait 2 min", "type": "main", "index": 0}]]
+    },
+    "Wait 2 min": {
       "main": [[{"node": "Check Status", "type": "main", "index": 0}]]
     },
     "Check Status": {
+      "main": [[{"node": "Merge Status", "type": "main", "index": 0}]]
+    },
+    "Merge Status": {
       "main": [[{"node": "Ready?", "type": "main", "index": 0}]]
     },
     "Ready?": {
       "main": [
         [{"node": "Download Video", "type": "main", "index": 0}],
-        [{"node": "Handle Timeout", "type": "main", "index": 0}]
+        [{"node": "Can Retry?", "type": "main", "index": 0}]
       ]
     },
     "Download Video": {
       "main": [[{"node": "Prepare Post", "type": "main", "index": 0}]]
+    },
+    "Can Retry?": {
+      "main": [
+        [{"node": "Increment Retry", "type": "main", "index": 0}],
+        [{"node": "Handle Timeout", "type": "main", "index": 0}]
+      ]
+    },
+    "Increment Retry": {
+      "main": [[{"node": "Wait 2 min", "type": "main", "index": 0}]]
     }
   },
   "settings": {
@@ -219,6 +330,6 @@
   "staticData": null,
   "tags": [],
   "triggerCount": 1,
-  "updatedAt": "2025-12-30T20:30:00.000Z",
-  "versionId": "7"
+  "updatedAt": "2025-12-30T21:00:00.000Z",
+  "versionId": "8"
 }
