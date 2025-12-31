@@ -32,14 +32,14 @@
 
 ### Implementation Status
 
-#### 2.1 Category + Country Pages (630 pages)
-- [ ] Create country config (`/src/config/countries.ts`)
-- [ ] Create country content (`/src/config/country-content.ts`)
-- [ ] Create route `/jobs/[category]/country/[country]/page.tsx`
-- [ ] Add meta tags, structured data, FAQPage schema
-- [ ] Implement thin content check (noindex if < 3 jobs)
-- [ ] Add to sitemap.xml
-- [ ] Add internal linking
+#### 2.1 Category + Country Pages (630 pages) ✅ DONE
+- [x] Create country config (`/src/config/countries.ts`) - 30 countries with metadata
+- [x] Create country content (`/src/config/country-content.ts`) - unique SEO content per country
+- [x] Create route `/jobs/[category]/country/[country]/page.tsx`
+- [x] Add meta tags, structured data, FAQPage schema
+- [x] Implement thin content check (noindex if < 3 jobs)
+- [x] Add to sitemap.xml (630 URLs added)
+- [x] Add internal linking from category pages
 
 #### 2.2 Category + Salary Pages (84 pages)
 - [ ] Create route `/jobs/[category]/salary/[range]/page.tsx`
@@ -149,6 +149,12 @@ For each category page, add:
   - Career path progression
   - "Why remote" section
   - Dynamic FAQs with real data
+- [x] **Phase 2.1: Category + Country pages (630 pages)**
+  - Created countries.ts with 30 countries (US, UK, DE, CA, NL, etc.)
+  - Created country-content.ts with unique content per country
+  - Created /jobs/[category]/country/[country] route
+  - Added to sitemap.xml
+  - Added internal links from category pages
 
 ---
 
