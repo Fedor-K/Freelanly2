@@ -1,31 +1,9 @@
 import { MetadataRoute } from 'next';
-import { siteConfig, categories, levels, locationTypes, countries as siteCountries, jobRoles, languagePairs } from '@/config/site';
+import { siteConfig, categories, levels, countries as siteCountries, jobRoles, languagePairs } from '@/config/site';
 import { countries as programmaticCountries } from '@/config/countries';
 import { salaryRanges } from '@/config/salary-ranges';
 import { skills } from '@/config/skills';
 import { prisma } from '@/lib/db';
-
-// Popular tech skills for programmatic pages
-const popularSkills = [
-  'react', 'typescript', 'python', 'javascript', 'nodejs',
-  'java', 'golang', 'rust', 'aws', 'kubernetes',
-  'docker', 'terraform', 'graphql', 'nextjs', 'vue',
-  'angular', 'flutter', 'swift', 'kotlin', 'ruby',
-  'rails', 'django', 'laravel', 'postgresql', 'mongodb',
-  'redis', 'elasticsearch', 'kafka', 'spark', 'machine-learning',
-  'data-science', 'devops', 'sre', 'cloud', 'security',
-];
-
-// Locations for programmatic pages
-const locations = [
-  { slug: 'usa', name: 'USA' },
-  { slug: 'europe', name: 'Europe' },
-  { slug: 'uk', name: 'UK' },
-  { slug: 'germany', name: 'Germany' },
-  { slug: 'canada', name: 'Canada' },
-  { slug: 'australia', name: 'Australia' },
-  { slug: 'worldwide', name: 'Worldwide' },
-];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = siteConfig.url;
@@ -127,31 +105,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }))
   );
 
-  // SEO Landing pages: /remote-[skill]-jobs
-  const skillLandingPages: MetadataRoute.Sitemap = popularSkills.map((skill) => ({
-    url: `${baseUrl}/remote-${skill}-jobs`,
-    lastModified: now,
-    changeFrequency: 'daily' as const,
-    priority: 0.85,
-  }));
-
-  // Location landing pages: /remote-[skill]-jobs-[location]
-  const skillLocationPages: MetadataRoute.Sitemap = popularSkills.flatMap((skill) =>
-    locations.map((loc) => ({
-      url: `${baseUrl}/remote-${skill}-jobs-${loc.slug}`,
-      lastModified: now,
-      changeFrequency: 'daily' as const,
-      priority: 0.8,
-    }))
-  );
-
-  // Category landing pages: /remote-[category]-jobs
-  const categoryLandingPages: MetadataRoute.Sitemap = categories.map((cat) => ({
-    url: `${baseUrl}/remote-${cat.slug}-jobs`,
-    lastModified: now,
-    changeFrequency: 'daily' as const,
-    priority: 0.85,
-  }));
+  // NOTE: Old landing pages (/remote-[skill]-jobs) now redirect to /jobs/skills/[skill]
+  // See next.config.ts for 301 redirects
 
   // Country pages: /country/[country]
   const countryPages: MetadataRoute.Sitemap = siteCountries.map((country) => ({
@@ -308,9 +263,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...jobsPaginationPages,
     ...categoryPages,
     ...categoryLevelPages,
-    ...skillLandingPages,
-    ...skillLocationPages,
-    ...categoryLandingPages,
     ...countryPages,
     ...countryRolePages,
     ...jobsByCountryPages,

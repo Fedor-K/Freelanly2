@@ -1,5 +1,22 @@
 import type { NextConfig } from "next";
 
+// Skills that have dedicated pages at /jobs/skills/[skill]
+const skillRedirects = [
+  'react', 'typescript', 'python', 'javascript', 'nodejs',
+  'java', 'golang', 'rust', 'aws', 'kubernetes',
+  'docker', 'terraform', 'graphql', 'nextjs', 'vue',
+  'angular', 'flutter', 'swift', 'kotlin', 'ruby',
+  'rails', 'django', 'laravel', 'postgresql', 'mongodb',
+  'redis', 'elasticsearch', 'kafka', 'spark', 'machine-learning',
+  'data-science', 'devops', 'sre', 'cloud', 'security',
+  'frontend', 'backend', 'fullstack', 'mobile',
+  'product-manager', 'product-designer', 'ui-ux', 'figma',
+  'php', 'csharp', 'scala', 'svelte', 'fastapi', 'spring',
+  'react-native', 'mysql', 'gcp', 'azure', 'ansible',
+  'jenkins', 'github-actions', 'pandas', 'tensorflow', 'pytorch',
+  'rest-api', 'blockchain',
+];
+
 const nextConfig: NextConfig = {
   // Allow Replit proxy domains
   allowedDevOrigins: [
@@ -59,6 +76,47 @@ const nextConfig: NextConfig = {
 
   // Compression
   compress: true,
+
+  // 301 Redirects: Landing pages → Skill pages
+  async redirects() {
+    const redirects = [];
+
+    // Redirect /remote-[skill]-jobs → /jobs/skills/[skill]
+    for (const skill of skillRedirects) {
+      redirects.push({
+        source: `/remote-${skill}-jobs`,
+        destination: `/jobs/skills/${skill}`,
+        permanent: true,
+      });
+
+      // Also redirect /remote-[skill]-jobs-[location] → /jobs/skills/[skill]
+      // Location filtering can be done on the skill page
+      redirects.push({
+        source: `/remote-${skill}-jobs-:location`,
+        destination: `/jobs/skills/${skill}`,
+        permanent: true,
+      });
+    }
+
+    // Redirect category landing pages to category pages
+    // /remote-engineering-jobs → /jobs/engineering
+    const categoryRedirects = [
+      'engineering', 'design', 'data', 'devops', 'qa', 'security',
+      'product', 'marketing', 'sales', 'finance', 'hr', 'operations',
+      'legal', 'project-management', 'writing', 'translation', 'creative',
+      'support', 'education', 'research', 'consulting',
+    ];
+
+    for (const category of categoryRedirects) {
+      redirects.push({
+        source: `/remote-${category}-jobs`,
+        destination: `/jobs/${category}`,
+        permanent: true,
+      });
+    }
+
+    return redirects;
+  },
 };
 
 export default nextConfig;

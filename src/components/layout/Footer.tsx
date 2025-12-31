@@ -100,6 +100,92 @@ export function Footer() {
             </ul>
           </div>
 
+          {/* Popular Skills */}
+          <div>
+            <h3 className="font-semibold mb-3">Popular Skills</h3>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link
+                  href="/jobs/skills/react"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  React Jobs
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/jobs/skills/python"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Python Jobs
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/jobs/skills/typescript"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  TypeScript Jobs
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/jobs/skills/nodejs"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Node.js Jobs
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/jobs/skills/aws"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  AWS Jobs
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/jobs/skills/kubernetes"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Kubernetes Jobs
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Jobs by Salary */}
+          <div>
+            <h3 className="font-semibold mb-3">Jobs by Salary</h3>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link
+                  href="/jobs/engineering/salary/50k-100k"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  $50K - $100K Jobs
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/jobs/engineering/salary/100k-150k"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  $100K - $150K Jobs
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/jobs/engineering/salary/150k-plus"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  $150K+ Jobs
+                </Link>
+              </li>
+            </ul>
+          </div>
+
           {/* For Job Seekers */}
           <div>
             <h3 className="font-semibold mb-3">For Job Seekers</h3>
@@ -134,22 +220,6 @@ export function Footer() {
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Career Blog
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/remote-react-jobs"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Remote React Jobs
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/remote-python-jobs"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Remote Python Jobs
                 </Link>
               </li>
             </ul>

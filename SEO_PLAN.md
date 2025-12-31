@@ -69,10 +69,12 @@ For each category page, add:
 - [ ] FAQ with 5-10 common questions
 - [ ] Related categories links
 
-### Landing Pages
-- [ ] `/remote-react-jobs` - dedicated React jobs page (exists, enhance)
-- [ ] `/remote-python-jobs` - dedicated Python jobs page (exists, enhance)
-- [ ] Create more technology-specific landing pages
+### Landing Pages ✅ CONSOLIDATED
+- [x] `/remote-[skill]-jobs` → 301 redirect to `/jobs/skills/[skill]`
+- [x] `/remote-[skill]-jobs-[location]` → 301 redirect to `/jobs/skills/[skill]`
+- [x] `/remote-[category]-jobs` → 301 redirect to `/jobs/[category]`
+- [x] Removed ~280 duplicate landing pages, consolidated to 50 skill pages
+- [x] Updated Footer links to use canonical URLs
 
 ### Blog Content Clusters (from audit)
 - [ ] "Finding Remote Jobs" cluster (6 posts)
@@ -133,6 +135,12 @@ For each category page, add:
 ---
 
 ## Completed Tasks
+
+### 2025-12-31 (continued)
+- [x] **Footer improvements for internal linking**
+  - Added "Popular Skills" section: React, Python, TypeScript, Node.js, AWS, Kubernetes
+  - Added "Jobs by Salary" section: $50K-100K, $100K-150K, $150K+
+  - Cleaned up "For Job Seekers" section (removed duplicate skill links)
 
 ### 2025-12-31
 - [x] Fixed blog titles to < 60 characters
