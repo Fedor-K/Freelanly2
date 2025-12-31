@@ -7,6 +7,7 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { siteConfig, categories, levels, jobTypes, locationTypes } from '@/config/site';
+import { getCategoryContent } from '@/config/category-content';
 import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
@@ -382,39 +383,103 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
             </div>
           </div>
 
-          {/* SEO Content Section */}
-          <section className="mt-16 border-t pt-8">
-            <h2 className="text-2xl font-bold mb-4">
-              About Remote {category.name} Jobs
-            </h2>
-            <div className="prose prose-sm max-w-none text-muted-foreground">
-              <p>
-                Find the best remote {category.name.toLowerCase()} positions from top companies worldwide.
-                Our job board aggregates opportunities from LinkedIn posts and leading ATS systems,
-                giving you access to hundreds of {category.name.toLowerCase()} roles updated daily.
-              </p>
-              <p>
-                Whether you're looking for entry-level {category.name.toLowerCase()} positions or senior roles,
-                Freelanly helps you discover remote work opportunities that match your skills and experience level.
-              </p>
-            </div>
+          {/* SEO Content Section - Rich category content */}
+          {(() => {
+            const content = getCategoryContent(category.slug);
+            if (!content) return null;
 
-            {/* Related Links */}
-            <div className="mt-8">
-              <h3 className="font-semibold mb-3">Popular {category.name} Job Searches</h3>
-              <div className="flex flex-wrap gap-2">
-                {levels.slice(0, 5).map((lvl) => (
-                  <Link
-                    key={lvl.value}
-                    href={`/jobs/${category.slug}/${lvl.value.toLowerCase()}`}
-                    className="text-sm text-primary hover:underline"
-                  >
-                    {lvl.label} {category.name} Jobs
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </section>
+            return (
+              <section className="mt-16 border-t pt-8">
+                <h2 className="text-2xl font-bold mb-4">
+                  About Remote {category.name} Jobs
+                </h2>
+
+                {/* Intro paragraph - 300+ words */}
+                <div className="prose prose-sm max-w-none text-muted-foreground mb-8">
+                  <p>{content.intro}</p>
+                  <p>{content.whatYouDo}</p>
+                </div>
+
+                {/* Skills and Tools Grid */}
+                <div className="grid md:grid-cols-2 gap-8 mb-8">
+                  {/* Key Skills */}
+                  <div>
+                    <h3 className="font-semibold mb-3">Key Skills for {category.name} Jobs</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {content.keySkills.map((skill, i) => (
+                        <Badge key={i} variant="secondary" className="text-xs">
+                          {skill}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Popular Tools */}
+                  <div>
+                    <h3 className="font-semibold mb-3">Popular Tools & Technologies</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {content.popularTools.map((tool, i) => (
+                        <Badge key={i} variant="outline" className="text-xs">
+                          {tool}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Salary Ranges */}
+                <div className="bg-muted/50 rounded-lg p-6 mb-8">
+                  <h3 className="font-semibold mb-4">Remote {category.name} Salary Ranges</h3>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-background rounded-lg">
+                      <div className="text-sm text-muted-foreground mb-1">Entry Level</div>
+                      <div className="font-semibold text-green-600">{content.salaryRange.entry}</div>
+                    </div>
+                    <div className="text-center p-4 bg-background rounded-lg">
+                      <div className="text-sm text-muted-foreground mb-1">Mid Level</div>
+                      <div className="font-semibold text-green-600">{content.salaryRange.mid}</div>
+                    </div>
+                    <div className="text-center p-4 bg-background rounded-lg">
+                      <div className="text-sm text-muted-foreground mb-1">Senior Level</div>
+                      <div className="font-semibold text-green-600">{content.salaryRange.senior}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Career Path */}
+                <div className="mb-8">
+                  <h3 className="font-semibold mb-3">{category.name} Career Path</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {content.careerPath}
+                  </p>
+                </div>
+
+                {/* Why Remote */}
+                <div className="bg-primary/5 rounded-lg p-6 mb-8">
+                  <h3 className="font-semibold mb-2">Why Work Remote in {category.name}?</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {content.whyRemote}
+                  </p>
+                </div>
+
+                {/* Related Links */}
+                <div>
+                  <h3 className="font-semibold mb-3">Popular {category.name} Job Searches</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {levels.slice(0, 5).map((lvl) => (
+                      <Link
+                        key={lvl.value}
+                        href={`/jobs/${category.slug}/${lvl.value.toLowerCase()}`}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        {lvl.label} {category.name} Jobs
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            );
+          })()}
 
           {/* FAQ Section for Rich Snippets - with dynamic data */}
           <section className="mt-12">

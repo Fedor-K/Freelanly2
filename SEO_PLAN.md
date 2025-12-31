@@ -12,8 +12,8 @@
 - [x] Audit meta descriptions on key pages (jobs, categories, companies) ✅ Fixed /companies
 
 ### Content Fixes
-- [ ] Add intro text to category pages (`/jobs/[category]`) - target 300+ words
-- [ ] Add FAQ section to category pages for more content depth
+- [x] Add intro text to category pages (`/jobs/[category]`) - target 300+ words ✅ Done: Created category-content.ts with unique content for all 21 categories
+- [x] Add FAQ section to category pages for more content depth ✅ Done: Dynamic FAQs with real data (job count, salary, companies)
 - [ ] Ensure all job pages have sufficient description length
 
 ---
@@ -137,6 +137,14 @@ For each category page, add:
 - [x] Increased homepage meta description to 148 characters
 - [x] Added canonical tag to homepage
 - [x] Fixed /companies meta description (116 → 156 chars)
+- [x] Created category-content.ts with unique SEO content for all 21 categories
+- [x] Integrated rich category content into /jobs/[category] page:
+  - 300+ word intro text per category
+  - Key skills and popular tools badges
+  - Salary ranges (entry/mid/senior)
+  - Career path progression
+  - "Why remote" section
+  - Dynamic FAQs with real data
 
 ---
 
