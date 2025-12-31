@@ -145,10 +145,8 @@ async function updateCompanyWithApolloData(
   const size = mapCompanySize(org.estimated_num_employees);
   if (size) updateData.size = size;
 
-  // Mark as processed even if no logo found
-  if (!updateData.logo) {
-    updateData.logo = '';
-  }
+  // Mark as enriched
+  updateData.apolloEnrichedAt = new Date();
 
   await prisma.company.update({
     where: { id: companyId },
@@ -165,25 +163,27 @@ export async function enrichCompanyByDomain(
     // Check if already enriched
     const company = await prisma.company.findUnique({
       where: { id: companyId },
-      select: { logo: true, name: true },
+      select: { apolloEnrichedAt: true, name: true },
     });
 
     if (!company) return false;
-    if (company.logo !== null) {
-      console.log(`Company ${company.name} already processed, skipping`);
+    if (company.apolloEnrichedAt !== null) {
+      console.log(`Company ${company.name} already enriched, skipping`);
       return false;
     }
 
     const apolloData = await fetchCompanyFromApollo(domain);
 
     if (!apolloData) {
+      // Mark as tried even if no data found
       await prisma.company.update({
         where: { id: companyId },
         data: {
-          logo: '',
+          apolloEnrichedAt: new Date(),
           website: `https://${domain}`,
         },
       });
+      console.log(`No Apollo data for ${company.name}, marked as tried`);
       return false;
     }
 
@@ -240,11 +240,16 @@ export async function validateAndEnrichCompany(
 
     // If Apollo doesn't know this company - it's likely fake
     if (!apolloData) {
+      // Mark as tried
+      await prisma.company.update({
+        where: { id: companyId },
+        data: { apolloEnrichedAt: new Date() },
+      });
       console.log(`[Validation] Apollo doesn't know ${domain} - REJECTED as fake company`);
       return false;
     }
 
-    // Apollo knows this company - enrich it
+    // Apollo knows this company - enrich it (sets apolloEnrichedAt)
     console.log(`[Validation] Apollo found company: ${apolloData.name || domain}`);
     await updateCompanyWithApolloData(companyId, apolloData, domain);
 
@@ -327,7 +332,7 @@ export async function getCompaniesForEnrichment(limit: number = 50): Promise<Arr
     where: {
       applyEmail: { not: null },
       company: {
-        logo: null,
+        apolloEnrichedAt: null,
       },
     },
     select: {
@@ -336,7 +341,6 @@ export async function getCompaniesForEnrichment(limit: number = 50): Promise<Arr
         select: {
           id: true,
           name: true,
-          logo: true,
         },
       },
     },
@@ -396,7 +400,7 @@ export async function enrichCompanies(limit: number = 10): Promise<EnrichmentSta
         await prisma.company.update({
           where: { id: company.id },
           data: {
-            logo: '',
+            apolloEnrichedAt: new Date(),
             website: `https://${company.domain}`,
           },
         });
@@ -497,10 +501,10 @@ export async function enrichCompaniesByName(limit: number = 50): Promise<Enrichm
     errors: [],
   };
 
-  // Find companies without logo that don't have jobs with corporate email
+  // Find companies that haven't been enriched yet
   const companies = await prisma.company.findMany({
     where: {
-      logo: null,
+      apolloEnrichedAt: null,
     },
     select: {
       id: true,
@@ -536,7 +540,7 @@ export async function enrichCompaniesByName(limit: number = 50): Promise<Enrichm
         stats.skipped++;
         await prisma.company.update({
           where: { id: company.id },
-          data: { logo: '' }, // Mark as processed
+          data: { apolloEnrichedAt: new Date() },
         });
         console.log(`No Apollo data for: ${company.name} (${domain})`);
         continue;
@@ -579,13 +583,13 @@ export async function getEnrichmentStatus(): Promise<{
     prisma.company.count(),
     prisma.company.count({
       where: {
-        logo: { not: null },
-        NOT: { logo: '' },
+        apolloEnrichedAt: { not: null },
+        description: { not: null },
       },
     }),
     prisma.company.count({
       where: {
-        logo: null,
+        apolloEnrichedAt: null,
       },
     }),
   ]);

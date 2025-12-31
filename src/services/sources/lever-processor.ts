@@ -459,8 +459,8 @@ async function findOrCreateCompany(name: string, slug: string, leverWebsite: str
       });
       company.website = website;
     }
-    // Also enrich existing companies without logo using real domain
-    if (company.logo === null) {
+    // Also enrich existing companies that haven't been enriched yet
+    if (company.apolloEnrichedAt === null) {
       if (leverWebsite) {
         queueCompanyEnrichmentByWebsite(company.id, leverWebsite);
       } else {

@@ -159,6 +159,9 @@ model Company {
   // Verification
   verified      Boolean      @default(false)
 
+  // Apollo enrichment tracking
+  apolloEnrichedAt DateTime?  // When enriched (null = not tried yet)
+
   // Relations
   jobs          Job[]
 
