@@ -252,6 +252,24 @@ export default function SourcesPage() {
   }
 
   function parseSlugs(input: string): string[] {
+    // Check if input contains lever URLs - extract slugs from them
+    const leverUrlPattern = /(?:jobs\.)?lever\.co\/([a-zA-Z0-9_-]+)/gi;
+    const urlMatches = [...input.matchAll(leverUrlPattern)];
+
+    if (urlMatches.length > 0) {
+      // Extract slugs from URLs
+      const slugs = urlMatches
+        .map(match => match[1].toLowerCase())
+        .filter(slug => {
+          // Filter out common non-company paths
+          const excluded = ['jobs', 'careers', 'apply', 'posting', 'postings', 'embed'];
+          return !excluded.includes(slug);
+        });
+      // Deduplicate
+      return [...new Set(slugs)];
+    }
+
+    // Fallback: parse as comma/newline separated slugs
     return input
       .split(/[,\n\r]+/)
       .map(s => s.trim().toLowerCase())
@@ -995,9 +1013,9 @@ export default function SourcesPage() {
             <CardHeader>
               <CardTitle className="text-lg">Add Lever Companies</CardTitle>
               <CardDescription>
-                Enter company slugs from their Lever careers page URLs (one per line or comma-separated).
+                Enter company slugs (comma/newline separated) OR paste any text/HTML containing Lever URLs.
                 <br />
-                Example: For https://jobs.lever.co/<strong>appen</strong>, enter &quot;appen&quot;
+                Slugs will be auto-extracted from URLs like jobs.lever.co/<strong>company</strong>
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1006,10 +1024,9 @@ export default function SourcesPage() {
                   <Label htmlFor="companySlugs">Company Slugs</Label>
                   <Textarea
                     id="companySlugs"
-                    placeholder="appen,
-netflix,
-stripe,
-figma"
+                    placeholder="appen, netflix, stripe
+
+...or paste Google search results HTML with lever.co URLs"
                     value={companySlugsInput}
                     onChange={(e) => {
                       setCompanySlugsInput(e.target.value);
