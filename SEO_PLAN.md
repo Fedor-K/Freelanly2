@@ -20,37 +20,41 @@
 
 ## Phase 2: Programmatic SEO (Priority: HIGH)
 
-### New Page Templates to Create
+> **Detailed Plan:** See [docs/PROGRAMMATIC_SEO_PLAN.md](docs/PROGRAMMATIC_SEO_PLAN.md)
 
-#### 2.1 Category + Country Pages
-**URL Pattern:** `/jobs/[category]/country/[country]`
-**Example:** `/jobs/engineering/country/germany` → "Remote Engineering Jobs in Germany"
-**Potential pages:** ~20 categories × 30 countries = 600 pages
+### Summary: 764+ New Pages
 
+| Type | Pages | URL Pattern | Status |
+|------|-------|-------------|--------|
+| Category + Country | 630 | `/jobs/[category]/country/[country]` | Planned |
+| Category + Salary | 84 | `/jobs/[category]/salary/[range]` | Planned |
+| Skills | 50+ | `/jobs/skills/[skill]` | Planned |
+
+### Implementation Status
+
+#### 2.1 Category + Country Pages (630 pages)
+- [ ] Create country config (`/src/config/countries.ts`)
+- [ ] Create country content (`/src/config/country-content.ts`)
 - [ ] Create route `/jobs/[category]/country/[country]/page.tsx`
-- [ ] Add proper meta tags with location-specific titles
-- [ ] Add to sitemap
-- [ ] Internal linking from category and country pages
+- [ ] Add meta tags, structured data, FAQPage schema
+- [ ] Implement thin content check (noindex if < 3 jobs)
+- [ ] Add to sitemap.xml
+- [ ] Add internal linking
 
-#### 2.2 Category + Salary Range Pages
-**URL Pattern:** `/jobs/[category]/salary/[range]`
-**Example:** `/jobs/design/salary/50k-100k` → "Remote Design Jobs $50K-$100K"
-**Ranges:** 0-50k, 50k-100k, 100k-150k, 150k+
-
+#### 2.2 Category + Salary Pages (84 pages)
 - [ ] Create route `/jobs/[category]/salary/[range]/page.tsx`
-- [ ] Filter jobs by salary range
-- [ ] Add proper meta tags
-- [ ] Add to sitemap
+- [ ] Ranges: 0-50k, 50k-100k, 100k-150k, 150k-plus
+- [ ] Add salary filtering logic
+- [ ] Add meta tags and structured data
+- [ ] Add to sitemap.xml
 
-#### 2.3 Skills/Technology Pages
-**URL Pattern:** `/jobs/skills/[skill]`
-**Example:** `/jobs/skills/react` → "Remote React Developer Jobs"
-**Top skills:** React, Python, Node.js, AWS, TypeScript, etc.
-
+#### 2.3 Skills Pages (50+ pages)
+- [ ] Create skill config (`/src/config/skills.ts`)
+- [ ] Create skill content (`/src/config/skill-content.ts`)
 - [ ] Create route `/jobs/skills/[skill]/page.tsx`
-- [ ] Extract and index job skills
-- [ ] Add to sitemap
-- [ ] Internal linking from job pages
+- [ ] Implement skill search with aliases
+- [ ] Add meta tags and structured data
+- [ ] Add to sitemap.xml
 
 ---
 
