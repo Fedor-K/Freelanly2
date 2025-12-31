@@ -535,8 +535,14 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
   const baseSlug = slugify(`${extracted.title}-${company.name}`);
   const slug = await generateUniqueSlug(baseSlug);
 
-  // Get country code for salary estimation
-  const countryCode = extractCountryCode(extracted.location);
+  // Fetch company headquarters for country extraction
+  const companyWithHQ = await prisma.company.findUnique({
+    where: { id: company.id },
+    select: { headquarters: true },
+  });
+
+  // Get country code from location, description, or company HQ
+  const countryCode = extractCountryCode(extracted.location, post.content, companyWithHQ?.headquarters);
 
   // Get actual or estimated salary data
   const salaryData = extracted.salaryMin ? {
@@ -823,34 +829,188 @@ function mapLocationType(isRemote: boolean, location: string | null): 'REMOTE' |
   return 'REMOTE';
 }
 
-// Extract country code
-function extractCountryCode(location: string | null): string | null {
-  if (!location) return null;
+// Comprehensive country mapping (30 countries)
+const COUNTRY_MAP: Record<string, string> = {
+  // North America
+  'usa': 'US', 'united states': 'US', 'u.s.': 'US', 'america': 'US',
+  'canada': 'CA', 'canadian': 'CA',
+  'mexico': 'MX', 'méxico': 'MX',
+  // Western Europe
+  'uk': 'GB', 'united kingdom': 'GB', 'britain': 'GB', 'england': 'GB', 'scotland': 'GB', 'wales': 'GB',
+  'germany': 'DE', 'deutschland': 'DE', 'german': 'DE',
+  'france': 'FR', 'french': 'FR', 'française': 'FR',
+  'netherlands': 'NL', 'holland': 'NL', 'dutch': 'NL', 'nederland': 'NL',
+  'belgium': 'BE', 'belgian': 'BE', 'belgique': 'BE',
+  'switzerland': 'CH', 'swiss': 'CH', 'schweiz': 'CH', 'suisse': 'CH',
+  'austria': 'AT', 'austrian': 'AT', 'österreich': 'AT',
+  'ireland': 'IE', 'irish': 'IE', 'eire': 'IE',
+  // Southern Europe
+  'spain': 'ES', 'spanish': 'ES', 'españa': 'ES',
+  'portugal': 'PT', 'portuguese': 'PT',
+  'italy': 'IT', 'italian': 'IT', 'italia': 'IT',
+  'greece': 'GR', 'greek': 'GR', 'ελλάδα': 'GR', 'hellas': 'GR',
+  'croatia': 'HR', 'croatian': 'HR', 'hrvatska': 'HR',
+  'slovenia': 'SI', 'slovenian': 'SI', 'slovenija': 'SI',
+  // Northern Europe
+  'sweden': 'SE', 'swedish': 'SE', 'sverige': 'SE',
+  'denmark': 'DK', 'danish': 'DK', 'danmark': 'DK',
+  'norway': 'NO', 'norwegian': 'NO', 'norge': 'NO',
+  'finland': 'FI', 'finnish': 'FI', 'suomi': 'FI',
+  // Eastern Europe
+  'poland': 'PL', 'polish': 'PL', 'polska': 'PL',
+  'ukraine': 'UA', 'ukrainian': 'UA', 'україна': 'UA',
+  'romania': 'RO', 'romanian': 'RO', 'românia': 'RO',
+  'czech republic': 'CZ', 'czechia': 'CZ', 'czech': 'CZ', 'česko': 'CZ',
+  'hungary': 'HU', 'hungarian': 'HU', 'magyarország': 'HU',
+  'bulgaria': 'BG', 'bulgarian': 'BG', 'българия': 'BG',
+  'slovakia': 'SK', 'slovak': 'SK', 'slovensko': 'SK',
+  'serbia': 'RS', 'serbian': 'RS', 'србија': 'RS',
+  'lithuania': 'LT', 'lithuanian': 'LT', 'lietuva': 'LT',
+  'latvia': 'LV', 'latvian': 'LV', 'latvija': 'LV',
+  'estonia': 'EE', 'estonian': 'EE', 'eesti': 'EE',
+  // Asia Pacific
+  'australia': 'AU', 'australian': 'AU', 'aussie': 'AU',
+  'singapore': 'SG', 'singaporean': 'SG',
+  'japan': 'JP', 'japanese': 'JP', '日本': 'JP',
+  'india': 'IN', 'indian': 'IN', 'भारत': 'IN',
+  // Middle East
+  'israel': 'IL', 'israeli': 'IL', 'ישראל': 'IL',
+  'uae': 'AE', 'united arab emirates': 'AE', 'dubai': 'AE', 'abu dhabi': 'AE', 'emirates': 'AE',
+  // Latin America
+  'brazil': 'BR', 'brazilian': 'BR', 'brasil': 'BR',
+  'argentina': 'AR', 'argentine': 'AR', 'argentinian': 'AR',
+};
 
-  const countryMap: Record<string, string> = {
-    'usa': 'US', 'united states': 'US', 'us': 'US',
-    'uk': 'GB', 'united kingdom': 'GB',
-    'canada': 'CA',
-    'germany': 'DE',
-    'france': 'FR',
-    'netherlands': 'NL',
-    'spain': 'ES',
-    'italy': 'IT',
-    'australia': 'AU',
-    'india': 'IN',
-    'brazil': 'BR',
-    'mexico': 'MX',
-    'poland': 'PL',
-    'portugal': 'PT',
-    'ireland': 'IE',
-    'sweden': 'SE',
-    'switzerland': 'CH',
-  };
+// Major cities mapped to countries
+const CITY_COUNTRY_MAP: Record<string, string> = {
+  // US cities
+  'new york': 'US', 'nyc': 'US', 'san francisco': 'US', 'sf': 'US', 'los angeles': 'US', 'la': 'US',
+  'chicago': 'US', 'seattle': 'US', 'austin': 'US', 'boston': 'US', 'denver': 'US', 'miami': 'US',
+  'atlanta': 'US', 'dallas': 'US', 'houston': 'US', 'phoenix': 'US', 'silicon valley': 'US',
+  'san diego': 'US', 'portland': 'US', 'philadelphia': 'US', 'washington dc': 'US', 'dc': 'US',
+  // UK cities
+  'london': 'GB', 'manchester': 'GB', 'edinburgh': 'GB', 'birmingham': 'GB', 'bristol': 'GB', 'cambridge': 'GB', 'oxford': 'GB',
+  // German cities
+  'berlin': 'DE', 'munich': 'DE', 'münchen': 'DE', 'hamburg': 'DE', 'frankfurt': 'DE', 'cologne': 'DE', 'köln': 'DE', 'düsseldorf': 'DE',
+  // French cities
+  'paris': 'FR', 'lyon': 'FR', 'marseille': 'FR', 'toulouse': 'FR', 'bordeaux': 'FR', 'nantes': 'FR',
+  // Dutch cities
+  'amsterdam': 'NL', 'rotterdam': 'NL', 'utrecht': 'NL', 'eindhoven': 'NL', 'the hague': 'NL',
+  // Spanish cities
+  'barcelona': 'ES', 'madrid': 'ES', 'valencia': 'ES', 'seville': 'ES', 'malaga': 'ES', 'bilbao': 'ES',
+  // Italian cities
+  'milan': 'IT', 'milano': 'IT', 'rome': 'IT', 'roma': 'IT', 'turin': 'IT', 'florence': 'IT', 'bologna': 'IT',
+  // Canadian cities
+  'toronto': 'CA', 'vancouver': 'CA', 'montreal': 'CA', 'ottawa': 'CA', 'calgary': 'CA', 'waterloo': 'CA',
+  // Australian cities
+  'sydney': 'AU', 'melbourne': 'AU', 'brisbane': 'AU', 'perth': 'AU', 'adelaide': 'AU',
+  // Indian cities
+  'bangalore': 'IN', 'bengaluru': 'IN', 'mumbai': 'IN', 'delhi': 'IN', 'new delhi': 'IN', 'hyderabad': 'IN', 'pune': 'IN', 'chennai': 'IN',
+  // Other European cities
+  'tel aviv': 'IL', 'warsaw': 'PL', 'krakow': 'PL', 'kraków': 'PL', 'wroclaw': 'PL', 'gdansk': 'PL',
+  'lisbon': 'PT', 'porto': 'PT',
+  'stockholm': 'SE', 'gothenburg': 'SE', 'malmö': 'SE',
+  'copenhagen': 'DK', 'aarhus': 'DK',
+  'oslo': 'NO', 'bergen': 'NO',
+  'helsinki': 'FI', 'tampere': 'FI',
+  'zurich': 'CH', 'zürich': 'CH', 'geneva': 'CH', 'basel': 'CH', 'bern': 'CH',
+  'vienna': 'AT', 'wien': 'AT', 'salzburg': 'AT', 'graz': 'AT',
+  'brussels': 'BE', 'antwerp': 'BE', 'ghent': 'BE',
+  'dublin': 'IE', 'cork': 'IE', 'galway': 'IE',
+  'prague': 'CZ', 'praha': 'CZ', 'brno': 'CZ',
+  'bucharest': 'RO', 'cluj': 'RO', 'timisoara': 'RO',
+  'kyiv': 'UA', 'kiev': 'UA', 'lviv': 'UA', 'kharkiv': 'UA',
+  // Greek cities
+  'athens': 'GR', 'thessaloniki': 'GR', 'patras': 'GR',
+  // Hungarian cities
+  'budapest': 'HU', 'debrecen': 'HU',
+  // Bulgarian cities
+  'sofia': 'BG', 'plovdiv': 'BG', 'varna': 'BG',
+  // Other Eastern European
+  'bratislava': 'SK', 'belgrade': 'RS', 'zagreb': 'HR', 'ljubljana': 'SI',
+  'vilnius': 'LT', 'riga': 'LV', 'tallinn': 'EE',
+  // Asian cities
+  'tokyo': 'JP', 'osaka': 'JP', 'kyoto': 'JP',
+  // Latin American cities
+  'são paulo': 'BR', 'sao paulo': 'BR', 'rio de janeiro': 'BR', 'rio': 'BR',
+  'buenos aires': 'AR', 'mexico city': 'MX', 'ciudad de méxico': 'MX',
+};
 
-  const loc = location.toLowerCase();
-  for (const [key, code] of Object.entries(countryMap)) {
-    if (loc.includes(key)) {
+// US state abbreviations
+const US_STATES = [
+  'alabama', 'al', 'alaska', 'ak', 'arizona', 'az', 'arkansas', 'ar', 'california', 'ca',
+  'colorado', 'co', 'connecticut', 'ct', 'delaware', 'de', 'florida', 'fl', 'georgia', 'ga',
+  'hawaii', 'hi', 'idaho', 'id', 'illinois', 'il', 'indiana', 'in', 'iowa', 'ia',
+  'kansas', 'ks', 'kentucky', 'ky', 'louisiana', 'la', 'maine', 'me', 'maryland', 'md',
+  'massachusetts', 'ma', 'michigan', 'mi', 'minnesota', 'mn', 'mississippi', 'ms', 'missouri', 'mo',
+  'montana', 'mt', 'nebraska', 'ne', 'nevada', 'nv', 'new hampshire', 'nh', 'new jersey', 'nj',
+  'new mexico', 'nm', 'new york', 'ny', 'north carolina', 'nc', 'north dakota', 'nd', 'ohio', 'oh',
+  'oklahoma', 'ok', 'oregon', 'or', 'pennsylvania', 'pa', 'rhode island', 'ri', 'south carolina', 'sc',
+  'south dakota', 'sd', 'tennessee', 'tn', 'texas', 'tx', 'utah', 'ut', 'vermont', 'vt',
+  'virginia', 'va', 'washington', 'wa', 'west virginia', 'wv', 'wisconsin', 'wi', 'wyoming', 'wy',
+];
+
+/**
+ * Extract country code from text (location, description, or headquarters)
+ */
+function extractCountryCode(location: string | null, description?: string | null, headquarters?: string | null): string | null {
+  // Try location first
+  if (location) {
+    const code = extractCountryFromText(location);
+    if (code) return code;
+  }
+
+  // Try headquarters
+  if (headquarters) {
+    const code = extractCountryFromText(headquarters);
+    if (code) return code;
+  }
+
+  // Try description (only first 500 chars to avoid false matches)
+  if (description) {
+    const code = extractCountryFromText(description.slice(0, 500));
+    if (code) return code;
+  }
+
+  return null;
+}
+
+/**
+ * Extract country code from a text string
+ */
+function extractCountryFromText(text: string): string | null {
+  const normalized = text.toLowerCase();
+
+  // Check country names first
+  for (const [key, code] of Object.entries(COUNTRY_MAP)) {
+    // Use word boundary matching to avoid partial matches
+    const regex = new RegExp(`\\b${key}\\b`, 'i');
+    if (regex.test(normalized)) {
       return code;
+    }
+  }
+
+  // Check city names
+  for (const [city, code] of Object.entries(CITY_COUNTRY_MAP)) {
+    const regex = new RegExp(`\\b${city}\\b`, 'i');
+    if (regex.test(normalized)) {
+      return code;
+    }
+  }
+
+  // Check US states (indicates US)
+  for (const state of US_STATES) {
+    // Match state names or 2-letter codes with comma before (e.g., ", CA" or ", California")
+    if (state.length === 2) {
+      // For 2-letter codes, require comma before to avoid false positives
+      if (normalized.includes(`, ${state}`) || normalized.includes(`,${state}`)) {
+        return 'US';
+      }
+    } else {
+      const regex = new RegExp(`\\b${state}\\b`, 'i');
+      if (regex.test(normalized)) {
+        return 'US';
+      }
     }
   }
 

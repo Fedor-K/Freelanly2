@@ -326,7 +326,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                         </Link>
                       ))}
                     <Link
-                      href={`/jobs/${category.slug}/country/germany`}
+                      href="/country"
                       className="block px-3 py-1.5 text-sm text-primary hover:underline"
                     >
                       View all countries →

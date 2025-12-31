@@ -155,6 +155,13 @@ For each category page, add:
   - Created /jobs/[category]/country/[country] route
   - Added to sitemap.xml
   - Added internal links from category pages
+- [x] **Fixed country data extraction (coverage: 22% → 95%)**
+  - Expanded country extraction from 18 to 30 countries
+  - Added 70+ major cities mapped to countries
+  - Added US state detection (full names + abbreviations)
+  - Now checks: location → company HQ → description (first 500 chars)
+  - Created scripts/enrich-job-countries.ts for backfill
+  - Result: 1,968/2,071 jobs (95%) now have country data
 
 ---
 
