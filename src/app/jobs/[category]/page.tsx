@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { siteConfig, categories, levels, jobTypes, locationTypes } from '@/config/site';
 import { countries, highVolumeCountries } from '@/config/countries';
+import { salaryRanges } from '@/config/salary-ranges';
 import { getCategoryContent } from '@/config/category-content';
 import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
@@ -331,6 +332,22 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                     >
                       View all countries →
                     </Link>
+                  </div>
+                </div>
+
+                {/* Browse by Salary */}
+                <div>
+                  <h2 className="text-sm font-medium mb-2">Browse by Salary</h2>
+                  <div className="space-y-1">
+                    {salaryRanges.map((range) => (
+                      <Link
+                        key={range.slug}
+                        href={`/jobs/${category.slug}/salary/${range.slug}`}
+                        className="block px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded"
+                      >
+                        {range.label}
+                      </Link>
+                    ))}
                   </div>
                 </div>
               </div>

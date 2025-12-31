@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import { siteConfig, categories, levels, locationTypes, countries as siteCountries, jobRoles, languagePairs } from '@/config/site';
 import { countries as programmaticCountries } from '@/config/countries';
+import { salaryRanges } from '@/config/salary-ranges';
 import { prisma } from '@/lib/db';
 
 // Popular tech skills for programmatic pages
@@ -199,6 +200,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }))
   );
 
+  // Category + Salary pages: /jobs/[category]/salary/[range]
+  // Programmatic SEO pages (84 combinations: 21 categories × 4 salary ranges)
+  const categorySalaryPages: MetadataRoute.Sitemap = categories.flatMap((cat) =>
+    salaryRanges.map((range) => ({
+      url: `${baseUrl}/jobs/${cat.slug}/salary/${range.slug}`,
+      lastModified: now,
+      changeFrequency: 'daily' as const,
+      priority: 0.8,
+    }))
+  );
+
   // Dynamic job pages from database - RRS format: /company/[company]/jobs/[job]
   let jobPages: MetadataRoute.Sitemap = [];
   let companyPages: MetadataRoute.Sitemap = [];
@@ -294,6 +306,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...jobsByCountryPages,
     ...translationPairPages,
     ...categoryCountryPages,
+    ...categorySalaryPages,
     ...companyPages,
     ...companyJobsPages,
     ...jobPages,
