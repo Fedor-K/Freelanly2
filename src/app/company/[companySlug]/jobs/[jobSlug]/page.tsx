@@ -847,7 +847,7 @@ type LocationRequirement = { '@type': string; name: string };
 function getApplicantLocationRequirements(
   locationType: string,
   country: string | null
-): LocationRequirement | LocationRequirement[] {
+): LocationRequirement | LocationRequirement[] | null {
   switch (locationType) {
     case 'REMOTE_US':
       return { '@type': 'Country', name: 'United States' };
@@ -869,13 +869,14 @@ function getApplicantLocationRequirements(
       if (country) {
         return { '@type': 'Country', name: getCountryName(country) };
       }
-      // Fall through to worldwide if no country specified
-      return { '@type': 'Country', name: 'Worldwide' };
+      // No country specified - return null (worldwide)
+      return null;
     case 'REMOTE':
     default:
-      // For worldwide remote jobs, use broad list of countries
-      // Google accepts "Worldwide" as a valid value
-      return { '@type': 'Country', name: 'Worldwide' };
+      // For worldwide remote jobs, don't include applicantLocationRequirements
+      // Google requires valid country names, "Worldwide" is not accepted
+      // When omitted with jobLocationType: TELECOMMUTE, Google treats it as worldwide
+      return null;
   }
 }
 
