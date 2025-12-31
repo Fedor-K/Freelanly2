@@ -2,6 +2,7 @@ import { MetadataRoute } from 'next';
 import { siteConfig, categories, levels, locationTypes, countries as siteCountries, jobRoles, languagePairs } from '@/config/site';
 import { countries as programmaticCountries } from '@/config/countries';
 import { salaryRanges } from '@/config/salary-ranges';
+import { skills } from '@/config/skills';
 import { prisma } from '@/lib/db';
 
 // Popular tech skills for programmatic pages
@@ -211,6 +212,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }))
   );
 
+  // Skills pages: /jobs/skills/[skill]
+  // Programmatic SEO pages (50+ skills)
+  const skillPages: MetadataRoute.Sitemap = skills.map((skill) => ({
+    url: `${baseUrl}/jobs/skills/${skill.slug}`,
+    lastModified: now,
+    changeFrequency: 'daily' as const,
+    priority: 0.85,
+  }));
+
   // Dynamic job pages from database - RRS format: /company/[company]/jobs/[job]
   let jobPages: MetadataRoute.Sitemap = [];
   let companyPages: MetadataRoute.Sitemap = [];
@@ -307,6 +317,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...translationPairPages,
     ...categoryCountryPages,
     ...categorySalaryPages,
+    ...skillPages,
     ...companyPages,
     ...companyJobsPages,
     ...jobPages,
