@@ -42,6 +42,7 @@ import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats, isTarge
 import { addToSocialQueue } from '@/services/social-post';
 import { isPhysicalLocation } from '@/lib/job-filter';
 import { isBlockedCompany } from '@/config/company-blacklist';
+import { shouldImportByProfession } from '@/config/target-professions';
 import type { ProcessingStats, ProcessorContext, LeverJob } from './types';
 import type { FilterReason } from '@prisma/client';
 
@@ -182,12 +183,41 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
       newJobs.push(job);
     }
 
-    // AI Filter: process in parallel with concurrency limit
-    console.log(`[Lever] Running AI filter on ${newJobs.length} new jobs...`);
+    // =========================================================================
+    // WHITELIST/BLACKLIST FILTER (fast, deterministic, no API calls)
+    // =========================================================================
+    const whitelistPassed: LeverJob[] = [];
+    const whitelistRejected: LeverJob[] = [];
+
+    for (const job of newJobs) {
+      if (shouldImportByProfession(job.text)) {
+        whitelistPassed.push(job);
+      } else {
+        whitelistRejected.push(job);
+        stats.skipped++;
+      }
+    }
+
+    if (whitelistRejected.length > 0) {
+      console.log(`[Lever] Whitelist rejected ${whitelistRejected.length} jobs`);
+      await prisma.filteredJob.createMany({
+        data: whitelistRejected.map(job => ({
+          importLogId,
+          title: job.text,
+          company: dataSource.name,
+          location: job.categories.location || null,
+          sourceUrl: job.hostedUrl,
+          reason: 'NON_TARGET_TITLE' as const,
+        })),
+      });
+    }
+
+    // AI Filter: process whitelisted jobs in parallel
+    console.log(`[Lever] Running AI filter on ${whitelistPassed.length} whitelisted jobs...`);
     const AI_FILTER_CONCURRENCY = 10;
     const aiFilterLimit = createLimiter(AI_FILTER_CONCURRENCY);
 
-    await Promise.all(newJobs.map(job => aiFilterLimit(async () => {
+    await Promise.all(whitelistPassed.map(job => aiFilterLimit(async () => {
       const filterResult = await isTargetRemoteJob(job.text, dataSource.name);
 
       if (filterResult.import) {

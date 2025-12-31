@@ -387,27 +387,6 @@ Examples:
  * Returns true if job should be imported, false if it should be skipped
  */
 export async function isTargetRemoteJob(title: string, company?: string): Promise<{ import: boolean; reason: string }> {
-  // Pre-filter: Skip known gig platforms
-  const gigPlatforms = ['appen', 'lionbridge', 'clickworker', 'telus', 'welocalize', 'transperfect', 'rws'];
-  if (company && gigPlatforms.some(p => company.toLowerCase().includes(p))) {
-    console.log(`[AI Filter] "${title}" → SKIP: Gig platform (${company})`);
-    return { import: false, reason: `Gig platform: ${company}` };
-  }
-
-  // Pre-filter: Skip accelerator/internship programs
-  const skipPatterns = [
-    /accelerator\s*program/i,
-    /internship\s*program/i,
-    /fellowship\s*program/i,
-    /graduate\s*program/i,
-    /trainee\s*program/i,
-    /apprentice/i,
-  ];
-  if (skipPatterns.some(p => p.test(title))) {
-    console.log(`[AI Filter] "${title}" → SKIP: Training/accelerator program`);
-    return { import: false, reason: 'Training/accelerator program, not a regular job' };
-  }
-
   // Pre-filter: Skip non-English titles (detect common non-English patterns)
   const nonEnglishPatterns = [
     /\b(funcional|desenvolvedor|analista|gerente|coordenador|engenheiro)\b/i, // Portuguese

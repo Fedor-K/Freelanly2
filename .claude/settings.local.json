@@ -66,7 +66,8 @@
       "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx tsx -e \"\nconst { PrismaClient } = require\\(''@prisma/client''\\);\nconst prisma = new PrismaClient\\(\\);\n\nasync function check\\(\\) {\n  const company = await prisma.company.findFirst\\({\n    where: { slug: ''articulate'' },\n    select: {\n      id: true,\n      name: true,\n      description: true,\n      website: true,\n      logoUrl: true,\n      apolloEnrichedAt: true,\n      createdAt: true\n    }\n  }\\);\n  console.log\\(''Company:'', JSON.stringify\\(company, null, 2\\)\\);\n}\ncheck\\(\\);\n\")",
       "Bash(APOLLO_API_KEY1=\"3qf8GsG-C_CAxjFH35WtNA\" npx tsx -e:*)",
       "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" APOLLO_API_KEY1=\"3qf8GsG-C_CAxjFH35WtNA\" npx tsx scripts/enrich-empty-companies.ts 20)",
-      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" APOLLO_API_KEY1=\"3qf8GsG-C_CAxjFH35WtNA\" npx tsx scripts/enrich-empty-companies.ts 200)"
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" APOLLO_API_KEY1=\"3qf8GsG-C_CAxjFH35WtNA\" npx tsx scripts/enrich-empty-companies.ts 200)",
+      "Bash(git checkout:*)"
     ]
   }
 }
