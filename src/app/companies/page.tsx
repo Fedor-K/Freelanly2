@@ -14,10 +14,13 @@ interface CompaniesPageProps {
 }
 
 export async function generateMetadata({ searchParams }: CompaniesPageProps): Promise<Metadata> {
-  const { industry } = await searchParams;
+  const { page, industry } = await searchParams;
+  const currentPage = parseInt(page || '1', 10);
 
-  // Noindex filtered pages to avoid duplicate content and URL issues
-  const shouldNoindex = !!industry;
+  // Noindex pages to avoid duplicate content:
+  // - Pagination pages (page > 1)
+  // - Industry filtered pages
+  const shouldNoindex = currentPage > 1 || !!industry;
 
   return {
     title: 'Companies Hiring Remotely - Top Remote Employers',

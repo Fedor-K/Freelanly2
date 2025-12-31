@@ -49,9 +49,11 @@ export async function generateMetadata({ searchParams }: JobsPageProps): Promise
     params.skills,
   ].filter(Boolean).length;
 
-  // Noindex pages with multiple filters to avoid duplicate content
-  // Single filter pages are OK for SEO, but combinations create thin/duplicate content
-  const shouldNoindex = filterCount >= 2;
+  // Noindex pages to avoid duplicate content:
+  // - Pagination pages (page > 1) - duplicate of main listing
+  // - Pages with multiple filters - thin/duplicate content combinations
+  const hasPagination = currentPage > 1 || params.page !== undefined;
+  const shouldNoindex = hasPagination || filterCount >= 2;
 
   return {
     title: currentPage > 1

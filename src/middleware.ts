@@ -4,6 +4,16 @@ import type { NextRequest } from 'next/server';
 export function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
+  // SEO redirects for old/removed pages
+  const seoRedirects: Record<string, string> = {
+    '/for-interpreters': '/jobs/translation',
+    '/for-translators': '/jobs/translation',
+  };
+
+  if (seoRedirects[pathname]) {
+    return NextResponse.redirect(new URL(seoRedirects[pathname], req.url), 301);
+  }
+
   // Check for session cookie (NextAuth session token)
   const sessionToken =
     req.cookies.get('authjs.session-token')?.value ||

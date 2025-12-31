@@ -43,9 +43,13 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
   const seoTitle = truncateTitle(`Remote ${category.name} Jobs - Work From Home ${category.name} Positions`);
   const description = `Browse ${category.name.toLowerCase()} remote jobs. Find work from home ${category.name.toLowerCase()} positions at top companies. Updated daily with new opportunities.`;
 
-  // Don't index onsite/hybrid filter pages (we're a remote job board)
+  // Don't index pages that create duplicate/thin content:
+  // - Pagination pages (page > 1)
+  // - Onsite/hybrid filter pages (we're a remote job board)
+  const resolvedSearchParams = await searchParams;
+  const pageNum = parseInt(resolvedSearchParams.page || '1', 10);
   const noIndexLocations = ['onsite', 'hybrid'];
-  const shouldNoIndex = location && noIndexLocations.includes(location.toLowerCase());
+  const shouldNoIndex = pageNum > 1 || (location && noIndexLocations.includes(location.toLowerCase()));
 
   return {
     title: seoTitle,
