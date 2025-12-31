@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -240,11 +241,10 @@ export default async function JobPage({ params }: JobPageProps) {
   const { companySlug, jobSlug } = await params;
   const job = await getJob(jobSlug);
 
-  // Job not found - show expired page
-  // The metadata sets robots: noindex to tell Google to remove from index
+  // Job not found - return proper 404 status code
+  // This tells Google to remove the page from its index
   if (!job) {
-    const recentJobs = await getRecentJobs(6);
-    return <ExpiredJobPage jobSlug={jobSlug} similarJobs={recentJobs} />;
+    notFound();
   }
 
   const isLinkedInPost = job.sourceType === 'UNSTRUCTURED';
