@@ -712,9 +712,13 @@ export default async function JobPage({ params }: JobPageProps) {
               value: job.id,
             },
             directApply: !!(job.applyUrl || job.applyEmail),
-            // Always include for remote job platform - Google requires applicantLocationRequirements for TELECOMMUTE
+            // Remote job marker
             jobLocationType: 'TELECOMMUTE',
-            applicantLocationRequirements: getApplicantLocationRequirements(job.locationType, job.country),
+            // Only include applicantLocationRequirements for region-specific remote jobs
+            // For worldwide remote, omit this field (Google treats TELECOMMUTE without this as worldwide)
+            ...(getApplicantLocationRequirements(job.locationType, job.country) && {
+              applicantLocationRequirements: getApplicantLocationRequirements(job.locationType, job.country),
+            }),
             ...(job.salaryMin && getSchemaUnitText(job.salaryPeriod) && {
               baseSalary: {
                 '@type': 'MonetaryAmount',
