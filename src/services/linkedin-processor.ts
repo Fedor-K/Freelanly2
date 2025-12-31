@@ -448,6 +448,23 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     return { success: false, error: 'No corporate email - skipped' };
   }
 
+  // =========================================================================
+  // EARLY FILTERS - before expensive company/Apollo operations
+  // =========================================================================
+
+  // Map location type first (needed for filter)
+  const locationType = mapLocationType(extracted.isRemote, extracted.location);
+
+  // Apply global job filter (non-target titles, HYBRID/ONSITE, physical locations)
+  const filterResult = shouldSkipJob({
+    title: extracted.title,
+    location: extracted.location,
+    locationType,
+  });
+  if (filterResult.skip) {
+    return { success: false, error: `${filterResult.reason} - skipped` };
+  }
+
   // Get company name - EMAIL DOMAIN IS SOURCE OF TRUTH (who is actually hiring)
   // Priority: email domain → DeepSeek extraction → headline → author name
   const emailCompany = extractCompanyFromEmail(validatedEmail);
@@ -457,6 +474,29 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     extractedCompany ||
     extractCompanyFromHeadline(post.authorHeadline) ||
     post.authorName;
+
+  // Check for duplicate job by title + company BEFORE creating company
+  // This saves Apollo API calls for duplicates
+  const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+  const companySlugForDedup = slugify(companyName);
+  const duplicateByTitle = await prisma.job.findFirst({
+    where: {
+      OR: [
+        { company: { slug: companySlugForDedup } },
+        { company: { name: { equals: companyName, mode: 'insensitive' } } },
+      ],
+      title: { equals: extracted.title, mode: 'insensitive' },
+      createdAt: { gte: tenDaysAgo },
+    },
+  });
+
+  if (duplicateByTitle) {
+    return { success: false, error: 'duplicate' };
+  }
+
+  // =========================================================================
+  // EXPENSIVE OPERATIONS - only after passing all filters
+  // =========================================================================
 
   // Find or create company (with email for website fallback)
   const company = await findOrCreateCompany({
@@ -477,21 +517,6 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     return { success: false, error: 'Company validation failed - Apollo unknown or no logo' };
   }
 
-  // Check for duplicate job by title + company within last 10 days
-  // (allows same job title to be posted again after 10 days as a new vacancy)
-  const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
-  const duplicateByTitle = await prisma.job.findFirst({
-    where: {
-      companyId: company.id,
-      title: { equals: extracted.title, mode: 'insensitive' },
-      createdAt: { gte: tenDaysAgo },
-    },
-  });
-
-  if (duplicateByTitle) {
-    return { success: false, error: 'duplicate' };
-  }
-
   // Classify category
   const categorySlug = await classifyJobCategory(extracted.title, extracted.skills);
   let category = await prisma.category.findUnique({ where: { slug: categorySlug } });
@@ -509,19 +534,6 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
   // Generate unique slug
   const baseSlug = slugify(`${extracted.title}-${company.name}`);
   const slug = await generateUniqueSlug(baseSlug);
-
-  // Map location type
-  const locationType = mapLocationType(extracted.isRemote, extracted.location);
-
-  // Apply global job filter (non-target titles, HYBRID/ONSITE, physical locations)
-  const filterResult = shouldSkipJob({
-    title: extracted.title,
-    location: extracted.location,
-    locationType,
-  });
-  if (filterResult.skip) {
-    return { success: false, error: `${filterResult.reason} - skipped` };
-  }
 
   // Get country code for salary estimation
   const countryCode = extractCountryCode(extracted.location);

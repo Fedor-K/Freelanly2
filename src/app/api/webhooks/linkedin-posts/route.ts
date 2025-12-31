@@ -146,6 +146,28 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // =========================================================================
+    // EARLY FILTERS - before expensive company/Apollo operations
+    // =========================================================================
+
+    // Map location type (needed for filter)
+    const locationType = mapLocationType(extracted.isRemote, extracted.location);
+
+    // Apply global job filter FIRST (non-target titles, HYBRID/ONSITE)
+    const filterResult = shouldSkipJob({
+      title: extracted.title,
+      location: extracted.location,
+      locationType,
+    });
+    if (filterResult.skip) {
+      console.log(`[LinkedInPosts] Filtered out: ${extracted.title} (${filterResult.reason})`);
+      return NextResponse.json({
+        success: true,
+        status: 'skipped',
+        reason: filterResult.reason,
+      });
+    }
+
     // Check for similar job from same company (by email domain)
     const hasSimilarJob = await findSimilarJobByEmailDomain(
       validatedEmail,
@@ -172,6 +194,34 @@ export async function POST(request: NextRequest) {
       extractCompanyFromHeadline(authorHeadline) ||
       authorName;
 
+    // Check for duplicate job by title + company BEFORE creating company
+    // This saves Apollo API calls for duplicates
+    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+    const companySlugForDedup = slugify(companyName);
+    const duplicateByTitle = await prisma.job.findFirst({
+      where: {
+        OR: [
+          { company: { slug: companySlugForDedup } },
+          { company: { name: { equals: companyName, mode: 'insensitive' } } },
+        ],
+        title: { equals: extracted.title, mode: 'insensitive' },
+        createdAt: { gte: tenDaysAgo },
+      },
+    });
+
+    if (duplicateByTitle) {
+      console.log(`[LinkedInPosts] Duplicate job by title+company, skipping`);
+      return NextResponse.json({
+        success: true,
+        status: 'skipped',
+        reason: 'duplicate_title',
+      });
+    }
+
+    // =========================================================================
+    // EXPENSIVE OPERATIONS - only after passing all filters
+    // =========================================================================
+
     // Find or create company (with email for website fallback)
     const company = await findOrCreateCompany({
       name: companyName,
@@ -196,26 +246,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Check for duplicate job by title + company within last 10 days
-    // (allows same job title to be posted again after 10 days as a new vacancy)
-    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
-    const duplicateByTitle = await prisma.job.findFirst({
-      where: {
-        companyId: company.id,
-        title: { equals: extracted.title, mode: 'insensitive' },
-        createdAt: { gte: tenDaysAgo },
-      },
-    });
-
-    if (duplicateByTitle) {
-      console.log(`[LinkedInPosts] Duplicate job by title+company, skipping`);
-      return NextResponse.json({
-        success: true,
-        status: 'skipped',
-        reason: 'duplicate_title',
-      });
-    }
-
     // Classify category
     const categorySlug = await classifyJobCategory(extracted.title, extracted.skills);
     let category = await prisma.category.findUnique({ where: { slug: categorySlug } });
@@ -232,24 +262,6 @@ export async function POST(request: NextRequest) {
     // Generate unique slug
     const baseSlug = slugify(`${extracted.title}-${company.name}`);
     const slug = await generateUniqueSlug(baseSlug);
-
-    // Map location type
-    const locationType = mapLocationType(extracted.isRemote, extracted.location);
-
-    // Apply global job filter (non-target titles, HYBRID/ONSITE, physical locations)
-    const filterResult = shouldSkipJob({
-      title: extracted.title,
-      location: extracted.location,
-      locationType,
-    });
-    if (filterResult.skip) {
-      console.log(`[LinkedInPosts] Filtered out: ${extracted.title} (${filterResult.reason})`);
-      return NextResponse.json({
-        success: true,
-        status: 'skipped',
-        reason: filterResult.reason,
-      });
-    }
 
     // Get country code for salary estimation
     const countryCode = extractCountryCode(extracted.location);
