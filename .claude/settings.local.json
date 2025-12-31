@@ -70,7 +70,8 @@
       "Bash(git checkout:*)",
       "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" APOLLO_API_KEY1=\"3qf8GsG-C_CAxjFH35WtNA\" npx tsx:*)",
       "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" APOLLO_API_KEY1=\"3qf8GsG-C_CAxjFH35WtNA\" npx tsx scripts/enrich-single.ts wr)",
-      "Bash(du:*)"
+      "Bash(du:*)",
+      "Bash(dig:*)"
     ]
   }
 }
