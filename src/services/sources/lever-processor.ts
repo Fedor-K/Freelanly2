@@ -122,16 +122,7 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
     stats.total = jobs.length;
     console.log(`[Lever] Found ${jobs.length} jobs for ${dataSource.name}`);
 
-    // Fetch real company website from Lever job page (use first job)
-    let companyWebsite: string | null = null;
-    if (jobs.length > 0) {
-      companyWebsite = await fetchCompanyWebsiteFromLever(dataSource.companySlug, jobs[0].id);
-    }
-
-    // Find or create company with real website
-    const company = await findOrCreateCompany(dataSource.name, dataSource.companySlug, companyWebsite);
-
-    // Filter out jobs older than 7 days (MAX_JOB_AGE_DAYS)
+    // Filter out jobs older than 7 days (MAX_JOB_AGE_DAYS) BEFORE creating company
     const maxAgeDate = getMaxJobAgeDate();
     const freshJobs = jobs.filter(job => new Date(job.createdAt) >= maxAgeDate);
     const oldJobs = jobs.filter(job => new Date(job.createdAt) < maxAgeDate);
@@ -262,6 +253,14 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
     }
 
     console.log(`[Lever] Processing ${jobsToProcess.length} jobs (${freshJobs.length - jobsToProcess.length} skipped early)`);
+
+    // NOW create company - only if we have jobs to process
+    // Fetch real company website from Lever job page (use first job that passed filters)
+    let companyWebsite: string | null = null;
+    if (jobsToProcess.length > 0) {
+      companyWebsite = await fetchCompanyWebsiteFromLever(dataSource.companySlug, jobsToProcess[0].id);
+    }
+    const company = await findOrCreateCompany(dataSource.name, dataSource.companySlug, companyWebsite);
 
     // Process NEW jobs in parallel with concurrency limit
     const CONCURRENCY = 5; // 5 parallel DeepSeek API calls
