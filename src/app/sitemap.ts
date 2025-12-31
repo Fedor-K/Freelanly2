@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
-import { siteConfig, categories, levels, locationTypes, countries, jobRoles, languagePairs } from '@/config/site';
+import { siteConfig, categories, levels, locationTypes, countries as siteCountries, jobRoles, languagePairs } from '@/config/site';
+import { countries as programmaticCountries } from '@/config/countries';
 import { prisma } from '@/lib/db';
 
 // Popular tech skills for programmatic pages
@@ -151,7 +152,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Country pages: /country/[country]
-  const countryPages: MetadataRoute.Sitemap = countries.map((country) => ({
+  const countryPages: MetadataRoute.Sitemap = siteCountries.map((country) => ({
     url: `${baseUrl}/country/${country.slug}`,
     lastModified: now,
     changeFrequency: 'daily' as const,
@@ -159,7 +160,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Country + Role pages: /country/[country]/jobs/[role]
-  const countryRolePages: MetadataRoute.Sitemap = countries.flatMap((country) =>
+  const countryRolePages: MetadataRoute.Sitemap = siteCountries.flatMap((country) =>
     jobRoles.map((role) => ({
       url: `${baseUrl}/country/${country.slug}/jobs/${role.slug}`,
       lastModified: now,
@@ -169,7 +170,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   );
 
   // Jobs by country pages: /jobs/country/[country]
-  const jobsByCountryPages: MetadataRoute.Sitemap = countries.map((country) => ({
+  const jobsByCountryPages: MetadataRoute.Sitemap = siteCountries.map((country) => ({
     url: `${baseUrl}/jobs/country/${country.slug}`,
     lastModified: now,
     changeFrequency: 'daily' as const,
@@ -186,6 +187,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'daily' as const,
       priority: 0.85,
     }));
+
+  // Category + Country pages: /jobs/[category]/country/[country]
+  // Programmatic SEO pages (630 combinations)
+  const categoryCountryPages: MetadataRoute.Sitemap = categories.flatMap((cat) =>
+    programmaticCountries.map((country) => ({
+      url: `${baseUrl}/jobs/${cat.slug}/country/${country.slug}`,
+      lastModified: now,
+      changeFrequency: 'daily' as const,
+      priority: 0.8,
+    }))
+  );
 
   // Dynamic job pages from database - RRS format: /company/[company]/jobs/[job]
   let jobPages: MetadataRoute.Sitemap = [];
@@ -281,6 +293,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...countryRolePages,
     ...jobsByCountryPages,
     ...translationPairPages,
+    ...categoryCountryPages,
     ...companyPages,
     ...companyJobsPages,
     ...jobPages,

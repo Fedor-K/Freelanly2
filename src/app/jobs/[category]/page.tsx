@@ -7,6 +7,7 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { siteConfig, categories, levels, jobTypes, locationTypes } from '@/config/site';
+import { countries, highVolumeCountries } from '@/config/countries';
 import { getCategoryContent } from '@/config/category-content';
 import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
@@ -309,21 +310,27 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                   </div>
                 </div>
 
-                {/* Location Filter - only show remote options (we're a remote job board) */}
+                {/* Browse by Country */}
                 <div>
-                  <h2 className="text-sm font-medium mb-2">Location</h2>
+                  <h2 className="text-sm font-medium mb-2">Browse by Country</h2>
                   <div className="space-y-1">
-                    {locationTypes
-                      .filter((loc) => loc.value.startsWith('REMOTE'))
-                      .map((loc) => (
+                    {countries
+                      .filter((c) => highVolumeCountries.includes(c.slug))
+                      .map((country) => (
                         <Link
-                          key={loc.value}
-                          href={`/jobs/${category.slug}?location=${loc.value.toLowerCase()}`}
+                          key={country.slug}
+                          href={`/jobs/${category.slug}/country/${country.slug}`}
                           className="block px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded"
                         >
-                          {loc.label}
+                          {country.flag} {country.name}
                         </Link>
                       ))}
+                    <Link
+                      href={`/jobs/${category.slug}/country/germany`}
+                      className="block px-3 py-1.5 text-sm text-primary hover:underline"
+                    >
+                      View all countries →
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -463,18 +470,34 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                 </div>
 
                 {/* Related Links */}
-                <div>
-                  <h3 className="font-semibold mb-3">Popular {category.name} Job Searches</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {levels.slice(0, 5).map((lvl) => (
-                      <Link
-                        key={lvl.value}
-                        href={`/jobs/${category.slug}/${lvl.value.toLowerCase()}`}
-                        className="text-sm text-primary hover:underline"
-                      >
-                        {lvl.label} {category.name} Jobs
-                      </Link>
-                    ))}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="font-semibold mb-3">Popular {category.name} Job Searches</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {levels.slice(0, 5).map((lvl) => (
+                        <Link
+                          key={lvl.value}
+                          href={`/jobs/${category.slug}/${lvl.value.toLowerCase()}`}
+                          className="text-sm text-primary hover:underline"
+                        >
+                          {lvl.label} {category.name} Jobs
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-3">{category.name} Jobs by Country</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {countries.slice(0, 10).map((country) => (
+                        <Link
+                          key={country.slug}
+                          href={`/jobs/${category.slug}/country/${country.slug}`}
+                          className="text-sm text-primary hover:underline"
+                        >
+                          {country.flag} {country.name}
+                        </Link>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </section>
