@@ -8,18 +8,93 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: '*',
         allow: '/',
         disallow: [
+          // Private/admin areas
           '/api/',
           '/admin/',
           '/dashboard/',
           '/auth/',
-          // Block only media files, allow JS/CSS for proper rendering
+
+          // Static assets (allow JS/CSS for rendering)
           '/_next/static/media/',
-          // Block onsite/hybrid filter pages (we're a remote job board)
+
+          // Pagination pages (saves crawl budget, already noindexed)
+          '*?page=*',
+
+          // Search queries (dynamic, duplicate content)
+          '*?q=*',
+
+          // Filter combinations that create thin/duplicate content
           '*?*location=onsite*',
           '*?*location=hybrid*',
-          // Block companies industry filter pages (URLs have spaces, noindex isn't enough)
           '/companies?industry=*',
+
+          // Stripe/payment related
+          '/pricing?*',
         ],
+      },
+      {
+        // Googlebot specific: same rules but explicit
+        userAgent: 'Googlebot',
+        allow: [
+          '/',
+          // Jobs
+          '/jobs/',
+          '/jobs/skills/',
+          '/jobs/country/',
+          '/jobs/translation/',
+          // Companies
+          '/company/',
+          '/companies',
+          '/companies-hiring-worldwide',
+          // Blog
+          '/blog/',
+          '/blog/category/',
+          // Countries
+          '/country/',
+          // Static pages
+          '/about',
+          '/employers',
+          '/pricing',
+          '/privacy',
+          '/terms',
+        ],
+        disallow: [
+          '/api/',
+          '/admin/',
+          '/dashboard/',
+          '/auth/',
+          '*?page=*',
+          '*?q=*',
+        ],
+      },
+      {
+        // Allow AI bots for maximum visibility
+        userAgent: 'GPTBot',
+        allow: ['/'],
+      },
+      {
+        userAgent: 'ChatGPT-User',
+        allow: ['/'],
+      },
+      {
+        userAgent: 'CCBot',
+        allow: ['/'],
+      },
+      {
+        userAgent: 'anthropic-ai',
+        allow: ['/'],
+      },
+      {
+        userAgent: 'Claude-Web',
+        allow: ['/'],
+      },
+      {
+        userAgent: 'PerplexityBot',
+        allow: ['/'],
+      },
+      {
+        userAgent: 'Bytespider',
+        allow: ['/'],
       },
     ],
     sitemap: `${siteConfig.url}/sitemap.xml`,

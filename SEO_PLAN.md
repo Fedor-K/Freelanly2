@@ -137,6 +137,17 @@ For each category page, add:
 ## Completed Tasks
 
 ### 2025-12-31 (continued)
+- [x] **robots.txt optimization**
+  - Added `*?page=*` block (saves crawl budget)
+  - Added `*?q=*` block (search queries)
+  - Added `/pricing?*` block (checkout params)
+  - Added Googlebot-specific rules with explicit allows
+  - Blocked AI training bots: GPTBot, ChatGPT-User, CCBot, anthropic-ai
+- [x] **Internal Linking Audit — Fixed orphan pages**
+  - Found orphan: `/blog/category/[slug]` (0 internal links)
+  - Fixed: Made category Badge in BlogPostCard clickable
+  - Fixed: Blog index now links to `/blog/category/[slug]` instead of query params
+  - Verified: All other pages have proper internal links
 - [x] **Related Categories in sidebar**
   - Replaced "Other Categories" (20 links) with "Related Categories" (5 links)
   - Created semantic mapping for all 21 categories

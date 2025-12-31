@@ -49,9 +49,15 @@ export function BlogPostCard({ post, featured = false }: BlogPostCardProps) {
 
         <CardContent className="p-4">
           {/* Category */}
-          <Badge variant="secondary" className="mb-2">
-            {post.category.icon} {post.category.name}
-          </Badge>
+          <Link
+            href={`/blog/category/${post.category.slug}`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-block mb-2"
+          >
+            <Badge variant="secondary" className="hover:bg-secondary/80 cursor-pointer">
+              {post.category.icon} {post.category.name}
+            </Badge>
+          </Link>
 
           {/* Title */}
           <h3 className={`font-semibold mb-2 line-clamp-2 group-hover:text-primary transition-colors ${featured ? 'text-xl' : 'text-lg'}`}>

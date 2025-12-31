@@ -113,7 +113,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
               </Badge>
             </Link>
             {categories.map((cat) => (
-              <Link key={cat.slug} href={`/blog?category=${cat.slug}`}>
+              <Link key={cat.slug} href={`/blog/category/${cat.slug}`}>
                 <Badge
                   variant={category === cat.slug ? 'default' : 'outline'}
                   className="cursor-pointer"
