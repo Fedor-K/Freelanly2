@@ -441,11 +441,13 @@ IMPORT (YES) - Digital/knowledge work that can be done remotely:
 - Translators, interpreters (remote)
 - Customer support, success (remote)
 - HR, recruiters (remote)
-- Finance, accounting (remote)
-- Legal, compliance (remote)
+- Financial analysts, FP&A (not accountants!)
+- Compliance, privacy specialists (remote)
 - Researchers, consultants
 
 SKIP (NO) - NOT suitable for our platform:
+- Accountants, bookkeepers, controllers, CPAs, auditors
+- Payroll specialists, accounts payable/receivable
 - Drivers, delivery, trucking, CDL
 - Nurses, doctors, healthcare workers (clinical)
 - Warehouse, logistics, supply chain operations
@@ -459,6 +461,7 @@ SKIP (NO) - NOT suitable for our platform:
 - Gig/microtask jobs (data labeling, content evaluation, annotation projects)
 - "Video Relevance", "Image Annotation", "Data Collection" projects
 - Healthcare administration/management (non-tech)
+- Learning & Development, Training coordinators (HR/in-person)
 
 Be STRICT. When in doubt, SKIP.
 

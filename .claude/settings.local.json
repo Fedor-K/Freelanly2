@@ -59,7 +59,11 @@
       "Bash(jq:*)",
       "Bash(PEXELS_KEY=\"6YaYKaH1QrUMZAYPqgsor3FAyKLvRg1CQoBWpi1ahQKAhfQU9FIFRAnG\" curl -s \"https://api.pexels.com/videos/search?query=remote%20work&per_page=3\" -H \"Authorization: $PEXELS_KEY\")",
       "Bash(host:*)",
-      "Bash(nslookup:*)"
+      "Bash(nslookup:*)",
+      "Bash(sshpass -p 'PQfP2j*PzlC5' ssh -o StrictHostKeyChecking=no root@46.173.20.46 \"hostname && docker ps | grep n8n\")",
+      "Bash(APOLLO_API_KEY1=\"3qf8GsG-C_CAxjFH35WtNA\" npx tsx -e \"\nasync function testApollo\\(domain\\) {\n  const res = await fetch\\(''https://api.apollo.io/v1/organizations/enrich'', {\n    method: ''POST'',\n    headers: { ''Content-Type'': ''application/json'', ''x-api-key'': process.env.APOLLO_API_KEY1 },\n    body: JSON.stringify\\({ domain }\\)\n  }\\);\n  const data = await res.json\\(\\);\n  console.log\\(domain + '':'', data.organization ? { name: data.organization.name, logo: data.organization.logo_url?.slice\\(0,50\\) } : ''NOT FOUND''\\);\n}\n\n\\(async \\(\\) => {\n  await testApollo\\(''99marketingservices.com''\\);\n  await testApollo\\(''hconnect.com.vn''\\);\n  await testApollo\\(''conceptualbs.com''\\);\n  await testApollo\\(''gleekvell.com''\\);\n}\\)\\(\\);\n\")",
+      "Bash(APOLLO_API_KEY1=\"3qf8GsG-C_CAxjFH35WtNA\" npx tsx:*)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" APOLLO_API_KEY1=\"3qf8GsG-C_CAxjFH35WtNA\" npx tsx scripts/enrich-companies.ts)"
     ]
   }
 }
