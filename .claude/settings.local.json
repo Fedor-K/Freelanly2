@@ -57,7 +57,9 @@
       "Bash(git show:*)",
       "Bash(ssh:*)",
       "Bash(jq:*)",
-      "Bash(PEXELS_KEY=\"6YaYKaH1QrUMZAYPqgsor3FAyKLvRg1CQoBWpi1ahQKAhfQU9FIFRAnG\" curl -s \"https://api.pexels.com/videos/search?query=remote%20work&per_page=3\" -H \"Authorization: $PEXELS_KEY\")"
+      "Bash(PEXELS_KEY=\"6YaYKaH1QrUMZAYPqgsor3FAyKLvRg1CQoBWpi1ahQKAhfQU9FIFRAnG\" curl -s \"https://api.pexels.com/videos/search?query=remote%20work&per_page=3\" -H \"Authorization: $PEXELS_KEY\")",
+      "Bash(host:*)",
+      "Bash(nslookup:*)"
     ]
   }
 }

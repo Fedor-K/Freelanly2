@@ -2,7 +2,15 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(req: NextRequest) {
+  const hostname = req.headers.get('host') || '';
   const pathname = req.nextUrl.pathname;
+
+  // Redirect www to non-www (301 permanent)
+  if (hostname.startsWith('www.')) {
+    const newUrl = new URL(req.url);
+    newUrl.host = hostname.replace('www.', '');
+    return NextResponse.redirect(newUrl, 301);
+  }
 
   // Check for session cookie (NextAuth session token)
   const sessionToken =
@@ -39,9 +47,7 @@ export function middleware(req: NextRequest) {
 // Configure which routes the middleware runs on
 export const config = {
   matcher: [
-    // Protected routes
-    '/dashboard/:path*',
-    // Auth routes
-    '/auth/signin',
+    // Run on all routes except static files and API routes
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap|api/).*)',
   ],
 };
