@@ -63,11 +63,11 @@
 
 ### Category Page Enhancements
 For each category page, add:
-- [ ] 300+ word intro paragraph about the category
-- [ ] "What does a [role] do?" section
-- [ ] "Average salary for [role]" section
-- [ ] FAQ with 5-10 common questions
-- [ ] Related categories links
+- [x] 300+ word intro paragraph about the category ✅ Done
+- [x] "What does a [role] do?" section ✅ Done
+- [x] "Average salary for [role]" section ✅ Done
+- [x] FAQ with 5-10 common questions ✅ Done
+- [x] Related categories links ✅ Done (5 related per category)
 
 ### Landing Pages ✅ CONSOLIDATED
 - [x] `/remote-[skill]-jobs` → 301 redirect to `/jobs/skills/[skill]`
@@ -137,10 +137,14 @@ For each category page, add:
 ## Completed Tasks
 
 ### 2025-12-31 (continued)
+- [x] **Related Categories in sidebar**
+  - Replaced "Other Categories" (20 links) with "Related Categories" (5 links)
+  - Created semantic mapping for all 21 categories
+  - Added "View all categories →" link
 - [x] **Footer improvements for internal linking**
   - Added "Popular Skills" section: React, Python, TypeScript, Node.js, AWS, Kubernetes
   - Added "Jobs by Salary" section: $50K-100K, $100K-150K, $150K+
-  - Cleaned up "For Job Seekers" section (removed duplicate skill links)
+  - Reduced "Job Categories" from 21 to 8 + "View all categories"
 
 ### 2025-12-31
 - [x] Fixed blog titles to < 60 characters

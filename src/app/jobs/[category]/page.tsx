@@ -17,6 +17,35 @@ import { getMaxJobAgeDate } from '@/lib/utils';
 // ISR: Revalidate every 60 seconds for fresh job listings
 export const revalidate = 60;
 
+// Related categories mapping for better internal linking
+const relatedCategoriesMap: Record<string, string[]> = {
+  // Tech group
+  engineering: ['devops', 'data', 'qa', 'security', 'design'],
+  design: ['product', 'engineering', 'creative', 'marketing'],
+  data: ['engineering', 'research', 'product', 'devops'],
+  devops: ['engineering', 'security', 'data', 'qa'],
+  qa: ['engineering', 'devops', 'security', 'product'],
+  security: ['devops', 'engineering', 'qa', 'data'],
+  // Business group
+  product: ['design', 'engineering', 'marketing', 'data', 'project-management'],
+  marketing: ['sales', 'creative', 'writing', 'product', 'design'],
+  sales: ['marketing', 'finance', 'operations', 'support'],
+  finance: ['operations', 'legal', 'hr', 'consulting'],
+  hr: ['operations', 'legal', 'finance', 'consulting'],
+  operations: ['hr', 'finance', 'project-management', 'support'],
+  legal: ['finance', 'hr', 'operations', 'consulting'],
+  'project-management': ['product', 'operations', 'engineering', 'consulting'],
+  // Content group
+  writing: ['marketing', 'creative', 'translation', 'education'],
+  translation: ['writing', 'creative', 'education', 'support'],
+  creative: ['design', 'marketing', 'writing', 'product'],
+  // Other
+  support: ['operations', 'sales', 'hr', 'education'],
+  education: ['writing', 'research', 'consulting', 'support'],
+  research: ['data', 'education', 'consulting', 'engineering'],
+  consulting: ['project-management', 'finance', 'research', 'operations'],
+};
+
 interface CategoryPageProps {
   params: Promise<{ category: string }>;
   searchParams: Promise<{ page?: string; level?: string; type?: string; location?: string }>;
@@ -293,21 +322,31 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                   </div>
                 </div>
 
-                {/* Other Categories */}
+                {/* Related Categories */}
                 <div>
-                  <h2 className="text-sm font-medium mb-2">Other Categories</h2>
+                  <h2 className="text-sm font-medium mb-2">Related Categories</h2>
                   <div className="space-y-1">
-                    {categories
-                      .filter((c) => c.slug !== category.slug)
-                      .map((cat) => (
-                        <Link
-                          key={cat.slug}
-                          href={`/jobs/${cat.slug}`}
-                          className="block px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded"
-                        >
-                          {cat.icon} {cat.name}
-                        </Link>
-                      ))}
+                    {(relatedCategoriesMap[category.slug] || [])
+                      .slice(0, 5)
+                      .map((slug) => {
+                        const cat = categories.find((c) => c.slug === slug);
+                        if (!cat) return null;
+                        return (
+                          <Link
+                            key={cat.slug}
+                            href={`/jobs/${cat.slug}`}
+                            className="block px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded"
+                          >
+                            {cat.icon} {cat.name}
+                          </Link>
+                        );
+                      })}
+                    <Link
+                      href="/jobs"
+                      className="block px-3 py-1.5 text-sm text-primary hover:underline"
+                    >
+                      View all categories →
+                    </Link>
                   </div>
                 </div>
 
