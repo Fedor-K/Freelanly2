@@ -24,7 +24,7 @@ export async function generateMetadata({ searchParams }: CompaniesPageProps): Pr
 
   return {
     title: 'Companies Hiring Remotely - Top Remote Employers',
-    description: 'Discover companies hiring for remote positions. Browse top employers offering work from home opportunities worldwide.',
+    description: 'Discover companies hiring for remote positions. Browse top employers offering work from home jobs in engineering, design, marketing & more. Updated daily.',
     keywords: ['remote companies', 'companies hiring remotely', 'remote employers', 'work from home companies'],
     ...(shouldNoindex && {
       robots: {

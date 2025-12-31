@@ -1,3 +1,4 @@
+import { Metadata } from 'next';
 import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -11,6 +12,12 @@ import { getMaxJobAgeDate } from '@/lib/utils';
 
 // ISR: Revalidate every 5 minutes for fresh stats
 export const revalidate = 300;
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: siteConfig.url,
+  },
+};
 
 // Fetch dynamic stats and featured jobs
 async function getHomePageData() {

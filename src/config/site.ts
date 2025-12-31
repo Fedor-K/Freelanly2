@@ -1,6 +1,6 @@
 export const siteConfig = {
   name: 'Freelanly',
-  description: 'Find remote jobs from LinkedIn posts and top companies. Apply directly via email. 1000+ remote positions updated daily.',
+  description: 'Find remote jobs from LinkedIn posts and top companies. Apply directly via email. 1000+ positions in engineering, design, marketing. Updated daily.',
   url: 'https://freelanly.com',
   ogImage: 'https://freelanly.com/og.png',
   links: {

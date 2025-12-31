@@ -6,10 +6,10 @@
 ## Phase 1: Quick Wins (Priority: HIGH)
 
 ### Technical Fixes
-- [ ] Increase homepage meta description to 150+ characters (currently 119)
-- [ ] Verify canonical tags are rendering correctly on all pages
-- [ ] Check and fix any pages missing canonical tags
-- [ ] Audit meta descriptions on key pages (jobs, categories, companies)
+- [x] Increase homepage meta description to 150+ characters (currently 119) ✅ Done: 148 chars
+- [x] Verify canonical tags are rendering correctly on all pages ✅ Done
+- [x] Check and fix any pages missing canonical tags ✅ Fixed homepage
+- [x] Audit meta descriptions on key pages (jobs, categories, companies) ✅ Fixed /companies
 
 ### Content Fixes
 - [ ] Add intro text to category pages (`/jobs/[category]`) - target 300+ words
@@ -134,6 +134,9 @@ For each category page, add:
 - [x] Added 301 redirect `/for-interpreters` → `/jobs/translation`
 - [x] Added noindex to pagination pages (`?page=`)
 - [x] Removed old sitemap from GSC (`sitemap-iblock-13.xml`)
+- [x] Increased homepage meta description to 148 characters
+- [x] Added canonical tag to homepage
+- [x] Fixed /companies meta description (116 → 156 chars)
 
 ---
 
