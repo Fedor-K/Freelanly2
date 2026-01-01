@@ -71,7 +71,12 @@
       "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" APOLLO_API_KEY1=\"3qf8GsG-C_CAxjFH35WtNA\" npx tsx:*)",
       "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" APOLLO_API_KEY1=\"3qf8GsG-C_CAxjFH35WtNA\" npx tsx scripts/enrich-single.ts wr)",
       "Bash(du:*)",
-      "Bash(dig:*)"
+      "Bash(dig:*)",
+      "WebFetch(domain:z.ai)",
+      "WebFetch(domain:docs.z.ai)",
+      "Bash(ZAI_API_KEY=\"7a46f1755ccb4b828fe35ab83cb81f47.FogYwylFMrNBWEst\" DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" DEEPSEEK_API_KEY=\"sk-1691d2879b164f5eb63c5a9ab74c7785\" npx tsx scripts/test-zai-vs-deepseek.ts)",
+      "Bash(ZAI_API_KEY=\"7a46f1755ccb4b828fe35ab83cb81f47.FogYwylFMrNBWEst\" DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx tsx scripts/test-zai-vs-deepseek.ts)",
+      "Bash(AI_PROVIDER=zai ZAI_API_KEY=\"7a46f1755ccb4b828fe35ab83cb81f47.FogYwylFMrNBWEst\" DATABASE_URL=\"postgresql://neondb_owner:npg_P4kEWCj6RdIa@ep-noisy-tooth-ahj8gt6v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx tsx scripts/test-zai-vs-deepseek.ts)"
     ]
   }
 }

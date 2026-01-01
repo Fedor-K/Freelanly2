@@ -1,7 +1,18 @@
 import OpenAI from 'openai';
 
+// AI Provider configuration
+// Set AI_PROVIDER=zai to use Z.ai, default is deepseek
+type AIProvider = 'deepseek' | 'zai';
+
+function getAIProvider(): AIProvider {
+  const provider = process.env.AI_PROVIDER?.toLowerCase();
+  if (provider === 'zai') return 'zai';
+  return 'deepseek';
+}
+
 // Lazy initialization to avoid build-time errors
 let _deepseek: OpenAI | null = null;
+let _zai: OpenAI | null = null;
 
 function getDeepSeekClient(): OpenAI {
   if (!_deepseek) {
@@ -11,6 +22,33 @@ function getDeepSeekClient(): OpenAI {
     });
   }
   return _deepseek;
+}
+
+function getZaiClient(): OpenAI {
+  if (!_zai) {
+    _zai = new OpenAI({
+      apiKey: process.env.ZAI_API_KEY || 'dummy-key-for-build',
+      baseURL: 'https://api.z.ai/api/paas/v4',
+    });
+  }
+  return _zai;
+}
+
+// Get the active AI client based on AI_PROVIDER env var
+function getAIClient(): { client: OpenAI; model: string; provider: AIProvider } {
+  const provider = getAIProvider();
+  if (provider === 'zai') {
+    return {
+      client: getZaiClient(),
+      model: 'glm-4-32b-0414-128k', // $0.10/$0.10 per 1M tokens
+      provider: 'zai',
+    };
+  }
+  return {
+    client: getDeepSeekClient(),
+    model: 'deepseek-chat',
+    provider: 'deepseek',
+  };
 }
 
 // Translation work types
@@ -212,10 +250,15 @@ Also include legacy bullet fields for backwards compatibility:
 Be conservative - only extract what is explicitly stated. Don't infer or guess.
 Return ONLY valid JSON, no markdown or explanation.`;
 
-// DeepSeek pricing (as of Dec 2024)
-// Input: $0.14 per 1M tokens, Output: $0.28 per 1M tokens
-const DEEPSEEK_PRICE_INPUT_PER_1M = 0.14;
-const DEEPSEEK_PRICE_OUTPUT_PER_1M = 0.28;
+// Pricing per 1M tokens (as of Jan 2025)
+const PRICING = {
+  deepseek: { input: 0.28, output: 0.42 },  // DeepSeek V3.2
+  zai: { input: 0.10, output: 0.10 },       // GLM-4-32B
+};
+
+function getPricing(provider: AIProvider) {
+  return PRICING[provider];
+}
 
 // Track cumulative usage for monitoring
 let cumulativeUsage = {
@@ -223,49 +266,66 @@ let cumulativeUsage = {
   outputTokens: 0,
   calls: 0,
   estimatedCostUSD: 0,
+  provider: 'deepseek' as AIProvider,
 };
 
-export function getDeepSeekUsageStats() {
+export function getAIUsageStats() {
   return { ...cumulativeUsage };
 }
 
-export function resetDeepSeekUsageStats() {
+// Legacy alias
+export function getDeepSeekUsageStats() {
+  return getAIUsageStats();
+}
+
+export function resetAIUsageStats() {
   cumulativeUsage = {
     inputTokens: 0,
     outputTokens: 0,
     calls: 0,
     estimatedCostUSD: 0,
+    provider: getAIProvider(),
   };
+}
+
+// Legacy alias
+export function resetDeepSeekUsageStats() {
+  resetAIUsageStats();
+}
+
+function trackUsage(usage: { prompt_tokens: number; completion_tokens: number } | undefined, provider: AIProvider) {
+  if (!usage) return;
+
+  const pricing = getPricing(provider);
+  const inputCost = (usage.prompt_tokens / 1_000_000) * pricing.input;
+  const outputCost = (usage.completion_tokens / 1_000_000) * pricing.output;
+  const totalCost = inputCost + outputCost;
+
+  cumulativeUsage.inputTokens += usage.prompt_tokens;
+  cumulativeUsage.outputTokens += usage.completion_tokens;
+  cumulativeUsage.calls++;
+  cumulativeUsage.estimatedCostUSD += totalCost;
+  cumulativeUsage.provider = provider;
+
+  const providerName = provider === 'zai' ? 'Z.ai' : 'DeepSeek';
+  console.log(`[${providerName}] Tokens: ${usage.prompt_tokens} in / ${usage.completion_tokens} out | Cost: $${totalCost.toFixed(5)} | Cumulative: $${cumulativeUsage.estimatedCostUSD.toFixed(4)}`);
 }
 
 export async function extractJobData(postText: string): Promise<ExtractedJobData | null> {
   try {
-    const deepseek = getDeepSeekClient();
-    const response = await deepseek.chat.completions.create({
-      model: 'deepseek-chat',
+    const { client, model, provider } = getAIClient();
+    const response = await client.chat.completions.create({
+      model,
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: EXTRACTION_PROMPT },
         { role: 'user', content: postText }
       ],
       temperature: 0.1,
-      max_tokens: 2000, // Increased for cleanDescription
+      max_tokens: 2000,
     });
 
-    // Log token usage and cost
-    const usage = response.usage;
-    if (usage) {
-      const inputCost = (usage.prompt_tokens / 1_000_000) * DEEPSEEK_PRICE_INPUT_PER_1M;
-      const outputCost = (usage.completion_tokens / 1_000_000) * DEEPSEEK_PRICE_OUTPUT_PER_1M;
-      const totalCost = inputCost + outputCost;
-
-      cumulativeUsage.inputTokens += usage.prompt_tokens;
-      cumulativeUsage.outputTokens += usage.completion_tokens;
-      cumulativeUsage.calls++;
-      cumulativeUsage.estimatedCostUSD += totalCost;
-
-      console.log(`[DeepSeek] Tokens: ${usage.prompt_tokens} in / ${usage.completion_tokens} out | Cost: $${totalCost.toFixed(5)} | Cumulative: $${cumulativeUsage.estimatedCostUSD.toFixed(4)}`);
-    }
+    trackUsage(response.usage, provider);
 
     const content = response.choices[0]?.message?.content;
     if (!content) return null;
@@ -284,30 +344,20 @@ export async function extractJobData(postText: string): Promise<ExtractedJobData
       benefitBullets: data.benefitBullets || [],
     };
   } catch (error) {
-    console.error('DeepSeek extraction error:', error);
+    const provider = getAIProvider();
+    console.error(`[${provider}] Extraction error:`, error);
     return null;
   }
 }
 
-export async function classifyJobCategory(
-  title: string,
-  skills: string[]
-): Promise<string> {
-  try {
-    const deepseek = getDeepSeekClient();
-    const response = await deepseek.chat.completions.create({
-      model: 'deepseek-chat',
-      messages: [
-        {
-          role: 'system',
-          content: `Classify this job into ONE category. Return ONLY the category slug, nothing else.
+const CATEGORY_PROMPT = `Classify this job into ONE category. Return ONLY the category slug, nothing else.
 
 Categories (use exact slug):
 - engineering: Software engineers, developers, programmers
 - design: UI/UX designers, graphic designers, product designers
 - data: Data scientists, analysts, ML engineers, BI analysts
 - devops: DevOps, SRE, infrastructure, cloud engineers
-- qa: QA engineers, testers, quality assurance
+- qa: QA engineers, testers, quality assurance, SDET
 - security: Security engineers, cybersecurity, infosec
 - product: Product managers, product owners
 - marketing: Marketing, growth, SEO, content marketing
@@ -330,14 +380,28 @@ Examples:
 - "Business Analyst" → data (or product if product-focused)
 - "Research Manager" → research
 - "Image Review/Annotation" → qa
+- "SDET" or "Test Engineer" → qa
+- "Data Architect" → data
 - "Software Engineer" → engineering
-- "Full Stack Developer" → engineering`
-        },
+- "Full Stack Developer" → engineering`;
+
+export async function classifyJobCategory(
+  title: string,
+  skills: string[]
+): Promise<string> {
+  try {
+    const { client, model, provider } = getAIClient();
+    const response = await client.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: CATEGORY_PROMPT },
         { role: 'user', content: `Title: ${title}\nSkills: ${skills.join(', ') || 'none specified'}` }
       ],
       temperature: 0,
       max_tokens: 50,
     });
+
+    trackUsage(response.usage, provider);
 
     const category = response.choices[0]?.message?.content?.trim().toLowerCase().replace(/[^a-z-]/g, '');
     const validCategories = [
@@ -352,61 +416,37 @@ Examples:
     }
 
     // Fallback: classify locally based on title keywords
-    const t = title.toLowerCase();
-    if (t.includes('research') || t.includes('researcher')) return 'research';
-    if (t.includes('analyst') || t.includes('data') || t.includes('bi ')) return 'data';
-    if (t.includes('product manager') || t.includes('product owner')) return 'product';
-    if (t.includes('qa') || t.includes('quality') || t.includes('test') || t.includes('review')) return 'qa';
-    if (t.includes('support') || t.includes('customer success')) return 'support';
-    if (t.includes('marketing') || t.includes('growth')) return 'marketing';
-    if (t.includes('sales') || t.includes('account')) return 'sales';
-    if (t.includes('design') || t.includes('ux') || t.includes('ui')) return 'design';
-    if (t.includes('writer') || t.includes('content') || t.includes('copy')) return 'writing';
-    if (t.includes('translat') || t.includes('locali')) return 'translation';
-    if (t.includes('project manager') || t.includes('scrum')) return 'project-management';
-    if (t.includes('hr') || t.includes('recruit') || t.includes('people')) return 'hr';
-    if (t.includes('finance') || t.includes('account') || t.includes('payroll')) return 'finance';
-    if (t.includes('legal') || t.includes('compliance')) return 'legal';
-    if (t.includes('operations') || t.includes('admin')) return 'operations';
-    if (t.includes('engineer') || t.includes('develop') || t.includes('program')) return 'engineering';
-
-    return 'support'; // Safe default for misc jobs
+    return localClassifyJob(title);
   } catch (error) {
-    console.error('Category classification error:', error);
-    // Local fallback on API error
-    const t = title.toLowerCase();
-    if (t.includes('engineer') || t.includes('develop')) return 'engineering';
-    if (t.includes('analyst') || t.includes('data')) return 'data';
-    if (t.includes('manager')) return 'product';
-    return 'support';
+    const provider = getAIProvider();
+    console.error(`[${provider}] Category classification error:`, error);
+    return localClassifyJob(title);
   }
 }
 
-/**
- * AI-based job filter: determines if a job is suitable for our remote job board
- * Returns true if job should be imported, false if it should be skipped
- */
-export async function isTargetRemoteJob(title: string, company?: string): Promise<{ import: boolean; reason: string }> {
-  // Pre-filter: Skip non-English titles (detect common non-English patterns)
-  const nonEnglishPatterns = [
-    /\b(funcional|desenvolvedor|analista|gerente|coordenador|engenheiro)\b/i, // Portuguese
-    /\b(ingeniero|gerente|coordinador|desarrollador|especialista)\b/i, // Spanish (no analista - too close to analyst)
-    /\b(ingénieur|analyste|développeur|gestionnaire|conseiller)\b/i, // French
-    /\b(entwickler|sachbearbeiter|leiter|koordinator|berater)\b/i, // German (no analyst - it's English)
-  ];
-  if (nonEnglishPatterns.some(p => p.test(title))) {
-    console.log(`[AI Filter] "${title}" → SKIP: Non-English title`);
-    return { import: false, reason: 'Non-English job title' };
-  }
+// Local fallback classification
+function localClassifyJob(title: string): string {
+  const t = title.toLowerCase();
+  if (t.includes('research') || t.includes('researcher')) return 'research';
+  if (t.includes('analyst') || t.includes('data') || t.includes('bi ')) return 'data';
+  if (t.includes('product manager') || t.includes('product owner')) return 'product';
+  if (t.includes('qa') || t.includes('quality') || t.includes('test') || t.includes('sdet') || t.includes('review')) return 'qa';
+  if (t.includes('support') || t.includes('customer success')) return 'support';
+  if (t.includes('marketing') || t.includes('growth')) return 'marketing';
+  if (t.includes('sales') || t.includes('account')) return 'sales';
+  if (t.includes('design') || t.includes('ux') || t.includes('ui')) return 'design';
+  if (t.includes('writer') || t.includes('content') || t.includes('copy')) return 'writing';
+  if (t.includes('translat') || t.includes('locali')) return 'translation';
+  if (t.includes('project manager') || t.includes('scrum')) return 'project-management';
+  if (t.includes('hr') || t.includes('recruit') || t.includes('people')) return 'hr';
+  if (t.includes('finance') || t.includes('account') || t.includes('payroll')) return 'finance';
+  if (t.includes('legal') || t.includes('compliance')) return 'legal';
+  if (t.includes('operations') || t.includes('admin')) return 'operations';
+  if (t.includes('engineer') || t.includes('develop') || t.includes('program')) return 'engineering';
+  return 'support';
+}
 
-  try {
-    const deepseek = getDeepSeekClient();
-    const response = await deepseek.chat.completions.create({
-      model: 'deepseek-chat',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a strict job classifier for a REMOTE digital jobs board.
+const JOB_FILTER_PROMPT = `You are a strict job classifier for a REMOTE digital jobs board.
 Determine if this job title is suitable for our platform.
 
 IMPORT (YES) - Digital/knowledge work that can be done remotely:
@@ -444,8 +484,31 @@ SKIP (NO) - NOT suitable for our platform:
 
 Be STRICT. When in doubt, SKIP.
 
-Respond ONLY with JSON: {"import": true/false, "reason": "brief reason"}`
-        },
+Respond ONLY with JSON: {"import": true/false, "reason": "brief reason"}`;
+
+/**
+ * AI-based job filter: determines if a job is suitable for our remote job board
+ * Returns true if job should be imported, false if it should be skipped
+ */
+export async function isTargetRemoteJob(title: string, company?: string): Promise<{ import: boolean; reason: string }> {
+  // Pre-filter: Skip non-English titles (detect common non-English patterns)
+  const nonEnglishPatterns = [
+    /\b(funcional|desenvolvedor|analista|gerente|coordenador|engenheiro)\b/i, // Portuguese
+    /\b(ingeniero|gerente|coordinador|desarrollador|especialista)\b/i, // Spanish (no analista - too close to analyst)
+    /\b(ingénieur|analyste|développeur|gestionnaire|conseiller)\b/i, // French
+    /\b(entwickler|sachbearbeiter|leiter|koordinator|berater)\b/i, // German (no analyst - it's English)
+  ];
+  if (nonEnglishPatterns.some(p => p.test(title))) {
+    console.log(`[AI Filter] "${title}" → SKIP: Non-English title`);
+    return { import: false, reason: 'Non-English job title' };
+  }
+
+  try {
+    const { client, model, provider } = getAIClient();
+    const response = await client.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: JOB_FILTER_PROMPT },
         { role: 'user', content: `Job title: ${title}` }
       ],
       response_format: { type: 'json_object' },
@@ -453,16 +516,7 @@ Respond ONLY with JSON: {"import": true/false, "reason": "brief reason"}`
       max_tokens: 100,
     });
 
-    // Track usage
-    const usage = response.usage;
-    if (usage) {
-      const inputCost = (usage.prompt_tokens / 1_000_000) * DEEPSEEK_PRICE_INPUT_PER_1M;
-      const outputCost = (usage.completion_tokens / 1_000_000) * DEEPSEEK_PRICE_OUTPUT_PER_1M;
-      cumulativeUsage.inputTokens += usage.prompt_tokens;
-      cumulativeUsage.outputTokens += usage.completion_tokens;
-      cumulativeUsage.calls++;
-      cumulativeUsage.estimatedCostUSD += inputCost + outputCost;
-    }
+    trackUsage(response.usage, provider);
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
@@ -470,10 +524,12 @@ Respond ONLY with JSON: {"import": true/false, "reason": "brief reason"}`
     }
 
     const result = JSON.parse(content) as { import: boolean; reason: string };
-    console.log(`[AI Filter] "${title}" → ${result.import ? 'IMPORT' : 'SKIP'}: ${result.reason}`);
+    const providerName = provider === 'zai' ? 'Z.ai' : 'DeepSeek';
+    console.log(`[${providerName} Filter] "${title}" → ${result.import ? 'IMPORT' : 'SKIP'}: ${result.reason}`);
     return result;
   } catch (error) {
-    console.error('[AI Filter] Error:', error);
+    const provider = getAIProvider();
+    console.error(`[${provider} Filter] Error:`, error);
     // On error, fall back to simple keyword check
     const lower = title.toLowerCase();
     const skipKeywords = ['driver', 'nurse', 'warehouse', 'construction', 'retail', 'cashier', 'cook', 'chef'];
@@ -482,4 +538,10 @@ Respond ONLY with JSON: {"import": true/false, "reason": "brief reason"}`
   }
 }
 
+// Export current provider info
+export function getActiveAIProvider() {
+  return getAIProvider();
+}
+
+// Legacy exports for backwards compatibility
 export { getDeepSeekClient as deepseek };

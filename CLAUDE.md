@@ -2,7 +2,7 @@
 
 ## Quick Summary
 
-SEO-оптимизированная платформа для поиска удалённых вакансий. Агрегация из LinkedIn (Apify) и ATS (Lever). AI extraction через DeepSeek.
+SEO-оптимизированная платформа для поиска удалённых вакансий. Агрегация из LinkedIn (Apify) и ATS (Lever). AI extraction через DeepSeek или Z.ai (переключается через `AI_PROVIDER` env var).
 
 **Автоматизация:**
 - Daily cron at 6:00 UTC: fetches all sources
@@ -20,7 +20,9 @@ SEO-оптимизированная платформа для поиска уд
 - Next.js 16 (App Router) + TypeScript
 - Tailwind CSS v4 + shadcn/ui
 - PostgreSQL (Neon) + Prisma 5
-- DeepSeek API (extraction + categorization)
+- **AI Providers** (switchable via `AI_PROVIDER` env var):
+  - DeepSeek API (default) — $0.28/$0.42 per 1M tokens
+  - Z.ai GLM-4-32B — $0.10/$0.10 per 1M tokens (64% cheaper)
 - Apify (LinkedIn scraping)
 - Apollo.io (company enrichment)
 - NextAuth v5 (authentication)
@@ -440,6 +442,8 @@ AUTH_SECRET=xxx
 AUTH_URL=https://freelanly.com  # ОБЯЗАТЕЛЬНО с https://
 CRON_SECRET=xxx
 DEEPSEEK_API_KEY=xxx
+ZAI_API_KEY=xxx  # Z.ai API key (optional, for AI_PROVIDER=zai)
+AI_PROVIDER=deepseek  # or "zai" to use Z.ai GLM-4-32B (64% cheaper)
 APIFY_API_TOKEN=xxx
 APOLLO_API_KEY1=xxx
 DASHAMAIL_API_KEY=xxx
