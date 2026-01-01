@@ -62,20 +62,15 @@ async function main() {
     process.exit(1);
   }
 
-  // Get companies without description OR with short descriptions (< 200 chars)
+  // Get ALL companies and filter by description length in code
   const companies = await prisma.company.findMany({
     where: {
       website: { not: null },
-      OR: [
-        { description: null },
-        { description: { not: null } }  // Will filter by length in code
-      ]
     },
     select: { id: true, name: true, website: true, slug: true, description: true },
-    take: limit * 2,
   });
 
-  // Filter to only include null or short descriptions
+  // Filter to only include null or short descriptions (< 200 chars)
   const toProcess = companies
     .filter(c => !c.description || c.description.length < 200)
     .slice(0, limit);
