@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 
 // Short Video Maker config
 const VIDEO_CONFIG = {
@@ -201,7 +202,7 @@ export async function GET(request: Request) {
 
 async function generateJobAlertScript(jobId: string | null) {
   // Get a featured job (prefer USD for international audience)
-  const where = jobId
+  const where: Prisma.JobWhereInput = jobId
     ? { id: jobId }
     : {
         salaryMin: { not: null },
