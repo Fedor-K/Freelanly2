@@ -8,7 +8,7 @@ import {
   type ScrapeOptions,
 } from '@/lib/apify';
 import { getApifySettings } from '@/lib/settings';
-import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
+import { extractJobData, classifyJobCategory, isTargetRemoteJob, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify, isFreeEmail, cleanEmail, extractDomainFromEmail } from '@/lib/utils';
 import { ensureSalaryData } from '@/lib/salary-estimation';
 import { validateAndEnrichCompany } from '@/services/company-enrichment';
@@ -463,6 +463,15 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
   });
   if (filterResult.skip) {
     return { success: false, error: `${filterResult.reason} - skipped` };
+  }
+
+  // AI Filter (second level verification) - enable via AI_FILTER_ENABLED=true
+  if (process.env.AI_FILTER_ENABLED === 'true') {
+    const aiResult = await isTargetRemoteJob(extracted.title);
+    if (!aiResult.import) {
+      console.log(`[LinkedIn AI Filter] Rejected: "${extracted.title}" - ${aiResult.reason}`);
+      return { success: false, error: `AI_REJECTED: ${aiResult.reason}` };
+    }
   }
 
   // Get company name - EMAIL DOMAIN IS SOURCE OF TRUTH (who is actually hiring)

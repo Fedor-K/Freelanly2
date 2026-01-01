@@ -663,6 +663,7 @@ enum FilterReason {
   NO_EMAIL              // No corporate email found
   SPAM                  // Announcement, not a job
   TOO_OLD               // Job older than 7 days (MAX_JOB_AGE_DAYS)
+  AI_REJECTED           // AI filter rejected (travel, healthcare, etc.)
   OTHER                 // Other reason
 }
 

@@ -38,6 +38,7 @@ export {
   AgeFilterStage,
   DuplicateFilterStage,
   WhitelistFilterStage,
+  AIFilterStage,
 } from './common-stages';
 
 // Source-specific pipelines

@@ -27,6 +27,7 @@ import {
   AgeFilterStage,
   DuplicateFilterStage,
   WhitelistFilterStage,
+  AIFilterStage,
 } from './common-stages';
 import type { FilterableJob, PipelineResult } from './filter-stage';
 import type { LeverJob } from '../types';
@@ -68,6 +69,7 @@ export class LeverFilterPipeline extends BaseFilterPipeline<LeverFilterableJob> 
     this.addStage(new AgeFilterStage());
     this.addStage(new DuplicateFilterStage());
     this.addStage(new WhitelistFilterStage());
+    this.addStage(new AIFilterStage()); // AI verification (enable via AI_FILTER_ENABLED=true)
   }
 
   /**

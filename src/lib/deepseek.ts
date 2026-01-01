@@ -446,43 +446,36 @@ function localClassifyJob(title: string): string {
   return 'support';
 }
 
-const JOB_FILTER_PROMPT = `You are a strict job classifier for a REMOTE digital jobs board.
-Determine if this job title is suitable for our platform.
+const JOB_FILTER_PROMPT = `You are a STRICT job classifier for a TECH-focused REMOTE jobs board.
+We only want DIGITAL/TECH jobs. Be very strict - when in doubt, SKIP.
 
-IMPORT (YES) - Digital/knowledge work that can be done remotely:
-- Software developers, engineers, programmers
-- Designers (UI/UX, graphic, product)
-- Data analysts, scientists, ML engineers
-- Product managers, project managers
-- Marketing, SEO, content, growth
-- Sales (remote/inside sales), account managers
-- Writers, copywriters, editors
-- Translators, interpreters (remote)
-- Customer support, success (remote)
-- HR, recruiters (remote)
-- Financial analysts, FP&A (not accountants!)
-- Compliance, privacy specialists (remote)
-- Researchers, consultants
+IMPORT (YES) - Tech/digital work only:
+- Software developers, engineers, programmers (all tech stacks)
+- Designers (UI/UX, product, web, graphic for digital)
+- Data analysts, scientists, ML/AI engineers
+- Product managers, project managers (tech companies)
+- DevOps, SRE, cloud engineers
+- QA, test engineers
+- Marketing (digital: SEO, SEM, growth, content marketing)
+- Tech sales (SaaS, B2B software), solutions engineers
+- Technical writers, UX writers
+- Tech recruiters, technical sourcers
+- Financial analysts (tech/fintech companies only)
 
-SKIP (NO) - NOT suitable for our platform:
-- Accountants, bookkeepers, controllers, CPAs, auditors
-- Payroll specialists, accounts payable/receivable
-- Drivers, delivery, trucking, CDL
-- Nurses, doctors, healthcare workers (clinical)
-- Warehouse, logistics, supply chain operations
-- Construction, electricians, plumbers
-- Retail, cashiers, store workers
-- Manufacturing, assembly, machine operators
-- Restaurant, food service, hospitality
-- Security guards, janitors, cleaners
-- Field technicians, installers
-- Teachers (classroom), tutors (in-person)
-- Gig/microtask jobs (data labeling, content evaluation, annotation projects)
-- "Video Relevance", "Image Annotation", "Data Collection" projects
-- Healthcare administration/management (non-tech)
-- Learning & Development, Training coordinators (HR/in-person)
+SKIP (NO) - NOT for our platform:
+- TRAVEL/HOSPITALITY: booking agents, reservationists, travel coordinators, wedding planners, cruise specialists, hotel staff, concierge
+- VIRTUAL ASSISTANTS: generic VA, executive assistant, personal assistant, admin assistant
+- HEALTHCARE: nurses, doctors, therapists, pharmacists, medical staff, patient coordinators, dental assistants
+- ACCOUNTING: accountants, bookkeepers, CPAs, auditors, payroll, billing, collections
+- TRADITIONAL: drivers, warehouse, retail, restaurant, construction, manufacturing
+- FIELD WORK: technicians (non-IT), installers, maintenance, field service
+- EDUCATION: teachers, tutors, instructors (non-corporate training)
+- GIG WORK: data labeling, annotation, content moderation projects
+- INSURANCE: insurance agents, claims processors, underwriters
+- PROPERTY: real estate agents, property managers, leasing agents
+- GENERIC ROLES: "specialist", "coordinator", "representative" without clear tech context
 
-Be STRICT. When in doubt, SKIP.
+CRITICAL: If title sounds like hospitality, travel, healthcare, or generic office work - SKIP IT.
 
 Respond ONLY with JSON: {"import": true/false, "reason": "brief reason"}`;
 
