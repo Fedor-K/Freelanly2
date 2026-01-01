@@ -200,11 +200,13 @@ export async function GET(request: Request) {
 }
 
 async function generateJobAlertScript(jobId: string | null) {
-  // Get a featured job
+  // Get a featured job (prefer USD for international audience)
   const where = jobId
     ? { id: jobId }
     : {
         salaryMin: { not: null },
+        salaryCurrency: 'USD',
+        salaryPeriod: 'YEAR',
         postedAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
       };
 
@@ -262,12 +264,13 @@ async function generateSalaryRevealScript(categorySlug: string | null) {
     return NextResponse.json({ error: 'Category not found' }, { status: 404 });
   }
 
-  // Get salary stats
+  // Get salary stats (USD only for consistency)
   const jobs = await prisma.job.findMany({
     where: {
       categoryId: category.id,
       salaryMin: { not: null },
       salaryPeriod: 'YEAR',
+      salaryCurrency: 'USD',
     },
     select: { salaryMin: true, salaryMax: true, level: true },
   });
@@ -308,6 +311,7 @@ async function generateTopJobsScript(categorySlug: string | null) {
     where: {
       salaryMin: { gte: 1 },
       salaryPeriod: 'YEAR',
+      salaryCurrency: 'USD', // Only USD to avoid currency confusion
       postedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
       ...(categorySlug && { category: { slug: categorySlug } }),
     },
@@ -396,7 +400,12 @@ function formatSalary(job: {
   if (!job.salaryMin && !job.salaryMax) return null;
 
   const currency = job.salaryCurrency || 'USD';
-  const symbol = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$';
+  const currencySymbols: Record<string, string> = {
+    USD: '$', EUR: '€', GBP: '£', CAD: 'C$', AUD: 'A$',
+    INR: '₹', JPY: '¥', CNY: '¥', SGD: 'S$', HKD: 'HK$',
+  };
+  const symbol = currencySymbols[currency] || currency + ' ';
+
   const salary = job.salaryMax || job.salaryMin || 0;
   const salaryK = Math.round(salary / 1000);
 
