@@ -1,8 +1,18 @@
 import { prisma } from '@/lib/db';
 import OpenAI from 'openai';
 
+// AI Provider configuration (same as deepseek.ts)
+type AIProvider = 'deepseek' | 'zai';
+
+function getAIProvider(): AIProvider {
+  const provider = process.env.AI_PROVIDER?.toLowerCase();
+  if (provider === 'zai') return 'zai';
+  return 'deepseek';
+}
+
 // Lazy initialization
 let _deepseek: OpenAI | null = null;
+let _zai: OpenAI | null = null;
 
 function getDeepSeekClient(): OpenAI {
   if (!_deepseek) {
@@ -12,6 +22,32 @@ function getDeepSeekClient(): OpenAI {
     });
   }
   return _deepseek;
+}
+
+function getZaiClient(): OpenAI {
+  if (!_zai) {
+    _zai = new OpenAI({
+      apiKey: process.env.ZAI_API_KEY || 'dummy-key-for-build',
+      baseURL: 'https://api.z.ai/api/paas/v4',
+    });
+  }
+  return _zai;
+}
+
+function getAIClient(): { client: OpenAI; model: string; provider: AIProvider } {
+  const provider = getAIProvider();
+  if (provider === 'zai') {
+    return {
+      client: getZaiClient(),
+      model: 'glm-4-32b-0414-128k',
+      provider: 'zai',
+    };
+  }
+  return {
+    client: getDeepSeekClient(),
+    model: 'deepseek-chat',
+    provider: 'deepseek',
+  };
 }
 
 const SOCIAL_POST_PROMPT = `You are a social media copywriter for a job board. Create ONLY the body of a job post (title and skills will be added automatically by the system).
@@ -59,11 +95,12 @@ interface JobForSocialPost {
 }
 
 /**
- * Generate social media post text using DeepSeek
+ * Generate social media post text using AI (DeepSeek or Z.ai based on AI_PROVIDER)
  */
 export async function generateSocialPost(job: JobForSocialPost): Promise<string> {
   try {
-    const deepseek = getDeepSeekClient();
+    const { client, model, provider } = getAIClient();
+    const providerName = provider === 'zai' ? 'Z.ai' : 'DeepSeek';
 
     // Build context for AI
     const jobContext = `
@@ -81,8 +118,8 @@ Description:
 ${job.cleanDescription || job.description}
 `.trim();
 
-    const response = await deepseek.chat.completions.create({
-      model: 'deepseek-chat',
+    const response = await client.chat.completions.create({
+      model,
       messages: [
         { role: 'system', content: SOCIAL_POST_PROMPT },
         { role: 'user', content: jobContext }
@@ -93,18 +130,18 @@ ${job.cleanDescription || job.description}
 
     const postText = response.choices[0]?.message?.content?.trim();
 
-    console.log(`[SocialPost] AI response received, length: ${postText?.length || 0}`);
+    console.log(`[SocialPost] ${providerName} response received, length: ${postText?.length || 0}`);
 
     if (!postText) {
-      console.log(`[SocialPost] AI returned empty, using fallback`);
-      // Fallback to simple format
+      console.log(`[SocialPost] ${providerName} returned empty, using fallback`);
       return generateFallbackPost(job);
     }
 
-    console.log(`[SocialPost] AI generated post: ${postText.substring(0, 150)}...`);
+    console.log(`[SocialPost] ${providerName} generated post: ${postText.substring(0, 150)}...`);
     return postText;
   } catch (error) {
-    console.error('[SocialPost] AI generation error:', error);
+    const provider = getAIProvider();
+    console.error(`[SocialPost] ${provider} generation error:`, error);
     return generateFallbackPost(job);
   }
 }
