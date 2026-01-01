@@ -873,14 +873,35 @@ function getApplicantLocationRequirements(
       if (country) {
         return { '@type': 'Country', name: getCountryName(country) };
       }
-      // No country specified - return null (worldwide)
-      return null;
+      // No country specified - fall through to worldwide
+      return [
+        { '@type': 'Country', name: 'United States' },
+        { '@type': 'Country', name: 'United Kingdom' },
+        { '@type': 'Country', name: 'Canada' },
+        { '@type': 'Country', name: 'Germany' },
+        { '@type': 'Country', name: 'Australia' },
+        { '@type': 'Country', name: 'Netherlands' },
+        { '@type': 'Country', name: 'France' },
+        { '@type': 'Country', name: 'India' },
+      ];
     case 'REMOTE':
     default:
-      // For worldwide remote jobs, don't include applicantLocationRequirements
-      // Google requires valid country names, "Worldwide" is not accepted
-      // When omitted with jobLocationType: TELECOMMUTE, Google treats it as worldwide
-      return null;
+      // For REMOTE jobs, use the country if specified
+      if (country) {
+        return { '@type': 'Country', name: getCountryName(country) };
+      }
+      // Truly worldwide - Google requires this field for JobPosting
+      // Return major remote-work regions to indicate global availability
+      return [
+        { '@type': 'Country', name: 'United States' },
+        { '@type': 'Country', name: 'United Kingdom' },
+        { '@type': 'Country', name: 'Canada' },
+        { '@type': 'Country', name: 'Germany' },
+        { '@type': 'Country', name: 'Australia' },
+        { '@type': 'Country', name: 'Netherlands' },
+        { '@type': 'Country', name: 'France' },
+        { '@type': 'Country', name: 'India' },
+      ];
   }
 }
 
