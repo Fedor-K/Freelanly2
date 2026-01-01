@@ -1,9 +1,77 @@
 import { prisma } from '@/lib/db';
 import { isFreeEmail, extractDomainFromEmail, slugify } from '@/lib/utils';
 import { validateDomainHasLogo } from '@/lib/company-logo';
+import OpenAI from 'openai';
 
 // Apollo.io Organization Enrichment API
 const APOLLO_API = 'https://api.apollo.io/api/v1/organizations/enrich';
+
+// Z.ai client for AI-generated descriptions (fallback when Apollo has no data)
+let zaiClient: OpenAI | null = null;
+
+function getZaiClient(): OpenAI | null {
+  if (!process.env.ZAI_API_KEY) return null;
+  if (!zaiClient) {
+    zaiClient = new OpenAI({
+      apiKey: process.env.ZAI_API_KEY,
+      baseURL: 'https://api.z.ai/api/paas/v4',
+    });
+  }
+  return zaiClient;
+}
+
+const DESCRIPTION_PROMPT = `Generate a detailed company description (2-3 paragraphs, 800-1200 characters) based on the company name and website domain.
+
+Structure:
+1. First paragraph: Company overview - what they do, industry, when/where founded if inferable from name
+2. Second paragraph: Main products/services, key features, target audience
+3. Third paragraph (optional): Notable achievements, market position, or unique value proposition
+
+Style guidelines:
+- Professional, informative tone
+- Use specific details where possible
+- Avoid generic marketing phrases
+- Write in third person
+
+Return ONLY the description text, no headers or formatting.`;
+
+/**
+ * Generate company description using Z.ai when Apollo doesn't have data
+ */
+async function generateCompanyDescriptionWithAI(name: string, domain: string): Promise<string | null> {
+  const zai = getZaiClient();
+  if (!zai) {
+    console.log('[Z.ai] API key not configured, skipping AI description');
+    return null;
+  }
+
+  try {
+    console.log(`[Z.ai] Generating description for ${name} (${domain})`);
+
+    const response = await zai.chat.completions.create({
+      model: 'glm-4-32b-0414-128k',
+      messages: [
+        { role: 'system', content: DESCRIPTION_PROMPT },
+        { role: 'user', content: `Company: ${name}\nWebsite: ${domain}` }
+      ],
+      temperature: 0.3,
+      max_tokens: 500,
+    });
+
+    const description = response.choices[0]?.message?.content?.trim();
+
+    if (description && description.length > 50) {
+      console.log(`[Z.ai] Generated description for ${name}: ${description.length} chars`);
+      return description;
+    }
+
+    console.log(`[Z.ai] Empty or too short response for ${name}`);
+    return null;
+  } catch (error) {
+    console.error(`[Z.ai] Error generating description for ${name}:`, error);
+    return null;
+  }
+}
 
 // Response structure from Apollo Organization Enrichment API
 interface ApolloOrganization {
@@ -175,19 +243,42 @@ export async function enrichCompanyByDomain(
     const apolloData = await fetchCompanyFromApollo(domain);
 
     if (!apolloData) {
-      // Mark as tried even if no data found
+      // No Apollo data - try to generate description with Z.ai
+      const aiDescription = await generateCompanyDescriptionWithAI(company.name, domain);
+
       await prisma.company.update({
         where: { id: companyId },
         data: {
           apolloEnrichedAt: new Date(),
           website: `https://${domain}`,
+          ...(aiDescription ? { description: aiDescription } : {}),
         },
       });
+
+      if (aiDescription) {
+        console.log(`No Apollo data for ${company.name}, but generated AI description`);
+        return true;
+      }
+
       console.log(`No Apollo data for ${company.name}, marked as tried`);
       return false;
     }
 
     await updateCompanyWithApolloData(companyId, apolloData, domain);
+
+    // If Apollo didn't have a description, generate one with Z.ai
+    if (!apolloData.short_description) {
+      const aiDescription = await generateCompanyDescriptionWithAI(company.name, domain);
+      if (aiDescription) {
+        await prisma.company.update({
+          where: { id: companyId },
+          data: { description: aiDescription },
+        });
+        console.log(`Enriched company: ${company.name} (Apollo + AI description)`);
+        return true;
+      }
+    }
+
     console.log(`Enriched company: ${company.name}`);
     return true;
   } catch (error) {
@@ -396,22 +487,45 @@ export async function enrichCompanies(limit: number = 10): Promise<EnrichmentSta
       const apolloData = await fetchCompanyFromApollo(company.domain);
 
       if (!apolloData) {
-        stats.skipped++;
+        // No Apollo data - try Z.ai description
+        const aiDescription = await generateCompanyDescriptionWithAI(company.name, company.domain);
+
         await prisma.company.update({
           where: { id: company.id },
           data: {
             apolloEnrichedAt: new Date(),
             website: `https://${company.domain}`,
+            ...(aiDescription ? { description: aiDescription } : {}),
           },
         });
-        console.log(`No Apollo data for: ${company.name} (${company.domain})`);
+
+        if (aiDescription) {
+          stats.enriched++;
+          console.log(`AI description for: ${company.name} (${company.domain})`);
+        } else {
+          stats.skipped++;
+          console.log(`No Apollo data for: ${company.name} (${company.domain})`);
+        }
         continue;
       }
 
       await updateCompanyWithApolloData(company.id, apolloData, company.domain);
 
       const hasLogo = !!apolloData.logo_url;
-      const hasDescription = !!apolloData.short_description;
+      let hasDescription = !!apolloData.short_description;
+
+      // If Apollo didn't have description, generate with Z.ai
+      if (!hasDescription) {
+        const aiDescription = await generateCompanyDescriptionWithAI(company.name, company.domain);
+        if (aiDescription) {
+          await prisma.company.update({
+            where: { id: company.id },
+            data: { description: aiDescription },
+          });
+          hasDescription = true;
+          console.log(`Added AI description for: ${company.name}`);
+        }
+      }
 
       if (hasLogo || hasDescription) {
         stats.enriched++;
@@ -537,19 +651,44 @@ export async function enrichCompaniesByName(limit: number = 50): Promise<Enrichm
       const apolloData = await fetchCompanyFromApollo(domain);
 
       if (!apolloData) {
-        stats.skipped++;
+        // No Apollo data - try Z.ai description
+        const aiDescription = await generateCompanyDescriptionWithAI(company.name, domain);
+
         await prisma.company.update({
           where: { id: company.id },
-          data: { apolloEnrichedAt: new Date() },
+          data: {
+            apolloEnrichedAt: new Date(),
+            ...(aiDescription ? { description: aiDescription } : {}),
+          },
         });
-        console.log(`No Apollo data for: ${company.name} (${domain})`);
+
+        if (aiDescription) {
+          stats.enriched++;
+          console.log(`AI description for: ${company.name} (${domain})`);
+        } else {
+          stats.skipped++;
+          console.log(`No Apollo data for: ${company.name} (${domain})`);
+        }
         continue;
       }
 
       await updateCompanyWithApolloData(company.id, apolloData, domain);
 
       const hasLogo = !!apolloData.logo_url;
-      const hasDescription = !!apolloData.short_description;
+      let hasDescription = !!apolloData.short_description;
+
+      // If Apollo didn't have description, generate with Z.ai
+      if (!hasDescription) {
+        const aiDescription = await generateCompanyDescriptionWithAI(company.name, domain);
+        if (aiDescription) {
+          await prisma.company.update({
+            where: { id: company.id },
+            data: { description: aiDescription },
+          });
+          hasDescription = true;
+          console.log(`Added AI description for: ${company.name}`);
+        }
+      }
 
       if (hasLogo || hasDescription) {
         stats.enriched++;
