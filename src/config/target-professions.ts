@@ -231,6 +231,18 @@ const BLACKLIST_MISC = [
   // Airlines (physical)
   'flight attendant', 'cabin crew', 'pilot', 'co-pilot',
   'ground crew', 'baggage handler', 'ramp agent',
+  // Assistants (too generic for remote tech)
+  'personal assistant', 'executive assistant', 'virtual assistant',
+  'administrative assistant', 'admin assistant',
+  // Retail/Merchandise
+  'merchandise', 'merchandising', 'merchandiser',
+  // Property/Real Estate (already have some, adding more)
+  'property management',
+  // Pharma/Life Sciences (not IT)
+  'life sciences', 'life science', 'pharmaceutical', 'pharma',
+  'biotech', 'biotechnology', 'clinical trial',
+  // Training programs (not real jobs)
+  'master class', 'masterclass', 'training program',
 ];
 
 // Combine all blacklist patterns
@@ -513,9 +525,7 @@ const WHITELIST_OPERATIONS = [
   'operations analyst', 'ops analyst',
   'revops', 'revenue operations', 'sales operations',
   'business analyst', 'strategy analyst',
-  'chief of staff', 'executive assistant',
-  'virtual assistant', 'va ',
-  'administrative assistant', 'admin assistant',
+  'chief of staff',
   'data entry specialist', 'data entry clerk',
   'research assistant',
   'operations lead', 'head of operations', 'vp operations', 'coo',
@@ -528,7 +538,7 @@ const WHITELIST_CONSULTING = [
   'salesforce consultant', 'sap consultant', 'oracle consultant',
   'implementation consultant', 'functional consultant',
   'marketing consultant', 'seo consultant',
-  'business consultant', 'advisory',
+  // Removed: 'business consultant' - too generic, catches pharma/life sciences
 ];
 
 // Combine all whitelist patterns
