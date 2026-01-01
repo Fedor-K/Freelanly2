@@ -37,6 +37,7 @@ externalPort = 80
 
 [userenv.shared]
 AUTH_SECRET = "R54VYjGuZAIadEAbZ7F+US1W3ScfpWPvoGZtirbwB4s="
+CRON_SECRET = "9c3827de0523441631996ab6f2b012801b8bef944873df5e218fdbf3b6b4552c"
 
 [deployment]
 deploymentTarget = "autoscale"
