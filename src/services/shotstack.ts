@@ -5,7 +5,7 @@
 
 const SHOTSTACK_API_KEY = process.env.SHOTSTACK_API_KEY || 'A9XHX9aYgC6bC7flRDC67FALUIOvPU1whxtQSrHx';
 const SHOTSTACK_OWNER_ID = process.env.SHOTSTACK_OWNER_ID || 'vp6hc8knbo';
-const SHOTSTACK_API_URL = 'https://api.shotstack.io/edit/stage'; // Use 'v1' for production
+const SHOTSTACK_API_URL = 'https://api.shotstack.io/edit/v1';
 
 interface ShotstackClip {
   asset: {
