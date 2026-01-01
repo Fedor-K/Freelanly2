@@ -44,3 +44,47 @@ ZAI_API_KEY = "7a46f1755ccb4b828fe35ab83cb81f47.FogYwylFMrNBWEst"
 deploymentTarget = "autoscale"
 run = ["npm", "run", "start", "--", "-p", "5000", "-H", "0.0.0.0"]
 build = ["npm", "run", "build"]
+
+# ============================================
+# SCHEDULED TASKS (Cron Jobs)
+# ============================================
+
+# INSTANT job alerts - every 5 minutes
+# Sends email when new job matches user's alert criteria
+[[deployment.scheduled]]
+trigger = "*/5 * * * *"
+action = "http"
+[deployment.scheduled.http]
+method = "POST"
+path = "/api/cron/process-instant-alerts"
+headers = { Authorization = "Bearer ${CRON_SECRET}" }
+
+# Trial onboarding emails - every hour
+# Sends emails on Day 0, 2, 5, 6, 7 after registration
+[[deployment.scheduled]]
+trigger = "0 * * * *"
+action = "http"
+[deployment.scheduled.http]
+method = "POST"
+path = "/api/cron/send-trial-emails"
+headers = { Authorization = "Bearer ${CRON_SECRET}" }
+
+# Re-engagement emails - daily at 9:00 UTC
+# Sends emails to users inactive for 7, 14, 30 days
+[[deployment.scheduled]]
+trigger = "0 9 * * *"
+action = "http"
+[deployment.scheduled.http]
+method = "POST"
+path = "/api/cron/send-reengagement-emails"
+headers = { Authorization = "Bearer ${CRON_SECRET}" }
+
+# Win-back emails - daily at 10:00 UTC
+# Sends emails to churned subscribers on Day 7, 14, 30
+[[deployment.scheduled]]
+trigger = "0 10 * * *"
+action = "http"
+[deployment.scheduled.http]
+method = "POST"
+path = "/api/cron/send-winback-emails"
+headers = { Authorization = "Bearer ${CRON_SECRET}" }
