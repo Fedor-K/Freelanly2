@@ -14,10 +14,19 @@
  */
 
 import { prisma } from '@/lib/db';
-import { slugify, getMaxJobAgeDate } from '@/lib/utils';
+import { slugify } from '@/lib/utils';
 import { ensureSalaryData } from '@/lib/salary-estimation';
+import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@/services/company-enrichment';
+import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
+import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
+import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
+import { addToSocialQueue } from '@/services/social-post';
+import { isPhysicalLocation } from '@/lib/job-filter';
+import { isBlockedCompany } from '@/config/company-blacklist';
+import { LeverFilterPipeline, type FilteredJobData } from './filters';
+import type { ProcessingStats, ProcessorContext, LeverJob } from './types';
 
-// Simple concurrency limiter
+// Simple concurrency limiter for parallel job processing
 function createLimiter(concurrency: number) {
   let active = 0;
   const queue: (() => void)[] = [];
@@ -35,16 +44,34 @@ function createLimiter(concurrency: number) {
     }
   };
 }
-import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@/services/company-enrichment';
-import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
-import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
-import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats, isTargetRemoteJob } from '@/lib/deepseek';
-import { addToSocialQueue } from '@/services/social-post';
-import { isPhysicalLocation } from '@/lib/job-filter';
-import { isBlockedCompany } from '@/config/company-blacklist';
-import { shouldImportByProfession } from '@/config/target-professions';
-import type { ProcessingStats, ProcessorContext, LeverJob } from './types';
-import type { FilterReason } from '@prisma/client';
+
+/**
+ * Save filtered jobs to database with error handling
+ * Collected by pipeline, bulk inserted at the end
+ */
+async function saveFilteredJobs(
+  importLogId: string,
+  filteredJobs: FilteredJobData[]
+): Promise<void> {
+  if (filteredJobs.length === 0) return;
+
+  try {
+    await prisma.filteredJob.createMany({
+      data: filteredJobs.map(fj => ({
+        importLogId,
+        title: fj.title,
+        company: fj.company,
+        location: fj.location,
+        sourceUrl: fj.sourceUrl,
+        reason: fj.reason,
+      })),
+    });
+    console.log(`[Lever] Saved ${filteredJobs.length} filtered jobs to database`);
+  } catch (error) {
+    console.error(`[Lever] Failed to save filtered jobs:`, error);
+    // Don't throw - filtered job logging is not critical for import
+  }
+}
 
 // Fetch real company website from Lever job page footer
 async function fetchCompanyWebsiteFromLever(companySlug: string, jobId: string): Promise<string | null> {
@@ -122,122 +149,49 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
     stats.total = jobs.length;
     console.log(`[Lever] Found ${jobs.length} jobs for ${dataSource.name}`);
 
-    // Filter out jobs older than 7 days (MAX_JOB_AGE_DAYS) BEFORE creating company
-    const maxAgeDate = getMaxJobAgeDate();
-    const freshJobs = jobs.filter(job => new Date(job.createdAt) >= maxAgeDate);
-    const oldJobs = jobs.filter(job => new Date(job.createdAt) < maxAgeDate);
-    if (oldJobs.length > 0) {
-      console.log(`[Lever] Skipping ${oldJobs.length} jobs older than 7 days`);
-      stats.skipped += oldJobs.length;
-      // Log old jobs as skipped (batch insert)
-      await prisma.filteredJob.createMany({
-        data: oldJobs.map(job => ({
-          importLogId,
-          title: job.text,
-          company: dataSource.name,
-          location: job.categories.location || null,
-          sourceUrl: job.hostedUrl,
-          reason: 'TOO_OLD' as const,
-        })),
-      });
-    }
+    // =========================================================================
+    // FILTER PIPELINE
+    // Centralized filtering: Age → Duplicate → Whitelist
+    // All filtered jobs collected for bulk insert at the end
+    // =========================================================================
 
-    // OPTIMIZATION 1: Batch fetch all existing job sourceIds in one query
+    // Fetch existing job IDs for duplicate detection
     const existingJobs = await prisma.job.findMany({
       where: {
         OR: [
-          { sourceId: { in: freshJobs.map(j => j.id) } },
-          { sourceUrl: { in: freshJobs.map(j => j.hostedUrl) } },
+          { sourceId: { in: jobs.map(j => j.id) } },
+          { sourceUrl: { in: jobs.map(j => j.hostedUrl) } },
         ],
       },
-      select: { sourceId: true, sourceUrl: true, title: true, description: true, id: true },
+      select: { sourceId: true, sourceUrl: true },
     });
-    const existingSourceIds = new Set(existingJobs.map(j => j.sourceId));
-    const existingSourceUrls = new Set(existingJobs.map(j => j.sourceUrl));
-    const existingJobMap = new Map(existingJobs.map(j => [j.sourceId || j.sourceUrl, j]));
+    const existingSourceIds = new Set(
+      existingJobs.map(j => j.sourceId).filter((id): id is string => id !== null)
+    );
+    const existingSourceUrls = new Set(
+      existingJobs.map(j => j.sourceUrl).filter((url): url is string => url !== null)
+    );
 
-    // =========================================================================
-    // AI ФИЛЬТРАЦИЯ ВАКАНСИЙ
-    // Используем DeepSeek для определения подходящих remote-профессий
-    // locationType НЕ фильтруется — REMOTE/HYBRID/ONSITE все импортируются
-    // =========================================================================
-    const jobsToProcess: LeverJob[] = [];
-    const filteredByAI: { job: LeverJob; reason: string }[] = [];
+    // Run filter pipeline
+    const pipeline = new LeverFilterPipeline(dataSource.name);
+    const pipelineResult = await pipeline.processLeverJobs(
+      jobs,
+      existingSourceIds,
+      existingSourceUrls
+    );
 
-    // First pass: filter out existing jobs
-    const newJobs: LeverJob[] = [];
-    for (const job of freshJobs) {
-      if (existingSourceIds.has(job.id) || existingSourceUrls.has(job.hostedUrl)) {
-        stats.skipped++;
-        continue; // Already in DB - no need to reprocess
-      }
-      newJobs.push(job);
-    }
-
-    // =========================================================================
-    // WHITELIST/BLACKLIST FILTER (fast, deterministic, no API calls)
-    // =========================================================================
-    const whitelistPassed: LeverJob[] = [];
-    const whitelistRejected: LeverJob[] = [];
-
-    for (const job of newJobs) {
-      if (shouldImportByProfession(job.text)) {
-        whitelistPassed.push(job);
-      } else {
-        whitelistRejected.push(job);
-        stats.skipped++;
-      }
-    }
-
-    if (whitelistRejected.length > 0) {
-      console.log(`[Lever] Whitelist rejected ${whitelistRejected.length} jobs`);
-      await prisma.filteredJob.createMany({
-        data: whitelistRejected.map(job => ({
-          importLogId,
-          title: job.text,
-          company: dataSource.name,
-          location: job.categories.location || null,
-          sourceUrl: job.hostedUrl,
-          reason: 'NON_TARGET_TITLE' as const,
-        })),
-      });
-    }
-
-    // AI Filter: process whitelisted jobs in parallel
-    console.log(`[Lever] Running AI filter on ${whitelistPassed.length} whitelisted jobs...`);
-    const AI_FILTER_CONCURRENCY = 10;
-    const aiFilterLimit = createLimiter(AI_FILTER_CONCURRENCY);
-
-    await Promise.all(whitelistPassed.map(job => aiFilterLimit(async () => {
-      const filterResult = await isTargetRemoteJob(job.text, dataSource.name);
-
-      if (filterResult.import) {
-        jobsToProcess.push(job);
-      } else {
-        filteredByAI.push({ job, reason: filterResult.reason });
-        stats.skipped++;
-      }
-    })));
-
-    // Batch log filtered jobs
-    if (filteredByAI.length > 0) {
-      console.log(`[Lever] AI filtered ${filteredByAI.length} jobs as non-target`);
-      await prisma.filteredJob.createMany({
-        data: filteredByAI.map(({ job, reason }) => ({
-          importLogId,
-          title: job.text,
-          company: dataSource.name,
-          location: job.categories.location || null,
-          sourceUrl: job.hostedUrl,
-          reason: 'NON_TARGET_TITLE' as const,
-        })),
-      });
-    }
+    // Update stats from pipeline
+    stats.skipped = pipelineResult.stats.totalRejected;
+    const jobsToProcess = pipelineResult.originalJobs;
 
     // Early exit if nothing to process
     if (jobsToProcess.length === 0) {
       console.log(`[Lever] No new jobs to process for ${dataSource.name}`);
-      // Still update stats
+
+      // Save filtered jobs even on early exit
+      await saveFilteredJobs(importLogId, pipelineResult.filteredJobs);
+
+      // Update data source stats
       await prisma.dataSource.update({
         where: { id: dataSourceId },
         data: {
@@ -252,7 +206,7 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
       return stats;
     }
 
-    console.log(`[Lever] Processing ${jobsToProcess.length} jobs (${freshJobs.length - jobsToProcess.length} skipped early)`);
+    console.log(`[Lever] Processing ${jobsToProcess.length} jobs (${stats.skipped} filtered by pipeline)`);
 
     // NOW create company - only if we have jobs to process
     // Fetch real company website from Lever job page (use first job that passed filters)
@@ -313,6 +267,9 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
 
     await Promise.all(jobsToProcess.map((job, i) => limit(() => processJob(job, i))));
 
+    // Save filtered jobs collected by pipeline (bulk insert with error handling)
+    await saveFilteredJobs(importLogId, pipelineResult.filteredJobs);
+
     // Update data source stats
     await prisma.dataSource.update({
       where: { id: dataSourceId },
@@ -360,7 +317,7 @@ async function processLeverJob(
   companySlug: string,
   importLogId: string,
   companyName: string
-): Promise<{ status: 'created' | 'skipped'; jobSlug?: string; jobId?: string; filterReason?: FilterReason }> {
+): Promise<{ status: 'created' | 'skipped'; jobSlug?: string; jobId?: string }> {
   // Build full description (with RESPONSIBILITIES, QUALIFICATIONS, etc.)
   const fullDescription = buildDescription(job);
 
