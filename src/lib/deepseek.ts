@@ -5,9 +5,9 @@ import OpenAI from 'openai';
 type AIProvider = 'deepseek' | 'zai';
 
 function getAIProvider(): AIProvider {
-  const provider = process.env.AI_PROVIDER?.toLowerCase();
-  if (provider === 'zai') return 'zai';
-  return 'deepseek';
+  // Hardcoded to Z.ai (64% cheaper: $0.10 vs $0.28/$0.42)
+  // To switch back to DeepSeek, change this to 'deepseek'
+  return 'zai';
 }
 
 // Lazy initialization to avoid build-time errors
