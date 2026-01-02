@@ -324,19 +324,13 @@ export default function SourcesPage() {
     const results: BulkValidationResult[] = [];
 
     for (const { slug, region } of parsedSlugs) {
-      const existingSource = sources.find(s => s.companySlug === slug);
-      if (existingSource) {
-        results.push({ slug, region, valid: false, error: 'Already added' });
-        setBulkResults([...results]);
-        continue;
-      }
-
       // Build API URL based on region
       const apiUrl = region === 'eu'
         ? `https://api.eu.lever.co/v0/postings/${slug}?mode=json`
         : `https://api.lever.co/v0/postings/${slug}?mode=json`;
 
       try {
+        // API checks for duplicates in database (not just loaded page)
         const res = await fetch('/api/admin/sources/validate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

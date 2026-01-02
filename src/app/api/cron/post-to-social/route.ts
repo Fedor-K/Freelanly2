@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getNextSocialPost, markAsPosted, markAsFailed, getSocialQueueStats, refillSocialQueue } from '@/services/social-post';
+import { getNextSocialPost, markAsPosted, markAsFailed, getSocialQueueStats, refillSocialQueue, cleanupOldPostedItems } from '@/services/social-post';
 
 /**
  * Cron endpoint for posting jobs to social media
@@ -21,6 +21,12 @@ export async function POST(request: NextRequest) {
   console.log('[Cron] Starting social post job...');
 
   try {
+    // Cleanup old posted items (> 7 days) to allow re-posting
+    const cleanedUp = await cleanupOldPostedItems(7);
+    if (cleanedUp > 0) {
+      console.log(`[Cron] Cleaned up ${cleanedUp} old posted items`);
+    }
+
     // Auto-refill queue if running low (< 5 pending)
     const refillResult = await refillSocialQueue({
       minQueueSize: 5,

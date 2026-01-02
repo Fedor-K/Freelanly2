@@ -531,3 +531,25 @@ export async function refillSocialQueue(options: {
   console.log(`[SocialQueue] Refill complete: added ${added}, skipped ${skipped} (already in queue)`);
   return { added, skipped };
 }
+
+/**
+ * Cleanup old posted items from queue
+ * Allows jobs to be re-posted after some time
+ */
+export async function cleanupOldPostedItems(olderThanDays: number = 7): Promise<number> {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+
+  const result = await prisma.socialPostQueue.deleteMany({
+    where: {
+      status: 'POSTED',
+      postedAt: { lt: cutoffDate },
+    },
+  });
+
+  if (result.count > 0) {
+    console.log(`[SocialQueue] Cleaned up ${result.count} old posted items`);
+  }
+
+  return result.count;
+}

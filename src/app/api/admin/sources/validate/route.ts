@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Source } from '@prisma/client';
+import { prisma } from '@/lib/db';
 import { validateDataSource } from '@/services/sources';
 
 // POST /api/admin/sources/validate - Validate a source before adding
@@ -13,6 +14,19 @@ export async function POST(request: NextRequest) {
         { error: 'sourceType is required' },
         { status: 400 }
       );
+    }
+
+    // Check if source already exists in database
+    if (companySlug) {
+      const existing = await prisma.dataSource.findFirst({
+        where: {
+          sourceType: sourceType as Source,
+          companySlug: companySlug,
+        },
+      });
+      if (existing) {
+        return NextResponse.json({ valid: false, error: 'Already added' });
+      }
     }
 
     // Pass apiUrl for Lever EU sources (api.eu.lever.co)
