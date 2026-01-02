@@ -53,19 +53,16 @@ async function submitUrl(token: string, url: string): Promise<boolean> {
 }
 
 export async function POST(request: NextRequest) {
-  // Auth check
   const auth = request.headers.get('authorization');
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Get token
   const token = await getAccessToken();
   if (!token) {
     return NextResponse.json({ error: 'Failed to get Google access token' }, { status: 500 });
   }
 
-  // Collect URLs
   const urls: string[] = [
     siteConfig.url,
     `${siteConfig.url}/jobs`,
@@ -73,7 +70,6 @@ export async function POST(request: NextRequest) {
     `${siteConfig.url}/pricing`,
   ];
 
-  // Add recent jobs
   const recentJobs = await prisma.job.findMany({
     where: { isActive: true },
     select: { slug: true, company: { select: { slug: true } } },
@@ -85,7 +81,6 @@ export async function POST(request: NextRequest) {
     urls.push(`${siteConfig.url}/company/${job.company.slug}/jobs/${job.slug}`);
   }
 
-  // Submit
   let submitted = 0;
   for (const url of urls.slice(0, DAILY_LIMIT)) {
     if (await submitUrl(token, url)) submitted++;

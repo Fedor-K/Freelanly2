@@ -11,7 +11,7 @@
  * Apply at: https://developers.google.com/search/apis/indexing-api/v3/prereqs
  */
 
-import { createSign } from 'crypto';
+import { SignJWT, importPKCS8 } from 'jose';
 import { siteConfig } from '@/config/site';
 
 interface IndexingCredentials {
@@ -57,48 +57,27 @@ function getCredentials(): IndexingCredentials | null {
 }
 
 /**
- * Create JWT assertion for Google OAuth
- */
-function createJWTAssertion(header: object, payload: object, privateKey: string): string {
-  const base64Header = Buffer.from(JSON.stringify(header)).toString('base64url');
-  const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const signatureInput = `${base64Header}.${base64Payload}`;
-
-  const sign = createSign('RSA-SHA256');
-  sign.update(signatureInput);
-  sign.end();
-  const signature = sign.sign(privateKey, 'base64url');
-
-  return `${signatureInput}.${signature}`;
-}
-
-/**
- * Generate access token for Google Indexing API
+ * Generate access token for Google Indexing API using jose library
  */
 async function getAccessToken(): Promise<string | null> {
   const creds = getCredentials();
   if (!creds) return null;
 
   try {
-    const header = { alg: 'RS256', typ: 'JWT' };
-    const now = Math.floor(Date.now() / 1000);
-    const payload = {
-      iss: creds.client_email,
-      scope: 'https://www.googleapis.com/auth/indexing',
-      aud: 'https://oauth2.googleapis.com/token',
-      exp: now + 3600,
-      iat: now,
-    };
+    const privateKey = await importPKCS8(creds.private_key, 'RS256');
 
-    const assertion = createJWTAssertion(header, payload, creds.private_key);
+    const jwt = await new SignJWT({ scope: 'https://www.googleapis.com/auth/indexing' })
+      .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
+      .setIssuer(creds.client_email)
+      .setAudience('https://oauth2.googleapis.com/token')
+      .setIssuedAt()
+      .setExpirationTime('1h')
+      .sign(privateKey);
 
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion,
-      }),
+      body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
     });
 
     const data = await response.json();
