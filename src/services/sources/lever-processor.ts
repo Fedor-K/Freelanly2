@@ -321,6 +321,16 @@ async function processLeverJob(
   importLogId: string,
   companyName: string
 ): Promise<{ status: 'created' | 'skipped'; jobSlug?: string; jobId?: string }> {
+  // Check for duplicate by title BEFORE calling AI (save tokens)
+  const existingByTitle = await prisma.job.findFirst({
+    where: { companyId, title: job.text },
+    select: { id: true },
+  });
+  if (existingByTitle) {
+    console.log(`[Lever] Skipping duplicate by title: ${job.text}`);
+    return { status: 'skipped' };
+  }
+
   // Build full description (with RESPONSIBILITIES, QUALIFICATIONS, etc.)
   const fullDescription = buildDescription(job);
 
@@ -366,43 +376,53 @@ async function processLeverJob(
   } : ensureSalaryData({ salaryMin: null }, category.slug, level, country);
 
   // Create job with AI-enhanced description
-  const createdJob = await prisma.job.create({
-    data: {
-      slug,
-      title: job.text,
-      description: fullDescription,
-      cleanDescription: aiData?.cleanDescription || null,
-      summaryBullets: aiData?.summaryBullets || [],
-      requirementBullets: aiData?.requirementBullets || [],
-      benefitBullets: aiData?.benefitBullets || [],
-      companyId,
-      categoryId: category.id,
-      location,
-      locationType,
-      country,
-      level,
-      type: jobType,
-      ...actualSalary,
-      skills,
-      benefits: aiData?.benefits || [],
-      source: 'LEVER',
-      sourceType: 'STRUCTURED',
-      sourceUrl: job.hostedUrl,
-      sourceId: job.id,
-      applyUrl: job.applyUrl,
-      enrichmentStatus: 'COMPLETED',
-      qualityScore: 80, // ATS + AI enhanced = higher quality
-      postedAt: new Date(job.createdAt),
-    },
-  });
+  // Handle race condition: parallel jobs with same title may pass the check above
+  try {
+    const createdJob = await prisma.job.create({
+      data: {
+        slug,
+        title: job.text,
+        description: fullDescription,
+        cleanDescription: aiData?.cleanDescription || null,
+        summaryBullets: aiData?.summaryBullets || [],
+        requirementBullets: aiData?.requirementBullets || [],
+        benefitBullets: aiData?.benefitBullets || [],
+        companyId,
+        categoryId: category.id,
+        location,
+        locationType,
+        country,
+        level,
+        type: jobType,
+        ...actualSalary,
+        skills,
+        benefits: aiData?.benefits || [],
+        source: 'LEVER',
+        sourceType: 'STRUCTURED',
+        sourceUrl: job.hostedUrl,
+        sourceId: job.id,
+        applyUrl: job.applyUrl,
+        enrichmentStatus: 'COMPLETED',
+        qualityScore: 80, // ATS + AI enhanced = higher quality
+        postedAt: new Date(job.createdAt),
+      },
+    });
 
-  // Submit to Google Indexing API (non-blocking)
-  const jobUrl = buildJobUrl(companySlug, slug);
-  notifySearchEngines([jobUrl]).catch((err) => {
-    console.error('[Lever] Search engine notification failed:', err);
-  });
+    // Submit to Google Indexing API (non-blocking)
+    const jobUrl = buildJobUrl(companySlug, slug);
+    notifySearchEngines([jobUrl]).catch((err) => {
+      console.error('[Lever] Search engine notification failed:', err);
+    });
 
-  return { status: 'created', jobSlug: slug, jobId: createdJob.id };
+    return { status: 'created', jobSlug: slug, jobId: createdJob.id };
+  } catch (error: unknown) {
+    // Handle unique constraint violation (race condition with parallel processing)
+    if (error instanceof Error && error.message.includes('Unique constraint')) {
+      console.log(`[Lever] Skipping duplicate (race condition): ${job.text}`);
+      return { status: 'skipped' };
+    }
+    throw error;
+  }
 }
 
 async function findOrCreateCompany(name: string, slug: string, leverWebsite: string | null) {
