@@ -21,6 +21,14 @@ export async function GET(request: NextRequest) {
     const creds = JSON.parse(credsJson);
     steps.push('2. JSON parsed, client_email: ' + creds.client_email);
 
+    // Step 2.5: Check private key format
+    const pk = creds.private_key;
+    steps.push('2.5. Key length: ' + pk.length);
+    steps.push('2.6. Has \\n: ' + pk.includes('\\n'));
+    steps.push('2.7. Has newline: ' + pk.includes('\n'));
+    steps.push('2.8. First 60: ' + pk.slice(0, 60));
+    steps.push('2.9. Last 40: ' + pk.slice(-40));
+
     // Step 3: Import key
     const privateKey = await importPKCS8(creds.private_key, 'RS256');
     steps.push('3. Key imported successfully');
