@@ -46,7 +46,7 @@ ZAI_API_KEY = "7a46f1755ccb4b828fe35ab83cb81f47.FogYwylFMrNBWEst"
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["npm", "run", "start", "--", "-p", "5000", "-H", "0.0.0.0"]
+run = ["sh", "-c", "NODE_OPTIONS='--openssl-legacy-provider' npm run start -- -p 5000 -H 0.0.0.0"]
 build = ["npm", "run", "build"]
 
 # ============================================

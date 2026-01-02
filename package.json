@@ -6,7 +6,7 @@
     "postinstall": "prisma generate",
     "dev": "next dev",
     "build": "prisma generate && NODE_OPTIONS='--max-old-space-size=4096' next build",
-    "start": "next start",
+    "start": "NODE_OPTIONS='--openssl-legacy-provider' next start",
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
