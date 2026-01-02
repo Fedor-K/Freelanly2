@@ -6,7 +6,7 @@ import { validateDataSource } from '@/services/sources';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sourceType, companySlug } = body;
+    const { sourceType, companySlug, apiUrl } = body;
 
     if (!sourceType) {
       return NextResponse.json(
@@ -15,7 +15,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await validateDataSource(sourceType as Source, companySlug);
+    // Pass apiUrl for Lever EU sources (api.eu.lever.co)
+    const result = await validateDataSource(sourceType as Source, companySlug, apiUrl);
 
     return NextResponse.json(result);
   } catch (error) {

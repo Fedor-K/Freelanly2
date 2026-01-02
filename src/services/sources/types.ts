@@ -56,11 +56,27 @@ export interface LeverJob {
 // ATS API URL templates
 export const ATS_API_TEMPLATES: Record<string, string> = {
   LEVER: 'https://api.lever.co/v0/postings/{companySlug}?mode=json',
+  LEVER_EU: 'https://api.eu.lever.co/v0/postings/{companySlug}?mode=json',
   GREENHOUSE: 'https://boards-api.greenhouse.io/v1/boards/{companySlug}/jobs',
   ASHBY: 'https://api.ashbyhq.com/posting-api/job-board/{companySlug}',
   SMARTRECRUITERS: 'https://api.smartrecruiters.com/v1/companies/{companySlug}/postings',
   WORKABLE: 'https://apply.workable.com/api/v1/widget/accounts/{companySlug}',
 };
+
+// Lever region detection from API URL
+export function getLeverRegion(apiUrl?: string | null): 'us' | 'eu' {
+  if (apiUrl && apiUrl.includes('.eu.lever.co')) {
+    return 'eu';
+  }
+  return 'us';
+}
+
+// Get Lever job page base URL based on region
+export function getLeverJobsBaseUrl(region: 'us' | 'eu'): string {
+  return region === 'eu'
+    ? 'https://jobs.eu.lever.co'
+    : 'https://jobs.lever.co';
+}
 
 // Build API URL for ATS source
 export function buildAtsApiUrl(sourceType: Source, companySlug: string): string {

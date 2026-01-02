@@ -25,6 +25,7 @@ import { isPhysicalLocation } from '@/lib/job-filter';
 import { isBlockedCompany } from '@/config/company-blacklist';
 import { LeverFilterPipeline, type FilteredJobData } from './filters';
 import type { ProcessingStats, ProcessorContext, LeverJob } from './types';
+import { getLeverRegion, getLeverJobsBaseUrl } from './types';
 
 // Simple concurrency limiter for parallel job processing
 function createLimiter(concurrency: number) {
@@ -74,9 +75,11 @@ async function saveFilteredJobs(
 }
 
 // Fetch real company website from Lever job page footer
-async function fetchCompanyWebsiteFromLever(companySlug: string, jobId: string): Promise<string | null> {
+async function fetchCompanyWebsiteFromLever(companySlug: string, jobId: string, apiUrl?: string | null): Promise<string | null> {
   try {
-    const jobPageUrl = `https://jobs.lever.co/${companySlug}/${jobId}`;
+    const region = getLeverRegion(apiUrl);
+    const baseUrl = getLeverJobsBaseUrl(region);
+    const jobPageUrl = `${baseUrl}/${companySlug}/${jobId}`;
     const response = await fetch(jobPageUrl);
     if (!response.ok) return null;
 
@@ -212,7 +215,7 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
     // Fetch real company website from Lever job page (use first job that passed filters)
     let companyWebsite: string | null = null;
     if (jobsToProcess.length > 0) {
-      companyWebsite = await fetchCompanyWebsiteFromLever(dataSource.companySlug, jobsToProcess[0].id);
+      companyWebsite = await fetchCompanyWebsiteFromLever(dataSource.companySlug, jobsToProcess[0].id, dataSource.apiUrl);
     }
     const company = await findOrCreateCompany(dataSource.name, dataSource.companySlug, companyWebsite);
 

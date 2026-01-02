@@ -142,7 +142,7 @@ export async function processAllSources(): Promise<Record<string, ProcessingStat
 }
 
 // Validate a data source configuration
-export async function validateDataSource(sourceType: Source, companySlug?: string): Promise<{
+export async function validateDataSource(sourceType: Source, companySlug?: string, apiUrl?: string): Promise<{
   valid: boolean;
   name?: string;
   jobCount?: number;
@@ -150,7 +150,9 @@ export async function validateDataSource(sourceType: Source, companySlug?: strin
 }> {
   try {
     if (sourceType === 'LEVER' && companySlug) {
-      const response = await fetch(`https://api.lever.co/v0/postings/${companySlug}?mode=json`);
+      // Support both US (api.lever.co) and EU (api.eu.lever.co) regions
+      const leverApiUrl = apiUrl || `https://api.lever.co/v0/postings/${companySlug}?mode=json`;
+      const response = await fetch(leverApiUrl);
       if (!response.ok) {
         return { valid: false, error: `Lever API returned ${response.status}` };
       }

@@ -11,26 +11,16 @@ const VIDEO_CONFIG = {
   musicVolume: 'low' as const,
 };
 
-// TESTED Pexels search terms - single specific terms that return professional videos
-// Using single terms (not arrays) for more predictable results
+// Professional neutral backgrounds for remote work platform
+// Single search term per video type for consistency
 const SCENE_VIDEOS = {
-  // Hook scenes - attention grabbing, energetic
-  hook: 'woman office professional',
+  // Remote work focused - professional, neutral, business-like
+  tech: 'software developer coding monitor',
+  design: 'designer workspace minimal',
+  business: 'professional home office laptop',
 
-  // Work/content scenes by job category
-  tech: 'man working laptop',
-  design: 'creative designer working',
-  business: 'business laptop',
-  remote: 'person computer office',
-
-  // Salary/money scenes
-  money: 'money cash dollars',
-
-  // CTA scenes - positive, action-oriented
-  cta: 'happy business success',
-
-  // Generic professional scenes
-  professional: 'typing keyboard office',
+  // Default professional background - remote work themed
+  professional: 'remote work home office professional',
 };
 
 type SceneType = 'hook' | 'content' | 'salary' | 'cta';
@@ -45,7 +35,7 @@ function term(t: string): string[] {
   return [t];
 }
 
-// Build scenes with fixed structure: HOOK → CONTENT → CTA
+// Build SINGLE scene with all text combined
 function buildJobAlertScenes(
   jobTitle: string,
   companyName: string,
@@ -53,111 +43,58 @@ function buildJobAlertScenes(
   location: string,
   jobType: string
 ): Scene[] {
-  const scenes: Scene[] = [];
-
-  // Scene 1: HOOK (attention grabber)
-  scenes.push({
-    text: "Hot job alert!",
-    searchTerms: term(SCENE_VIDEOS.hook),
-  });
-
-  // Scene 2: COMPANY + ROLE (main content)
+  // Select background based on job type
   const isTech = /developer|engineer|programmer|devops|sre/i.test(jobTitle);
   const isDesign = /designer|ux|ui|creative/i.test(jobTitle);
-  const videoTerm = isTech ? SCENE_VIDEOS.tech : isDesign ? SCENE_VIDEOS.design : SCENE_VIDEOS.business;
+  const background = isTech ? SCENE_VIDEOS.tech : isDesign ? SCENE_VIDEOS.design : SCENE_VIDEOS.professional;
 
-  scenes.push({
-    text: `${companyName} is hiring a ${jobTitle}.`,
-    searchTerms: term(videoTerm),
-  });
+  // Build full script text
+  const salaryText = salary ? `${salary}.` : `${jobType} position.`;
+  const fullText = `Hot job alert! ${companyName} is hiring a ${jobTitle}. ${salaryText} ${location}. Apply now at freelanly dot com!`;
 
-  // Scene 3: SALARY + LOCATION (if salary exists)
-  if (salary) {
-    scenes.push({
-      text: `${salary}. ${location}.`,
-      searchTerms: term(SCENE_VIDEOS.money),
-    });
-  } else {
-    scenes.push({
-      text: `Location: ${location}. ${jobType} position.`,
-      searchTerms: term(SCENE_VIDEOS.remote),
-    });
-  }
-
-  // Scene 4: CTA
-  scenes.push({
-    text: "Apply now at freelanly dot com!",
-    searchTerms: term(SCENE_VIDEOS.cta),
-  });
-
-  return scenes;
+  return [{
+    text: fullText,
+    searchTerms: term(background),
+  }];
 }
 
+// Build SINGLE scene with all salary info
 function buildSalaryRevealScenes(
   categoryName: string,
   entryRange: string | null,
   midRange: string | null,
   seniorRange: string | null
 ): Scene[] {
-  const scenes: Scene[] = [];
+  const background = SCENE_VIDEOS.professional;
 
-  scenes.push({
-    text: `How much do Remote ${categoryName} make?`,
-    searchTerms: term(SCENE_VIDEOS.hook),
-  });
+  const parts = [`How much do Remote ${categoryName} make?`];
+  if (entryRange) parts.push(`Entry level: ${entryRange}.`);
+  if (midRange) parts.push(`Mid level: ${midRange}.`);
+  if (seniorRange) parts.push(`Senior level: ${seniorRange}.`);
+  parts.push("Find your salary at freelanly dot com!");
 
-  if (entryRange) {
-    scenes.push({
-      text: `Entry level: ${entryRange}.`,
-      searchTerms: term(SCENE_VIDEOS.money),
-    });
-  }
-
-  if (midRange) {
-    scenes.push({
-      text: `Mid level: ${midRange}.`,
-      searchTerms: term(SCENE_VIDEOS.money),
-    });
-  }
-
-  if (seniorRange) {
-    scenes.push({
-      text: `Senior level: ${seniorRange}.`,
-      searchTerms: term(SCENE_VIDEOS.money),
-    });
-  }
-
-  scenes.push({
-    text: "Find your salary at freelanly dot com!",
-    searchTerms: term(SCENE_VIDEOS.cta),
-  });
-
-  return scenes;
+  return [{
+    text: parts.join(' '),
+    searchTerms: term(background),
+  }];
 }
 
+// Build SINGLE scene with all top jobs
 function buildTopJobsScenes(
   jobs: Array<{ title: string; company: string; salary: string }>
 ): Scene[] {
-  const scenes: Scene[] = [];
+  const background = SCENE_VIDEOS.professional;
 
-  scenes.push({
-    text: `Top ${jobs.length} highest paying remote jobs!`,
-    searchTerms: term(SCENE_VIDEOS.hook),
-  });
-
+  const parts = [`Top ${jobs.length} highest paying remote jobs!`];
   jobs.forEach((job, i) => {
-    scenes.push({
-      text: `Number ${i + 1}: ${job.title} at ${job.company}, ${job.salary}.`,
-      searchTerms: term(i === 0 ? SCENE_VIDEOS.money : SCENE_VIDEOS.professional),
-    });
+    parts.push(`Number ${i + 1}: ${job.title} at ${job.company}, ${job.salary}.`);
   });
+  parts.push("Apply at freelanly dot com!");
 
-  scenes.push({
-    text: "Apply at freelanly dot com!",
-    searchTerms: term(SCENE_VIDEOS.cta),
-  });
-
-  return scenes;
+  return [{
+    text: parts.join(' '),
+    searchTerms: term(background),
+  }];
 }
 
 /**
@@ -372,11 +309,11 @@ async function generateCompanyHiringScript() {
     return NextResponse.json({ error: 'No companies found' }, { status: 404 });
   }
 
-  // Build structured scenes
+  // Build SINGLE scene
+  const background = SCENE_VIDEOS.professional;
+  const fullText = `${topCompany.name} is hiring! They have ${topCompany.count} open remote positions. Check them out at freelanly dot com!`;
   const scenes: Scene[] = [
-    { text: `${topCompany.name} is hiring!`, searchTerms: term(SCENE_VIDEOS.hook) },
-    { text: `They have ${topCompany.count} open remote positions.`, searchTerms: term(SCENE_VIDEOS.business) },
-    { text: `Check them out at freelanly dot com!`, searchTerms: term(SCENE_VIDEOS.cta) },
+    { text: fullText, searchTerms: term(background) },
   ];
 
   const script = scenes.map(s => s.text).join(' ');

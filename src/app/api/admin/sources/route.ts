@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
         name: source.name,
         sourceType: source.sourceType,
         companySlug: source.companySlug,
+        apiUrl: source.apiUrl,  // For detecting Lever EU region
         isActive: source.isActive,
         lastRunAt: lastLog?.startedAt || null,
         lastSuccessAt: lastLog?.status === 'COMPLETED' ? lastLog.completedAt : null,
@@ -166,8 +167,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate the source
-    const validation = await validateDataSource(sourceType as Source, companySlug);
+    // Validate the source (pass apiUrl for Lever EU sources)
+    const validation = await validateDataSource(sourceType as Source, companySlug, apiUrl);
     if (!validation.valid) {
       return NextResponse.json(
         { error: `Invalid source: ${validation.error}` },

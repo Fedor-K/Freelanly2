@@ -36,6 +36,7 @@ interface DataSource {
   name: string;
   sourceType: string;
   companySlug: string | null;
+  apiUrl: string | null;  // For detecting Lever EU region
   isActive: boolean;
   lastRunAt: string | null;
   lastSuccessAt: string | null;
@@ -75,6 +76,7 @@ interface BulkValidationResult {
   jobCount?: number;
   error?: string;
   added?: boolean;
+  region?: 'us' | 'eu';  // Lever region (us = jobs.lever.co, eu = jobs.eu.lever.co)
 }
 
 interface SkippedJob {
@@ -251,59 +253,78 @@ export default function SourcesPage() {
     }
   }
 
-  function parseSlugs(input: string): string[] {
-    // Check if input contains lever URLs - extract slugs from them
-    const leverUrlPattern = /(?:jobs\.)?lever\.co\/([a-zA-Z0-9_-]+)/gi;
+  interface ParsedSlug {
+    slug: string;
+    region: 'us' | 'eu';
+  }
+
+  function parseSlugs(input: string): ParsedSlug[] {
+    // Check if input contains lever URLs - extract slugs and detect EU region
+    // Matches: jobs.lever.co, jobs.eu.lever.co, api.lever.co, api.eu.lever.co
+    const leverUrlPattern = /(?:jobs|api)\.(eu\.)?lever\.co\/(?:v0\/postings\/)?([a-zA-Z0-9_-]+)/gi;
     const urlMatches = [...input.matchAll(leverUrlPattern)];
 
     if (urlMatches.length > 0) {
-      // Extract slugs from URLs
-      const slugs = urlMatches
-        .map(match => match[1].toLowerCase())
-        .filter(slug => {
-          // Filter out common non-company paths
-          const excluded = ['jobs', 'careers', 'apply', 'posting', 'postings', 'embed'];
-          return !excluded.includes(slug);
-        });
-      // Deduplicate
-      return [...new Set(slugs)];
+      // Extract slugs from URLs with region info
+      const excluded = ['jobs', 'careers', 'apply', 'posting', 'postings', 'embed'];
+      const slugMap = new Map<string, 'us' | 'eu'>();
+
+      for (const match of urlMatches) {
+        const isEu = !!match[1]; // "eu." captured group
+        const slug = match[2].toLowerCase();
+        if (!excluded.includes(slug)) {
+          // If same slug found with EU, prefer EU (more specific)
+          if (!slugMap.has(slug) || isEu) {
+            slugMap.set(slug, isEu ? 'eu' : 'us');
+          }
+        }
+      }
+
+      return Array.from(slugMap.entries()).map(([slug, region]) => ({ slug, region }));
     }
 
-    // Fallback: parse as comma/newline separated slugs
-    return input
+    // Fallback: parse as comma/newline separated slugs (default to US)
+    const slugs = input
       .split(/[,\n\r]+/)
       .map(s => s.trim().toLowerCase())
       .filter(Boolean)
       .filter((v, i, a) => a.indexOf(v) === i);
+
+    return slugs.map(slug => ({ slug, region: 'us' as const }));
   }
 
   async function validateBulk() {
-    const slugs = parseSlugs(companySlugsInput);
-    if (slugs.length === 0) return;
+    const parsedSlugs = parseSlugs(companySlugsInput);
+    if (parsedSlugs.length === 0) return;
 
     setValidating(true);
     setBulkResults([]);
 
     const results: BulkValidationResult[] = [];
 
-    for (const slug of slugs) {
+    for (const { slug, region } of parsedSlugs) {
       const existingSource = sources.find(s => s.companySlug === slug);
       if (existingSource) {
-        results.push({ slug, valid: false, error: 'Already added' });
+        results.push({ slug, region, valid: false, error: 'Already added' });
         setBulkResults([...results]);
         continue;
       }
+
+      // Build API URL based on region
+      const apiUrl = region === 'eu'
+        ? `https://api.eu.lever.co/v0/postings/${slug}?mode=json`
+        : `https://api.lever.co/v0/postings/${slug}?mode=json`;
 
       try {
         const res = await fetch('/api/admin/sources/validate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sourceType: 'LEVER', companySlug: slug }),
+          body: JSON.stringify({ sourceType: 'LEVER', companySlug: slug, apiUrl }),
         });
         const data = await res.json();
-        results.push({ slug, valid: data.valid, jobCount: data.jobCount, error: data.error });
+        results.push({ slug, region, valid: data.valid, jobCount: data.jobCount, error: data.error });
       } catch (error) {
-        results.push({ slug, valid: false, error: String(error) });
+        results.push({ slug, region, valid: false, error: String(error) });
       }
       setBulkResults([...results]);
     }
@@ -319,6 +340,11 @@ export default function SourcesPage() {
 
     for (const result of validSlugs) {
       try {
+        // Build API URL based on region (EU or US)
+        const apiUrl = result.region === 'eu'
+          ? `https://api.eu.lever.co/v0/postings/${result.slug}?mode=json`
+          : `https://api.lever.co/v0/postings/${result.slug}?mode=json`;
+
         const res = await fetch('/api/admin/sources', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -326,6 +352,7 @@ export default function SourcesPage() {
             sourceType: 'LEVER',
             companySlug: result.slug,
             name: result.slug,
+            apiUrl,  // Pass apiUrl so processor knows to use EU domain
           }),
         });
 
@@ -1079,6 +1106,9 @@ export default function SourcesPage() {
                             <XCircle className="h-4 w-4 text-red-600" />
                           )}
                           <span className="font-mono">{result.slug}</span>
+                          {result.region === 'eu' && (
+                            <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">EU</span>
+                          )}
                         </div>
                         <span className="text-xs text-muted-foreground">
                           {result.added
@@ -1208,7 +1238,14 @@ export default function SourcesPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span>jobs.lever.co/{source.companySlug}</span>
+                          <span>
+                            {source.apiUrl?.includes('.eu.lever.co')
+                              ? `jobs.eu.lever.co/${source.companySlug}`
+                              : `jobs.lever.co/${source.companySlug}`}
+                          </span>
+                          {source.apiUrl?.includes('.eu.lever.co') && (
+                            <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">EU</span>
+                          )}
                           {source.tags.length > 0 && (
                             <div className="flex gap-1">
                               {source.tags.map(tag => (
