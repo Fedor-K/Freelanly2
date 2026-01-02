@@ -24,7 +24,12 @@ function getCredentials(): IndexingCredentials | null {
   const credentialsJson = process.env.GOOGLE_INDEXING_CREDENTIALS;
   if (!credentialsJson) return null;
   try {
-    return JSON.parse(credentialsJson);
+    const creds = JSON.parse(credentialsJson);
+    // Ensure private_key has actual newlines (not escaped \n)
+    if (creds.private_key) {
+      creds.private_key = creds.private_key.replace(/\\n/g, '\n');
+    }
+    return creds;
   } catch {
     return null;
   }
