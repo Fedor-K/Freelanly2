@@ -6,6 +6,13 @@ import { fetchAndProcessLinkedInPosts } from '@/services/linkedin-processor';
 
 export async function POST(request: NextRequest) {
   try {
+    if (!process.env.APIFY_API_TOKEN) {
+      return NextResponse.json(
+        { error: 'APIFY_API_TOKEN not configured' },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
 
     // Pass overrides only if provided, otherwise uses DB settings
@@ -34,6 +41,13 @@ export async function POST(request: NextRequest) {
 // GET - Run with DB settings
 export async function GET() {
   try {
+    if (!process.env.APIFY_API_TOKEN) {
+      return NextResponse.json(
+        { error: 'APIFY_API_TOKEN not configured' },
+        { status: 400 }
+      );
+    }
+
     const stats = await fetchAndProcessLinkedInPosts();
 
     return NextResponse.json({

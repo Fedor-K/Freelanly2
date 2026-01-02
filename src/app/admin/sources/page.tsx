@@ -207,6 +207,31 @@ export default function SourcesPage() {
     fetchSources();
   }, [filterStatus, filterQuality, filterTag, sortBy, sortOrder, currentPage, searchQuery]);
 
+  // Check for running bulk job on mount
+  useEffect(() => {
+    async function checkBulkRunProgress() {
+      try {
+        const res = await fetch('/api/admin/sources/run-all');
+        const data = await res.json();
+        if (data.progress?.isRunning) {
+          setBulkRunProgress({
+            isRunning: true,
+            currentIndex: data.progress.currentIndex,
+            totalCount: data.progress.totalCount,
+            currentSourceName: data.progress.currentSourceName,
+            stats: data.progress.stats,
+            startTime: data.progress.startTime,
+            cancelRequested: false,
+          });
+          pollBulkRunProgress();
+        }
+      } catch (error) {
+        console.error('Failed to check bulk run status:', error);
+      }
+    }
+    checkBulkRunProgress();
+  }, []);
+
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -493,102 +518,87 @@ export default function SourcesPage() {
     }
   }
 
-  // Run all active sources sequentially with progress
+  // Run all active sources sequentially with progress (background API)
   async function runAllSourcesWithProgress() {
-    // Fetch ALL active sources from API (not just current page)
-    let activeSources: DataSource[] = [];
     try {
-      const params = new URLSearchParams();
-      params.set('status', 'active');
-      params.set('limit', '1000'); // Get all active sources
-      const res = await fetch(`/api/admin/sources?${params}`);
+      // Start bulk run on server
+      const res = await fetch('/api/admin/sources/run-all', { method: 'POST' });
       const data = await res.json();
-      activeSources = data.sources || [];
-    } catch (error) {
-      alert(`Failed to fetch sources: ${error}`);
-      return;
-    }
 
-    if (activeSources.length === 0) {
-      alert('No active sources to run');
-      return;
-    }
-
-    // Reset cancel flag
-    cancelRequestedRef.current = false;
-    setElapsedTime(0);
-
-    // Initialize progress state
-    setBulkRunProgress({
-      isRunning: true,
-      currentIndex: 0,
-      totalCount: activeSources.length,
-      currentSourceName: activeSources[0].name,
-      stats: { created: 0, skipped: 0, failed: 0, errors: [] },
-      startTime: Date.now(),
-      cancelRequested: false,
-    });
-
-    const stats = { created: 0, skipped: 0, failed: 0, errors: [] as string[] };
-
-    for (let i = 0; i < activeSources.length; i++) {
-      // Check if cancel was requested
-      if (cancelRequestedRef.current) {
-        break;
+      if (!res.ok) {
+        alert(data.error || 'Failed to start bulk run');
+        return;
       }
 
-      const source = activeSources[i];
+      // Reset cancel flag and start polling
+      cancelRequestedRef.current = false;
+      setElapsedTime(0);
 
-      // Update current source
-      setBulkRunProgress(prev => prev ? {
-        ...prev,
-        currentIndex: i,
-        currentSourceName: source.name,
-      } : null);
-
-      try {
-        const res = await fetch(`/api/admin/sources/${source.id}/run`, {
-          method: 'POST',
+      // Initialize progress from server response
+      if (data.progress) {
+        setBulkRunProgress({
+          isRunning: data.progress.isRunning,
+          currentIndex: data.progress.currentIndex,
+          totalCount: data.progress.totalCount,
+          currentSourceName: data.progress.currentSourceName,
+          stats: data.progress.stats,
+          startTime: data.progress.startTime,
+          cancelRequested: false,
         });
-        const data = await res.json();
-
-        if (data.success) {
-          stats.created += data.stats?.created || 0;
-          stats.skipped += data.stats?.skipped || 0;
-        } else {
-          stats.failed++;
-          stats.errors.push(`${source.name}: ${data.error}`);
-        }
-      } catch (error) {
-        stats.failed++;
-        stats.errors.push(`${source.name}: ${String(error)}`);
       }
 
-      // Update stats
-      setBulkRunProgress(prev => prev ? {
-        ...prev,
-        stats: { ...stats },
-      } : null);
+      // Start polling for progress
+      pollBulkRunProgress();
+    } catch (error) {
+      alert(`Failed to start bulk run: ${error}`);
     }
-
-    // Complete
-    setBulkRunProgress(prev => prev ? {
-      ...prev,
-      isRunning: false,
-      currentIndex: cancelRequestedRef.current ? prev.currentIndex : activeSources.length,
-      cancelRequested: cancelRequestedRef.current,
-    } : null);
-
-    // Refresh sources list
-    fetchSources();
   }
 
-  function cancelBulkRun() {
-    cancelRequestedRef.current = true;
-    setBulkRunProgress(prev => prev ? {
-      ...prev,
-      cancelRequested: true,
-    } : null);
+  // Poll server for bulk run progress
+  async function pollBulkRunProgress() {
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/admin/sources/run-all');
+        const data = await res.json();
+
+        if (data.progress) {
+          setBulkRunProgress({
+            isRunning: data.progress.isRunning,
+            currentIndex: data.progress.currentIndex,
+            totalCount: data.progress.totalCount,
+            currentSourceName: data.progress.currentSourceName,
+            stats: data.progress.stats,
+            startTime: data.progress.startTime,
+            cancelRequested: data.progress.cancelled || false,
+          });
+
+          // Continue polling if still running
+          if (data.progress.isRunning) {
+            setTimeout(poll, 1000);
+          } else {
+            // Refresh sources list when done
+            fetchSources();
+          }
+        }
+      } catch (error) {
+        console.error('Failed to poll progress:', error);
+      }
+    };
+
+    poll();
+  }
+
+  async function cancelBulkRun() {
+    try {
+      await fetch('/api/admin/sources/run-all', { method: 'DELETE' });
+      cancelRequestedRef.current = true;
+      setBulkRunProgress(prev => prev ? {
+        ...prev,
+        cancelRequested: true,
+      } : null);
+    } catch (error) {
+      console.error('Failed to cancel:', error);
+    }
   }
 
   function closeBulkRunProgress() {
