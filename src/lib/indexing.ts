@@ -7,7 +7,7 @@
  * - Google Indexing API (requires setup)
  */
 
-import { createSign } from 'crypto';
+import { SignJWT, importPKCS8 } from 'jose';
 import { siteConfig } from '@/config/site';
 
 const INDEXNOW_KEY = process.env.INDEXNOW_KEY;
@@ -111,13 +111,13 @@ export async function submitToGoogle(urls: string[]): Promise<IndexingResult> {
   try {
     const credentials = JSON.parse(credentialsJson);
 
-    // Google Indexing API requires OAuth2 JWT authentication
-    const jwt = await getGoogleJWT(credentials);
+    // Google Indexing API requires OAuth2 access token
+    const accessToken = await getGoogleAccessToken(credentials);
 
     // Google allows batch requests but recommends single URL submissions
     // Rate limit: 200 requests per day for new sites
     const results = await Promise.all(
-      urls.slice(0, 200).map(url => submitSingleToGoogle(url, jwt))
+      urls.slice(0, 200).map(url => submitSingleToGoogle(url, accessToken))
     );
 
     const successCount = results.filter(r => r).length;
@@ -141,35 +141,28 @@ export async function submitToGoogle(urls: string[]): Promise<IndexingResult> {
 }
 
 /**
- * Generate Google OAuth2 JWT token
+ * Generate Google OAuth2 access token using jose library
  */
-async function getGoogleJWT(credentials: {
+async function getGoogleAccessToken(credentials: {
   client_email: string;
   private_key: string;
 }): Promise<string> {
-  const header = {
-    alg: 'RS256',
-    typ: 'JWT',
-  };
+  // Fix malformed key (extra spaces in "PRIVATE    KEY")
+  const fixedKey = credentials.private_key.replace(/PRIVATE\s+KEY/g, 'PRIVATE KEY');
+  const privateKey = await importPKCS8(fixedKey, 'RS256');
 
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    iss: credentials.client_email,
-    scope: 'https://www.googleapis.com/auth/indexing',
-    aud: 'https://oauth2.googleapis.com/token',
-    exp: now + 3600,
-    iat: now,
-  };
-
-  const assertion = createJWTAssertion(header, payload, credentials.private_key);
+  const jwt = await new SignJWT({ scope: 'https://www.googleapis.com/auth/indexing' })
+    .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
+    .setIssuer(credentials.client_email)
+    .setAudience('https://oauth2.googleapis.com/token')
+    .setIssuedAt()
+    .setExpirationTime('1h')
+    .sign(privateKey);
 
   const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion,
-    }),
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
   });
 
   const data = await tokenResponse.json();
@@ -180,27 +173,6 @@ async function getGoogleJWT(credentials: {
   }
 
   return data.access_token;
-}
-
-/**
- * Create JWT assertion with RS256 signing
- */
-function createJWTAssertion(
-  header: object,
-  payload: object,
-  privateKey: string
-): string {
-  const base64Header = Buffer.from(JSON.stringify(header)).toString('base64url');
-  const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const signatureInput = `${base64Header}.${base64Payload}`;
-
-  // Sign with RS256 using Node.js crypto
-  const sign = createSign('RSA-SHA256');
-  sign.update(signatureInput);
-  sign.end();
-  const signature = sign.sign(privateKey, 'base64url');
-
-  return `${signatureInput}.${signature}`;
 }
 
 /**
