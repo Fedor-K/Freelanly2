@@ -97,27 +97,32 @@ async function submitUrl(url: string, accessToken: string): Promise<boolean> {
 }
 
 export async function POST(request: NextRequest) {
-  // Verify cron secret
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
+  try {
+    // Verify cron secret
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
 
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const creds = getCredentials();
-  if (!creds) {
-    return NextResponse.json({
-      error: 'GOOGLE_INDEXING_CREDENTIALS not configured'
-    }, { status: 500 });
-  }
+    const creds = getCredentials();
+    if (!creds) {
+      const hasEnv = !!process.env.GOOGLE_INDEXING_CREDENTIALS;
+      return NextResponse.json({
+        error: 'GOOGLE_INDEXING_CREDENTIALS not configured or invalid JSON',
+        hasEnvVar: hasEnv,
+        envLength: process.env.GOOGLE_INDEXING_CREDENTIALS?.length || 0
+      }, { status: 400 });
+    }
 
-  const accessToken = await getAccessToken(creds);
-  if (!accessToken) {
-    return NextResponse.json({
-      error: 'Failed to get access token'
-    }, { status: 500 });
-  }
+    const accessToken = await getAccessToken(creds);
+    if (!accessToken) {
+      return NextResponse.json({
+        error: 'Failed to get access token',
+        clientEmail: creds.client_email
+      }, { status: 400 });
+    }
 
   const results = {
     submitted: 0,
@@ -236,6 +241,13 @@ export async function POST(request: NextRequest) {
     failed: results.failed,
     remaining: remaining,
   });
+  } catch (error) {
+    console.error('Indexing API error:', error);
+    return NextResponse.json({
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
+  }
 }
 
 export async function GET() {
