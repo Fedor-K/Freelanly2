@@ -4,15 +4,21 @@ import { Source } from '@prisma/client';
 import { getAvailableSourceTypes, validateDataSource, buildAtsApiUrl } from '@/services/sources';
 import { getSourcesOverview, getAvailableTags } from '@/services/source-scoring';
 
-// GET /api/admin/sources - List all data sources with stats
+// GET /api/admin/sources - List data sources with pagination
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const sortBy = searchParams.get('sortBy') || 'name';
     const sortOrder = searchParams.get('sortOrder') || 'asc';
     const filterTag = searchParams.get('tag');
-    const filterStatus = searchParams.get('status'); // active, paused, all
-    const filterQuality = searchParams.get('quality'); // high, medium, low
+    const filterStatus = searchParams.get('status') || 'active'; // Default to active
+    const filterQuality = searchParams.get('quality');
+    const search = searchParams.get('search')?.toLowerCase();
+
+    // Pagination params
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50')));
+    const skip = (page - 1) * limit;
 
     // Build where clause
     const where: Record<string, unknown> = {};
@@ -24,8 +30,15 @@ export async function GET(request: NextRequest) {
     } else if (filterStatus === 'paused') {
       where.isActive = false;
     }
+    // 'all' = no filter
     if (filterQuality && filterQuality !== 'all') {
       where.qualityStatus = filterQuality;
+    }
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { companySlug: { contains: search, mode: 'insensitive' } },
+      ];
     }
 
     // Build orderBy
@@ -40,66 +53,42 @@ export async function GET(request: NextRequest) {
       orderBy.push({ name: 'asc' });
     }
 
-    const sources = await prisma.dataSource.findMany({
-      where,
-      orderBy,
-      include: {
-        importLogs: {
-          orderBy: { startedAt: 'desc' },
-          take: 1,
-          include: {
-            _count: {
-              select: {
-                importedJobs: true,
-                filteredJobs: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    // Get total count and paginated sources in parallel
+    const [totalCount, sources] = await Promise.all([
+      prisma.dataSource.count({ where }),
+      prisma.dataSource.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+        // No importLogs - use denormalized fields from DataSource
+      }),
+    ]);
 
-    // Calculate stats for each source
-    const sourcesWithStats = sources.map((source) => {
-      const lastLog = source.importLogs[0];
+    // Map sources to response format (using denormalized fields)
+    const sourcesWithStats = sources.map((source) => ({
+      id: source.id,
+      name: source.name,
+      sourceType: source.sourceType,
+      companySlug: source.companySlug,
+      apiUrl: source.apiUrl,
+      isActive: source.isActive,
+      lastRunAt: source.lastRunAt,
+      lastSuccessAt: source.lastSuccessAt,
+      totalImported: source.totalImported,
+      lastCreated: source.lastCreated,
+      lastFetched: source.lastFetched,
+      lastError: source.lastError,
+      errorCount: source.errorCount,
+      tags: source.tags,
+      score: source.score,
+      conversionRate: source.conversionRate,
+      qualityStatus: source.qualityStatus,
+      weeklyImported: source.weeklyImported,
+      lastScoreAt: source.lastScoreAt,
+    }));
 
-      return {
-        id: source.id,
-        name: source.name,
-        sourceType: source.sourceType,
-        companySlug: source.companySlug,
-        apiUrl: source.apiUrl,  // For detecting Lever EU region
-        isActive: source.isActive,
-        lastRunAt: lastLog?.startedAt || null,
-        lastSuccessAt: lastLog?.status === 'COMPLETED' ? lastLog.completedAt : null,
-        totalImported: source.totalImported,
-        lastCreated: lastLog?._count?.importedJobs || 0,
-        lastSkipped: lastLog?._count?.filteredJobs || 0,
-        lastFetched: source.lastFetched,
-        lastError: lastLog?.status === 'FAILED' && lastLog.errors
-          ? (Array.isArray(lastLog.errors) ? (lastLog.errors as string[])[0] : String(lastLog.errors))
-          : null,
-        errorCount: source.errorCount,
-        // New scoring fields
-        tags: source.tags,
-        score: source.score,
-        conversionRate: source.conversionRate,
-        qualityStatus: source.qualityStatus,
-        weeklyImported: source.weeklyImported,
-        lastScoreAt: source.lastScoreAt,
-      };
-    });
-
-    // Group by source type
-    const grouped: Record<string, typeof sourcesWithStats> = {};
-    for (const source of sourcesWithStats) {
-      if (!grouped[source.sourceType]) {
-        grouped[source.sourceType] = [];
-      }
-      grouped[source.sourceType].push(source);
-    }
-
-    // Get overview stats and available tags
+    // Get overview stats and available tags (cached/fast)
     const [overview, availableTags] = await Promise.all([
       getSourcesOverview(),
       getAvailableTags(),
@@ -107,7 +96,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       sources: sourcesWithStats,
-      grouped,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasNext: page * limit < totalCount,
+        hasPrev: page > 1,
+      },
       sourceTypes: getAvailableSourceTypes(),
       overview,
       availableTags,

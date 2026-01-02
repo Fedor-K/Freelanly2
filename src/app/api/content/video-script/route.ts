@@ -12,15 +12,15 @@ const VIDEO_CONFIG = {
 };
 
 // Professional neutral backgrounds for remote work platform
-// Single search term per video type for consistency
+// NO people/animals - only objects, screens, workspaces
 const SCENE_VIDEOS = {
-  // Remote work focused - professional, neutral, business-like
-  tech: 'software developer coding monitor',
-  design: 'designer workspace minimal',
-  business: 'professional home office laptop',
+  // Tech - code on screen, no people
+  tech: 'code on computer screen programming',
+  design: 'design software interface screen',
+  business: 'laptop keyboard coffee desk minimal',
 
-  // Default professional background - remote work themed
-  professional: 'remote work home office professional',
+  // Default - clean workspace aesthetic, no people
+  professional: 'laptop desk workspace minimal aesthetic',
 };
 
 type SceneType = 'hook' | 'content' | 'salary' | 'cta';

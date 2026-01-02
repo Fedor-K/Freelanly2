@@ -42,17 +42,24 @@ interface DataSource {
   lastSuccessAt: string | null;
   totalImported: number;
   lastCreated: number;
-  lastSkipped: number;
   lastFetched: number;
   lastError: string | null;
   errorCount: number;
-  // New scoring fields
   tags: string[];
   score: number | null;
   conversionRate: number | null;
   qualityStatus: string | null;
   weeklyImported: number;
   lastScoreAt: string | null;
+}
+
+interface Pagination {
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
 }
 
 interface Overview {
@@ -131,11 +138,16 @@ export default function SourcesPage() {
   const [loadingDetails, setLoadingDetails] = useState<string | null>(null);
 
   // Filter & Sort state
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('active'); // Default to active
   const [filterQuality, setFilterQuality] = useState<string>('all');
   const [filterTag, setFilterTag] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('name');
   const [sortOrder, setSortOrder] = useState<string>('asc');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Pagination state
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Bulk operations state
   const [bulkLoading, setBulkLoading] = useState<string | null>(null);
@@ -193,21 +205,30 @@ export default function SourcesPage() {
 
   useEffect(() => {
     fetchSources();
-  }, [filterStatus, filterQuality, filterTag, sortBy, sortOrder]);
+  }, [filterStatus, filterQuality, filterTag, sortBy, sortOrder, currentPage, searchQuery]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, filterQuality, filterTag, sortBy, sortOrder, searchQuery]);
 
   async function fetchSources() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (filterStatus !== 'all') params.set('status', filterStatus);
+      params.set('status', filterStatus);
       if (filterQuality !== 'all') params.set('quality', filterQuality);
       if (filterTag !== 'all') params.set('tag', filterTag);
       params.set('sortBy', sortBy);
       params.set('sortOrder', sortOrder);
+      params.set('page', currentPage.toString());
+      params.set('limit', '50');
+      if (searchQuery) params.set('search', searchQuery);
 
       const res = await fetch(`/api/admin/sources?${params}`);
       const data = await res.json();
       setSources(data.sources || []);
+      setPagination(data.pagination || null);
       setOverview(data.overview || null);
       setAvailableTags(data.availableTags || []);
     } catch (error) {
@@ -923,6 +944,17 @@ export default function SourcesPage() {
 
       {/* Filters & Sorting */}
       <div className="flex flex-wrap gap-3 mb-4 p-3 bg-muted/30 rounded-lg">
+        {/* Search */}
+        <div className="flex items-center gap-2">
+          <Input
+            type="text"
+            placeholder="Search sources..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-48 h-8 text-sm"
+          />
+        </div>
+
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <select
@@ -1283,12 +1315,6 @@ export default function SourcesPage() {
                           ) : source.lastRunAt ? (
                             <span className="text-muted-foreground">+0</span>
                           ) : null}
-                          {source.lastRunAt && (
-                            <>
-                              <span className="text-muted-foreground mx-1">/</span>
-                              <span className="text-muted-foreground">-{source.lastSkipped || 0}</span>
-                            </>
-                          )}
                           <span className="text-muted-foreground ml-2">({source.totalImported} total)</span>
                         </div>
                       </div>
@@ -1425,6 +1451,59 @@ export default function SourcesPage() {
               No Lever companies added yet. Click &quot;Add Company&quot; to get started.
             </CardContent>
           </Card>
+        )}
+
+        {/* Pagination */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 p-3 bg-muted/30 rounded-lg">
+            <div className="text-sm text-muted-foreground">
+              Showing {((pagination.page - 1) * pagination.limit) + 1}-{Math.min(pagination.page * pagination.limit, pagination.totalCount)} of {pagination.totalCount} sources
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(1)}
+                disabled={!pagination.hasPrev}
+              >
+                First
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => p - 1)}
+                disabled={!pagination.hasPrev}
+              >
+                Previous
+              </Button>
+              <span className="text-sm px-3">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => p + 1)}
+                disabled={!pagination.hasNext}
+              >
+                Next
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(pagination.totalPages)}
+                disabled={!pagination.hasNext}
+              >
+                Last
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Total count info when pagination exists */}
+        {pagination && (
+          <div className="text-center text-sm text-muted-foreground mt-2">
+            Total: {pagination.totalCount} sources
+          </div>
         )}
       </div>
 
