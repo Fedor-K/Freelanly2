@@ -495,8 +495,20 @@ export default function SourcesPage() {
 
   // Run all active sources sequentially with progress
   async function runAllSourcesWithProgress() {
-    // Get active sources
-    const activeSources = sources.filter(s => s.isActive);
+    // Fetch ALL active sources from API (not just current page)
+    let activeSources: DataSource[] = [];
+    try {
+      const params = new URLSearchParams();
+      params.set('status', 'active');
+      params.set('limit', '1000'); // Get all active sources
+      const res = await fetch(`/api/admin/sources?${params}`);
+      const data = await res.json();
+      activeSources = data.sources || [];
+    } catch (error) {
+      alert(`Failed to fetch sources: ${error}`);
+      return;
+    }
+
     if (activeSources.length === 0) {
       alert('No active sources to run');
       return;
