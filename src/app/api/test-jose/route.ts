@@ -29,8 +29,9 @@ export async function GET(request: NextRequest) {
     steps.push('2.8. First 60: ' + pk.slice(0, 60));
     steps.push('2.9. Last 40: ' + pk.slice(-40));
 
-    // Step 3: Import key
-    const privateKey = await importPKCS8(creds.private_key, 'RS256');
+    // Step 3: Import key (with fix for extra spaces)
+    const fixedKey = pk.replace(/PRIVATE\s+KEY/g, 'PRIVATE KEY');
+    const privateKey = await importPKCS8(fixedKey, 'RS256');
     steps.push('3. Key imported successfully');
 
     // Step 4: Create JWT

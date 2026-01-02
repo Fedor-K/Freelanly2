@@ -11,7 +11,9 @@ async function getAccessToken(): Promise<string | null> {
 
   try {
     const creds = JSON.parse(credsJson);
-    const privateKey = await importPKCS8(creds.private_key, 'RS256');
+    // Fix malformed key (extra spaces in "PRIVATE    KEY")
+    const fixedKey = creds.private_key.replace(/PRIVATE\s+KEY/g, 'PRIVATE KEY');
+    const privateKey = await importPKCS8(fixedKey, 'RS256');
 
     const jwt = await new SignJWT({ scope: 'https://www.googleapis.com/auth/indexing' })
       .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
