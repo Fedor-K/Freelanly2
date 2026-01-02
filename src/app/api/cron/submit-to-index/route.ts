@@ -38,7 +38,7 @@ async function getIndexingClient() {
   return google.indexing({ version: 'v3', auth });
 }
 
-async function submitUrl(indexing: ReturnType<typeof google.indexing>, url: string): Promise<boolean> {
+async function submitUrl(indexing: ReturnType<typeof google.indexing>, url: string): Promise<{ success: boolean; error?: string }> {
   try {
     await indexing.urlNotifications.publish({
       requestBody: {
@@ -46,10 +46,11 @@ async function submitUrl(indexing: ReturnType<typeof google.indexing>, url: stri
         type: 'URL_UPDATED',
       },
     });
-    return true;
-  } catch (error) {
-    console.error(`Indexing error for ${url}:`, error);
-    return false;
+    return { success: true };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Indexing error for ${url}:`, message);
+    return { success: false, error: message };
   }
 }
 
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
     submitted: 0,
     failed: 0,
     urls: [] as string[],
+    firstError: null as string | null,
   };
 
   let remaining = DAILY_LIMIT;
@@ -89,12 +91,13 @@ export async function POST(request: NextRequest) {
 
   for (const url of staticPages) {
     if (remaining <= 0) break;
-    const success = await submitUrl(indexing, url);
-    if (success) {
+    const result = await submitUrl(indexing, url);
+    if (result.success) {
       results.submitted++;
       results.urls.push(url);
     } else {
       results.failed++;
+      if (!results.firstError) results.firstError = result.error || 'Unknown error';
     }
     remaining--;
     await new Promise(r => setTimeout(r, 100)); // Rate limit
@@ -118,12 +121,13 @@ export async function POST(request: NextRequest) {
   for (const job of newJobs) {
     if (remaining <= 0) break;
     const url = `${siteConfig.url}/company/${job.company.slug}/jobs/${job.slug}`;
-    const success = await submitUrl(indexing, url);
-    if (success) {
+    const result = await submitUrl(indexing, url);
+    if (result.success) {
       results.submitted++;
       results.urls.push(url);
     } else {
       results.failed++;
+      if (!results.firstError) results.firstError = result.error || 'Unknown error';
     }
     remaining--;
     await new Promise(r => setTimeout(r, 100));
@@ -137,12 +141,13 @@ export async function POST(request: NextRequest) {
   for (const cat of categories) {
     if (remaining <= 0) break;
     const url = `${siteConfig.url}/jobs/${cat.slug}`;
-    const success = await submitUrl(indexing, url);
-    if (success) {
+    const result = await submitUrl(indexing, url);
+    if (result.success) {
       results.submitted++;
       results.urls.push(url);
     } else {
       results.failed++;
+      if (!results.firstError) results.firstError = result.error || 'Unknown error';
     }
     remaining--;
     await new Promise(r => setTimeout(r, 100));
@@ -167,12 +172,13 @@ export async function POST(request: NextRequest) {
     for (const job of recentJobs) {
       if (remaining <= 0) break;
       const url = `${siteConfig.url}/company/${job.company.slug}/jobs/${job.slug}`;
-      const success = await submitUrl(indexing, url);
-      if (success) {
+      const result = await submitUrl(indexing, url);
+      if (result.success) {
         results.submitted++;
         results.urls.push(url);
       } else {
         results.failed++;
+        if (!results.firstError) results.firstError = result.error || 'Unknown error';
       }
       remaining--;
       await new Promise(r => setTimeout(r, 100));
@@ -186,6 +192,7 @@ export async function POST(request: NextRequest) {
     submitted: results.submitted,
     failed: results.failed,
     remaining: remaining,
+    firstError: results.firstError,
   });
   } catch (error) {
     console.error('Indexing API error:', error);
