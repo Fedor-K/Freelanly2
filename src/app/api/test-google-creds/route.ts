@@ -19,11 +19,38 @@ export async function GET(request: NextRequest) {
 
   try {
     const creds = JSON.parse(credentialsJson);
+    const pk = creds.private_key || '';
+
+    // Check what kind of newlines are in the key
+    const hasBackslashN = pk.includes('\\n');
+    const hasRealNewline = pk.includes('\n');
+    const first50 = pk.slice(0, 50);
+
+    // Try to sign something
+    let signResult = 'not tested';
+    try {
+      const { createSign } = require('crypto');
+      let key = pk;
+      if (hasBackslashN && !hasRealNewline) {
+        key = pk.replace(/\\n/g, '\n');
+      }
+      const sign = createSign('RSA-SHA256');
+      sign.update('test');
+      sign.end();
+      sign.sign(key, 'base64');
+      signResult = 'OK';
+    } catch (e: unknown) {
+      signResult = e instanceof Error ? e.message : String(e);
+    }
+
     return NextResponse.json({
       status: 'OK',
       client_email: creds.client_email,
-      has_private_key: !!creds.private_key,
-      private_key_length: creds.private_key?.length || 0
+      private_key_length: pk.length,
+      hasBackslashN,
+      hasRealNewline,
+      first50,
+      signResult
     });
   } catch (error) {
     return NextResponse.json({
