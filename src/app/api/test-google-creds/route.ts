@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { google } from 'googleapis';
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -19,44 +20,43 @@ export async function GET(request: NextRequest) {
 
   try {
     const creds = JSON.parse(credentialsJson);
-    const pk = creds.private_key || '';
 
-    // Check what kind of newlines are in the key
-    const hasBackslashN = pk.includes('\\n');
-    const hasRealNewline = pk.includes('\n');
-    const first50 = pk.slice(0, 50);
-
-    // Try to sign something
-    let signResult = 'not tested';
+    // Test with googleapis library
+    let indexingResult = 'not tested';
     try {
-      const { createSign } = require('crypto');
-      let key = pk;
-      if (hasBackslashN && !hasRealNewline) {
-        key = pk.replace(/\\n/g, '\n');
-      }
-      const sign = createSign('RSA-SHA256');
-      sign.update('test');
-      sign.end();
-      sign.sign(key, 'base64');
-      signResult = 'OK';
+      const auth = new google.auth.GoogleAuth({
+        credentials: creds,
+        scopes: ['https://www.googleapis.com/auth/indexing'],
+      });
+
+      const indexing = google.indexing({ version: 'v3', auth });
+
+      const result = await indexing.urlNotifications.publish({
+        requestBody: {
+          url: 'https://freelanly.com/jobs',
+          type: 'URL_UPDATED',
+        },
+      });
+
+      indexingResult = 'SUCCESS: ' + JSON.stringify(result.data);
     } catch (e: unknown) {
-      signResult = e instanceof Error ? e.message : String(e);
+      if (e && typeof e === 'object' && 'response' in e) {
+        const err = e as { response?: { data?: unknown }, message?: string };
+        indexingResult = 'ERROR: ' + (err.message || '') + ' | ' + JSON.stringify(err.response?.data);
+      } else {
+        indexingResult = 'ERROR: ' + (e instanceof Error ? e.message : String(e));
+      }
     }
 
     return NextResponse.json({
       status: 'OK',
       client_email: creds.client_email,
-      private_key_length: pk.length,
-      hasBackslashN,
-      hasRealNewline,
-      first50,
-      signResult
+      indexingResult
     });
   } catch (error) {
     return NextResponse.json({
       status: 'PARSE_ERROR',
-      message: error instanceof Error ? error.message : String(error),
-      first_100_chars: credentialsJson.slice(0, 100)
+      message: error instanceof Error ? error.message : String(error)
     });
   }
 }
