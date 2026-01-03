@@ -22,7 +22,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer YOUR_CRON_SECRET_HERE"
+              "value": "Bearer 9c3827de0523441631996ab6f2b012801b8bef944873df5e218fdbf3b6b4552c"
             }
           ]
         },
@@ -226,7 +226,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer YOUR_CRON_SECRET_HERE"
+              "value": "Bearer 9c3827de0523441631996ab6f2b012801b8bef944873df5e218fdbf3b6b4552c"
             }
           ]
         },
@@ -304,7 +304,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer YOUR_CRON_SECRET_HERE"
+              "value": "Bearer 9c3827de0523441631996ab6f2b012801b8bef944873df5e218fdbf3b6b4552c"
             }
           ]
         },
