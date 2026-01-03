@@ -9,6 +9,7 @@
 
 import { SignJWT, importPKCS8 } from 'jose';
 import { siteConfig } from '@/config/site';
+import { prisma } from '@/lib/db';
 
 const INDEXNOW_KEY = process.env.INDEXNOW_KEY;
 const INDEXNOW_ENDPOINTS = [
@@ -81,10 +82,33 @@ export async function submitToIndexNow(urls: string[]): Promise<IndexingResult> 
     const timestamp = new Date().toISOString();
     console.log(`✅ IndexNow [${timestamp}]: Submitted ${urls.length} URLs:`);
     urls.forEach(url => console.log(`   → ${url}`));
+
+    // Log to database
+    await prisma.indexingLog.create({
+      data: {
+        provider: 'INDEXNOW',
+        urlsCount: urls.length,
+        success: urls.length,
+        failed: 0,
+      },
+    }).catch(err => console.error('Failed to log IndexNow submission:', err));
+
     return { service: 'IndexNow', success: true, status: 200 };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`❌ IndexNow error: ${errorMessage}`);
+
+    // Log failure to database
+    await prisma.indexingLog.create({
+      data: {
+        provider: 'INDEXNOW',
+        urlsCount: urls.length,
+        success: 0,
+        failed: urls.length,
+        error: errorMessage,
+      },
+    }).catch(err => console.error('Failed to log IndexNow error:', err));
+
     return { service: 'IndexNow', success: false, error: errorMessage };
   }
 }
@@ -121,12 +145,23 @@ export async function submitToGoogle(urls: string[]): Promise<IndexingResult> {
     );
 
     const successCount = results.filter(r => r).length;
+    const failedCount = results.length - successCount;
     const timestamp = new Date().toISOString();
     console.log(`✅ Google [${timestamp}]: Submitted ${successCount}/${urls.length} URLs:`);
     urls.slice(0, 200).forEach((url, i) => {
       const status = results[i] ? '✓' : '✗';
       console.log(`   ${status} ${url}`);
     });
+
+    // Log to database
+    await prisma.indexingLog.create({
+      data: {
+        provider: 'GOOGLE',
+        urlsCount: Math.min(urls.length, 200),
+        success: successCount,
+        failed: failedCount,
+      },
+    }).catch(err => console.error('Failed to log Google submission:', err));
 
     return {
       service: 'Google',
@@ -136,6 +171,18 @@ export async function submitToGoogle(urls: string[]): Promise<IndexingResult> {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`❌ Google Indexing error: ${errorMessage}`);
+
+    // Log failure to database
+    await prisma.indexingLog.create({
+      data: {
+        provider: 'GOOGLE',
+        urlsCount: Math.min(urls.length, 200),
+        success: 0,
+        failed: Math.min(urls.length, 200),
+        error: errorMessage,
+      },
+    }).catch(err => console.error('Failed to log Google error:', err));
+
     return { service: 'Google', success: false, error: errorMessage };
   }
 }

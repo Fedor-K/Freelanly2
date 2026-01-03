@@ -675,6 +675,20 @@ enum TaskStatus {
   CANCELLED   // Manually cancelled
 }
 
+// Tracking for search engine indexing submissions
+model IndexingLog {
+  id          String   @id @default(cuid())
+  provider    String   // "GOOGLE" | "INDEXNOW"
+  urlsCount   Int      // Number of URLs submitted
+  success     Int      @default(0)
+  failed      Int      @default(0)
+  error       String?  // Error message if any
+  createdAt   DateTime @default(now())
+
+  @@index([provider, createdAt])
+  @@index([createdAt])
+}
+
 // Filtered jobs - stored for 20 days for debugging
 model FilteredJob {
   id            String       @id @default(cuid())
