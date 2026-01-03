@@ -185,7 +185,17 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
 
     // Update stats from pipeline
     stats.skipped = pipelineResult.stats.totalRejected;
-    const jobsToProcess = pipelineResult.originalJobs;
+
+    // Limit jobs per source to prevent timeout (e.g., jobgether has 1800+ jobs)
+    const MAX_JOBS_PER_SOURCE = 300;
+    let jobsToProcess = pipelineResult.originalJobs;
+    if (jobsToProcess.length > MAX_JOBS_PER_SOURCE) {
+      const excess = jobsToProcess.length - MAX_JOBS_PER_SOURCE;
+      console.log(`[Lever] Limiting ${dataSource.name} from ${jobsToProcess.length} to ${MAX_JOBS_PER_SOURCE} jobs (skipping ${excess})`);
+      // Take first N jobs (they're already sorted by date from API)
+      jobsToProcess = jobsToProcess.slice(0, MAX_JOBS_PER_SOURCE);
+      stats.skipped += excess;
+    }
 
     // Early exit if nothing to process
     if (jobsToProcess.length === 0) {
