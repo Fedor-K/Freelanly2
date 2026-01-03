@@ -72,10 +72,22 @@ interface ParsingStats {
     google: {
       today: { urlsCount: number; success: number; failed: number };
       week: { urlsCount: number; success: number; failed: number };
+      lastSubmission: {
+        createdAt: string;
+        success: number;
+        failed: number;
+        error: string | null;
+      } | null;
     };
     indexNow: {
       today: { urlsCount: number; success: number; failed: number };
       week: { urlsCount: number; success: number; failed: number };
+      lastSubmission: {
+        createdAt: string;
+        success: number;
+        failed: number;
+        error: string | null;
+      } | null;
     };
     lastSubmission: {
       provider: string;
@@ -266,6 +278,9 @@ function SourceHealthCard({ stats }: { stats: ParsingStats }) {
 }
 
 function IndexingCard({ stats }: { stats: ParsingStats }) {
+  const googleError = stats.indexing.google.lastSubmission?.error;
+  const googleHasError = googleError || (stats.indexing.google.lastSubmission?.failed ?? 0) > 0;
+
   return (
     <Card>
       <CardHeader>
@@ -278,21 +293,29 @@ function IndexingCard({ stats }: { stats: ParsingStats }) {
       <CardContent>
         <div className="grid grid-cols-2 gap-4 mb-4">
           {/* Google */}
-          <div className="p-3 border rounded-lg">
+          <div className={`p-3 border rounded-lg ${googleHasError ? 'border-red-300 bg-red-50' : ''}`}>
             <div className="flex items-center gap-2 mb-2">
-              <Globe className="h-4 w-4 text-blue-600" />
+              <Globe className={`h-4 w-4 ${googleHasError ? 'text-red-600' : 'text-blue-600'}`} />
               <span className="font-medium text-sm">Google</span>
+              {googleHasError && <XCircle className="h-3 w-3 text-red-500" />}
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
                 <p className="text-muted-foreground">Сегодня</p>
-                <p className="font-semibold text-green-600">{stats.indexing.google.today.success || 0}</p>
+                <p className={`font-semibold ${(stats.indexing.google.today.success || 0) > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                  {stats.indexing.google.today.success || 0}
+                </p>
               </div>
               <div>
                 <p className="text-muted-foreground">Неделя</p>
                 <p className="font-semibold">{stats.indexing.google.week.success || 0}</p>
               </div>
             </div>
+            {googleError && (
+              <p className="text-xs text-red-600 mt-2 truncate" title={googleError}>
+                ⚠️ {googleError.includes('Quota exceeded') ? 'Квота исчерпана (200/день)' : googleError.slice(0, 50)}
+              </p>
+            )}
           </div>
 
           {/* IndexNow */}
@@ -300,6 +323,7 @@ function IndexingCard({ stats }: { stats: ParsingStats }) {
             <div className="flex items-center gap-2 mb-2">
               <RefreshCw className="h-4 w-4 text-purple-600" />
               <span className="font-medium text-sm">IndexNow</span>
+              {(stats.indexing.indexNow.today.success || 0) > 0 && <CheckCircle className="h-3 w-3 text-green-500" />}
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
@@ -316,7 +340,7 @@ function IndexingCard({ stats }: { stats: ParsingStats }) {
 
         {stats.indexing.lastSubmission && (
           <div className="text-xs text-muted-foreground border-t pt-2">
-            Последняя отправка: {stats.indexing.lastSubmission.provider} · {' '}
+            Последняя: {stats.indexing.lastSubmission.provider} · {' '}
             {new Date(stats.indexing.lastSubmission.createdAt).toLocaleString()} · {' '}
             <span className="text-green-600">{stats.indexing.lastSubmission.success} OK</span>
             {stats.indexing.lastSubmission.failed > 0 && (
