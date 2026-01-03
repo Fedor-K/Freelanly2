@@ -52,8 +52,8 @@ export const PRICE_INFO: Record<PriceKey, {
     pricePerDay: '€0.50',
     period: 'month',
     periodLabel: 'per month',
-    description: 'Cancel anytime',
-    hasTrial: false,
+    description: '7-day free trial',
+    hasTrial: true,
     popular: true,
   },
   quarterly: {
