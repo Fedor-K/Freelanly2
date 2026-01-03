@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { siteConfig, skills, categories } from '@/config/site';
+import { siteConfig, techStacks, categories } from '@/config/site';
 import { SignJWT, importPKCS8 } from 'jose';
 import { submitToIndexNow } from '@/lib/indexing';
 
@@ -75,8 +75,8 @@ export async function POST(request: NextRequest) {
   ];
 
   // Add all skill pages (/jobs/skills/react, /jobs/skills/python, etc.)
-  for (const skill of skills) {
-    urls.push(`${siteConfig.url}/jobs/skills/${skill.slug}`);
+  for (const tech of techStacks) {
+    urls.push(`${siteConfig.url}/jobs/skills/${tech.slug}`);
   }
 
   // Add all category pages (/jobs/engineering, /jobs/design, etc.)
