@@ -140,24 +140,10 @@ export async function GET() {
       }),
     ]);
 
-    // Last indexing submission (overall)
+    // Last indexing submission
     const lastIndexing = await prisma.indexingLog.findFirst({
       orderBy: { createdAt: 'desc' },
       select: { provider: true, createdAt: true, success: true, failed: true, error: true },
-    });
-
-    // Last Google submission (to show specific error)
-    const lastGoogleSubmission = await prisma.indexingLog.findFirst({
-      where: { provider: 'GOOGLE' },
-      orderBy: { createdAt: 'desc' },
-      select: { createdAt: true, success: true, failed: true, error: true },
-    });
-
-    // Last IndexNow submission
-    const lastIndexNowSubmission = await prisma.indexingLog.findFirst({
-      where: { provider: 'INDEXNOW' },
-      orderBy: { createdAt: 'desc' },
-      select: { createdAt: true, success: true, failed: true, error: true },
     });
 
     // AI usage estimation (from import tasks)
@@ -225,12 +211,10 @@ export async function GET() {
       google: {
         today: indexingToday.find(i => i.provider === 'GOOGLE')?._sum || { urlsCount: 0, success: 0, failed: 0 },
         week: indexingWeek.find(i => i.provider === 'GOOGLE')?._sum || { urlsCount: 0, success: 0, failed: 0 },
-        lastSubmission: lastGoogleSubmission,
       },
       indexNow: {
         today: indexingToday.find(i => i.provider === 'INDEXNOW')?._sum || { urlsCount: 0, success: 0, failed: 0 },
         week: indexingWeek.find(i => i.provider === 'INDEXNOW')?._sum || { urlsCount: 0, success: 0, failed: 0 },
-        lastSubmission: lastIndexNowSubmission,
       },
       lastSubmission: lastIndexing,
     };

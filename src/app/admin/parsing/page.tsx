@@ -15,8 +15,6 @@ import {
   Search,
   RefreshCw,
   Loader2,
-  Play,
-  RotateCcw,
 } from 'lucide-react';
 
 interface ParsingStats {
@@ -74,22 +72,10 @@ interface ParsingStats {
     google: {
       today: { urlsCount: number; success: number; failed: number };
       week: { urlsCount: number; success: number; failed: number };
-      lastSubmission: {
-        createdAt: string;
-        success: number;
-        failed: number;
-        error: string | null;
-      } | null;
     };
     indexNow: {
       today: { urlsCount: number; success: number; failed: number };
       week: { urlsCount: number; success: number; failed: number };
-      lastSubmission: {
-        createdAt: string;
-        success: number;
-        failed: number;
-        error: string | null;
-      } | null;
     };
     lastSubmission: {
       provider: string;
@@ -280,9 +266,6 @@ function SourceHealthCard({ stats }: { stats: ParsingStats }) {
 }
 
 function IndexingCard({ stats }: { stats: ParsingStats }) {
-  const googleError = stats.indexing.google.lastSubmission?.error;
-  const googleHasError = googleError || (stats.indexing.google.lastSubmission?.failed ?? 0) > 0;
-
   return (
     <Card>
       <CardHeader>
@@ -295,29 +278,21 @@ function IndexingCard({ stats }: { stats: ParsingStats }) {
       <CardContent>
         <div className="grid grid-cols-2 gap-4 mb-4">
           {/* Google */}
-          <div className={`p-3 border rounded-lg ${googleHasError ? 'border-red-300 bg-red-50' : ''}`}>
+          <div className="p-3 border rounded-lg">
             <div className="flex items-center gap-2 mb-2">
-              <Globe className={`h-4 w-4 ${googleHasError ? 'text-red-600' : 'text-blue-600'}`} />
+              <Globe className="h-4 w-4 text-blue-600" />
               <span className="font-medium text-sm">Google</span>
-              {googleHasError && <XCircle className="h-3 w-3 text-red-500" />}
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
                 <p className="text-muted-foreground">Сегодня</p>
-                <p className={`font-semibold ${(stats.indexing.google.today.success || 0) > 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                  {stats.indexing.google.today.success || 0}
-                </p>
+                <p className="font-semibold text-green-600">{stats.indexing.google.today.success || 0}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Неделя</p>
                 <p className="font-semibold">{stats.indexing.google.week.success || 0}</p>
               </div>
             </div>
-            {googleError && (
-              <p className="text-xs text-red-600 mt-2 truncate" title={googleError}>
-                ⚠️ {googleError.includes('Quota exceeded') ? 'Квота исчерпана (200/день)' : googleError.slice(0, 50)}
-              </p>
-            )}
           </div>
 
           {/* IndexNow */}
@@ -325,7 +300,6 @@ function IndexingCard({ stats }: { stats: ParsingStats }) {
             <div className="flex items-center gap-2 mb-2">
               <RefreshCw className="h-4 w-4 text-purple-600" />
               <span className="font-medium text-sm">IndexNow</span>
-              {(stats.indexing.indexNow.today.success || 0) > 0 && <CheckCircle className="h-3 w-3 text-green-500" />}
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
@@ -342,7 +316,7 @@ function IndexingCard({ stats }: { stats: ParsingStats }) {
 
         {stats.indexing.lastSubmission && (
           <div className="text-xs text-muted-foreground border-t pt-2">
-            Последняя: {stats.indexing.lastSubmission.provider} · {' '}
+            Последняя отправка: {stats.indexing.lastSubmission.provider} · {' '}
             {new Date(stats.indexing.lastSubmission.createdAt).toLocaleString()} · {' '}
             <span className="text-green-600">{stats.indexing.lastSubmission.success} OK</span>
             {stats.indexing.lastSubmission.failed > 0 && (
@@ -493,37 +467,6 @@ export default function ParsingDashboard() {
   const [stats, setStats] = useState<ParsingStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  async function handleAction(action: 'reset-stuck' | 'reset-all' | 'start-parsing') {
-    try {
-      setActionLoading(action);
-      setActionMessage(null);
-
-      const res = await fetch('/api/admin/parsing-actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setActionMessage({ type: 'success', text: data.message });
-        // Refresh stats after action
-        setTimeout(fetchStats, 1000);
-      } else {
-        setActionMessage({ type: 'error', text: data.error || 'Ошибка' });
-      }
-    } catch (err) {
-      setActionMessage({ type: 'error', text: err instanceof Error ? err.message : 'Ошибка' });
-    } finally {
-      setActionLoading(null);
-      // Auto-hide message after 5 seconds
-      setTimeout(() => setActionMessage(null), 5000);
-    }
-  }
 
   async function fetchStats() {
     try {
@@ -588,64 +531,15 @@ export default function ParsingDashboard() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Парсинг</h1>
-        <div className="flex items-center gap-2">
-          {/* Reset stuck button */}
-          <button
-            onClick={() => handleAction('reset-all')}
-            disabled={actionLoading !== null || stats.queue.processing === 0}
-            className="flex items-center gap-2 px-3 py-2 text-sm bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Сбросить все задачи в статусе PROCESSING"
-          >
-            {actionLoading === 'reset-all' ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RotateCcw className="h-4 w-4" />
-            )}
-            Сбросить
-          </button>
-
-          {/* Start parsing button */}
-          <button
-            onClick={() => handleAction('start-parsing')}
-            disabled={actionLoading !== null}
-            className="flex items-center gap-2 px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-          >
-            {actionLoading === 'start-parsing' ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
-            Запустить
-          </button>
-
-          {/* Refresh button */}
-          <button
-            onClick={fetchStats}
-            disabled={loading}
-            className="flex items-center gap-2 px-3 py-2 text-sm bg-secondary rounded-lg hover:bg-secondary/80 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
-
-      {/* Action message */}
-      {actionMessage && (
-        <div
-          className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${
-            actionMessage.type === 'success'
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-red-50 text-red-800 border border-red-200'
-          }`}
+        <button
+          onClick={fetchStats}
+          disabled={loading}
+          className="flex items-center gap-2 px-3 py-2 text-sm bg-secondary rounded-lg hover:bg-secondary/80 disabled:opacity-50"
         >
-          {actionMessage.type === 'success' ? (
-            <CheckCircle className="h-5 w-5" />
-          ) : (
-            <XCircle className="h-5 w-5" />
-          )}
-          <span>{actionMessage.text}</span>
-        </div>
-      )}
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Обновить
+        </button>
+      </div>
 
       {/* Alerts */}
       <AlertsSection alerts={stats.alerts} />

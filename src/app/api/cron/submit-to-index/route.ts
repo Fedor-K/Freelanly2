@@ -38,7 +38,7 @@ async function getAccessToken(): Promise<string | null> {
   }
 }
 
-async function submitUrl(token: string, url: string): Promise<{ success: boolean; error?: string }> {
+async function submitUrl(token: string, url: string): Promise<boolean> {
   try {
     const res = await fetch('https://indexing.googleapis.com/v3/urlNotifications:publish', {
       method: 'POST',
@@ -49,23 +49,9 @@ async function submitUrl(token: string, url: string): Promise<{ success: boolean
       body: JSON.stringify({ url, type: 'URL_UPDATED' }),
     });
     const data = await res.json();
-
-    // Check for error in response
-    if (!res.ok || data.error) {
-      const errMsg = data.error
-        ? `${data.error.code}: ${data.error.message}`
-        : `HTTP ${res.status}: ${JSON.stringify(data).slice(0, 100)}`;
-      return { success: false, error: errMsg };
-    }
-
-    // Success = has urlNotificationMetadata
-    if (data.urlNotificationMetadata) {
-      return { success: true };
-    }
-
-    return { success: false, error: `Unexpected response: ${JSON.stringify(data).slice(0, 100)}` };
-  } catch (e) {
-    return { success: false, error: String(e) };
+    return !data.error;
+  } catch {
+    return false;
   }
 }
 
@@ -76,10 +62,8 @@ export async function POST(request: NextRequest) {
   }
 
   const token = await getAccessToken();
-  const hasGoogleCreds = !!process.env.GOOGLE_INDEXING_CREDENTIALS;
-
-  if (!token && hasGoogleCreds) {
-    return NextResponse.json({ error: 'Failed to get Google access token (creds present but token failed)' }, { status: 500 });
+  if (!token) {
+    return NextResponse.json({ error: 'Failed to get Google access token' }, { status: 500 });
   }
 
   // Static pages
@@ -113,54 +97,16 @@ export async function POST(request: NextRequest) {
 
   // Submit to Google Indexing API
   let googleSubmitted = 0;
-  let googleFailed = 0;
-  let googleErrors: string[] = [];
-  let firstGoogleError: string | null = null;
-
-  if (token) {
-    for (const url of urls.slice(0, DAILY_LIMIT)) {
-      const result = await submitUrl(token, url);
-      if (result.success) {
-        googleSubmitted++;
-      } else {
-        googleFailed++;
-        if (result.error) {
-          if (!firstGoogleError) {
-            firstGoogleError = result.error;
-          }
-          if (googleErrors.length < 3) {
-            googleErrors.push(`${url}: ${result.error}`);
-          }
-        }
-      }
-      await new Promise(r => setTimeout(r, 100));
-    }
-  } else {
-    googleFailed = Math.min(urls.length, DAILY_LIMIT);
-    firstGoogleError = 'No GOOGLE_INDEXING_CREDENTIALS configured';
-    googleErrors.push(firstGoogleError);
+  for (const url of urls.slice(0, DAILY_LIMIT)) {
+    if (await submitUrl(token, url)) googleSubmitted++;
+    await new Promise(r => setTimeout(r, 100));
   }
-
-  // Log Google results to database
-  await prisma.indexingLog.create({
-    data: {
-      provider: 'GOOGLE',
-      urlsCount: Math.min(urls.length, DAILY_LIMIT),
-      success: googleSubmitted,
-      failed: googleFailed,
-      error: firstGoogleError,
-    },
-  }).catch(err => console.error('Failed to log Google submission:', err));
 
   // Submit to IndexNow (Bing, Yandex, etc.) - all URLs at once
   const indexNowResult = await submitToIndexNow(urls);
 
   return NextResponse.json({
-    google: {
-      submitted: googleSubmitted,
-      total: Math.min(urls.length, DAILY_LIMIT),
-      errors: googleErrors.length > 0 ? googleErrors : undefined,
-    },
+    google: { submitted: googleSubmitted, total: Math.min(urls.length, DAILY_LIMIT) },
     indexNow: { success: indexNowResult.success, urls: urls.length },
     totalUrls: urls.length,
   });
