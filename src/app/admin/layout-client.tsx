@@ -13,16 +13,20 @@ import {
   XCircle,
   Briefcase,
   RefreshCw,
+  CreditCard,
+  BarChart3,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { name: 'Conversions', href: '/admin/conversions', icon: CreditCard },
   { name: 'Parsing', href: '/admin/parsing', icon: RefreshCw },
   { name: 'Jobs', href: '/admin/jobs', icon: Briefcase },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Analytics', href: '/admin/analytics', icon: TrendingUp },
+  { name: 'Clarity', href: '/admin/clarity', icon: BarChart3 },
   { name: 'Cancellations', href: '/admin/cancellations', icon: XCircle },
   {
     name: 'Sources',

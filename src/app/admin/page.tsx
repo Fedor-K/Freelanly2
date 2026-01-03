@@ -303,6 +303,12 @@ export default function AdminDashboard() {
             Manage Users
           </Link>
           <Link
+            href="/admin/conversions"
+            className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+          >
+            Conversion Stats
+          </Link>
+          <Link
             href="/admin/analytics"
             className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-secondary/90"
           >
