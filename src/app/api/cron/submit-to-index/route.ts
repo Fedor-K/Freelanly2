@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { siteConfig } from '@/config/site';
+import { siteConfig, skills, categories } from '@/config/site';
 import { SignJWT, importPKCS8 } from 'jose';
+import { submitToIndexNow } from '@/lib/indexing';
 
 const DAILY_LIMIT = 200;
 
@@ -65,12 +66,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to get Google access token' }, { status: 500 });
   }
 
+  // Static pages
   const urls: string[] = [
     siteConfig.url,
     `${siteConfig.url}/jobs`,
     `${siteConfig.url}/companies`,
     `${siteConfig.url}/pricing`,
   ];
+
+  // Add all skill pages (/jobs/skills/react, /jobs/skills/python, etc.)
+  for (const skill of skills) {
+    urls.push(`${siteConfig.url}/jobs/skills/${skill.slug}`);
+  }
+
+  // Add all category pages (/jobs/engineering, /jobs/design, etc.)
+  for (const category of categories) {
+    urls.push(`${siteConfig.url}/jobs/${category.slug}`);
+  }
 
   const recentJobs = await prisma.job.findMany({
     where: { isActive: true },
@@ -83,13 +95,21 @@ export async function POST(request: NextRequest) {
     urls.push(`${siteConfig.url}/company/${job.company.slug}/jobs/${job.slug}`);
   }
 
-  let submitted = 0;
+  // Submit to Google Indexing API
+  let googleSubmitted = 0;
   for (const url of urls.slice(0, DAILY_LIMIT)) {
-    if (await submitUrl(token, url)) submitted++;
+    if (await submitUrl(token, url)) googleSubmitted++;
     await new Promise(r => setTimeout(r, 100));
   }
 
-  return NextResponse.json({ submitted, total: urls.length });
+  // Submit to IndexNow (Bing, Yandex, etc.) - all URLs at once
+  const indexNowResult = await submitToIndexNow(urls);
+
+  return NextResponse.json({
+    google: { submitted: googleSubmitted, total: Math.min(urls.length, DAILY_LIMIT) },
+    indexNow: { success: indexNowResult.success, urls: urls.length },
+    totalUrls: urls.length,
+  });
 }
 
 export async function GET() {
