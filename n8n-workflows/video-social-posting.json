@@ -1,5 +1,5 @@
 {
-  "name": "Freelanly Video Social Posting v11",
+  "name": "Freelanly Video Social Posting v12",
   "nodes": [
     {
       "parameters": {
@@ -15,15 +15,51 @@
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "https://freelanly.com/api/content/video-script?type=job-alert",
+        "method": "POST",
+        "url": "https://freelanly.com/api/cron/post-video-to-social",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "options": {}
       },
-      "id": "get-script",
-      "name": "Get Script",
+      "id": "get-video-post",
+      "name": "Get Video Post",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [220, 0]
+      "position": [220, 0],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cron-auth",
+          "name": "Cron Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-post",
+              "leftValue": "={{ $json.hasPost }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-post",
+      "name": "Has Post?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 0]
     },
     {
       "parameters": {
@@ -31,14 +67,14 @@
         "url": "http://198.12.73.168:3123/api/short-video",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ scenes: $json.scenes, config: $json.config }) }}",
+        "jsonBody": "={{ JSON.stringify({ scenes: $json.body.scenes, config: $json.body.config }) }}",
         "options": {}
       },
       "id": "create-video",
       "name": "Create Video",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [440, 0]
+      "position": [660, -100]
     },
     {
       "parameters": {
@@ -51,15 +87,21 @@
               "type": "string"
             },
             {
-              "id": "jobUrl",
-              "name": "jobUrl",
-              "value": "={{ $('Get Script').item.json.jobUrl }}",
+              "id": "queueItemId",
+              "name": "queueItemId",
+              "value": "={{ $('Get Video Post').item.json.body.queueItemId }}",
               "type": "string"
             },
             {
-              "id": "script",
-              "name": "script",
-              "value": "={{ $('Get Script').item.json.script }}",
+              "id": "jobUrl",
+              "name": "jobUrl",
+              "value": "={{ $('Get Video Post').item.json.body.jobUrl }}",
+              "type": "string"
+            },
+            {
+              "id": "socialCaption",
+              "name": "socialCaption",
+              "value": "={{ $('Get Video Post').item.json.body.socialCaption }}",
               "type": "string"
             },
             {
@@ -76,7 +118,7 @@
       "name": "Init Data",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [660, 0]
+      "position": [880, -100]
     },
     {
       "parameters": {
@@ -87,7 +129,7 @@
       "name": "Wait 2 min",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [880, 0]
+      "position": [1100, -100]
     },
     {
       "parameters": {
@@ -105,17 +147,17 @@
       "name": "Check Video",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1100, 0]
+      "position": [1320, -100]
     },
     {
       "parameters": {
-        "jsCode": "const statusCode = $input.first().json.statusCode || 404;\nconst prev = $('Init Data').item.json;\nconst retryCount = $('Increment Retry').item?.json?.retryCount ?? prev.retryCount ?? 0;\n\nreturn [{\n  json: {\n    isReady: statusCode === 200,\n    videoId: prev.videoId,\n    jobUrl: prev.jobUrl,\n    script: prev.script,\n    retryCount: retryCount\n  }\n}];"
+        "jsCode": "const statusCode = $input.first().json.statusCode || 404;\nconst prev = $('Init Data').item.json;\nconst retryCount = $('Increment Retry').item?.json?.retryCount ?? prev.retryCount ?? 0;\n\nreturn [{\n  json: {\n    isReady: statusCode === 200,\n    videoId: prev.videoId,\n    queueItemId: prev.queueItemId,\n    jobUrl: prev.jobUrl,\n    socialCaption: prev.socialCaption,\n    retryCount: retryCount\n  }\n}];"
       },
       "id": "merge-status",
       "name": "Check Status",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1320, 0]
+      "position": [1540, -100]
     },
     {
       "parameters": {
@@ -143,7 +185,7 @@
       "name": "Ready?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1540, 0]
+      "position": [1760, -100]
     },
     {
       "parameters": {
@@ -161,12 +203,12 @@
       "name": "Download Video",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1760, -100]
+      "position": [1980, -200]
     },
     {
       "parameters": {
         "chatId": "@PCFTI",
-        "text": "={{ $('Check Status').item.json.script.replace('free-lan-lee dot com', 'freelanly.com').substring(0, 200) }}\n\n#remotework #remotejobs #hiring #wfh\n\nMore jobs: {{ $('Check Status').item.json.jobUrl }}",
+        "text": "={{ $('Check Status').item.json.socialCaption }}\n\nMore jobs: {{ $('Check Status').item.json.jobUrl }}",
         "additionalFields": {
           "appendAttribution": false
         },
@@ -176,7 +218,7 @@
       "name": "Post to Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1980, -200],
+      "position": [2200, -300],
       "credentials": {
         "telegramApi": {
           "id": "qayGIKed5OGXqNmB",
@@ -189,18 +231,41 @@
         "authentication": "communityManagement",
         "postAs": "organization",
         "organization": "53520294",
-        "text": "={{ $('Check Status').item.json.script.replace('free-lan-lee dot com', 'freelanly.com').substring(0, 250) }}\n\n#remotework #remotejobs #hiring\n\nApply here: {{ $('Check Status').item.json.jobUrl }}\n\nMore jobs at freelanly.com",
+        "text": "={{ $('Check Status').item.json.socialCaption }}\n\nApply here: {{ $('Check Status').item.json.jobUrl }}\n\nMore jobs at freelanly.com",
         "additionalFields": {}
       },
       "id": "linkedin-post",
       "name": "Post to LinkedIn",
       "type": "n8n-nodes-base.linkedIn",
       "typeVersion": 1,
-      "position": [1980, 0],
+      "position": [2200, -100],
       "credentials": {
         "linkedInCommunityManagementOAuth2Api": {
           "id": "3B9YSIs4S4P9GPv5",
           "name": "LinkedIn Community Management account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://freelanly.com/api/cron/post-video-to-social",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ queueItemId: $('Check Status').item.json.queueItemId, status: 'posted', videoId: $('Check Status').item.json.videoId, videoUrl: 'http://198.12.73.168:3123/api/short-video/' + $('Check Status').item.json.videoId }) }}",
+        "options": {}
+      },
+      "id": "mark-posted",
+      "name": "Mark Posted",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2420, -200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cron-auth",
+          "name": "Cron Auth"
         }
       }
     },
@@ -230,7 +295,7 @@
       "name": "Can Retry?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1760, 100]
+      "position": [1980, 0]
     },
     {
       "parameters": {
@@ -243,15 +308,21 @@
               "type": "string"
             },
             {
+              "id": "queueItemId",
+              "name": "queueItemId",
+              "value": "={{ $json.queueItemId }}",
+              "type": "string"
+            },
+            {
               "id": "jobUrl",
               "name": "jobUrl",
               "value": "={{ $json.jobUrl }}",
               "type": "string"
             },
             {
-              "id": "script",
-              "name": "script",
-              "value": "={{ $json.script }}",
+              "id": "socialCaption",
+              "name": "socialCaption",
+              "value": "={{ $json.socialCaption }}",
               "type": "string"
             },
             {
@@ -268,27 +339,30 @@
       "name": "Increment Retry",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1980, 100]
+      "position": [2200, 0]
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "error",
-              "name": "error",
-              "value": "Video generation timed out after 10 retries (20 min)",
-              "type": "string"
-            }
-          ]
-        },
+        "method": "PATCH",
+        "url": "https://freelanly.com/api/cron/post-video-to-social",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ queueItemId: $json.queueItemId, status: 'failed', error: 'Video generation timed out after 10 retries (20 min)' }) }}",
         "options": {}
       },
-      "id": "handle-timeout",
-      "name": "Timeout Error",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [1980, 250]
+      "id": "mark-failed",
+      "name": "Mark Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2200, 150],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cron-auth",
+          "name": "Cron Auth"
+        }
+      }
     },
     {
       "parameters": {},
@@ -296,15 +370,29 @@
       "name": "Done",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [2200, -100]
+      "position": [2640, -200]
+    },
+    {
+      "parameters": {},
+      "id": "no-post",
+      "name": "No Post",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [660, 100]
     }
   ],
   "connections": {
     "Every 30 min": {
-      "main": [[{"node": "Get Script", "type": "main", "index": 0}]]
+      "main": [[{"node": "Get Video Post", "type": "main", "index": 0}]]
     },
-    "Get Script": {
-      "main": [[{"node": "Create Video", "type": "main", "index": 0}]]
+    "Get Video Post": {
+      "main": [[{"node": "Has Post?", "type": "main", "index": 0}]]
+    },
+    "Has Post?": {
+      "main": [
+        [{"node": "Create Video", "type": "main", "index": 0}],
+        [{"node": "No Post", "type": "main", "index": 0}]
+      ]
     },
     "Create Video": {
       "main": [[{"node": "Init Data", "type": "main", "index": 0}]]
@@ -336,12 +424,15 @@
       ]
     },
     "Post to Telegram": {
+      "main": [[{"node": "Mark Posted", "type": "main", "index": 0}]]
+    },
+    "Mark Posted": {
       "main": [[{"node": "Done", "type": "main", "index": 0}]]
     },
     "Can Retry?": {
       "main": [
         [{"node": "Increment Retry", "type": "main", "index": 0}],
-        [{"node": "Timeout Error", "type": "main", "index": 0}]
+        [{"node": "Mark Failed", "type": "main", "index": 0}]
       ]
     },
     "Increment Retry": {
@@ -354,6 +445,6 @@
   "staticData": null,
   "tags": [],
   "triggerCount": 1,
-  "updatedAt": "2026-01-03T19:30:00.000Z",
-  "versionId": "11"
+  "updatedAt": "2026-01-03T20:00:00.000Z",
+  "versionId": "12"
 }

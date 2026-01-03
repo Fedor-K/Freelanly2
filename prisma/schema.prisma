@@ -315,6 +315,7 @@ model Job {
   applications  Application[]
   alertNotifications AlertNotification[]
   socialPosts   SocialPostQueue[]
+  videoPosts    VideoPostQueue[]
   applyAttempts ApplyAttempt[]
   importedJobs  ImportedJob[]
 
@@ -1061,6 +1062,34 @@ enum SocialPostStatus {
   POSTED      // Successfully posted
   FAILED      // Failed to post
   SKIPPED     // Skipped (e.g., duplicate, low quality)
+}
+
+// ============================================
+// VIDEO POST QUEUE
+// ============================================
+
+model VideoPostQueue {
+  id          String    @id @default(cuid())
+
+  // Job reference
+  job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId       String
+
+  // Video info (after generation)
+  videoId     String?   // VPS video ID
+  videoUrl    String?   // Full URL to video
+
+  // Status (reuses SocialPostStatus)
+  status      SocialPostStatus @default(PENDING)
+
+  // Tracking
+  postedAt    DateTime?
+  error       String?
+
+  createdAt   DateTime  @default(now())
+
+  @@index([status])
+  @@index([createdAt])
 }
 
 // ============================================
