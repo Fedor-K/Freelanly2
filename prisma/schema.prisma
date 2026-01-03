@@ -631,6 +631,50 @@ enum ImportStatus {
   CANCELLED
 }
 
+// Queue for background processing of data sources
+model ImportTask {
+  id            String       @id @default(cuid())
+
+  // Link to data source
+  dataSource    DataSource   @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  dataSourceId  String
+
+  // Status
+  status        TaskStatus   @default(PENDING)
+  priority      Int          @default(0)  // Higher = process first
+
+  // Progress tracking
+  totalJobs     Int          @default(0)  // Total jobs found
+  processedJobs Int          @default(0)  // Jobs processed so far
+  createdJobs   Int          @default(0)  // Jobs created
+  skippedJobs   Int          @default(0)  // Jobs skipped
+
+  // Error handling
+  error         String?
+  retryCount    Int          @default(0)
+  maxRetries    Int          @default(3)
+
+  // Timestamps
+  createdAt     DateTime     @default(now())
+  startedAt     DateTime?
+  completedAt   DateTime?
+
+  // Link to ImportLog when processing starts
+  importLogId   String?
+
+  @@index([status])
+  @@index([priority(sort: Desc), createdAt])
+  @@index([dataSourceId])
+}
+
+enum TaskStatus {
+  PENDING     // Waiting to be processed
+  PROCESSING  // Currently being processed
+  COMPLETED   // Successfully completed
+  FAILED      // Failed after max retries
+  CANCELLED   // Manually cancelled
+}
+
 // Filtered jobs - stored for 20 days for debugging
 model FilteredJob {
   id            String       @id @default(cuid())
@@ -736,6 +780,7 @@ model DataSource {
 
   // Relations
   importLogs    ImportLog[]
+  importTasks   ImportTask[]
 
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
