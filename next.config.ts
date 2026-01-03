@@ -18,6 +18,11 @@ const skillRedirects = [
 ];
 
 const nextConfig: NextConfig = {
+  // Enable instrumentation for cron scheduler
+  experimental: {
+    instrumentationHook: true,
+  },
+
   // Skip type checking during build (faster, less memory)
   typescript: {
     ignoreBuildErrors: true,

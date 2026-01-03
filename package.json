@@ -38,6 +38,7 @@
     "marked": "^17.0.1",
     "next": "16.0.10",
     "next-auth": "^5.0.0-beta.30",
+    "node-cron": "^4.2.1",
     "openai": "^6.14.0",
     "puppeteer": "^24.34.0",
     "puppeteer-extra": "^3.3.6",
@@ -51,6 +52,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/node-cron": "^3.0.11",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.2.3",
