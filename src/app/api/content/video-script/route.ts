@@ -26,13 +26,24 @@ const SCENE_VIDEOS = {
 type SceneType = 'hook' | 'content' | 'salary' | 'cta';
 
 interface Scene {
-  text: string;
+  text: string;      // TTS text (phonetic spelling)
+  caption: string;   // Subtitle text (correct spelling)
   searchTerms: string[]; // Short Video Maker expects array
 }
 
 // Helper to wrap single term in array
 function term(t: string): string[] {
   return [t];
+}
+
+// Convert salary for TTS (e.g., "$207K" -> "207 thousand dollars")
+function salaryToTTS(salary: string): string {
+  // Extract number and convert
+  const match = salary.match(/\$?(\d+)K/i);
+  if (match) {
+    return `${match[1]} thousand dollars per year`;
+  }
+  return salary;
 }
 
 // Build SINGLE scene with all text combined
@@ -48,12 +59,17 @@ function buildJobAlertScenes(
   const isDesign = /designer|ux|ui|creative/i.test(jobTitle);
   const background = isTech ? SCENE_VIDEOS.tech : isDesign ? SCENE_VIDEOS.design : SCENE_VIDEOS.professional;
 
-  // Build full script text
-  const salaryText = salary ? `${salary}.` : `${jobType} position.`;
-  const fullText = `Hot job alert! ${companyName} is hiring a ${jobTitle}. ${salaryText} ${location}. Apply now at free-lan-lee dot com!`;
+  // TTS text (phonetic)
+  const salaryTTS = salary ? `${salaryToTTS(salary)}.` : `${jobType} position.`;
+  const ttsText = `Hot job alert! ${companyName} is hiring a ${jobTitle}. ${salaryTTS} ${location}. Apply now at freelan-lee dot com!`;
+
+  // Caption text (correct spelling)
+  const salaryCaption = salary ? `${salary}.` : `${jobType} position.`;
+  const captionText = `Hot job alert! ${companyName} is hiring a ${jobTitle}. ${salaryCaption} ${location}. Apply now at freelanly.com!`;
 
   return [{
-    text: fullText,
+    text: ttsText,
+    caption: captionText,
     searchTerms: term(background),
   }];
 }
@@ -67,14 +83,23 @@ function buildSalaryRevealScenes(
 ): Scene[] {
   const background = SCENE_VIDEOS.professional;
 
-  const parts = [`How much do Remote ${categoryName} make?`];
-  if (entryRange) parts.push(`Entry level: ${entryRange}.`);
-  if (midRange) parts.push(`Mid level: ${midRange}.`);
-  if (seniorRange) parts.push(`Senior level: ${seniorRange}.`);
-  parts.push("Find your salary at free-lan-lee dot com!");
+  // TTS parts
+  const ttsParts = [`How much do Remote ${categoryName} make?`];
+  if (entryRange) ttsParts.push(`Entry level: ${entryRange}.`);
+  if (midRange) ttsParts.push(`Mid level: ${midRange}.`);
+  if (seniorRange) ttsParts.push(`Senior level: ${seniorRange}.`);
+  ttsParts.push("Find your salary at freelan-lee dot com!");
+
+  // Caption parts
+  const captionParts = [`How much do Remote ${categoryName} make?`];
+  if (entryRange) captionParts.push(`Entry level: ${entryRange}.`);
+  if (midRange) captionParts.push(`Mid level: ${midRange}.`);
+  if (seniorRange) captionParts.push(`Senior level: ${seniorRange}.`);
+  captionParts.push("Find your salary at freelanly.com!");
 
   return [{
-    text: parts.join(' '),
+    text: ttsParts.join(' '),
+    caption: captionParts.join(' '),
     searchTerms: term(background),
   }];
 }
@@ -85,14 +110,23 @@ function buildTopJobsScenes(
 ): Scene[] {
   const background = SCENE_VIDEOS.professional;
 
-  const parts = [`Top ${jobs.length} highest paying remote jobs!`];
+  // TTS parts
+  const ttsParts = [`Top ${jobs.length} highest paying remote jobs!`];
   jobs.forEach((job, i) => {
-    parts.push(`Number ${i + 1}: ${job.title} at ${job.company}, ${job.salary}.`);
+    ttsParts.push(`Number ${i + 1}: ${job.title} at ${job.company}, ${salaryToTTS(job.salary)}.`);
   });
-  parts.push("Apply at free-lan-lee dot com!");
+  ttsParts.push("Apply at freelan-lee dot com!");
+
+  // Caption parts
+  const captionParts = [`Top ${jobs.length} highest paying remote jobs!`];
+  jobs.forEach((job, i) => {
+    captionParts.push(`#${i + 1}: ${job.title} at ${job.company}, ${job.salary}.`);
+  });
+  captionParts.push("Apply at freelanly.com!");
 
   return [{
-    text: parts.join(' '),
+    text: ttsParts.join(' '),
+    caption: captionParts.join(' '),
     searchTerms: term(background),
   }];
 }
@@ -311,9 +345,10 @@ async function generateCompanyHiringScript() {
 
   // Build SINGLE scene
   const background = SCENE_VIDEOS.professional;
-  const fullText = `${topCompany.name} is hiring! They have ${topCompany.count} open remote positions. Check them out at free-lan-lee dot com!`;
+  const ttsText = `${topCompany.name} is hiring! They have ${topCompany.count} open remote positions. Check them out at freelan-lee dot com!`;
+  const captionText = `${topCompany.name} is hiring! They have ${topCompany.count} open remote positions. Check them out at freelanly.com!`;
   const scenes: Scene[] = [
-    { text: fullText, searchTerms: term(background) },
+    { text: ttsText, caption: captionText, searchTerms: term(background) },
   ];
 
   const script = scenes.map(s => s.text).join(' ');
