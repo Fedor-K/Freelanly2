@@ -38,7 +38,7 @@ async function getAccessToken(): Promise<string | null> {
   }
 }
 
-async function submitUrl(token: string, url: string): Promise<boolean> {
+async function submitUrl(token: string, url: string): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await fetch('https://indexing.googleapis.com/v3/urlNotifications:publish', {
       method: 'POST',
@@ -49,9 +49,12 @@ async function submitUrl(token: string, url: string): Promise<boolean> {
       body: JSON.stringify({ url, type: 'URL_UPDATED' }),
     });
     const data = await res.json();
-    return !data.error;
-  } catch {
-    return false;
+    if (data.error) {
+      return { success: false, error: `${data.error.code}: ${data.error.message}` };
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: String(e) };
   }
 }
 
@@ -97,8 +100,14 @@ export async function POST(request: NextRequest) {
 
   // Submit to Google Indexing API
   let googleSubmitted = 0;
+  let googleErrors: string[] = [];
   for (const url of urls.slice(0, DAILY_LIMIT)) {
-    if (await submitUrl(token, url)) googleSubmitted++;
+    const result = await submitUrl(token, url);
+    if (result.success) {
+      googleSubmitted++;
+    } else if (result.error && googleErrors.length < 3) {
+      googleErrors.push(`${url}: ${result.error}`);
+    }
     await new Promise(r => setTimeout(r, 100));
   }
 
@@ -106,7 +115,11 @@ export async function POST(request: NextRequest) {
   const indexNowResult = await submitToIndexNow(urls);
 
   return NextResponse.json({
-    google: { submitted: googleSubmitted, total: Math.min(urls.length, DAILY_LIMIT) },
+    google: {
+      submitted: googleSubmitted,
+      total: Math.min(urls.length, DAILY_LIMIT),
+      errors: googleErrors.length > 0 ? googleErrors : undefined,
+    },
     indexNow: { success: indexNowResult.success, urls: urls.length },
     totalUrls: urls.length,
   });
