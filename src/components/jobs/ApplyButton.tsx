@@ -6,7 +6,6 @@ import { QuickApplyModal } from './QuickApplyModal';
 import { UpgradeModal } from './UpgradeModal';
 import { RegistrationModal } from '@/components/auth/RegistrationModal';
 import { track } from '@/lib/analytics';
-import { Lock, LogIn } from 'lucide-react';
 
 export type UserPlan = 'FREE' | 'PRO' | 'ENTERPRISE';
 
@@ -54,8 +53,7 @@ export function ApplyButton({
             setShowRegistration(true);
           }}
         >
-          <LogIn className="mr-2 h-4 w-4" />
-          Login to Apply
+          Apply Now — Free Trial
         </Button>
         <RegistrationModal
           open={showRegistration}
@@ -80,8 +78,7 @@ export function ApplyButton({
             setShowUpgrade(true);
           }}
         >
-          <Lock className="mr-2 h-4 w-4" />
-          Upgrade to Apply
+          Start Free Trial & Apply
         </Button>
         <UpgradeModal
           open={showUpgrade}

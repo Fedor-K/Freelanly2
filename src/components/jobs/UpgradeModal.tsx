@@ -80,7 +80,7 @@ export function UpgradeModal({ open, onClose, jobId, jobTitle, companyName }: Up
             <Lock className="h-6 w-6 text-primary" />
           </div>
           <DialogTitle className="text-center text-xl">
-            Unlock Job Applications
+            Apply to This Job
           </DialogTitle>
         </DialogHeader>
 
@@ -156,11 +156,11 @@ export function UpgradeModal({ open, onClose, jobId, jobTitle, companyName }: Up
         <div className="space-y-2 pt-2">
           <Button className="w-full" size="lg" asChild>
             <Link href="/pricing">
-              Upgrade to Premium
+              Start 7-Day Free Trial
             </Link>
           </Button>
           <p className="text-center text-xs text-muted-foreground">
-            Starting at €0.39/day. Cancel anytime.
+            Free for 7 days, then €0.39/day. Cancel anytime.
           </p>
         </div>
       </DialogContent>

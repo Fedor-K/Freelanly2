@@ -143,21 +143,17 @@ export function SalaryInsights({
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="bg-background/95 backdrop-blur-sm rounded-lg p-4 text-center shadow-lg border">
                 <p className="text-sm font-medium mb-2">
-                  Unlock full salary insights
+                  Are you being underpaid?
                 </p>
                 <p className="text-xs text-muted-foreground mb-3">
-                  See range, percentiles, and data source
+                  Full range: {formatK(data.minSalary)} – ???
                 </p>
                 <Button asChild size="sm">
-                  <Link href="/pricing">Upgrade to Pro</Link>
+                  <Link href="/pricing">Reveal — 7 Days Free</Link>
                 </Button>
               </div>
             </div>
           </div>
-
-          <p className="text-xs text-muted-foreground text-center">
-            Pro members get detailed salary breakdowns
-          </p>
         </CardContent>
       </Card>
     );
