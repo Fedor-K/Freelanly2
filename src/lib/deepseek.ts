@@ -32,8 +32,8 @@ function getZaiClient(): OpenAI {
     _zai = new OpenAI({
       apiKey: process.env.ZAI_API_KEY || 'dummy-key-for-build',
       baseURL: 'https://api.z.ai/api/paas/v4',
-      timeout: 30000, // 30 second timeout
-      maxRetries: 2,
+      timeout: 15000, // 15 second timeout (faster fail)
+      maxRetries: 1,  // 1 retry only
     });
   }
   return _zai;

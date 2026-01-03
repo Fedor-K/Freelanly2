@@ -219,13 +219,29 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
     }
     const company = await findOrCreateCompany(dataSource.name, dataSource.companySlug, companyWebsite);
 
+    // Batch duplicate check by title BEFORE AI calls (saves tokens)
+    const existingTitles = await prisma.job.findMany({
+      where: {
+        companyId: company.id,
+        title: { in: jobsToProcess.map(j => j.text) }
+      },
+      select: { title: true }
+    });
+    const existingTitleSet = new Set(existingTitles.map(j => j.title));
+    const jobsAfterTitleCheck = jobsToProcess.filter(j => !existingTitleSet.has(j.text));
+    const titleDuplicates = jobsToProcess.length - jobsAfterTitleCheck.length;
+    if (titleDuplicates > 0) {
+      console.log(`[Lever] Filtered ${titleDuplicates} duplicate titles (batch check)`);
+      stats.skipped += titleDuplicates;
+    }
+
     // Process NEW jobs in parallel with concurrency limit
-    const CONCURRENCY = 5; // 5 parallel DeepSeek API calls
+    const CONCURRENCY = 15; // 15 parallel AI calls for faster processing
     const limit = createLimiter(CONCURRENCY);
     let processed = 0;
     let created = 0;
     let skippedInProcess = 0;
-    const totalToProcess = jobsToProcess.length;
+    const totalToProcess = jobsAfterTitleCheck.length;
     const startTime = Date.now();
 
     const companySlug = dataSource.companySlug!; // Already validated above
@@ -268,7 +284,15 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
       }
     };
 
-    await Promise.all(jobsToProcess.map((job, i) => limit(() => processJob(job, i))));
+    await Promise.all(jobsAfterTitleCheck.map((job, i) => limit(() => processJob(job, i))));
+
+    // Batch notify search engines (moved from per-job to end of import)
+    if (stats.createdJobUrls && stats.createdJobUrls.length > 0) {
+      console.log(`[Lever] Notifying search engines for ${stats.createdJobUrls.length} new jobs`);
+      notifySearchEngines(stats.createdJobUrls).catch((err) => {
+        console.error('[Lever] Search engine notification failed:', err);
+      });
+    }
 
     // Save filtered jobs collected by pipeline (bulk insert with error handling)
     await saveFilteredJobs(importLogId, pipelineResult.filteredJobs);
@@ -321,15 +345,8 @@ async function processLeverJob(
   importLogId: string,
   companyName: string
 ): Promise<{ status: 'created' | 'skipped'; jobSlug?: string; jobId?: string }> {
-  // Check for duplicate by title BEFORE calling AI (save tokens)
-  const existingByTitle = await prisma.job.findFirst({
-    where: { companyId, title: job.text },
-    select: { id: true },
-  });
-  if (existingByTitle) {
-    console.log(`[Lever] Skipping duplicate by title: ${job.text}`);
-    return { status: 'skipped' };
-  }
+  // NOTE: Duplicate check by title is now done in batch BEFORE this function
+  // Race condition duplicates are still caught by unique constraint in catch block
 
   // Build full description (with RESPONSIBILITIES, QUALIFICATIONS, etc.)
   const fullDescription = buildDescription(job);
@@ -408,11 +425,7 @@ async function processLeverJob(
       },
     });
 
-    // Submit to Google Indexing API (non-blocking)
-    const jobUrl = buildJobUrl(companySlug, slug);
-    notifySearchEngines([jobUrl]).catch((err) => {
-      console.error('[Lever] Search engine notification failed:', err);
-    });
+    // NOTE: Search engine notification moved to batch at end of import
 
     return { status: 'created', jobSlug: slug, jobId: createdJob.id };
   } catch (error: unknown) {
