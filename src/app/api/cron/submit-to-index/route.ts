@@ -49,10 +49,21 @@ async function submitUrl(token: string, url: string): Promise<{ success: boolean
       body: JSON.stringify({ url, type: 'URL_UPDATED' }),
     });
     const data = await res.json();
-    if (data.error) {
-      return { success: false, error: `${data.error.code}: ${data.error.message}` };
+
+    // Check for error in response
+    if (!res.ok || data.error) {
+      const errMsg = data.error
+        ? `${data.error.code}: ${data.error.message}`
+        : `HTTP ${res.status}: ${JSON.stringify(data).slice(0, 100)}`;
+      return { success: false, error: errMsg };
     }
-    return { success: true };
+
+    // Success = has urlNotificationMetadata
+    if (data.urlNotificationMetadata) {
+      return { success: true };
+    }
+
+    return { success: false, error: `Unexpected response: ${JSON.stringify(data).slice(0, 100)}` };
   } catch (e) {
     return { success: false, error: String(e) };
   }
