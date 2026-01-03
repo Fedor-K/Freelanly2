@@ -76,8 +76,10 @@ export async function POST(request: NextRequest) {
   }
 
   const token = await getAccessToken();
-  if (!token) {
-    return NextResponse.json({ error: 'Failed to get Google access token' }, { status: 500 });
+  const hasGoogleCreds = !!process.env.GOOGLE_INDEXING_CREDENTIALS;
+
+  if (!token && hasGoogleCreds) {
+    return NextResponse.json({ error: 'Failed to get Google access token (creds present but token failed)' }, { status: 500 });
   }
 
   // Static pages
@@ -112,14 +114,19 @@ export async function POST(request: NextRequest) {
   // Submit to Google Indexing API
   let googleSubmitted = 0;
   let googleErrors: string[] = [];
-  for (const url of urls.slice(0, DAILY_LIMIT)) {
-    const result = await submitUrl(token, url);
-    if (result.success) {
-      googleSubmitted++;
-    } else if (result.error && googleErrors.length < 3) {
-      googleErrors.push(`${url}: ${result.error}`);
+
+  if (token) {
+    for (const url of urls.slice(0, DAILY_LIMIT)) {
+      const result = await submitUrl(token, url);
+      if (result.success) {
+        googleSubmitted++;
+      } else if (result.error && googleErrors.length < 3) {
+        googleErrors.push(`${url}: ${result.error}`);
+      }
+      await new Promise(r => setTimeout(r, 100));
     }
-    await new Promise(r => setTimeout(r, 100));
+  } else {
+    googleErrors.push('No GOOGLE_INDEXING_CREDENTIALS configured');
   }
 
   // Submit to IndexNow (Bing, Yandex, etc.) - all URLs at once
