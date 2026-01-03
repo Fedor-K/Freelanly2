@@ -50,7 +50,7 @@ function buildJobAlertScenes(
 
   // Build full script text
   const salaryText = salary ? `${salary}.` : `${jobType} position.`;
-  const fullText = `Hot job alert! ${companyName} is hiring a ${jobTitle}. ${salaryText} ${location}. Apply now at freelanly dot com!`;
+  const fullText = `Hot job alert! ${companyName} is hiring a ${jobTitle}. ${salaryText} ${location}. Apply now at free-lan-lee dot com!`;
 
   return [{
     text: fullText,
@@ -71,7 +71,7 @@ function buildSalaryRevealScenes(
   if (entryRange) parts.push(`Entry level: ${entryRange}.`);
   if (midRange) parts.push(`Mid level: ${midRange}.`);
   if (seniorRange) parts.push(`Senior level: ${seniorRange}.`);
-  parts.push("Find your salary at freelanly dot com!");
+  parts.push("Find your salary at free-lan-lee dot com!");
 
   return [{
     text: parts.join(' '),
@@ -89,7 +89,7 @@ function buildTopJobsScenes(
   jobs.forEach((job, i) => {
     parts.push(`Number ${i + 1}: ${job.title} at ${job.company}, ${job.salary}.`);
   });
-  parts.push("Apply at freelanly dot com!");
+  parts.push("Apply at free-lan-lee dot com!");
 
   return [{
     text: parts.join(' '),
@@ -311,7 +311,7 @@ async function generateCompanyHiringScript() {
 
   // Build SINGLE scene
   const background = SCENE_VIDEOS.professional;
-  const fullText = `${topCompany.name} is hiring! They have ${topCompany.count} open remote positions. Check them out at freelanly dot com!`;
+  const fullText = `${topCompany.name} is hiring! They have ${topCompany.count} open remote positions. Check them out at free-lan-lee dot com!`;
   const scenes: Scene[] = [
     { text: fullText, searchTerms: term(background) },
   ];
