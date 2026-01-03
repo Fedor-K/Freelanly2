@@ -113,21 +113,44 @@ export async function POST(request: NextRequest) {
 
   // Submit to Google Indexing API
   let googleSubmitted = 0;
+  let googleFailed = 0;
   let googleErrors: string[] = [];
+  let firstGoogleError: string | null = null;
 
   if (token) {
     for (const url of urls.slice(0, DAILY_LIMIT)) {
       const result = await submitUrl(token, url);
       if (result.success) {
         googleSubmitted++;
-      } else if (result.error && googleErrors.length < 3) {
-        googleErrors.push(`${url}: ${result.error}`);
+      } else {
+        googleFailed++;
+        if (result.error) {
+          if (!firstGoogleError) {
+            firstGoogleError = result.error;
+          }
+          if (googleErrors.length < 3) {
+            googleErrors.push(`${url}: ${result.error}`);
+          }
+        }
       }
       await new Promise(r => setTimeout(r, 100));
     }
   } else {
-    googleErrors.push('No GOOGLE_INDEXING_CREDENTIALS configured');
+    googleFailed = Math.min(urls.length, DAILY_LIMIT);
+    firstGoogleError = 'No GOOGLE_INDEXING_CREDENTIALS configured';
+    googleErrors.push(firstGoogleError);
   }
+
+  // Log Google results to database
+  await prisma.indexingLog.create({
+    data: {
+      provider: 'GOOGLE',
+      urlsCount: Math.min(urls.length, DAILY_LIMIT),
+      success: googleSubmitted,
+      failed: googleFailed,
+      error: firstGoogleError,
+    },
+  }).catch(err => console.error('Failed to log Google submission:', err));
 
   // Submit to IndexNow (Bing, Yandex, etc.) - all URLs at once
   const indexNowResult = await submitToIndexNow(urls);
