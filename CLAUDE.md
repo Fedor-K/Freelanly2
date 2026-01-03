@@ -12,7 +12,7 @@ SEO-оптимизированная платформа для поиска уд
 - Hourly cron: sends trial onboarding emails (Day 0, 2, 5, 6, 7)
 - Cron every 15 min: posts 1 job to LinkedIn + Telegram via n8n
 - n8n workflow: scrapes LinkedIn posts every 15-20 min via Apify
-- Auto cleanup: removes jobs older than 7 days after each import
+- Auto cleanup: removes jobs older than 30 days after each import
 - Company enrichment via Apollo.io
 
 ## Tech Stack
@@ -239,7 +239,8 @@ curl -X POST "http://localhost:3000/api/cron/send-alerts?frequency=DAILY" \
 **Фильтрация по локации** происходит на фронтенде пользователем, не при импорте.
 
 **Файлы:**
-- `src/lib/utils.ts` → `MAX_JOB_AGE_DAYS = 7` — максимальный возраст вакансии
+- `src/lib/utils.ts` → `MAX_JOB_AGE_DAYS = 14` — максимальный возраст для импорта
+- `src/lib/utils.ts` → `MAX_JOB_STORAGE_DAYS = 30` — максимальный срок хранения (cleanup)
 - `src/config/target-professions.ts` — whitelist/blacklist паттерны (ЕДИНСТВЕННЫЙ ИСТОЧНИК ПРАВДЫ)
 - `src/lib/job-filter.ts` → `shouldSkipJob()` — применяет правило
 - Все процессоры (Lever, LinkedIn, etc.) используют `shouldSkipJob()`
@@ -269,8 +270,9 @@ Other: support, education, research, consulting
 - Fuzzy dedup: `src/app/api/webhooks/linkedin-posts/route.ts` → `findSimilarJobByEmailDomain()`
 
 ### Job Freshness
-- **7-day max age** (reduced for better relevance)
-- `src/lib/utils.ts` → `MAX_JOB_AGE_DAYS = 7`, `getMaxJobAgeDate()`
+- **Import**: принимаются вакансии до 14 дней давности (`MAX_JOB_AGE_DAYS = 14`)
+- **Storage**: вакансии хранятся 30 дней, потом удаляются (`MAX_JOB_STORAGE_DAYS = 30`)
+- `src/lib/utils.ts` → `getMaxJobAgeDate()`, `getMaxJobStorageDate()`
 
 ### Filters (/jobs page)
 - URL-based state: `?q=search&level=SENIOR&type=FULL_TIME`
@@ -409,7 +411,7 @@ Reference: `/blog/remote-work-statistics-2026`. Use exact data with sources, int
 5. **Primary hosting: Replit** — работает из России без проблем
 6. **VPS (198.12.73.168)** — только для n8n workflows
 7. **Cron jobs** — настраиваются в Replit Scheduled Deployments
-8. **Jobs auto-deleted after 7 days** — this is intentional for freshness, not a bug
+8. **Jobs auto-deleted after 30 days** — this is intentional for freshness, not a bug
 
 ## Replit Hosting (Primary)
 
