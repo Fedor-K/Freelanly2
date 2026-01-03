@@ -1228,6 +1228,37 @@ enum WinbackEmailType {
   DAY_30_LAST_CHANCE   // 30 days: Last chance offer
 }
 
+// Abandoned Checkout Email tracking
+model AbandonedCheckoutEmail {
+  id        String   @id @default(cuid())
+
+  // Stripe session reference
+  sessionId String
+  email     String
+
+  // Which email was sent
+  emailType AbandonedCheckoutEmailType
+
+  // Tracking
+  sentAt    DateTime @default(now())
+  openedAt  DateTime?
+  clickedAt DateTime?
+
+  // Did they convert?
+  convertedAt DateTime?
+
+  @@unique([sessionId, emailType]) // One email of each type per session
+  @@index([email])
+  @@index([emailType])
+  @@index([sentAt])
+}
+
+enum AbandonedCheckoutEmailType {
+  HOUR_1   // 1 hour after: "Complete your checkout"
+  HOUR_24  // 24 hours: "Your trial is waiting"
+  DAY_3    // 3 days: "Last chance + discount"
+}
+
 // ============================================
 // BLOG
 // ============================================
