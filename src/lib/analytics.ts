@@ -11,8 +11,8 @@
 export const analyticsConfig = {
   // Яндекс.Метрика
   yandexMetrika: {
-    id: process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID || '',
-    enabled: !!process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID,
+    id: '103606747',
+    enabled: true,
   },
 
   // Google Analytics 4
