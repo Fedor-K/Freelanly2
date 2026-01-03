@@ -15,6 +15,7 @@ import {
   Search,
   RefreshCw,
   Loader2,
+  Play,
 } from 'lucide-react';
 
 interface ParsingStats {
@@ -467,6 +468,22 @@ export default function ParsingDashboard() {
   const [stats, setStats] = useState<ParsingStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [startingParsing, setStartingParsing] = useState(false);
+
+  async function startParsing() {
+    setStartingParsing(true);
+    try {
+      const res = await fetch('/api/admin/start-parsing', { method: 'POST' });
+      if (res.ok) {
+        // Refresh stats after starting
+        setTimeout(fetchStats, 2000);
+      }
+    } catch (err) {
+      console.error('Failed to start parsing:', err);
+    } finally {
+      setStartingParsing(false);
+    }
+  }
 
   async function fetchStats() {
     try {
@@ -531,14 +548,27 @@ export default function ParsingDashboard() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Парсинг</h1>
-        <button
-          onClick={fetchStats}
-          disabled={loading}
-          className="flex items-center gap-2 px-3 py-2 text-sm bg-secondary rounded-lg hover:bg-secondary/80 disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Обновить
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={startParsing}
+            disabled={startingParsing || (stats?.queue.processing ?? 0) > 0}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {startingParsing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
+            Запустить
+          </button>
+          <button
+            onClick={fetchStats}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-secondary rounded-lg hover:bg-secondary/80 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Alerts */}
