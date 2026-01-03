@@ -74,6 +74,11 @@ export function initScheduler() {
     callCron('/api/cron/send-trial-emails', 'send-trial-emails');
   });
 
+  // Abandoned checkout emails - Every hour (offset by 30 min)
+  cron.schedule('30 * * * *', () => {
+    callCron('/api/cron/send-abandoned-checkout-emails', 'send-abandoned-checkout-emails');
+  });
+
   // Win-back emails - Daily at 10:00 UTC
   cron.schedule('0 10 * * *', () => {
     callCron('/api/cron/send-winback-emails', 'send-winback-emails');
@@ -106,7 +111,8 @@ export function initScheduler() {
   console.log('[Scheduler] Cron jobs initialized:');
   console.log('  - fetch-sources: Daily 6:00 UTC');
   console.log('  - process-instant-alerts: Every 5 min');
-  console.log('  - send-trial-emails: Hourly');
+  console.log('  - send-trial-emails: Hourly :00');
+  console.log('  - send-abandoned-checkout-emails: Hourly :30');
   console.log('  - send-winback-emails: Daily 10:00 UTC');
   console.log('  - send-nurture: Daily 9:00 UTC');
   console.log('  - send-reengagement-emails: Daily 11:00 UTC');
