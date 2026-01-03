@@ -38,12 +38,21 @@ export function slugify(text: string, maxLength: number = 50): string {
   return slug.replace(/-+$/, ''); // Remove trailing hyphens
 }
 
-// Job freshness: max age in days before a job is considered stale
+// Job import: max age in days for accepting new jobs
 export const MAX_JOB_AGE_DAYS = 14;
+
+// Job cleanup: max age in days before jobs are deleted
+export const MAX_JOB_STORAGE_DAYS = 30;
 
 export function getMaxJobAgeDate(): Date {
   const date = new Date();
   date.setDate(date.getDate() - MAX_JOB_AGE_DAYS);
+  return date;
+}
+
+export function getMaxJobStorageDate(): Date {
+  const date = new Date();
+  date.setDate(date.getDate() - MAX_JOB_STORAGE_DAYS);
   return date;
 }
 

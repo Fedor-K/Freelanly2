@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { getMaxJobAgeDate } from '@/lib/utils';
+import { getMaxJobStorageDate } from '@/lib/utils';
 
 /**
  * Cleanup orphaned companies (companies with no jobs)
@@ -32,16 +32,16 @@ export async function cleanupOrphanedCompanies(): Promise<{ deleted: number }> {
 
 /**
  * Cleanup old/inactive jobs that are no longer shown on the site
- * Jobs older than MAX_JOB_AGE_DAYS (14 days) or inactive are deleted
+ * Jobs older than MAX_JOB_STORAGE_DAYS (30 days) or inactive are deleted
  */
 export async function cleanupOldJobs(): Promise<{ deleted: number }> {
-  const maxAgeDate = getMaxJobAgeDate();
+  const maxStorageDate = getMaxJobStorageDate();
 
   const deleted = await prisma.job.deleteMany({
     where: {
       OR: [
         { isActive: false },
-        { postedAt: { lt: maxAgeDate } }
+        { postedAt: { lt: maxStorageDate } }
       ]
     }
   });
