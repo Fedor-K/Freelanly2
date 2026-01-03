@@ -39,8 +39,7 @@ export function slugify(text: string, maxLength: number = 50): string {
 }
 
 // Job freshness: max age in days before a job is considered stale
-// Reduced to 7 days for better relevance and quality
-export const MAX_JOB_AGE_DAYS = 7;
+export const MAX_JOB_AGE_DAYS = 14;
 
 export function getMaxJobAgeDate(): Date {
   const date = new Date();

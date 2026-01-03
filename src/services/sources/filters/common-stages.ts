@@ -28,7 +28,7 @@ import type { FilterReason } from '@prisma/client';
 /**
  * Age Filter Stage
  *
- * Filters out jobs older than MAX_JOB_AGE_DAYS (7 days).
+ * Filters out jobs older than MAX_JOB_AGE_DAYS (14 days).
  * Uses TOO_OLD as the filter reason.
  */
 export class AgeFilterStage<T extends FilterableJob> implements FilterStage<T> {

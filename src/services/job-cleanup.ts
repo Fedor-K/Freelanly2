@@ -32,10 +32,10 @@ export async function cleanupOrphanedCompanies(): Promise<{ deleted: number }> {
 
 /**
  * Cleanup old/inactive jobs that are no longer shown on the site
- * Jobs older than 7 days (MAX_JOB_AGE_DAYS) or inactive are deleted
+ * Jobs older than MAX_JOB_AGE_DAYS (14 days) or inactive are deleted
  */
 export async function cleanupOldJobs(): Promise<{ deleted: number }> {
-  const maxAgeDate = getMaxJobAgeDate(); // 7 days
+  const maxAgeDate = getMaxJobAgeDate();
 
   const deleted = await prisma.job.deleteMany({
     where: {
