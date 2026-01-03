@@ -4,11 +4,11 @@
     {
       "parameters": {
         "rule": {
-          "interval": [{"field": "hours", "hoursInterval": 6}]
+          "interval": [{"field": "minutes", "minutesInterval": 30}]
         }
       },
       "id": "schedule-trigger",
-      "name": "Every 6 hours",
+      "name": "Every 30 min",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [0, 0]
@@ -300,7 +300,7 @@
     }
   ],
   "connections": {
-    "Every 6 hours": {
+    "Every 30 min": {
       "main": [[{"node": "Get Script", "type": "main", "index": 0}]]
     },
     "Get Script": {
