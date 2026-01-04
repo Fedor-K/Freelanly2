@@ -21,6 +21,7 @@ import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from 
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
 import { addToSocialQueue } from '@/services/social-post';
+import { queueInstantAlertsForJob } from '@/services/alert-notifications';
 import { isPhysicalLocation } from '@/lib/job-filter';
 import { isBlockedCompany } from '@/config/company-blacklist';
 import { LeverFilterPipeline, type FilteredJobData } from './filters';
@@ -272,10 +273,14 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
           if (result.jobSlug) {
             stats.createdJobUrls!.push(buildJobUrl(company.slug, result.jobSlug));
           }
-          // Add to social post queue
+          // Add to social post queue and queue instant alerts
           if (result.jobId) {
             await addToSocialQueue(result.jobId);
             stats.createdJobIds!.push(result.jobId);
+            // Queue instant alerts (non-blocking)
+            queueInstantAlertsForJob(result.jobId).catch((err) => {
+              console.error('[Lever] Instant alerts failed:', err);
+            });
           }
         } else if (result.status === 'skipped') {
           stats.skipped++;
