@@ -1,0 +1,269 @@
+{
+  "name": "Freelanly Video Posting (Simple)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "minutes", "minutesInterval": 30}]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 30 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://freelanly.com/api/cron/post-video-to-social",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.CRON_SECRET }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-video-post",
+      "name": "Get Video Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-post",
+              "leftValue": "={{ $json.hasPost }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-post",
+      "name": "Has Post?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://198.12.73.168:3123/api/short-video",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ scenes: $json.body.scenes, config: $json.body.config }) }}",
+        "options": {}
+      },
+      "id": "create-video",
+      "name": "Create Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, -100]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "vid",
+              "name": "videoId",
+              "value": "={{ $json.videoId }}",
+              "type": "string"
+            },
+            {
+              "id": "queueItemId",
+              "name": "queueItemId",
+              "value": "={{ $('Get Video Post').item.json.body.queueItemId }}",
+              "type": "string"
+            },
+            {
+              "id": "jobUrl",
+              "name": "jobUrl",
+              "value": "={{ $('Get Video Post').item.json.body.jobUrl }}",
+              "type": "string"
+            },
+            {
+              "id": "socialCaption",
+              "name": "socialCaption",
+              "value": "={{ $('Get Video Post').item.json.body.socialCaption }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-data",
+      "name": "Set Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [880, -100]
+    },
+    {
+      "parameters": {
+        "amount": 4,
+        "unit": "minutes"
+      },
+      "id": "wait",
+      "name": "Wait 4 min",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1100, -100]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://198.12.73.168:3123/api/short-video/{{ $json.videoId }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "download-video",
+      "name": "Download Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, -100]
+    },
+    {
+      "parameters": {
+        "chatId": "@PCFTI",
+        "text": "={{ $('Set Data').item.json.socialCaption }}\n\nMore jobs: {{ $('Set Data').item.json.jobUrl }}",
+        "additionalFields": {
+          "appendAttribution": false
+        },
+        "operation": "sendVideo"
+      },
+      "id": "telegram-post",
+      "name": "Post to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1540, -200],
+      "credentials": {
+        "telegramApi": {
+          "id": "qayGIKed5OGXqNmB",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "communityManagement",
+        "postAs": "organization",
+        "organization": "53520294",
+        "text": "={{ $('Set Data').item.json.socialCaption }}\n\nApply here: {{ $('Set Data').item.json.jobUrl }}\n\nMore jobs at freelanly.com",
+        "additionalFields": {}
+      },
+      "id": "linkedin-post",
+      "name": "Post to LinkedIn",
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [1540, 0],
+      "credentials": {
+        "linkedInCommunityManagementOAuth2Api": {
+          "id": "3B9YSIs4S4P9GPv5",
+          "name": "LinkedIn Community Management account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://freelanly.com/api/cron/post-video-to-social",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.CRON_SECRET }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ queueItemId: $('Set Data').item.json.queueItemId, status: 'posted', videoId: $('Set Data').item.json.videoId, videoUrl: 'http://198.12.73.168:3123/api/short-video/' + $('Set Data').item.json.videoId }) }}",
+        "options": {}
+      },
+      "id": "mark-posted",
+      "name": "Mark Posted",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, -100]
+    },
+    {
+      "parameters": {},
+      "id": "done",
+      "name": "Done",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1980, -100]
+    },
+    {
+      "parameters": {},
+      "id": "no-post",
+      "name": "No Post",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [660, 100]
+    }
+  ],
+  "connections": {
+    "Every 30 min": {
+      "main": [[{"node": "Get Video Post", "type": "main", "index": 0}]]
+    },
+    "Get Video Post": {
+      "main": [[{"node": "Has Post?", "type": "main", "index": 0}]]
+    },
+    "Has Post?": {
+      "main": [
+        [{"node": "Create Video", "type": "main", "index": 0}],
+        [{"node": "No Post", "type": "main", "index": 0}]
+      ]
+    },
+    "Create Video": {
+      "main": [[{"node": "Set Data", "type": "main", "index": 0}]]
+    },
+    "Set Data": {
+      "main": [[{"node": "Wait 2 min", "type": "main", "index": 0}]]
+    },
+    "Wait 2 min": {
+      "main": [[{"node": "Download Video", "type": "main", "index": 0}]]
+    },
+    "Download Video": {
+      "main": [
+        [
+          {"node": "Post to Telegram", "type": "main", "index": 0},
+          {"node": "Post to LinkedIn", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "Post to Telegram": {
+      "main": [[{"node": "Mark Posted", "type": "main", "index": 0}]]
+    },
+    "Mark Posted": {
+      "main": [[{"node": "Done", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

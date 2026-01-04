@@ -81,6 +81,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       console.log(`[Auth] New user created: ${user.email}`);
       // Could add analytics tracking here
     },
+
+    // Fix: Set emailVerified for Google OAuth users
+    async signIn({ user, account }) {
+      console.log(`[Auth Event] signIn: provider=${account?.provider}, email=${user.email}, userId=${user.id}`);
+
+      if (account?.provider === 'google' && user.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { emailVerified: true },
+        });
+
+        if (dbUser && !dbUser.emailVerified) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { emailVerified: new Date() },
+          });
+          console.log(`[Auth Event] Email verified for Google user: ${user.email}`);
+        }
+      }
+    },
   },
 
   session: {
