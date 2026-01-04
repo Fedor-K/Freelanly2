@@ -1,9 +1,9 @@
 /**
  * Abandoned Checkout Email Sequence
  *
- * 1 hour   - "Complete your checkout"
+ * 1 hour   - "15% off + urgency" (code: QUICK15)
  * 24 hours - "Your free trial is waiting"
- * 3 days   - "Last chance + 20% off"
+ * 3 days   - "Last chance + 20% off" (code: WELCOME20)
  */
 
 import { prisma } from '@/lib/db';
@@ -45,40 +45,48 @@ function getEmailContent(
   switch (emailType) {
     case 'HOUR_1':
       return {
-        subject: 'Complete your Freelanly registration',
+        subject: '15% off expires in 3 hours — complete your signup',
         html: `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<head><meta charset="utf-8"><style>${baseStyle}
+  .timer { background: #fef2f2; border: 2px solid #fecaca; padding: 16px; border-radius: 8px; text-align: center; margin: 20px 0; }
+  .timer-text { color: #dc2626; font-weight: 700; font-size: 18px; margin: 0; }
+</style></head>
 <body>
 <div class="container">
-  <div class="header">
-    <h1>Almost There!</h1>
+  <div class="header" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">
+    <h1>15% OFF — Limited Time</h1>
   </div>
   <div class="content">
     <p>Hi there,</p>
 
-    <p>We noticed you started signing up for Freelanly PRO but didn't finish. No worries — your <strong>7-day free trial</strong> is still waiting for you!</p>
+    <p>You were just one step away from unlocking <strong>unlimited job applications</strong> on Freelanly.</p>
 
-    <div class="highlight">
-      <p style="margin: 0;"><strong>What you'll get with PRO:</strong></p>
-      <ul style="margin: 10px 0 0;">
-        <li>Apply to <strong>unlimited remote jobs</strong></li>
-        <li>See <strong>direct contact info</strong> (emails, phones)</li>
-        <li><strong>Full salary insights</strong> with market data</li>
-        <li><strong>INSTANT job alerts</strong> — be first to apply</li>
-      </ul>
+    <div class="offer-box" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">
+      <h3>15% OFF</h3>
+      <p style="margin: 0; opacity: 0.9;">Your first month after free trial</p>
+      <p style="margin: 10px 0 0; font-size: 18px;"><strong>Code: QUICK15</strong></p>
     </div>
 
+    <div class="timer">
+      <p class="timer-text">This offer expires in 3 hours</p>
+    </div>
+
+    <p><strong>What you're missing right now:</strong></p>
+    <ul>
+      <li>That job you wanted to apply to? Someone else might get it</li>
+      <li><strong>Direct emails & contacts</strong> hidden from FREE users</li>
+      <li><strong>INSTANT alerts</strong> — be first to apply, not last</li>
+    </ul>
+
     <p style="text-align: center;">
-      <a href="https://freelanly.com/pricing" class="button">Start Your Free Trial</a>
+      <a href="https://freelanly.com/pricing?coupon=QUICK15" class="button" style="background: #dc2626;">Claim 15% Off Now</a>
     </p>
 
     <p style="text-align: center; color: #666; font-size: 14px;">
-      No charge for 7 days. Cancel anytime.
+      7-day free trial included. Cancel anytime.
     </p>
-
-    <p>Questions? Just reply to this email.</p>
 
     <p>Best,<br>The Freelanly Team</p>
   </div>
