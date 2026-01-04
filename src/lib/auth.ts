@@ -45,12 +45,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             jobViewsToday: true,
             lastViewReset: true,
             resumeUrl: true,
+            needsOnboarding: true,
           },
         });
         if (fullUser) {
           session.user.plan = fullUser.plan;
           session.user.jobViewsToday = fullUser.jobViewsToday;
           session.user.resumeUrl = fullUser.resumeUrl;
+          session.user.needsOnboarding = fullUser.needsOnboarding;
         }
       }
       return session;
@@ -82,22 +84,36 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Could add analytics tracking here
     },
 
-    // Fix: Set emailVerified for Google OAuth users
+    // Fix: Set emailVerified and needsOnboarding for Google OAuth users
     async signIn({ user, account }) {
       console.log(`[Auth Event] signIn: provider=${account?.provider}, email=${user.email}, userId=${user.id}`);
 
       if (account?.provider === 'google' && user.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
-          select: { emailVerified: true },
+          select: { emailVerified: true, jobAlerts: { select: { id: true }, take: 1 } },
         });
 
-        if (dbUser && !dbUser.emailVerified) {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { emailVerified: new Date() },
-          });
-          console.log(`[Auth Event] Email verified for Google user: ${user.email}`);
+        if (dbUser) {
+          const updates: { emailVerified?: Date; needsOnboarding?: boolean } = {};
+
+          // Verify email for Google users
+          if (!dbUser.emailVerified) {
+            updates.emailVerified = new Date();
+          }
+
+          // Set needsOnboarding if user has no job alerts (new Google user)
+          if (dbUser.jobAlerts.length === 0) {
+            updates.needsOnboarding = true;
+          }
+
+          if (Object.keys(updates).length > 0) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: updates,
+            });
+            console.log(`[Auth Event] Updated Google user ${user.email}:`, updates);
+          }
         }
       }
     },
@@ -125,6 +141,7 @@ declare module 'next-auth' {
       plan: 'FREE' | 'PRO' | 'ENTERPRISE';
       jobViewsToday: number;
       resumeUrl?: string | null;
+      needsOnboarding?: boolean;
     };
   }
 }
