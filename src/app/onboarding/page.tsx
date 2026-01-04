@@ -123,6 +123,9 @@ export default function OnboardingPage() {
       // Refresh session to clear needsOnboarding
       await update();
 
+      // Clear stored callback URL
+      sessionStorage.removeItem('onboarding-callback-url');
+
       // Redirect to callback URL
       router.push(callbackUrl);
     } catch (err) {
