@@ -44,7 +44,7 @@ export function JobCard({ job }: JobCardProps) {
                 </Link>
               </div>
               <span className="text-xs text-muted-foreground whitespace-nowrap">
-                {formatDistanceToNow(job.postedAt)}
+                {formatDistanceToNow(job.createdAt)}
               </span>
             </div>
 

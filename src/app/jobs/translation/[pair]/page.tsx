@@ -384,6 +384,7 @@ export default async function TranslationPairPage({ params, searchParams }: Page
                       source: job.source,
                       sourceType: job.sourceType,
                       postedAt: job.postedAt,
+                      createdAt: job.createdAt,
                       sourceLanguages: job.sourceLanguages,
                       targetLanguages: job.targetLanguages,
                     }}

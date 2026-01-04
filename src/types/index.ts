@@ -24,6 +24,7 @@ export interface JobCardData {
   source: string;
   sourceType: string;
   postedAt: Date;
+  createdAt: Date;
 }
 
 export interface JobDetailData extends JobCardData {
