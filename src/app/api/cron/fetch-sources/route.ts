@@ -113,17 +113,9 @@ export async function POST(request: NextRequest) {
       try {
         const result = await processDataSource(task.dataSourceId);
 
-        await prisma.importTask.update({
+        // Delete task after successful completion (no need to keep history)
+        await prisma.importTask.delete({
           where: { id: task.id },
-          data: {
-            status: 'COMPLETED',
-            totalJobs: result.total,
-            processedJobs: result.total,
-            createdJobs: result.created,
-            skippedJobs: result.skipped,
-            completedAt: new Date(),
-            error: null,
-          },
         });
 
         stats.processed++;
@@ -135,17 +127,24 @@ export async function POST(request: NextRequest) {
         const newRetryCount = task.retryCount + 1;
         const isFinalFailure = newRetryCount >= task.maxRetries;
 
-        await prisma.importTask.update({
-          where: { id: task.id },
-          data: {
-            status: isFinalFailure ? 'FAILED' : 'PENDING',
-            retryCount: newRetryCount,
-            error: String(error),
-            completedAt: isFinalFailure ? new Date() : null,
-          },
-        });
+        if (isFinalFailure) {
+          // Delete failed task after max retries
+          await prisma.importTask.delete({
+            where: { id: task.id },
+          });
+          stats.failed++;
+        } else {
+          // Reset to PENDING for retry
+          await prisma.importTask.update({
+            where: { id: task.id },
+            data: {
+              status: 'PENDING',
+              retryCount: newRetryCount,
+              error: String(error),
+            },
+          });
+        }
 
-        if (isFinalFailure) stats.failed++;
         console.error(`[FetchSources] Error: ${task.dataSource.name}:`, error);
       }
     }
