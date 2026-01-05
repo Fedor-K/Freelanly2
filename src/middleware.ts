@@ -2,7 +2,16 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(req: NextRequest) {
+  const host = req.headers.get('host') || '';
   const pathname = req.nextUrl.pathname;
+
+  // WWW to non-WWW redirect (301 permanent)
+  if (host.startsWith('www.')) {
+    const newHost = host.replace('www.', '');
+    const newUrl = new URL(req.url);
+    newUrl.host = newHost;
+    return NextResponse.redirect(newUrl, 301);
+  }
 
   // SEO redirects for old/removed pages
   const seoRedirects: Record<string, string> = {
