@@ -281,11 +281,14 @@ export async function queueInstantAlertsForJob(jobId: string): Promise<{ queued:
     return { queued: 0 };
   }
 
-  // Find all active INSTANT alerts
+  // Find all active INSTANT alerts (only for verified users)
   const instantAlerts = await prisma.jobAlert.findMany({
     where: {
       isActive: true,
       frequency: 'INSTANT',
+      user: {
+        emailVerified: { not: null }, // Only send to verified users
+      },
     },
     include: {
       languagePairs: true,

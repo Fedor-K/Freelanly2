@@ -202,11 +202,14 @@ function getSinceDate(frequency: AlertFrequency, lastSentAt: Date | null): Date 
 export async function findAlertsWithMatches(
   frequency: AlertFrequency
 ): Promise<AlertWithMatches[]> {
-  // Get all active alerts with the specified frequency
+  // Get all active alerts with the specified frequency (only for verified users)
   const alerts = await prisma.jobAlert.findMany({
     where: {
       isActive: true,
       frequency,
+      user: {
+        emailVerified: { not: null }, // Only send to verified users
+      },
     },
     include: {
       languagePairs: true,
