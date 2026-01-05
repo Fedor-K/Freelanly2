@@ -28,6 +28,17 @@ export default function robots(): MetadataRoute.Robots {
           '*?*location=hybrid*',
           '/companies?industry=*',
 
+          // Complex filter combinations (faceted navigation) - saves crawl budget
+          // Block URLs with multiple values for same parameter
+          '/jobs?*level=*&*level=*',
+          '/jobs?*type=*&*type=*',
+          '/jobs?*skills=*&*skills=*',
+          // Block URLs with 4+ different filter parameters
+          '/jobs?*&*&*&*&*',
+          // Block salary filter combinations (creates too many permutations)
+          '/jobs?*salary=*&*skills=*',
+          '/jobs?*skills=*&*salary=*',
+
           // Stripe/payment related
           '/pricing?*',
         ],
@@ -65,6 +76,13 @@ export default function robots(): MetadataRoute.Robots {
           '/auth/',
           '*?page=*',
           '*?q=*',
+          // Complex filter combinations (faceted navigation)
+          '/jobs?*level=*&*level=*',
+          '/jobs?*type=*&*type=*',
+          '/jobs?*skills=*&*skills=*',
+          '/jobs?*&*&*&*&*',
+          '/jobs?*salary=*&*skills=*',
+          '/jobs?*skills=*&*salary=*',
         ],
       },
       {
