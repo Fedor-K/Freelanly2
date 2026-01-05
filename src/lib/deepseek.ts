@@ -107,7 +107,10 @@ const LANGUAGES = [
 // Translation-related role keywords
 const TRANSLATION_ROLES = [
   'translator', 'interpreter', 'localization', 'localizer', 'transcriber',
-  'subtitler', 'captioner', 'linguist', 'language specialist'
+  'subtitler', 'captioner', 'linguist', 'language specialist',
+  'proofreader', 'revisor', 'reviser', 'post-editor', 'terminologist',
+  'language coordinator', 'language lead', 'language manager',
+  'translation manager', 'translation specialist', 'translation coordinator'
 ];
 
 /**
@@ -441,7 +444,11 @@ function localClassifyJob(title: string): string {
   if (t.includes('sales') || t.includes('account')) return 'sales';
   if (t.includes('design') || t.includes('ux') || t.includes('ui')) return 'design';
   if (t.includes('writer') || t.includes('content') || t.includes('copy')) return 'writing';
-  if (t.includes('translat') || t.includes('locali')) return 'translation';
+  if (t.includes('translat') || t.includes('locali') || t.includes('linguist') ||
+      t.includes('interpret') || t.includes('proofreader') || t.includes('subtitl') ||
+      t.includes('caption') || t.includes('transcription') || t.includes('terminolog') ||
+      t.includes('post-editor') || t.includes('mtpe') || t.includes('revisor') ||
+      t.includes('bilingual') || t.includes('multilingual')) return 'translation';
   if (t.includes('project manager') || t.includes('scrum')) return 'project-management';
   if (t.includes('hr') || t.includes('recruit') || t.includes('people')) return 'hr';
   if (t.includes('finance') || t.includes('account') || t.includes('payroll')) return 'finance';
@@ -466,6 +473,7 @@ IMPORT (YES) - Tech/digital work only:
 - Technical writers, UX writers
 - Tech recruiters, technical sourcers
 - Financial analysts (tech/fintech companies only)
+- TRANSLATION & LOCALIZATION (ALWAYS IMPORT): translators, interpreters, localization specialists, linguists, proofreaders, post-editors, subtitlers, captioners, transcriptionists, terminologists, language specialists, bilingual roles, multilingual roles
 
 SKIP (NO) - NOT for our platform:
 - TRAVEL/HOSPITALITY: booking agents, reservationists, travel coordinators, wedding planners, cruise specialists, hotel staff, concierge

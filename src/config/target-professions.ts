@@ -432,12 +432,32 @@ const WHITELIST_VIDEO_AUDIO = [
 ];
 
 const WHITELIST_TRANSLATION = [
-  'translator', 'localization specialist', 'localization engineer',
-  'localization manager', 'localization lead',
-  'interpreter', // remote interpreter
-  'transcriptionist', 'subtitler', 'captioner',
-  'translation project manager', 'language specialist',
-  'localization qa', 'linguistic qa',
+  // Core translation roles
+  'translator', 'senior translator', 'freelance translator',
+  'translation manager', 'translation coordinator', 'translation specialist',
+  'translation project manager', 'translation reviewer',
+  // Localization
+  'localization specialist', 'localization engineer', 'localization coordinator',
+  'localization manager', 'localization lead', 'localization tester',
+  'game localization', 'software localization', 'multimedia localization',
+  'localization qa', 'linguistic qa', 'language qa',
+  // Linguistics
+  'linguist', 'senior linguist', 'computational linguist',
+  'language specialist', 'language coordinator', 'language lead',
+  'language services', 'language manager',
+  // Interpreting
+  'interpreter', 'conference interpreter', 'remote interpreter',
+  // Post-editing & QA
+  'post-editor', 'post editor', 'mtpe', 'machine translation post-editor',
+  'proofreader', 'revisor', 'reviser',
+  'translation reviewer', 'linguistic reviewer', 'localization reviewer',
+  // Transcription & Subtitling
+  'transcriptionist', 'subtitler', 'captioner', 'subtitle editor',
+  // Specialized
+  'terminologist', 'terminology manager', 'terminology specialist',
+  'dtp specialist', 'desktop publishing specialist',
+  // Bilingual/Multilingual
+  'bilingual', 'multilingual', 'polyglot',
 ];
 
 const WHITELIST_SALES = [
