@@ -3,11 +3,11 @@
   "crons": [
     {
       "path": "/api/cron/fetch-sources",
-      "schedule": "0 6 * * *"
+      "schedule": "0 6,14,22 * * *"
     },
     {
       "path": "/api/cron/fetch-linkedin",
-      "schedule": "30 6 * * *"
+      "schedule": "30 6,14,22 * * *"
     },
     {
       "path": "/api/cron/send-alerts?frequency=DAILY",

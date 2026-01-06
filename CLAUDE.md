@@ -5,7 +5,7 @@
 SEO-оптимизированная платформа для поиска удалённых вакансий. Агрегация из LinkedIn (Apify) и ATS (Lever). AI extraction через DeepSeek или Z.ai (переключается через `AI_PROVIDER` env var).
 
 **Автоматизация:**
-- Daily cron at 6:00 UTC: fetches all sources
+- Cron 3x daily at 6:00, 14:00, 22:00 UTC: fetches all sources
 - Daily cron at 7:00 UTC: sends job alert notifications
 - Daily cron at 10:00 UTC: sends win-back emails to churned users
 - Cron every 5 min: processes INSTANT alert queue (batched emails)
