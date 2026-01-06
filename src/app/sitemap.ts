@@ -4,6 +4,7 @@ import { countries as programmaticCountries } from '@/config/countries';
 import { salaryRanges } from '@/config/salary-ranges';
 import { skills } from '@/config/skills';
 import { prisma } from '@/lib/db';
+import { getSitemapPriority } from '@/lib/content-quality';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = siteConfig.url;
@@ -185,11 +186,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     // Fetch jobs with company info for new URL structure
+    // Exclude THIN content from sitemap (they have noindex anyway)
     const jobs = await prisma.job.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        contentQuality: { not: 'THIN' }, // Exclude THIN content from sitemap
+      },
       select: {
         slug: true,
         updatedAt: true,
+        contentQuality: true,
         company: {
           select: { slug: true },
         },
@@ -199,11 +205,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
 
     // Job pages: /company/[companySlug]/jobs/[jobSlug]
+    // Priority based on content quality: RICH = 0.8, LIGHT = 0.5
     jobPages = jobs.map((job) => ({
       url: `${baseUrl}/company/${job.company.slug}/jobs/${job.slug}`,
       lastModified: job.updatedAt,
       changeFrequency: 'weekly' as const,
-      priority: 0.7,
+      priority: getSitemapPriority(job.contentQuality),
     }));
 
     const companies = await prisma.company.findMany({

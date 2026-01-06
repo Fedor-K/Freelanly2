@@ -284,9 +284,10 @@ Other: support, education, research, consulting
 - Job page: `Home / Company / Job Title`
 - Industry standard approach
 
-### Privacy Filter
-- Only jobs with corporate email (filter gmail, yahoo, etc.)
-- `src/lib/utils.ts` → `isFreeEmail()`
+### Email Handling
+- Free emails (gmail, yahoo, etc.) are soft signals that lower content quality score (-15)
+- Jobs with free emails are still imported but may be marked as THIN content
+- `src/lib/content-quality.ts` → `isFreeEmailProvider()`
 
 ### Company Logo
 Priority: Apollo → Logo.dev (`img.logo.dev/DOMAIN?token=pk_A6k2yPZ4T6y5MZrbuUd9yA`) → Placeholder
@@ -299,13 +300,64 @@ Sources: Cache → BLS (US) → Adzuna (19 countries) → Formula estimation.
 **Formula:** `BaseSalary[category] × Level × Country` (see `src/config/salary-base.ts`, `salary-coefficients.ts`)
 **FREE:** average only | **PRO:** full range, percentiles, source
 
+### Content Quality for SEO
+Система оценки качества контента для защиты SEO от тонкого контента (короткие посты из LinkedIn).
+
+**Quality Tiers:**
+| Tier | Score | SEO | Sitemap | Social Queue |
+|------|-------|-----|---------|--------------|
+| RICH | 55-100 | index | priority 0.8 | Yes |
+| LIGHT | 35-54 | index | priority 0.5 | Yes |
+| THIN | 0-34 | noindex | excluded | No |
+
+**Scoring System (0-100):**
+```
+Base score from description length:
+  <300 chars → +10
+  300-500 chars → +25
+  500-800 chars → +40
+  800-1500 chars → +55
+  >1500 chars → +70
+
+Bonuses:
+  +10 salary provided
+  +8 skills ≥3
+  +5 skills ≥5
+  +7 requirements ≥3
+  +5 benefits ≥2
+  +5 clean description >500
+  +10 Apollo validated
+
+Penalties:
+  -15 free email (gmail, yahoo, etc.)
+  -10 announcement style
+  -5 no apply method
+```
+
+**Key principle:** Quality affects SEO only, NOT visibility to users:
+- ✅ ALL jobs shown on site (including THIN)
+- ✅ ALL jobs sent in job alerts (including THIN)
+- ❌ THIN jobs: noindex meta tag, excluded from sitemap, no IndexNow, no social posting
+
+**Files:**
+- `src/lib/content-quality.ts` — assessment functions
+- `src/app/api/webhooks/linkedin-posts/route.ts` — applies quality on import
+- `src/app/company/[companySlug]/jobs/[jobSlug]/page.tsx` — noindex for THIN
+- `src/app/sitemap.ts` — excludes THIN, priority by quality
+- `scripts/migrate-content-quality.ts` — migration for existing jobs
+
+**Migration:**
+```bash
+npx tsx scripts/migrate-content-quality.ts
+```
+
 ## Key Files
 
 **Core:** `src/lib/deepseek.ts` (AI), `src/lib/utils.ts`, `src/lib/auth.ts`, `src/lib/stripe.ts`
 **Services:** `src/services/linkedin-processor.ts`, `src/services/sources/*.ts`, `src/services/alert-notifications.ts`, `src/services/salary-insights.ts`
 **API crons:** `src/app/api/cron/fetch-sources|fetch-linkedin|send-alerts|process-instant-alerts|send-trial-emails|send-winback-emails`
 **Config:** `src/config/site.ts`, `src/config/salary-base.ts`, `src/config/salary-coefficients.ts`
-**Scripts:** `scripts/cleanup-duplicate-*.ts`, `scripts/recategorize-jobs.ts`
+**Scripts:** `scripts/cleanup-duplicate-*.ts`, `scripts/recategorize-jobs.ts`, `scripts/migrate-content-quality.ts`
 
 ## Common Tasks
 
@@ -319,6 +371,7 @@ curl -X POST "http://localhost:3000/api/cron/send-alerts?frequency=DAILY"
 npx tsx scripts/cleanup-duplicate-companies.ts
 npx tsx scripts/cleanup-duplicate-jobs.ts
 npx tsx scripts/recategorize-jobs.ts
+npx tsx scripts/migrate-content-quality.ts   # Assess quality for existing jobs
 
 # Database
 npm run db:seed                    # After DB reset

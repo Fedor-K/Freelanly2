@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
-import { slugify, isFreeEmail, extractDomainFromEmail, cleanEmail } from '@/lib/utils';
+import { slugify, extractDomainFromEmail, cleanEmail } from '@/lib/utils';
 import { ensureSalaryData } from '@/lib/salary-estimation';
 import { validateAndEnrichCompany } from '@/services/company-enrichment';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { sendInstantAlertsForJob } from '@/services/alert-notifications';
 import { addToSocialQueue } from '@/services/social-post';
 import { shouldSkipJob } from '@/lib/job-filter';
+import { assessContentQuality, isFreeEmailProvider, isPersonalAnnouncement } from '@/lib/content-quality';
 
 /**
  * POST /api/webhooks/linkedin-posts
@@ -123,27 +124,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Filter: skip personal announcements (not job postings)
-    if (isAnnouncementNotJob(extracted.title)) {
-      console.log(`[LinkedInPosts] Personal announcement, not a job: ${extracted.title}`);
-      return NextResponse.json({
-        success: true,
-        status: 'skipped',
-        reason: 'announcement_not_job',
-      });
-    }
-
     // Clean and validate email (handles AI-extracted emails with extra text)
     const validatedEmail = cleanEmail(extracted.contactEmail);
 
-    // Skip jobs without corporate email
-    if (!validatedEmail || isFreeEmail(validatedEmail)) {
-      console.log(`[LinkedInPosts] No corporate email, skipping`);
-      return NextResponse.json({
-        success: true,
-        status: 'skipped',
-        reason: 'no_corporate_email',
-      });
+    // Track quality signals (soft signals, NOT hard filters)
+    const isAnnouncement = isPersonalAnnouncement(extracted.title, postContent);
+    const hasFreeEmail = isFreeEmailProvider(validatedEmail);
+
+    if (isAnnouncement) {
+      console.log(`[LinkedInPosts] Announcement style detected (will affect quality score)`);
+    }
+    if (hasFreeEmail) {
+      console.log(`[LinkedInPosts] Free email provider detected: ${validatedEmail} (will affect quality score)`);
     }
 
     // =========================================================================
@@ -168,27 +160,29 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Check for similar job from same company (by email domain)
-    const hasSimilarJob = await findSimilarJobByEmailDomain(
-      validatedEmail,
-      extracted.title
-    );
+    // Check for similar job from same company (by email domain) - only if we have email
+    if (validatedEmail && !hasFreeEmail) {
+      const hasSimilarJob = await findSimilarJobByEmailDomain(
+        validatedEmail,
+        extracted.title
+      );
 
-    if (hasSimilarJob) {
-      console.log(`[LinkedInPosts] Similar job already exists, skipping`);
-      return NextResponse.json({
-        success: true,
-        status: 'skipped',
-        reason: 'similar_job_exists',
-      });
+      if (hasSimilarJob) {
+        console.log(`[LinkedInPosts] Similar job already exists, skipping`);
+        return NextResponse.json({
+          success: true,
+          status: 'skipped',
+          reason: 'similar_job_exists',
+        });
+      }
     }
 
     // Validate extracted company name - ignore generic terms
     const extractedCompany = isGenericCompanyName(extracted.company) ? null : extracted.company;
 
-    // Get company name - EMAIL DOMAIN IS SOURCE OF TRUTH (who is actually hiring)
-    // Priority: email domain → DeepSeek extraction → headline → author name
-    const emailCompany = extractCompanyFromEmail(validatedEmail);
+    // Get company name - corporate email domain is source of truth, then fallbacks
+    // Priority: corporate email domain → DeepSeek extraction → headline → author name
+    const emailCompany = (validatedEmail && !hasFreeEmail) ? extractCompanyFromEmail(validatedEmail) : null;
     const companyName = emailCompany ||
       extractedCompany ||
       extractCompanyFromHeadline(authorHeadline) ||
@@ -229,21 +223,16 @@ export async function POST(request: NextRequest) {
       email: validatedEmail,
     });
 
-    // Validate company via Apollo and check for logo
-    // This filters out fake recruiters with custom domains
-    const isValidCompany = await validateAndEnrichCompany(company.id, validatedEmail);
-
-    if (!isValidCompany) {
-      // Delete the company we just created (it's fake)
-      await prisma.company.delete({ where: { id: company.id } }).catch(() => {
-        // Ignore if company has other jobs
-      });
-      console.log(`[LinkedInPosts] Company validation failed: ${validatedEmail}`);
-      return NextResponse.json({
-        success: true,
-        status: 'skipped',
-        reason: 'company_validation_failed',
-      });
+    // Try to validate company via Apollo (soft signal, NOT hard filter)
+    // Only try if we have a corporate email
+    let apolloValidated = false;
+    if (validatedEmail && !hasFreeEmail) {
+      apolloValidated = await validateAndEnrichCompany(company.id, validatedEmail);
+      if (!apolloValidated) {
+        console.log(`[LinkedInPosts] Apollo validation failed for ${validatedEmail} (will affect quality score)`);
+      }
+    } else {
+      console.log(`[LinkedInPosts] Skipping Apollo validation (no corporate email)`);
     }
 
     // Classify category
@@ -274,6 +263,23 @@ export async function POST(request: NextRequest) {
       salaryPeriod: extracted.salaryPeriod || 'YEAR',
       salaryIsEstimate: false,
     } : ensureSalaryData({ salaryMin: null }, category.slug, extracted.level || 'MID', countryCode);
+
+    // Assess content quality for SEO (THIN = noindex, LIGHT/RICH = index)
+    const qualityResult = assessContentQuality({
+      description: postContent,
+      cleanDescription: extracted.cleanDescription,
+      salaryMin: salaryData.salaryMin,
+      skills: extracted.skills,
+      requirementBullets: extracted.requirementBullets,
+      benefitBullets: extracted.benefitBullets,
+      applyEmail: validatedEmail,
+      applyUrl: extracted.applyUrl,
+      isFreeEmail: hasFreeEmail,
+      isAnnouncement,
+      apolloValidated,
+    });
+
+    console.log(`[LinkedInPosts] Content quality: ${qualityResult.quality} (score: ${qualityResult.score})`);
 
     // Create job (with unique constraint handling for race conditions)
     let job;
@@ -311,6 +317,7 @@ export async function POST(request: NextRequest) {
           applyUrl: extracted.applyUrl,
           enrichmentStatus: 'COMPLETED',
           qualityScore: calculateQualityScore(extracted),
+          contentQuality: qualityResult.quality,
           postedAt: new Date(),
         },
       });
@@ -332,26 +339,30 @@ export async function POST(request: NextRequest) {
       throw createError;
     }
 
-    console.log(`[LinkedInPosts] Created job: ${job.slug}`);
+    console.log(`[LinkedInPosts] Created job: ${job.slug} (quality: ${qualityResult.quality})`);
 
     // Note: Company enrichment is already done in validateAndEnrichCompany()
 
-    // Notify search engines
-    try {
-      await notifySearchEngines([buildJobUrl(company.slug, job.slug)]);
-    } catch (indexError) {
-      console.error('[LinkedInPosts] Search engine notification failed:', indexError);
-    }
-
-    // Send INSTANT alerts for this job (non-blocking)
+    // Send INSTANT alerts for this job (non-blocking) - ALL jobs, including THIN
     sendInstantAlertsForJob(job.id).catch((err) => {
       console.error('[LinkedInPosts] Instant alerts failed:', err);
     });
 
-    // Add to social post queue (non-blocking)
-    addToSocialQueue(job.id).catch((err) => {
-      console.error('[LinkedInPosts] Social queue failed:', err);
-    });
+    // Notify search engines - ONLY for non-THIN content (THIN = noindex anyway)
+    if (qualityResult.quality !== 'THIN') {
+      try {
+        await notifySearchEngines([buildJobUrl(company.slug, job.slug)]);
+      } catch (indexError) {
+        console.error('[LinkedInPosts] Search engine notification failed:', indexError);
+      }
+
+      // Add to social post queue (non-blocking) - ONLY for non-THIN content
+      addToSocialQueue(job.id).catch((err) => {
+        console.error('[LinkedInPosts] Social queue failed:', err);
+      });
+    } else {
+      console.log(`[LinkedInPosts] Skipping IndexNow and social queue for THIN content`);
+    }
 
     return NextResponse.json({
       success: true,
@@ -359,6 +370,8 @@ export async function POST(request: NextRequest) {
       jobId: job.id,
       jobSlug: job.slug,
       companySlug: company.slug,
+      contentQuality: qualityResult.quality,
+      qualityScore: qualityResult.score,
     });
   } catch (error) {
     console.error('[LinkedInPosts] Error:', error);
@@ -675,55 +688,6 @@ async function findSimilarJobByEmailDomain(
   }
 
   return false;
-}
-
-/**
- * Check if the "title" is actually a personal announcement, not a job
- * (research papers, promotions, achievements, etc.)
- */
-function isAnnouncementNotJob(title: string): boolean {
-  const lowerTitle = title.toLowerCase();
-
-  // Patterns that indicate personal announcements, not jobs
-  const announcementPatterns = [
-    'research paper',
-    'paper publication',
-    'publication',
-    'accepted for',
-    'excited to share',
-    'excited to announce',
-    'thrilled to share',
-    'thrilled to announce',
-    'happy to announce',
-    'glad to share',
-    'proud to announce',
-    'proud to share',
-    'delighted to share',
-    'pleased to announce',
-    'honored to',
-    'awarded',
-    'won the',
-    'received the',
-    'promoted to',
-    'new role at',
-    'started as',
-    'starting as',
-    'new chapter',
-    'new journey',
-    'farewell',
-    'goodbye',
-    'last day at',
-    'anniversary at',
-    'years at',
-    'milestone',
-    'achievement',
-    'certification',
-    'certified',
-    'graduated',
-    'graduation',
-  ];
-
-  return announcementPatterns.some((pattern) => lowerTitle.includes(pattern));
 }
 
 // GET endpoint for testing

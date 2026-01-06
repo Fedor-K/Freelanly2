@@ -21,6 +21,7 @@ import { formatDistanceToNow } from '@/lib/utils';
 import { maskLinksForFreeUsers } from '@/lib/content-mask';
 import { siteConfig, categories } from '@/config/site';
 import { truncateTitle } from '@/lib/seo';
+import { shouldIndex } from '@/lib/content-quality';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 
@@ -207,6 +208,9 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
   });
   const ogImageUrl = `${siteConfig.url}/api/og?${ogImageParams.toString()}`;
 
+  // THIN content should not be indexed (SEO protection)
+  const allowIndexing = shouldIndex(job.contentQuality);
+
   return {
     title: seoTitle,
     description,
@@ -217,6 +221,13 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
       `${job.company.name} jobs`,
       ...job.skills.map(s => `${s.toLowerCase()} jobs`),
     ],
+    // THIN content = noindex (short LinkedIn posts without details)
+    ...(!allowIndexing && {
+      robots: {
+        index: false,
+        follow: true,
+      },
+    }),
     openGraph: {
       title: `${job.title} at ${job.company.name}`,
       description,

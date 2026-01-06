@@ -302,6 +302,7 @@ model Job {
   // Processing status
   enrichmentStatus EnrichmentStatus @default(COMPLETED)
   qualityScore     Int       @default(50)
+  contentQuality   ContentQuality @default(RICH)  // SEO quality tier
   companyVerified  Boolean   @default(false)
 
   // Visibility
@@ -401,6 +402,13 @@ enum EnrichmentStatus {
   PROCESSING
   COMPLETED
   FAILED
+}
+
+// Content quality for SEO (THIN = noindex, LIGHT/RICH = index)
+enum ContentQuality {
+  THIN   // Short posts, no details - noindex, not in sitemap
+  LIGHT  // Medium quality - index with lower priority
+  RICH   // Full description - index with high priority
 }
 
 // Translation-specific enums for language professionals
