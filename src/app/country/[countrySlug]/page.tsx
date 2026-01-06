@@ -287,7 +287,7 @@ export default async function CountryPage({ params, searchParams }: CountryPageP
             <div className="prose prose-sm max-w-none text-muted-foreground">
               <p>
                 Looking for remote jobs in {country.name}? Freelanly aggregates remote job postings
-                from LinkedIn and top tech companies hiring {country.name === 'Worldwide' ? 'globally' : `in ${country.name}`}.
+                from social media and top tech companies hiring {country.name === 'Worldwide' ? 'globally' : `in ${country.name}`}.
                 We update our job listings daily to ensure you have access to the latest opportunities.
               </p>
               <p>

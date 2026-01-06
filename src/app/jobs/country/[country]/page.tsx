@@ -272,7 +272,7 @@ export default async function CountryPage({ params, searchParams }: CountryPageP
             <h2 className="text-2xl font-bold mb-4">About Remote Jobs in {country.name}</h2>
             <div className="prose prose-sm max-w-none text-muted-foreground space-y-4">
               <p>
-                {country.name} has a thriving remote work scene. We aggregate remote jobs from LinkedIn,
+                {country.name} has a thriving remote work scene. We aggregate remote jobs from social media,
                 company career pages, and job boards, filtering for positions available to {country.name} residents.
               </p>
             </div>

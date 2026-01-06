@@ -318,7 +318,7 @@ export default async function CompanyPage({ params, searchParams }: CompanyPageP
               </p>
               <p>
                 Check out the open positions above and apply directly.
-                We aggregate job postings from {company.name}&apos;s career page and LinkedIn
+                We aggregate job postings from {company.name}&apos;s career page and social media
                 to make it easier for you to find and apply.
               </p>
             </div>

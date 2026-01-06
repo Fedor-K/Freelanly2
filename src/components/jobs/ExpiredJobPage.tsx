@@ -124,7 +124,7 @@ export function ExpiredJobPage({ jobSlug, similarJobs }: ExpiredJobPageProps) {
           {/* SEO-friendly info */}
           <div className="mt-12 text-center text-sm text-muted-foreground">
             <p>
-              Looking for remote jobs? Freelanly aggregates opportunities from LinkedIn, top job boards,
+              Looking for remote jobs? Freelanly aggregates opportunities from social media, top job boards,
               and company career pages. New positions are added daily.
             </p>
           </div>

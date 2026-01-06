@@ -8,7 +8,7 @@ import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
   title: 'About Freelanly - Remote Jobs Platform',
-  description: 'Learn about Freelanly, the remote job aggregation platform. We collect job postings from LinkedIn, company career pages, and more to help you find your dream remote position.',
+  description: 'Learn about Freelanly, the remote job aggregation platform. We collect job postings from social media, company career pages, and more to help you find your dream remote position.',
   alternates: {
     canonical: `${siteConfig.url}/about`,
   },
@@ -55,7 +55,7 @@ export default function AboutPage() {
                 <CardContent className="text-muted-foreground">
                   <p>
                     Finding remote jobs shouldn't require checking dozens of job boards.
-                    We aggregate opportunities from LinkedIn posts, company career pages,
+                    We aggregate opportunities from social media posts, company career pages,
                     and popular job boards so you can find your next role in one place.
                   </p>
                 </CardContent>
@@ -88,7 +88,7 @@ export default function AboutPage() {
                 </div>
                 <h3 className="font-semibold mb-2">We Aggregate</h3>
                 <p className="text-sm text-muted-foreground">
-                  Our systems continuously monitor LinkedIn, job boards, and company
+                  Our systems continuously monitor social media, job boards, and company
                   career pages for new remote opportunities.
                 </p>
               </div>
@@ -175,7 +175,7 @@ export default function AboutPage() {
               '@type': 'Organization',
               name: 'Freelanly',
               url: siteConfig.url,
-              description: 'Remote job aggregation platform that collects job postings from LinkedIn, company career pages, and more.',
+              description: 'Remote job aggregation platform that collects job postings from social media, company career pages, and more.',
               foundingDate: '2024',
               contactPoint: {
                 '@type': 'ContactPoint',

@@ -12,7 +12,7 @@ export function Footer() {
               {siteConfig.name}
             </Link>
             <p className="mt-2 text-sm text-muted-foreground">
-              Find remote jobs from LinkedIn posts and top companies. Apply directly via email.
+              Find remote jobs from social media and top companies. Apply directly via email.
             </p>
           </div>
 

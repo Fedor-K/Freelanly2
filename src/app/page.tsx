@@ -128,10 +128,10 @@ export default async function Home() {
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
             Find Remote Jobs from
             <br />
-            <span className="text-primary">LinkedIn & Top Companies</span>
+            <span className="text-primary">Social Media & Top Companies</span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-            We aggregate hiring posts from LinkedIn and job boards,
+            We aggregate hiring posts from social media and job boards,
             extract the details, and let you apply directly via email.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -234,9 +234,9 @@ export default async function Home() {
               <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4 text-xl font-bold">
                 1
               </div>
-              <h3 className="font-semibold mb-2">We Scrape LinkedIn</h3>
+              <h3 className="font-semibold mb-2">We Scrape Social Media</h3>
               <p className="text-muted-foreground">
-                Our system monitors LinkedIn for hiring posts and extracts job details automatically.
+                Our system monitors social media for hiring posts and extracts job details automatically.
               </p>
             </div>
             <div className="text-center">
@@ -265,7 +265,7 @@ export default async function Home() {
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-2xl font-bold mb-4">About Freelanly</h2>
             <p className="text-muted-foreground mb-6">
-              Freelanly is a remote job aggregation platform that collects job postings from LinkedIn
+              Freelanly is a remote job aggregation platform that collects job postings from social media
               and company career pages (Lever ATS). Our AI extracts structured information from job posts,
               making it easy to compare opportunities and find your perfect remote position.
             </p>

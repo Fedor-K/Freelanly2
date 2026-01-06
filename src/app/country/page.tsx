@@ -179,7 +179,7 @@ export default async function CountriesPage() {
                 Europe, or anywhere else, you can find jobs from companies that embrace remote-first culture.
               </p>
               <p>
-                Freelanly aggregates remote job postings from LinkedIn and top tech companies, making it easy
+                Freelanly aggregates remote job postings from social media and top tech companies, making it easy
                 to find positions that match your location preferences. Filter by country to see jobs
                 that are specifically looking for candidates in your region.
               </p>

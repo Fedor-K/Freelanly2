@@ -570,7 +570,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                 </summary>
                 <p className="mt-2 text-muted-foreground">
                   Currently, there are <strong>{totalJobs} remote {category.name.toLowerCase()} positions</strong> available on Freelanly.
-                  New jobs are added daily from LinkedIn and top company career pages.
+                  New jobs are added daily from social media and top company career pages.
                 </p>
               </details>
               <details className="border rounded-lg p-4">
@@ -633,7 +633,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                 name: `How many remote ${category.name.toLowerCase()} jobs are available right now?`,
                 acceptedAnswer: {
                   '@type': 'Answer',
-                  text: `Currently, there are ${totalJobs} remote ${category.name.toLowerCase()} positions available on Freelanly. New jobs are added daily from LinkedIn and top company career pages.`,
+                  text: `Currently, there are ${totalJobs} remote ${category.name.toLowerCase()} positions available on Freelanly. New jobs are added daily from social media and top company career pages.`,
                 },
               },
               {

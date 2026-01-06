@@ -74,7 +74,7 @@ export function JobCard({ job }: JobCardProps) {
               </Badge>
               {job.sourceType === 'UNSTRUCTURED' && (
                 <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                  LinkedIn Post
+                  Social Media
                 </Badge>
               )}
               {job.skills.slice(0, 3).map((skill) => (

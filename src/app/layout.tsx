@@ -15,7 +15,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: `${siteConfig.name} - Remote Jobs from LinkedIn & Top Companies`,
+    default: `${siteConfig.name} - Remote Jobs from Social Media & Top Companies`,
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,

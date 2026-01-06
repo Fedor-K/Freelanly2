@@ -264,7 +264,7 @@ export default async function CategoryLevelPage({ params, searchParams }: Catego
               <p>
                 Looking for {level.label.toLowerCase()} {category.name.toLowerCase()} remote positions?
                 Freelanly aggregates the best {level.label.toLowerCase()} {category.name.toLowerCase()} jobs
-                from LinkedIn and top company career pages.
+                from social media and top company career pages.
               </p>
               <p>
                 Our AI extracts key details from job posts, making it easy to find the perfect

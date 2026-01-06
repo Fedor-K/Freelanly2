@@ -138,7 +138,7 @@ export function ApplyModal({
                   </Button>
                 )}
 
-                {/* LinkedIn Source */}
+                {/* Social Media Source */}
                 {sourceUrl && sourceUrl.includes('linkedin') && (
                   <Button
                     variant="outline"
@@ -147,9 +147,9 @@ export function ApplyModal({
                   >
                     <LinkedInIcon className="h-5 w-5" />
                     <div className="text-left">
-                      <div className="font-semibold">View on LinkedIn</div>
+                      <div className="font-semibold">View Original Post</div>
                       <div className="text-xs text-muted-foreground">
-                        Apply via original LinkedIn post
+                        Apply via original post
                       </div>
                     </div>
                   </Button>

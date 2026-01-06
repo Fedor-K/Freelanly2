@@ -35,8 +35,8 @@ const features = [
   },
   {
     icon: '🔗',
-    title: 'LinkedIn Integration',
-    description: 'We automatically import your LinkedIn hiring posts and structure them for better visibility.',
+    title: 'Social Media Integration',
+    description: 'We automatically import your social media hiring posts and structure them for better visibility.',
   },
   {
     icon: '📊',
@@ -164,7 +164,7 @@ export default function EmployersPage() {
                 </div>
                 <h3 className="font-semibold mb-2">Submit Your Job</h3>
                 <p className="text-sm text-muted-foreground">
-                  Email us your job details or post on LinkedIn with #hiring.
+                  Email us your job details or post on social media with #hiring.
                   We'll extract and structure the information.
                 </p>
               </div>

@@ -59,7 +59,7 @@ export async function generateMetadata({ searchParams }: JobsPageProps): Promise
     title: currentPage > 1
       ? `Remote Jobs - Page ${currentPage}`
       : 'Remote Jobs - Browse 1000+ Remote Work Positions',
-    description: 'Find remote jobs from LinkedIn posts and top companies. Filter by category, level, location, and salary. Updated hourly with new remote opportunities.',
+    description: 'Find remote jobs from social media and top companies. Filter by category, level, location, and salary. Updated hourly with new remote opportunities.',
     keywords: [
       'remote jobs',
       'work from home jobs',
@@ -76,7 +76,7 @@ export async function generateMetadata({ searchParams }: JobsPageProps): Promise
     }),
     openGraph: {
       title: 'Remote Jobs - Browse All Positions',
-      description: 'Find remote jobs from LinkedIn posts and top companies. Filter by category, level, location, and salary.',
+      description: 'Find remote jobs from social media and top companies. Filter by category, level, location, and salary.',
       url: `${siteConfig.url}/jobs`,
       siteName: siteConfig.name,
       images: [{ url: ogImageUrl, width: 1200, height: 630, alt: 'Remote Jobs on Freelanly' }],

@@ -337,7 +337,7 @@ export default async function JobPage({ params }: JobPageProps) {
                 <Badge variant="outline">{formatJobType(job.type)}</Badge>
                 {isLinkedInPost && (
                   <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                    From LinkedIn Post
+                    From Social Media
                   </Badge>
                 )}
                 {job.skills.map((skill) => (
@@ -416,7 +416,7 @@ export default async function JobPage({ params }: JobPageProps) {
                                 </Link>
                               )
                             ) : (
-                              'DM on LinkedIn'
+                              'DM on Social Media'
                             )}
                           </p>
                         </div>
@@ -612,7 +612,7 @@ export default async function JobPage({ params }: JobPageProps) {
                     <p>Posted: {job.postedAt.toLocaleDateString()}</p>
                     {isLinkedInPost && (
                       <p className="mt-2 italic">
-                        Details extracted from LinkedIn post. Review original post before applying.
+                        Details extracted from social media post. Review original post before applying.
                       </p>
                     )}
                   </div>

@@ -530,7 +530,7 @@ export default async function CategoryCountryPage({ params, searchParams }: Cate
                 </summary>
                 <p className="mt-2 text-muted-foreground">
                   Currently, there are <strong>{totalJobs} remote {category.name.toLowerCase()} positions</strong> in {country.name} available on Freelanly.
-                  New jobs are added daily from LinkedIn and company career pages.
+                  New jobs are added daily from social media and company career pages.
                 </p>
               </details>
 

@@ -38,7 +38,7 @@ export default function TermsPage() {
               <h2 className="text-xl font-semibold mb-4">2. Description of Service</h2>
               <p className="mb-4">
                 Freelanly is a job board platform that aggregates remote job opportunities from
-                various sources including LinkedIn posts and company career pages. We facilitate
+                various sources including social media posts and company career pages. We facilitate
                 connections between job seekers and employers but are not a party to any employment
                 agreements.
               </p>

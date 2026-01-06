@@ -318,7 +318,7 @@ export default async function CountryRolePage({ params, searchParams }: CountryR
             <div className="prose prose-sm max-w-none text-muted-foreground">
               <p>
                 Find the best remote {role.name.toLowerCase()} jobs in {country.name} on Freelanly.
-                We aggregate job postings from LinkedIn and leading tech companies to bring you
+                We aggregate job postings from social media and leading tech companies to bring you
                 quality {role.name.toLowerCase()} positions with competitive salaries and benefits.
               </p>
               <p>
