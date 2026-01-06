@@ -300,6 +300,26 @@ Sources: Cache → BLS (US) → Adzuna (19 countries) → Formula estimation.
 **Formula:** `BaseSalary[category] × Level × Country` (see `src/config/salary-base.ts`, `salary-coefficients.ts`)
 **FREE:** average only | **PRO:** full range, percentiles, source
 
+### AI Post Validation
+Перед обработкой постов из социальных сетей проверяем что это действительно вакансия.
+
+**Function:** `isJobPosting(postContent)` в `src/lib/deepseek.ts`
+
+**Фильтруются (NOT_JOB):**
+- Event invitations (вебинары, конференции, митапы)
+- Company announcements (новости, фандинг)
+- Job seeker posts ("I'm looking for...")
+- Articles/tips/opinions
+- Self-promotion (freelancer advertising)
+- Networking posts
+
+**Пропускаются (JOB):**
+- Чёткое предложение работы с позицией
+- Кто-то нанимает (не ищет работу)
+- Есть требования/условия
+
+**Cost:** ~$0.00004 per post (Z.ai), выполняется ДО extractJobData для экономии.
+
 ### Content Quality for SEO
 Система оценки качества контента для защиты SEO от тонкого контента (короткие посты из LinkedIn).
 

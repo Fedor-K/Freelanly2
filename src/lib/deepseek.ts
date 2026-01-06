@@ -549,5 +549,70 @@ export function getActiveAIProvider() {
   return getAIProvider();
 }
 
+/**
+ * AI validation: Check if a LinkedIn post is actually a JOB POSTING
+ * Filters out: events, announcements, articles, personal updates, promotions
+ * Returns: { isJob: boolean, reason: string }
+ */
+const IS_JOB_POSTING_PROMPT = `You are a content classifier. Determine if this LinkedIn post is a JOB POSTING (someone hiring for a role).
+
+A JOB POSTING must have:
+- A specific job role/position being offered
+- Someone is HIRING (not looking for a job)
+- Clear intent to fill a position
+
+NOT a job posting (REJECT):
+- EVENT INVITATIONS: webinars, conferences, workshops, previews, meetups ("Join us on...", "Register for...")
+- ANNOUNCEMENTS: company news, product launches, achievements, milestones
+- PERSONAL UPDATES: "I'm looking for...", job seeker posts, career transitions
+- ARTICLES/THOUGHTS: industry insights, tips, advice, opinions
+- PROMOTIONS: sales, discounts, special offers
+- CALL FOR PARTNERS: looking for collaborators, partners, investors
+- NETWORKING: "Connect with me", "Let's chat", community building
+- SELF-PROMOTION: "I'm available for...", freelancer advertising themselves
+
+IMPORTANT: Event invitations with "interpretation available" or "Spanish translation" are NOT job postings - they're events offering interpretation services to attendees.
+
+Respond ONLY with JSON: {"isJob": true/false, "reason": "brief reason"}`;
+
+export async function isJobPosting(postContent: string): Promise<{ isJob: boolean; reason: string }> {
+  try {
+    const { client, model, provider } = getAIClient();
+
+    // Truncate to save tokens (first 1500 chars is enough to determine post type)
+    const truncatedContent = postContent.length > 1500
+      ? postContent.substring(0, 1500) + '...'
+      : postContent;
+
+    const response = await client.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: IS_JOB_POSTING_PROMPT },
+        { role: 'user', content: truncatedContent }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0,
+      max_tokens: 100,
+    });
+
+    trackUsage(response.usage, provider);
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      return { isJob: false, reason: 'AI response empty' };
+    }
+
+    const result = JSON.parse(content) as { isJob: boolean; reason: string };
+    const providerName = provider === 'zai' ? 'Z.ai' : 'DeepSeek';
+    console.log(`[${providerName}] Post validation: ${result.isJob ? 'JOB' : 'NOT_JOB'} - ${result.reason}`);
+    return result;
+  } catch (error) {
+    const provider = getAIProvider();
+    console.error(`[${provider}] isJobPosting error:`, error);
+    // On error, assume it might be a job (let extractJobData decide)
+    return { isJob: true, reason: 'Error during validation, allowing through' };
+  }
+}
+
 // Legacy exports for backwards compatibility
 export { getDeepSeekClient as deepseek };

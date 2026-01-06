@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { extractJobData, classifyJobCategory, type ExtractedJobData } from '@/lib/deepseek';
+import { extractJobData, classifyJobCategory, isJobPosting, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify, extractDomainFromEmail, cleanEmail } from '@/lib/utils';
 import { ensureSalaryData } from '@/lib/salary-estimation';
 import { validateAndEnrichCompany } from '@/services/company-enrichment';
@@ -108,6 +108,22 @@ export async function POST(request: NextRequest) {
         success: true,
         status: 'skipped',
         reason: 'duplicate',
+      });
+    }
+
+    // =========================================================================
+    // AI VALIDATION: Check if post is actually a job posting (not event/announcement)
+    // =========================================================================
+    console.log(`[LinkedInPosts] Validating post type...`);
+    const validationResult = await isJobPosting(postContent);
+
+    if (!validationResult.isJob) {
+      console.log(`[LinkedInPosts] Not a job posting: ${validationResult.reason}`);
+      return NextResponse.json({
+        success: true,
+        status: 'skipped',
+        reason: 'not_job_posting',
+        details: validationResult.reason,
       });
     }
 
