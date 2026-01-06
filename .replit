@@ -97,3 +97,43 @@ action = "http"
 method = "POST"
 path = "/api/cron/send-winback-emails"
 headers = { Authorization = "Bearer ${CRON_SECRET}" }
+
+# ============================================
+# JOB FETCHING & ALERTS
+# ============================================
+
+# Fetch ATS sources - 3x daily at 6:00, 14:00, 22:00 UTC
+# Imports jobs from Lever and other ATS sources
+[[deployment.scheduled]]
+trigger = "0 6 * * *"
+action = "http"
+[deployment.scheduled.http]
+method = "POST"
+path = "/api/cron/fetch-sources"
+headers = { Authorization = "Bearer ${CRON_SECRET}" }
+
+[[deployment.scheduled]]
+trigger = "0 14 * * *"
+action = "http"
+[deployment.scheduled.http]
+method = "POST"
+path = "/api/cron/fetch-sources"
+headers = { Authorization = "Bearer ${CRON_SECRET}" }
+
+[[deployment.scheduled]]
+trigger = "0 22 * * *"
+action = "http"
+[deployment.scheduled.http]
+method = "POST"
+path = "/api/cron/fetch-sources"
+headers = { Authorization = "Bearer ${CRON_SECRET}" }
+
+# DAILY job alerts - 7:00 UTC
+# Sends daily digest emails to users with DAILY frequency alerts
+[[deployment.scheduled]]
+trigger = "0 7 * * *"
+action = "http"
+[deployment.scheduled.http]
+method = "POST"
+path = "/api/cron/send-alerts?frequency=DAILY"
+headers = { Authorization = "Bearer ${CRON_SECRET}" }
