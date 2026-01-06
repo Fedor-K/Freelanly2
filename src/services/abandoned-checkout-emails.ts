@@ -85,7 +85,7 @@ function getEmailContent(
     </p>
 
     <p style="text-align: center; color: #666; font-size: 14px;">
-      7-day free trial included. Cancel anytime.
+      2-day free trial included. Cancel anytime.
     </p>
 
     <p>Best,<br>The Freelanly Team</p>
@@ -101,7 +101,7 @@ function getEmailContent(
 
     case 'HOUR_24':
       return {
-        subject: 'Your 7-day free trial is waiting',
+        subject: 'Your 2-day free trial is waiting',
         html: `
 <!DOCTYPE html>
 <html>
@@ -129,7 +129,7 @@ function getEmailContent(
     </p>
 
     <p style="text-align: center; color: #666; font-size: 12px;">
-      *Card required but not charged for 7 days
+      *Card required but not charged for 2 days
     </p>
 
     <p>Best,<br>The Freelanly Team</p>
@@ -168,9 +168,9 @@ function getEmailContent(
 
     <p>Here's the deal:</p>
     <ul>
-      <li>Start your <strong>7-day free trial</strong> today</li>
+      <li>Start your <strong>2-day free trial</strong> today</li>
       <li>If you love it, use code <strong>WELCOME20</strong> for 20% off</li>
-      <li>If not, cancel before day 7 — no charge</li>
+      <li>If not, cancel before day 2 — no charge</li>
     </ul>
 
     <p style="text-align: center;">

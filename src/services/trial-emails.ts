@@ -1,11 +1,9 @@
 /**
- * Trial Email Onboarding Sequence
+ * Trial Email Onboarding Sequence (2-day trial)
  *
  * Day 0 - Welcome: Explain PRO value
- * Day 2 - Features: Show what they're missing
- * Day 5 - Social Proof: Testimonials
- * Day 6 - Urgency: Trial ending tomorrow
- * Day 7 - Last Chance: Final reminder
+ * Day 1 - Urgency: Trial ending tomorrow
+ * Day 2 - Last Chance: Final reminder
  */
 
 import { prisma } from '@/lib/db';
@@ -64,7 +62,7 @@ function getTrialEmailContent(
   <div class="content">
     <p>Hi there!</p>
 
-    <p>You've just started your <strong>7-day free trial</strong> of Freelanly PRO. Here's what you can do now:</p>
+    <p>You've just started your <strong>2-day free trial</strong> of Freelanly PRO. Here's what you can do now:</p>
 
     <div class="highlight">
       <div class="feature"><span class="feature-icon">✅</span> <strong>Apply to unlimited jobs</strong> - no restrictions</div>
@@ -348,20 +346,16 @@ async function getTrialingSubscriptions(): Promise<TrialSubscription[]> {
 }
 
 /**
- * Get which email should be sent based on trial day
+ * Get which email should be sent based on trial day (2-day trial)
  */
 function getEmailTypeForDay(trialDay: number): TrialEmailType | null {
   switch (trialDay) {
     case 0:
       return 'DAY_0_WELCOME';
+    case 1:
+      return 'DAY_6_URGENCY'; // Trial ending tomorrow
     case 2:
-      return 'DAY_2_FEATURES';
-    case 5:
-      return 'DAY_5_SOCIAL_PROOF';
-    case 6:
-      return 'DAY_6_URGENCY';
-    case 7:
-      return 'DAY_7_LAST_CHANCE';
+      return 'DAY_7_LAST_CHANCE'; // Last day
     default:
       return null;
   }

@@ -149,7 +149,7 @@ export function SalaryInsights({
                   Full range: {formatK(data.minSalary)} – ???
                 </p>
                 <Button asChild size="sm">
-                  <Link href="/pricing">Reveal — 7 Days Free</Link>
+                  <Link href="/pricing">Reveal — 2 Days Free</Link>
                 </Button>
               </div>
             </div>

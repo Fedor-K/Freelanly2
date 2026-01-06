@@ -52,7 +52,7 @@ export const PRICE_INFO: Record<PriceKey, {
     pricePerDay: '€0.50',
     period: 'month',
     periodLabel: 'per month',
-    description: '7-day free trial',
+    description: '2-day free trial',
     hasTrial: true,
     popular: true,
   },
@@ -135,7 +135,7 @@ export async function createCheckoutSession({
     // Add trial for monthly and annual
     subscription_data: priceInfo.hasTrial
       ? {
-          trial_period_days: 7,
+          trial_period_days: 2,
           metadata: {
             userId,
             priceKey,

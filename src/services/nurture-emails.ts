@@ -291,7 +291,7 @@ function generateNurtureEmailHtml(params: {
       <div class="benefit"><span class="check">✓</span> Apply to unlimited jobs directly</div>
       <div class="benefit"><span class="check">✓</span> See direct contact info (emails, phones)</div>
       <div class="benefit"><span class="check">✓</span> Full salary insights with market data</div>
-      <div class="benefit"><span class="check">✓</span> 7-day free trial, cancel anytime</div>
+      <div class="benefit"><span class="check">✓</span> 2-day free trial, cancel anytime</div>
     </div>
 
     <p style="text-align: center;">

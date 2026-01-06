@@ -9,7 +9,7 @@ SEO-оптимизированная платформа для поиска уд
 - Daily cron at 7:00 UTC: sends job alert notifications
 - Daily cron at 10:00 UTC: sends win-back emails to churned users
 - Cron every 5 min: processes INSTANT alert queue (batched emails)
-- Hourly cron: sends trial onboarding emails (Day 0, 2, 5, 6, 7)
+- Hourly cron: sends trial onboarding emails (Day 0, 1, 2)
 - Cron every 15 min: posts 1 job to LinkedIn + Telegram via n8n
 - n8n workflow: scrapes LinkedIn posts every 15-20 min via Apify
 - Auto cleanup: removes jobs older than 30 days after each import
@@ -99,7 +99,7 @@ GOOGLE_CLIENT_SECRET=xxx
 | Apply to jobs | ❌ Blocked | ✅ Unlimited |
 | Contact info in descriptions | ❌ Hidden | ✅ Visible |
 
-**Pricing (EUR) — No trials:**
+**Pricing (EUR) — 2-day trial for Monthly:**
 | Plan | Price | Per Day | Savings |
 |------|-------|---------|---------|
 | Monthly | €15/month | €0.50 | — |
