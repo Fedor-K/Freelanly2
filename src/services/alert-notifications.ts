@@ -187,7 +187,12 @@ export async function sendAlertNotification(
 
   const unsubscribeUrl = `${APP_URL}/api/user/alerts/${alert.id}/unsubscribe`;
 
-  const subject = `🎯 ${jobs.length} new ${alert.category || ''} job${jobs.length > 1 ? 's' : ''} on Freelanly`;
+  // Generate engaging subject line
+  // 1 job: "🎯 French Translator at Crystalhues — Remote"
+  // Multiple: "🎯 3 new translation jobs for you"
+  const subject = jobs.length === 1
+    ? `🎯 ${jobs[0].title} at ${jobs[0].company.name}${jobs[0].country ? ` — ${jobs[0].country}` : ''}`
+    : `🎯 ${jobs.length} new ${alert.category || ''} jobs for you`;
 
   const html = generateJobAlertEmailHtml(jobs, alert.category, unsubscribeUrl);
   const text = generateJobAlertEmailText(jobs, alert.category);
