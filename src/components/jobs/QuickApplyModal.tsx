@@ -97,8 +97,7 @@ Best regards`);
               placeholder="Write your cover letter or click 'Generate with AI' to create one automatically..."
               value={coverLetter}
               onChange={(e) => setCoverLetter(e.target.value)}
-              rows={10}
-              className="font-mono text-sm"
+              className="font-mono text-sm min-h-[120px] sm:min-h-[200px] resize-y"
             />
           </div>
 
@@ -114,9 +113,9 @@ Best regards`);
                 className="flex-1"
               />
               {resumeFile && (
-                <span className="text-sm text-muted-foreground flex items-center">
-                  <Paperclip className="h-4 w-4 mr-1" />
-                  {resumeFile.name}
+                <span className="text-sm text-muted-foreground flex items-center max-w-[140px] sm:max-w-none">
+                  <Paperclip className="h-4 w-4 mr-1 shrink-0" />
+                  <span className="truncate">{resumeFile.name}</span>
                 </span>
               )}
             </div>

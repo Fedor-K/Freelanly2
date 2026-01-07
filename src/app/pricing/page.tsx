@@ -40,18 +40,18 @@ export default function PricingPage() {
       <main className="flex-1">
         <div className="container py-16">
           {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold mb-4">
+          <div className="text-center mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-4xl font-bold mb-3 sm:mb-4">
               Find Your Next Remote Job Faster
             </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base sm:text-xl text-muted-foreground max-w-2xl mx-auto px-2 sm:px-0">
               Get unlimited access to all jobs, full salary insights, and apply directly.
               Cancel anytime.
             </p>
           </div>
 
           {/* Social Proof Stats */}
-          <div className="flex flex-wrap justify-center gap-6 mb-12 text-sm">
+          <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mb-8 sm:mb-12 text-sm px-2 sm:px-0">
             <div className="flex items-center gap-2">
               <span className="text-2xl">⚡</span>
               <span><strong>800+</strong> professionals upgraded this month</span>

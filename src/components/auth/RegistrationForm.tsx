@@ -613,11 +613,12 @@ export function RegistrationForm({
           <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
             <Label>Language Pairs</Label>
             {languagePairs.map((pair, index) => (
-              <div key={index} className="flex gap-2 items-start">
+              <div key={index} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-start">
+                {/* Type select - full width on mobile */}
                 <select
                   value={pair.translationType}
                   onChange={(e) => updateLanguagePair(index, 'translationType', e.target.value)}
-                  className="flex-1 px-2 py-1.5 border rounded text-sm bg-background"
+                  className="w-full sm:flex-1 px-2 py-1.5 border rounded text-sm bg-background"
                 >
                   {TRANSLATION_TYPES.map((t) => (
                     <option key={t.value} value={t.value}>
@@ -625,37 +626,40 @@ export function RegistrationForm({
                     </option>
                   ))}
                 </select>
-                <select
-                  value={pair.sourceLanguage}
-                  onChange={(e) => updateLanguagePair(index, 'sourceLanguage', e.target.value)}
-                  className="w-24 px-2 py-1.5 border rounded text-sm bg-background"
-                >
-                  {languages.map((l) => (
-                    <option key={l.code} value={l.code}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-                <span className="py-1.5 text-muted-foreground">→</span>
-                <select
-                  value={pair.targetLanguage}
-                  onChange={(e) => updateLanguagePair(index, 'targetLanguage', e.target.value)}
-                  className="w-24 px-2 py-1.5 border rounded text-sm bg-background"
-                >
-                  <option value="">Select</option>
-                  {languages.map((l) => (
-                    <option key={l.code} value={l.code}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => removeLanguagePair(index)}
-                  className="p-1.5 text-muted-foreground hover:text-destructive"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                {/* Language pair row */}
+                <div className="flex gap-2 items-center">
+                  <select
+                    value={pair.sourceLanguage}
+                    onChange={(e) => updateLanguagePair(index, 'sourceLanguage', e.target.value)}
+                    className="flex-1 sm:w-24 sm:flex-none px-2 py-1.5 border rounded text-sm bg-background"
+                  >
+                    {languages.map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="py-1.5 text-muted-foreground">→</span>
+                  <select
+                    value={pair.targetLanguage}
+                    onChange={(e) => updateLanguagePair(index, 'targetLanguage', e.target.value)}
+                    className="flex-1 sm:w-24 sm:flex-none px-2 py-1.5 border rounded text-sm bg-background"
+                  >
+                    <option value="">Select</option>
+                    {languages.map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => removeLanguagePair(index)}
+                    className="p-1.5 text-muted-foreground hover:text-destructive shrink-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             ))}
             <Button type="button" variant="outline" size="sm" onClick={addLanguagePair}>

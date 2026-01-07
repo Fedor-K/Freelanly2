@@ -78,7 +78,7 @@ export function PricingCards() {
           return (
             <Card
               key={key}
-              className={`relative ${isPopular ? 'border-primary border-2 shadow-lg md:scale-105' : ''}`}
+              className={`relative ${isPopular ? 'border-primary border-2 shadow-xl ring-2 ring-primary/20' : ''}`}
             >
               {badge && (
                 <Badge

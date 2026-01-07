@@ -508,7 +508,7 @@ export default async function JobPage({ params }: JobPageProps) {
               </Suspense>
 
               {/* Apply Card */}
-              <Card className="sticky top-20">
+              <Card className="lg:sticky lg:top-20">
                 <CardContent className="pt-6 space-y-4">
                   <ApplyButton
                     jobId={job.id}
