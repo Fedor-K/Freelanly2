@@ -3,15 +3,11 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { JobCard } from '@/components/jobs/JobCard';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { siteConfig, categories, levels, jobTypes, countries, techStacks, salaryRanges } from '@/config/site';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
-import { JobFilters } from '@/components/jobs/JobFilters';
-import { MobileFilters } from '@/components/jobs/MobileFilters';
-import { LanguagePairFilter } from '@/components/jobs/LanguagePairFilter';
-import { languages } from '@/config/site';
+import { TopFilters } from '@/components/jobs/TopFilters';
 
 // ISR: Revalidate every 60 seconds for fresh job listings
 export const revalidate = 60;
@@ -258,31 +254,6 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
   const { jobs, totalCount } = await getJobs(currentPage, filters);
   const totalPages = Math.ceil(totalCount / JOBS_PER_PAGE);
 
-  const hasFilters = filters.search ||
-    filters.levels.length > 0 ||
-    filters.types.length > 0 ||
-    filters.country ||
-    filters.salaryMin ||
-    filters.skills.length > 0 ||
-    filters.category ||
-    filters.sourceLang ||
-    filters.targetLang;
-
-  // Popular skills to show (top 12)
-  const popularSkills = techStacks.slice(0, 12);
-
-  // Count active filters for mobile badge
-  const activeFilterCount =
-    (filters.search ? 1 : 0) +
-    filters.levels.length +
-    filters.types.length +
-    (filters.country ? 1 : 0) +
-    (filters.salaryMin ? 1 : 0) +
-    filters.skills.length +
-    (filters.category ? 1 : 0) +
-    (filters.sourceLang ? 1 : 0) +
-    (filters.targetLang ? 1 : 0);
-
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -290,15 +261,16 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
       <main className="flex-1">
         <div className="container py-6 sm:py-8">
           {/* Page Header */}
-          <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">Remote Jobs</h1>
-              <p className="text-muted-foreground text-sm sm:text-base">
-                {totalCount} jobs found
-              </p>
-            </div>
-            {/* Mobile Filters Button */}
-            <MobileFilters
+          <div className="mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-1">Remote Jobs</h1>
+            <p className="text-muted-foreground text-sm">
+              Find your next remote opportunity
+            </p>
+          </div>
+
+          {/* Top Filters */}
+          <div className="mb-6">
+            <TopFilters
               currentFilters={{
                 search: filters.search,
                 levels: filters.levels,
@@ -310,373 +282,50 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                 sourceLang: filters.sourceLang,
                 targetLang: filters.targetLang,
               }}
-              activeFilterCount={activeFilterCount}
+              totalCount={totalCount}
             />
           </div>
 
-          <div className="flex gap-8">
-            {/* Filters Sidebar */}
-            <aside className="hidden lg:block w-64 flex-shrink-0">
-              <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto pr-2 space-y-6">
-                {/* Search */}
-                <JobFilters currentSearch={filters.search} />
-
-                {/* Categories */}
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Category</label>
-                  <div className="space-y-1 max-h-48 overflow-y-auto">
-                    {categories.map((category) => {
-                      const isActive = filters.category === category.slug;
-                      const href = buildFilterUrl(
-                        { q: params.q, level: params.level, type: params.type, country: params.country, salary: params.salary, skills: params.skills, sourceLang: params.sourceLang, targetLang: params.targetLang },
-                        { category: isActive ? undefined : category.slug, page: undefined }
-                      );
-
-                      return (
-                        <Link
-                          key={category.slug}
-                          href={href}
-                          className={`block px-3 py-1.5 text-sm rounded hover:bg-muted ${
-                            isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          {category.icon} {category.name}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Language Pair Filter - visible when translation is selected */}
-                {filters.category === 'translation' && (
-                  <LanguagePairFilter
-                    currentSourceLang={filters.sourceLang}
-                    currentTargetLang={filters.targetLang}
-                  />
-                )}
-
-                {/* Country */}
-                <div>
-                  <label className="text-sm font-medium mb-2 block">🌍 Location</label>
-                  <div className="space-y-1 max-h-48 overflow-y-auto">
-                    {countries.slice(0, 10).map((country) => {
-                      const isActive = filters.country === country.slug;
-                      const href = buildFilterUrl(
-                        { q: params.q, level: params.level, type: params.type, salary: params.salary, skills: params.skills },
-                        { country: isActive ? undefined : country.slug, page: undefined }
-                      );
-
-                      return (
-                        <Link
-                          key={country.slug}
-                          href={href}
-                          className={`flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-muted ${
-                            isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground'
-                          }`}
-                        >
-                          <span>{country.flag}</span>
-                          {country.name}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Salary */}
-                <div>
-                  <label className="text-sm font-medium mb-2 block">💰 Min Salary</label>
-                  <div className="space-y-1">
-                    {salaryRanges.slice(0, 5).map((range) => {
-                      const isActive = params.salary === range.value;
-                      const href = buildFilterUrl(
-                        { q: params.q, level: params.level, type: params.type, country: params.country, skills: params.skills },
-                        { salary: isActive ? undefined : range.value, page: undefined }
-                      );
-
-                      return (
-                        <Link
-                          key={range.value}
-                          href={href}
-                          className={`flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-muted ${
-                            isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground'
-                          }`}
-                        >
-                          <span className={`w-4 h-4 border rounded flex items-center justify-center ${
-                            isActive ? 'bg-primary border-primary text-white' : 'border-gray-300'
-                          }`}>
-                            {isActive && '✓'}
-                          </span>
-                          {range.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Level */}
-                <div>
-                  <label className="text-sm font-medium mb-2 block">📊 Experience</label>
-                  <div className="space-y-1">
-                    {levels.slice(0, 6).map((level) => {
-                      const isActive = filters.levels.includes(level.value);
-                      const newLevels = isActive
-                        ? filters.levels.filter((l) => l !== level.value)
-                        : [...filters.levels, level.value];
-                      const href = buildFilterUrl(
-                        { q: params.q, type: params.type, country: params.country, salary: params.salary, skills: params.skills },
-                        { level: newLevels.length > 0 ? newLevels : undefined, page: undefined }
-                      );
-
-                      return (
-                        <Link
-                          key={level.value}
-                          href={href}
-                          className={`flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-muted ${
-                            isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground'
-                          }`}
-                        >
-                          <span className={`w-4 h-4 border rounded flex items-center justify-center ${
-                            isActive ? 'bg-primary border-primary text-white' : 'border-gray-300'
-                          }`}>
-                            {isActive && '✓'}
-                          </span>
-                          {level.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Job Type */}
-                <div>
-                  <label className="text-sm font-medium mb-2 block">📋 Job Type</label>
-                  <div className="space-y-1">
-                    {jobTypes.map((type) => {
-                      const isActive = filters.types.includes(type.value);
-                      const newTypes = isActive
-                        ? filters.types.filter((t) => t !== type.value)
-                        : [...filters.types, type.value];
-                      const href = buildFilterUrl(
-                        { q: params.q, level: params.level, country: params.country, salary: params.salary, skills: params.skills },
-                        { type: newTypes.length > 0 ? newTypes : undefined, page: undefined }
-                      );
-
-                      return (
-                        <Link
-                          key={type.value}
-                          href={href}
-                          className={`flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-muted ${
-                            isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground'
-                          }`}
-                        >
-                          <span className={`w-4 h-4 border rounded flex items-center justify-center ${
-                            isActive ? 'bg-primary border-primary text-white' : 'border-gray-300'
-                          }`}>
-                            {isActive && '✓'}
-                          </span>
-                          {type.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Tech Stack */}
-                <div>
-                  <label className="text-sm font-medium mb-2 block">🛠️ Tech Stack</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {popularSkills.map((tech) => {
-                      const isActive = filters.skills.includes(tech.slug);
-                      const newSkills = isActive
-                        ? filters.skills.filter((s) => s !== tech.slug)
-                        : [...filters.skills, tech.slug];
-                      const href = buildFilterUrl(
-                        { q: params.q, level: params.level, type: params.type, country: params.country, salary: params.salary },
-                        { skills: newSkills.length > 0 ? newSkills : undefined, page: undefined }
-                      );
-
-                      return (
-                        <Link
-                          key={tech.slug}
-                          href={href}
-                          className={`text-xs px-2 py-1 rounded-full border transition-colors ${
-                            isActive
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'bg-background hover:bg-muted border-border text-muted-foreground'
-                          }`}
-                        >
-                          {tech.name}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </aside>
-
-            {/* Job List */}
-            <div className="flex-1">
-              {/* Active Filters */}
-              <div className="flex items-center gap-2 mb-4 flex-wrap">
-                <span className="text-sm text-muted-foreground">Filters:</span>
-
-                {filters.search && (
-                  <Link href={buildFilterUrl({ level: params.level, type: params.type, country: params.country, salary: params.salary, skills: params.skills }, { q: undefined })}>
-                    <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
-                      Search: {filters.search} ×
-                    </Badge>
-                  </Link>
-                )}
-
-                {filters.country && (
-                  <Link href={buildFilterUrl({ q: params.q, level: params.level, type: params.type, salary: params.salary, skills: params.skills }, { country: undefined })}>
-                    <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
-                      {countries.find(c => c.slug === filters.country)?.flag} {countries.find(c => c.slug === filters.country)?.name} ×
-                    </Badge>
-                  </Link>
-                )}
-
-                {params.salary && (
-                  <Link href={buildFilterUrl({ q: params.q, level: params.level, type: params.type, country: params.country, skills: params.skills }, { salary: undefined })}>
-                    <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
-                      {salaryRanges.find(r => r.value === params.salary)?.label} ×
-                    </Badge>
-                  </Link>
-                )}
-
-                {filters.levels.map((level) => {
-                  const levelLabel = levels.find((l) => l.value === level)?.label || level;
-                  const newLevels = filters.levels.filter((l) => l !== level);
-                  return (
-                    <Link
-                      key={level}
-                      href={buildFilterUrl(
-                        { q: params.q, type: params.type, country: params.country, salary: params.salary, skills: params.skills },
-                        { level: newLevels.length > 0 ? newLevels : undefined }
-                      )}
-                    >
-                      <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
-                        {levelLabel} ×
-                      </Badge>
-                    </Link>
-                  );
-                })}
-
-                {filters.types.map((type) => {
-                  const typeLabel = jobTypes.find((t) => t.value === type)?.label || type;
-                  const newTypes = filters.types.filter((t) => t !== type);
-                  return (
-                    <Link
-                      key={type}
-                      href={buildFilterUrl(
-                        { q: params.q, level: params.level, country: params.country, salary: params.salary, skills: params.skills },
-                        { type: newTypes.length > 0 ? newTypes : undefined }
-                      )}
-                    >
-                      <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
-                        {typeLabel} ×
-                      </Badge>
-                    </Link>
-                  );
-                })}
-
-                {filters.skills.map((skill) => {
-                  const techName = techStacks.find((t) => t.slug === skill)?.name || skill;
-                  const newSkills = filters.skills.filter((s) => s !== skill);
-                  return (
-                    <Link
-                      key={skill}
-                      href={buildFilterUrl(
-                        { q: params.q, level: params.level, type: params.type, country: params.country, salary: params.salary },
-                        { skills: newSkills.length > 0 ? newSkills : undefined }
-                      )}
-                    >
-                      <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
-                        {techName} ×
-                      </Badge>
-                    </Link>
-                  );
-                })}
-
-                {filters.category && (
-                  <Link href={buildFilterUrl({ q: params.q, level: params.level, type: params.type, country: params.country, salary: params.salary, skills: params.skills }, { category: undefined, sourceLang: undefined, targetLang: undefined })}>
-                    <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
-                      {categories.find(c => c.slug === filters.category)?.icon} {categories.find(c => c.slug === filters.category)?.name} ×
-                    </Badge>
-                  </Link>
-                )}
-
-                {filters.sourceLang && (
-                  <Link href={buildFilterUrl({ q: params.q, level: params.level, type: params.type, country: params.country, salary: params.salary, skills: params.skills, category: params.category, targetLang: params.targetLang }, { sourceLang: undefined })}>
-                    <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
-                      From: {languages.find(l => l.code === filters.sourceLang)?.name} ×
-                    </Badge>
-                  </Link>
-                )}
-
-                {filters.targetLang && (
-                  <Link href={buildFilterUrl({ q: params.q, level: params.level, type: params.type, country: params.country, salary: params.salary, skills: params.skills, category: params.category, sourceLang: params.sourceLang }, { targetLang: undefined })}>
-                    <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
-                      To: {languages.find(l => l.code === filters.targetLang)?.name} ×
-                    </Badge>
-                  </Link>
-                )}
-
-                {!hasFilters && (
-                  <Badge variant="outline">All Jobs</Badge>
-                )}
-
-                {hasFilters && (
-                  <Link href="/jobs">
-                    <Button variant="ghost" size="sm" className="text-xs">
-                      Clear all
-                    </Button>
-                  </Link>
-                )}
-              </div>
-
-              {/* Jobs */}
-              {jobs.length > 0 ? (
-                <div className="space-y-4">
-                  {jobs.map((job) => (
-                    <JobCard key={job.id} job={job} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground mb-4">No jobs found matching your filters.</p>
-                  <Link href="/jobs">
-                    <Button variant="outline">Clear filters</Button>
-                  </Link>
-                </div>
-              )}
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <nav className="mt-8 flex justify-center gap-2">
-                  {currentPage > 1 ? (
-                    <Link href={buildFilterUrl(params, { page: String(currentPage - 1) })}>
-                      <Button variant="outline">Previous</Button>
-                    </Link>
-                  ) : (
-                    <Button variant="outline" disabled>Previous</Button>
-                  )}
-
-                  <span className="flex items-center px-4 text-sm text-muted-foreground">
-                    Page {currentPage} of {totalPages}
-                  </span>
-
-                  {currentPage < totalPages ? (
-                    <Link href={buildFilterUrl(params, { page: String(currentPage + 1) })}>
-                      <Button variant="outline">Next</Button>
-                    </Link>
-                  ) : (
-                    <Button variant="outline" disabled>Next</Button>
-                  )}
-                </nav>
-              )}
+          {/* Jobs Grid */}
+          {jobs.length > 0 ? (
+            <div className="space-y-4">
+              {jobs.map((job) => (
+                <JobCard key={job.id} job={job} />
+              ))}
             </div>
-          </div>
+          ) : (
+            <div className="text-center py-16 border rounded-lg bg-muted/30">
+              <p className="text-muted-foreground mb-4">No jobs found matching your filters.</p>
+              <Link href="/jobs">
+                <Button variant="outline">Clear filters</Button>
+              </Link>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <nav className="mt-8 flex justify-center gap-2">
+              {currentPage > 1 ? (
+                <Link href={buildFilterUrl(params, { page: String(currentPage - 1) })}>
+                  <Button variant="outline">Previous</Button>
+                </Link>
+              ) : (
+                <Button variant="outline" disabled>Previous</Button>
+              )}
+
+              <span className="flex items-center px-4 text-sm text-muted-foreground">
+                Page {currentPage} of {totalPages}
+              </span>
+
+              {currentPage < totalPages ? (
+                <Link href={buildFilterUrl(params, { page: String(currentPage + 1) })}>
+                  <Button variant="outline">Next</Button>
+                </Link>
+              ) : (
+                <Button variant="outline" disabled>Next</Button>
+              )}
+            </nav>
+          )}
         </div>
       </main>
 
