@@ -148,7 +148,7 @@ export default async function SkillPage({ params, searchParams }: SkillPageProps
             select: { name: true, slug: true },
           },
         },
-        orderBy: { postedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
         skip: (currentPage - 1) * perPage,
         take: perPage,
       }),

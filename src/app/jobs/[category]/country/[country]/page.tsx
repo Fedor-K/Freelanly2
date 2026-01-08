@@ -144,7 +144,7 @@ export default async function CategoryCountryPage({ params, searchParams }: Cate
             select: { name: true, slug: true, logo: true, website: true },
           },
         },
-        orderBy: { postedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
         skip: (currentPage - 1) * perPage,
         take: perPage,
       }),

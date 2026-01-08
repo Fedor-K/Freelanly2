@@ -64,7 +64,7 @@ async function getHomePageData() {
             select: { name: true, slug: true },
           },
         },
-        orderBy: { postedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
         take: 6,
       }),
       // Jobs per category (top 5)

@@ -120,7 +120,7 @@ async function backfillJobs(limit?: number) {
       originalContent: true,
       sourceType: true,
     },
-    orderBy: { postedAt: 'desc' },
+    orderBy: { createdAt: 'desc' },
     take: limit,
   });
 

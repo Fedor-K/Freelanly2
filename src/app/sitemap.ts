@@ -200,7 +200,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           select: { slug: true },
         },
       },
-      orderBy: { postedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: 10000,
     });
 

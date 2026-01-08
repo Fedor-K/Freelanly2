@@ -30,7 +30,7 @@ export async function GET(request: Request) {
         company: true,
         category: true,
       },
-      orderBy: { postedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: 20,
     });
 

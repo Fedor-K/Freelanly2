@@ -81,7 +81,7 @@ export default async function CompanyJobsPage({ params, searchParams }: CompanyJ
           include: {
             company: { select: { name: true, slug: true, logo: true, website: true } },
           },
-          orderBy: { postedAt: 'desc' },
+          orderBy: { createdAt: 'desc' },
           skip: (currentPage - 1) * perPage,
           take: perPage,
         }),

@@ -191,7 +191,7 @@ async function getJobs(
             },
           },
         },
-        orderBy: { postedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: JOBS_PER_PAGE,
       }),

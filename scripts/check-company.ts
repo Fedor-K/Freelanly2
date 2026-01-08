@@ -21,7 +21,7 @@ async function check(slug: string) {
   const jobs = await prisma.job.findMany({
     where: { companyId: company.id },
     select: { title: true, postedAt: true, isActive: true },
-    orderBy: { postedAt: 'desc' },
+    orderBy: { createdAt: 'desc' },
     take: 10
   });
 

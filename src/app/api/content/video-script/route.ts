@@ -185,7 +185,7 @@ async function generateJobAlertScript(jobId: string | null) {
   const jobs = await prisma.job.findMany({
     where,
     include: { company: true },
-    orderBy: { postedAt: 'desc' },
+    orderBy: { createdAt: 'desc' },
     take: 20,
   });
 
@@ -323,7 +323,7 @@ async function generateCompanyHiringScript() {
       postedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
     },
     include: { company: true },
-    orderBy: { postedAt: 'desc' },
+    orderBy: { createdAt: 'desc' },
     take: 100,
   });
 

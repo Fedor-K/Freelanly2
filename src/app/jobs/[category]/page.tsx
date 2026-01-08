@@ -179,7 +179,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
             },
           },
         },
-        orderBy: { postedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
         skip: (currentPage - 1) * perPage,
         take: perPage,
       }),

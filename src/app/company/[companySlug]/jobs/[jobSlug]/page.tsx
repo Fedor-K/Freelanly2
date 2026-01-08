@@ -151,7 +151,7 @@ async function getSimilarJobs(jobId: string, categoryId: string, limit: number =
         company: true,
         category: true,
       },
-      orderBy: { postedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: limit,
     });
     return jobs;
@@ -186,7 +186,7 @@ async function getRecentJobs(limit: number = 6) {
           },
         },
       },
-      orderBy: { postedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: limit,
     });
     return jobs;

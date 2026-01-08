@@ -87,7 +87,7 @@ export default async function CountryPage({ params, searchParams }: CountryPageP
       include: {
         company: { select: { name: true, slug: true, logo: true, website: true } },
       },
-      orderBy: { postedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       skip: (currentPage - 1) * JOBS_PER_PAGE,
       take: JOBS_PER_PAGE,
     }),

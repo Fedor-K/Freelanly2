@@ -189,7 +189,7 @@ export default async function TranslationPairPage({ params, searchParams }: Page
           },
         },
       },
-      orderBy: { postedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       skip,
       take: perPage,
     }),
