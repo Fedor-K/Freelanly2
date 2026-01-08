@@ -13,6 +13,7 @@ import { getCategoryContent } from '@/config/category-content';
 import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
+import { LanguagePairFilter } from '@/components/jobs/LanguagePairFilter';
 
 // ISR: Revalidate every 60 seconds for fresh job listings
 export const revalidate = 60;
@@ -48,7 +49,7 @@ const relatedCategoriesMap: Record<string, string[]> = {
 
 interface CategoryPageProps {
   params: Promise<{ category: string }>;
-  searchParams: Promise<{ page?: string; level?: string; type?: string; location?: string }>;
+  searchParams: Promise<{ page?: string; level?: string; type?: string; location?: string; sourceLang?: string; targetLang?: string }>;
 }
 
 // Generate static params for all categories
@@ -119,7 +120,7 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
 
 export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
   const { category: categorySlug } = await params;
-  const { page = '1', level, type, location } = await searchParams;
+  const { page = '1', level, type, location, sourceLang, targetLang } = await searchParams;
 
   const category = categories.find((c) => c.slug === categorySlug);
 
@@ -148,6 +149,14 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   }
   if (location) {
     where.locationType = location.toUpperCase();
+  }
+
+  // Language filters (for translation jobs)
+  if (sourceLang) {
+    where.sourceLanguages = { has: sourceLang.toUpperCase() };
+  }
+  if (targetLang) {
+    where.targetLanguages = { has: targetLang.toUpperCase() };
   }
 
   // Fetch jobs with pagination and additional stats for FAQ
@@ -321,6 +330,14 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                     ))}
                   </div>
                 </div>
+
+                {/* Language Pair Filter - only for translation category */}
+                {categorySlug === 'translation' && (
+                  <LanguagePairFilter
+                    currentSourceLang={sourceLang}
+                    currentTargetLang={targetLang}
+                  />
+                )}
 
                 {/* Related Categories */}
                 <div>

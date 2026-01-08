@@ -13,7 +13,7 @@ import {
   SheetTrigger,
   SheetFooter,
 } from '@/components/ui/sheet';
-import { categories, levels, jobTypes, countries, techStacks, salaryRanges } from '@/config/site';
+import { categories, levels, jobTypes, countries, techStacks, salaryRanges, languages } from '@/config/site';
 
 interface MobileFiltersProps {
   currentFilters: {
@@ -23,6 +23,9 @@ interface MobileFiltersProps {
     country?: string;
     salary?: string;
     skills: string[];
+    category?: string;
+    sourceLang?: string;
+    targetLang?: string;
   };
   activeFilterCount: number;
 }
@@ -55,6 +58,9 @@ export function MobileFilters({ currentFilters, activeFilterCount }: MobileFilte
     country: currentFilters.country,
     salary: currentFilters.salary,
     skills: currentFilters.skills.length > 0 ? currentFilters.skills : undefined,
+    category: currentFilters.category,
+    sourceLang: currentFilters.sourceLang,
+    targetLang: currentFilters.targetLang,
   });
 
   const popularSkills = techStacks.slice(0, 12);
@@ -82,18 +88,79 @@ export function MobileFilters({ currentFilters, activeFilterCount }: MobileFilte
           <div>
             <label className="text-sm font-medium mb-2 block">Category</label>
             <div className="space-y-1 max-h-40 overflow-y-auto">
-              {categories.slice(0, 10).map((category) => (
-                <Link
-                  key={category.slug}
-                  href={`/jobs/${category.slug}`}
-                  onClick={() => setOpen(false)}
-                  className="block px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded"
-                >
-                  {category.icon} {category.name}
-                </Link>
-              ))}
+              {categories.slice(0, 10).map((category) => {
+                const isActive = currentFilters.category === category.slug;
+                const href = buildFilterUrl({
+                  category: isActive ? undefined : category.slug,
+                  // Clear language filters when changing category
+                  sourceLang: isActive ? undefined : currentFilters.sourceLang,
+                  targetLang: isActive ? undefined : currentFilters.targetLang,
+                });
+
+                return (
+                  <Link
+                    key={category.slug}
+                    href={href}
+                    onClick={() => setOpen(false)}
+                    className={`block px-3 py-2 text-sm rounded ${
+                      isActive
+                        ? 'bg-primary/10 text-primary font-medium'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {category.icon} {category.name}
+                  </Link>
+                );
+              })}
             </div>
           </div>
+
+          {/* Language Pair Filter - only shown when translation category is selected */}
+          {currentFilters.category === 'translation' && (
+            <div>
+              <label className="text-sm font-medium mb-2 block">Language Pair</label>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">From</label>
+                  <select
+                    value={currentFilters.sourceLang || ''}
+                    onChange={(e) => {
+                      const href = buildFilterUrl({ sourceLang: e.target.value || undefined });
+                      setOpen(false);
+                      window.location.href = href;
+                    }}
+                    className="w-full px-3 py-2 text-sm border rounded bg-background"
+                  >
+                    <option value="">Any language</option>
+                    {languages.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">To</label>
+                  <select
+                    value={currentFilters.targetLang || ''}
+                    onChange={(e) => {
+                      const href = buildFilterUrl({ targetLang: e.target.value || undefined });
+                      setOpen(false);
+                      window.location.href = href;
+                    }}
+                    className="w-full px-3 py-2 text-sm border rounded bg-background"
+                  >
+                    <option value="">Any language</option>
+                    {languages.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Country */}
           <div>

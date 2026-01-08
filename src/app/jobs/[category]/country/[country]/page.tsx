@@ -13,13 +13,14 @@ import { getCategoryContent } from '@/config/category-content';
 import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
+import { LanguagePairFilter } from '@/components/jobs/LanguagePairFilter';
 
 // ISR: Revalidate every hour for programmatic pages
 export const revalidate = 3600;
 
 interface CategoryCountryPageProps {
   params: Promise<{ category: string; country: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; sourceLang?: string; targetLang?: string }>;
 }
 
 // Generate static params for all category + country combinations
@@ -99,7 +100,7 @@ export async function generateMetadata({ params, searchParams }: CategoryCountry
 
 export default async function CategoryCountryPage({ params, searchParams }: CategoryCountryPageProps) {
   const { category: categorySlug, country: countrySlug } = await params;
-  const { page = '1' } = await searchParams;
+  const { page = '1', sourceLang, targetLang } = await searchParams;
 
   const category = categories.find((c) => c.slug === categorySlug);
   const country = getCountryBySlug(countrySlug);
@@ -119,6 +120,14 @@ export default async function CategoryCountryPage({ params, searchParams }: Cate
     category: { slug: categorySlug },
     country: country.code,
   };
+
+  // Language filters (for translation jobs)
+  if (sourceLang) {
+    where.sourceLanguages = { has: sourceLang.toUpperCase() };
+  }
+  if (targetLang) {
+    where.targetLanguages = { has: targetLang.toUpperCase() };
+  }
 
   // Fetch jobs and stats
   let jobs: any[] = [];
@@ -296,6 +305,14 @@ export default async function CategoryCountryPage({ params, searchParams }: Cate
                     ))}
                   </div>
                 </div>
+
+                {/* Language Pair Filter - only for translation category */}
+                {categorySlug === 'translation' && (
+                  <LanguagePairFilter
+                    currentSourceLang={sourceLang}
+                    currentTargetLang={targetLang}
+                  />
+                )}
 
                 {/* Nearby Countries */}
                 {nearbyCountries.length > 0 && (

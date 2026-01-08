@@ -10,10 +10,11 @@ import { siteConfig, categories, levels } from '@/config/site';
 import { truncateTitle } from '@/lib/seo';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
+import { LanguagePairFilter } from '@/components/jobs/LanguagePairFilter';
 
 interface CategoryLevelPageProps {
   params: Promise<{ category: string; level: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; sourceLang?: string; targetLang?: string }>;
 }
 
 // Generate static params for all category + level combinations
@@ -69,7 +70,7 @@ export async function generateMetadata({ params }: CategoryLevelPageProps): Prom
 
 export default async function CategoryLevelPage({ params, searchParams }: CategoryLevelPageProps) {
   const { category: categorySlug, level: levelSlug } = await params;
-  const { page = '1' } = await searchParams;
+  const { page = '1', sourceLang, targetLang } = await searchParams;
 
   const category = categories.find((c) => c.slug === categorySlug);
   const level = levels.find((l) => l.value.toLowerCase() === levelSlug.toLowerCase());
@@ -86,12 +87,20 @@ export default async function CategoryLevelPage({ params, searchParams }: Catego
 
   try {
     const maxAgeDate = getMaxJobAgeDate();
-    const where = {
+    const where: any = {
       isActive: true,
       postedAt: { gte: maxAgeDate },
       category: { slug: categorySlug },
       level: level.value,
     };
+
+    // Language filters (for translation jobs)
+    if (sourceLang) {
+      where.sourceLanguages = { has: sourceLang.toUpperCase() };
+    }
+    if (targetLang) {
+      where.targetLanguages = { has: targetLang.toUpperCase() };
+    }
 
     [jobs, totalJobs] = await Promise.all([
       prisma.job.findMany({
@@ -192,6 +201,14 @@ export default async function CategoryLevelPage({ params, searchParams }: Catego
                     ))}
                   </div>
                 </div>
+
+                {/* Language Pair Filter - only for translation category */}
+                {categorySlug === 'translation' && (
+                  <LanguagePairFilter
+                    currentSourceLang={sourceLang}
+                    currentTargetLang={targetLang}
+                  />
+                )}
 
                 <div>
                   <h2 className="text-sm font-medium mb-2">Other Categories</h2>

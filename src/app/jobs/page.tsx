@@ -10,6 +10,8 @@ import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 import { JobFilters } from '@/components/jobs/JobFilters';
 import { MobileFilters } from '@/components/jobs/MobileFilters';
+import { LanguagePairFilter } from '@/components/jobs/LanguagePairFilter';
+import { languages } from '@/config/site';
 
 // ISR: Revalidate every 60 seconds for fresh job listings
 export const revalidate = 60;
@@ -23,6 +25,9 @@ interface JobsPageProps {
     country?: string;
     salary?: string;
     skills?: string | string[];
+    category?: string;
+    sourceLang?: string;
+    targetLang?: string;
   }>;
 }
 
@@ -101,6 +106,9 @@ async function getJobs(
     country?: string;
     salaryMin?: number;
     skills?: string[];
+    category?: string;
+    sourceLang?: string;
+    targetLang?: string;
   }
 ) {
   const maxAgeDate = getMaxJobAgeDate();
@@ -158,6 +166,19 @@ async function getJobs(
     if (skillKeywords.length > 0) {
       where.skills = { hasSome: skillKeywords };
     }
+  }
+
+  // Category filter
+  if (filters.category) {
+    where.category = { slug: filters.category };
+  }
+
+  // Language filters (for translation jobs)
+  if (filters.sourceLang) {
+    where.sourceLanguages = { has: filters.sourceLang.toUpperCase() };
+  }
+  if (filters.targetLang) {
+    where.targetLanguages = { has: filters.targetLang.toUpperCase() };
   }
 
   try {
@@ -229,6 +250,9 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
     country: params.country,
     salaryMin: salaryRange?.min,
     skills: toArray(params.skills),
+    category: params.category,
+    sourceLang: params.sourceLang,
+    targetLang: params.targetLang,
   };
 
   const { jobs, totalCount } = await getJobs(currentPage, filters);
@@ -239,7 +263,10 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
     filters.types.length > 0 ||
     filters.country ||
     filters.salaryMin ||
-    filters.skills.length > 0;
+    filters.skills.length > 0 ||
+    filters.category ||
+    filters.sourceLang ||
+    filters.targetLang;
 
   // Popular skills to show (top 12)
   const popularSkills = techStacks.slice(0, 12);
@@ -251,7 +278,10 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
     filters.types.length +
     (filters.country ? 1 : 0) +
     (filters.salaryMin ? 1 : 0) +
-    filters.skills.length;
+    filters.skills.length +
+    (filters.category ? 1 : 0) +
+    (filters.sourceLang ? 1 : 0) +
+    (filters.targetLang ? 1 : 0);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -276,6 +306,9 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                 country: filters.country,
                 salary: params.salary,
                 skills: filters.skills,
+                category: filters.category,
+                sourceLang: filters.sourceLang,
+                targetLang: filters.targetLang,
               }}
               activeFilterCount={activeFilterCount}
             />
@@ -292,17 +325,35 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                 <div>
                   <label className="text-sm font-medium mb-2 block">Category</label>
                   <div className="space-y-1 max-h-48 overflow-y-auto">
-                    {categories.map((category) => (
-                      <Link
-                        key={category.slug}
-                        href={`/jobs/${category.slug}`}
-                        className="block px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded"
-                      >
-                        {category.icon} {category.name}
-                      </Link>
-                    ))}
+                    {categories.map((category) => {
+                      const isActive = filters.category === category.slug;
+                      const href = buildFilterUrl(
+                        { q: params.q, level: params.level, type: params.type, country: params.country, salary: params.salary, skills: params.skills, sourceLang: params.sourceLang, targetLang: params.targetLang },
+                        { category: isActive ? undefined : category.slug, page: undefined }
+                      );
+
+                      return (
+                        <Link
+                          key={category.slug}
+                          href={href}
+                          className={`block px-3 py-1.5 text-sm rounded hover:bg-muted ${
+                            isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          {category.icon} {category.name}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
+
+                {/* Language Pair Filter - visible when translation is selected */}
+                {filters.category === 'translation' && (
+                  <LanguagePairFilter
+                    currentSourceLang={filters.sourceLang}
+                    currentTargetLang={filters.targetLang}
+                  />
+                )}
 
                 {/* Country */}
                 <div>
@@ -546,6 +597,30 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                     </Link>
                   );
                 })}
+
+                {filters.category && (
+                  <Link href={buildFilterUrl({ q: params.q, level: params.level, type: params.type, country: params.country, salary: params.salary, skills: params.skills }, { category: undefined, sourceLang: undefined, targetLang: undefined })}>
+                    <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
+                      {categories.find(c => c.slug === filters.category)?.icon} {categories.find(c => c.slug === filters.category)?.name} ×
+                    </Badge>
+                  </Link>
+                )}
+
+                {filters.sourceLang && (
+                  <Link href={buildFilterUrl({ q: params.q, level: params.level, type: params.type, country: params.country, salary: params.salary, skills: params.skills, category: params.category, targetLang: params.targetLang }, { sourceLang: undefined })}>
+                    <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
+                      From: {languages.find(l => l.code === filters.sourceLang)?.name} ×
+                    </Badge>
+                  </Link>
+                )}
+
+                {filters.targetLang && (
+                  <Link href={buildFilterUrl({ q: params.q, level: params.level, type: params.type, country: params.country, salary: params.salary, skills: params.skills, category: params.category, sourceLang: params.sourceLang }, { targetLang: undefined })}>
+                    <Badge variant="secondary" className="cursor-pointer hover:bg-destructive/20">
+                      To: {languages.find(l => l.code === filters.targetLang)?.name} ×
+                    </Badge>
+                  </Link>
+                )}
 
                 {!hasFilters && (
                   <Badge variant="outline">All Jobs</Badge>
