@@ -393,8 +393,8 @@ GOOGLE_CLIENT_SECRET=xxx
 Специальные фильтры для языковых профессий:
 
 **Translation Types:**
-- WRITTEN — письменный перевод
-- INTERPRETATION — устный перевод
+- TRANSLATION — письменный перевод (written translation)
+- INTERPRETATION — устный перевод (oral interpretation)
 - LOCALIZATION — локализация
 - EDITING — редактура
 - TRANSCRIPTION — транскрибирование
@@ -405,7 +405,7 @@ GOOGLE_CLIENT_SECRET=xxx
 **Language Pairs:**
 Пользователь может добавить несколько языковых пар для каждого типа перевода:
 ```
-Written Translation: RU→EN, EN→RU, EN→DE
+Translation: RU→EN, EN→RU, EN→DE
 Interpretation: DE→RU, DE→EN
 ```
 
@@ -414,7 +414,7 @@ Interpretation: DE→RU, DE→EN
 model AlertLanguagePair {
   id              String   @id @default(cuid())
   jobAlert        JobAlert @relation(...)
-  translationType String   // WRITTEN, INTERPRETATION, etc.
+  translationType String   // TRANSLATION, INTERPRETATION, etc.
   sourceLanguage  String   // ISO 639-1: EN, RU, DE
   targetLanguage  String   // ISO 639-1: RU, EN, DE
 }

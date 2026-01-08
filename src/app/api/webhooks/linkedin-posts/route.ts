@@ -12,7 +12,7 @@ import { assessContentQuality, isFreeEmailProvider, isPersonalAnnouncement } fro
 
 // Valid TranslationType enum values from Prisma schema
 const VALID_TRANSLATION_TYPES = [
-  'WRITTEN', 'INTERPRETATION', 'LOCALIZATION', 'EDITING',
+  'TRANSLATION', 'INTERPRETATION', 'LOCALIZATION', 'EDITING',
   'TRANSCRIPTION', 'SUBTITLING', 'MT_POST_EDITING', 'COPYWRITING'
 ] as const;
 

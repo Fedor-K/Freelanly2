@@ -15,7 +15,7 @@ interface LanguagePair {
 }
 
 const TRANSLATION_TYPES = [
-  { value: 'WRITTEN', label: 'Written Translation' },
+  { value: 'TRANSLATION', label: 'Translation' },
   { value: 'INTERPRETATION', label: 'Interpretation' },
   { value: 'LOCALIZATION', label: 'Localization' },
   { value: 'SUBTITLING', label: 'Subtitling' },
@@ -79,7 +79,7 @@ export default function OnboardingPage() {
   const addLanguagePair = () => {
     setLanguagePairs((prev) => [
       ...prev,
-      { translationType: 'WRITTEN', sourceLanguage: 'EN', targetLanguage: '' },
+      { translationType: 'TRANSLATION', sourceLanguage: 'EN', targetLanguage: '' },
     ]);
   };
 

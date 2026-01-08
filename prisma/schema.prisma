@@ -413,7 +413,7 @@ enum ContentQuality {
 
 // Translation-specific enums for language professionals
 enum TranslationType {
-  WRITTEN         // Written translation
+  TRANSLATION     // Written translation
   INTERPRETATION  // Oral/verbal interpretation
   LOCALIZATION    // Software/content localization
   EDITING         // Editing/proofreading
@@ -558,7 +558,7 @@ model AlertLanguagePair {
   jobAlert        JobAlert  @relation(fields: [jobAlertId], references: [id], onDelete: Cascade)
   jobAlertId      String
 
-  translationType String    // WRITTEN, INTERPRETATION, LOCALIZATION, etc.
+  translationType String    // TRANSLATION, INTERPRETATION, LOCALIZATION, etc.
   sourceLanguage  String    // ISO 639-1: EN, RU, DE
   targetLanguage  String    // ISO 639-1: RU, EN, DE
 

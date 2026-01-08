@@ -95,7 +95,7 @@ export const jobTypes = [
 
 // Translation/Language work types
 export const translationTypes = [
-  { value: 'WRITTEN', label: 'Written Translation', icon: '📝' },
+  { value: 'TRANSLATION', label: 'Written Translation', icon: '📝' },
   { value: 'INTERPRETATION', label: 'Interpretation', icon: '🎤' },
   { value: 'LOCALIZATION', label: 'Localization', icon: '🌍' },
   { value: 'EDITING', label: 'Editing & Proofreading', icon: '✏️' },

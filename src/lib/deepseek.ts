@@ -94,7 +94,7 @@ function getAIClient(): { client: OpenAI; model: string; provider: AIProvider } 
 
 // Translation work types
 export type TranslationType =
-  | 'WRITTEN'
+  | 'TRANSLATION'
   | 'INTERPRETATION'
   | 'LOCALIZATION'
   | 'EDITING'
@@ -105,7 +105,7 @@ export type TranslationType =
 
 // Valid translation types for validation
 const VALID_TRANSLATION_TYPES: TranslationType[] = [
-  'WRITTEN', 'INTERPRETATION', 'LOCALIZATION', 'EDITING',
+  'TRANSLATION', 'INTERPRETATION', 'LOCALIZATION', 'EDITING',
   'TRANSCRIPTION', 'SUBTITLING', 'MT_POST_EDITING', 'COPYWRITING'
 ];
 
@@ -269,7 +269,7 @@ Return a valid JSON object with these fields:
 
 FOR TRANSLATION/LOCALIZATION JOBS ONLY, also extract:
 - translationTypes: array of translation work types mentioned. Use these exact values:
-  - WRITTEN (written translation, document translation)
+  - TRANSLATION (written translation, document translation)
   - INTERPRETATION (oral/verbal interpretation, conference interpretation, consecutive/simultaneous)
   - LOCALIZATION (software localization, game localization, website localization)
   - EDITING (editing, proofreading, reviewing translations)

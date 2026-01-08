@@ -128,7 +128,7 @@ async function createAlertsForUser(
   languagePairs?: LanguagePair[]
 ) {
   const validTranslationTypes = [
-    'WRITTEN',
+    'TRANSLATION',
     'INTERPRETATION',
     'LOCALIZATION',
     'EDITING',

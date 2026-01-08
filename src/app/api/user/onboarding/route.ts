@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const email = session.user.email;
 
     const validTranslationTypes = [
-      'WRITTEN',
+      'TRANSLATION',
       'INTERPRETATION',
       'LOCALIZATION',
       'EDITING',

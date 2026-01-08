@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     // Validate translation types if provided
     const validTranslationTypes = [
-      'WRITTEN',
+      'TRANSLATION',
       'INTERPRETATION',
       'LOCALIZATION',
       'EDITING',

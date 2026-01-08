@@ -228,7 +228,7 @@ async function migrateBatchUsers(count: number) {
               where: {
                 jobAlertId_translationType_sourceLanguage_targetLanguage: {
                   jobAlertId: newAlert.id,
-                  translationType: 'WRITTEN',
+                  translationType: 'TRANSLATION',
                   sourceLanguage: sourceLang,
                   targetLanguage: targetLang,
                 },
@@ -236,7 +236,7 @@ async function migrateBatchUsers(count: number) {
               update: {},
               create: {
                 jobAlertId: newAlert.id,
-                translationType: 'WRITTEN',
+                translationType: 'TRANSLATION',
                 sourceLanguage: sourceLang,
                 targetLanguage: targetLang,
               },

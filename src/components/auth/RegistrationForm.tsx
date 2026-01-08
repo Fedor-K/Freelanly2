@@ -24,7 +24,7 @@ export interface RegistrationFormProps {
 }
 
 const TRANSLATION_TYPES = [
-  { value: 'WRITTEN', label: 'Written Translation' },
+  { value: 'TRANSLATION', label: 'Translation' },
   { value: 'INTERPRETATION', label: 'Interpretation' },
   { value: 'LOCALIZATION', label: 'Localization' },
   { value: 'SUBTITLING', label: 'Subtitling' },
@@ -135,7 +135,7 @@ export function RegistrationForm({
       } else {
         // Auto-add one empty language pair when selecting translation
         if (slug === 'translation' && languagePairs.length === 0) {
-          setLanguagePairs([{ translationType: 'WRITTEN', sourceLanguage: 'EN', targetLanguage: '' }]);
+          setLanguagePairs([{ translationType: 'TRANSLATION', sourceLanguage: 'EN', targetLanguage: '' }]);
         }
         return [...prev, slug];
       }
@@ -153,7 +153,7 @@ export function RegistrationForm({
   const addLanguagePair = () => {
     setLanguagePairs((prev) => [
       ...prev,
-      { translationType: 'WRITTEN', sourceLanguage: 'EN', targetLanguage: '' },
+      { translationType: 'TRANSLATION', sourceLanguage: 'EN', targetLanguage: '' },
     ]);
   };
 

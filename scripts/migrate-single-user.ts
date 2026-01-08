@@ -232,7 +232,7 @@ async function migrateUser(email: string) {
         await prisma.alertLanguagePair.create({
           data: {
             jobAlertId: newAlert.id,
-            translationType: 'WRITTEN',
+            translationType: 'TRANSLATION',
             sourceLanguage: sourceLang,
             targetLanguage: targetLang,
           }

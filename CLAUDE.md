@@ -151,7 +151,7 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx
 Специальные фильтры для языковых профессий с поддержкой множественных языковых пар.
 
 **Translation Types:**
-- WRITTEN, INTERPRETATION, LOCALIZATION, EDITING
+- TRANSLATION, INTERPRETATION, LOCALIZATION, EDITING
 - TRANSCRIPTION, SUBTITLING, MT_POST_EDITING, COPYWRITING
 
 **Language Pairs Model:**
@@ -159,7 +159,7 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx
 model AlertLanguagePair {
   id              String   @id @default(cuid())
   jobAlert        JobAlert @relation(...)
-  translationType String   // WRITTEN, INTERPRETATION, etc.
+  translationType String   // TRANSLATION, INTERPRETATION, etc.
   sourceLanguage  String   // ISO 639-1: EN, RU, DE
   targetLanguage  String   // ISO 639-1: RU, EN, DE
 }

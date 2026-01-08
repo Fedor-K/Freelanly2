@@ -45,7 +45,7 @@ interface AlertsListProps {
 
 // Translation types for the dropdown
 const TRANSLATION_TYPES = [
-  { value: 'WRITTEN', label: 'Written Translation' },
+  { value: 'TRANSLATION', label: 'Translation' },
   { value: 'INTERPRETATION', label: 'Interpretation (Oral)' },
   { value: 'LOCALIZATION', label: 'Localization' },
   { value: 'EDITING', label: 'Editing / Proofreading' },
