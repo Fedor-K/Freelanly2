@@ -93,6 +93,18 @@ export const jobTypes = [
   { value: 'INTERNSHIP', label: 'Internship' },
 ] as const;
 
+// Translation/Language work types
+export const translationTypes = [
+  { value: 'WRITTEN', label: 'Written Translation', icon: '📝' },
+  { value: 'INTERPRETATION', label: 'Interpretation', icon: '🎤' },
+  { value: 'LOCALIZATION', label: 'Localization', icon: '🌍' },
+  { value: 'EDITING', label: 'Editing & Proofreading', icon: '✏️' },
+  { value: 'TRANSCRIPTION', label: 'Transcription', icon: '📋' },
+  { value: 'SUBTITLING', label: 'Subtitling', icon: '🎬' },
+  { value: 'MT_POST_EDITING', label: 'MT Post-Editing', icon: '🤖' },
+  { value: 'COPYWRITING', label: 'Copywriting', icon: '✍️' },
+] as const;
+
 export const locationTypes = [
   { value: 'REMOTE', label: 'Remote (Worldwide)' },
   { value: 'REMOTE_US', label: 'Remote (US)' },
@@ -189,28 +201,109 @@ export const jobRoles = [
   { slug: 'machine-learning-engineer', name: 'ML Engineer', keywords: ['Machine Learning', 'ML', 'AI'] },
 ] as const;
 
-// Languages for translation job SEO pages
+// Languages for translation job filters and SEO pages (75 languages)
 export const languages = [
+  // Top 10 most in-demand
   { code: 'EN', name: 'English', slug: 'english' },
   { code: 'ES', name: 'Spanish', slug: 'spanish' },
   { code: 'FR', name: 'French', slug: 'french' },
   { code: 'DE', name: 'German', slug: 'german' },
-  { code: 'IT', name: 'Italian', slug: 'italian' },
-  { code: 'PT', name: 'Portuguese', slug: 'portuguese' },
-  { code: 'RU', name: 'Russian', slug: 'russian' },
   { code: 'ZH', name: 'Chinese', slug: 'chinese' },
   { code: 'JA', name: 'Japanese', slug: 'japanese' },
-  { code: 'KO', name: 'Korean', slug: 'korean' },
   { code: 'AR', name: 'Arabic', slug: 'arabic' },
+  { code: 'PT', name: 'Portuguese', slug: 'portuguese' },
+  { code: 'RU', name: 'Russian', slug: 'russian' },
+  { code: 'KO', name: 'Korean', slug: 'korean' },
+  // Western Europe
+  { code: 'IT', name: 'Italian', slug: 'italian' },
   { code: 'NL', name: 'Dutch', slug: 'dutch' },
+  { code: 'EL', name: 'Greek', slug: 'greek' },
+  { code: 'MT', name: 'Maltese', slug: 'maltese' },
+  { code: 'LB', name: 'Luxembourgish', slug: 'luxembourgish' },
+  // Scandinavia
+  { code: 'SV', name: 'Swedish', slug: 'swedish' },
+  { code: 'DA', name: 'Danish', slug: 'danish' },
+  { code: 'NO', name: 'Norwegian', slug: 'norwegian' },
+  { code: 'FI', name: 'Finnish', slug: 'finnish' },
+  { code: 'IS', name: 'Icelandic', slug: 'icelandic' },
+  // Central Europe
   { code: 'PL', name: 'Polish', slug: 'polish' },
-  { code: 'TR', name: 'Turkish', slug: 'turkish' },
+  { code: 'CS', name: 'Czech', slug: 'czech' },
+  { code: 'SK', name: 'Slovak', slug: 'slovak' },
+  { code: 'HU', name: 'Hungarian', slug: 'hungarian' },
+  { code: 'RO', name: 'Romanian', slug: 'romanian' },
+  // Balkans
+  { code: 'BG', name: 'Bulgarian', slug: 'bulgarian' },
+  { code: 'SR', name: 'Serbian', slug: 'serbian' },
+  { code: 'HR', name: 'Croatian', slug: 'croatian' },
+  { code: 'SL', name: 'Slovenian', slug: 'slovenian' },
+  { code: 'BS', name: 'Bosnian', slug: 'bosnian' },
+  { code: 'MK', name: 'Macedonian', slug: 'macedonian' },
+  { code: 'SQ', name: 'Albanian', slug: 'albanian' },
+  // Baltics
+  { code: 'ET', name: 'Estonian', slug: 'estonian' },
+  { code: 'LV', name: 'Latvian', slug: 'latvian' },
+  { code: 'LT', name: 'Lithuanian', slug: 'lithuanian' },
+  // Eastern Europe & Caucasus
   { code: 'UK', name: 'Ukrainian', slug: 'ukrainian' },
+  { code: 'KA', name: 'Georgian', slug: 'georgian' },
+  { code: 'HY', name: 'Armenian', slug: 'armenian' },
+  { code: 'AZ', name: 'Azerbaijani', slug: 'azerbaijani' },
+  // Iberian regional
+  { code: 'CA', name: 'Catalan', slug: 'catalan' },
+  { code: 'EU', name: 'Basque', slug: 'basque' },
+  { code: 'GL', name: 'Galician', slug: 'galician' },
+  // Celtic
+  { code: 'CY', name: 'Welsh', slug: 'welsh' },
+  { code: 'GA', name: 'Irish', slug: 'irish' },
+  // Middle East
+  { code: 'HE', name: 'Hebrew', slug: 'hebrew' },
+  { code: 'FA', name: 'Persian', slug: 'persian' },
+  { code: 'TR', name: 'Turkish', slug: 'turkish' },
+  { code: 'KU', name: 'Kurdish', slug: 'kurdish' },
+  { code: 'PS', name: 'Pashto', slug: 'pashto' },
+  { code: 'YI', name: 'Yiddish', slug: 'yiddish' },
+  // Central Asia
+  { code: 'KK', name: 'Kazakh', slug: 'kazakh' },
+  { code: 'UZ', name: 'Uzbek', slug: 'uzbek' },
+  { code: 'KY', name: 'Kyrgyz', slug: 'kyrgyz' },
+  { code: 'TG', name: 'Tajik', slug: 'tajik' },
+  { code: 'TK', name: 'Turkmen', slug: 'turkmen' },
+  // South Asia
+  { code: 'HI', name: 'Hindi', slug: 'hindi' },
+  { code: 'BN', name: 'Bengali', slug: 'bengali' },
+  { code: 'UR', name: 'Urdu', slug: 'urdu' },
+  { code: 'PA', name: 'Punjabi', slug: 'punjabi' },
+  { code: 'TA', name: 'Tamil', slug: 'tamil' },
+  { code: 'TE', name: 'Telugu', slug: 'telugu' },
+  { code: 'MR', name: 'Marathi', slug: 'marathi' },
+  { code: 'GU', name: 'Gujarati', slug: 'gujarati' },
+  { code: 'KN', name: 'Kannada', slug: 'kannada' },
+  { code: 'ML', name: 'Malayalam', slug: 'malayalam' },
+  { code: 'OR', name: 'Odia', slug: 'odia' },
+  { code: 'NE', name: 'Nepali', slug: 'nepali' },
+  { code: 'SI', name: 'Sinhala', slug: 'sinhala' },
+  // Southeast Asia
   { code: 'VI', name: 'Vietnamese', slug: 'vietnamese' },
   { code: 'TH', name: 'Thai', slug: 'thai' },
-  { code: 'HI', name: 'Hindi', slug: 'hindi' },
-  { code: 'HE', name: 'Hebrew', slug: 'hebrew' },
-  { code: 'SV', name: 'Swedish', slug: 'swedish' },
+  { code: 'ID', name: 'Indonesian', slug: 'indonesian' },
+  { code: 'MS', name: 'Malay', slug: 'malay' },
+  { code: 'TL', name: 'Tagalog', slug: 'tagalog' },
+  { code: 'KM', name: 'Khmer', slug: 'khmer' },
+  { code: 'LO', name: 'Lao', slug: 'lao' },
+  { code: 'MY', name: 'Burmese', slug: 'burmese' },
+  // East Asia
+  { code: 'ZH-TW', name: 'Chinese (Traditional)', slug: 'chinese-traditional' },
+  { code: 'YUE', name: 'Cantonese', slug: 'cantonese' },
+  { code: 'MN', name: 'Mongolian', slug: 'mongolian' },
+  // Africa
+  { code: 'SW', name: 'Swahili', slug: 'swahili' },
+  { code: 'AM', name: 'Amharic', slug: 'amharic' },
+  { code: 'HA', name: 'Hausa', slug: 'hausa' },
+  { code: 'YO', name: 'Yoruba', slug: 'yoruba' },
+  { code: 'ZU', name: 'Zulu', slug: 'zulu' },
+  { code: 'AF', name: 'Afrikaans', slug: 'afrikaans' },
+  { code: 'SO', name: 'Somali', slug: 'somali' },
 ] as const;
 
 // Popular translation language pairs for SEO pages

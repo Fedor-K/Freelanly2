@@ -130,14 +130,38 @@ export interface ExtractedJobData {
   benefitBullets: string[];      // benefits if mentioned (legacy)
 }
 
-// Common languages for translation job title detection
+// Common languages for translation job title detection (75 languages, synced with site.ts)
 const LANGUAGES = [
-  'Arabic', 'Bengali', 'Bulgarian', 'Chinese', 'Croatian', 'Czech', 'Danish',
-  'Dutch', 'English', 'Estonian', 'Finnish', 'French', 'German', 'Greek',
-  'Hebrew', 'Hindi', 'Hungarian', 'Indonesian', 'Italian', 'Japanese',
-  'Korean', 'Latvian', 'Lithuanian', 'Malay', 'Norwegian', 'Persian', 'Polish',
-  'Portuguese', 'Romanian', 'Russian', 'Serbian', 'Slovak', 'Slovenian',
-  'Spanish', 'Swedish', 'Thai', 'Turkish', 'Ukrainian', 'Urdu', 'Vietnamese'
+  // Top 10
+  'English', 'Spanish', 'French', 'German', 'Chinese', 'Japanese', 'Arabic', 'Portuguese', 'Russian', 'Korean',
+  // Western Europe
+  'Italian', 'Dutch', 'Greek', 'Maltese', 'Luxembourgish',
+  // Scandinavia
+  'Swedish', 'Danish', 'Norwegian', 'Finnish', 'Icelandic',
+  // Central Europe
+  'Polish', 'Czech', 'Slovak', 'Hungarian', 'Romanian',
+  // Balkans
+  'Bulgarian', 'Serbian', 'Croatian', 'Slovenian', 'Bosnian', 'Macedonian', 'Albanian',
+  // Baltics
+  'Estonian', 'Latvian', 'Lithuanian',
+  // Eastern Europe & Caucasus
+  'Ukrainian', 'Georgian', 'Armenian', 'Azerbaijani',
+  // Iberian regional
+  'Catalan', 'Basque', 'Galician',
+  // Celtic
+  'Welsh', 'Irish',
+  // Middle East
+  'Hebrew', 'Persian', 'Turkish', 'Kurdish', 'Pashto', 'Yiddish',
+  // Central Asia
+  'Kazakh', 'Uzbek', 'Kyrgyz', 'Tajik', 'Turkmen',
+  // South Asia
+  'Hindi', 'Bengali', 'Urdu', 'Punjabi', 'Tamil', 'Telugu', 'Marathi', 'Gujarati', 'Kannada', 'Malayalam', 'Odia', 'Nepali', 'Sinhala',
+  // Southeast Asia
+  'Vietnamese', 'Thai', 'Indonesian', 'Malay', 'Tagalog', 'Khmer', 'Lao', 'Burmese',
+  // East Asia
+  'Cantonese', 'Mongolian',
+  // Africa
+  'Swahili', 'Amharic', 'Hausa', 'Yoruba', 'Zulu', 'Afrikaans', 'Somali'
 ];
 
 // Translation-related role keywords
@@ -242,7 +266,14 @@ FOR TRANSLATION/LOCALIZATION JOBS ONLY, also extract:
 - sourceLanguages: array of source language ISO 639-1 codes (uppercase), e.g., ["EN", "ES", "DE"]
 - targetLanguages: array of target language ISO 639-1 codes (uppercase), e.g., ["RU", "FR", "ZH"]
 
-Common language codes: EN (English), ES (Spanish), DE (German), FR (French), RU (Russian), ZH (Chinese), JA (Japanese), KO (Korean), PT (Portuguese), IT (Italian), AR (Arabic), NL (Dutch), PL (Polish), TR (Turkish), UK (Ukrainian), SV (Swedish)
+Common language codes (ISO 639-1):
+EN (English), ES (Spanish), FR (French), DE (German), ZH (Chinese), JA (Japanese), AR (Arabic), PT (Portuguese), RU (Russian), KO (Korean),
+IT (Italian), NL (Dutch), EL (Greek), SV (Swedish), DA (Danish), NO (Norwegian), FI (Finnish), PL (Polish), CS (Czech), SK (Slovak),
+HU (Hungarian), RO (Romanian), BG (Bulgarian), SR (Serbian), HR (Croatian), SL (Slovenian), SQ (Albanian), ET (Estonian), LV (Latvian), LT (Lithuanian),
+UK (Ukrainian), KA (Georgian), HY (Armenian), AZ (Azerbaijani), CA (Catalan), HE (Hebrew), FA (Persian), TR (Turkish), KU (Kurdish),
+KK (Kazakh), UZ (Uzbek), HI (Hindi), BN (Bengali), UR (Urdu), PA (Punjabi), TA (Tamil), TE (Telugu), MR (Marathi), GU (Gujarati),
+VI (Vietnamese), TH (Thai), ID (Indonesian), MS (Malay), TL (Tagalog), KM (Khmer), MY (Burmese), MN (Mongolian),
+SW (Swahili), AM (Amharic), AF (Afrikaans), SO (Somali)
 
 For non-translation jobs, set translationTypes, sourceLanguages, targetLanguages to empty arrays [].
 

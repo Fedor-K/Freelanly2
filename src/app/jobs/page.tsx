@@ -24,6 +24,7 @@ interface JobsPageProps {
     category?: string;
     sourceLang?: string;
     targetLang?: string;
+    workType?: string;
   }>;
 }
 
@@ -105,6 +106,7 @@ async function getJobs(
     category?: string;
     sourceLang?: string;
     targetLang?: string;
+    workType?: string;
   }
 ) {
   const maxAgeDate = getMaxJobAgeDate();
@@ -175,6 +177,11 @@ async function getJobs(
   }
   if (filters.targetLang) {
     where.targetLanguages = { has: filters.targetLang.toUpperCase() };
+  }
+
+  // Work type filter (for translation jobs)
+  if (filters.workType) {
+    where.translationTypes = { has: filters.workType };
   }
 
   try {
@@ -249,6 +256,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
     category: params.category,
     sourceLang: params.sourceLang,
     targetLang: params.targetLang,
+    workType: params.workType,
   };
 
   const { jobs, totalCount } = await getJobs(currentPage, filters);
@@ -281,6 +289,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                 category: filters.category,
                 sourceLang: filters.sourceLang,
                 targetLang: filters.targetLang,
+                workType: filters.workType,
               }}
               totalCount={totalCount}
             />

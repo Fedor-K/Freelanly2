@@ -5,7 +5,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { categories, levels, jobTypes, countries, techStacks, salaryRanges, languages } from '@/config/site';
+import { categories, levels, jobTypes, countries, techStacks, salaryRanges, languages, translationTypes } from '@/config/site';
 import { ChevronDown, X, Search, SlidersHorizontal } from 'lucide-react';
 
 interface TopFiltersProps {
@@ -19,6 +19,7 @@ interface TopFiltersProps {
     category?: string;
     sourceLang?: string;
     targetLang?: string;
+    workType?: string;
   };
   totalCount: number;
 }
@@ -71,7 +72,8 @@ export function TopFilters({ currentFilters, totalCount }: TopFiltersProps) {
     currentFilters.skills.length +
     (currentFilters.category ? 1 : 0) +
     (currentFilters.sourceLang ? 1 : 0) +
-    (currentFilters.targetLang ? 1 : 0);
+    (currentFilters.targetLang ? 1 : 0) +
+    (currentFilters.workType ? 1 : 0);
 
   // Popular tech stacks to show
   const popularTech = techStacks.slice(0, 8);
@@ -194,6 +196,40 @@ export function TopFilters({ currentFilters, totalCount }: TopFiltersProps) {
                       className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-muted ${currentFilters.targetLang === lang.code ? 'bg-primary/10 text-primary' : ''}`}
                     >
                       {lang.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Work Type Dropdown for Language Jobs */}
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toggleDropdown('workType')}
+                className={`gap-1 ${currentFilters.workType ? 'border-primary text-primary' : ''}`}
+              >
+                {currentFilters.workType
+                  ? translationTypes.find(t => t.value === currentFilters.workType)?.label
+                  : 'Work Type'}
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+              {openDropdown === 'workType' && (
+                <div className="absolute z-50 mt-1 w-56 bg-background border rounded-lg shadow-lg p-2 max-h-64 overflow-y-auto">
+                  <button
+                    onClick={() => { router.push(buildUrl({ workType: undefined })); setOpenDropdown(null); }}
+                    className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-muted ${!currentFilters.workType ? 'bg-primary/10 text-primary' : ''}`}
+                  >
+                    All Types
+                  </button>
+                  {translationTypes.map((type) => (
+                    <button
+                      key={type.value}
+                      onClick={() => { router.push(buildUrl({ workType: type.value })); setOpenDropdown(null); }}
+                      className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-muted ${currentFilters.workType === type.value ? 'bg-primary/10 text-primary' : ''}`}
+                    >
+                      {type.icon} {type.label}
                     </button>
                   ))}
                 </div>
@@ -414,6 +450,15 @@ export function TopFilters({ currentFilters, totalCount }: TopFiltersProps) {
             <Link href={buildUrl({ targetLang: undefined })}>
               <Badge variant="secondary" className="gap-1 cursor-pointer hover:bg-destructive/20">
                 To: {languages.find(l => l.code === currentFilters.targetLang)?.name}
+                <X className="h-3 w-3" />
+              </Badge>
+            </Link>
+          )}
+
+          {currentFilters.workType && (
+            <Link href={buildUrl({ workType: undefined })}>
+              <Badge variant="secondary" className="gap-1 cursor-pointer hover:bg-destructive/20">
+                {translationTypes.find(t => t.value === currentFilters.workType)?.icon} {translationTypes.find(t => t.value === currentFilters.workType)?.label}
                 <X className="h-3 w-3" />
               </Badge>
             </Link>
