@@ -124,9 +124,22 @@ export function RegistrationForm({
 
   // Category handlers
   const toggleCategory = (slug: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(slug) ? prev.filter((c) => c !== slug) : [...prev, slug]
-    );
+    setSelectedCategories((prev) => {
+      const isRemoving = prev.includes(slug);
+      if (isRemoving) {
+        // Clear language pairs when removing translation
+        if (slug === 'translation') {
+          setLanguagePairs([]);
+        }
+        return prev.filter((c) => c !== slug);
+      } else {
+        // Auto-add one empty language pair when selecting translation
+        if (slug === 'translation' && languagePairs.length === 0) {
+          setLanguagePairs([{ translationType: 'WRITTEN', sourceLanguage: 'EN', targetLanguage: '' }]);
+        }
+        return [...prev, slug];
+      }
+    });
   };
 
   const removeCategory = (slug: string) => {
@@ -206,6 +219,17 @@ export function RegistrationForm({
     if (selectedCategories.length === 0) {
       setError('Please select at least one job category');
       return;
+    }
+
+    // Validate language pairs for translation category
+    if (showTranslationFields) {
+      const validPairs = languagePairs.filter(
+        (p) => p.sourceLanguage && p.targetLanguage && p.sourceLanguage !== p.targetLanguage
+      );
+      if (validPairs.length === 0) {
+        setError('Please add at least one language pair for translation alerts');
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -611,7 +635,8 @@ export function RegistrationForm({
         {/* Translation Language Pairs */}
         {showTranslationFields && (
           <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
-            <Label>Language Pairs</Label>
+            <Label>Language Pairs *</Label>
+            <p className="text-xs text-muted-foreground -mt-2">Required for translation job alerts</p>
             {languagePairs.map((pair, index) => (
               <div key={index} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-start">
                 {/* Type select - full width on mobile */}

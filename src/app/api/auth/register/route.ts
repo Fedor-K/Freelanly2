@@ -37,6 +37,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'At least one category is required' }, { status: 400 });
     }
 
+    // Validate language pairs for translation category
+    if (categories.includes('translation')) {
+      const validPairs = languagePairs?.filter(
+        (p) => p.sourceLanguage && p.targetLanguage && p.sourceLanguage !== p.targetLanguage
+      ) || [];
+      if (validPairs.length === 0) {
+        return NextResponse.json(
+          { error: 'At least one language pair is required for translation alerts' },
+          { status: 400 }
+        );
+      }
+    }
+
     const normalizedEmail = email.toLowerCase().trim();
 
     // Check if user already exists

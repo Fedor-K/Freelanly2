@@ -312,6 +312,8 @@ export function queueCompanyEnrichment(companyId: string, email: string): void {
  * 4. Logo.dev has logo → OK
  * 5. No logo anywhere → REJECT
  *
+ * Also generates Z.ai description if Apollo doesn't provide one.
+ *
  * @returns true if company is valid and has logo, false if should be rejected
  */
 export async function validateAndEnrichCompany(
@@ -325,6 +327,13 @@ export async function validateAndEnrichCompany(
   }
 
   try {
+    // Get company name for Z.ai fallback
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { name: true },
+    });
+    const companyName = company?.name || domain;
+
     // 1. Check Apollo - this is the PRIMARY validator
     console.log(`[Validation] Checking Apollo for domain: ${domain}`);
     const apolloData = await fetchCompanyFromApollo(domain);
@@ -343,6 +352,19 @@ export async function validateAndEnrichCompany(
     // Apollo knows this company - enrich it (sets apolloEnrichedAt)
     console.log(`[Validation] Apollo found company: ${apolloData.name || domain}`);
     await updateCompanyWithApolloData(companyId, apolloData, domain);
+
+    // Z.ai fallback: Generate description if Apollo didn't provide one
+    if (!apolloData.short_description) {
+      console.log(`[Validation] Apollo has no description, trying Z.ai for ${companyName}`);
+      const aiDescription = await generateCompanyDescriptionWithAI(companyName, domain);
+      if (aiDescription) {
+        await prisma.company.update({
+          where: { id: companyId },
+          data: { description: aiDescription },
+        });
+        console.log(`[Validation] Z.ai generated description for ${companyName} (${aiDescription.length} chars)`);
+      }
+    }
 
     // 2. Check for logo - Apollo logo is preferred
     if (apolloData.logo_url) {

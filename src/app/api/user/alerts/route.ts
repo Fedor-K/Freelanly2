@@ -80,6 +80,19 @@ export async function POST(request: NextRequest) {
       'COPYWRITING',
     ];
 
+    // Require language pairs for translation category
+    if (category === 'translation') {
+      const validPairs = languagePairs?.filter(
+        (p) => p.sourceLanguage && p.targetLanguage && p.sourceLanguage !== p.targetLanguage
+      ) || [];
+      if (validPairs.length === 0) {
+        return NextResponse.json(
+          { error: 'At least one language pair is required for translation alerts' },
+          { status: 400 }
+        );
+      }
+    }
+
     if (languagePairs && languagePairs.length > 0) {
       for (const pair of languagePairs) {
         if (!validTranslationTypes.includes(pair.translationType)) {
