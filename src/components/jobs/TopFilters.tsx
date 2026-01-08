@@ -76,6 +76,9 @@ export function TopFilters({ currentFilters, totalCount }: TopFiltersProps) {
   // Popular tech stacks to show
   const popularTech = techStacks.slice(0, 8);
 
+  // Language jobs don't need Experience, Salary, Tech Stack filters
+  const isLanguageCategory = currentFilters.category === 'translation';
+
   return (
     <div className="space-y-4">
       {/* Main Filter Row */}
@@ -235,58 +238,62 @@ export function TopFilters({ currentFilters, totalCount }: TopFiltersProps) {
           )}
         </div>
 
-        {/* Level Dropdown */}
-        <div className="relative">
+        {/* Level Dropdown - hidden for language jobs */}
+        {!isLanguageCategory && (
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => toggleDropdown('level')}
+              className={`gap-1 ${currentFilters.levels.length > 0 ? 'border-primary text-primary' : ''}`}
+            >
+              {currentFilters.levels.length > 0
+                ? `${levels.find(l => l.value === currentFilters.levels[0])?.label}${currentFilters.levels.length > 1 ? ` +${currentFilters.levels.length - 1}` : ''}`
+                : 'Experience'}
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+            {openDropdown === 'level' && (
+              <div className="absolute z-50 mt-1 w-48 bg-background border rounded-lg shadow-lg p-2">
+                {levels.slice(0, 6).map((level) => {
+                  const isActive = currentFilters.levels.includes(level.value);
+                  const newLevels = isActive
+                    ? currentFilters.levels.filter(l => l !== level.value)
+                    : [...currentFilters.levels, level.value];
+                  return (
+                    <Link
+                      key={level.value}
+                      href={buildUrl({ level: newLevels.length > 0 ? newLevels : undefined })}
+                      className={`flex items-center gap-2 px-3 py-2 text-sm rounded hover:bg-muted ${isActive ? 'bg-primary/10 text-primary' : ''}`}
+                    >
+                      <span className={`w-4 h-4 border rounded flex items-center justify-center text-xs ${isActive ? 'bg-primary border-primary text-white' : 'border-gray-300'}`}>
+                        {isActive && '✓'}
+                      </span>
+                      {level.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* More Filters Toggle - hidden for language jobs */}
+        {!isLanguageCategory && (
           <Button
             variant="outline"
             size="sm"
-            onClick={() => toggleDropdown('level')}
-            className={`gap-1 ${currentFilters.levels.length > 0 ? 'border-primary text-primary' : ''}`}
+            onClick={() => setShowAllFilters(!showAllFilters)}
+            className="gap-1"
           >
-            {currentFilters.levels.length > 0
-              ? `${levels.find(l => l.value === currentFilters.levels[0])?.label}${currentFilters.levels.length > 1 ? ` +${currentFilters.levels.length - 1}` : ''}`
-              : 'Experience'}
-            <ChevronDown className="h-3 w-3" />
+            <SlidersHorizontal className="h-3 w-3" />
+            More
+            {activeFilterCount > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                {activeFilterCount}
+              </Badge>
+            )}
           </Button>
-          {openDropdown === 'level' && (
-            <div className="absolute z-50 mt-1 w-48 bg-background border rounded-lg shadow-lg p-2">
-              {levels.slice(0, 6).map((level) => {
-                const isActive = currentFilters.levels.includes(level.value);
-                const newLevels = isActive
-                  ? currentFilters.levels.filter(l => l !== level.value)
-                  : [...currentFilters.levels, level.value];
-                return (
-                  <Link
-                    key={level.value}
-                    href={buildUrl({ level: newLevels.length > 0 ? newLevels : undefined })}
-                    className={`flex items-center gap-2 px-3 py-2 text-sm rounded hover:bg-muted ${isActive ? 'bg-primary/10 text-primary' : ''}`}
-                  >
-                    <span className={`w-4 h-4 border rounded flex items-center justify-center text-xs ${isActive ? 'bg-primary border-primary text-white' : 'border-gray-300'}`}>
-                      {isActive && '✓'}
-                    </span>
-                    {level.label}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* More Filters Toggle */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowAllFilters(!showAllFilters)}
-          className="gap-1"
-        >
-          <SlidersHorizontal className="h-3 w-3" />
-          More
-          {activeFilterCount > 0 && (
-            <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-              {activeFilterCount}
-            </Badge>
-          )}
-        </Button>
+        )}
 
         {/* Clear All */}
         {activeFilterCount > 0 && (
@@ -303,8 +310,8 @@ export function TopFilters({ currentFilters, totalCount }: TopFiltersProps) {
         </span>
       </div>
 
-      {/* Expanded Filters */}
-      {showAllFilters && (
+      {/* Expanded Filters - hidden for language jobs */}
+      {showAllFilters && !isLanguageCategory && (
         <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Job Type */}
@@ -421,7 +428,8 @@ export function TopFilters({ currentFilters, totalCount }: TopFiltersProps) {
             </Link>
           )}
 
-          {currentFilters.salary && (
+          {/* Hide salary/levels/types/skills badges for language jobs */}
+          {!isLanguageCategory && currentFilters.salary && (
             <Link href={buildUrl({ salary: undefined })}>
               <Badge variant="secondary" className="gap-1 cursor-pointer hover:bg-destructive/20">
                 {salaryRanges.find(r => r.value === currentFilters.salary)?.label}
@@ -430,7 +438,7 @@ export function TopFilters({ currentFilters, totalCount }: TopFiltersProps) {
             </Link>
           )}
 
-          {currentFilters.levels.map((level) => (
+          {!isLanguageCategory && currentFilters.levels.map((level) => (
             <Link
               key={level}
               href={buildUrl({ level: currentFilters.levels.filter(l => l !== level).length > 0 ? currentFilters.levels.filter(l => l !== level) : undefined })}
@@ -442,7 +450,7 @@ export function TopFilters({ currentFilters, totalCount }: TopFiltersProps) {
             </Link>
           ))}
 
-          {currentFilters.types.map((type) => (
+          {!isLanguageCategory && currentFilters.types.map((type) => (
             <Link
               key={type}
               href={buildUrl({ type: currentFilters.types.filter(t => t !== type).length > 0 ? currentFilters.types.filter(t => t !== type) : undefined })}
@@ -454,7 +462,7 @@ export function TopFilters({ currentFilters, totalCount }: TopFiltersProps) {
             </Link>
           ))}
 
-          {currentFilters.skills.map((skill) => (
+          {!isLanguageCategory && currentFilters.skills.map((skill) => (
             <Link
               key={skill}
               href={buildUrl({ skills: currentFilters.skills.filter(s => s !== skill).length > 0 ? currentFilters.skills.filter(s => s !== skill) : undefined })}

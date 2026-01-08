@@ -64,7 +64,7 @@ export const categories = [
   { slug: 'project-management', name: 'Project Management', icon: '📋', group: 'business', socCode: '11-9199.00', socTitle: 'Project Management Specialists' },
   // Content & Creative
   { slug: 'writing', name: 'Writing & Content', icon: '✍️', group: 'content', socCode: '27-3043.00', socTitle: 'Writers and Authors' },
-  { slug: 'translation', name: 'Translation', icon: '🌐', group: 'content', socCode: '27-3091.00', socTitle: 'Interpreters and Translators' },
+  { slug: 'translation', name: 'Language Jobs', icon: '🌐', group: 'content', socCode: '27-3091.00', socTitle: 'Interpreters and Translators' },
   { slug: 'creative', name: 'Creative & Media', icon: '🎬', group: 'content', socCode: '27-1014.00', socTitle: 'Multimedia Artists and Animators' },
   // Other
   { slug: 'support', name: 'Customer Support', icon: '🎧', group: 'other', socCode: '43-4051.00', socTitle: 'Customer Service Representatives' },
