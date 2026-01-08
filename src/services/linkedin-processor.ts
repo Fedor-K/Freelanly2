@@ -19,6 +19,18 @@ import { addToSocialQueue } from '@/services/social-post';
 import { shouldSkipJob } from '@/lib/job-filter';
 import type { FilterReason } from '@prisma/client';
 
+// Valid TranslationType enum values from Prisma schema
+const VALID_TRANSLATION_TYPES = [
+  'WRITTEN', 'INTERPRETATION', 'LOCALIZATION', 'EDITING',
+  'TRANSCRIPTION', 'SUBTITLING', 'MT_POST_EDITING', 'COPYWRITING'
+] as const;
+
+// Filter to only valid translation types (AI sometimes returns invalid values like "TRANSLATION")
+function filterValidTranslationTypes(types: string[] | undefined): string[] {
+  if (!types || !Array.isArray(types)) return [];
+  return types.filter(t => VALID_TRANSLATION_TYPES.includes(t as any));
+}
+
 // Re-export for cron endpoint
 export { HIRING_SEARCH_QUERIES };
 
@@ -580,7 +592,7 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
         ...salaryData,
         skills: extracted.skills,
         benefits: extracted.benefits,
-        translationTypes: extracted.translationTypes || [],
+        translationTypes: filterValidTranslationTypes(extracted.translationTypes),
         sourceLanguages: extracted.sourceLanguages || [],
         targetLanguages: extracted.targetLanguages || [],
         cleanDescription: extracted.cleanDescription,

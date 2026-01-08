@@ -103,6 +103,20 @@ export type TranslationType =
   | 'MT_POST_EDITING'
   | 'COPYWRITING';
 
+// Valid translation types for validation
+const VALID_TRANSLATION_TYPES: TranslationType[] = [
+  'WRITTEN', 'INTERPRETATION', 'LOCALIZATION', 'EDITING',
+  'TRANSCRIPTION', 'SUBTITLING', 'MT_POST_EDITING', 'COPYWRITING'
+];
+
+// Filter to only valid translation types (AI sometimes returns invalid values like "TRANSLATION")
+function filterValidTranslationTypes(types: unknown): TranslationType[] {
+  if (!types || !Array.isArray(types)) return [];
+  return types.filter((t): t is TranslationType =>
+    typeof t === 'string' && VALID_TRANSLATION_TYPES.includes(t as TranslationType)
+  );
+}
+
 export interface ExtractedJobData {
   title: string | null;
   company: string | null;
@@ -411,7 +425,7 @@ export async function extractJobData(postText: string): Promise<ExtractedJobData
       ...data,
       title: data.title ? normalizeTranslationTitle(data.title) : null,
       salaryCurrency: normalizeCurrencyCode(data.salaryCurrency),
-      translationTypes: data.translationTypes || [],
+      translationTypes: filterValidTranslationTypes(data.translationTypes),
       sourceLanguages: data.sourceLanguages || [],
       targetLanguages: data.targetLanguages || [],
       cleanDescription: data.cleanDescription || null,
