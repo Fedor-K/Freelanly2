@@ -100,6 +100,34 @@ export function JobCard({ job }: JobCardProps) {
   );
 }
 
+// Map invalid/symbol currency codes to valid ISO 4217 codes
+const CURRENCY_CODE_MAP: Record<string, string> = {
+  'RM': 'MYR',      // Malaysian Ringgit
+  'Rs': 'INR',      // Indian Rupee
+  'Rs.': 'INR',
+  '₹': 'INR',
+  '₱': 'PHP',       // Philippine Peso
+  'R$': 'BRL',      // Brazilian Real
+  '¥': 'JPY',       // Could be JPY or CNY, default to JPY
+  '€': 'EUR',
+  '£': 'GBP',
+  '$': 'USD',
+  'zł': 'PLN',      // Polish Zloty
+  'kr': 'SEK',      // Swedish Krona (could also be NOK, DKK)
+  'CHF': 'CHF',
+  'AED': 'AED',
+  'SGD': 'SGD',
+};
+
+function normalizeCurrencyCode(code: string | null): string {
+  if (!code) return 'USD';
+  const upper = code.toUpperCase();
+  // Check if it's already a valid 3-letter ISO code
+  if (/^[A-Z]{3}$/.test(upper)) return upper;
+  // Try mapping
+  return CURRENCY_CODE_MAP[code] || CURRENCY_CODE_MAP[upper] || 'USD';
+}
+
 function formatSalary(
   min: number | null,
   max: number | null,
@@ -107,12 +135,23 @@ function formatSalary(
   period: string | null
 ): string | null {
   if (!min && !max) return null;
-  const curr = currency || 'USD';
-  const formatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: curr,
-    maximumFractionDigits: 0,
-  });
+  const curr = normalizeCurrencyCode(currency);
+
+  let formatter: Intl.NumberFormat;
+  try {
+    formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: curr,
+      maximumFractionDigits: 0,
+    });
+  } catch {
+    // Fallback if currency code is still invalid
+    formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    });
+  }
 
   let salary: string;
   if (min && max) {

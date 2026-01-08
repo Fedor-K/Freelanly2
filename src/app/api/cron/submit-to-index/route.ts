@@ -84,31 +84,52 @@ export async function POST(request: NextRequest) {
     urls.push(`${siteConfig.url}/jobs/${category.slug}`);
   }
 
-  const recentJobs = await prisma.job.findMany({
-    where: { isActive: true },
+  // For Google: only RICH content jobs (to save 200/day quota)
+  const richJobs = await prisma.job.findMany({
+    where: {
+      isActive: true,
+      contentQuality: 'RICH',
+    },
     select: { slug: true, company: { select: { slug: true } } },
     take: DAILY_LIMIT - urls.length,
     orderBy: { createdAt: 'desc' },
   });
 
-  for (const job of recentJobs) {
+  for (const job of richJobs) {
     urls.push(`${siteConfig.url}/company/${job.company.slug}/jobs/${job.slug}`);
   }
 
-  // Submit to Google Indexing API
+  // For IndexNow: all active jobs (no daily limit)
+  const allJobs = await prisma.job.findMany({
+    where: { isActive: true },
+    select: { slug: true, company: { select: { slug: true } } },
+    take: 500, // reasonable batch size
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const allJobUrls = allJobs.map(
+    (job) => `${siteConfig.url}/company/${job.company.slug}/jobs/${job.slug}`
+  );
+
+  // Submit to Google Indexing API (static pages + RICH jobs only)
   let googleSubmitted = 0;
   for (const url of urls.slice(0, DAILY_LIMIT)) {
     if (await submitUrl(token, url)) googleSubmitted++;
     await new Promise(r => setTimeout(r, 100));
   }
 
-  // Submit to IndexNow (Bing, Yandex, etc.) - all URLs at once
-  const indexNowResult = await submitToIndexNow(urls);
+  // Submit to IndexNow (Bing, Yandex, etc.) - static pages + ALL jobs
+  const indexNowUrls = [...new Set([...urls, ...allJobUrls])]; // dedupe
+  const indexNowResult = await submitToIndexNow(indexNowUrls);
 
   return NextResponse.json({
-    google: { submitted: googleSubmitted, total: Math.min(urls.length, DAILY_LIMIT) },
-    indexNow: { success: indexNowResult.success, urls: urls.length },
-    totalUrls: urls.length,
+    google: {
+      submitted: googleSubmitted,
+      total: Math.min(urls.length, DAILY_LIMIT),
+      richJobsCount: richJobs.length,
+    },
+    indexNow: { success: indexNowResult.success, urls: indexNowUrls.length },
+    totalUrls: indexNowUrls.length,
   });
 }
 

@@ -97,14 +97,38 @@ async function getHomePageData() {
   }
 }
 
+// Map invalid/symbol currency codes to valid ISO 4217 codes
+const CURRENCY_CODE_MAP: Record<string, string> = {
+  'RM': 'MYR', 'Rs': 'INR', 'Rs.': 'INR', '₹': 'INR', '₱': 'PHP',
+  'R$': 'BRL', '¥': 'JPY', '€': 'EUR', '£': 'GBP', '$': 'USD',
+  'zł': 'PLN', 'kr': 'SEK',
+};
+
+function normalizeCurrencyCode(code: string | null): string {
+  if (!code) return 'USD';
+  const upper = code.toUpperCase();
+  if (/^[A-Z]{3}$/.test(upper)) return upper;
+  return CURRENCY_CODE_MAP[code] || CURRENCY_CODE_MAP[upper] || 'USD';
+}
+
 function formatSalaryCompact(min: number, max: number | null, currency: string | null): string {
-  const curr = currency || 'USD';
-  const formatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: curr,
-    maximumFractionDigits: 0,
-    notation: 'compact',
-  });
+  const curr = normalizeCurrencyCode(currency);
+  let formatter: Intl.NumberFormat;
+  try {
+    formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: curr,
+      maximumFractionDigits: 0,
+      notation: 'compact',
+    });
+  } catch {
+    formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+      notation: 'compact',
+    });
+  }
 
   if (max) {
     return `${formatter.format(min)}-${formatter.format(max)}/yr`;

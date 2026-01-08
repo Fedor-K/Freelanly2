@@ -1,5 +1,41 @@
 import OpenAI from 'openai';
 
+// Map invalid/symbol currency codes to valid ISO 4217 codes
+// AI sometimes returns currency symbols instead of codes
+const CURRENCY_CODE_MAP: Record<string, string> = {
+  'RM': 'MYR',      // Malaysian Ringgit
+  'Rs': 'INR',      // Indian Rupee
+  'Rs.': 'INR',
+  '₹': 'INR',
+  '₱': 'PHP',       // Philippine Peso
+  'R$': 'BRL',      // Brazilian Real
+  '¥': 'JPY',       // Japanese Yen (could also be CNY)
+  'CN¥': 'CNY',     // Chinese Yuan
+  '€': 'EUR',
+  '£': 'GBP',
+  '$': 'USD',
+  'A$': 'AUD',      // Australian Dollar
+  'C$': 'CAD',      // Canadian Dollar
+  'S$': 'SGD',      // Singapore Dollar
+  'HK$': 'HKD',     // Hong Kong Dollar
+  'zł': 'PLN',      // Polish Zloty
+  'kr': 'SEK',      // Swedish Krona
+  'Rp': 'IDR',      // Indonesian Rupiah
+  '฿': 'THB',       // Thai Baht
+  '₫': 'VND',       // Vietnamese Dong
+  '₩': 'KRW',       // Korean Won
+};
+
+function normalizeCurrencyCode(code: string | null): string | null {
+  if (!code) return null;
+  const trimmed = code.trim();
+  const upper = trimmed.toUpperCase();
+  // Already a valid 3-letter ISO code
+  if (/^[A-Z]{3}$/.test(upper)) return upper;
+  // Try mapping from symbol/abbreviation
+  return CURRENCY_CODE_MAP[trimmed] || CURRENCY_CODE_MAP[upper] || 'USD';
+}
+
 // AI Provider configuration
 // Set AI_PROVIDER=zai to use Z.ai, default is deepseek
 type AIProvider = 'deepseek' | 'zai';
@@ -339,10 +375,11 @@ export async function extractJobData(postText: string): Promise<ExtractedJobData
     if (!content) return null;
 
     const data = JSON.parse(content) as ExtractedJobData;
-    // Ensure translation fields have defaults and normalize title
+    // Ensure translation fields have defaults, normalize title and currency
     return {
       ...data,
       title: data.title ? normalizeTranslationTitle(data.title) : null,
+      salaryCurrency: normalizeCurrencyCode(data.salaryCurrency),
       translationTypes: data.translationTypes || [],
       sourceLanguages: data.sourceLanguages || [],
       targetLanguages: data.targetLanguages || [],

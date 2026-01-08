@@ -256,8 +256,14 @@ async function submitSingleToGoogle(url: string, accessToken: string): Promise<b
 
 /**
  * Main function - submit URLs to all configured search engines
+ *
+ * @param urls - URLs to submit
+ * @param options.skipGoogle - Skip Google Indexing API (for non-RICH content to save quota)
  */
-export async function notifySearchEngines(urls: string[]): Promise<IndexingResult[]> {
+export async function notifySearchEngines(
+  urls: string[],
+  options?: { skipGoogle?: boolean }
+): Promise<IndexingResult[]> {
   if (urls.length === 0) {
     return [];
   }
@@ -278,12 +284,17 @@ export async function notifySearchEngines(urls: string[]): Promise<IndexingResul
 
   console.log(`📤 Submitting ${validUrls.length} URLs to search engines...`);
 
-  const results = await Promise.all([
-    submitToIndexNow(validUrls),
-    submitToGoogle(validUrls),
-  ]);
+  // Always submit to IndexNow (no daily limit)
+  const indexNowResult = await submitToIndexNow(validUrls);
 
-  return results;
+  // Only submit RICH content to Google (200/day quota)
+  if (options?.skipGoogle) {
+    console.log(`⏭️ Skipping Google Indexing API (non-RICH content)`);
+    return [indexNowResult];
+  }
+
+  const googleResult = await submitToGoogle(validUrls);
+  return [indexNowResult, googleResult];
 }
 
 /**

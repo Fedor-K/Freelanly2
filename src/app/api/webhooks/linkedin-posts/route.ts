@@ -367,7 +367,9 @@ export async function POST(request: NextRequest) {
     // Notify search engines - ONLY for non-THIN content (THIN = noindex anyway)
     if (qualityResult.quality !== 'THIN') {
       try {
-        await notifySearchEngines([buildJobUrl(company.slug, job.slug)]);
+        // RICH → Google + IndexNow, LIGHT → IndexNow only (save Google quota)
+        const skipGoogle = qualityResult.quality !== 'RICH';
+        await notifySearchEngines([buildJobUrl(company.slug, job.slug)], { skipGoogle });
       } catch (indexError) {
         console.error('[LinkedInPosts] Search engine notification failed:', indexError);
       }

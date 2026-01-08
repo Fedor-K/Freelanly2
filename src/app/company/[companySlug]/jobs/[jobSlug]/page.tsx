@@ -50,6 +50,20 @@ function formatSalaryPeriod(period: string): string {
   return labels[period] || '/year';
 }
 
+// Map invalid/symbol currency codes to valid ISO 4217 codes
+const CURRENCY_CODE_MAP: Record<string, string> = {
+  'RM': 'MYR', 'Rs': 'INR', 'Rs.': 'INR', '₹': 'INR', '₱': 'PHP',
+  'R$': 'BRL', '¥': 'JPY', '€': 'EUR', '£': 'GBP', '$': 'USD',
+  'zł': 'PLN', 'kr': 'SEK',
+};
+
+function normalizeCurrencyCode(code: string | null): string {
+  if (!code) return 'USD';
+  const upper = code.toUpperCase();
+  if (/^[A-Z]{3}$/.test(upper)) return upper;
+  return CURRENCY_CODE_MAP[code] || CURRENCY_CODE_MAP[upper] || 'USD';
+}
+
 // Helper to format salary compactly for similar jobs cards
 function formatSalaryCompact(
   min: number,
@@ -57,13 +71,23 @@ function formatSalaryCompact(
   currency: string | null,
   period: string | null
 ): string {
-  const curr = currency || 'USD';
-  const formatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: curr,
-    maximumFractionDigits: 0,
-    notation: 'compact',
-  });
+  const curr = normalizeCurrencyCode(currency);
+  let formatter: Intl.NumberFormat;
+  try {
+    formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: curr,
+      maximumFractionDigits: 0,
+      notation: 'compact',
+    });
+  } catch {
+    formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+      notation: 'compact',
+    });
+  }
 
   const periodLabels: Record<string, string> = {
     'HOUR': '/hr',
@@ -771,12 +795,21 @@ export default async function JobPage({ params }: JobPageProps) {
 }
 
 function formatSalary(min: number | null, max: number | null, currency: string | null): string {
-  const curr = currency || 'USD';
-  const formatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: curr,
-    maximumFractionDigits: 0,
-  });
+  const curr = normalizeCurrencyCode(currency);
+  let formatter: Intl.NumberFormat;
+  try {
+    formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: curr,
+      maximumFractionDigits: 0,
+    });
+  } catch {
+    formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    });
+  }
 
   if (min && max) return `${formatter.format(min)} - ${formatter.format(max)}`;
   if (min) return `${formatter.format(min)}+`;

@@ -5,6 +5,20 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
+// Map invalid/symbol currency codes to valid ISO 4217 codes
+const CURRENCY_CODE_MAP: Record<string, string> = {
+  'RM': 'MYR', 'Rs': 'INR', 'Rs.': 'INR', '₹': 'INR', '₱': 'PHP',
+  'R$': 'BRL', '¥': 'JPY', '€': 'EUR', '£': 'GBP', '$': 'USD',
+  'zł': 'PLN', 'kr': 'SEK',
+};
+
+function normalizeCurrencyCode(code: string | null | undefined): string {
+  if (!code) return 'USD';
+  const upper = code.toUpperCase();
+  if (/^[A-Z]{3}$/.test(upper)) return upper;
+  return CURRENCY_CODE_MAP[code] || CURRENCY_CODE_MAP[upper] || 'USD';
+}
+
 export interface CalculationDetails {
   method: string;
   baselineSource?: string;
@@ -60,11 +74,21 @@ export function SalaryInsights({
   const data = marketData;
   const isPro = userPlan === 'PRO' || userPlan === 'ENTERPRISE';
 
-  const formatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency || 'USD',
-    maximumFractionDigits: 0,
-  });
+  const normalizedCurrency = normalizeCurrencyCode(currency);
+  let formatter: Intl.NumberFormat;
+  try {
+    formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: normalizedCurrency,
+      maximumFractionDigits: 0,
+    });
+  } catch {
+    formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    });
+  }
 
   const formatK = (val: number) => `$${(val / 1000).toFixed(0)}K`;
 
