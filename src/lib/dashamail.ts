@@ -345,4 +345,66 @@ export async function testDashaMailConnection(): Promise<boolean> {
   }
 }
 
+/**
+ * Получает статистику транзакционных писем за N дней
+ */
+export interface TransactionalStats {
+  sent: number;
+  opened: number;
+  clicked: number;
+  bounced: number;
+  unsubscribed: number;
+  complained: number;
+  openRate: number;
+  clickRate: number;
+  bounceRate: number;
+}
+
+export async function getTransactionalStats(days: number = 30): Promise<TransactionalStats> {
+  try {
+    const endDate = new Date().toISOString().slice(0, 10);
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    const result = await apiCall('transactional.get_stat', {
+      start_date: startDate,
+      end_date: endDate,
+      group_by: 'day',
+    });
+
+    const errCode = result.msg?.err_code ?? result.err_code;
+    if (errCode === 0 && result.data) {
+      const data = result.data as unknown as Array<{
+        sent: number;
+        opened: number;
+        clicked: number;
+        bounced: number;
+        unsubscribed: number;
+        complained: number;
+      }>;
+
+      const totals = { sent: 0, opened: 0, clicked: 0, bounced: 0, unsubscribed: 0, complained: 0 };
+      for (const slot of data) {
+        totals.sent += Number(slot.sent) || 0;
+        totals.opened += Number(slot.opened) || 0;
+        totals.clicked += Number(slot.clicked) || 0;
+        totals.bounced += Number(slot.bounced) || 0;
+        totals.unsubscribed += Number(slot.unsubscribed) || 0;
+        totals.complained += Number(slot.complained) || 0;
+      }
+
+      return {
+        ...totals,
+        openRate: totals.sent > 0 ? parseFloat(((totals.opened / totals.sent) * 100).toFixed(1)) : 0,
+        clickRate: totals.sent > 0 ? parseFloat(((totals.clicked / totals.sent) * 100).toFixed(1)) : 0,
+        bounceRate: totals.sent > 0 ? parseFloat(((totals.bounced / totals.sent) * 100).toFixed(1)) : 0,
+      };
+    }
+
+    return { sent: 0, opened: 0, clicked: 0, bounced: 0, unsubscribed: 0, complained: 0, openRate: 0, clickRate: 0, bounceRate: 0 };
+  } catch (error) {
+    console.error('DashaMail getTransactionalStats error:', error);
+    return { sent: 0, opened: 0, clicked: 0, bounced: 0, unsubscribed: 0, complained: 0, openRate: 0, clickRate: 0, bounceRate: 0 };
+  }
+}
+
 export { config as dashamailConfig };

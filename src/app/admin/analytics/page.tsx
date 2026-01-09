@@ -67,6 +67,14 @@ interface DashboardData {
     winback: { totalSent: number; resubscribed: number; conversionRate: number };
     abandonedCheckout: { totalSent: number; converted: number; conversionRate: number };
     alerts: { sent30d: number };
+    dashamail: {
+      opened: number;
+      clicked: number;
+      bounced: number;
+      unsubscribed: number;
+      openRate: number;
+      clickRate: number;
+    };
   };
   traffic: {
     source: string;
@@ -371,31 +379,58 @@ function EmailEffectivenessCard({ emails }: { emails: DashboardData['emails'] })
           <Mail className="h-5 w-5" />
           Email Effectiveness
         </CardTitle>
+        <CardDescription>DashaMail + DB stats (30d)</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 bg-blue-50 rounded-lg">
-            <p className="text-xs text-blue-600 font-medium">Trial Emails</p>
-            <p className="text-lg font-bold">{emails.trial.totalSent}</p>
-            <p className="text-xs text-muted-foreground">last 7d: {emails.trial.last7Days}</p>
+        {/* DashaMail Engagement Stats */}
+        <div className="grid grid-cols-4 gap-2">
+          <div className="p-2 bg-blue-50 rounded-lg text-center">
+            <p className="text-lg font-bold text-blue-600">{emails.alerts.sent30d.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">Sent</p>
           </div>
-          <div className="p-3 bg-purple-50 rounded-lg">
-            <p className="text-xs text-purple-600 font-medium">Win-back</p>
-            <p className="text-lg font-bold">{emails.winback.conversionRate}%</p>
-            <p className="text-xs text-muted-foreground">{emails.winback.resubscribed} resubscribed</p>
+          <div className="p-2 bg-green-50 rounded-lg text-center">
+            <p className="text-lg font-bold text-green-600">{emails.dashamail.opened.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">Opened</p>
+          </div>
+          <div className="p-2 bg-purple-50 rounded-lg text-center">
+            <p className="text-lg font-bold text-purple-600">{emails.dashamail.clicked.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">Clicked</p>
+          </div>
+          <div className="p-2 bg-red-50 rounded-lg text-center">
+            <p className="text-lg font-bold text-red-600">{emails.dashamail.bounced}</p>
+            <p className="text-xs text-muted-foreground">Bounced</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 bg-orange-50 rounded-lg">
-            <p className="text-xs text-orange-600 font-medium">Abandoned Cart</p>
-            <p className="text-lg font-bold">{emails.abandonedCheckout.conversionRate}%</p>
-            <p className="text-xs text-muted-foreground">{emails.abandonedCheckout.converted} recovered</p>
+        {/* Rates */}
+        <div className="flex gap-4 text-sm border-t pt-3">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Open rate:</span>
+            <span className={`font-medium ${emails.dashamail.openRate > 20 ? 'text-green-600' : emails.dashamail.openRate > 10 ? 'text-yellow-600' : 'text-red-600'}`}>
+              {emails.dashamail.openRate}%
+            </span>
           </div>
-          <div className="p-3 bg-green-50 rounded-lg">
-            <p className="text-xs text-green-600 font-medium">Job Alerts</p>
-            <p className="text-lg font-bold">{emails.alerts.sent30d.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">sent (30d)</p>
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Click rate:</span>
+            <span className={`font-medium ${emails.dashamail.clickRate > 5 ? 'text-green-600' : emails.dashamail.clickRate > 2 ? 'text-yellow-600' : 'text-red-600'}`}>
+              {emails.dashamail.clickRate}%
+            </span>
+          </div>
+        </div>
+
+        {/* Email Types */}
+        <div className="grid grid-cols-3 gap-2 border-t pt-3">
+          <div className="p-2 bg-gray-50 rounded-lg text-center">
+            <p className="text-xs text-muted-foreground">Trial</p>
+            <p className="text-sm font-medium">{emails.trial.totalSent}</p>
+          </div>
+          <div className="p-2 bg-gray-50 rounded-lg text-center">
+            <p className="text-xs text-muted-foreground">Win-back</p>
+            <p className="text-sm font-medium">{emails.winback.totalSent}</p>
+          </div>
+          <div className="p-2 bg-gray-50 rounded-lg text-center">
+            <p className="text-xs text-muted-foreground">Abandoned</p>
+            <p className="text-sm font-medium">{emails.abandonedCheckout.totalSent}</p>
           </div>
         </div>
       </CardContent>
