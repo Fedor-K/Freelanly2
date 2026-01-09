@@ -4,6 +4,7 @@ import { getStripe, STRIPE_PRICES } from '@/lib/stripe';
 import { getMetrikaLastNDays, testMetrikaConnection } from '@/lib/yandex-metrika-api';
 import { getTrialEmailStats } from '@/services/trial-emails';
 import { getWinbackEmailStats } from '@/services/winback-emails';
+import { getGSCStats } from '@/lib/google-search-console';
 import Stripe from 'stripe';
 
 // Target: €10K MRR by May 2026
@@ -32,6 +33,7 @@ export async function GET(_request: NextRequest) {
       churnData,
       emailData,
       trendsData,
+      gscData,
     ] = await Promise.all([
       getStripeMetrics(thirtyDaysAgo, now),
       getFunnelMetrics(thirtyDaysAgo, sevenDaysAgo),
@@ -40,6 +42,7 @@ export async function GET(_request: NextRequest) {
       getChurnAnalysis(thirtyDaysAgo, sixtyDaysAgo),
       getEmailEffectiveness(thirtyDaysAgo),
       getDailyTrends(thirtyDaysAgo),
+      getGSCStats(28), // Last 28 days of search data
     ]);
 
     // Calculate goal progress
@@ -87,6 +90,9 @@ export async function GET(_request: NextRequest) {
 
       // UX Issues
       uxIssues: clarityData,
+
+      // Google Search Console
+      gsc: gscData,
 
       // 30-day Trends
       trends: trendsData,

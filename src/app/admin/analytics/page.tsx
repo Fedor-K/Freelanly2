@@ -22,6 +22,7 @@ import {
   Loader2,
   Calendar,
   Zap,
+  Search,
 } from 'lucide-react';
 
 interface DashboardData {
@@ -80,6 +81,33 @@ interface DashboardData {
     quickBack: number;
     scriptErrors: number;
     hasIssues: boolean;
+  };
+  gsc: {
+    available: boolean;
+    error?: string;
+    summary: {
+      clicks: number;
+      impressions: number;
+      ctr: number;
+      position: number;
+    };
+    topQueries: Array<{
+      query: string;
+      clicks: number;
+      impressions: number;
+      ctr: number;
+      position: number;
+    }>;
+    topPages: Array<{
+      page: string;
+      clicks: number;
+      impressions: number;
+    }>;
+    countries: Array<{
+      country: string;
+      clicks: number;
+      impressions: number;
+    }>;
   };
   trends: {
     last30Days: Array<{ date: string; mrr: number; signups: number; conversions: number; churns: number }>;
@@ -493,6 +521,79 @@ function UXIssuesCard({ uxIssues }: { uxIssues: DashboardData['uxIssues'] }) {
   );
 }
 
+function GSCCard({ gsc }: { gsc: DashboardData['gsc'] }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Search className="h-5 w-5" />
+          Google Search Console
+        </CardTitle>
+        <CardDescription>Organic search performance (28d)</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {gsc.available ? (
+          <div className="space-y-4">
+            {/* Summary Stats */}
+            <div className="grid grid-cols-4 gap-3">
+              <div className="p-2 bg-blue-50 rounded-lg text-center">
+                <p className="text-lg font-bold text-blue-600">{gsc.summary.clicks.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Clicks</p>
+              </div>
+              <div className="p-2 bg-purple-50 rounded-lg text-center">
+                <p className="text-lg font-bold text-purple-600">{gsc.summary.impressions.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Impressions</p>
+              </div>
+              <div className="p-2 bg-green-50 rounded-lg text-center">
+                <p className="text-lg font-bold text-green-600">{gsc.summary.ctr}%</p>
+                <p className="text-xs text-muted-foreground">CTR</p>
+              </div>
+              <div className="p-2 bg-orange-50 rounded-lg text-center">
+                <p className="text-lg font-bold text-orange-600">{gsc.summary.position.toFixed(1)}</p>
+                <p className="text-xs text-muted-foreground">Avg Position</p>
+              </div>
+            </div>
+
+            {/* Top Queries */}
+            {gsc.topQueries.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">Top Queries</p>
+                <div className="space-y-2">
+                  {gsc.topQueries.slice(0, 5).map((q, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm">
+                      <span className="truncate flex-1 mr-2" title={q.query}>{q.query}</span>
+                      <span className="text-muted-foreground">{q.clicks} clicks</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Top Pages */}
+            {gsc.topPages.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">Top Pages</p>
+                <div className="space-y-2">
+                  {gsc.topPages.slice(0, 3).map((p, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm">
+                      <span className="truncate flex-1 mr-2" title={p.page}>{p.page || '/'}</span>
+                      <span className="text-muted-foreground">{p.clicks} clicks</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {gsc.error || 'Configure GOOGLE_INDEXING_CREDENTIALS and add service account to GSC'}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function AlertsCard({ alerts }: { alerts: DashboardData['alerts'] }) {
   if (alerts.length === 0) {
     return (
@@ -654,8 +755,11 @@ export default function CEODashboardPage() {
         <TrafficSourcesCard traffic={data.traffic} />
       </div>
 
-      {/* UX Issues */}
-      <UXIssuesCard uxIssues={data.uxIssues} />
+      {/* SEO & UX */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <GSCCard gsc={data.gsc} />
+        <UXIssuesCard uxIssues={data.uxIssues} />
+      </div>
 
       {/* Alerts */}
       <AlertsCard alerts={data.alerts} />
