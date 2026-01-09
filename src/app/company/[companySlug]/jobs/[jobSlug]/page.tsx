@@ -24,6 +24,7 @@ import { truncateTitle } from '@/lib/seo';
 import { shouldIndex } from '@/lib/content-quality';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
+import { CrossSellExitPopup } from '@/components/CrossSellExitPopup';
 
 // force-dynamic required: auth() checks user session for PRO/FREE content
 export const dynamic = 'force-dynamic';
@@ -700,6 +701,13 @@ export default async function JobPage({ params }: JobPageProps) {
       </main>
 
       <Footer />
+
+      {/* Cross-sell exit popup - show freelance opportunities */}
+      <CrossSellExitPopup
+        currentType="job"
+        categorySlug={job.category.slug}
+        categoryName={job.category.name}
+      />
 
       {/* JSON-LD JobPosting Structured Data - Google Compliant */}
       <script

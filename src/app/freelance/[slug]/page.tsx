@@ -13,6 +13,7 @@ import { siteConfig } from '@/config/site';
 import { truncateTitle } from '@/lib/seo';
 import { formatDistanceToNow } from '@/lib/utils';
 import { maskLinksForFreeUsers } from '@/lib/content-mask';
+import { CrossSellExitPopup } from '@/components/CrossSellExitPopup';
 
 type UserPlan = 'FREE' | 'PRO' | 'ENTERPRISE';
 
@@ -422,6 +423,13 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
       </main>
 
       <Footer />
+
+      {/* Cross-sell exit popup - show full-time jobs */}
+      <CrossSellExitPopup
+        currentType="opportunity"
+        categorySlug={opportunity.category.slug}
+        categoryName={opportunity.category.name}
+      />
 
       {/* Breadcrumb Schema (NO JobPosting schema for opportunities) */}
       <script
