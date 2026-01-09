@@ -134,3 +134,17 @@ headers = { Authorization = "Bearer ${CRON_SECRET}" }
 
 # DAILY alerts removed - all alerts are now INSTANT
 # INSTANT alerts are processed via /api/cron/process-instant-alerts (every 5 min)
+
+# ============================================
+# LEVER COMPANY DISCOVERY
+# ============================================
+
+# Discover new Lever companies - weekly on Sunday at 3:00 UTC
+# Uses Apify Google Search to find companies using Lever ATS
+[[deployment.scheduled]]
+trigger = "0 3 * * 0"
+action = "http"
+[deployment.scheduled.http]
+method = "POST"
+path = "/api/cron/discover-lever"
+headers = { Authorization = "Bearer ${CRON_SECRET}" }

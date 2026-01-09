@@ -11,6 +11,7 @@ SEO-оптимизированная платформа для поиска уд
 - Cron every 5 min: processes INSTANT alert queue (batched emails)
 - Hourly cron: sends trial onboarding emails (Day 0, 1, 2)
 - Cron every 15 min: posts 1 job to LinkedIn + Telegram via n8n
+- Weekly cron (Sunday 3:00 UTC): discovers new Lever companies via Apify
 - n8n workflow: scrapes LinkedIn posts every 15-20 min via Apify
 - Auto cleanup: removes jobs older than 30 days after each import
 - Company enrichment via Apollo.io
@@ -385,6 +386,7 @@ npx tsx scripts/migrate-content-quality.ts
 # Cron triggers (add -H "Authorization: Bearer $CRON_SECRET")
 curl -X POST http://localhost:3000/api/cron/fetch-sources    # All ATS sources
 curl -X POST http://localhost:3000/api/cron/fetch-linkedin   # LinkedIn only
+curl -X POST http://localhost:3000/api/cron/discover-lever   # Find new Lever companies
 curl -X POST "http://localhost:3000/api/cron/send-alerts?frequency=DAILY"
 
 # Scripts
@@ -392,6 +394,7 @@ npx tsx scripts/cleanup-duplicate-companies.ts
 npx tsx scripts/cleanup-duplicate-jobs.ts
 npx tsx scripts/recategorize-jobs.ts
 npx tsx scripts/migrate-content-quality.ts   # Assess quality for existing jobs
+npx tsx scripts/run-lever-discovery.ts       # Manual Lever discovery (local)
 
 # Database
 npm run db:seed                    # After DB reset
