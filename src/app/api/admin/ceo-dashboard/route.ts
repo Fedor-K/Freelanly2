@@ -6,9 +6,9 @@ import { getTrialEmailStats } from '@/services/trial-emails';
 import { getWinbackEmailStats } from '@/services/winback-emails';
 import Stripe from 'stripe';
 
-// Target: €10K MRR by May 2025
+// Target: €10K MRR by May 2026
 const TARGET_MRR = 10000;
-const TARGET_DATE = new Date('2025-05-31');
+const TARGET_DATE = new Date('2026-05-31');
 
 /**
  * CEO Dashboard - Unified funnel metrics for $10K MRR goal
