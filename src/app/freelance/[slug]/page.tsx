@@ -312,6 +312,16 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                   </Link>
                 </CardContent>
               </Card>
+
+              {/* Removal Request */}
+              <div className="text-center">
+                <a
+                  href={`mailto:removal@freelanly.com?subject=Removal%20Request&body=Please%20remove%20this%20listing:%20${encodeURIComponent(`${siteConfig.url}/freelance/${slug}`)}`}
+                  className="text-xs text-muted-foreground hover:underline"
+                >
+                  Request Removal
+                </a>
+              </div>
             </div>
           </div>
         </div>
