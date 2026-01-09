@@ -163,8 +163,8 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
 
                   {/* Client Info */}
                   <div className="flex items-start gap-4 mb-6">
-                    {isPro ? (
-                      opportunity.clientAvatar ? (
+                    <div className={!isPro ? 'blur-sm select-none' : ''}>
+                      {opportunity.clientAvatar ? (
                         <Image
                           src={opportunity.clientAvatar}
                           alt={opportunity.clientName}
@@ -176,20 +176,14 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                         <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-2xl">
                           {opportunity.clientName.charAt(0).toUpperCase()}
                         </div>
-                      )
-                    ) : (
-                      <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-400">
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                      </div>
-                    )}
-                    <div>
-                      <h2 className="text-lg font-semibold">
-                        {isPro ? opportunity.clientName : 'Client Name Hidden'}
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h2 className={`text-lg font-semibold ${!isPro ? 'blur-sm select-none' : ''}`}>
+                        {opportunity.clientName}
                       </h2>
-                      {isPro && opportunity.clientHeadline && (
-                        <p className="text-sm text-muted-foreground">
+                      {opportunity.clientHeadline && (
+                        <p className={`text-sm text-muted-foreground ${!isPro ? 'blur-sm select-none' : ''}`}>
                           {opportunity.clientHeadline}
                         </p>
                       )}
@@ -205,9 +199,10 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                       ) : (
                         <Link
                           href="/pricing"
-                          className="text-sm text-orange-600 hover:underline mt-1 inline-block"
+                          className="text-sm text-orange-600 hover:underline mt-1 inline-flex items-center gap-1"
                         >
-                          Upgrade to PRO to see client info →
+                          <span className="blur-sm select-none">linkedin.com/in/•••••</span>
+                          <span className="no-blur">Upgrade to see →</span>
                         </Link>
                       )}
                     </div>
@@ -263,15 +258,13 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                     <div className="whitespace-pre-wrap">{displayDescription}</div>
                   </div>
                   {!isPro && (
-                    <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                      <p className="text-sm text-orange-800">
-                        Contact information hidden.{' '}
-                        <Link href="/pricing" className="font-medium underline">
-                          Upgrade to PRO
-                        </Link>{' '}
-                        to see all details.
-                      </p>
-                    </div>
+                    <p className="mt-4 text-sm text-muted-foreground">
+                      Some contact details are hidden.{' '}
+                      <Link href="/pricing" className="text-orange-600 hover:underline">
+                        Upgrade to PRO
+                      </Link>{' '}
+                      to see everything.
+                    </p>
                   )}
                 </CardContent>
               </Card>
@@ -318,78 +311,86 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                   <CardTitle>Contact Client</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {isPro ? (
-                    <>
-                      <p className="text-sm text-muted-foreground">
-                        This is a direct freelance opportunity. Contact the client directly via LinkedIn or the provided contact info.
-                      </p>
+                  <p className="text-sm text-muted-foreground">
+                    This is a direct freelance opportunity. Contact the client directly via LinkedIn or the provided contact info.
+                  </p>
 
+                  {isPro ? (
+                    <a
+                      href={opportunity.clientLinkedIn}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block"
+                    >
+                      <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                        Message on LinkedIn
+                      </Button>
+                    </a>
+                  ) : (
+                    <div className="relative">
+                      <div className="blur-sm select-none pointer-events-none">
+                        <Button className="w-full bg-blue-600">
+                          Message on LinkedIn
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {opportunity.applyEmail && (
+                    isPro ? (
                       <a
-                        href={opportunity.clientLinkedIn}
+                        href={`mailto:${opportunity.applyEmail}?subject=Re: ${encodeURIComponent(opportunity.title)}`}
+                        className="block"
+                      >
+                        <Button variant="outline" className="w-full">
+                          Email: {opportunity.applyEmail}
+                        </Button>
+                      </a>
+                    ) : (
+                      <div className="blur-sm select-none pointer-events-none">
+                        <Button variant="outline" className="w-full">
+                          Email: •••••@••••.com
+                        </Button>
+                      </div>
+                    )
+                  )}
+
+                  {opportunity.applyUrl && (
+                    isPro ? (
+                      <a
+                        href={opportunity.applyUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block"
                       >
-                        <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                          Message on LinkedIn
+                        <Button variant="outline" className="w-full">
+                          Apply via Link
                         </Button>
                       </a>
-
-                      {opportunity.applyEmail && (
-                        <a
-                          href={`mailto:${opportunity.applyEmail}?subject=Re: ${encodeURIComponent(opportunity.title)}`}
-                          className="block"
-                        >
-                          <Button variant="outline" className="w-full">
-                            Email: {opportunity.applyEmail}
-                          </Button>
-                        </a>
-                      )}
-
-                      {opportunity.applyUrl && (
-                        <a
-                          href={opportunity.applyUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block"
-                        >
-                          <Button variant="outline" className="w-full">
-                            Apply via Link
-                          </Button>
-                        </a>
-                      )}
-
-                      <div className="pt-4 border-t">
-                        <p className="text-xs text-muted-foreground">
-                          ⚡ This project was posted recently. Apply quickly for the best chance of success.
-                        </p>
+                    ) : (
+                      <div className="blur-sm select-none pointer-events-none">
+                        <Button variant="outline" className="w-full">
+                          Apply via Link
+                        </Button>
                       </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-center py-4">
-                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                          </svg>
-                        </div>
-                        <h3 className="font-semibold mb-2">Contact Info Hidden</h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          Upgrade to PRO to contact this client directly via LinkedIn, email, or their application link.
-                        </p>
-                        <Link href="/pricing">
-                          <Button className="w-full bg-orange-600 hover:bg-orange-700">
-                            Upgrade to PRO
-                          </Button>
-                        </Link>
-                      </div>
-                      <div className="pt-4 border-t">
-                        <p className="text-xs text-muted-foreground">
-                          PRO members get unlimited access to client contact info, LinkedIn profiles, and direct application links.
-                        </p>
-                      </div>
-                    </>
+                    )
                   )}
+
+                  {!isPro && (
+                    <Link href="/pricing" className="block">
+                      <Button className="w-full bg-orange-600 hover:bg-orange-700">
+                        Upgrade to PRO to Contact
+                      </Button>
+                    </Link>
+                  )}
+
+                  <div className="pt-4 border-t">
+                    <p className="text-xs text-muted-foreground">
+                      {isPro
+                        ? '⚡ This project was posted recently. Apply quickly for the best chance of success.'
+                        : 'PRO members get unlimited access to client contact info and direct application links.'}
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
 
