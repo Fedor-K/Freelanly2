@@ -3,17 +3,18 @@ import { prisma } from '@/lib/db';
 import { processDataSource } from '@/services/sources';
 
 /**
- * Queue-based source fetching with automatic processing
+ * Queue-based source fetching with PARALLEL processing
  *
  * 1. Creates import tasks for all active sources
- * 2. Processes them one by one until timeout or completion
+ * 2. Processes them in parallel batches until timeout or completion
  *
- * Run daily at 6:00 UTC via cron:
+ * Run 3x daily at 6:00, 14:00, 22:00 UTC via cron:
  * curl -X POST https://freelanly.com/api/cron/fetch-sources -H "Authorization: Bearer $CRON_SECRET"
  */
 
 const MAX_EXECUTION_TIME = 55 * 60 * 1000; // 55 minutes max (leave buffer)
 const TASK_TIMEOUT = 30 * 60 * 1000; // 30 min = stuck task
+const PARALLEL_TASKS = 10; // Process 10 sources in parallel
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -80,10 +81,10 @@ export async function POST(request: NextRequest) {
       console.log(`[FetchSources] Queued ${stats.queued} new tasks`);
     }
 
-    // Step 3: Process tasks until timeout
+    // Step 3: Process tasks in PARALLEL batches until timeout
     while (Date.now() - startTime < MAX_EXECUTION_TIME) {
-      // Get next pending task
-      const task = await prisma.importTask.findFirst({
+      // Get batch of pending tasks
+      const tasks = await prisma.importTask.findMany({
         where: {
           status: 'PENDING',
           retryCount: { lt: 3 },
@@ -95,58 +96,80 @@ export async function POST(request: NextRequest) {
         include: {
           dataSource: { select: { id: true, name: true } },
         },
+        take: PARALLEL_TASKS,
       });
 
-      if (!task) {
+      if (tasks.length === 0) {
         console.log('[FetchSources] No more pending tasks');
         break;
       }
 
-      // Mark as processing
-      await prisma.importTask.update({
-        where: { id: task.id },
+      // Mark all as processing
+      await prisma.importTask.updateMany({
+        where: { id: { in: tasks.map(t => t.id) } },
         data: { status: 'PROCESSING', startedAt: new Date() },
       });
 
-      console.log(`[FetchSources] Processing: ${task.dataSource.name}`);
+      console.log(`[FetchSources] Processing batch of ${tasks.length}: ${tasks.map(t => t.dataSource.name).join(', ')}`);
 
-      try {
-        const result = await processDataSource(task.dataSourceId);
+      // Process all tasks in parallel
+      const results = await Promise.allSettled(
+        tasks.map(async (task) => {
+          try {
+            const result = await processDataSource(task.dataSourceId);
 
-        // Delete task after successful completion (no need to keep history)
-        await prisma.importTask.delete({
-          where: { id: task.id },
-        });
+            // Delete task after successful completion
+            await prisma.importTask.delete({
+              where: { id: task.id },
+            });
 
-        stats.processed++;
-        stats.created += result.created;
-        stats.skipped += result.skipped;
+            return { task, success: true, result };
+          } catch (error) {
+            const newRetryCount = task.retryCount + 1;
+            const isFinalFailure = newRetryCount >= task.maxRetries;
 
-        console.log(`[FetchSources] Done: ${task.dataSource.name} (+${result.created} jobs)`);
-      } catch (error) {
-        const newRetryCount = task.retryCount + 1;
-        const isFinalFailure = newRetryCount >= task.maxRetries;
+            if (isFinalFailure) {
+              await prisma.importTask.delete({
+                where: { id: task.id },
+              });
+            } else {
+              await prisma.importTask.update({
+                where: { id: task.id },
+                data: {
+                  status: 'PENDING',
+                  retryCount: newRetryCount,
+                  error: String(error),
+                },
+              });
+            }
 
-        if (isFinalFailure) {
-          // Delete failed task after max retries
-          await prisma.importTask.delete({
-            where: { id: task.id },
-          });
-          stats.failed++;
+            return { task, success: false, error, isFinalFailure };
+          }
+        })
+      );
+
+      // Aggregate results
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          const { task, success, result, isFinalFailure } = r.value;
+          if (success && result) {
+            stats.processed++;
+            stats.created += result.created;
+            stats.skipped += result.skipped;
+            console.log(`[FetchSources] Done: ${task.dataSource.name} (+${result.created} jobs)`);
+          } else {
+            if (isFinalFailure) stats.failed++;
+            console.error(`[FetchSources] Error: ${task.dataSource.name}`);
+          }
         } else {
-          // Reset to PENDING for retry
-          await prisma.importTask.update({
-            where: { id: task.id },
-            data: {
-              status: 'PENDING',
-              retryCount: newRetryCount,
-              error: String(error),
-            },
-          });
+          // Promise rejected (shouldn't happen with our try/catch)
+          console.error(`[FetchSources] Unexpected error:`, r.reason);
+          stats.failed++;
         }
-
-        console.error(`[FetchSources] Error: ${task.dataSource.name}:`, error);
       }
+
+      // Small delay between batches to avoid overwhelming the system
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
     // Get remaining count
