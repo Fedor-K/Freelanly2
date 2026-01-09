@@ -64,10 +64,8 @@ export function initScheduler() {
   // EMAILS
   // ============================================
 
-  // Process instant alerts - Every 5 minutes
-  cron.schedule('*/5 * * * *', () => {
-    callCron('/api/cron/process-instant-alerts', 'process-instant-alerts');
-  });
+  // NOTE: process-instant-alerts is handled by Replit Scheduled Deployments (.replit)
+  // Do NOT add it here to avoid duplicate emails
 
   // Trial onboarding emails - Every hour
   cron.schedule('0 * * * *', () => {
@@ -110,7 +108,6 @@ export function initScheduler() {
 
   console.log('[Scheduler] Cron jobs initialized:');
   console.log('  - fetch-sources: Daily 6:00 UTC');
-  console.log('  - process-instant-alerts: Every 5 min');
   console.log('  - send-trial-emails: Hourly :00');
   console.log('  - send-abandoned-checkout-emails: Hourly :30');
   console.log('  - send-winback-emails: Daily 10:00 UTC');

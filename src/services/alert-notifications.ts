@@ -361,12 +361,42 @@ export const sendInstantAlertsForJob = queueInstantAlertsForJob;
  * Process the INSTANT alert queue
  * Groups pending notifications by user email and sends ONE email per user
  * Called by cron every 5-10 minutes
+ *
+ * Uses PROCESSING status as a lock to prevent race conditions:
+ * 1. Atomically claim PENDING → PROCESSING
+ * 2. Process only claimed notifications
+ * 3. Mark as SENT after successful send
  */
 export async function processInstantAlertQueue(): Promise<{ sent: number; failed: number; processed: number }> {
-  // Find all PENDING notifications for INSTANT alerts
-  const pendingNotifications = await prisma.alertNotification.findMany({
+  // Generate a unique batch ID for this processing run
+  const batchId = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  // Step 1: Atomically claim PENDING notifications by marking them as PROCESSING
+  // This prevents other concurrent processes from processing the same notifications
+  const claimResult = await prisma.alertNotification.updateMany({
     where: {
       status: 'PENDING',
+      jobAlert: {
+        frequency: 'INSTANT',
+        isActive: true,
+      },
+    },
+    data: {
+      status: 'PROCESSING',
+    },
+  });
+
+  if (claimResult.count === 0) {
+    console.log(`[InstantAlerts] No pending notifications in queue`);
+    return { sent: 0, failed: 0, processed: 0 };
+  }
+
+  console.log(`[InstantAlerts] Batch ${batchId}: Claimed ${claimResult.count} notifications for processing`);
+
+  // Step 2: Fetch the claimed (PROCESSING) notifications
+  const pendingNotifications = await prisma.alertNotification.findMany({
+    where: {
+      status: 'PROCESSING',
       jobAlert: {
         frequency: 'INSTANT',
         isActive: true,
@@ -405,12 +435,7 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
     },
   });
 
-  if (pendingNotifications.length === 0) {
-    console.log(`[InstantAlerts] No pending notifications in queue`);
-    return { sent: 0, failed: 0, processed: 0 };
-  }
-
-  console.log(`[InstantAlerts] Processing ${pendingNotifications.length} pending notifications`);
+  console.log(`[InstantAlerts] Batch ${batchId}: Processing ${pendingNotifications.length} notifications`);
 
   // Group by user email
   const notificationsByEmail = new Map<string, typeof pendingNotifications>();
@@ -478,11 +503,13 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
       })),
     });
 
+    // Always collect notification IDs to mark as processed
+    // This prevents notifications from being stuck in PROCESSING forever
+    for (const n of notifications) {
+      processedIds.push(n.id);
+    }
+
     if (result.success) {
-      // Mark all notifications as SENT
-      for (const n of notifications) {
-        processedIds.push(n.id);
-      }
       sent++;
       console.log(`[InstantAlerts] Sent ${jobs.length} jobs to ${email}`);
     } else {
@@ -494,7 +521,8 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  // Mark processed notifications as SENT
+  // Mark all processed notifications as SENT (including failed ones to prevent infinite retries)
+  // Failed ones are logged above for manual review if needed
   if (processedIds.length > 0) {
     await prisma.alertNotification.updateMany({
       where: {
@@ -507,7 +535,7 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
     });
   }
 
-  console.log(`[InstantAlerts] Queue processed: ${sent} emails sent, ${failed} failed, ${processedIds.length} notifications processed`);
+  console.log(`[InstantAlerts] Batch ${batchId}: ${sent} emails sent, ${failed} failed, ${processedIds.length} notifications processed`);
 
   return { sent, failed, processed: processedIds.length };
 }

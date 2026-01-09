@@ -575,8 +575,9 @@ enum AlertFrequency {
 }
 
 enum NotificationStatus {
-  PENDING   // Queued, waiting to be sent
-  SENT      // Successfully sent
+  PENDING     // Queued, waiting to be sent
+  PROCESSING  // Being processed (lock to prevent race conditions)
+  SENT        // Successfully sent
 }
 
 // Track which jobs have been sent to which alerts (to prevent duplicates)

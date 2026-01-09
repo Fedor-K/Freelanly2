@@ -9,17 +9,20 @@ import { sendInstantAlertsForJob } from '@/services/alert-notifications';
 import { addToSocialQueue } from '@/services/social-post';
 import { shouldSkipJob } from '@/lib/job-filter';
 import { assessContentQuality, isFreeEmailProvider, isPersonalAnnouncement } from '@/lib/content-quality';
+import type { TranslationType } from '@prisma/client';
 
 // Valid TranslationType enum values from Prisma schema
-const VALID_TRANSLATION_TYPES = [
+const VALID_TRANSLATION_TYPES: TranslationType[] = [
   'TRANSLATION', 'INTERPRETATION', 'LOCALIZATION', 'EDITING',
   'TRANSCRIPTION', 'SUBTITLING', 'MT_POST_EDITING', 'COPYWRITING'
-] as const;
+];
 
-// Filter to only valid translation types (AI sometimes returns invalid values like "TRANSLATION")
-function filterValidTranslationTypes(types: string[] | undefined): string[] {
+// Filter to only valid translation types (AI sometimes returns invalid values)
+function filterValidTranslationTypes(types: string[] | undefined): TranslationType[] {
   if (!types || !Array.isArray(types)) return [];
-  return types.filter(t => VALID_TRANSLATION_TYPES.includes(t as any));
+  return types.filter((t): t is TranslationType =>
+    VALID_TRANSLATION_TYPES.includes(t as TranslationType)
+  );
 }
 
 /**
