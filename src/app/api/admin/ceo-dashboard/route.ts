@@ -296,22 +296,31 @@ async function getClarityData() {
   try {
     const CLARITY_TOKEN = process.env.CLARITY_API_TOKEN;
     if (!CLARITY_TOKEN) {
+      console.log('[CEODashboard] CLARITY_API_TOKEN not set');
       return { available: false, deadClicks: 0, rageClicks: 0, quickBack: 0, scriptErrors: 0, hasIssues: false };
     }
 
+    // Use numOfDays=3 like the working endpoint
     const res = await fetch(
-      'https://www.clarity.ms/export-data/api/v1/project-live-insights?numOfDays=7',
+      'https://www.clarity.ms/export-data/api/v1/project-live-insights?numOfDays=3',
       {
         headers: { 'Authorization': `Bearer ${CLARITY_TOKEN}` },
-        next: { revalidate: 3600 },
+        cache: 'no-store', // Don't cache to avoid stale data issues
       }
     );
 
     if (!res.ok) {
+      console.error('[CEODashboard] Clarity API returned:', res.status);
       return { available: false, deadClicks: 0, rageClicks: 0, quickBack: 0, scriptErrors: 0, hasIssues: false };
     }
 
     const data = await res.json();
+
+    if (!Array.isArray(data)) {
+      console.error('[CEODashboard] Clarity returned non-array:', typeof data);
+      return { available: false, deadClicks: 0, rageClicks: 0, quickBack: 0, scriptErrors: 0, hasIssues: false };
+    }
+
     const metrics: Record<string, unknown> = {};
     for (const item of data) {
       metrics[item.metricName] = item.information;
