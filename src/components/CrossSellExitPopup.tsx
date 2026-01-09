@@ -99,10 +99,10 @@ export function CrossSellExitPopup({
 
   const isShowingOpportunities = currentType === 'job';
   const title = isShowingOpportunities
-    ? 'Urgent Freelance Projects'
+    ? '🔥 Urgent Freelance Projects'
     : 'Full-Time Opportunities';
   const subtitle = isShowingOpportunities
-    ? `Direct projects in ${categoryName} - clients need help now!`
+    ? `Clients in ${categoryName} need help NOW! Apply before others do.`
     : `Stable positions in ${categoryName} from top companies`;
   const Icon = isShowingOpportunities ? Zap : Briefcase;
   const accentColor = isShowingOpportunities ? 'orange' : 'blue';
@@ -210,7 +210,7 @@ export function CrossSellExitPopup({
                           : 'bg-blue-100 text-blue-700 border-blue-200'
                       }`}
                     >
-                      {item.type === 'opportunity' ? 'Urgent' : 'Full-time'}
+                      {item.type === 'opportunity' ? '🔥 Urgent' : 'Full-time'}
                     </Badge>
                   </div>
                 </Link>

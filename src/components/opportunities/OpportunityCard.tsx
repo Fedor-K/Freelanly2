@@ -7,9 +7,10 @@ import { formatDistanceToNow } from '@/lib/utils';
 
 interface OpportunityCardProps {
   opportunity: OpportunityCardData;
+  isPro?: boolean;
 }
 
-export function OpportunityCard({ opportunity }: OpportunityCardProps) {
+export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardProps) {
   const salaryDisplay = formatSalary(
     opportunity.salaryMin,
     opportunity.salaryMax,
@@ -32,7 +33,7 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
 
         <div className="flex gap-4">
           {/* Client Avatar */}
-          <div className="flex-shrink-0">
+          <div className={`flex-shrink-0 ${!isPro ? 'blur-sm select-none' : ''}`}>
             {opportunity.clientAvatar ? (
               <Image
                 src={opportunity.clientAvatar}
@@ -53,7 +54,7 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
             <div>
               {/* Client info */}
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-medium text-gray-900">
+                <span className={`text-sm font-medium text-gray-900 ${!isPro ? 'blur-sm select-none' : ''}`}>
                   {opportunity.clientName}
                 </span>
                 {opportunity.clientType === 'company' && (
@@ -63,7 +64,7 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
                 )}
               </div>
               {opportunity.clientHeadline && (
-                <p className="text-xs text-muted-foreground line-clamp-1 mb-2">
+                <p className={`text-xs text-muted-foreground line-clamp-1 mb-2 ${!isPro ? 'blur-sm select-none' : ''}`}>
                   {opportunity.clientHeadline}
                 </p>
               )}
@@ -132,14 +133,24 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
 
             {/* LinkedIn link */}
             <div className="mt-3">
-              <a
-                href={opportunity.clientLinkedIn}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-blue-600 hover:underline"
-              >
-                View client on LinkedIn →
-              </a>
+              {isPro ? (
+                <a
+                  href={opportunity.clientLinkedIn}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  View client on LinkedIn →
+                </a>
+              ) : (
+                <Link
+                  href="/pricing"
+                  className="text-xs text-orange-600 hover:underline inline-flex items-center gap-1"
+                >
+                  <span className="blur-sm select-none">linkedin.com/in/•••</span>
+                  <span>Upgrade →</span>
+                </Link>
+              )}
             </div>
           </div>
         </div>

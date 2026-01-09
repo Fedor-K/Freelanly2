@@ -7,12 +7,15 @@ import { OpportunityCard } from '@/components/opportunities/OpportunityCard';
 import { Button } from '@/components/ui/button';
 import { siteConfig, categories, levels, jobTypes, countries, techStacks, salaryRanges } from '@/config/site';
 import { prisma } from '@/lib/db';
+import { auth } from '@/lib/auth';
 import { getMaxJobAgeDate } from '@/lib/utils';
 import { TopFilters } from '@/components/jobs/TopFilters';
 import type { FeedItem, JobCardData, OpportunityCardData } from '@/types';
 
-// ISR: Revalidate every 60 seconds for fresh job listings
-export const revalidate = 60;
+type UserPlan = 'FREE' | 'PRO' | 'ENTERPRISE';
+
+// Dynamic rendering required for auth check
+export const dynamic = 'force-dynamic';
 
 interface JobsPageProps {
   searchParams: Promise<{
@@ -364,6 +367,20 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
   const params = await searchParams;
   const currentPage = Math.max(1, parseInt(params.page || '1', 10) || 1);
 
+  // Get user session and plan for PRO content gating
+  const session = await auth();
+  let userPlan: UserPlan = 'FREE';
+  if (session?.user?.id) {
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { plan: true },
+    });
+    if (user?.plan) {
+      userPlan = user.plan as UserPlan;
+    }
+  }
+  const isPro = userPlan === 'PRO' || userPlan === 'ENTERPRISE';
+
   // Parse salary filter
   const salaryRange = params.salary ? salaryRanges.find(r => r.value === params.salary) : null;
 
@@ -489,7 +506,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
                 item.type === 'job' ? (
                   <JobCard key={`job-${item.data.id}`} job={item.data} />
                 ) : (
-                  <OpportunityCard key={`opp-${item.data.id}`} opportunity={item.data} />
+                  <OpportunityCard key={`opp-${item.data.id}`} opportunity={item.data} isPro={isPro} />
                 )
               ))}
             </div>
