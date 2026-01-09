@@ -9,12 +9,17 @@ import { sendInstantAlertsForJob } from '@/services/alert-notifications';
 import { addToSocialQueue } from '@/services/social-post';
 import { shouldSkipJob } from '@/lib/job-filter';
 import { assessContentQuality, isFreeEmailProvider, isPersonalAnnouncement } from '@/lib/content-quality';
-import type { TranslationType } from '@prisma/client';
+import type { TranslationType, Level } from '@prisma/client';
 
 // Valid TranslationType enum values from Prisma schema
 const VALID_TRANSLATION_TYPES: TranslationType[] = [
   'TRANSLATION', 'INTERPRETATION', 'LOCALIZATION', 'EDITING',
   'TRANSCRIPTION', 'SUBTITLING', 'MT_POST_EDITING', 'COPYWRITING'
+];
+
+// Valid Level enum values from Prisma schema
+const VALID_LEVELS: Level[] = [
+  'INTERN', 'ENTRY', 'JUNIOR', 'MID', 'SENIOR', 'LEAD', 'MANAGER', 'DIRECTOR', 'EXECUTIVE'
 ];
 
 // Filter to only valid translation types (AI sometimes returns invalid values)
@@ -23,6 +28,12 @@ function filterValidTranslationTypes(types: string[] | undefined): TranslationTy
   return types.filter((t): t is TranslationType =>
     VALID_TRANSLATION_TYPES.includes(t as TranslationType)
   );
+}
+
+// Validate level value (AI sometimes returns invalid values like "FREELANCE")
+function validateLevel(level: string | null | undefined): Level | null {
+  if (!level) return null;
+  return VALID_LEVELS.includes(level as Level) ? (level as Level) : null;
 }
 
 /**
@@ -325,7 +336,7 @@ export async function POST(request: NextRequest) {
           location: extracted.isRemote ? (extracted.location || 'Remote') : extracted.location,
           locationType,
           country: countryCode,
-          level: extracted.level || 'MID',
+          level: validateLevel(extracted.level) || 'MID',
           type: extracted.type || 'FULL_TIME',
           ...salaryData,
           skills: extracted.skills,
