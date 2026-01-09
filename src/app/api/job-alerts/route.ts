@@ -14,9 +14,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate frequency if provided
-    const validFrequencies = ['INSTANT', 'DAILY', 'WEEKLY'];
-    const alertFrequency = validFrequencies.includes(frequency) ? frequency : 'WEEKLY';
+    // All alerts are INSTANT now
+    const alertFrequency = 'INSTANT';
 
     // Check if subscriber already exists with same email and filters
     const existing = await prisma.jobAlert.findFirst({

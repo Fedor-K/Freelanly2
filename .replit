@@ -132,12 +132,5 @@ method = "POST"
 path = "/api/cron/fetch-sources"
 headers = { Authorization = "Bearer ${CRON_SECRET}" }
 
-# DAILY job alerts - 7:00 UTC
-# Sends daily digest emails to users with DAILY frequency alerts
-[[deployment.scheduled]]
-trigger = "0 7 * * *"
-action = "http"
-[deployment.scheduled.http]
-method = "POST"
-path = "/api/cron/send-alerts?frequency=DAILY"
-headers = { Authorization = "Bearer ${CRON_SECRET}" }
+# DAILY alerts removed - all alerts are now INSTANT
+# INSTANT alerts are processed via /api/cron/process-instant-alerts (every 5 min)

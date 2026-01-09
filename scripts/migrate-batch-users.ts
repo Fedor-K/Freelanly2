@@ -215,7 +215,7 @@ async function migrateBatchUsers(count: number) {
               keywords: keywords,
               isActive: oldAlert.is_active,
               lastSentAt: oldAlert.last_sent_at,
-              frequency: 'DAILY',
+              frequency: 'INSTANT',
             },
           });
 

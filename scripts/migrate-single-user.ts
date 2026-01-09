@@ -218,7 +218,7 @@ async function migrateUser(email: string) {
           keywords: keywords,
           isActive: oldAlert.is_active,
           lastSentAt: oldAlert.last_sent_at,
-          frequency: 'DAILY',
+          frequency: 'INSTANT',
         }
       });
 

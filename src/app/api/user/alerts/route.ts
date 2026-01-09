@@ -59,14 +59,7 @@ export async function POST(request: NextRequest) {
       languagePairs?: LanguagePair[];
     };
 
-    // Validate frequency
-    const validFrequencies = ['INSTANT', 'DAILY', 'WEEKLY'];
-    if (frequency && !validFrequencies.includes(frequency)) {
-      return NextResponse.json(
-        { error: 'Invalid frequency' },
-        { status: 400 }
-      );
-    }
+    // All alerts are INSTANT now - ignore frequency parameter
 
     // Validate translation types if provided
     const validTranslationTypes = [
@@ -128,7 +121,7 @@ export async function POST(request: NextRequest) {
         keywords: keywords?.trim() || null,
         country: country || null,
         level: level || null,
-        frequency: (frequency as AlertFrequency) || AlertFrequency.DAILY,
+        frequency: AlertFrequency.INSTANT, // All alerts are INSTANT
         isActive: true,
         // Create language pairs if translation category
         languagePairs:

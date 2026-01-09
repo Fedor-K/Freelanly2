@@ -174,22 +174,13 @@ async function findMatchingJobs(
 
 /**
  * Get the "since" date based on frequency
+ * Only INSTANT alerts are supported now
  */
-function getSinceDate(frequency: AlertFrequency, lastSentAt: Date | null): Date {
-  // If never sent, use a reasonable default (7 days for weekly, 1 day for others)
+function getSinceDate(_frequency: AlertFrequency, lastSentAt: Date | null): Date {
+  // If never sent, use last 6 hours as default for instant alerts
   if (!lastSentAt) {
     const now = new Date();
-    switch (frequency) {
-      case 'WEEKLY':
-        now.setDate(now.getDate() - 7);
-        break;
-      case 'DAILY':
-        now.setDate(now.getDate() - 1);
-        break;
-      case 'INSTANT':
-        now.setHours(now.getHours() - 6); // Last 6 hours for instant
-        break;
-    }
+    now.setHours(now.getHours() - 6);
     return now;
   }
 

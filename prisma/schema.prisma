@@ -526,7 +526,7 @@ model JobAlert {
   keywords      String?   // Keywords to match
   country       String?   // Country filter
   level         String?   // Level filter (JUNIOR, MID, SENIOR)
-  frequency     AlertFrequency @default(DAILY)
+  frequency     AlertFrequency @default(INSTANT)
 
   // Translation-specific: multiple language pairs per alert
   languagePairs AlertLanguagePair[]
@@ -570,8 +570,6 @@ model AlertLanguagePair {
 
 enum AlertFrequency {
   INSTANT   // Queue for next batch (processed every 5-10 min)
-  DAILY     // Daily digest
-  WEEKLY    // Weekly digest
 }
 
 enum NotificationStatus {

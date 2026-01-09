@@ -97,7 +97,7 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
   const [keywords, setKeywords] = useState('');
   const [country, setCountry] = useState('');
   const [level, setLevel] = useState('');
-  const [frequency, setFrequency] = useState('DAILY');
+  const [frequency] = useState('INSTANT'); // Only INSTANT alerts supported
 
   // Translation-specific: array of language pairs
   const [languagePairs, setLanguagePairs] = useState<LanguagePair[]>([]);
@@ -172,7 +172,7 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
         setKeywords('');
         setCountry('');
         setLevel('');
-        setFrequency('DAILY');
+        // frequency is always INSTANT
         setLanguagePairs([]);
         setCurrentType('');
         setCurrentSource('');
@@ -455,20 +455,7 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
               </div>
             )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Frequency
-              </label>
-              <select
-                value={frequency}
-                onChange={(e) => setFrequency(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                <option value="INSTANT">Instant</option>
-                <option value="DAILY">Daily</option>
-                <option value="WEEKLY">Weekly</option>
-              </select>
-            </div>
+            {/* All alerts are now INSTANT - no frequency selector needed */}
 
             <div className="flex gap-3">
               <button
