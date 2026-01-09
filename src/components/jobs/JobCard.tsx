@@ -13,8 +13,14 @@ export function JobCard({ job }: JobCardProps) {
   const salaryDisplay = formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency, job.salaryPeriod);
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className={`hover:shadow-md transition-shadow ${job.isDirectOpportunity ? 'border-orange-200 bg-orange-50/30' : ''}`}>
       <CardContent className="p-4">
+        {/* Direct Opportunity Banner */}
+        {job.isDirectOpportunity && (
+          <div className="mb-3 -mt-1 flex items-center gap-2 text-orange-700">
+            <span className="text-sm font-medium">Direct Project · Client needs now</span>
+          </div>
+        )}
         <div className="flex gap-4">
           {/* Company Logo */}
           <div className="flex-shrink-0">
@@ -66,13 +72,19 @@ export function JobCard({ job }: JobCardProps) {
 
             {/* Tags */}
             <div className="mt-3 flex flex-wrap gap-1.5">
+              {/* Direct Opportunity urgent badge */}
+              {job.isDirectOpportunity && (
+                <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-300 font-medium">
+                  Urgent
+                </Badge>
+              )}
               <Badge variant="secondary" className="text-xs">
                 {formatLevel(job.level)}
               </Badge>
               <Badge variant="outline" className="text-xs">
                 {formatJobType(job.type)}
               </Badge>
-              {job.sourceType === 'UNSTRUCTURED' && (
+              {job.sourceType === 'UNSTRUCTURED' && !job.isDirectOpportunity && (
                 <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                   Social Media
                 </Badge>

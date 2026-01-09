@@ -358,6 +358,96 @@ export async function queueInstantAlertsForJob(jobId: string): Promise<{ queued:
 export const sendInstantAlertsForJob = queueInstantAlertsForJob;
 
 /**
+ * Queue INSTANT alerts for a newly created opportunity
+ * Same as queueInstantAlertsForJob but for Opportunity model
+ */
+export async function queueInstantAlertsForOpportunity(opportunityId: string): Promise<{ queued: number }> {
+  // Fetch the opportunity with category
+  const opportunity = await prisma.opportunity.findUnique({
+    where: { id: opportunityId },
+    include: {
+      category: {
+        select: {
+          slug: true,
+        },
+      },
+    },
+  });
+
+  if (!opportunity) {
+    console.error(`[InstantAlerts] Opportunity ${opportunityId} not found`);
+    return { queued: 0 };
+  }
+
+  // Find all active INSTANT alerts (only for verified users)
+  const instantAlerts = await prisma.jobAlert.findMany({
+    where: {
+      isActive: true,
+      frequency: 'INSTANT',
+      user: {
+        emailVerified: { not: null },
+      },
+    },
+    include: {
+      languagePairs: true,
+      user: {
+        select: {
+          email: true,
+        },
+      },
+    },
+  });
+
+  if (instantAlerts.length === 0) {
+    return { queued: 0 };
+  }
+
+  let queued = 0;
+
+  for (const alert of instantAlerts) {
+    // Check if this opportunity matches the alert criteria
+    const matches = checkJobMatchesAlert(opportunity, alert);
+
+    if (!matches) {
+      continue;
+    }
+
+    // Check if already queued or sent for this alert
+    const existing = await prisma.alertNotification.findFirst({
+      where: {
+        jobAlertId: alert.id,
+        opportunityId: opportunity.id,
+      },
+    });
+
+    if (existing) {
+      continue; // Already queued or sent
+    }
+
+    // Create PENDING notification (will be processed by cron)
+    await prisma.alertNotification.create({
+      data: {
+        jobAlertId: alert.id,
+        opportunityId: opportunity.id,
+        status: 'PENDING',
+      },
+    });
+    queued++;
+  }
+
+  if (queued > 0) {
+    console.log(`[InstantAlerts] Queued opportunity "${opportunity.title}" for ${queued} alerts`);
+  }
+
+  return { queued };
+}
+
+/**
+ * Alias for opportunity alerts
+ */
+export const sendInstantAlertsForOpportunity = queueInstantAlertsForOpportunity;
+
+/**
  * Process the INSTANT alert queue
  * Groups pending notifications by user email and sends ONE email per user
  * Called by cron every 5-10 minutes

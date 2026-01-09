@@ -179,6 +179,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Dynamic job pages from database - RRS format: /company/[company]/jobs/[job]
   let jobPages: MetadataRoute.Sitemap = [];
+  let opportunityPages: MetadataRoute.Sitemap = [];
   let companyPages: MetadataRoute.Sitemap = [];
   let companyJobsPages: MetadataRoute.Sitemap = [];
   let blogPages: MetadataRoute.Sitemap = [];
@@ -211,6 +212,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: job.updatedAt,
       changeFrequency: 'weekly' as const,
       priority: getSitemapPriority(job.contentQuality),
+    }));
+
+    // Fetch opportunities (LinkedIn direct projects)
+    // Exclude THIN content from sitemap
+    const opportunities = await prisma.opportunity.findMany({
+      where: {
+        isActive: true,
+        contentQuality: { not: 'THIN' },
+      },
+      select: {
+        slug: true,
+        updatedAt: true,
+        contentQuality: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5000,
+    });
+
+    // Opportunity pages: /freelance/[slug]
+    opportunityPages = opportunities.map((opp) => ({
+      url: `${baseUrl}/freelance/${opp.slug}`,
+      lastModified: opp.updatedAt,
+      changeFrequency: 'weekly' as const,
+      priority: getSitemapPriority(opp.contentQuality),
     }));
 
     const companies = await prisma.company.findMany({
@@ -280,6 +305,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...companyPages,
     ...companyJobsPages,
     ...jobPages,
+    ...opportunityPages,
     ...blogPages,
     ...blogCategoryPages,
   ];

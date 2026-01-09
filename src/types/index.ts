@@ -25,6 +25,7 @@ export interface JobCardData {
   sourceType: string;
   postedAt: Date;
   createdAt: Date;
+  isDirectOpportunity: boolean;
 }
 
 export interface JobDetailData extends JobCardData {
@@ -41,6 +42,57 @@ export interface JobDetailData extends JobCardData {
     slug: string;
   };
 }
+
+// Opportunity types for LinkedIn direct projects
+export interface OpportunityCardData {
+  id: string;
+  slug: string;
+  title: string;
+  // Client info (the key difference from jobs)
+  clientName: string;
+  clientLinkedIn: string;
+  clientType: string;  // 'profile' or 'company'
+  clientHeadline: string | null;
+  clientAvatar: string | null;
+  // Optional company (extracted, not required)
+  company: {
+    name: string;
+    slug: string;
+    logo: string | null;
+    website: string | null;
+  } | null;
+  location: string | null;
+  locationType: string;
+  level: string;
+  type: string;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  salaryCurrency: string | null;
+  salaryPeriod: string | null;
+  salaryIsEstimate: boolean;
+  skills: string[];
+  sourceLanguages: string[];
+  targetLanguages: string[];
+  postedAt: Date;
+  createdAt: Date;
+}
+
+export interface OpportunityDetailData extends OpportunityCardData {
+  description: string;
+  originalContent: string;
+  applyUrl: string | null;
+  applyEmail: string | null;
+  sourceUrl: string;
+  category: {
+    name: string;
+    slug: string;
+  };
+}
+
+// Combined type for mixed feed
+export type FeedItem =
+  | { type: 'job'; data: JobCardData }
+  | { type: 'opportunity'; data: OpportunityCardData };
 
 export interface CompanyCardData {
   id: string;

@@ -3,11 +3,13 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { JobCard } from '@/components/jobs/JobCard';
+import { OpportunityCard } from '@/components/opportunities/OpportunityCard';
 import { Button } from '@/components/ui/button';
 import { siteConfig, categories, levels, jobTypes, countries, techStacks, salaryRanges } from '@/config/site';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 import { TopFilters } from '@/components/jobs/TopFilters';
+import type { FeedItem, JobCardData, OpportunityCardData } from '@/types';
 
 // ISR: Revalidate every 60 seconds for fresh job listings
 export const revalidate = 60;
@@ -212,6 +214,125 @@ async function getJobs(
   }
 }
 
+// Fetch opportunities (LinkedIn direct projects) with same filters
+async function getOpportunities(
+  page: number,
+  filters: {
+    search?: string;
+    levels?: string[];
+    types?: string[];
+    country?: string;
+    salaryMin?: number;
+    skills?: string[];
+    category?: string;
+    sourceLang?: string;
+    targetLang?: string;
+    workType?: string;
+  }
+) {
+  const maxAgeDate = getMaxJobAgeDate();
+  const skip = (page - 1) * JOBS_PER_PAGE;
+
+  const where: any = {
+    isActive: true,
+    postedAt: { gte: maxAgeDate },
+  };
+
+  // Search filter
+  if (filters.search) {
+    where.OR = [
+      { title: { contains: filters.search, mode: 'insensitive' } },
+      { clientName: { contains: filters.search, mode: 'insensitive' } },
+      { skills: { hasSome: [filters.search] } },
+    ];
+  }
+
+  // Level filter
+  if (filters.levels && filters.levels.length > 0) {
+    where.level = { in: filters.levels };
+  }
+
+  // Type filter - opportunities are always FREELANCE, so skip if filter doesn't include freelance
+  if (filters.types && filters.types.length > 0) {
+    if (!filters.types.includes('FREELANCE')) {
+      // User filtered to non-freelance types, exclude opportunities
+      return { opportunities: [], totalCount: 0 };
+    }
+  }
+
+  // Country filter
+  if (filters.country) {
+    const countryData = countries.find(c => c.slug === filters.country);
+    if (countryData?.code) {
+      where.country = countryData.code;
+    }
+  }
+
+  // Salary filter
+  if (filters.salaryMin && filters.salaryMin > 0) {
+    where.salaryMin = { gte: filters.salaryMin };
+  }
+
+  // Skills filter
+  if (filters.skills && filters.skills.length > 0) {
+    const skillKeywords: string[] = [];
+    for (const skillSlug of filters.skills) {
+      const techStack = techStacks.find(t => t.slug === skillSlug);
+      if (techStack) {
+        skillKeywords.push(...techStack.keywords);
+      }
+    }
+    if (skillKeywords.length > 0) {
+      where.skills = { hasSome: skillKeywords };
+    }
+  }
+
+  // Category filter
+  if (filters.category) {
+    where.category = { slug: filters.category };
+  }
+
+  // Language filters (for translation opportunities)
+  if (filters.sourceLang) {
+    where.sourceLanguages = { has: filters.sourceLang.toUpperCase() };
+  }
+  if (filters.targetLang) {
+    where.targetLanguages = { has: filters.targetLang.toUpperCase() };
+  }
+
+  // Work type filter (for translation opportunities)
+  if (filters.workType) {
+    where.translationTypes = { has: filters.workType };
+  }
+
+  try {
+    const [opportunities, totalCount] = await Promise.all([
+      prisma.opportunity.findMany({
+        where,
+        include: {
+          company: {
+            select: {
+              name: true,
+              slug: true,
+              logo: true,
+              website: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: JOBS_PER_PAGE,
+      }),
+      prisma.opportunity.count({ where }),
+    ]);
+
+    return { opportunities, totalCount };
+  } catch (error) {
+    console.error('Failed to fetch opportunities:', error);
+    return { opportunities: [], totalCount: 0 };
+  }
+}
+
 // Helper to normalize array params
 function toArray(value: string | string[] | undefined): string[] {
   if (!value) return [];
@@ -259,8 +380,74 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
     workType: params.workType,
   };
 
-  const { jobs, totalCount } = await getJobs(currentPage, filters);
+  // Fetch both jobs and opportunities in parallel
+  const [jobsResult, opportunitiesResult] = await Promise.all([
+    getJobs(currentPage, filters),
+    getOpportunities(currentPage, filters),
+  ]);
+
+  const { jobs } = jobsResult;
+  const { opportunities } = opportunitiesResult;
+  const totalCount = jobsResult.totalCount + opportunitiesResult.totalCount;
   const totalPages = Math.ceil(totalCount / JOBS_PER_PAGE);
+
+  // Transform and merge into feed items sorted by createdAt
+  const feedItems: FeedItem[] = [
+    ...jobs.map((job): FeedItem => ({
+      type: 'job' as const,
+      data: {
+        id: job.id,
+        slug: job.slug,
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        locationType: job.locationType,
+        level: job.level,
+        type: job.type,
+        salaryMin: job.salaryMin,
+        salaryMax: job.salaryMax,
+        salaryCurrency: job.salaryCurrency,
+        salaryPeriod: job.salaryPeriod,
+        salaryIsEstimate: job.salaryIsEstimate,
+        skills: job.skills,
+        sourceLanguages: job.sourceLanguages,
+        targetLanguages: job.targetLanguages,
+        source: job.source,
+        sourceType: job.sourceType,
+        postedAt: job.postedAt,
+        createdAt: job.createdAt,
+        isDirectOpportunity: job.isDirectOpportunity,
+      },
+    })),
+    ...opportunities.map((opp): FeedItem => ({
+      type: 'opportunity' as const,
+      data: {
+        id: opp.id,
+        slug: opp.slug,
+        title: opp.title,
+        clientName: opp.clientName,
+        clientLinkedIn: opp.clientLinkedIn,
+        clientType: opp.clientType,
+        clientHeadline: opp.clientHeadline,
+        clientAvatar: opp.clientAvatar,
+        company: opp.company,
+        location: opp.location,
+        locationType: opp.locationType,
+        level: opp.level,
+        type: opp.type,
+        salaryMin: opp.salaryMin,
+        salaryMax: opp.salaryMax,
+        salaryCurrency: opp.salaryCurrency,
+        salaryPeriod: opp.salaryPeriod,
+        salaryIsEstimate: opp.salaryIsEstimate,
+        skills: opp.skills,
+        sourceLanguages: opp.sourceLanguages,
+        targetLanguages: opp.targetLanguages,
+        postedAt: opp.postedAt,
+        createdAt: opp.createdAt,
+      },
+    })),
+  ].sort((a, b) => new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime());
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -295,11 +482,15 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
             />
           </div>
 
-          {/* Jobs Grid */}
-          {jobs.length > 0 ? (
+          {/* Jobs & Opportunities Grid */}
+          {feedItems.length > 0 ? (
             <div className="space-y-4">
-              {jobs.map((job) => (
-                <JobCard key={job.id} job={job} />
+              {feedItems.map((item) => (
+                item.type === 'job' ? (
+                  <JobCard key={`job-${item.data.id}`} job={item.data} />
+                ) : (
+                  <OpportunityCard key={`opp-${item.data.id}`} opportunity={item.data} />
+                )
               ))}
             </div>
           ) : (
@@ -350,11 +541,15 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
             name: 'Remote Jobs',
             description: 'Browse all remote job opportunities',
             numberOfItems: totalCount,
-            itemListElement: jobs.map((job, index) => ({
+            itemListElement: feedItems.map((item, index) => ({
               '@type': 'ListItem',
               position: (currentPage - 1) * JOBS_PER_PAGE + index + 1,
-              url: `${siteConfig.url}/company/${job.company.slug}/jobs/${job.slug}`,
-              name: `${job.title} at ${job.company.name}`,
+              url: item.type === 'job'
+                ? `${siteConfig.url}/company/${(item.data as JobCardData).company.slug}/jobs/${item.data.slug}`
+                : `${siteConfig.url}/freelance/${item.data.slug}`,
+              name: item.type === 'job'
+                ? `${item.data.title} at ${(item.data as JobCardData).company.name}`
+                : `${item.data.title} - Freelance Project`,
             })),
           }),
         }}

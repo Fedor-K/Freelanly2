@@ -171,6 +171,7 @@ model Company {
 
   // Relations
   jobs          Job[]
+  opportunities Opportunity[]
 
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
@@ -223,6 +224,7 @@ model Category {
 
   // Relations
   jobs          Job[]
+  opportunities Opportunity[]
 
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -304,6 +306,9 @@ model Job {
   qualityScore     Int       @default(50)
   contentQuality   ContentQuality @default(RICH)  // SEO quality tier
   companyVerified  Boolean   @default(false)
+
+  // Direct opportunity (freelance from LinkedIn - urgent, client needs NOW)
+  isDirectOpportunity Boolean @default(false)
 
   // Visibility
   isActive      Boolean     @default(true)
@@ -421,6 +426,85 @@ enum TranslationType {
   SUBTITLING      // Subtitling/captioning
   MT_POST_EDITING // Machine translation post-editing
   COPYWRITING     // Multilingual copywriting
+}
+
+// ============================================
+// OPPORTUNITIES (LinkedIn Direct Projects)
+// ============================================
+
+model Opportunity {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+
+  // === CLIENT/AUTHOR INFO (The Key Difference from Jobs) ===
+  clientName      String              // Author name (person or company posting)
+  clientLinkedIn  String              // Author's LinkedIn URL (source of trust)
+  clientType      String              // 'profile' or 'company'
+  clientHeadline  String?             // e.g., "CTO at TechCorp"
+  clientAvatar    String?             // Avatar URL
+
+  // === ORIGINAL CONTENT ===
+  originalContent String   @db.Text   // Raw LinkedIn post text
+
+  // === EXTRACTED JOB DATA ===
+  title           String
+  description     String   @db.Text   // AI-cleaned description
+
+  // === OPTIONAL COMPANY (extracted, not fabricated) ===
+  company         Company? @relation(fields: [companyId], references: [id])
+  companyId       String?
+
+  // === CATEGORY & LOCATION ===
+  category        Category @relation(fields: [categoryId], references: [id])
+  categoryId      String
+  location        String?
+  locationType    LocationType @default(REMOTE)
+  country         String?
+
+  // === JOB DETAILS ===
+  level           Level @default(MID)
+  type            JobType @default(FREELANCE)
+  skills          String[]
+
+  // === TRANSLATION-SPECIFIC ===
+  translationTypes TranslationType[]
+  sourceLanguages String[]
+  targetLanguages String[]
+
+  // === SALARY ===
+  salaryMin       Int?
+  salaryMax       Int?
+  salaryCurrency  String?
+  salaryPeriod    SalaryPeriod @default(HOUR)
+  salaryIsEstimate Boolean @default(true)
+
+  // === APPLY INFO ===
+  applyEmail      String?
+  applyUrl        String?
+
+  // === SOURCE ===
+  sourceUrl       String              // LinkedIn post URL
+  sourceId        String?             // LinkedIn post ID
+
+  // === QUALITY & VISIBILITY ===
+  contentQuality  ContentQuality @default(LIGHT)
+  qualityScore    Int @default(50)
+  isActive        Boolean @default(true)
+
+  // === DATES ===
+  postedAt        DateTime
+  expiresAt       DateTime?           // 14 days default (shorter than jobs)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // === RELATIONS ===
+  alertNotifications AlertNotification[]
+
+  @@index([categoryId])
+  @@index([companyId])
+  @@index([postedAt(sort: Desc)])
+  @@index([isActive, postedAt(sort: Desc)])
+  @@index([clientLinkedIn])
 }
 
 // ============================================
@@ -578,7 +662,7 @@ enum NotificationStatus {
   SENT        // Successfully sent
 }
 
-// Track which jobs have been sent to which alerts (to prevent duplicates)
+// Track which jobs/opportunities have been sent to which alerts (to prevent duplicates)
 // Also serves as queue for INSTANT alerts (status=PENDING)
 model AlertNotification {
   id          String    @id @default(cuid())
@@ -586,16 +670,21 @@ model AlertNotification {
   jobAlert    JobAlert  @relation(fields: [jobAlertId], references: [id], onDelete: Cascade)
   jobAlertId  String
 
-  job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  jobId       String
+  // Either job OR opportunity (one must be set)
+  job           Job?          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId         String?
+  opportunity   Opportunity?  @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  opportunityId String?
 
   status      NotificationStatus @default(PENDING)
   createdAt   DateTime  @default(now())
   sentAt      DateTime?  // When actually sent (null if pending)
 
   @@unique([jobAlertId, jobId])  // Prevent sending same job twice to same alert
+  @@unique([jobAlertId, opportunityId])  // Prevent sending same opportunity twice
   @@index([jobAlertId])
   @@index([jobId])
+  @@index([opportunityId])
   @@index([status, createdAt])  // For queue processing
 }
 
