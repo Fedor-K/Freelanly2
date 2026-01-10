@@ -23,7 +23,8 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
       <CardContent className="p-4">
         {/* Direct Project Banner */}
         <div className="mb-3 -mt-1 flex items-center justify-between">
-          <span className="text-sm font-medium text-orange-700">
+          <span className="text-sm font-medium text-orange-700 flex items-center gap-1">
+            <span className="text-base">🔥</span>
             Direct Project · Client needs now
           </span>
           <span className="text-xs text-muted-foreground">
@@ -33,7 +34,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
 
         <div className="flex gap-4">
           {/* Client Avatar */}
-          <div className={`flex-shrink-0 ${!isPro ? 'blur-sm select-none' : ''}`}>
+          <div className={`flex-shrink-0 ${!isPro ? 'blur-[2px] select-none' : ''}`}>
             {opportunity.clientAvatar ? (
               <Image
                 src={opportunity.clientAvatar}
@@ -54,7 +55,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
             <div>
               {/* Client info */}
               <div className="flex items-center gap-2 mb-1">
-                <span className={`text-sm font-medium text-gray-900 ${!isPro ? 'blur-sm select-none' : ''}`}>
+                <span className={`text-sm font-medium text-gray-900 ${!isPro ? 'blur-[2px] select-none' : ''}`}>
                   {opportunity.clientName}
                 </span>
                 {opportunity.clientType === 'company' && (
@@ -64,7 +65,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
                 )}
               </div>
               {opportunity.clientHeadline && (
-                <p className={`text-xs text-muted-foreground line-clamp-1 mb-2 ${!isPro ? 'blur-sm select-none' : ''}`}>
+                <p className={`text-xs text-muted-foreground line-clamp-1 mb-2 ${!isPro ? 'blur-[2px] select-none' : ''}`}>
                   {opportunity.clientHeadline}
                 </p>
               )}
@@ -98,7 +99,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
                 variant="outline"
                 className="text-xs bg-orange-100 text-orange-800 border-orange-300 font-medium"
               >
-                Urgent
+                🔥 Urgent
               </Badge>
               <Badge variant="secondary" className="text-xs">
                 {formatLevel(opportunity.level)}
@@ -131,8 +132,8 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
               )}
             </div>
 
-            {/* LinkedIn link */}
-            <div className="mt-3">
+            {/* LinkedIn link / Upgrade CTA */}
+            <div className="mt-3 flex items-center gap-2">
               {isPro ? (
                 <a
                   href={opportunity.clientLinkedIn}
@@ -143,13 +144,15 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
                   View client on LinkedIn →
                 </a>
               ) : (
-                <Link
-                  href="/pricing"
-                  className="text-xs text-orange-600 hover:underline inline-flex items-center gap-1"
-                >
-                  <span className="blur-sm select-none">linkedin.com/in/•••</span>
-                  <span>Upgrade →</span>
-                </Link>
+                <>
+                  <span className="text-xs text-muted-foreground blur-[2px] select-none">linkedin.com/in/•••</span>
+                  <Link
+                    href="/pricing"
+                    className="text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1 rounded-md transition-colors inline-flex items-center gap-1"
+                  >
+                    🔓 Unlock Contact
+                  </Link>
+                </>
               )}
             </div>
           </div>

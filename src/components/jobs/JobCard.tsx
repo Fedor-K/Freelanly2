@@ -17,7 +17,8 @@ export function JobCard({ job }: JobCardProps) {
       <CardContent className="p-4">
         {/* Direct Opportunity Banner */}
         {job.isDirectOpportunity && (
-          <div className="mb-3 -mt-1 flex items-center gap-2 text-orange-700">
+          <div className="mb-3 -mt-1 flex items-center gap-1 text-orange-700">
+            <span className="text-base">🔥</span>
             <span className="text-sm font-medium">Direct Project · Client needs now</span>
           </div>
         )}
@@ -75,7 +76,7 @@ export function JobCard({ job }: JobCardProps) {
               {/* Direct Opportunity urgent badge */}
               {job.isDirectOpportunity && (
                 <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-300 font-medium">
-                  Urgent
+                  🔥 Urgent
                 </Badge>
               )}
               <Badge variant="secondary" className="text-xs">
