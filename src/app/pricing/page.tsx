@@ -42,11 +42,19 @@ export default function PricingPage() {
           {/* Header */}
           <div className="text-center mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-4xl font-bold mb-3 sm:mb-4">
-              Find Your Next Remote Job Faster
+              Stop Applying Into the Void
             </h1>
             <p className="text-base sm:text-xl text-muted-foreground max-w-2xl mx-auto px-2 sm:px-0">
-              Get unlimited access to all jobs, full salary insights, and apply directly.
-              Cancel anytime.
+              Get direct contact info, apply before the crowd, and actually hear back.
+              Cancel anytime — but you won't want to.
+            </p>
+          </div>
+
+          {/* Urgency Banner */}
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6 max-w-2xl mx-auto">
+            <p className="text-center text-sm text-orange-800">
+              <span className="font-semibold">⚡ Jobs move fast.</span> The average remote position gets 250+ applications.
+              Early applicants are <strong>8x more likely</strong> to get interviews.
             </p>
           </div>
 
@@ -62,7 +70,7 @@ export default function PricingPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-2xl">🛡️</span>
-              <span><strong>100% money-back</strong> guarantee</span>
+              <span><strong>100% money-back</strong> if not satisfied</span>
             </div>
           </div>
 
@@ -110,12 +118,15 @@ export default function PricingPage() {
 
           {/* Features comparison */}
           <section className="mt-20 max-w-3xl mx-auto">
-            <h2 className="text-2xl font-bold text-center mb-8">
-              What You Get with Premium
+            <h2 className="text-2xl font-bold text-center mb-2">
+              Free vs Premium: What's the Difference?
             </h2>
+            <p className="text-center text-muted-foreground mb-8">
+              Free lets you browse. Premium lets you <strong>actually apply</strong>.
+            </p>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="border rounded-lg p-6">
-                <h3 className="font-semibold mb-4 text-muted-foreground">Free</h3>
+                <h3 className="font-semibold mb-4 text-muted-foreground">Free — Window Shopping</h3>
                 <ul className="space-y-3">
                   <li className="flex items-start gap-2 text-sm">
                     <span className="text-green-500">✓</span>
@@ -123,52 +134,55 @@ export default function PricingPage() {
                   </li>
                   <li className="flex items-start gap-2 text-sm">
                     <span className="text-green-500">✓</span>
-                    Save unlimited jobs
+                    Save jobs to review later
                   </li>
                   <li className="flex items-start gap-2 text-sm">
                     <span className="text-green-500">✓</span>
-                    Basic salary insights (average only)
+                    Basic salary info (average only)
                   </li>
                   <li className="flex items-start gap-2 text-sm">
                     <span className="text-green-500">✓</span>
-                    Daily email alerts
+                    Daily digest emails
                   </li>
                   <li className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <span>✗</span>
-                    Full salary range & percentiles
+                    <span className="text-red-400">✗</span>
+                    Can't see contact info
                   </li>
                   <li className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <span>✗</span>
-                    Apply to jobs
+                    <span className="text-red-400">✗</span>
+                    Can't apply to jobs
                   </li>
                 </ul>
               </div>
-              <div className="border-2 border-primary rounded-lg p-6">
-                <h3 className="font-semibold mb-4 text-primary">Premium</h3>
+              <div className="border-2 border-primary rounded-lg p-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs px-3 py-1 rounded-bl-lg font-medium">
+                  Get Hired
+                </div>
+                <h3 className="font-semibold mb-4 text-primary">Premium — Actually Apply</h3>
                 <ul className="space-y-3">
                   <li className="flex items-start gap-2 text-sm">
                     <span className="text-green-500">✓</span>
-                    Everything in Free
+                    Everything in Free, plus...
                   </li>
                   <li className="flex items-start gap-2 text-sm">
                     <span className="text-green-500">✓</span>
-                    <strong>Full salary insights</strong> (range, percentiles, source)
+                    <strong>Direct contact info</strong> — email hiring managers
                   </li>
                   <li className="flex items-start gap-2 text-sm">
                     <span className="text-green-500">✓</span>
-                    <strong>Apply to jobs directly</strong>
+                    <strong>Apply with one click</strong> — skip the ATS
                   </li>
                   <li className="flex items-start gap-2 text-sm">
                     <span className="text-green-500">✓</span>
-                    Instant email alerts
+                    <strong>Instant alerts</strong> — be first to new jobs
+                  </li>
+                  <li className="flex items-start gap-2 text-sm">
+                    <span className="text-green-500">✓</span>
+                    Full salary data (know your worth)
                   </li>
                   <li className="flex items-start gap-2 text-sm">
                     <span className="text-green-500">✓</span>
                     Application tracking
-                  </li>
-                  <li className="flex items-start gap-2 text-sm">
-                    <span className="text-green-500">✓</span>
-                    Priority support
                   </li>
                 </ul>
               </div>

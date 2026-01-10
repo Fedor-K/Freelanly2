@@ -137,7 +137,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
               <li>/</li>
               <li>
                 <Link href="/jobs" className="hover:text-foreground">
-                  Opportunities
+                  Freelance
                 </Link>
               </li>
               <li>/</li>
@@ -294,13 +294,15 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
             {/* Sidebar */}
             <div className="space-y-6">
               {/* Apply Card */}
-              <Card className="sticky top-4">
-                <CardHeader>
-                  <CardTitle>Contact Client</CardTitle>
+              <Card className="sticky top-4 border-orange-200">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2">
+                    <span className="text-orange-500">⚡</span> Apply Now — Be First
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    This is a direct freelance opportunity. Contact the client directly via LinkedIn or the provided contact info.
+                    Direct contact with the client. No agencies, no middlemen. Respond quickly — freelance projects get filled fast.
                   </p>
 
                   {isPro ? (
@@ -367,7 +369,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                   {!isPro && (
                     <Link href="/pricing" className="block">
                       <Button className="w-full bg-orange-600 hover:bg-orange-700">
-                        Upgrade to PRO to Contact
+                        🔓 Unlock Contact Info
                       </Button>
                     </Link>
                   )}
@@ -375,8 +377,8 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                   <div className="pt-4 border-t">
                     <p className="text-xs text-muted-foreground">
                       {isPro
-                        ? '⚡ This project was posted recently. Apply quickly for the best chance of success.'
-                        : 'PRO members get unlimited access to client contact info and direct application links.'}
+                        ? '⚡ This project was posted recently. Clients often hire within 48 hours — act now.'
+                        : '🔒 PRO members see all contact info and can apply directly. Upgrade to stop missing opportunities.'}
                     </p>
                   </div>
                 </CardContent>
@@ -435,7 +437,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
               {
                 '@type': 'ListItem',
                 position: 2,
-                name: 'Opportunities',
+                name: 'Freelance Projects',
                 item: `${siteConfig.url}/jobs`,
               },
               {

@@ -230,7 +230,7 @@ export function CrossSellExitPopup({
                 onClick={handleClose}
                 className={`text-sm font-medium ${isShowingOpportunities ? 'text-orange-600 hover:text-orange-700' : 'text-blue-600 hover:text-blue-700'}`}
               >
-                View all {categoryName} {isShowingOpportunities ? 'opportunities' : 'jobs'} →
+                View all {categoryName} {isShowingOpportunities ? 'freelance projects' : 'jobs'} →
               </Link>
             </div>
           )}
