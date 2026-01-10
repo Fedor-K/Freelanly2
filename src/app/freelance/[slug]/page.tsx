@@ -110,8 +110,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
 
   const isPro = userPlan === 'PRO' || userPlan === 'ENTERPRISE';
 
-  // Mask links/emails in description for FREE users
-  const displayDescription = maskLinksForFreeUsers(opportunity.description, userPlan);
+  // Mask links/emails in original content for FREE users
   const displayOriginalContent = maskLinksForFreeUsers(opportunity.originalContent, userPlan);
 
   const salaryDisplay = formatSalary(
@@ -155,7 +154,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                   {/* Direct Project Banner */}
                   <div className="mb-4 flex items-center justify-between">
                     <Badge className="bg-orange-600 text-white">
-                      Direct Freelance Project
+                      🔥 Direct Freelance Project
                     </Badge>
                     <span className="text-sm text-muted-foreground">
                       Posted {formatDistanceToNow(opportunity.createdAt)}
@@ -164,27 +163,27 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
 
                   {/* Client Info */}
                   <div className="flex items-start gap-4 mb-6">
-                    <div className={!isPro ? 'blur-sm select-none' : ''}>
+                    <div>
                       {opportunity.clientAvatar ? (
                         <Image
                           src={opportunity.clientAvatar}
                           alt={opportunity.clientName}
                           width={64}
                           height={64}
-                          className="rounded-full object-cover"
+                          className={`rounded-full object-cover ${!isPro ? 'blur-[1px]' : ''}`}
                         />
                       ) : (
-                        <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-2xl">
+                        <div className={`w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-2xl ${!isPro ? 'blur-[1px]' : ''}`}>
                           {opportunity.clientName.charAt(0).toUpperCase()}
                         </div>
                       )}
                     </div>
                     <div className="flex-1">
-                      <h2 className={`text-lg font-semibold ${!isPro ? 'blur-sm select-none' : ''}`}>
+                      <h2 className={`text-lg font-semibold ${!isPro ? 'blur-[1px] select-none' : ''}`}>
                         {opportunity.clientName}
                       </h2>
                       {opportunity.clientHeadline && (
-                        <p className={`text-sm text-muted-foreground ${!isPro ? 'blur-sm select-none' : ''}`}>
+                        <p className={`text-sm text-muted-foreground ${!isPro ? 'blur-[1px] select-none' : ''}`}>
                           {opportunity.clientHeadline}
                         </p>
                       )}
@@ -202,7 +201,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                           href="/pricing"
                           className="text-sm text-orange-600 hover:underline mt-1 inline-flex items-center gap-1"
                         >
-                          <span className="blur-sm select-none">linkedin.com/in/•••••</span>
+                          <span className="blur-[1px] select-none">linkedin.com/in/•••••</span>
                           <span className="no-blur">Upgrade to see →</span>
                         </Link>
                       )}
@@ -235,7 +234,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                   {/* Tags */}
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
-                      Urgent
+                      🔥 Urgent
                     </Badge>
                     <Badge variant="secondary">
                       {formatLevel(opportunity.level)}
@@ -249,59 +248,47 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                 </CardContent>
               </Card>
 
-              {/* Description Card */}
+              {/* Original Post Content */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Project Details</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    </svg>
+                    Original Post
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="prose prose-sm max-w-none">
-                    <div className="whitespace-pre-wrap">{displayDescription}</div>
+                    <div className="whitespace-pre-wrap">{displayOriginalContent}</div>
                   </div>
-                  {!isPro && (
-                    <p className="mt-4 text-sm text-muted-foreground">
-                      Some contact details are hidden.{' '}
-                      <Link href="/pricing" className="text-orange-600 hover:underline">
-                        Upgrade to PRO
-                      </Link>{' '}
-                      to see everything.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
 
-              {/* Original Post */}
-              {opportunity.originalContent && opportunity.originalContent !== opportunity.description && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Original LinkedIn Post</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <div className="whitespace-pre-wrap text-sm text-muted-foreground">
-                        {displayOriginalContent}
-                      </div>
-                    </div>
+                  <div className="mt-4 pt-4 border-t flex items-center justify-between">
                     {isPro ? (
                       <a
                         href={opportunity.sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:underline mt-4 inline-block"
+                        className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
                       >
-                        View original post on LinkedIn →
+                        View on LinkedIn →
                       </a>
                     ) : (
                       <Link
                         href="/pricing"
-                        className="text-sm text-orange-600 hover:underline mt-4 inline-block"
+                        className="text-sm text-orange-600 hover:underline"
                       >
-                        Upgrade to PRO to view original post →
+                        Upgrade to view on LinkedIn →
                       </Link>
                     )}
-                  </CardContent>
-                </Card>
-              )}
+                    {!isPro && (
+                      <span className="text-xs text-muted-foreground">
+                        Contact details hidden
+                      </span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Sidebar */}
@@ -329,7 +316,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                     </a>
                   ) : (
                     <div className="relative">
-                      <div className="blur-sm select-none pointer-events-none">
+                      <div className="blur-[1px] select-none pointer-events-none">
                         <Button className="w-full bg-blue-600">
                           Message on LinkedIn
                         </Button>
@@ -348,7 +335,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                         </Button>
                       </a>
                     ) : (
-                      <div className="blur-sm select-none pointer-events-none">
+                      <div className="blur-[1px] select-none pointer-events-none">
                         <Button variant="outline" className="w-full">
                           Email: •••••@••••.com
                         </Button>
@@ -369,7 +356,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                         </Button>
                       </a>
                     ) : (
-                      <div className="blur-sm select-none pointer-events-none">
+                      <div className="blur-[1px] select-none pointer-events-none">
                         <Button variant="outline" className="w-full">
                           Apply via Link
                         </Button>

@@ -34,17 +34,17 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
 
         <div className="flex gap-4">
           {/* Client Avatar */}
-          <div className={`flex-shrink-0 ${!isPro ? 'blur-[2px] select-none' : ''}`}>
+          <div className="flex-shrink-0">
             {opportunity.clientAvatar ? (
               <Image
                 src={opportunity.clientAvatar}
                 alt={opportunity.clientName}
                 width={48}
                 height={48}
-                className="rounded-full object-cover"
+                className={`rounded-full object-cover ${!isPro ? 'blur-[1px]' : ''}`}
               />
             ) : (
-              <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-semibold text-lg">
+              <div className={`w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-semibold text-lg ${!isPro ? 'blur-[1px]' : ''}`}>
                 {opportunity.clientName.charAt(0).toUpperCase()}
               </div>
             )}
@@ -55,7 +55,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
             <div>
               {/* Client info */}
               <div className="flex items-center gap-2 mb-1">
-                <span className={`text-sm font-medium text-gray-900 ${!isPro ? 'blur-[2px] select-none' : ''}`}>
+                <span className={`text-sm font-medium text-gray-900 ${!isPro ? 'blur-[1px] select-none' : ''}`}>
                   {opportunity.clientName}
                 </span>
                 {opportunity.clientType === 'company' && (
@@ -65,7 +65,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
                 )}
               </div>
               {opportunity.clientHeadline && (
-                <p className={`text-xs text-muted-foreground line-clamp-1 mb-2 ${!isPro ? 'blur-[2px] select-none' : ''}`}>
+                <p className={`text-xs text-muted-foreground line-clamp-1 mb-2 ${!isPro ? 'blur-[1px] select-none' : ''}`}>
                   {opportunity.clientHeadline}
                 </p>
               )}
@@ -145,7 +145,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
                 </a>
               ) : (
                 <>
-                  <span className="text-xs text-muted-foreground blur-[2px] select-none">linkedin.com/in/•••</span>
+                  <span className="text-xs text-muted-foreground blur-[1px] select-none">linkedin.com/in/•••</span>
                   <Link
                     href="/pricing"
                     className="text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1 rounded-md transition-colors inline-flex items-center gap-1"
