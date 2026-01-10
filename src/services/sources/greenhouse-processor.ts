@@ -15,7 +15,7 @@
  */
 
 import { prisma } from '@/lib/db';
-import { slugify } from '@/lib/utils';
+import { slugify, getMaxJobAgeDate } from '@/lib/utils';
 import { ensureSalaryData } from '@/lib/salary-estimation';
 import { queueCompanyEnrichmentBySlug } from '@/services/company-enrichment';
 import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
@@ -130,11 +130,22 @@ export async function processGreenhouseSource(context: ProcessorContext): Promis
       existingJobs.map(j => j.sourceUrl).filter((url): url is string => url !== null)
     );
 
-    // Filter jobs: remove duplicates and apply whitelist
+    // Filter jobs: remove duplicates, check age, and apply whitelist
     const filteredJobs: GreenhouseJob[] = [];
+    const maxAgeDate = getMaxJobAgeDate(); // Jobs older than 14 days are skipped
+
     for (const job of jobs) {
       // Check duplicate by sourceId or URL
       if (existingSourceIds.has(String(job.id)) || existingSourceUrls.has(job.absolute_url)) {
+        stats.skipped++;
+        continue;
+      }
+
+      // Check job age (must be within 14 days)
+      const jobDate = job.first_published
+        ? new Date(job.first_published)
+        : new Date(job.updated_at);
+      if (jobDate < maxAgeDate) {
         stats.skipped++;
         continue;
       }
