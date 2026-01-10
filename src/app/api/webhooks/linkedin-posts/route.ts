@@ -248,8 +248,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Generate unique slug for opportunity
-    const baseSlug = slugify(`${extracted.title}-${clientName}`);
+    // Generate unique slug for opportunity (title + location/skill, NO client name for privacy)
+    const slugParts = [extracted.title];
+    if (extracted.location && extracted.location.toLowerCase() !== 'remote') {
+      slugParts.push(extracted.location.split(',')[0].trim()); // First part of location
+    } else if (extracted.skills?.length > 0) {
+      slugParts.push(extracted.skills[0]); // First skill as differentiator
+    }
+    const baseSlug = slugify(slugParts.join('-'));
     const slug = await generateUniqueOpportunitySlug(baseSlug);
 
     // Get country code for salary estimation
