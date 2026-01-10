@@ -499,6 +499,7 @@ model Opportunity {
 
   // === RELATIONS ===
   alertNotifications AlertNotification[]
+  socialPostQueue    SocialPostQueue[]
 
   @@index([categoryId])
   @@index([companyId])
@@ -1136,9 +1137,13 @@ enum AlertSeverity {
 model SocialPostQueue {
   id          String    @id @default(cuid())
 
-  // Job reference
-  job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  jobId       String
+  // Job reference (optional - for regular jobs)
+  job         Job?      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId       String?
+
+  // Opportunity reference (optional - for freelance projects)
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  opportunityId String?
 
   // Generated content (cached to avoid re-generating)
   postText    String?   @db.Text
@@ -1154,6 +1159,7 @@ model SocialPostQueue {
 
   @@index([status])
   @@index([createdAt])
+  @@index([opportunityId])
 }
 
 enum SocialPostStatus {

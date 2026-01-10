@@ -50,33 +50,36 @@ function getAIClient(): { client: OpenAI; model: string; provider: AIProvider } 
   };
 }
 
-const SOCIAL_POST_PROMPT = `You are a social media copywriter for a job board. Create ONLY the body of a job post (title and skills will be added automatically by the system).
+const SOCIAL_POST_PROMPT = `You are a social media copywriter for a freelance platform. Create an URGENT post for a direct freelance project.
 
-IMPORTANT: Keep the language EXACTLY THE SAME as the job description. Russian job = Russian post. English job = English post.
+IMPORTANT: Keep the language EXACTLY THE SAME as the original post. Russian = Russian. English = English.
 
-Generate ONLY this format (no title line - it's added automatically):
-📍 [Location/Remote status]
-💰 [Salary if available, skip if no salary]
-🏢 [Company if known, skip if unknown]
+Generate this format:
+🔥 URGENT: [1 sentence why this is hot - client ready to hire NOW, direct contact, no middlemen]
 
-[2-3 sentence summary: role description, key requirements, what makes it attractive]
+📍 [Location/Remote]
+💰 [Budget if available]
+
+[2-3 sentences: what the client needs, key skills required, why act fast]
+
+⚡ Direct contact with recruiter - no agencies, no middlemen!
 
 Rules:
-- Do NOT include job title (🎯) - it's added automatically
-- Maximum 280 characters for summary
-- Be specific (e.g., "5+ years React" not "experience required")
+- URGENCY is key - emphasize speed, "client needs NOW", "hiring immediately"
+- Mention "direct contact" and "no middlemen"
+- Maximum 300 characters for summary
+- Be specific about skills needed
 - No hashtags, no links
-- Professional tone
-- Skip 💰 line if no salary
-- Skip 🏢 line if company unknown
+- Professional but urgent tone
+- Skip 💰 line if no budget specified
 
-Return ONLY the formatted body text, nothing else.`;
+Return ONLY the formatted text, nothing else.`;
 
-interface JobForSocialPost {
+interface OpportunityForSocialPost {
   id: string;
   title: string;
   description: string;
-  cleanDescription: string | null;
+  originalContent: string | null;
   location: string | null;
   country: string | null;
   locationType: string;
@@ -87,42 +90,39 @@ interface JobForSocialPost {
   level: string;
   type: string;
   skills: string[];
-  company: {
-    name: string;
-    slug: string;
-  };
+  clientName: string;
   slug: string;
 }
 
 /**
  * Generate social media post text using AI (DeepSeek or Z.ai based on AI_PROVIDER)
  */
-export async function generateSocialPost(job: JobForSocialPost): Promise<string> {
+export async function generateSocialPost(opp: OpportunityForSocialPost): Promise<string> {
   try {
     const { client, model, provider } = getAIClient();
     const providerName = provider === 'zai' ? 'Z.ai' : 'DeepSeek';
 
     // Build context for AI
-    const jobContext = `
-Job Title: ${job.title}
-Company: ${job.company.name}
-Location: ${job.location || 'Remote'}
-Location Type: ${job.locationType}
-Country: ${job.country || 'Worldwide'}
-Level: ${job.level}
-Type: ${job.type}
-${job.salaryMin ? `Salary: ${job.salaryCurrency || 'USD'} ${job.salaryMin}${job.salaryMax ? `-${job.salaryMax}` : ''}/${job.salaryPeriod?.toLowerCase() || 'year'}` : 'Salary: Not specified'}
-Skills: ${job.skills.join(', ') || 'Not specified'}
+    const oppContext = `
+Project Title: ${opp.title}
+Client: ${opp.clientName}
+Location: ${opp.location || 'Remote'}
+Location Type: ${opp.locationType}
+Country: ${opp.country || 'Worldwide'}
+Level: ${opp.level}
+Type: Freelance Project
+${opp.salaryMin ? `Budget: ${opp.salaryCurrency || 'USD'} ${opp.salaryMin}${opp.salaryMax ? `-${opp.salaryMax}` : ''}/${opp.salaryPeriod?.toLowerCase() || 'project'}` : 'Budget: To be discussed'}
+Skills needed: ${opp.skills.join(', ') || 'Various'}
 
-Description:
-${job.cleanDescription || job.description}
+Original post:
+${opp.originalContent || opp.description}
 `.trim();
 
     const response = await client.chat.completions.create({
       model,
       messages: [
         { role: 'system', content: SOCIAL_POST_PROMPT },
-        { role: 'user', content: jobContext }
+        { role: 'user', content: oppContext }
       ],
       temperature: 0.7,
       max_tokens: 500,
@@ -134,7 +134,7 @@ ${job.cleanDescription || job.description}
 
     if (!postText) {
       console.log(`[SocialPost] ${providerName} returned empty, using fallback`);
-      return generateFallbackPost(job);
+      return generateFallbackPost(opp);
     }
 
     console.log(`[SocialPost] ${providerName} generated post: ${postText.substring(0, 150)}...`);
@@ -142,71 +142,73 @@ ${job.cleanDescription || job.description}
   } catch (error) {
     const provider = getAIProvider();
     console.error(`[SocialPost] ${provider} generation error:`, error);
-    return generateFallbackPost(job);
+    return generateFallbackPost(opp);
   }
 }
 
 /**
  * Fallback post generation without AI
- * Note: Does NOT include title (🎯) - n8n template adds it from workType
+ * Emphasizes urgency and direct contact
  */
-function generateFallbackPost(job: JobForSocialPost): string {
+function generateFallbackPost(opp: OpportunityForSocialPost): string {
   const lines: string[] = [];
 
+  // Urgent header
+  lines.push('🔥 URGENT: Client hiring NOW - Direct contact, no middlemen!');
+  lines.push('');
+
   // Location
-  const location = job.location || (job.locationType === 'REMOTE' ? 'Remote' : 'Remote');
-  lines.push(`📍 ${location}${job.country ? `, ${job.country}` : ''}`);
+  const location = opp.location || 'Remote';
+  lines.push(`📍 ${location}${opp.country ? `, ${opp.country}` : ''}`);
 
-  // Salary
-  if (job.salaryMin) {
-    const currency = job.salaryCurrency || 'USD';
-    const period = job.salaryPeriod?.toLowerCase() || 'year';
-    const salaryStr = job.salaryMax
-      ? `${currency} ${job.salaryMin.toLocaleString()}-${job.salaryMax.toLocaleString()}/${period}`
-      : `${currency} ${job.salaryMin.toLocaleString()}/${period}`;
+  // Budget
+  if (opp.salaryMin) {
+    const currency = opp.salaryCurrency || 'USD';
+    const period = opp.salaryPeriod?.toLowerCase() || 'project';
+    const salaryStr = opp.salaryMax
+      ? `${currency} ${opp.salaryMin.toLocaleString()}-${opp.salaryMax.toLocaleString()}/${period}`
+      : `${currency} ${opp.salaryMin.toLocaleString()}/${period}`;
     lines.push(`💰 ${salaryStr}`);
-  }
-
-  // Company
-  if (job.company.name) {
-    lines.push(`🏢 ${job.company.name}`);
   }
 
   lines.push('');
 
-  // Simple summary from skills
-  if (job.skills.length > 0) {
-    lines.push(`Looking for ${job.level.toLowerCase()} professional with ${job.skills.slice(0, 3).join(', ')}.`);
+  // Skills needed
+  if (opp.skills.length > 0) {
+    lines.push(`Looking for ${opp.level.toLowerCase()} freelancer with ${opp.skills.slice(0, 3).join(', ')}. Apply fast!`);
   } else {
-    lines.push(`${job.level} ${job.type.replace('_', '-').toLowerCase()} position.`);
+    lines.push(`${opp.level} freelance project. Client ready to start immediately!`);
   }
+
+  lines.push('');
+  lines.push('⚡ Direct contact with recruiter - no agencies!');
 
   return lines.join('\n');
 }
 
 /**
- * Add job to social post queue
+ * Add opportunity to social post queue
  */
-export async function addToSocialQueue(jobId: string): Promise<void> {
+export async function addToSocialQueue(opportunityId: string): Promise<void> {
   try {
     // Check if already in queue
     const existing = await prisma.socialPostQueue.findFirst({
-      where: { jobId }
+      where: { opportunityId }
     });
 
     if (existing) {
-      console.log(`[SocialPost] Job ${jobId} already in queue`);
+      console.log(`[SocialPost] Opportunity ${opportunityId} already in queue`);
       return;
     }
 
     await prisma.socialPostQueue.create({
       data: {
-        jobId,
+        opportunityId,
         status: 'PENDING',
       }
     });
 
-    console.log(`[SocialPost] Added job ${jobId} to queue`);
+    console.log(`[SocialPost] Added opportunity ${opportunityId} to queue`);
   } catch (error) {
     console.error('[SocialPost] Failed to add to queue:', error);
   }
@@ -214,49 +216,49 @@ export async function addToSocialQueue(jobId: string): Promise<void> {
 
 /**
  * Process next item in queue and post to n8n webhook
+ * Now works with opportunities (freelance projects) only
  */
-export async function processNextSocialPost(): Promise<{ posted: boolean; jobId?: string; error?: string }> {
+export async function processNextSocialPost(): Promise<{ posted: boolean; opportunityId?: string; error?: string }> {
   // Get next pending item (FIFO)
   const next = await prisma.socialPostQueue.findFirst({
-    where: { status: 'PENDING' },
+    where: {
+      status: 'PENDING',
+      opportunityId: { not: null }
+    },
     orderBy: { createdAt: 'asc' },
     include: {
-      job: {
-        include: {
-          company: true
-        }
-      }
+      opportunity: true
     }
   });
 
-  if (!next) {
+  if (!next || !next.opportunity) {
     return { posted: false, error: 'Queue is empty' };
   }
 
-  const job = next.job;
-  const jobId = job.id;
+  const opp = next.opportunity;
+  const opportunityId = opp.id;
 
   try {
     // Generate post text if not cached
     let postText = next.postText;
     if (!postText) {
       postText = await generateSocialPost({
-        id: job.id,
-        title: job.title,
-        description: job.description,
-        cleanDescription: job.cleanDescription,
-        location: job.location,
-        country: job.country,
-        locationType: job.locationType,
-        salaryMin: job.salaryMin,
-        salaryMax: job.salaryMax,
-        salaryCurrency: job.salaryCurrency,
-        salaryPeriod: job.salaryPeriod,
-        level: job.level,
-        type: job.type,
-        skills: job.skills,
-        company: job.company,
-        slug: job.slug,
+        id: opp.id,
+        title: opp.title,
+        description: opp.description,
+        originalContent: opp.originalContent,
+        location: opp.location,
+        country: opp.country,
+        locationType: opp.locationType,
+        salaryMin: opp.salaryMin,
+        salaryMax: opp.salaryMax,
+        salaryCurrency: opp.salaryCurrency,
+        salaryPeriod: opp.salaryPeriod,
+        level: opp.level,
+        type: opp.type,
+        skills: opp.skills,
+        clientName: opp.clientName,
+        slug: opp.slug,
       });
 
       // Cache the generated text
@@ -266,30 +268,29 @@ export async function processNextSocialPost(): Promise<{ posted: boolean; jobId?
       });
     }
 
-    // Build freelanly URL
-    const freelanlyUrl = `https://freelanly.com/company/${job.company.slug}/jobs/${job.slug}`;
+    // Build freelanly URL for opportunities
+    const freelanlyUrl = `https://freelanly.com/freelance/${opp.slug}`;
 
-    console.log(`[SocialPost] Preparing to send job ${jobId}:`);
-    console.log(`[SocialPost] - Title: ${job.title}`);
-    console.log(`[SocialPost] - Company: ${job.company.name} (slug: ${job.company.slug})`);
-    console.log(`[SocialPost] - Job slug: ${job.slug}`);
+    console.log(`[SocialPost] Preparing to send opportunity ${opportunityId}:`);
+    console.log(`[SocialPost] - Title: ${opp.title}`);
+    console.log(`[SocialPost] - Client: ${opp.clientName}`);
     console.log(`[SocialPost] - URL: ${freelanlyUrl}`);
-    console.log(`[SocialPost] - PostText length: ${postText?.length || 0}`);
     console.log(`[SocialPost] - PostText preview: ${postText?.substring(0, 100)}...`);
 
-    // Send to n8n webhook (n8n template handles CTAs and links)
+    // Send to n8n webhook
     const n8nWebhookUrl = process.env.N8N_SOCIAL_WEBHOOK_URL;
     if (!n8nWebhookUrl) {
       throw new Error('N8N_SOCIAL_WEBHOOK_URL not configured');
     }
 
     const payload = {
-      workType: job.title,
+      workType: opp.title,
       postContent: postText,
       freelanlyUrl,
-      languages: job.skills.slice(0, 5),
-      jobId: job.id,
-      companyName: job.company.name,
+      languages: opp.skills.slice(0, 5),
+      opportunityId: opp.id,
+      clientName: opp.clientName,
+      isFreelance: true,
     };
 
     console.log(`[SocialPost] Sending payload to n8n:`, JSON.stringify(payload, null, 2));
@@ -315,12 +316,12 @@ export async function processNextSocialPost(): Promise<{ posted: boolean; jobId?
       }
     });
 
-    console.log(`[SocialPost] Posted job ${jobId}: ${job.title}`);
-    return { posted: true, jobId };
+    console.log(`[SocialPost] Posted opportunity ${opportunityId}: ${opp.title}`);
+    return { posted: true, opportunityId };
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[SocialPost] Failed to post job ${jobId}:`, errorMessage);
+    console.error(`[SocialPost] Failed to post opportunity ${opportunityId}:`, errorMessage);
 
     // Mark as failed
     await prisma.socialPostQueue.update({
@@ -331,7 +332,7 @@ export async function processNextSocialPost(): Promise<{ posted: boolean; jobId?
       }
     });
 
-    return { posted: false, jobId, error: errorMessage };
+    return { posted: false, opportunityId, error: errorMessage };
   }
 }
 
@@ -355,6 +356,7 @@ export async function getSocialQueueStats(): Promise<{
 /**
  * Get next post from queue and generate content
  * Returns data for n8n to post, or null if queue is empty
+ * Now works with opportunities (freelance projects) only
  */
 export async function getNextSocialPost(): Promise<{
   queueItemId: string;
@@ -364,46 +366,46 @@ export async function getNextSocialPost(): Promise<{
   postContent: string;
   freelanlyUrl: string;
   skills: string[];
+  isFreelance: boolean;
 } | null> {
-  // Get next pending item (FIFO)
+  // Get next pending opportunity (FIFO)
   const next = await prisma.socialPostQueue.findFirst({
-    where: { status: 'PENDING' },
+    where: {
+      status: 'PENDING',
+      opportunityId: { not: null }
+    },
     orderBy: { createdAt: 'asc' },
     include: {
-      job: {
-        include: {
-          company: true
-        }
-      }
+      opportunity: true
     }
   });
 
-  if (!next || !next.job) {
+  if (!next || !next.opportunity) {
     return null;
   }
 
-  const job = next.job;
+  const opp = next.opportunity;
 
   // Generate post text if not cached
   let postText = next.postText;
   if (!postText) {
     postText = await generateSocialPost({
-      id: job.id,
-      title: job.title,
-      description: job.description,
-      cleanDescription: job.cleanDescription,
-      location: job.location,
-      country: job.country,
-      locationType: job.locationType,
-      salaryMin: job.salaryMin,
-      salaryMax: job.salaryMax,
-      salaryCurrency: job.salaryCurrency,
-      salaryPeriod: job.salaryPeriod,
-      level: job.level,
-      type: job.type,
-      skills: job.skills,
-      company: job.company,
-      slug: job.slug,
+      id: opp.id,
+      title: opp.title,
+      description: opp.description,
+      originalContent: opp.originalContent,
+      location: opp.location,
+      country: opp.country,
+      locationType: opp.locationType,
+      salaryMin: opp.salaryMin,
+      salaryMax: opp.salaryMax,
+      salaryCurrency: opp.salaryCurrency,
+      salaryPeriod: opp.salaryPeriod,
+      level: opp.level,
+      type: opp.type,
+      skills: opp.skills,
+      clientName: opp.clientName,
+      slug: opp.slug,
     });
 
     // Cache the generated text
@@ -413,16 +415,18 @@ export async function getNextSocialPost(): Promise<{
     });
   }
 
-  const freelanlyUrl = `https://freelanly.com/company/${job.company.slug}/jobs/${job.slug}`;
+  // URL for freelance opportunities
+  const freelanlyUrl = `https://freelanly.com/freelance/${opp.slug}`;
 
   return {
     queueItemId: next.id,
-    jobId: job.id,
-    jobTitle: job.title,
-    companyName: job.company.name,
+    jobId: opp.id, // Keep as jobId for backwards compatibility with n8n
+    jobTitle: opp.title,
+    companyName: opp.clientName, // Client name instead of company
     postContent: postText,
     freelanlyUrl,
-    skills: job.skills.slice(0, 5),
+    skills: opp.skills.slice(0, 5),
+    isFreelance: true,
   };
 }
 
@@ -455,13 +459,13 @@ export async function markAsFailed(queueItemId: string, error: string): Promise<
 }
 
 /**
- * Refill social queue with jobs that haven't been posted yet
+ * Refill social queue with OPPORTUNITIES (freelance projects) only
  * Called automatically when queue is running low
  */
 export async function refillSocialQueue(options: {
   minQueueSize?: number;  // Refill when pending < this (default: 5)
   refillCount?: number;   // How many to add (default: 20)
-  maxAgeDays?: number;    // Only jobs newer than this (default: 14)
+  maxAgeDays?: number;    // Only opportunities newer than this (default: 14)
 } = {}): Promise<{ added: number; skipped: number }> {
   const {
     minQueueSize = 5,
@@ -469,62 +473,66 @@ export async function refillSocialQueue(options: {
     maxAgeDays = 14,
   } = options;
 
-  // Check current queue size
+  // Check current queue size (only opportunities)
   const pendingCount = await prisma.socialPostQueue.count({
-    where: { status: 'PENDING' }
+    where: {
+      status: 'PENDING',
+      opportunityId: { not: null }
+    }
   });
 
   if (pendingCount >= minQueueSize) {
-    console.log(`[SocialQueue] Queue has ${pendingCount} pending, no refill needed`);
+    console.log(`[SocialQueue] Queue has ${pendingCount} pending opportunities, no refill needed`);
     return { added: 0, skipped: 0 };
   }
 
   const toAdd = refillCount - pendingCount;
-  console.log(`[SocialQueue] Queue low (${pendingCount}), adding up to ${toAdd} jobs`);
+  console.log(`[SocialQueue] Queue low (${pendingCount}), adding up to ${toAdd} opportunities`);
 
-  // Get all job IDs already in queue (any status)
+  // Get all opportunity IDs already in queue (any status)
   const existingInQueue = await prisma.socialPostQueue.findMany({
-    select: { jobId: true }
+    where: { opportunityId: { not: null } },
+    select: { opportunityId: true }
   });
-  const queuedJobIds = new Set(existingInQueue.map(q => q.jobId));
+  const queuedOppIds = new Set(existingInQueue.map(q => q.opportunityId));
 
-  // Find jobs to add:
-  // - REMOTE or HYBRID only
+  // Find opportunities to add:
+  // - Active
   // - Created within maxAgeDays
   // - Not already in queue
   // - Order by createdAt DESC (newest first)
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - maxAgeDays);
 
-  const candidates = await prisma.job.findMany({
+  const candidates = await prisma.opportunity.findMany({
     where: {
-      locationType: { in: ['REMOTE', 'HYBRID'] },
+      isActive: true,
       createdAt: { gte: cutoffDate },
     },
     orderBy: { createdAt: 'desc' },
     take: toAdd * 2, // Get more than needed to filter
-    select: { id: true, title: true, createdAt: true }
+    select: { id: true, title: true, clientName: true, createdAt: true }
   });
 
   let added = 0;
   let skipped = 0;
 
-  for (const job of candidates) {
+  for (const opp of candidates) {
     if (added >= toAdd) break;
 
-    if (queuedJobIds.has(job.id)) {
+    if (queuedOppIds.has(opp.id)) {
       skipped++;
       continue;
     }
 
     await prisma.socialPostQueue.create({
       data: {
-        jobId: job.id,
+        opportunityId: opp.id,
         status: 'PENDING',
       }
     });
 
-    console.log(`[SocialQueue] Added: ${job.title}`);
+    console.log(`[SocialQueue] Added opportunity: ${opp.title} (${opp.clientName})`);
     added++;
   }
 
