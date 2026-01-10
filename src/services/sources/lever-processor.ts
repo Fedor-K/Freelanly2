@@ -20,7 +20,7 @@ import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@
 import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
-import { addToSocialQueue } from '@/services/social-post';
+// Note: Social queue is only for Opportunities (freelance), not regular Jobs
 import { queueInstantAlertsForJob } from '@/services/alert-notifications';
 import { isPhysicalLocation } from '@/lib/job-filter';
 import { isBlockedCompany } from '@/config/company-blacklist';
@@ -273,11 +273,9 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
           if (result.jobSlug) {
             stats.createdJobUrls!.push(buildJobUrl(company.slug, result.jobSlug));
           }
-          // Add to social post queue and queue instant alerts
+          // Queue instant alerts for job
           if (result.jobId) {
-            await addToSocialQueue(result.jobId);
             stats.createdJobIds!.push(result.jobId);
-            // Queue instant alerts (non-blocking)
             queueInstantAlertsForJob(result.jobId).catch((err) => {
               console.error('[Lever] Instant alerts failed:', err);
             });
