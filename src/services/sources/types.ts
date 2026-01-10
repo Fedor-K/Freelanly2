@@ -53,6 +53,41 @@ export interface LeverJob {
   workplaceType?: string;  // remote, onsite, hybrid
 }
 
+export interface GreenhouseJob {
+  id: number;
+  title: string;
+  absolute_url: string;
+  location: {
+    name: string;
+  };
+  content?: string;  // HTML description (only in detail endpoint)
+  updated_at: string;
+  first_published?: string;
+  company_name?: string;
+  departments?: Array<{
+    id: number;
+    name: string;
+  }>;
+  offices?: Array<{
+    id: number;
+    name: string;
+    location?: string;
+  }>;
+  metadata?: Array<{
+    id: number;
+    name: string;
+    value: string | string[] | null;
+    value_type: string;
+  }>;
+}
+
+export interface GreenhouseApiResponse {
+  jobs: GreenhouseJob[];
+  meta?: {
+    total: number;
+  };
+}
+
 // ATS API URL templates
 export const ATS_API_TEMPLATES: Record<string, string> = {
   LEVER: 'https://api.lever.co/v0/postings/{companySlug}?mode=json',

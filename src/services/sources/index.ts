@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { Source } from '@prisma/client';
 import type { ProcessingStats, ProcessorContext } from './types';
 import { processLeverSource } from './lever-processor';
+import { processGreenhouseSource } from './greenhouse-processor';
 import { notifySearchEngines } from '@/lib/indexing';
 
 export * from './types';
@@ -9,8 +10,8 @@ export * from './types';
 // Map source types to their processors
 const SOURCE_PROCESSORS: Partial<Record<Source, (context: ProcessorContext) => Promise<ProcessingStats>>> = {
   LEVER: processLeverSource,
+  GREENHOUSE: processGreenhouseSource,
   // TODO: Add more processors
-  // GREENHOUSE: processGreenhouseSource,
   // ASHBY: processAshbySource,
 };
 
