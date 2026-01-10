@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { ActivationProgress } from '@/components/dashboard/ActivationProgress';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -16,13 +17,20 @@ export default async function DashboardPage() {
     redirect('/auth/signin');
   }
 
-  // Fetch user stats
-  const [applicationsCount, alertsCount] = await Promise.all([
+  // Fetch user stats and activation data
+  const [applicationsCount, alertsCount, userData] = await Promise.all([
     prisma.application.count({
       where: { userId: session.user.id },
     }),
     prisma.jobAlert.count({
       where: { userId: session.user.id },
+    }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        proStartedAt: true,
+        activatedAt: true,
+      },
     }),
   ]);
 
@@ -43,6 +51,15 @@ export default async function DashboardPage() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Activation progress for new PRO users */}
+        {user.plan === 'PRO' && userData && (
+          <ActivationProgress
+            applicationsCount={applicationsCount}
+            proStartedAt={userData.proStartedAt}
+            activatedAt={userData.activatedAt}
+          />
+        )}
+
         {/* Plan banner for FREE users */}
         {user.plan === 'FREE' && (
           <div className="mb-8 p-6 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white">

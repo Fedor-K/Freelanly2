@@ -10,6 +10,7 @@ import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { getMaxJobAgeDate } from '@/lib/utils';
 import { TopFilters } from '@/components/jobs/TopFilters';
+import { WelcomeToast } from '@/components/jobs/WelcomeToast';
 import type { FeedItem, JobCardData, OpportunityCardData } from '@/types';
 
 type UserPlan = 'FREE' | 'PRO' | 'ENTERPRISE';
@@ -586,6 +587,9 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
           }),
         }}
       />
+
+      {/* Welcome toast for new PRO subscribers */}
+      <WelcomeToast />
     </div>
   );
 }

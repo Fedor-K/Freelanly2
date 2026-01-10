@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     // Build URLs
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const successUrl = `${baseUrl}/dashboard?subscription=success`;
+    const successUrl = `${baseUrl}/jobs?subscription=success&welcome=1`;
     const cancelUrl = `${baseUrl}/pricing?subscription=cancelled`;
 
     // Create Stripe Checkout session

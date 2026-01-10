@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
 import { constructWebhookEvent } from '@/lib/stripe';
+import { sendActivationEmail } from '@/services/activation-emails';
 
 // Disable body parsing - we need raw body for signature verification
 export const runtime = 'nodejs';
@@ -138,6 +139,18 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       stripeSubscriptionId: subscriptionId,
     },
   });
+
+  // Send welcome activation email with personalized job picks
+  try {
+    const result = await sendActivationEmail(userId, 'WELCOME');
+    if (result.success) {
+      console.log(`[Stripe Webhook] Welcome activation email sent to user ${userId}`);
+    } else {
+      console.error(`[Stripe Webhook] Failed to send welcome email: ${result.error}`);
+    }
+  } catch (err) {
+    console.error('[Stripe Webhook] Error sending welcome email:', err);
+  }
 }
 
 // Handle subscription updates

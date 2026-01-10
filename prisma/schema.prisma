@@ -40,6 +40,12 @@ model User {
   // Onboarding (for Google OAuth users who skip registration form)
   needsOnboarding Boolean @default(false)
 
+  // Activation tracking (for new PRO users)
+  activatedAt           DateTime?  // When first application was sent
+  activationEmailsSent  Int @default(0)  // 0=none, 1=welcome, 2=day1, 3=day2, 4=day3
+  lastActivationEmailAt DateTime?
+  proStartedAt          DateTime?  // When user became PRO (for tracking 7-day window)
+
   // Relations
   accounts      Account[]
   sessions      Session[]
