@@ -154,7 +154,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                   {/* Direct Project Banner */}
                   <div className="mb-4 flex items-center justify-between">
                     <Badge className="bg-orange-600 text-white">
-                      🔥 Direct Freelance Project
+                      🔥 Direct to Recruiter · No Middlemen
                     </Badge>
                     <span className="text-sm text-muted-foreground">
                       Posted {formatDistanceToNow(opportunity.createdAt)}

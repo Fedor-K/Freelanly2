@@ -19,7 +19,7 @@ export function JobCard({ job }: JobCardProps) {
         {job.isDirectOpportunity && (
           <div className="mb-3 -mt-1 flex items-center gap-1 text-orange-700">
             <span className="text-base">🔥</span>
-            <span className="text-sm font-medium">Direct Project · Client needs now</span>
+            <span className="text-sm font-medium">Direct to Recruiter · No Middlemen</span>
           </div>
         )}
         <div className="flex gap-4">

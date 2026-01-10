@@ -25,7 +25,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
         <div className="mb-3 -mt-1 flex items-center justify-between">
           <span className="text-sm font-medium text-orange-700 flex items-center gap-1">
             <span className="text-base">🔥</span>
-            Direct Project · Client needs now
+            Direct to Recruiter · No Middlemen
           </span>
           <span className="text-xs text-muted-foreground">
             {formatDistanceToNow(opportunity.createdAt)}
