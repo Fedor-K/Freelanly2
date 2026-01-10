@@ -52,26 +52,24 @@ function getAIClient(): { client: OpenAI; model: string; provider: AIProvider } 
 
 const SOCIAL_POST_PROMPT = `You are a social media copywriter for a freelance platform. Create an URGENT post for a direct freelance project.
 
-IMPORTANT: Keep the language EXACTLY THE SAME as the original post. Russian = Russian. English = English.
+IMPORTANT: Keep the language EXACTLY THE SAME as the original post. Russian = Russian. English = English. French = French.
 
 Generate this format:
-🔥 URGENT: [1 sentence why this is hot - client ready to hire NOW, direct contact, no middlemen]
+🔥 URGENT: [1 sentence why this is hot - client ready to hire NOW]
 
 📍 [Location/Remote]
-💰 [Budget if available]
+💰 [Budget if available, skip if yearly salary]
 
-[2-3 sentences: what the client needs, key skills required, why act fast]
-
-⚡ Direct contact with recruiter - no agencies, no middlemen!
+[2-3 sentences: what the client needs, key skills required, why act fast. End with "Apply now!" or similar urgency]
 
 Rules:
 - URGENCY is key - emphasize speed, "client needs NOW", "hiring immediately"
-- Mention "direct contact" and "no middlemen"
 - Maximum 300 characters for summary
 - Be specific about skills needed
 - No hashtags, no links
 - Professional but urgent tone
-- Skip 💰 line if no budget specified
+- Skip 💰 line if no budget or if it's yearly salary (not freelance rate)
+- Do NOT include "Direct contact" line - it will be added automatically
 
 Return ONLY the formatted text, nothing else.`;
 
@@ -148,21 +146,21 @@ ${opp.originalContent || opp.description}
 
 /**
  * Fallback post generation without AI
- * Emphasizes urgency and direct contact
+ * Emphasizes urgency (direct contact line added by n8n template)
  */
 function generateFallbackPost(opp: OpportunityForSocialPost): string {
   const lines: string[] = [];
 
   // Urgent header
-  lines.push('🔥 URGENT: Client hiring NOW - Direct contact, no middlemen!');
+  lines.push('🔥 URGENT: Client hiring NOW!');
   lines.push('');
 
   // Location
   const location = opp.location || 'Remote';
   lines.push(`📍 ${location}${opp.country ? `, ${opp.country}` : ''}`);
 
-  // Budget
-  if (opp.salaryMin) {
+  // Budget - only show if hourly/daily/project rate, not yearly salary
+  if (opp.salaryMin && opp.salaryPeriod !== 'YEAR') {
     const currency = opp.salaryCurrency || 'USD';
     const period = opp.salaryPeriod?.toLowerCase() || 'project';
     const salaryStr = opp.salaryMax
@@ -175,13 +173,10 @@ function generateFallbackPost(opp: OpportunityForSocialPost): string {
 
   // Skills needed
   if (opp.skills.length > 0) {
-    lines.push(`Looking for ${opp.level.toLowerCase()} freelancer with ${opp.skills.slice(0, 3).join(', ')}. Apply fast!`);
+    lines.push(`Looking for ${opp.level.toLowerCase()} freelancer with ${opp.skills.slice(0, 3).join(', ')}. Apply now!`);
   } else {
     lines.push(`${opp.level} freelance project. Client ready to start immediately!`);
   }
-
-  lines.push('');
-  lines.push('⚡ Direct contact with recruiter - no agencies!');
 
   return lines.join('\n');
 }
