@@ -359,7 +359,13 @@ export default async function JobPage({ params }: JobPageProps) {
               {/* Tags */}
               <div className="flex flex-wrap gap-2">
                 <Badge>{formatLevel(job.level)}</Badge>
-                <Badge variant="outline">{formatJobType(job.type)}</Badge>
+                {job.type === 'FREELANCE' ? (
+                  <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300 font-medium">
+                    💼 Freelance
+                  </Badge>
+                ) : (
+                  <Badge variant="outline">{formatJobType(job.type)}</Badge>
+                )}
                 {isLinkedInPost && (
                   <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                     From Social Media

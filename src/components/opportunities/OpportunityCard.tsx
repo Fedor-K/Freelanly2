@@ -104,8 +104,8 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
               <Badge variant="secondary" className="text-xs">
                 {formatLevel(opportunity.level)}
               </Badge>
-              <Badge variant="outline" className="text-xs">
-                Freelance
+              <Badge variant="outline" className="text-xs bg-purple-100 text-purple-800 border-purple-300 font-medium">
+                💼 Freelance
               </Badge>
               {opportunity.skills.slice(0, 3).map((skill) => (
                 <Badge key={skill} variant="outline" className="text-xs">

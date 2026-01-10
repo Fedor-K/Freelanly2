@@ -82,9 +82,15 @@ export function JobCard({ job }: JobCardProps) {
               <Badge variant="secondary" className="text-xs">
                 {formatLevel(job.level)}
               </Badge>
-              <Badge variant="outline" className="text-xs">
-                {formatJobType(job.type)}
-              </Badge>
+              {job.type === 'FREELANCE' ? (
+                <Badge variant="outline" className="text-xs bg-purple-100 text-purple-800 border-purple-300 font-medium">
+                  💼 Freelance
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs">
+                  {formatJobType(job.type)}
+                </Badge>
+              )}
               {job.sourceType === 'UNSTRUCTURED' && !job.isDirectOpportunity && (
                 <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                   Social Media
