@@ -75,7 +75,7 @@ export function JobCard({ job }: JobCardProps) {
             <div className="mt-3 flex flex-wrap gap-1.5">
               {/* Direct Opportunity urgent badge */}
               {job.isDirectOpportunity && (
-                <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-300 font-medium">
+                <Badge variant="outline" className="text-xs bg-red-100/80 text-red-700 border-red-300/60 font-medium backdrop-blur-sm">
                   🔥 Urgent
                 </Badge>
               )}
@@ -83,7 +83,7 @@ export function JobCard({ job }: JobCardProps) {
                 {formatLevel(job.level)}
               </Badge>
               {job.type === 'FREELANCE' ? (
-                <Badge variant="outline" className="text-xs bg-purple-100 text-purple-800 border-purple-300 font-medium">
+                <Badge variant="outline" className="text-xs bg-orange-100 text-orange-700 border-orange-300 font-medium">
                   💼 Freelance
                 </Badge>
               ) : (

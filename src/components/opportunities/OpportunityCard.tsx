@@ -97,14 +97,14 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
             <div className="mt-3 flex flex-wrap gap-1.5">
               <Badge
                 variant="outline"
-                className="text-xs bg-orange-100 text-orange-800 border-orange-300 font-medium"
+                className="text-xs bg-red-100/80 text-red-700 border-red-300/60 font-medium backdrop-blur-sm"
               >
                 🔥 Urgent
               </Badge>
               <Badge variant="secondary" className="text-xs">
                 {formatLevel(opportunity.level)}
               </Badge>
-              <Badge variant="outline" className="text-xs bg-purple-100 text-purple-800 border-purple-300 font-medium">
+              <Badge variant="outline" className="text-xs bg-orange-100 text-orange-700 border-orange-300 font-medium">
                 💼 Freelance
               </Badge>
               {opportunity.skills.slice(0, 3).map((skill) => (
@@ -148,7 +148,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
                   <span className="text-xs text-muted-foreground blur-[3px] select-none">linkedin.com/in/•••</span>
                   <Link
                     href="/pricing"
-                    className="text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1 rounded-md transition-colors inline-flex items-center gap-1"
+                    className="text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-md transition-colors inline-flex items-center gap-1"
                   >
                     🔓 Unlock Contact
                   </Link>

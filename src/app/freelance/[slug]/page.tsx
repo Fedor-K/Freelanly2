@@ -226,14 +226,14 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                         {opportunity.salaryIsEstimate && ' (est.)'}
                       </span>
                     )}
-                    <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300 font-medium">
+                    <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300 font-medium">
                       💼 Freelance Project
                     </Badge>
                   </div>
 
                   {/* Tags */}
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
+                    <Badge variant="outline" className="bg-red-100/80 text-red-700 border-red-300/60 backdrop-blur-sm">
                       🔥 Urgent
                     </Badge>
                     <Badge variant="secondary">

@@ -360,7 +360,7 @@ export default async function JobPage({ params }: JobPageProps) {
               <div className="flex flex-wrap gap-2">
                 <Badge>{formatLevel(job.level)}</Badge>
                 {job.type === 'FREELANCE' ? (
-                  <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300 font-medium">
+                  <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300 font-medium">
                     💼 Freelance
                   </Badge>
                 ) : (
