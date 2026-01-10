@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const filterTag = searchParams.get('tag');
     const filterStatus = searchParams.get('status') || 'active'; // Default to active
     const filterQuality = searchParams.get('quality');
+    const filterSourceType = searchParams.get('sourceType'); // LEVER, GREENHOUSE, etc.
     const search = searchParams.get('search')?.toLowerCase();
 
     // Pagination params (no limit cap for bulk operations like "Run All")
@@ -33,6 +34,10 @@ export async function GET(request: NextRequest) {
     // 'all' = no filter
     if (filterQuality && filterQuality !== 'all') {
       where.qualityStatus = filterQuality;
+    }
+    // Filter by source type (LEVER, GREENHOUSE, etc.)
+    if (filterSourceType && filterSourceType !== 'all') {
+      where.sourceType = filterSourceType;
     }
     if (search) {
       where.OR = [

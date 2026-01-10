@@ -29,6 +29,8 @@ import {
   Filter,
   BarChart3,
   AlertTriangle,
+  Leaf,
+  Layers,
 } from 'lucide-react';
 
 interface DataSource {
@@ -141,9 +143,13 @@ export default function SourcesPage() {
   const [filterStatus, setFilterStatus] = useState<string>('active'); // Default to active
   const [filterQuality, setFilterQuality] = useState<string>('all');
   const [filterTag, setFilterTag] = useState<string>('all');
+  const [filterSourceType, setFilterSourceType] = useState<string>('all'); // All, LEVER, GREENHOUSE
   const [sortBy, setSortBy] = useState<string>('name');
   const [sortOrder, setSortOrder] = useState<string>('asc');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Add company form state
+  const [selectedAtsType, setSelectedAtsType] = useState<string>('LEVER');
 
   // Pagination state
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -205,7 +211,7 @@ export default function SourcesPage() {
 
   useEffect(() => {
     fetchSources();
-  }, [filterStatus, filterQuality, filterTag, sortBy, sortOrder, currentPage, searchQuery]);
+  }, [filterStatus, filterQuality, filterTag, filterSourceType, sortBy, sortOrder, currentPage, searchQuery]);
 
   // Check for running bulk job on mount
   useEffect(() => {
@@ -235,7 +241,7 @@ export default function SourcesPage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterStatus, filterQuality, filterTag, sortBy, sortOrder, searchQuery]);
+  }, [filterStatus, filterQuality, filterTag, filterSourceType, sortBy, sortOrder, searchQuery]);
 
   async function fetchSources() {
     setLoading(true);
@@ -244,6 +250,7 @@ export default function SourcesPage() {
       params.set('status', filterStatus);
       if (filterQuality !== 'all') params.set('quality', filterQuality);
       if (filterTag !== 'all') params.set('tag', filterTag);
+      if (filterSourceType !== 'all') params.set('sourceType', filterSourceType);
       params.set('sortBy', sortBy);
       params.set('sortOrder', sortOrder);
       params.set('page', currentPage.toString());
@@ -305,21 +312,24 @@ export default function SourcesPage() {
   }
 
   function parseSlugs(input: string): ParsedSlug[] {
-    // Check if input contains lever URLs - extract slugs and detect EU region
-    // Matches: jobs.lever.co, jobs.eu.lever.co, api.lever.co, api.eu.lever.co
+    // Check for Lever URLs - extract slugs and detect EU region
     const leverUrlPattern = /(?:jobs|api)\.(eu\.)?lever\.co\/(?:v0\/postings\/)?([a-zA-Z0-9_-]+)/gi;
-    const urlMatches = [...input.matchAll(leverUrlPattern)];
+    const leverMatches = [...input.matchAll(leverUrlPattern)];
 
-    if (urlMatches.length > 0) {
-      // Extract slugs from URLs with region info
-      const excluded = ['jobs', 'careers', 'apply', 'posting', 'postings', 'embed'];
+    // Check for Greenhouse URLs
+    const greenhouseUrlPattern = /(?:boards(?:-api)?\.greenhouse\.io\/(?:v1\/boards\/)?|job-boards\.greenhouse\.io\/)([a-zA-Z0-9_-]+)/gi;
+    const greenhouseMatches = [...input.matchAll(greenhouseUrlPattern)];
+
+    const excluded = ['jobs', 'careers', 'apply', 'posting', 'postings', 'embed', 'v1', 'boards'];
+
+    // If Lever URLs found and Lever is selected
+    if (leverMatches.length > 0 && selectedAtsType === 'LEVER') {
       const slugMap = new Map<string, 'us' | 'eu'>();
 
-      for (const match of urlMatches) {
+      for (const match of leverMatches) {
         const isEu = !!match[1]; // "eu." captured group
         const slug = match[2].toLowerCase();
         if (!excluded.includes(slug)) {
-          // If same slug found with EU, prefer EU (more specific)
           if (!slugMap.has(slug) || isEu) {
             slugMap.set(slug, isEu ? 'eu' : 'us');
           }
@@ -327,6 +337,20 @@ export default function SourcesPage() {
       }
 
       return Array.from(slugMap.entries()).map(([slug, region]) => ({ slug, region }));
+    }
+
+    // If Greenhouse URLs found and Greenhouse is selected
+    if (greenhouseMatches.length > 0 && selectedAtsType === 'GREENHOUSE') {
+      const slugSet = new Set<string>();
+
+      for (const match of greenhouseMatches) {
+        const slug = match[1].toLowerCase();
+        if (!excluded.includes(slug)) {
+          slugSet.add(slug);
+        }
+      }
+
+      return Array.from(slugSet).map(slug => ({ slug, region: 'us' as const }));
     }
 
     // Fallback: parse as comma/newline separated slugs (default to US)
@@ -349,17 +373,21 @@ export default function SourcesPage() {
     const results: BulkValidationResult[] = [];
 
     for (const { slug, region } of parsedSlugs) {
-      // Build API URL based on region
-      const apiUrl = region === 'eu'
-        ? `https://api.eu.lever.co/v0/postings/${slug}?mode=json`
-        : `https://api.lever.co/v0/postings/${slug}?mode=json`;
+      // Build API URL based on ATS type and region
+      let apiUrl: string | undefined;
+      if (selectedAtsType === 'LEVER') {
+        apiUrl = region === 'eu'
+          ? `https://api.eu.lever.co/v0/postings/${slug}?mode=json`
+          : `https://api.lever.co/v0/postings/${slug}?mode=json`;
+      }
+      // Greenhouse doesn't need apiUrl - validated by backend
 
       try {
         // API checks for duplicates in database (not just loaded page)
         const res = await fetch('/api/admin/sources/validate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sourceType: 'LEVER', companySlug: slug, apiUrl }),
+          body: JSON.stringify({ sourceType: selectedAtsType, companySlug: slug, apiUrl }),
         });
         const data = await res.json();
         results.push({ slug, region, valid: data.valid, jobCount: data.jobCount, error: data.error });
@@ -380,16 +408,19 @@ export default function SourcesPage() {
 
     for (const result of validSlugs) {
       try {
-        // Build API URL based on region (EU or US)
-        const apiUrl = result.region === 'eu'
-          ? `https://api.eu.lever.co/v0/postings/${result.slug}?mode=json`
-          : `https://api.lever.co/v0/postings/${result.slug}?mode=json`;
+        // Build API URL based on ATS type and region
+        let apiUrl: string | undefined;
+        if (selectedAtsType === 'LEVER') {
+          apiUrl = result.region === 'eu'
+            ? `https://api.eu.lever.co/v0/postings/${result.slug}?mode=json`
+            : `https://api.lever.co/v0/postings/${result.slug}?mode=json`;
+        }
 
         const res = await fetch('/api/admin/sources', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            sourceType: 'LEVER',
+            sourceType: selectedAtsType,
             companySlug: result.slug,
             name: result.slug,
             apiUrl,  // Pass apiUrl so processor knows to use EU domain
@@ -723,7 +754,29 @@ export default function SourcesPage() {
     setSelectedDiscoveredSlugs(new Set());
   }
 
-  const leverSources = sources.filter(s => s.sourceType === 'LEVER');
+  // All ATS sources (Lever, Greenhouse, etc.)
+  const atsSources = sources.filter(s => ['LEVER', 'GREENHOUSE', 'ASHBY'].includes(s.sourceType));
+
+  // Get icon and color for source type
+  const getSourceTypeIcon = (sourceType: string) => {
+    switch (sourceType) {
+      case 'LEVER':
+        return { icon: Building2, color: 'text-purple-600', bg: 'bg-purple-100' };
+      case 'GREENHOUSE':
+        return { icon: Leaf, color: 'text-green-600', bg: 'bg-green-100' };
+      case 'ASHBY':
+        return { icon: Layers, color: 'text-orange-600', bg: 'bg-orange-100' };
+      default:
+        return { icon: Building2, color: 'text-gray-600', bg: 'bg-gray-100' };
+    }
+  };
+
+  // Get source type counts
+  const sourceTypeCounts = {
+    all: sources.length,
+    LEVER: sources.filter(s => s.sourceType === 'LEVER').length,
+    GREENHOUSE: sources.filter(s => s.sourceType === 'GREENHOUSE').length,
+  };
 
   const formatDate = (date: string | null) => {
     if (!date) return 'Never';
@@ -998,6 +1051,19 @@ export default function SourcesPage() {
           </select>
         </div>
 
+        <div className="flex items-center gap-2">
+          <Layers className="h-4 w-4 text-muted-foreground" />
+          <select
+            value={filterSourceType}
+            onChange={(e) => setFilterSourceType(e.target.value)}
+            className="text-sm border rounded px-2 py-1"
+          >
+            <option value="all">All ATS ({sourceTypeCounts.all})</option>
+            <option value="LEVER">Lever ({sourceTypeCounts.LEVER})</option>
+            <option value="GREENHOUSE">Greenhouse ({sourceTypeCounts.GREENHOUSE})</option>
+          </select>
+        </div>
+
         {availableTags.length > 0 && (
           <div className="flex items-center gap-2">
             <Tag className="h-4 w-4 text-muted-foreground" />
@@ -1066,10 +1132,15 @@ export default function SourcesPage() {
         </div>
       </div>
 
-      {/* Lever Sources */}
+      {/* ATS Companies (Lever + Greenhouse) */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Lever ATS Companies ({leverSources.length})</h2>
+          <h2 className="text-xl font-semibold">
+            ATS Companies ({atsSources.length})
+            <span className="text-sm font-normal text-muted-foreground ml-2">
+              Lever: {sourceTypeCounts.LEVER} · Greenhouse: {sourceTypeCounts.GREENHOUSE}
+            </span>
+          </h2>
           <div className="flex gap-2">
             <Button onClick={() => setShowDiscovery(!showDiscovery)} variant="outline" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -1077,7 +1148,7 @@ export default function SourcesPage() {
             </Button>
             <Button onClick={() => setShowAddForm(!showAddForm)} variant="outline" size="sm">
               <Plus className="h-4 w-4 mr-2" />
-              Add Manual
+              Add Company
             </Button>
           </div>
         </div>
@@ -1086,22 +1157,52 @@ export default function SourcesPage() {
         {showAddForm && (
           <Card className="mb-4">
             <CardHeader>
-              <CardTitle className="text-lg">Add Lever Companies</CardTitle>
+              <CardTitle className="text-lg">Add ATS Company</CardTitle>
               <CardDescription>
-                Enter company slugs (comma/newline separated) OR paste any text/HTML containing Lever URLs.
-                <br />
-                Slugs will be auto-extracted from URLs like jobs.lever.co/<strong>company</strong>
+                Select ATS type and enter company slugs. Slugs are extracted from URLs automatically.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {/* ATS Type Selection */}
+                <div>
+                  <Label>ATS Type</Label>
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      variant={selectedAtsType === 'LEVER' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setSelectedAtsType('LEVER');
+                        setBulkResults([]);
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Building2 className="h-4 w-4" />
+                      Lever
+                    </Button>
+                    <Button
+                      variant={selectedAtsType === 'GREENHOUSE' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setSelectedAtsType('GREENHOUSE');
+                        setBulkResults([]);
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Leaf className="h-4 w-4" />
+                      Greenhouse
+                    </Button>
+                  </div>
+                </div>
+
                 <div>
                   <Label htmlFor="companySlugs">Company Slugs</Label>
                   <Textarea
                     id="companySlugs"
-                    placeholder="appen, netflix, stripe
-
-...or paste Google search results HTML with lever.co URLs"
+                    placeholder={selectedAtsType === 'LEVER'
+                      ? "stripe, airbnb, coinbase\n\n...or paste URLs from jobs.lever.co"
+                      : "stripe, airbnb, coinbase\n\n...or paste URLs from boards.greenhouse.io"
+                    }
                     value={companySlugsInput}
                     onChange={(e) => {
                       setCompanySlugsInput(e.target.value);
@@ -1112,6 +1213,7 @@ export default function SourcesPage() {
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     {parseSlugs(companySlugsInput).length} companies to check
+                    {selectedAtsType === 'LEVER' && ' · Detects EU region automatically'}
                   </p>
                 </div>
 
@@ -1242,15 +1344,29 @@ export default function SourcesPage() {
           </Card>
         )}
 
-        {/* Lever Sources List */}
+        {/* ATS Sources List */}
         {loading ? (
           <div className="text-center py-8 text-muted-foreground">Loading...</div>
-        ) : leverSources.length > 0 ? (
+        ) : atsSources.length > 0 ? (
           <div className="space-y-2">
-            {leverSources.map((source) => {
+            {atsSources.map((source) => {
               const isExpanded = expandedSourceId === source.id;
               const details = parsingDetails[source.id];
               const isLoadingDetails = loadingDetails === source.id;
+              const { icon: SourceIcon, color: iconColor, bg: iconBg } = getSourceTypeIcon(source.sourceType);
+
+              // Get URL for source
+              const getSourceUrl = () => {
+                if (source.sourceType === 'LEVER') {
+                  return source.apiUrl?.includes('.eu.lever.co')
+                    ? `jobs.eu.lever.co/${source.companySlug}`
+                    : `jobs.lever.co/${source.companySlug}`;
+                }
+                if (source.sourceType === 'GREENHOUSE') {
+                  return `boards.greenhouse.io/${source.companySlug}`;
+                }
+                return source.companySlug || '';
+              };
 
               return (
                 <Card key={source.id} className="overflow-hidden">
@@ -1267,12 +1383,15 @@ export default function SourcesPage() {
                           <ChevronRight className="h-5 w-5" />
                         )}
                       </div>
-                      <div className="p-2 bg-purple-100 rounded-lg">
-                        <Building2 className="h-5 w-5 text-purple-600" />
+                      <div className={`p-2 ${iconBg} rounded-lg`}>
+                        <SourceIcon className={`h-5 w-5 ${iconColor}`} />
                       </div>
                       <div>
                         <div className="font-medium flex items-center gap-2">
                           {source.name}
+                          <Badge variant="outline" className="text-xs">
+                            {source.sourceType}
+                          </Badge>
                           {source.qualityStatus && (
                             <Badge
                               variant="outline"
@@ -1286,12 +1405,8 @@ export default function SourcesPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span>
-                            {source.apiUrl?.includes('.eu.lever.co')
-                              ? `jobs.eu.lever.co/${source.companySlug}`
-                              : `jobs.lever.co/${source.companySlug}`}
-                          </span>
-                          {source.apiUrl?.includes('.eu.lever.co') && (
+                          <span>{getSourceUrl()}</span>
+                          {source.sourceType === 'LEVER' && source.apiUrl?.includes('.eu.lever.co') && (
                             <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">EU</span>
                           )}
                           {source.tags.length > 0 && (
@@ -1464,7 +1579,7 @@ export default function SourcesPage() {
         ) : (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
-              No Lever companies added yet. Click &quot;Add Company&quot; to get started.
+              No ATS companies added yet. Click &quot;Add Company&quot; to get started.
             </CardContent>
           </Card>
         )}
@@ -1528,9 +1643,9 @@ export default function SourcesPage() {
         <h2 className="text-xl font-semibold mb-4">Coming Soon</h2>
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           {[
-            { name: 'Greenhouse', desc: 'ATS integration' },
             { name: 'Ashby', desc: 'ATS integration' },
             { name: 'Workable', desc: 'ATS integration' },
+            { name: 'SmartRecruiters', desc: 'ATS integration' },
           ].map((item) => (
             <Card key={item.name} className="opacity-50">
               <CardHeader className="py-4">
