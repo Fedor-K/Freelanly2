@@ -82,6 +82,16 @@ method = "POST"
 path = "/api/cron/send-trial-emails"
 headers = { Authorization = "Bearer ${CRON_SECRET}" }
 
+# Activation drip emails - every hour
+# Sends Day 1, 2, 3 emails to PRO users with 0 applications
+[[deployment.scheduled]]
+trigger = "30 * * * *"
+action = "http"
+[deployment.scheduled.http]
+method = "POST"
+path = "/api/cron/send-activation-emails"
+headers = { Authorization = "Bearer ${CRON_SECRET}" }
+
 # Re-engagement emails - daily at 9:00 UTC
 # Sends emails to users inactive for 7, 14, 30 days
 [[deployment.scheduled]]
