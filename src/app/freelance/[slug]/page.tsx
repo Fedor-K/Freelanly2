@@ -170,20 +170,20 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                           alt={opportunity.clientName}
                           width={64}
                           height={64}
-                          className={`rounded-full object-cover ${!isPro ? 'blur-[1px]' : ''}`}
+                          className={`rounded-full object-cover ${!isPro ? 'blur-[3px]' : ''}`}
                         />
                       ) : (
-                        <div className={`w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-2xl ${!isPro ? 'blur-[1px]' : ''}`}>
+                        <div className={`w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-2xl ${!isPro ? 'blur-[3px]' : ''}`}>
                           {opportunity.clientName.charAt(0).toUpperCase()}
                         </div>
                       )}
                     </div>
                     <div className="flex-1">
-                      <h2 className={`text-lg font-semibold ${!isPro ? 'blur-[1px] select-none' : ''}`}>
+                      <h2 className={`text-lg font-semibold ${!isPro ? 'blur-[3px] select-none' : ''}`}>
                         {opportunity.clientName}
                       </h2>
                       {opportunity.clientHeadline && (
-                        <p className={`text-sm text-muted-foreground ${!isPro ? 'blur-[1px] select-none' : ''}`}>
+                        <p className={`text-sm text-muted-foreground ${!isPro ? 'blur-[3px] select-none' : ''}`}>
                           {opportunity.clientHeadline}
                         </p>
                       )}
@@ -201,7 +201,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                           href="/pricing"
                           className="text-sm text-orange-600 hover:underline mt-1 inline-flex items-center gap-1"
                         >
-                          <span className="blur-[1px] select-none">linkedin.com/in/•••••</span>
+                          <span className="blur-[3px] select-none">linkedin.com/in/•••••</span>
                           <span className="no-blur">Upgrade to see →</span>
                         </Link>
                       )}
@@ -316,7 +316,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                     </a>
                   ) : (
                     <div className="relative">
-                      <div className="blur-[1px] select-none pointer-events-none">
+                      <div className="blur-[3px] select-none pointer-events-none">
                         <Button className="w-full bg-blue-600">
                           Message on LinkedIn
                         </Button>
@@ -335,7 +335,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                         </Button>
                       </a>
                     ) : (
-                      <div className="blur-[1px] select-none pointer-events-none">
+                      <div className="blur-[3px] select-none pointer-events-none">
                         <Button variant="outline" className="w-full">
                           Email: •••••@••••.com
                         </Button>
@@ -356,7 +356,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                         </Button>
                       </a>
                     ) : (
-                      <div className="blur-[1px] select-none pointer-events-none">
+                      <div className="blur-[3px] select-none pointer-events-none">
                         <Button variant="outline" className="w-full">
                           Apply via Link
                         </Button>
