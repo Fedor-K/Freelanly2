@@ -3,15 +3,13 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getActivationStats, ACTIVATION_TARGET, ACTIVATION_WINDOW_DAYS } from '@/services/activation-emails';
 
+const ADMIN_EMAILS = ['fedor.hatla@gmail.com'];
+
 export async function GET() {
   // Check admin access
   const session = await auth();
-  if (!session?.user?.email?.includes('admin') && session?.user?.email !== 'noreply@freelanly.com') {
-    // Simple admin check - adjust as needed
-    const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [];
-    if (!adminEmails.includes(session?.user?.email || '')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (!session?.user?.email || !ADMIN_EMAILS.includes(session.user.email)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
