@@ -72,12 +72,51 @@ export async function GET() {
       }),
     ]);
 
+    // Email funnel stats (30 days)
+    const [
+      sentWelcome,
+      sentDay3,
+      sentDay7,
+    ] = await Promise.all([
+      prisma.user.count({
+        where: {
+          plan: 'FREE',
+          emailVerified: { not: null },
+          createdAt: { gte: thirtyDaysAgo },
+          freeNurtureEmailsSent: { gte: 1 },
+        },
+      }),
+      prisma.user.count({
+        where: {
+          plan: 'FREE',
+          emailVerified: { not: null },
+          createdAt: { gte: thirtyDaysAgo },
+          freeNurtureEmailsSent: { gte: 2 },
+        },
+      }),
+      prisma.user.count({
+        where: {
+          plan: 'FREE',
+          emailVerified: { not: null },
+          createdAt: { gte: thirtyDaysAgo },
+          freeNurtureEmailsSent: { gte: 3 },
+        },
+      }),
+    ]);
+
     // Funnel data
     const funnel = {
       registered7d: freeUsers7d,
       registered30d: freeUsers30d,
       triedToApply: freeUsersWithAttempts,
       convertedToPro: convertedToPro30d,
+    };
+
+    // Email funnel
+    const emailFunnel = {
+      sentWelcome,
+      sentDay3,
+      sentDay7,
     };
 
     // Calculate conversion rate
@@ -99,6 +138,7 @@ export async function GET() {
         createdAt: true,
         emailVerified: true,
         lastActiveAt: true,
+        freeNurtureEmailsSent: true,
         _count: {
           select: {
             applyAttempts: true,
@@ -175,6 +215,7 @@ export async function GET() {
         applyAttempts,
         savedJobs: user._count.savedJobs,
         alertsSetup: user._count.jobAlerts,
+        emailsSent: user.freeNurtureEmailsSent,
         daysSinceRegistration,
         daysSinceActive,
         status,
@@ -202,6 +243,7 @@ export async function GET() {
         totalApplyAttempts,
       },
       funnel,
+      emailFunnel,
       statusCounts,
       users: tableUsers,
     });

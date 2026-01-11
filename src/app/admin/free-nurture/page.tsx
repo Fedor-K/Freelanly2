@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   UserCheck,
   UserX,
+  Mail,
 } from 'lucide-react';
 
 interface FreeNurtureStats {
@@ -36,6 +37,11 @@ interface FreeNurtureStats {
     triedToApply: number;
     convertedToPro: number;
   };
+  emailFunnel: {
+    sentWelcome: number;
+    sentDay3: number;
+    sentDay7: number;
+  };
   statusCounts: {
     new: number;
     active: number;
@@ -53,6 +59,7 @@ interface FreeNurtureStats {
     applyAttempts: number;
     savedJobs: number;
     alertsSetup: number;
+    emailsSent: number;
     daysSinceRegistration: number;
     daysSinceActive: number;
     status: 'new' | 'active' | 'interested' | 'high-intent' | 'lapsed';
@@ -264,6 +271,38 @@ export default function FreeNurtureDashboard() {
         </CardContent>
       </Card>
 
+      {/* Email Funnel */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Email Sequence (30 days)</CardTitle>
+          <CardDescription>Drip emails sent to FREE users</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between overflow-x-auto">
+            <FunnelStep
+              label="Registered"
+              value={stats.funnel.registered30d}
+            />
+            <FunnelStep
+              label="Welcome (Day 1)"
+              value={stats.emailFunnel.sentWelcome}
+              subtext={stats.funnel.registered30d > 0 ? `${Math.round((stats.emailFunnel.sentWelcome / stats.funnel.registered30d) * 100)}%` : '0%'}
+            />
+            <FunnelStep
+              label="Reminder (Day 3)"
+              value={stats.emailFunnel.sentDay3}
+              subtext={stats.emailFunnel.sentWelcome > 0 ? `${Math.round((stats.emailFunnel.sentDay3 / stats.emailFunnel.sentWelcome) * 100)}%` : '0%'}
+            />
+            <FunnelStep
+              label="Trial Push (Day 7)"
+              value={stats.emailFunnel.sentDay7}
+              subtext={stats.emailFunnel.sentDay3 > 0 ? `${Math.round((stats.emailFunnel.sentDay7 / stats.emailFunnel.sentDay3) * 100)}%` : '0%'}
+              isLast
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Status Segments */}
       <div className="grid gap-4 md:grid-cols-5 mb-6">
         <button
@@ -319,6 +358,7 @@ export default function FreeNurtureDashboard() {
                   <th className="text-left py-2 px-2">User</th>
                   <th className="text-left py-2 px-2">Registered</th>
                   <th className="text-left py-2 px-2">Days</th>
+                  <th className="text-left py-2 px-2">Emails</th>
                   <th className="text-left py-2 px-2">Apply Attempts</th>
                   <th className="text-left py-2 px-2">Saved</th>
                   <th className="text-left py-2 px-2">Alerts</th>
@@ -328,7 +368,7 @@ export default function FreeNurtureDashboard() {
               <tbody>
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="py-8 text-center text-muted-foreground">
                       No users found
                     </td>
                   </tr>
@@ -350,6 +390,14 @@ export default function FreeNurtureDashboard() {
                         <span className={user.daysSinceRegistration >= 14 && user.status !== 'interested' && user.status !== 'high-intent' ? 'text-gray-400' : ''}>
                           {user.daysSinceRegistration}d
                         </span>
+                      </td>
+                      <td className="py-2 px-2">
+                        <div className="flex items-center gap-1">
+                          <Mail className="h-3 w-3 text-muted-foreground" />
+                          <span className={user.emailsSent >= 3 ? 'text-green-600' : user.emailsSent > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
+                            {user.emailsSent}/3
+                          </span>
+                        </div>
                       </td>
                       <td className="py-2 px-2">
                         <span className={`font-medium ${user.applyAttempts >= 3 ? 'text-orange-600' : user.applyAttempts > 0 ? 'text-purple-600' : 'text-muted-foreground'}`}>
