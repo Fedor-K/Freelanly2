@@ -128,6 +128,25 @@ export async function POST(request: NextRequest) {
 
     console.log(`[LinkedInPosts] Processing post from ${clientName}: ${postUrl}`);
 
+    // =========================================================================
+    // SKIP OWN PLATFORM POSTS - Freelanly's LinkedIn posts should not be imported
+    // =========================================================================
+    const FREELANLY_LINKEDIN_PATTERNS = [
+      'professional-community-of-freelance-translators-and-interpreters',
+    ];
+
+    if (
+      clientName?.toLowerCase() === 'freelanly' ||
+      FREELANLY_LINKEDIN_PATTERNS.some(pattern => clientLinkedIn?.includes(pattern))
+    ) {
+      console.log(`[LinkedInPosts] Skipping Freelanly own post: ${postUrl}`);
+      return NextResponse.json({
+        success: true,
+        status: 'skipped',
+        reason: 'own_platform',
+      });
+    }
+
     // Extract post ID from URL
     const postId = extractPostId(postUrl);
 
