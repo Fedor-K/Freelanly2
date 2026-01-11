@@ -37,6 +37,7 @@ interface FreeNurtureStats {
     convertedToPro: number;
   };
   emailFunnel: {
+    eligible: number;
     sentWelcome: number;
     sentDay3: number;
     sentDay7: number;
@@ -272,19 +273,19 @@ export default function FreeNurtureDashboard() {
       {/* Email Funnel */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Email Sequence (30 days)</CardTitle>
-          <CardDescription>Drip emails sent to FREE users</CardDescription>
+          <CardTitle>Email Sequence (since launch)</CardTitle>
+          <CardDescription>Drip emails sent to FREE users registered after Jan 11, 2025</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between overflow-x-auto">
             <FunnelStep
-              label="Registered"
-              value={stats.funnel.registered30d}
+              label="Eligible"
+              value={stats.emailFunnel.eligible}
             />
             <FunnelStep
               label="Welcome (Day 1)"
               value={stats.emailFunnel.sentWelcome}
-              subtext={stats.funnel.registered30d > 0 ? `${Math.round((stats.emailFunnel.sentWelcome / stats.funnel.registered30d) * 100)}%` : '0%'}
+              subtext={stats.emailFunnel.eligible > 0 ? `${Math.round((stats.emailFunnel.sentWelcome / stats.emailFunnel.eligible) * 100)}%` : '0%'}
             />
             <FunnelStep
               label="Reminder (Day 3)"
@@ -343,9 +344,9 @@ export default function FreeNurtureDashboard() {
       {/* Users Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent FREE Users (30 days)</CardTitle>
+          <CardTitle>FREE Users (since launch)</CardTitle>
           <CardDescription>
-            {filter === 'all' ? 'All users' : `Filtered: ${filter}`} - {filteredUsers.length} users
+            {filter === 'all' ? 'All users' : `Filtered: ${filter}`} - {filteredUsers.length} users (registered after Jan 11, 2025)
           </CardDescription>
         </CardHeader>
         <CardContent>

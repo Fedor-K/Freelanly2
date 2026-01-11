@@ -17,6 +17,9 @@ export async function GET() {
     const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
+    // Nurture system launch date - only count users from this date onwards
+    const nurtureSystemLaunchDate = new Date('2025-01-11T00:00:00Z');
+
     // Get all FREE users with verified email
     const [
       totalFreeUsers,
@@ -72,17 +75,18 @@ export async function GET() {
       }),
     ]);
 
-    // Email funnel stats (30 days)
+    // Email funnel stats (since nurture system launch)
     const [
       sentWelcome,
       sentDay3,
       sentDay7,
+      nurtureEligibleUsers,
     ] = await Promise.all([
       prisma.user.count({
         where: {
           plan: 'FREE',
           emailVerified: { not: null },
-          createdAt: { gte: thirtyDaysAgo },
+          createdAt: { gte: nurtureSystemLaunchDate },
           freeNurtureEmailsSent: { gte: 1 },
         },
       }),
@@ -90,7 +94,7 @@ export async function GET() {
         where: {
           plan: 'FREE',
           emailVerified: { not: null },
-          createdAt: { gte: thirtyDaysAgo },
+          createdAt: { gte: nurtureSystemLaunchDate },
           freeNurtureEmailsSent: { gte: 2 },
         },
       }),
@@ -98,8 +102,16 @@ export async function GET() {
         where: {
           plan: 'FREE',
           emailVerified: { not: null },
-          createdAt: { gte: thirtyDaysAgo },
+          createdAt: { gte: nurtureSystemLaunchDate },
           freeNurtureEmailsSent: { gte: 3 },
+        },
+      }),
+      // Total users eligible for nurture (registered after system launch)
+      prisma.user.count({
+        where: {
+          plan: 'FREE',
+          emailVerified: { not: null },
+          createdAt: { gte: nurtureSystemLaunchDate },
         },
       }),
     ]);
@@ -112,8 +124,9 @@ export async function GET() {
       convertedToPro: convertedToPro30d,
     };
 
-    // Email funnel
+    // Email funnel (only users registered after nurture system launch)
     const emailFunnel = {
+      eligible: nurtureEligibleUsers,
       sentWelcome,
       sentDay3,
       sentDay7,
@@ -124,12 +137,12 @@ export async function GET() {
       ? Math.round((convertedToPro30d / freeUsers30d) * 100)
       : 0;
 
-    // Get recent FREE users for the table
+    // Get FREE users eligible for nurture (registered after system launch)
     const recentFreeUsers = await prisma.user.findMany({
       where: {
         plan: 'FREE',
         emailVerified: { not: null },
-        createdAt: { gte: thirtyDaysAgo },
+        createdAt: { gte: nurtureSystemLaunchDate },
       },
       select: {
         id: true,
