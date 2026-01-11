@@ -16,6 +16,7 @@ import {
   CreditCard,
   BarChart3,
   Zap,
+  UserPlus,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { name: 'Conversions', href: '/admin/conversions', icon: CreditCard },
   { name: 'Activation', href: '/admin/activation', icon: Zap },
+  { name: 'Free Nurture', href: '/admin/free-nurture', icon: UserPlus },
   { name: 'Parsing', href: '/admin/parsing', icon: RefreshCw },
   { name: 'Jobs', href: '/admin/jobs', icon: Briefcase },
   { name: 'Users', href: '/admin/users', icon: Users },
