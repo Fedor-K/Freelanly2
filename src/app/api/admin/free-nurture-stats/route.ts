@@ -20,7 +20,7 @@ export async function GET() {
     // Nurture system launch date - only count users from this date onwards
     const nurtureSystemLaunchDate = new Date('2026-01-11T00:00:00Z');
 
-    // Get all FREE users with verified email
+    // Get all FREE users with verified email (only since nurture system launch)
     const [
       totalFreeUsers,
       freeUsers7d,
@@ -29,48 +29,57 @@ export async function GET() {
       convertedToPro30d,
       totalApplyAttempts,
     ] = await Promise.all([
-      // Total FREE users with verified email
+      // Total FREE users with verified email (since launch)
       prisma.user.count({
         where: {
           plan: 'FREE',
           emailVerified: { not: null },
+          createdAt: { gte: nurtureSystemLaunchDate },
         },
       }),
-      // FREE users registered in last 7 days
+      // FREE users registered in last 7 days (but not before launch)
       prisma.user.count({
         where: {
           plan: 'FREE',
           emailVerified: { not: null },
-          createdAt: { gte: sevenDaysAgo },
+          createdAt: {
+            gte: sevenDaysAgo > nurtureSystemLaunchDate ? sevenDaysAgo : nurtureSystemLaunchDate
+          },
         },
       }),
-      // FREE users registered in last 30 days
+      // FREE users registered since launch (or last 30 days, whichever is later)
       prisma.user.count({
         where: {
           plan: 'FREE',
           emailVerified: { not: null },
-          createdAt: { gte: thirtyDaysAgo },
+          createdAt: {
+            gte: thirtyDaysAgo > nurtureSystemLaunchDate ? thirtyDaysAgo : nurtureSystemLaunchDate
+          },
         },
       }),
-      // FREE users who tried to apply (have ApplyAttempt)
+      // FREE users who tried to apply (since launch)
       prisma.user.count({
         where: {
           plan: 'FREE',
           emailVerified: { not: null },
+          createdAt: { gte: nurtureSystemLaunchDate },
           applyAttempts: { some: {} },
         },
       }),
-      // Users who converted from FREE to PRO in last 30 days
+      // Users who converted from FREE to PRO (since launch)
       prisma.user.count({
         where: {
           plan: 'PRO',
-          proStartedAt: { gte: thirtyDaysAgo },
+          proStartedAt: { gte: nurtureSystemLaunchDate },
         },
       }),
-      // Total apply attempts from FREE users
+      // Total apply attempts from FREE users (since launch)
       prisma.applyAttempt.count({
         where: {
-          user: { plan: 'FREE' },
+          user: {
+            plan: 'FREE',
+            createdAt: { gte: nurtureSystemLaunchDate },
+          },
         },
       }),
     ]);
@@ -163,11 +172,11 @@ export async function GET() {
       take: 50,
     });
 
-    // Get users who recently converted to PRO (for tracking success)
+    // Get users who recently converted to PRO (since launch)
     const recentlyConverted = await prisma.user.findMany({
       where: {
         plan: 'PRO',
-        proStartedAt: { gte: thirtyDaysAgo },
+        proStartedAt: { gte: nurtureSystemLaunchDate },
       },
       select: {
         id: true,
