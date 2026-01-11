@@ -92,6 +92,16 @@ method = "POST"
 path = "/api/cron/send-activation-emails"
 headers = { Authorization = "Bearer ${CRON_SECRET}" }
 
+# FREE user nurture emails - every hour
+# Sends Day 1, 3, 7 emails to FREE users to convert to PRO
+[[deployment.scheduled]]
+trigger = "45 * * * *"
+action = "http"
+[deployment.scheduled.http]
+method = "POST"
+path = "/api/cron/send-free-nurture"
+headers = { Authorization = "Bearer ${CRON_SECRET}" }
+
 # Re-engagement emails - daily at 9:00 UTC
 # Sends emails to users inactive for 7, 14, 30 days
 [[deployment.scheduled]]

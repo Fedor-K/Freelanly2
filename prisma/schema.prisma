@@ -46,6 +46,10 @@ model User {
   lastActivationEmailAt DateTime?
   proStartedAt          DateTime?  // When user became PRO (for tracking 7-day window)
 
+  // FREE user nurture tracking (drip emails to convert to PRO)
+  freeNurtureEmailsSent  Int @default(0)  // 0=none, 1=welcome, 2=day3, 3=day7
+  lastFreeNurtureEmailAt DateTime?
+
   // Relations
   accounts      Account[]
   sessions      Session[]
