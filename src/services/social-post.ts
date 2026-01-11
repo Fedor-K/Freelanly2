@@ -145,6 +145,22 @@ ${opp.originalContent || opp.description}
 }
 
 /**
+ * Escape special characters for Telegram MarkdownV2
+ * Characters that need escaping: _ * [ ] ( ) ~ ` > # + - = | { } . !
+ */
+function escapeTelegramMarkdown(text: string): string {
+  // Replace underscores with spaces (common in REMOTE_COUNTRY, job titles)
+  // Also escape other problematic characters
+  return text
+    .replace(/_/g, ' ')  // Replace underscores with spaces
+    .replace(/\*/g, '')  // Remove asterisks
+    .replace(/`/g, "'")  // Replace backticks with quotes
+    .replace(/\[/g, '(') // Replace brackets
+    .replace(/\]/g, ')')
+    .replace(/~/g, '-'); // Replace tilde
+}
+
+/**
  * Fallback post generation without AI
  * Emphasizes urgency (direct contact line added by n8n template)
  */
@@ -413,14 +429,17 @@ export async function getNextSocialPost(): Promise<{
   // URL for freelance opportunities
   const freelanlyUrl = `https://freelanly.com/freelance/${opp.slug}`;
 
+  // Sanitize post content for Telegram markdown compatibility
+  const sanitizedContent = escapeTelegramMarkdown(postText);
+
   return {
     queueItemId: next.id,
     jobId: opp.id, // Keep as jobId for backwards compatibility with n8n
-    jobTitle: opp.title,
-    companyName: opp.clientName, // Client name instead of company
-    postContent: postText,
+    jobTitle: escapeTelegramMarkdown(opp.title),
+    companyName: escapeTelegramMarkdown(opp.clientName), // Client name instead of company
+    postContent: sanitizedContent,
     freelanlyUrl,
-    skills: opp.skills.slice(0, 5),
+    skills: opp.skills.slice(0, 5).map(s => escapeTelegramMarkdown(s)),
     isFreelance: true,
   };
 }
