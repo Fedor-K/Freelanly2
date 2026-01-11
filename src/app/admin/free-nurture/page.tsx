@@ -8,7 +8,6 @@ import {
   TrendingUp,
   Clock,
   MousePointerClick,
-  Heart,
   Bell,
   RefreshCw,
   Loader2,
@@ -57,7 +56,6 @@ interface FreeNurtureStats {
     emailVerified: string | null;
     lastActiveAt: string | null;
     applyAttempts: number;
-    savedJobs: number;
     alertsSetup: number;
     emailsSent: number;
     daysSinceRegistration: number;
@@ -360,7 +358,6 @@ export default function FreeNurtureDashboard() {
                   <th className="text-left py-2 px-2">Days</th>
                   <th className="text-left py-2 px-2">Emails</th>
                   <th className="text-left py-2 px-2">Apply Attempts</th>
-                  <th className="text-left py-2 px-2">Saved</th>
                   <th className="text-left py-2 px-2">Alerts</th>
                   <th className="text-left py-2 px-2">Status</th>
                 </tr>
@@ -368,7 +365,7 @@ export default function FreeNurtureDashboard() {
               <tbody>
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-muted-foreground">
+                    <td colSpan={7} className="py-8 text-center text-muted-foreground">
                       No users found
                     </td>
                   </tr>
@@ -403,12 +400,6 @@ export default function FreeNurtureDashboard() {
                         <span className={`font-medium ${user.applyAttempts >= 3 ? 'text-orange-600' : user.applyAttempts > 0 ? 'text-purple-600' : 'text-muted-foreground'}`}>
                           {user.applyAttempts}
                         </span>
-                      </td>
-                      <td className="py-2 px-2">
-                        <div className="flex items-center gap-1">
-                          <Heart className="h-3 w-3 text-muted-foreground" />
-                          <span>{user.savedJobs}</span>
-                        </div>
                       </td>
                       <td className="py-2 px-2">
                         <div className="flex items-center gap-1">

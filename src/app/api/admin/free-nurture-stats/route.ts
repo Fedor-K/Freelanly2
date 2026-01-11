@@ -142,7 +142,6 @@ export async function GET() {
         _count: {
           select: {
             applyAttempts: true,
-            savedJobs: true,
             jobAlerts: true,
           },
         },
@@ -213,7 +212,6 @@ export async function GET() {
         emailVerified: user.emailVerified?.toISOString(),
         lastActiveAt: user.lastActiveAt?.toISOString(),
         applyAttempts,
-        savedJobs: user._count.savedJobs,
         alertsSetup: user._count.jobAlerts,
         emailsSent: user.freeNurtureEmailsSent,
         daysSinceRegistration,
