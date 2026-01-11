@@ -18,7 +18,7 @@ export async function GET() {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     // Nurture system launch date - only count users from this date onwards
-    const nurtureSystemLaunchDate = new Date('2025-01-11T00:00:00Z');
+    const nurtureSystemLaunchDate = new Date('2026-01-11T00:00:00Z');
 
     // Get all FREE users with verified email
     const [
