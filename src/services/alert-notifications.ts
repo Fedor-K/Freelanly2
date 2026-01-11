@@ -527,10 +527,30 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
 
   console.log(`[InstantAlerts] Batch ${batchId}: Processing ${pendingNotifications.length} notifications`);
 
-  // Group by user email
-  const notificationsByEmail = new Map<string, typeof pendingNotifications>();
+  // Filter out notifications where job was deleted
+  const validNotifications = pendingNotifications.filter(n => n.job !== null);
 
-  for (const notification of pendingNotifications) {
+  if (validNotifications.length < pendingNotifications.length) {
+    const orphanedCount = pendingNotifications.length - validNotifications.length;
+    console.log(`[InstantAlerts] Skipping ${orphanedCount} notifications with deleted jobs`);
+
+    // Mark orphaned notifications as SENT to clear them from queue
+    const orphanedIds = pendingNotifications
+      .filter(n => n.job === null)
+      .map(n => n.id);
+
+    if (orphanedIds.length > 0) {
+      await prisma.alertNotification.updateMany({
+        where: { id: { in: orphanedIds } },
+        data: { status: 'SENT' },
+      });
+    }
+  }
+
+  // Group by user email
+  const notificationsByEmail = new Map<string, typeof validNotifications>();
+
+  for (const notification of validNotifications) {
     const email = notification.jobAlert.email || notification.jobAlert.user?.email;
     if (!email) continue;
 
