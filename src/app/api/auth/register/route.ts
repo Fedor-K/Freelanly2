@@ -2,19 +2,29 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { AlertFrequency } from '@prisma/client';
 
-interface LanguagePair {
-  translationType: string;
-  sourceLanguage: string;
-  targetLanguage: string;
-}
-
 interface RegisterRequest {
   email: string;
   name?: string;
   categories: string[];
   country?: string;
-  languagePairs?: LanguagePair[];
+  languages?: string[]; // Language codes user can translate (e.g., ['ES', 'RU'])
   jobId?: string; // Track which job triggered registration
+}
+
+/**
+ * Convert language codes to language pairs with English
+ * e.g., ['ES', 'RU'] -> [{EN->ES}, {ES->EN}, {EN->RU}, {RU->EN}]
+ */
+function languagesToPairs(languages: string[]) {
+  const pairs: Array<{ translationType: string; sourceLanguage: string; targetLanguage: string }> = [];
+  for (const lang of languages) {
+    if (lang && lang !== 'EN') {
+      // Add bidirectional pairs with English
+      pairs.push({ translationType: 'TRANSLATION', sourceLanguage: 'EN', targetLanguage: lang.toUpperCase() });
+      pairs.push({ translationType: 'TRANSLATION', sourceLanguage: lang.toUpperCase(), targetLanguage: 'EN' });
+    }
+  }
+  return pairs;
 }
 
 /**
@@ -27,7 +37,7 @@ interface RegisterRequest {
 export async function POST(request: NextRequest) {
   try {
     const body: RegisterRequest = await request.json();
-    const { email, name, categories, country, languagePairs, jobId } = body;
+    const { email, name, categories, country, languages, jobId } = body;
 
     // Validate required fields
     if (!email || !email.includes('@')) {
@@ -37,18 +47,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'At least one category is required' }, { status: 400 });
     }
 
-    // Validate language pairs for translation category
+    // Validate languages for translation category
     if (categories.includes('translation')) {
-      const validPairs = languagePairs?.filter(
-        (p) => p.sourceLanguage && p.targetLanguage && p.sourceLanguage !== p.targetLanguage
-      ) || [];
-      if (validPairs.length === 0) {
+      const validLanguages = languages?.filter((l) => l && l !== 'EN') || [];
+      if (validLanguages.length === 0) {
         return NextResponse.json(
-          { error: 'At least one language pair is required for translation alerts' },
+          { error: 'At least one language is required for translation alerts' },
           { status: 400 }
         );
       }
     }
+
+    // Convert languages to pairs with English
+    const languagePairs = languages ? languagesToPairs(languages) : [];
 
     const normalizedEmail = email.toLowerCase().trim();
 
@@ -125,33 +136,14 @@ async function createAlertsForUser(
   email: string,
   categories: string[],
   country?: string,
-  languagePairs?: LanguagePair[]
+  languagePairs?: Array<{ translationType: string; sourceLanguage: string; targetLanguage: string }>
 ) {
-  const validTranslationTypes = [
-    'TRANSLATION',
-    'INTERPRETATION',
-    'LOCALIZATION',
-    'EDITING',
-    'TRANSCRIPTION',
-    'SUBTITLING',
-    'MT_POST_EDITING',
-    'COPYWRITING',
-  ];
-
   // Create one alert per category
   for (const category of categories) {
     const isTranslation = category === 'translation';
 
-    // Filter valid language pairs for translation category
-    const validPairs =
-      isTranslation && languagePairs
-        ? languagePairs.filter(
-            (pair) =>
-              validTranslationTypes.includes(pair.translationType) &&
-              pair.sourceLanguage &&
-              pair.targetLanguage
-          )
-        : [];
+    // Use language pairs for translation category
+    const validPairs = isTranslation && languagePairs ? languagePairs : [];
 
     // Check if alert already exists for this user + category
     const existingAlert = await prisma.jobAlert.findFirst({
@@ -180,8 +172,8 @@ async function createAlertsForUser(
             ? {
                 create: validPairs.map((pair) => ({
                   translationType: pair.translationType,
-                  sourceLanguage: pair.sourceLanguage.toUpperCase(),
-                  targetLanguage: pair.targetLanguage.toUpperCase(),
+                  sourceLanguage: pair.sourceLanguage,
+                  targetLanguage: pair.targetLanguage,
                 })),
               }
             : undefined,

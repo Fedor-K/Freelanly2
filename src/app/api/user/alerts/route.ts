@@ -3,11 +3,18 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { AlertFrequency } from '@prisma/client';
 
-// Language pair type
-interface LanguagePair {
-  translationType: string;
-  sourceLanguage: string;
-  targetLanguage: string;
+/**
+ * Convert language codes to language pairs with English
+ */
+function languagesToPairs(languages: string[]) {
+  const pairs: Array<{ translationType: string; sourceLanguage: string; targetLanguage: string }> = [];
+  for (const lang of languages) {
+    if (lang && lang !== 'EN') {
+      pairs.push({ translationType: 'TRANSLATION', sourceLanguage: 'EN', targetLanguage: lang.toUpperCase() });
+      pairs.push({ translationType: 'TRANSLATION', sourceLanguage: lang.toUpperCase(), targetLanguage: 'EN' });
+    }
+  }
+  return pairs;
 }
 
 // GET /api/user/alerts - Get user's job alerts with language pairs
@@ -47,61 +54,29 @@ export async function POST(request: NextRequest) {
       keywords,
       country,
       level,
-      frequency,
-      // Translation-specific: array of language pairs
-      languagePairs,
+      // Translation-specific: array of language codes user can translate
+      languages,
     } = body as {
       category?: string;
       keywords?: string;
       country?: string;
       level?: string;
-      frequency?: string;
-      languagePairs?: LanguagePair[];
+      languages?: string[];
     };
 
-    // All alerts are INSTANT now - ignore frequency parameter
-
-    // Validate translation types if provided
-    const validTranslationTypes = [
-      'TRANSLATION',
-      'INTERPRETATION',
-      'LOCALIZATION',
-      'EDITING',
-      'TRANSCRIPTION',
-      'SUBTITLING',
-      'MT_POST_EDITING',
-      'COPYWRITING',
-    ];
-
-    // Require language pairs for translation category
+    // Require languages for translation category
     if (category === 'translation') {
-      const validPairs = languagePairs?.filter(
-        (p) => p.sourceLanguage && p.targetLanguage && p.sourceLanguage !== p.targetLanguage
-      ) || [];
-      if (validPairs.length === 0) {
+      const validLanguages = languages?.filter((l) => l && l !== 'EN') || [];
+      if (validLanguages.length === 0) {
         return NextResponse.json(
-          { error: 'At least one language pair is required for translation alerts' },
+          { error: 'At least one language is required for translation alerts' },
           { status: 400 }
         );
       }
     }
 
-    if (languagePairs && languagePairs.length > 0) {
-      for (const pair of languagePairs) {
-        if (!validTranslationTypes.includes(pair.translationType)) {
-          return NextResponse.json(
-            { error: `Invalid translation type: ${pair.translationType}` },
-            { status: 400 }
-          );
-        }
-        if (!pair.sourceLanguage || !pair.targetLanguage) {
-          return NextResponse.json(
-            { error: 'Language pair must have both source and target language' },
-            { status: 400 }
-          );
-        }
-      }
-    }
+    // Convert languages to pairs with English
+    const languagePairs = languages ? languagesToPairs(languages) : [];
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -125,12 +100,12 @@ export async function POST(request: NextRequest) {
         isActive: true,
         // Create language pairs if translation category
         languagePairs:
-          category === 'translation' && languagePairs && languagePairs.length > 0
+          category === 'translation' && languagePairs.length > 0
             ? {
                 create: languagePairs.map((pair) => ({
                   translationType: pair.translationType,
-                  sourceLanguage: pair.sourceLanguage.toUpperCase(),
-                  targetLanguage: pair.targetLanguage.toUpperCase(),
+                  sourceLanguage: pair.sourceLanguage,
+                  targetLanguage: pair.targetLanguage,
                 })),
               }
             : undefined,

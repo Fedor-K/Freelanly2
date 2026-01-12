@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 /**
  * Handles pending registration data after Google OAuth redirect.
  *
- * When user registers via Google, form data (categories, country, languagePairs)
+ * When user registers via Google, form data (categories, country, languages)
  * is saved to sessionStorage before redirect. This component picks it up
  * after successful auth and creates job alerts.
  */
@@ -54,7 +54,7 @@ export function PendingRegistrationHandler() {
             name: data.name || session.user.name,
             categories: data.categories,
             country: data.country,
-            languagePairs: data.languagePairs,
+            languages: data.languages,
           }),
         });
 

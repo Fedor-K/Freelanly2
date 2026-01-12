@@ -43,21 +43,8 @@ interface AlertsListProps {
   levels: readonly Level[];
 }
 
-// Translation types for the dropdown
-const TRANSLATION_TYPES = [
-  { value: 'TRANSLATION', label: 'Translation' },
-  { value: 'INTERPRETATION', label: 'Interpretation (Oral)' },
-  { value: 'LOCALIZATION', label: 'Localization' },
-  { value: 'EDITING', label: 'Editing / Proofreading' },
-  { value: 'TRANSCRIPTION', label: 'Transcription' },
-  { value: 'SUBTITLING', label: 'Subtitling / Captioning' },
-  { value: 'MT_POST_EDITING', label: 'MT Post-Editing' },
-  { value: 'COPYWRITING', label: 'Multilingual Copywriting' },
-];
-
-// Common languages for the dropdown
+// Common languages for the dropdown (excluding English - it's implicit)
 const LANGUAGES = [
-  { code: 'EN', name: 'English' },
   { code: 'ES', name: 'Spanish' },
   { code: 'DE', name: 'German' },
   { code: 'FR', name: 'French' },
@@ -97,46 +84,21 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
   const [keywords, setKeywords] = useState('');
   const [country, setCountry] = useState('');
   const [level, setLevel] = useState('');
-  const [frequency] = useState('INSTANT'); // Only INSTANT alerts supported
 
-  // Translation-specific: array of language pairs
-  const [languagePairs, setLanguagePairs] = useState<LanguagePair[]>([]);
-
-  // Current pair being added
-  const [currentType, setCurrentType] = useState('');
-  const [currentSource, setCurrentSource] = useState('');
-  const [currentTarget, setCurrentTarget] = useState('');
+  // Translation-specific: array of language codes user can translate
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
 
   const isTranslationCategory = category === 'translation';
 
-  const addLanguagePair = () => {
-    if (!currentType || !currentSource || !currentTarget) return;
-
-    // Check for duplicate
-    const exists = languagePairs.some(
-      (p) =>
-        p.translationType === currentType &&
-        p.sourceLanguage === currentSource &&
-        p.targetLanguage === currentTarget
+  const toggleLanguage = (code: string) => {
+    setSelectedLanguages((prev) =>
+      prev.includes(code) ? prev.filter((l) => l !== code) : [...prev, code]
     );
-    if (exists) return;
-
-    setLanguagePairs([
-      ...languagePairs,
-      {
-        translationType: currentType,
-        sourceLanguage: currentSource,
-        targetLanguage: currentTarget,
-      },
-    ]);
-
-    // Reset current pair selects
-    setCurrentSource('');
-    setCurrentTarget('');
   };
 
-  const removeLanguagePair = (index: number) => {
-    setLanguagePairs(languagePairs.filter((_, i) => i !== index));
+  const removeLanguage = (code: string) => {
+    setSelectedLanguages((prev) => prev.filter((l) => l !== code));
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -149,12 +111,11 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
         keywords,
         country,
         level,
-        frequency
       };
 
-      // Add language pairs if translation category
-      if (isTranslationCategory && languagePairs.length > 0) {
-        body.languagePairs = languagePairs;
+      // Add languages if translation category
+      if (isTranslationCategory && selectedLanguages.length > 0) {
+        body.languages = selectedLanguages;
       }
 
       const res = await fetch('/api/user/alerts', {
@@ -172,11 +133,8 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
         setKeywords('');
         setCountry('');
         setLevel('');
-        // frequency is always INSTANT
-        setLanguagePairs([]);
-        setCurrentType('');
-        setCurrentSource('');
-        setCurrentTarget('');
+        setSelectedLanguages([]);
+        setShowLanguageDropdown(false);
       }
     } catch (error) {
       console.error('Error creating alert:', error);
@@ -236,25 +194,19 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
   };
 
   const getLanguageName = (code: string) => {
+    if (code === 'EN') return 'English';
     const lang = LANGUAGES.find((l) => l.code === code);
     return lang?.name || code;
   };
 
-  const getTranslationTypeName = (type: string) => {
-    const t = TRANSLATION_TYPES.find((tt) => tt.value === type);
-    return t?.label || type;
-  };
-
-  // Group language pairs by translation type for display
-  const groupPairsByType = (pairs: LanguagePair[]) => {
-    const grouped: Record<string, LanguagePair[]> = {};
+  // Extract unique non-EN languages from language pairs
+  const extractLanguagesFromPairs = (pairs: LanguagePair[]) => {
+    const langs = new Set<string>();
     for (const pair of pairs) {
-      if (!grouped[pair.translationType]) {
-        grouped[pair.translationType] = [];
-      }
-      grouped[pair.translationType].push(pair);
+      if (pair.sourceLanguage !== 'EN') langs.add(pair.sourceLanguage);
+      if (pair.targetLanguage !== 'EN') langs.add(pair.targetLanguage);
     }
-    return grouped;
+    return Array.from(langs);
   };
 
   return (
@@ -283,7 +235,8 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
                 onChange={(e) => {
                   setCategory(e.target.value);
                   if (e.target.value !== 'translation') {
-                    setLanguagePairs([]);
+                    setSelectedLanguages([]);
+                    setShowLanguageDropdown(false);
                   }
                 }}
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -350,107 +303,64 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
 
             {/* Translation-specific fields */}
             {isTranslationCategory && (
-              <div className="p-4 bg-purple-50 rounded-lg space-y-4">
-                <p className="text-sm font-medium text-purple-700">
-                  Language Pairs
-                </p>
+              <div className="p-4 bg-purple-50 rounded-lg space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-purple-700 mb-1">
+                    Your Languages
+                  </p>
+                  <p className="text-xs text-purple-600 mb-2">
+                    Select languages you can translate (besides English)
+                  </p>
+                </div>
 
-                {/* Added pairs list */}
-                {languagePairs.length > 0 && (
-                  <div className="space-y-2">
-                    {languagePairs.map((pair, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between bg-white p-2 rounded border"
-                      >
-                        <span className="text-sm">
-                          <span className="font-medium">
-                            {getTranslationTypeName(pair.translationType)}
-                          </span>
-                          {': '}
-                          {getLanguageName(pair.sourceLanguage)} →{' '}
-                          {getLanguageName(pair.targetLanguage)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeLanguagePair(index)}
-                          className="text-red-500 hover:text-red-700 text-sm"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Add new pair */}
-                <div className="space-y-3 pt-2 border-t border-purple-200">
-                  <p className="text-xs text-purple-600">Add language pair:</p>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Type of Work
-                    </label>
-                    <select
-                      value={currentType}
-                      onChange={(e) => setCurrentType(e.target.value)}
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    >
-                      <option value="">Select type...</option>
-                      {TRANSLATION_TYPES.map((type) => (
-                        <option key={type.value} value={type.value}>
-                          {type.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Source
-                      </label>
-                      <select
-                        value={currentSource}
-                        onChange={(e) => setCurrentSource(e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      >
-                        <option value="">Select...</option>
-                        {LANGUAGES.map((lang) => (
-                          <option key={lang.code} value={lang.code}>
-                            {lang.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Target
-                      </label>
-                      <select
-                        value={currentTarget}
-                        onChange={(e) => setCurrentTarget(e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      >
-                        <option value="">Select...</option>
-                        {LANGUAGES.map((lang) => (
-                          <option key={lang.code} value={lang.code}>
-                            {lang.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={addLanguagePair}
-                    disabled={!currentType || !currentSource || !currentTarget}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                {/* Language multi-select dropdown */}
+                <div className="relative">
+                  <div
+                    onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+                    className="min-h-[42px] px-3 py-2 bg-white border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center"
                   >
-                    + Add Pair
-                  </button>
+                    {selectedLanguages.length === 0 ? (
+                      <span className="text-gray-400">Select languages...</span>
+                    ) : (
+                      selectedLanguages.map((code) => (
+                        <span
+                          key={code}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-sm"
+                        >
+                          {getLanguageName(code)}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeLanguage(code);
+                            }}
+                            className="hover:text-purple-900"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))
+                    )}
+                    <span className="ml-auto text-gray-400">▼</span>
+                  </div>
+
+                  {showLanguageDropdown && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {LANGUAGES.map((lang) => (
+                        <button
+                          key={lang.code}
+                          type="button"
+                          onClick={() => toggleLanguage(lang.code)}
+                          className="w-full px-3 py-2 text-left hover:bg-purple-50 flex items-center justify-between"
+                        >
+                          <span>{lang.name}</span>
+                          {selectedLanguages.includes(lang.code) && (
+                            <span className="text-purple-600">✓</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -460,7 +370,7 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
             <div className="flex gap-3">
               <button
                 type="submit"
-                disabled={loading || (isTranslationCategory && languagePairs.length === 0)}
+                disabled={loading || (isTranslationCategory && selectedLanguages.length === 0)}
                 className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
               >
                 {loading ? 'Creating...' : 'Create Alert'}
@@ -469,7 +379,8 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
                 type="button"
                 onClick={() => {
                   setIsCreating(false);
-                  setLanguagePairs([]);
+                  setSelectedLanguages([]);
+                  setShowLanguageDropdown(false);
                 }}
                 className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
               >
@@ -512,7 +423,7 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
       ) : (
         <div className="space-y-4">
           {alerts.map((alert) => {
-            const groupedPairs = groupPairsByType(alert.languagePairs || []);
+            const alertLanguages = extractLanguagesFromPairs(alert.languagePairs || []);
 
             return (
               <div
@@ -546,24 +457,13 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
                       )}
                     </div>
 
-                    {/* Language pairs grouped by type */}
-                    {Object.keys(groupedPairs).length > 0 && (
-                      <div className="mt-3 space-y-2">
-                        {Object.entries(groupedPairs).map(([type, pairs]) => (
-                          <div key={type} className="text-sm">
-                            <span className="font-medium text-purple-700">
-                              {getTranslationTypeName(type)}:
-                            </span>{' '}
-                            <span className="text-gray-600">
-                              {pairs
-                                .map(
-                                  (p) =>
-                                    `${getLanguageName(p.sourceLanguage)}→${getLanguageName(p.targetLanguage)}`
-                                )
-                                .join(', ')}
-                            </span>
-                          </div>
-                        ))}
+                    {/* Languages display */}
+                    {alertLanguages.length > 0 && (
+                      <div className="mt-3">
+                        <span className="text-sm font-medium text-purple-700">Languages: </span>
+                        <span className="text-sm text-gray-600">
+                          {alertLanguages.map((code) => getLanguageName(code)).join(', ')}
+                        </span>
                       </div>
                     )}
 

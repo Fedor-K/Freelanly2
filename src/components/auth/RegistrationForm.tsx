@@ -8,12 +8,6 @@ import { Label } from '@/components/ui/label';
 import { categories, countries, languages } from '@/config/site';
 import { Mail, ChevronDown, Check, X, Zap, ArrowLeft, Loader2 } from 'lucide-react';
 
-interface LanguagePair {
-  translationType: string;
-  sourceLanguage: string;
-  targetLanguage: string;
-}
-
 export interface RegistrationFormProps {
   jobId?: string;
   jobTitle?: string;
@@ -22,13 +16,6 @@ export interface RegistrationFormProps {
   onEmailSent?: (email: string) => void;
   showJobContext?: boolean;
 }
-
-const TRANSLATION_TYPES = [
-  { value: 'TRANSLATION', label: 'Translation' },
-  { value: 'INTERPRETATION', label: 'Interpretation' },
-  { value: 'LOCALIZATION', label: 'Localization' },
-  { value: 'SUBTITLING', label: 'Subtitling' },
-];
 
 type FormStep = 'email' | 'login' | 'register' | 'sent';
 
@@ -54,21 +41,26 @@ export function RegistrationForm({
   const [name, setName] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedCountry, setSelectedCountry] = useState('');
-  const [languagePairs, setLanguagePairs] = useState<LanguagePair[]>([]);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [error, setError] = useState('');
 
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+  const languageDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
         setShowCategoryDropdown(false);
+      }
+      if (languageDropdownRef.current && !languageDropdownRef.current.contains(event.target as Node)) {
+        setShowLanguageDropdown(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -127,16 +119,12 @@ export function RegistrationForm({
     setSelectedCategories((prev) => {
       const isRemoving = prev.includes(slug);
       if (isRemoving) {
-        // Clear language pairs when removing translation
+        // Clear languages when removing translation
         if (slug === 'translation') {
-          setLanguagePairs([]);
+          setSelectedLanguages([]);
         }
         return prev.filter((c) => c !== slug);
       } else {
-        // Auto-add one empty language pair when selecting translation
-        if (slug === 'translation' && languagePairs.length === 0) {
-          setLanguagePairs([{ translationType: 'TRANSLATION', sourceLanguage: 'EN', targetLanguage: '' }]);
-        }
         return [...prev, slug];
       }
     });
@@ -145,26 +133,19 @@ export function RegistrationForm({
   const removeCategory = (slug: string) => {
     setSelectedCategories((prev) => prev.filter((c) => c !== slug));
     if (slug === 'translation') {
-      setLanguagePairs([]);
+      setSelectedLanguages([]);
     }
   };
 
-  // Language pair handlers
-  const addLanguagePair = () => {
-    setLanguagePairs((prev) => [
-      ...prev,
-      { translationType: 'TRANSLATION', sourceLanguage: 'EN', targetLanguage: '' },
-    ]);
-  };
-
-  const updateLanguagePair = (index: number, field: keyof LanguagePair, value: string) => {
-    setLanguagePairs((prev) =>
-      prev.map((pair, i) => (i === index ? { ...pair, [field]: value } : pair))
+  // Language handlers
+  const toggleLanguage = (code: string) => {
+    setSelectedLanguages((prev) =>
+      prev.includes(code) ? prev.filter((l) => l !== code) : [...prev, code]
     );
   };
 
-  const removeLanguagePair = (index: number) => {
-    setLanguagePairs((prev) => prev.filter((_, i) => i !== index));
+  const removeLanguage = (code: string) => {
+    setSelectedLanguages((prev) => prev.filter((l) => l !== code));
   };
 
   // Google Sign In
@@ -179,7 +160,7 @@ export function RegistrationForm({
           name,
           categories: selectedCategories,
           country: selectedCountry,
-          languagePairs: showTranslationFields ? languagePairs : [],
+          languages: showTranslationFields ? selectedLanguages : [],
         })
       );
     }
@@ -221,15 +202,10 @@ export function RegistrationForm({
       return;
     }
 
-    // Validate language pairs for translation category
-    if (showTranslationFields) {
-      const validPairs = languagePairs.filter(
-        (p) => p.sourceLanguage && p.targetLanguage && p.sourceLanguage !== p.targetLanguage
-      );
-      if (validPairs.length === 0) {
-        setError('Please add at least one language pair for translation alerts');
-        return;
-      }
+    // Validate languages for translation category
+    if (showTranslationFields && selectedLanguages.length === 0) {
+      setError('Please select at least one language for translation alerts');
+      return;
     }
 
     setIsLoading(true);
@@ -245,7 +221,7 @@ export function RegistrationForm({
           name: name || undefined,
           categories: selectedCategories,
           country: selectedCountry || undefined,
-          languagePairs: showTranslationFields ? languagePairs : undefined,
+          languages: showTranslationFields ? selectedLanguages : undefined,
           jobId,
         }),
       });
@@ -557,7 +533,7 @@ export function RegistrationForm({
         {/* Categories Multi-select */}
         <div>
           <Label>What roles interest you? *</Label>
-          <div className="relative mt-1" ref={dropdownRef}>
+          <div className="relative mt-1" ref={categoryDropdownRef}>
             {/* Selected categories chips */}
             <div
               onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
@@ -632,64 +608,66 @@ export function RegistrationForm({
           </select>
         </div>
 
-        {/* Translation Language Pairs */}
+        {/* Translation Languages */}
         {showTranslationFields && (
-          <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
-            <Label>Language Pairs *</Label>
-            <p className="text-xs text-muted-foreground -mt-2">Required for translation job alerts</p>
-            {languagePairs.map((pair, index) => (
-              <div key={index} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-start">
-                {/* Type select - full width on mobile */}
-                <select
-                  value={pair.translationType}
-                  onChange={(e) => updateLanguagePair(index, 'translationType', e.target.value)}
-                  className="w-full sm:flex-1 px-2 py-1.5 border rounded text-sm bg-background"
-                >
-                  {TRANSLATION_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-                {/* Language pair row */}
-                <div className="flex gap-2 items-center">
-                  <select
-                    value={pair.sourceLanguage}
-                    onChange={(e) => updateLanguagePair(index, 'sourceLanguage', e.target.value)}
-                    className="flex-1 sm:w-24 sm:flex-none px-2 py-1.5 border rounded text-sm bg-background"
-                  >
-                    {languages.map((l) => (
-                      <option key={l.code} value={l.code}>
-                        {l.name}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="py-1.5 text-muted-foreground">→</span>
-                  <select
-                    value={pair.targetLanguage}
-                    onChange={(e) => updateLanguagePair(index, 'targetLanguage', e.target.value)}
-                    className="flex-1 sm:w-24 sm:flex-none px-2 py-1.5 border rounded text-sm bg-background"
-                  >
-                    <option value="">Select</option>
-                    {languages.map((l) => (
-                      <option key={l.code} value={l.code}>
-                        {l.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => removeLanguagePair(index)}
-                    className="p-1.5 text-muted-foreground hover:text-destructive shrink-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
+          <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
+            <Label>Your Languages *</Label>
+            <p className="text-xs text-muted-foreground -mt-1">Select languages you can translate (besides English)</p>
+            <div className="relative" ref={languageDropdownRef}>
+              {/* Selected languages chips */}
+              <div
+                onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+                className="min-h-[42px] px-3 py-2 border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center bg-background"
+              >
+                {selectedLanguages.length === 0 ? (
+                  <span className="text-muted-foreground">Select languages...</span>
+                ) : (
+                  selectedLanguages.map((code) => {
+                    const lang = languages.find((l) => l.code === code);
+                    return (
+                      <span
+                        key={code}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-sm"
+                      >
+                        {lang?.name || code}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeLanguage(code);
+                          }}
+                          className="hover:text-primary/70"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    );
+                  })
+                )}
+                <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
               </div>
-            ))}
-            <Button type="button" variant="outline" size="sm" onClick={addLanguagePair}>
-              + Add language pair
-            </Button>
+
+              {/* Dropdown */}
+              {showLanguageDropdown && (
+                <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {languages
+                    .filter((l) => l.code !== 'EN') // Exclude English - it's implicit
+                    .map((lang) => (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        onClick={() => toggleLanguage(lang.code)}
+                        className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between"
+                      >
+                        <span>{lang.name}</span>
+                        {selectedLanguages.includes(lang.code) && (
+                          <Check className="h-4 w-4 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
