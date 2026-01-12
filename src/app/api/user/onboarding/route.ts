@@ -46,6 +46,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate languages for translation category
+    if (categories.includes('translation')) {
+      const validLanguages = languages?.filter((l) => l && l !== 'EN') || [];
+      if (validLanguages.length === 0) {
+        return NextResponse.json(
+          { error: 'At least one language is required for translation alerts' },
+          { status: 400 }
+        );
+      }
+    }
+
     const userId = session.user.id;
     const email = session.user.email;
 

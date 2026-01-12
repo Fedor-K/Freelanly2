@@ -14,6 +14,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Translation category requires registration with language selection
+    if (category === 'translation') {
+      return NextResponse.json(
+        { error: 'Translation alerts require language selection. Please register to set up translation alerts.' },
+        { status: 400 }
+      );
+    }
+
     // All alerts are INSTANT now
     const alertFrequency = 'INSTANT';
 
