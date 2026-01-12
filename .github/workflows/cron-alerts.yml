@@ -1,0 +1,18 @@
+name: Process Instant Alerts
+
+on:
+  schedule:
+    # Every 5 minutes
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  process-alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Process instant alert queue
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/process-instant-alerts" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --fail --silent --show-error
