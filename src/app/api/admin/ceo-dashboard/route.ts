@@ -5,7 +5,7 @@ import { getMetrikaLastNDays, testMetrikaConnection } from '@/lib/yandex-metrika
 import { getTrialEmailStats } from '@/services/trial-emails';
 import { getWinbackEmailStats } from '@/services/winback-emails';
 import { getGSCStats } from '@/lib/google-search-console';
-import { getTransactionalStats } from '@/lib/dashamail';
+import { getTransactionalStats } from '@/lib/resend';
 import Stripe from 'stripe';
 
 // Target: €10K MRR by May 2026

@@ -10,7 +10,7 @@
  */
 
 import { prisma } from '@/lib/db';
-import { sendApplicationEmail } from '@/lib/dashamail';
+import { sendApplicationEmail } from '@/lib/resend';
 
 // ============================================
 // EMAIL TEMPLATES

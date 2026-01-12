@@ -4,7 +4,7 @@
  */
 
 import { prisma } from '@/lib/db';
-import { sendApplicationEmail } from '@/lib/dashamail';
+import { sendApplicationEmail } from '@/lib/resend';
 import { siteConfig } from '@/config/site';
 import { getUnsubscribeUrl } from '@/lib/unsubscribe';
 
