@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processAbandonedCheckoutEmails } from '@/services/abandoned-checkout-emails';
+import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 
 /**
  * Send abandoned checkout emails
@@ -9,10 +10,8 @@ import { processAbandonedCheckoutEmails } from '@/services/abandoned-checkout-em
  *   -H "Authorization: Bearer $CRON_SECRET"
  */
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(request)) {
+    logUnauthorizedCronAttempt(request);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

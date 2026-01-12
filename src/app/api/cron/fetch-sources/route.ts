@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { processDataSource } from '@/services/sources';
+import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 
 /**
  * Queue-based source fetching with PARALLEL processing
@@ -17,10 +18,8 @@ const TASK_TIMEOUT = 30 * 60 * 1000; // 30 min = stuck task
 const PARALLEL_TASKS = 10; // Process 10 sources in parallel
 
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(request)) {
+    logUnauthorizedCronAttempt(request);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

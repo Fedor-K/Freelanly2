@@ -7,6 +7,7 @@ import {
   refillVideoQueue,
   cleanupOldVideoItems,
 } from '@/services/video-post';
+import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 
 /**
  * Cron endpoint for posting VIDEO jobs to social media
@@ -17,10 +18,8 @@ import {
  * Authorization: Bearer $CRON_SECRET
  */
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(request)) {
+    logUnauthorizedCronAttempt(request);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -100,10 +99,8 @@ export async function POST(request: NextRequest) {
  * PATCH - Mark video post as completed or failed (called by n8n after posting)
  */
 export async function PATCH(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(request)) {
+    logUnauthorizedCronAttempt(request);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -132,10 +129,8 @@ export async function PATCH(request: NextRequest) {
  * GET - Check video queue status
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(request)) {
+    logUnauthorizedCronAttempt(request);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -16,6 +16,7 @@ import {
   extractUniqueSlugs,
   GREENHOUSE_SEARCH_QUERIES,
 } from '@/config/greenhouse-discovery';
+import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 
 const GOOGLE_SEARCH_ACTOR = 'apify/google-search-scraper';
 
@@ -31,15 +32,9 @@ interface ApifyGoogleSearchPage {
   organicResults?: GoogleSearchResult[];
 }
 
-function validateAuth(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader) return false;
-  const token = authHeader.replace('Bearer ', '');
-  return token === process.env.CRON_SECRET;
-}
-
 export async function POST(request: NextRequest) {
-  if (!validateAuth(request)) {
+  if (!isCronAuthorized(request)) {
+    logUnauthorizedCronAttempt(request);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -216,7 +211,8 @@ export async function POST(request: NextRequest) {
 
 // GET endpoint for status check
 export async function GET(request: NextRequest) {
-  if (!validateAuth(request)) {
+  if (!isCronAuthorized(request)) {
+    logUnauthorizedCronAttempt(request);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

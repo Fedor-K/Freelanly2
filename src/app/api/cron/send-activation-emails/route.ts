@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processActivationEmails } from '@/services/activation-emails';
+import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
-  // Verify cron secret
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-    console.error('[Activation Cron] Unauthorized request');
+  if (!isCronAuthorized(request)) {
+    logUnauthorizedCronAttempt(request);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processInstantAlertQueue } from '@/services/alert-notifications';
+import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 
 /**
  * Process INSTANT alert queue
@@ -8,10 +9,8 @@ import { processInstantAlertQueue } from '@/services/alert-notifications';
  */
 export async function POST(request: NextRequest) {
   // Verify cron secret
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(request)) {
+    logUnauthorizedCronAttempt(request);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

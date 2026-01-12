@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { siteConfig, techStacks, categories } from '@/config/site';
 import { SignJWT, importPKCS8 } from 'jose';
 import { submitToIndexNow } from '@/lib/indexing';
+import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 
 const DAILY_LIMIT = 200;
 
@@ -56,8 +57,8 @@ async function submitUrl(token: string, url: string): Promise<boolean> {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = request.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isCronAuthorized(request)) {
+    logUnauthorizedCronAttempt(request);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

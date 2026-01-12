@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processFreeNurtureEmails, getFreeNurtureStats } from '@/services/free-nurture-emails';
+import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 
 /**
  * Cron endpoint for sending FREE user nurture emails
@@ -14,11 +15,8 @@ import { processFreeNurtureEmails, getFreeNurtureStats } from '@/services/free-n
  * - Day 7: "Try PRO free for 2 days" (if still FREE)
  */
 export async function POST(request: NextRequest) {
-  // Verify cron secret
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(request)) {
+    logUnauthorizedCronAttempt(request);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -46,10 +44,8 @@ export async function POST(request: NextRequest) {
  * GET - Check nurture stats
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(request)) {
+    logUnauthorizedCronAttempt(request);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

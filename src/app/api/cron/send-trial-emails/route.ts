@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processTrialEmails, getTrialEmailStats } from '@/services/trial-emails';
+import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 
 /**
  * Process trial onboarding emails
@@ -13,11 +14,8 @@ import { processTrialEmails, getTrialEmailStats } from '@/services/trial-emails'
  * Day 7: Last chance
  */
 export async function POST(request: NextRequest) {
-  // Verify cron secret
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(request)) {
+    logUnauthorizedCronAttempt(request);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -47,11 +45,8 @@ export async function POST(request: NextRequest) {
  * GET /api/cron/send-trial-emails
  */
 export async function GET(request: NextRequest) {
-  // Verify admin secret
-  const authHeader = request.headers.get('authorization');
-  const adminSecret = process.env.CRON_SECRET;
-
-  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
+  if (!isCronAuthorized(request)) {
+    logUnauthorizedCronAttempt(request);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

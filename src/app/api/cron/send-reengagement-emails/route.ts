@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processReengagementEmails } from '@/services/reengagement-emails';
+import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 
 /**
  * Process re-engagement emails for inactive users
@@ -11,11 +12,8 @@ import { processReengagementEmails } from '@/services/reengagement-emails';
  * Day 30: "Your job alerts are waiting"
  */
 export async function POST(request: NextRequest) {
-  // Verify cron secret
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(request)) {
+    logUnauthorizedCronAttempt(request);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
