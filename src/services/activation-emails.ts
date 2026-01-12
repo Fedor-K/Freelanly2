@@ -13,6 +13,7 @@
 import { prisma } from '@/lib/db';
 import { sendApplicationEmail } from '@/lib/dashamail';
 import { siteConfig } from '@/config/site';
+import { getUnsubscribeUrl } from '@/lib/unsubscribe';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url;
 
@@ -100,7 +101,8 @@ function generateJobCard(job: JobForEmail): string {
 function generateActivationEmailHtml(
   type: ActivationEmailType,
   jobs: JobForEmail[],
-  userName?: string | null
+  userName?: string | null,
+  email?: string
 ): string {
   const greeting = userName ? `Hi ${userName.split(' ')[0]}!` : 'Hi there!';
   const jobCards = jobs.map(generateJobCard).join('');
@@ -205,6 +207,7 @@ function generateActivationEmailHtml(
             <td style="padding: 20px 30px; background: #f9f9f9; border-radius: 0 0 12px 12px; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #666;">
                 You're receiving this because you have a PRO subscription on <a href="${APP_URL}" style="color: #666;">Freelanly</a>.
+                ${email ? `<br><a href="${getUnsubscribeUrl(email)}" style="color: #666;">Unsubscribe</a>` : ''}
               </p>
             </td>
           </tr>
@@ -314,7 +317,7 @@ export async function sendActivationEmail(
 
     // Generate email content
     const subject = getEmailSubject(type, jobs.length);
-    const html = generateActivationEmailHtml(type, jobs, user.name);
+    const html = generateActivationEmailHtml(type, jobs, user.name, user.email);
     const text = generateActivationEmailText(type, jobs, user.name);
 
     // Send email

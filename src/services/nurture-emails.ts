@@ -6,6 +6,7 @@
 import { prisma } from '@/lib/db';
 import { sendApplicationEmail } from '@/lib/dashamail';
 import { siteConfig } from '@/config/site';
+import { getUnsubscribeUrl } from '@/lib/unsubscribe';
 
 interface NurtureStats {
   sent: number;
@@ -76,6 +77,7 @@ export async function sendNurtureEmailForAttempt(attemptId: string): Promise<boo
       jobUrl,
       pricingUrl,
       isImmediate: true, // Different copy for immediate send
+      email: attempt.user.email,
     });
 
     const subject = `Complete your application to "${attempt.job.title}" at ${attempt.job.company.name}`;
@@ -190,6 +192,7 @@ export async function sendNurtureEmails(): Promise<NurtureStats> {
           salary: salaryText,
           jobUrl,
           pricingUrl,
+          email: attempt.user.email,
         });
 
         const subject = `You tried to apply to "${attempt.job.title}" at ${attempt.job.company.name}`;
@@ -238,6 +241,7 @@ function generateNurtureEmailHtml(params: {
   jobUrl: string;
   pricingUrl: string;
   isImmediate?: boolean;
+  email: string;
 }): string {
   const introText = params.isImmediate
     ? `You just found a great opportunity at ${params.companyName}. Start your free trial to apply:`
@@ -301,6 +305,7 @@ function generateNurtureEmailHtml(params: {
     <div class="footer">
       <p>You're receiving this because you tried to apply to a job on Freelanly.</p>
       <p><a href="${params.pricingUrl}">Start your free trial</a> or <a href="https://freelanly.com/dashboard/settings">manage your email preferences</a>.</p>
+      <p><a href="${getUnsubscribeUrl(params.email)}" style="color: #666;">Unsubscribe</a></p>
     </div>
   </div>
 </body>

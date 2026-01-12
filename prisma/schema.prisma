@@ -50,6 +50,10 @@ model User {
   freeNurtureEmailsSent  Int @default(0)  // 0=none, 1=welcome, 2=day3, 3=day7
   lastFreeNurtureEmailAt DateTime?
 
+  // Email preferences
+  unsubscribedFromMarketing Boolean @default(false)  // User opted out of marketing emails
+  unsubscribedAt            DateTime?                 // When they unsubscribed
+
   // Relations
   accounts      Account[]
   sessions      Session[]

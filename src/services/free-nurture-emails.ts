@@ -12,6 +12,7 @@
 import { prisma } from '@/lib/db';
 import { sendApplicationEmail } from '@/lib/dashamail';
 import { siteConfig } from '@/config/site';
+import { getUnsubscribeUrl } from '@/lib/unsubscribe';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url;
 
@@ -131,7 +132,8 @@ function generateFreeNurtureEmailHtml(
   type: FreeNurtureEmailType,
   jobs: JobForEmail[],
   opportunities: OpportunityForEmail[],
-  userName?: string | null
+  userName?: string | null,
+  email?: string
 ): string {
   const name = userName || 'there';
 
@@ -257,6 +259,7 @@ function generateFreeNurtureEmailHtml(
                 You received this email because you signed up for Freelanly.<br>
                 <a href="${APP_URL}/dashboard/settings" style="color: #666;">Manage preferences</a> ·
                 <a href="${APP_URL}/dashboard/alerts" style="color: #666;">Update alerts</a>
+                ${email ? `· <a href="${getUnsubscribeUrl(email)}" style="color: #666;">Unsubscribe</a>` : ''}
               </p>
             </td>
           </tr>
@@ -374,7 +377,7 @@ export async function sendFreeNurtureEmail(
     }
 
     const subject = getEmailSubject(type, jobs.length + opportunities.length);
-    const html = generateFreeNurtureEmailHtml(type, jobs, opportunities, user.name);
+    const html = generateFreeNurtureEmailHtml(type, jobs, opportunities, user.name, user.email);
 
     // Send via DashaMail
     await sendApplicationEmail({

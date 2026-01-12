@@ -10,6 +10,7 @@ import { prisma } from '@/lib/db';
 import { getStripe } from '@/lib/stripe';
 import { sendApplicationEmail } from '@/lib/dashamail';
 import { TrialEmailType } from '@prisma/client';
+import { getUnsubscribeUrl } from '@/lib/unsubscribe';
 
 // ============================================
 // EMAIL TEMPLATES
@@ -85,6 +86,7 @@ function getTrialEmailContent(
   </div>
   <div class="footer">
     <p>You're receiving this because you started a trial on <a href="https://freelanly.com">Freelanly</a>.</p>
+    <p><a href="${getUnsubscribeUrl(data.email)}" style="color: #666;">Unsubscribe</a></p>
   </div>
 </div>
 </body>
@@ -133,6 +135,7 @@ function getTrialEmailContent(
   </div>
   <div class="footer">
     <p>You're receiving this because you're on a PRO trial on <a href="https://freelanly.com">Freelanly</a>.</p>
+    <p><a href="${getUnsubscribeUrl(data.email)}" style="color: #666;">Unsubscribe</a></p>
   </div>
 </div>
 </body>
@@ -183,6 +186,7 @@ function getTrialEmailContent(
   </div>
   <div class="footer">
     <p>You're receiving this because you're on a PRO trial on <a href="https://freelanly.com">Freelanly</a>.</p>
+    <p><a href="${getUnsubscribeUrl(data.email)}" style="color: #666;">Unsubscribe</a></p>
   </div>
 </div>
 </body>
@@ -231,6 +235,7 @@ function getTrialEmailContent(
   </div>
   <div class="footer">
     <p>You're receiving this because your PRO trial on <a href="https://freelanly.com">Freelanly</a> is ending.</p>
+    <p><a href="${getUnsubscribeUrl(data.email)}" style="color: #666;">Unsubscribe</a></p>
   </div>
 </div>
 </body>
@@ -282,6 +287,7 @@ function getTrialEmailContent(
   </div>
   <div class="footer">
     <p>You're receiving this because your PRO trial on <a href="https://freelanly.com">Freelanly</a> ends today.</p>
+    <p><a href="${getUnsubscribeUrl(data.email)}" style="color: #666;">Unsubscribe</a></p>
   </div>
 </div>
 </body>
