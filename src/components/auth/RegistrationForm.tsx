@@ -1,12 +1,18 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { categories, countries, languages } from '@/config/site';
-import { Mail, ChevronDown, Check, X, Zap, ArrowLeft, Loader2 } from 'lucide-react';
+import { Mail, ChevronDown, Check, X, Zap, ArrowLeft, Loader2, AlertTriangle, TrendingUp } from 'lucide-react';
+
+interface JobCountPreview {
+  count: number;
+  countWithoutCountry: number;
+  dailyAverage: number;
+}
 
 export interface RegistrationFormProps {
   jobId?: string;
@@ -50,6 +56,10 @@ export function RegistrationForm({
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [error, setError] = useState('');
 
+  // Job count preview
+  const [jobCountPreview, setJobCountPreview] = useState<JobCountPreview | null>(null);
+  const [isLoadingJobCount, setIsLoadingJobCount] = useState(false);
+
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const languageDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -66,6 +76,52 @@ export function RegistrationForm({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Fetch job count preview when filters change
+  const fetchJobCount = useCallback(async () => {
+    if (selectedCategories.length === 0) {
+      setJobCountPreview(null);
+      return;
+    }
+
+    setIsLoadingJobCount(true);
+    try {
+      // Fetch count for each category and sum up
+      const counts = await Promise.all(
+        selectedCategories.map(async (category) => {
+          const params = new URLSearchParams({ category, days: '7' });
+          if (selectedCountry) params.set('country', selectedCountry);
+          const res = await fetch(`/api/jobs/count?${params}`);
+          return res.json();
+        })
+      );
+
+      const totalCount = counts.reduce((sum, c) => sum + (c.count || 0), 0);
+      const totalWithoutCountry = counts.reduce((sum, c) => sum + (c.countWithoutCountry || 0), 0);
+      const avgDaily = counts.reduce((sum, c) => sum + (c.dailyAverage || 0), 0);
+
+      setJobCountPreview({
+        count: totalCount,
+        countWithoutCountry: totalWithoutCountry,
+        dailyAverage: Math.round(avgDaily * 10) / 10,
+      });
+    } catch (err) {
+      console.error('Failed to fetch job count:', err);
+      setJobCountPreview(null);
+    } finally {
+      setIsLoadingJobCount(false);
+    }
+  }, [selectedCategories, selectedCountry]);
+
+  // Debounced fetch on filter changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (step === 'register') {
+        fetchJobCount();
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [selectedCategories, selectedCountry, step, fetchJobCount]);
 
   const showTranslationFields = selectedCategories.includes('translation');
 
@@ -607,6 +663,61 @@ export function RegistrationForm({
             ))}
           </select>
         </div>
+
+        {/* Job Count Preview */}
+        {selectedCategories.length > 0 && (
+          <div className={`p-3 rounded-lg border ${
+            jobCountPreview && jobCountPreview.count < 5
+              ? 'bg-amber-50 border-amber-200'
+              : 'bg-green-50 border-green-200'
+          }`}>
+            {isLoadingJobCount ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Checking job availability...</span>
+              </div>
+            ) : jobCountPreview ? (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-sm">
+                  {jobCountPreview.count < 5 ? (
+                    <>
+                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      <span className="font-medium text-amber-800">
+                        Only {jobCountPreview.count} job{jobCountPreview.count !== 1 ? 's' : ''} in the last 7 days
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                      <span className="font-medium text-green-800">
+                        {jobCountPreview.count} jobs in the last 7 days (~{jobCountPreview.dailyAverage}/day)
+                      </span>
+                    </>
+                  )}
+                </div>
+                {/* Suggestion to expand if count is low */}
+                {jobCountPreview.count < 5 && selectedCountry && jobCountPreview.countWithoutCountry > jobCountPreview.count && (
+                  <p className="text-xs text-amber-700">
+                    Tip: {jobCountPreview.countWithoutCountry} jobs available worldwide.{' '}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCountry('')}
+                      className="underline hover:no-underline font-medium"
+                    >
+                      Remove country filter
+                    </button>{' '}
+                    to get more alerts.
+                  </p>
+                )}
+                {jobCountPreview.count < 5 && !selectedCountry && selectedCategories.length === 1 && (
+                  <p className="text-xs text-amber-700">
+                    Tip: Add more categories to receive more job alerts.
+                  </p>
+                )}
+              </div>
+            ) : null}
+          </div>
+        )}
 
         {/* Translation Languages */}
         {showTranslationFields && (

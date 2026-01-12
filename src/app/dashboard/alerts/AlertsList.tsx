@@ -1,6 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+
+interface JobCountPreview {
+  count: number;
+  countWithoutCountry: number;
+  dailyAverage: number;
+}
 
 interface Category {
   name: string;
@@ -89,7 +95,47 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
 
+  // Job count preview
+  const [jobCountPreview, setJobCountPreview] = useState<JobCountPreview | null>(null);
+  const [isLoadingJobCount, setIsLoadingJobCount] = useState(false);
+
   const isTranslationCategory = category === 'translation';
+
+  // Fetch job count preview when filters change
+  const fetchJobCount = useCallback(async () => {
+    if (!category) {
+      setJobCountPreview(null);
+      return;
+    }
+
+    setIsLoadingJobCount(true);
+    try {
+      const params = new URLSearchParams({ category, days: '7' });
+      if (country) params.set('country', country);
+      const res = await fetch(`/api/jobs/count?${params}`);
+      const data = await res.json();
+
+      setJobCountPreview({
+        count: data.count || 0,
+        countWithoutCountry: data.countWithoutCountry || 0,
+        dailyAverage: data.dailyAverage || 0,
+      });
+    } catch (err) {
+      console.error('Failed to fetch job count:', err);
+      setJobCountPreview(null);
+    } finally {
+      setIsLoadingJobCount(false);
+    }
+  }, [category, country]);
+
+  // Debounced fetch on filter changes
+  useEffect(() => {
+    if (!isCreating) return;
+    const timer = setTimeout(() => {
+      fetchJobCount();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [category, country, isCreating, fetchJobCount]);
 
   const toggleLanguage = (code: string) => {
     setSelectedLanguages((prev) =>
@@ -300,6 +346,63 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
                 </select>
               </div>
             </div>
+
+            {/* Job Count Preview */}
+            {category && (
+              <div className={`p-3 rounded-lg border ${
+                jobCountPreview && jobCountPreview.count < 5
+                  ? 'bg-amber-50 border-amber-200'
+                  : 'bg-green-50 border-green-200'
+              }`}>
+                {isLoadingJobCount ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <span>Checking job availability...</span>
+                  </div>
+                ) : jobCountPreview ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm">
+                      {jobCountPreview.count < 5 ? (
+                        <>
+                          <svg className="h-4 w-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          <span className="font-medium text-amber-800">
+                            Only {jobCountPreview.count} job{jobCountPreview.count !== 1 ? 's' : ''} in the last 7 days
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                          </svg>
+                          <span className="font-medium text-green-800">
+                            {jobCountPreview.count} jobs in the last 7 days (~{jobCountPreview.dailyAverage}/day)
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {/* Suggestion to expand if count is low */}
+                    {jobCountPreview.count < 5 && country && jobCountPreview.countWithoutCountry > jobCountPreview.count && (
+                      <p className="text-xs text-amber-700">
+                        Tip: {jobCountPreview.countWithoutCountry} jobs available worldwide.{' '}
+                        <button
+                          type="button"
+                          onClick={() => setCountry('')}
+                          className="underline hover:no-underline font-medium"
+                        >
+                          Remove country filter
+                        </button>{' '}
+                        to get more alerts.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            )}
 
             {/* Translation-specific fields */}
             {isTranslationCategory && (
