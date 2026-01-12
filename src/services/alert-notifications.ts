@@ -445,13 +445,14 @@ export async function queueInstantAlertsForJob(jobId: string): Promise<{ queued:
     return { queued: 0 };
   }
 
-  // Find all active INSTANT alerts (only for verified users)
+  // Find all active INSTANT alerts (only for verified users who haven't unsubscribed)
   const instantAlerts = await prisma.jobAlert.findMany({
     where: {
       isActive: true,
       frequency: 'INSTANT',
       user: {
         emailVerified: { not: null }, // Only send to verified users
+        unsubscribedFromMarketing: false, // Respect unsubscribe preference
       },
     },
     include: {
@@ -538,13 +539,14 @@ export async function queueInstantAlertsForOpportunity(opportunityId: string): P
     return { queued: 0 };
   }
 
-  // Find all active INSTANT alerts (only for verified users)
+  // Find all active INSTANT alerts (only for verified users who haven't unsubscribed)
   const instantAlerts = await prisma.jobAlert.findMany({
     where: {
       isActive: true,
       frequency: 'INSTANT',
       user: {
         emailVerified: { not: null },
+        unsubscribedFromMarketing: false, // Respect unsubscribe preference
       },
     },
     include: {

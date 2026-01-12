@@ -376,6 +376,16 @@ export async function processWinbackEmails(): Promise<{
         continue;
       }
 
+      // Check if user has unsubscribed from marketing emails
+      const user = await prisma.user.findUnique({
+        where: { email: churned.email },
+        select: { unsubscribedFromMarketing: true },
+      });
+      if (user?.unsubscribedFromMarketing) {
+        stats.skipped++;
+        continue;
+      }
+
       const emailType = getEmailTypeForDays(churned.daysSinceCancel);
       if (!emailType) {
         // Not a day we send emails

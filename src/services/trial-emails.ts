@@ -456,6 +456,16 @@ export async function processTrialEmails(): Promise<{
         continue;
       }
 
+      // Check if user has unsubscribed from marketing emails
+      const user = await prisma.user.findUnique({
+        where: { email: sub.email },
+        select: { unsubscribedFromMarketing: true },
+      });
+      if (user?.unsubscribedFromMarketing) {
+        stats.skipped++;
+        continue;
+      }
+
       // Check if already sent
       const alreadySent = await wasEmailSent(sub.customerId, emailType);
       if (alreadySent) {

@@ -30,6 +30,7 @@ export async function sendNurtureEmailForAttempt(attemptId: string): Promise<boo
             email: true,
             name: true,
             plan: true,
+            unsubscribedFromMarketing: true,
           },
         },
         job: {
@@ -58,6 +59,11 @@ export async function sendNurtureEmailForAttempt(attemptId: string): Promise<boo
 
     // Skip if user is PRO
     if (attempt.user.plan !== 'FREE') {
+      return false;
+    }
+
+    // Skip if user has unsubscribed from marketing emails
+    if (attempt.user.unsubscribedFromMarketing) {
       return false;
     }
 
@@ -132,6 +138,9 @@ export async function sendNurtureEmails(): Promise<NurtureStats> {
         createdAt: {
           gte: oneDayAgo,
           lte: oneHourAgo, // Wait at least 1 hour before sending
+        },
+        user: {
+          unsubscribedFromMarketing: false, // Respect unsubscribe preference
         },
       },
       include: {

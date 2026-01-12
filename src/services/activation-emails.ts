@@ -387,6 +387,7 @@ export async function processActivationEmails(): Promise<{
         },
         activatedAt: null, // Haven't sent any application yet
         activationEmailsSent: { lt: 4 }, // Haven't received all drip emails
+        unsubscribedFromMarketing: false, // Respect unsubscribe preference
       },
       include: {
         _count: {

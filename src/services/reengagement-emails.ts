@@ -226,6 +226,7 @@ async function getInactiveUsers(): Promise<InactiveUser[]> {
         lte: sevenDaysAgo,
       },
       emailVerified: { not: null }, // Only verified users
+      unsubscribedFromMarketing: false, // Respect unsubscribe preference
     },
     select: {
       id: true,

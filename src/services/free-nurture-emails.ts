@@ -431,6 +431,7 @@ export async function processFreeNurtureEmails(): Promise<{
       plan: 'FREE',
       emailVerified: { not: null },
       createdAt: { lte: oneDayAgo }, // At least 1 day old
+      unsubscribedFromMarketing: false, // Respect unsubscribe preference
     },
     select: {
       id: true,

@@ -373,6 +373,16 @@ export async function processAbandonedCheckoutEmails(): Promise<{
         continue;
       }
 
+      // Check if user has unsubscribed from marketing emails
+      const user = await prisma.user.findUnique({
+        where: { email: session.email },
+        select: { unsubscribedFromMarketing: true },
+      });
+      if (user?.unsubscribedFromMarketing) {
+        stats.skipped++;
+        continue;
+      }
+
       const emailType = getEmailTypeForHours(session.hoursSinceCreated);
       if (!emailType) {
         // Not a time we send emails
