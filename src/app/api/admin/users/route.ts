@@ -82,6 +82,13 @@ export async function GET(request: NextRequest) {
             frequency: true,
             isActive: true,
             createdAt: true,
+            languagePairs: {
+              select: {
+                translationType: true,
+                sourceLanguage: true,
+                targetLanguage: true,
+              },
+            },
             _count: {
               select: {
                 notifications: true,

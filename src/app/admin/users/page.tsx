@@ -26,6 +26,12 @@ import {
   Send,
 } from 'lucide-react';
 
+interface LanguagePair {
+  translationType: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+}
+
 interface JobAlert {
   id: string;
   category: string | null;
@@ -33,6 +39,7 @@ interface JobAlert {
   frequency: string;
   isActive: boolean;
   createdAt: string;
+  languagePairs: LanguagePair[];
   _count: {
     notifications: number;
   };
@@ -606,6 +613,16 @@ export default function UsersPage() {
                                     <p className="text-muted-foreground mt-1">
                                       Keywords: {alert.keywords}
                                     </p>
+                                  )}
+                                  {alert.languagePairs && alert.languagePairs.length > 0 && (
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                      {alert.languagePairs.map((lp, idx) => (
+                                        <Badge key={idx} variant="outline" className="text-xs">
+                                          {lp.sourceLanguage} → {lp.targetLanguage}
+                                          {lp.translationType !== 'TRANSLATION' && ` (${lp.translationType.toLowerCase()})`}
+                                        </Badge>
+                                      ))}
+                                    </div>
                                   )}
                                   <div className="flex items-center gap-2 mt-1 text-muted-foreground">
                                     <Mail className="h-3 w-3" />
