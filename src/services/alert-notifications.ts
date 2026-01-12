@@ -979,7 +979,7 @@ function checkJobMatchesAlert(
   }
 
   // Language pairs filter - if alert has language pairs, it's for translators
-  // Must match translation category AND have matching language pair
+  // Must match translation category AND have at least one matching language
   if (alert.languagePairs.length > 0) {
     // Alerts with language pairs should ONLY match translation jobs
     if (job.category.slug !== 'translation') {
@@ -999,27 +999,50 @@ function checkJobMatchesAlert(
 
     // If job has languages but no English, assume English is implicit
     // (e.g., sourceLanguages: ['NL'] means EN<->NL)
-    // (e.g., sourceLanguages: ['ES', 'FR'] means EN<->ES, EN<->FR)
     if (!jobLanguages.has('EN')) {
       jobLanguages.add('EN');
     }
 
-    // Check if job has at least one matching language pair
-    const hasMatchingPair = alert.languagePairs.some((alertPair) => {
-      const typeMatch =
-        job.translationTypes.length === 0 ||
-        job.translationTypes.includes(alertPair.translationType);
+    // Extract user's languages from alert pairs (excluding EN)
+    // User selects languages like [ES, RU], stored as pairs EN->ES, EN->RU
+    const userLanguages = new Set<string>();
+    for (const pair of alert.languagePairs) {
+      if (pair.sourceLanguage !== 'EN') userLanguages.add(pair.sourceLanguage);
+      if (pair.targetLanguage !== 'EN') userLanguages.add(pair.targetLanguage);
+    }
 
-      // Both languages from alert pair must be in job's language set
-      const langMatch =
-        jobLanguages.has(alertPair.sourceLanguage) &&
-        jobLanguages.has(alertPair.targetLanguage);
+    // Collect non-EN languages from the job
+    const jobNonEnLanguages = new Set<string>();
+    for (const lang of job.sourceLanguages) {
+      if (lang !== 'EN') jobNonEnLanguages.add(lang);
+    }
+    for (const lang of job.targetLanguages) {
+      if (lang !== 'EN') jobNonEnLanguages.add(lang);
+    }
 
-      return typeMatch && langMatch;
-    });
+    // Determine matching strategy based on job structure:
+    // - If sourceLanguages only has EN (or empty) → multilingual job, user needs ANY target language
+    // - If sourceLanguages has non-EN → specific pair job, user needs ALL non-EN languages
+    const hasNonEnSource = job.sourceLanguages.some((l) => l !== 'EN');
 
-    if (!hasMatchingPair) {
-      return false;
+    if (hasNonEnSource) {
+      // Specific language pair job (e.g., FR->ES Interpreter, or RU-PL-NE Medical Interpreter)
+      // User must know ALL non-EN languages in the job
+      const hasAllLanguages = Array.from(jobNonEnLanguages).every((lang) =>
+        userLanguages.has(lang)
+      );
+      if (!hasAllLanguages) {
+        return false;
+      }
+    } else {
+      // Multilingual job (src=[EN], tgt=[many]) - user needs ANY of the target languages
+      // e.g., job has EN->ES, EN->RU, EN->DE - user with ES should match
+      const hasAnyLanguage = Array.from(jobNonEnLanguages).some((lang) =>
+        userLanguages.has(lang)
+      );
+      if (!hasAnyLanguage) {
+        return false;
+      }
     }
   }
 
