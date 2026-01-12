@@ -986,21 +986,36 @@ function checkJobMatchesAlert(
       return false;
     }
 
+    // Collect all languages from the job
+    const jobLanguages = new Set([
+      ...job.sourceLanguages,
+      ...job.targetLanguages,
+    ]);
+
+    // If job has no languages at all, don't match language-specific alerts
+    if (jobLanguages.size === 0) {
+      return false;
+    }
+
+    // If job has languages but no English, assume English is implicit
+    // (e.g., sourceLanguages: ['NL'] means EN<->NL)
+    // (e.g., sourceLanguages: ['ES', 'FR'] means EN<->ES, EN<->FR)
+    if (!jobLanguages.has('EN')) {
+      jobLanguages.add('EN');
+    }
+
     // Check if job has at least one matching language pair
     const hasMatchingPair = alert.languagePairs.some((alertPair) => {
       const typeMatch =
         job.translationTypes.length === 0 ||
         job.translationTypes.includes(alertPair.translationType);
 
-      const sourceMatch =
-        job.sourceLanguages.length === 0 ||
-        job.sourceLanguages.includes(alertPair.sourceLanguage);
+      // Both languages from alert pair must be in job's language set
+      const langMatch =
+        jobLanguages.has(alertPair.sourceLanguage) &&
+        jobLanguages.has(alertPair.targetLanguage);
 
-      const targetMatch =
-        job.targetLanguages.length === 0 ||
-        job.targetLanguages.includes(alertPair.targetLanguage);
-
-      return typeMatch && sourceMatch && targetMatch;
+      return typeMatch && langMatch;
     });
 
     if (!hasMatchingPair) {
