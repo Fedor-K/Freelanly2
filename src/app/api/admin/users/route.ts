@@ -91,7 +91,9 @@ export async function GET(request: NextRequest) {
             },
             _count: {
               select: {
-                notifications: true,
+                notifications: {
+                  where: { status: 'SENT' },
+                },
               },
             },
           },
