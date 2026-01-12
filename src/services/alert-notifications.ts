@@ -404,8 +404,8 @@ export async function sendAlertNotifications(
       failed++;
     }
 
-    // Small delay to avoid rate limiting
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Delay to respect Resend rate limit (2 req/sec)
+    await new Promise((resolve) => setTimeout(resolve, 600));
   }
 
   console.log(
@@ -803,8 +803,8 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
       console.error(`[InstantAlerts] Failed to send jobs to ${email}: ${result.error}`);
     }
 
-    // Small delay between sends
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Delay between sends (Resend free tier: 2 req/sec limit)
+    await new Promise((resolve) => setTimeout(resolve, 600));
   }
 
   // Send ONE email per user with all their pending OPPORTUNITIES
@@ -854,8 +854,8 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
       console.error(`[InstantAlerts] Failed to send opportunities to ${email}: ${result.error}`);
     }
 
-    // Small delay between sends
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Delay between sends (Resend free tier: 2 req/sec limit)
+    await new Promise((resolve) => setTimeout(resolve, 600));
   }
 
   // Mark all processed notifications as SENT (including failed ones to prevent infinite retries)
