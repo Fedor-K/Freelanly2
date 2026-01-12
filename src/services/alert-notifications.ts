@@ -891,9 +891,9 @@ async function sendOpportunityAlertNotification(params: {
 
   const unsubscribeUrl = `${APP_URL}/api/user/alerts/${alertId}/unsubscribe`;
 
-  // Generate subject line
+  // Generate subject line (don't include client name - may be personal)
   const subject = opportunities.length === 1
-    ? `🎯 ${opportunities[0].title} — Freelance Project from ${opportunities[0].clientName}`
+    ? `🎯 ${opportunities[0].title} — Freelance Project`
     : `🎯 ${opportunities.length} new freelance projects for you`;
 
   const html = generateOpportunityAlertEmailHtml(opportunities, category, unsubscribeUrl);
