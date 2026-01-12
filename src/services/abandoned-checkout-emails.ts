@@ -92,7 +92,7 @@ function getEmailContent(
   </div>
   <div class="footer">
     <p><a href="https://freelanly.com">Freelanly</a> — Remote Jobs for Professionals</p>
-    <p><a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
+    <p><a href="https://freelanly.com/dashboard/alerts" style="color: #666;">Manage job alerts</a> | <a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
   </div>
 </div>
 </body>
@@ -136,7 +136,7 @@ function getEmailContent(
   </div>
   <div class="footer">
     <p><a href="https://freelanly.com">Freelanly</a> — Remote Jobs for Professionals</p>
-    <p><a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
+    <p><a href="https://freelanly.com/dashboard/alerts" style="color: #666;">Manage job alerts</a> | <a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
   </div>
 </div>
 </body>
@@ -187,7 +187,7 @@ function getEmailContent(
   </div>
   <div class="footer">
     <p><a href="https://freelanly.com">Freelanly</a> — Remote Jobs for Professionals</p>
-    <p><a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
+    <p><a href="https://freelanly.com/dashboard/alerts" style="color: #666;">Manage job alerts</a> | <a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
   </div>
 </div>
 </body>

@@ -207,7 +207,7 @@ function generateActivationEmailHtml(
             <td style="padding: 20px 30px; background: #f9f9f9; border-radius: 0 0 12px 12px; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #666;">
                 You're receiving this because you have a PRO subscription on <a href="${APP_URL}" style="color: #666;">Freelanly</a>.
-                ${email ? `<br><a href="${getUnsubscribeUrl(email)}" style="color: #666;">Unsubscribe</a>` : ''}
+                ${email ? `<br><a href="${APP_URL}/dashboard/alerts" style="color: #666;">Manage job alerts</a> | <a href="${getUnsubscribeUrl(email)}" style="color: #666;">Unsubscribe</a>` : ''}
               </p>
             </td>
           </tr>

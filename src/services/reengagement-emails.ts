@@ -92,7 +92,7 @@ function getReengagementEmailContent(
   </div>
   <div class="footer">
     <p>You're receiving this because you have an account at <a href="https://freelanly.com">Freelanly</a>.</p>
-    <p><a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
+    <p><a href="https://freelanly.com/dashboard/alerts" style="color: #666;">Manage job alerts</a> | <a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
   </div>
 </div>
 </body>
@@ -133,7 +133,7 @@ function getReengagementEmailContent(
   </div>
   <div class="footer">
     <p>You're receiving this because you have an account at <a href="https://freelanly.com">Freelanly</a>.</p>
-    <p><a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
+    <p><a href="https://freelanly.com/dashboard/alerts" style="color: #666;">Manage job alerts</a> | <a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
   </div>
 </div>
 </body>
@@ -184,7 +184,7 @@ function getReengagementEmailContent(
   </div>
   <div class="footer">
     <p>You're receiving this because you have an account at <a href="https://freelanly.com">Freelanly</a>.</p>
-    <p>This is our last re-engagement email. <a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
+    <p>This is our last re-engagement email. <a href="https://freelanly.com/dashboard/alerts">Manage job alerts</a> | <a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
   </div>
 </div>
 </body>

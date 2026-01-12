@@ -314,7 +314,7 @@ function generateNurtureEmailHtml(params: {
     <div class="footer">
       <p>You're receiving this because you tried to apply to a job on Freelanly.</p>
       <p><a href="${params.pricingUrl}">Start your free trial</a> or <a href="https://freelanly.com/dashboard/settings">manage your email preferences</a>.</p>
-      <p><a href="${getUnsubscribeUrl(params.email)}" style="color: #666;">Unsubscribe</a></p>
+      <p><a href="https://freelanly.com/dashboard/alerts" style="color: #666;">Manage job alerts</a> | <a href="${getUnsubscribeUrl(params.email)}" style="color: #666;">Unsubscribe</a></p>
     </div>
   </div>
 </body>

@@ -79,7 +79,7 @@ function getWinbackEmailContent(
   </div>
   <div class="footer">
     <p>You're receiving this because you were previously a PRO member at <a href="https://freelanly.com">Freelanly</a>.</p>
-    <p><a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe from these emails</a></p>
+    <p><a href="https://freelanly.com/dashboard/alerts">Manage job alerts</a> | <a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
   </div>
 </div>
 </body>
@@ -129,7 +129,7 @@ function getWinbackEmailContent(
   </div>
   <div class="footer">
     <p>You're receiving this because you were previously a PRO member at <a href="https://freelanly.com">Freelanly</a>.</p>
-    <p><a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe from these emails</a></p>
+    <p><a href="https://freelanly.com/dashboard/alerts">Manage job alerts</a> | <a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
   </div>
 </div>
 </body>
@@ -180,7 +180,7 @@ function getWinbackEmailContent(
   </div>
   <div class="footer">
     <p>You're receiving this because you were previously a PRO member at <a href="https://freelanly.com">Freelanly</a>.</p>
-    <p>This is our last email. <a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
+    <p>This is our last email. <a href="https://freelanly.com/dashboard/alerts">Manage job alerts</a> | <a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
   </div>
 </div>
 </body>
