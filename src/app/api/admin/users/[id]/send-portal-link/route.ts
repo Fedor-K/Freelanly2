@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { createPortalSession } from '@/lib/stripe';
-import { sendApplicationEmail } from '@/lib/resend';
+import { sendApplicationEmail } from '@/lib/dashamail';
 
 interface RouteContext {
   params: Promise<{ id: string }>;

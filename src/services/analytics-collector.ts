@@ -10,7 +10,7 @@
 
 import { prisma } from '@/lib/db';
 import { getMetrikaLastNDays, testMetrikaConnection, type MetrikaStats } from '@/lib/yandex-metrika-api';
-import { getEmailMarketingStats, testDashaMailConnection, type SubscriberStats, type EmailCampaignStats } from '@/lib/resend';
+import { getEmailMarketingStats, testDashaMailConnection, type SubscriberStats, type EmailCampaignStats } from '@/lib/dashamail';
 import { fetchAnalyticsFromSheet, getAnalyticsSheetId, type AnalyticsData } from '@/lib/google-sheets';
 
 // ============================================
