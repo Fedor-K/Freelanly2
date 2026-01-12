@@ -129,9 +129,14 @@ async function findMatchingJobs(
     });
   }
 
-  // Filter by language pairs for translation category
-  if (alert.category === 'translation' && alert.languagePairs.length > 0) {
+  // Filter by language pairs - alerts with language pairs are for translators only
+  if (alert.languagePairs.length > 0) {
     filteredJobs = filteredJobs.filter((job) => {
+      // Alerts with language pairs should ONLY match translation jobs
+      if (job.category.slug !== 'translation') {
+        return false;
+      }
+
       // Check if job has any matching language pair
       return alert.languagePairs.some((alertPair) => {
         // Check translation type match (if job has translation types)

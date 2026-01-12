@@ -978,8 +978,15 @@ function checkJobMatchesAlert(
     }
   }
 
-  // Language pairs filter for translation category
-  if (alert.category === 'translation' && alert.languagePairs.length > 0) {
+  // Language pairs filter - if alert has language pairs, it's for translators
+  // Must match translation category AND have matching language pair
+  if (alert.languagePairs.length > 0) {
+    // Alerts with language pairs should ONLY match translation jobs
+    if (job.category.slug !== 'translation') {
+      return false;
+    }
+
+    // Check if job has at least one matching language pair
     const hasMatchingPair = alert.languagePairs.some((alertPair) => {
       const typeMatch =
         job.translationTypes.length === 0 ||
