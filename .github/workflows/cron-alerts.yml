@@ -1,18 +1,150 @@
-name: Process Instant Alerts
+name: Freelanly Cron Jobs
 
 on:
   schedule:
-    # Every 5 minutes
+    # Every 5 minutes - process instant alerts
     - cron: '*/5 * * * *'
-  workflow_dispatch: # Manual trigger
+
+    # 3x daily at 6:00, 14:00, 22:00 UTC - fetch job sources
+    - cron: '0 6,14,22 * * *'
+
+    # Hourly - trial emails, activation emails
+    - cron: '0 * * * *'
+
+    # Every 15 minutes - post to social
+    - cron: '*/15 * * * *'
+
+    # Daily at 7:00 UTC - nurture emails
+    - cron: '0 7 * * *'
+
+    # Daily at 10:00 UTC - winback emails
+    - cron: '0 10 * * *'
+
+    # Daily at 8:00 UTC - reengagement, abandoned checkout
+    - cron: '0 8 * * *'
+
+    # Weekly Sunday 3:00 UTC - discover new companies
+    - cron: '0 3 * * 0'
+
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Which job to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - process-instant-alerts
+          - fetch-sources
+          - trial-emails
+          - winback-emails
 
 jobs:
-  process-alerts:
+  # Every 5 minutes
+  process-instant-alerts:
     runs-on: ubuntu-latest
+    if: github.event.schedule == '*/5 * * * *' || github.event.inputs.job == 'process-instant-alerts' || github.event.inputs.job == 'all'
     steps:
       - name: Process instant alert queue
         run: |
           curl -X POST "https://freelanly.com/api/cron/process-instant-alerts" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            -H "Content-Type: application/json" \
-            --fail --silent --show-error
+            --fail --silent --show-error || true
+
+  # 3x daily - fetch sources
+  fetch-sources:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 6,14,22 * * *' || github.event.inputs.job == 'fetch-sources' || github.event.inputs.job == 'all'
+    steps:
+      - name: Fetch job sources
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/fetch-sources" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail --silent --show-error || true
+
+  # Hourly emails
+  hourly-emails:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 * * * *'
+    steps:
+      - name: Send trial emails
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/send-trial-emails" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail --silent --show-error || true
+      - name: Send activation emails
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/send-activation-emails" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail --silent --show-error || true
+
+  # Every 15 minutes - social
+  post-to-social:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '*/15 * * * *'
+    steps:
+      - name: Post to social
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/post-to-social" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail --silent --show-error || true
+
+  # Daily at 7:00 - nurture
+  daily-nurture:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 7 * * *'
+    steps:
+      - name: Send nurture emails
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/send-nurture" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail --silent --show-error || true
+      - name: Send free nurture emails
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/send-free-nurture" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail --silent --show-error || true
+
+  # Daily at 10:00 - winback
+  daily-winback:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 10 * * *'
+    steps:
+      - name: Send winback emails
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/send-winback-emails" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail --silent --show-error || true
+
+  # Daily at 8:00 - reengagement & abandoned checkout
+  daily-reengagement:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 8 * * *'
+    steps:
+      - name: Send reengagement emails
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/send-reengagement-emails" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail --silent --show-error || true
+      - name: Send abandoned checkout emails
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/send-abandoned-checkout-emails" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail --silent --show-error || true
+
+  # Weekly Sunday - discover companies
+  weekly-discover:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 3 * * 0'
+    steps:
+      - name: Discover Lever companies
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/discover-lever" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail --silent --show-error || true
+      - name: Discover Greenhouse companies
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/discover-greenhouse" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail --silent --show-error || true
