@@ -23,6 +23,21 @@ interface MatchedJob {
   postedAt: Date;
 }
 
+interface MatchedOpportunity {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  clientName: string;
+  clientAvatar: string | null;
+  country: string | null;
+  level: string;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  salaryCurrency: string | null;
+  postedAt: Date;
+}
+
 /**
  * Generate HTML for job alert email
  */
@@ -171,6 +186,150 @@ function generateJobAlertEmailText(
   const footer = `\n---\nManage your alerts: ${APP_URL}/dashboard/alerts`;
 
   return header + jobList + footer;
+}
+
+/**
+ * Generate HTML for opportunity alert email
+ */
+function generateOpportunityAlertEmailHtml(
+  opportunities: MatchedOpportunity[],
+  alertCategory: string | null,
+  unsubscribeUrl: string
+): string {
+  const categoryName = alertCategory
+    ? alertCategory.charAt(0).toUpperCase() + alertCategory.slice(1)
+    : 'All Categories';
+
+  const opportunityCards = opportunities
+    .map((opp) => {
+      const oppUrl = `${APP_URL}/freelance/${opp.slug}`;
+      const salary =
+        opp.salaryMin && opp.salaryMax
+          ? `${opp.salaryCurrency || '$'}${opp.salaryMin} - ${opp.salaryMax}/hr`
+          : opp.salaryMin
+            ? `From ${opp.salaryCurrency || '$'}${opp.salaryMin}/hr`
+            : null;
+
+      return `
+        <tr>
+          <td style="padding: 20px; border-bottom: 1px solid #eee;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td width="60" valign="top">
+                  ${
+                    opp.clientAvatar
+                      ? `<img src="${opp.clientAvatar}" alt="${opp.clientName}" width="50" height="50" style="border-radius: 50%; object-fit: cover;">`
+                      : `<div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #666;">${opp.clientName.charAt(0)}</div>`
+                  }
+                </td>
+                <td style="padding-left: 15px;">
+                  <a href="${oppUrl}" style="color: #000; text-decoration: none; font-weight: 600; font-size: 16px;">
+                    ${opp.title}
+                  </a>
+                  <div style="color: #666; font-size: 14px; margin-top: 4px;">
+                    ${opp.clientName}${opp.country ? ` • ${opp.country}` : ''} • Freelance
+                  </div>
+                  ${salary ? `<div style="color: #22c55e; font-size: 14px; margin-top: 4px;">${salary}</div>` : ''}
+                  <div style="margin-top: 10px;">
+                    <a href="${oppUrl}" style="display: inline-block; background: #000; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
+                      View Project
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #f9fafb;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 30px; text-align: center; border-bottom: 1px solid #eee;">
+              <h1 style="margin: 0; font-size: 24px; color: #000;">
+                🎯 New Freelance Projects for You
+              </h1>
+              <p style="margin: 10px 0 0; color: #666; font-size: 14px;">
+                ${opportunities.length} new ${categoryName} project${opportunities.length > 1 ? 's' : ''} matching your alert
+              </p>
+            </td>
+          </tr>
+
+          <!-- Opportunity Cards -->
+          ${opportunityCards}
+
+          <!-- View All Button -->
+          <tr>
+            <td style="padding: 30px; text-align: center;">
+              <a href="${APP_URL}/freelance" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 500;">
+                View All Projects
+              </a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 20px 30px; background: #f9fafb; border-radius: 0 0 12px 12px; text-align: center;">
+              <p style="margin: 0; color: #666; font-size: 12px;">
+                You're receiving this because you set up a job alert on Freelanly.
+              </p>
+              <p style="margin: 10px 0 0;">
+                <a href="${unsubscribeUrl}" style="color: #666; font-size: 12px;">
+                  Unsubscribe from this alert
+                </a>
+                &nbsp;•&nbsp;
+                <a href="${APP_URL}/dashboard/alerts" style="color: #666; font-size: 12px;">
+                  Manage alerts
+                </a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+/**
+ * Generate plain text version of opportunity email
+ */
+function generateOpportunityAlertEmailText(
+  opportunities: MatchedOpportunity[],
+  alertCategory: string | null
+): string {
+  const categoryName = alertCategory || 'All Categories';
+  const header = `🎯 New Freelance Projects for You\n${opportunities.length} new ${categoryName} projects matching your alert\n\n`;
+
+  const oppList = opportunities
+    .map((opp) => {
+      const oppUrl = `${APP_URL}/freelance/${opp.slug}`;
+      const salary =
+        opp.salaryMin && opp.salaryMax
+          ? `${opp.salaryCurrency || '$'}${opp.salaryMin} - ${opp.salaryMax}/hr`
+          : '';
+      return `${opp.title}\n${opp.clientName}${opp.country ? ` • ${opp.country}` : ''} • Freelance${salary ? ` • ${salary}` : ''}\n${oppUrl}\n`;
+    })
+    .join('\n');
+
+  const footer = `\n---\nManage your alerts: ${APP_URL}/dashboard/alerts`;
+
+  return header + oppList + footer;
 }
 
 /**
@@ -483,7 +642,7 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
 
   console.log(`[InstantAlerts] Batch ${batchId}: Claimed ${claimResult.count} notifications for processing`);
 
-  // Step 2: Fetch the claimed (PROCESSING) notifications
+  // Step 2: Fetch the claimed (PROCESSING) notifications - include both jobs AND opportunities
   const pendingNotifications = await prisma.alertNotification.findMany({
     where: {
       status: 'PROCESSING',
@@ -509,6 +668,15 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
           },
         },
       },
+      opportunity: {
+        include: {
+          category: {
+            select: {
+              slug: true,
+            },
+          },
+        },
+      },
       jobAlert: {
         include: {
           languagePairs: true,
@@ -527,16 +695,16 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
 
   console.log(`[InstantAlerts] Batch ${batchId}: Processing ${pendingNotifications.length} notifications`);
 
-  // Filter out notifications where job was deleted
-  const validNotifications = pendingNotifications.filter(n => n.job !== null);
+  // Filter out notifications where both job AND opportunity are deleted (orphaned)
+  const validNotifications = pendingNotifications.filter(n => n.job !== null || n.opportunity !== null);
 
   if (validNotifications.length < pendingNotifications.length) {
     const orphanedCount = pendingNotifications.length - validNotifications.length;
-    console.log(`[InstantAlerts] Skipping ${orphanedCount} notifications with deleted jobs`);
+    console.log(`[InstantAlerts] Skipping ${orphanedCount} orphaned notifications (deleted jobs/opportunities)`);
 
     // Mark orphaned notifications as SENT to clear them from queue
     const orphanedIds = pendingNotifications
-      .filter(n => n.job === null)
+      .filter(n => n.job === null && n.opportunity === null)
       .map(n => n.id);
 
     if (orphanedIds.length > 0) {
@@ -547,28 +715,35 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
     }
   }
 
-  // Group by user email
-  const notificationsByEmail = new Map<string, typeof validNotifications>();
+  // Separate into job notifications and opportunity notifications by email
+  const jobNotificationsByEmail = new Map<string, typeof validNotifications>();
+  const oppNotificationsByEmail = new Map<string, typeof validNotifications>();
 
   for (const notification of validNotifications) {
     const email = notification.jobAlert.email || notification.jobAlert.user?.email;
     if (!email) continue;
 
-    const existing = notificationsByEmail.get(email) || [];
-    existing.push(notification);
-    notificationsByEmail.set(email, existing);
+    if (notification.job !== null) {
+      const existing = jobNotificationsByEmail.get(email) || [];
+      existing.push(notification);
+      jobNotificationsByEmail.set(email, existing);
+    } else if (notification.opportunity !== null) {
+      const existing = oppNotificationsByEmail.get(email) || [];
+      existing.push(notification);
+      oppNotificationsByEmail.set(email, existing);
+    }
   }
 
   let sent = 0;
   let failed = 0;
   const processedIds: string[] = [];
 
-  // Send ONE email per user with all their pending jobs
-  for (const [email, notifications] of notificationsByEmail) {
+  // Send ONE email per user with all their pending JOBS
+  for (const [email, notifications] of jobNotificationsByEmail) {
     // Dedupe jobs (same job might match multiple alerts for same user)
-    const uniqueJobs = new Map<string, typeof notifications[0]['job']>();
+    const uniqueJobs = new Map<string, NonNullable<typeof notifications[0]['job']>>();
     for (const n of notifications) {
-      if (!uniqueJobs.has(n.job.id)) {
+      if (n.job && !uniqueJobs.has(n.job.id)) {
         uniqueJobs.set(n.job.id, n.job);
       }
     }
@@ -614,7 +789,6 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
     });
 
     // Always collect notification IDs to mark as processed
-    // This prevents notifications from being stuck in PROCESSING forever
     for (const n of notifications) {
       processedIds.push(n.id);
     }
@@ -624,7 +798,58 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
       console.log(`[InstantAlerts] Sent ${jobs.length} jobs to ${email}`);
     } else {
       failed++;
-      console.error(`[InstantAlerts] Failed to send to ${email}: ${result.error}`);
+      console.error(`[InstantAlerts] Failed to send jobs to ${email}: ${result.error}`);
+    }
+
+    // Small delay between sends
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  // Send ONE email per user with all their pending OPPORTUNITIES
+  for (const [email, notifications] of oppNotificationsByEmail) {
+    // Dedupe opportunities
+    const uniqueOpps = new Map<string, NonNullable<typeof notifications[0]['opportunity']>>();
+    for (const n of notifications) {
+      if (n.opportunity && !uniqueOpps.has(n.opportunity.id)) {
+        uniqueOpps.set(n.opportunity.id, n.opportunity);
+      }
+    }
+
+    const opportunities = Array.from(uniqueOpps.values());
+    const firstAlert = notifications[0].jobAlert;
+
+    // Send opportunity notification
+    const result = await sendOpportunityAlertNotification({
+      alertId: firstAlert.id,
+      email,
+      category: firstAlert.category,
+      opportunities: opportunities.map((opp) => ({
+        id: opp.id,
+        title: opp.title,
+        slug: opp.slug,
+        description: opp.description,
+        clientName: opp.clientName,
+        clientAvatar: opp.clientAvatar,
+        country: opp.country,
+        level: opp.level,
+        salaryMin: opp.salaryMin,
+        salaryMax: opp.salaryMax,
+        salaryCurrency: opp.salaryCurrency,
+        postedAt: opp.postedAt,
+      })),
+    });
+
+    // Always collect notification IDs to mark as processed
+    for (const n of notifications) {
+      processedIds.push(n.id);
+    }
+
+    if (result.success) {
+      sent++;
+      console.log(`[InstantAlerts] Sent ${opportunities.length} opportunities to ${email}`);
+    } else {
+      failed++;
+      console.error(`[InstantAlerts] Failed to send opportunities to ${email}: ${result.error}`);
     }
 
     // Small delay between sends
@@ -632,7 +857,6 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
   }
 
   // Mark all processed notifications as SENT (including failed ones to prevent infinite retries)
-  // Failed ones are logged above for manual review if needed
   if (processedIds.length > 0) {
     await prisma.alertNotification.updateMany({
       where: {
@@ -648,6 +872,53 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
   console.log(`[InstantAlerts] Batch ${batchId}: ${sent} emails sent, ${failed} failed, ${processedIds.length} notifications processed`);
 
   return { sent, failed, processed: processedIds.length };
+}
+
+/**
+ * Send email notification for opportunities
+ */
+async function sendOpportunityAlertNotification(params: {
+  alertId: string;
+  email: string;
+  category: string | null;
+  opportunities: MatchedOpportunity[];
+}): Promise<{ success: boolean; error?: string }> {
+  const { alertId, email, category, opportunities } = params;
+
+  if (opportunities.length === 0) {
+    return { success: true };
+  }
+
+  const unsubscribeUrl = `${APP_URL}/api/user/alerts/${alertId}/unsubscribe`;
+
+  // Generate subject line
+  const subject = opportunities.length === 1
+    ? `🎯 ${opportunities[0].title} — Freelance Project from ${opportunities[0].clientName}`
+    : `🎯 ${opportunities.length} new freelance projects for you`;
+
+  const html = generateOpportunityAlertEmailHtml(opportunities, category, unsubscribeUrl);
+  const text = generateOpportunityAlertEmailText(opportunities, category);
+
+  try {
+    const result = await sendApplicationEmail({
+      to: email,
+      subject,
+      html,
+      text,
+    });
+
+    if (result.success) {
+      console.log(`[AlertNotifications] Sent ${opportunities.length} opportunities to ${email}`);
+      return { success: true };
+    } else {
+      const errorMsg = typeof result.error === 'object' ? JSON.stringify(result.error) : result.error;
+      console.error(`[AlertNotifications] Failed to send opportunities to ${email}: ${errorMsg}`);
+      return { success: false, error: errorMsg };
+    }
+  } catch (error) {
+    console.error(`[AlertNotifications] Error sending opportunities to ${email}:`, error);
+    return { success: false, error: String(error) };
+  }
 }
 
 /**
