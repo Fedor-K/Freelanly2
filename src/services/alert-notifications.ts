@@ -640,13 +640,15 @@ export const sendInstantAlertsForOpportunity = queueInstantAlertsForOpportunity;
  * 2. Process only claimed notifications
  * 3. Mark as SENT after successful send
  */
+// Maximum notifications to process per batch (to avoid Vercel timeout)
+const BATCH_LIMIT = 50;
+
 export async function processInstantAlertQueue(): Promise<{ sent: number; failed: number; processed: number }> {
   // Generate a unique batch ID for this processing run
   const batchId = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-  // Step 1: Atomically claim PENDING notifications by marking them as PROCESSING
-  // This prevents other concurrent processes from processing the same notifications
-  const claimResult = await prisma.alertNotification.updateMany({
+  // Step 1: Find a limited number of PENDING notification IDs to claim
+  const pendingIds = await prisma.alertNotification.findMany({
     where: {
       status: 'PENDING',
       jobAlert: {
@@ -654,26 +656,41 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
         isActive: true,
       },
     },
+    select: { id: true },
+    take: BATCH_LIMIT,
+    orderBy: { createdAt: 'asc' }, // Process oldest first
+  });
+
+  if (pendingIds.length === 0) {
+    console.log(`[InstantAlerts] No pending notifications in queue`);
+    return { sent: 0, failed: 0, processed: 0 };
+  }
+
+  const idsToProcess = pendingIds.map(n => n.id);
+
+  // Step 2: Atomically claim these specific notifications by marking them as PROCESSING
+  const claimResult = await prisma.alertNotification.updateMany({
+    where: {
+      id: { in: idsToProcess },
+      status: 'PENDING', // Double-check still PENDING (race condition protection)
+    },
     data: {
       status: 'PROCESSING',
     },
   });
 
   if (claimResult.count === 0) {
-    console.log(`[InstantAlerts] No pending notifications in queue`);
+    console.log(`[InstantAlerts] No notifications claimed (already processed by another instance)`);
     return { sent: 0, failed: 0, processed: 0 };
   }
 
-  console.log(`[InstantAlerts] Batch ${batchId}: Claimed ${claimResult.count} notifications for processing`);
+  console.log(`[InstantAlerts] Batch ${batchId}: Claimed ${claimResult.count} of ${pendingIds.length} notifications`);
 
-  // Step 2: Fetch the claimed (PROCESSING) notifications - include both jobs AND opportunities
+  // Step 3: Fetch the claimed notifications by ID - include both jobs AND opportunities
   const pendingNotifications = await prisma.alertNotification.findMany({
     where: {
+      id: { in: idsToProcess },
       status: 'PROCESSING',
-      jobAlert: {
-        frequency: 'INSTANT',
-        isActive: true,
-      },
     },
     include: {
       job: {
