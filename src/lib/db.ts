@@ -8,7 +8,15 @@ const globalForPrisma = globalThis as unknown as {
 const prismaClientSingleton = () => {
   const client = new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
   });
+
+  // Increase connection pool timeout
+  // Note: For Neon, add ?connection_limit=10&pool_timeout=30 to DATABASE_URL
 
   // Middleware: Auto-add estimated salary if missing when creating jobs
   client.$use(async (params, next) => {
