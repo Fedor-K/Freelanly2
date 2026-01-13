@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { siteConfig } from "@/config/site";
@@ -150,6 +151,7 @@ export default function RootLayout({
           <CookieConsentBanner />
         </SessionProvider>
         <AnalyticsScripts />
+        <Analytics />
         {/* JSON-LD Structured Data - placed in body per Google recommendations */}
         <script
           type="application/ld+json"
