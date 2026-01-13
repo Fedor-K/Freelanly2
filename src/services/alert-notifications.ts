@@ -405,7 +405,7 @@ export async function sendAlertNotifications(
     }
 
     // Delay to respect Resend rate limit (2 req/sec)
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
 
   console.log(
@@ -641,7 +641,8 @@ export const sendInstantAlertsForOpportunity = queueInstantAlertsForOpportunity;
  * 3. Mark as SENT after successful send
  */
 // Maximum notifications to process per batch (Vercel Pro: 60s timeout)
-const BATCH_LIMIT = 150;
+// 50 notifications × 200ms delay = ~10s, plus processing = ~30s total
+const BATCH_LIMIT = 50;
 
 export async function processInstantAlertQueue(): Promise<{ sent: number; failed: number; processed: number }> {
   // Generate a unique batch ID for this processing run
@@ -842,8 +843,8 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
       console.error(`[InstantAlerts] Failed to send jobs to ${email}: ${result.error}`);
     }
 
-    // Delay between sends (Resend free tier: 2 req/sec limit)
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    // Small delay between sends to avoid rate limits
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
 
   // Send ONE email per user with all their pending OPPORTUNITIES
@@ -893,8 +894,8 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
       console.error(`[InstantAlerts] Failed to send opportunities to ${email}: ${result.error}`);
     }
 
-    // Delay between sends (Resend free tier: 2 req/sec limit)
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    // Small delay between sends to avoid rate limits
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
 
   // Mark all processed notifications as SENT (including failed ones to prevent infinite retries)
