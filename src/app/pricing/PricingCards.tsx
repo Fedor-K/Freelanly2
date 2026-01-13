@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RegistrationModal } from '@/components/auth/RegistrationModal';
 import { PRICE_INFO, type PriceKey } from '@/lib/stripe';
+import { trackCheckoutStart, trackSignupStart, trackPricingView } from '@/lib/analytics';
 
 const plans: Array<{
   key: PriceKey;
@@ -30,10 +31,13 @@ export function PricingCards() {
     // If not logged in, show registration modal
     if (!session?.user) {
       setSelectedPlan(priceKey);
+      trackSignupStart('pricing');
       setShowRegistration(true);
       return;
     }
 
+    // Track checkout start
+    trackCheckoutStart({ plan: priceKey, source: 'pricing_page' });
     setLoading(priceKey);
 
     try {

@@ -2,7 +2,10 @@
  * Analytics Configuration
  *
  * Центральный файл для всех счётчиков и событий аналитики.
+ * Includes Vercel Analytics, Yandex.Metrika, and Google Analytics.
  */
+
+import { track as vercelTrack } from '@vercel/analytics';
 
 // ============================================
 // CONFIGURATION
@@ -86,6 +89,9 @@ export function track<E extends AnalyticsEvent>(event: E): void {
   if (typeof window === 'undefined') return;
 
   const { name, params } = event;
+
+  // Vercel Analytics (stored via Drains → PostgreSQL)
+  vercelTrack(name, params);
 
   // Яндекс.Метрика
   if (analyticsConfig.yandexMetrika.enabled && window.ym) {
@@ -199,4 +205,105 @@ export function identifyUser(userId: string, traits?: { email?: string; plan?: s
       ...traits,
     });
   }
+}
+
+// ============================================
+// VERCEL CUSTOM EVENTS HELPERS
+// ============================================
+
+/**
+ * Track Apply button click (for conversion tracking)
+ */
+export function trackApplyClick(data: {
+  jobId: string;
+  jobTitle?: string;
+  category?: string;
+  company?: string;
+  userPlan?: string;
+}): void {
+  track({
+    name: 'job_apply_click',
+    params: {
+      job_id: data.jobId,
+      method: 'email',
+    },
+  });
+  // Also send to Vercel directly for Drain
+  vercelTrack('apply_click', data);
+}
+
+/**
+ * Track signup start (registration modal opened)
+ */
+export function trackSignupStart(source: string): void {
+  vercelTrack('signup_start', { source });
+}
+
+/**
+ * Track signup complete
+ */
+export function trackSignupComplete(data: {
+  source: string;
+  categories?: string[];
+}): void {
+  vercelTrack('signup_complete', data);
+}
+
+/**
+ * Track upgrade button click
+ */
+export function trackUpgradeClick(data: {
+  source: string;
+  plan?: string;
+  jobId?: string;
+}): void {
+  track({
+    name: 'upgrade_click',
+    params: {
+      source: data.source as 'paywall' | 'pricing' | 'banner' | 'email',
+    },
+  });
+  vercelTrack('upgrade_click', data);
+}
+
+/**
+ * Track checkout started
+ */
+export function trackCheckoutStart(data: {
+  plan: string;
+  source: string;
+}): void {
+  vercelTrack('checkout_start', data);
+}
+
+/**
+ * Track job save
+ */
+export function trackJobSave(data: {
+  jobId: string;
+  category?: string;
+}): void {
+  track({
+    name: 'job_save',
+    params: { job_id: data.jobId },
+  });
+  vercelTrack('job_save', data);
+}
+
+/**
+ * Track job alert creation
+ */
+export function trackAlertCreate(data: {
+  category?: string;
+  hasKeywords: boolean;
+  hasLanguagePairs: boolean;
+}): void {
+  vercelTrack('alert_create', data);
+}
+
+/**
+ * Track pricing page view
+ */
+export function trackPricingView(source?: string): void {
+  vercelTrack('pricing_view', { source: source || 'direct' });
 }

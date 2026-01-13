@@ -1521,3 +1521,42 @@ enum ReengagementEmailType {
   DAY_14_INACTIVE
   DAY_30_INACTIVE
 }
+
+// ============================================
+// VERCEL ANALYTICS EVENTS (from Drains)
+// ============================================
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+
+  // Event info
+  name      String   // Event name: "apply_click", "signup", "upgrade_click", etc.
+
+  // Event properties (custom data)
+  properties Json?   // { jobId: "xxx", category: "engineering", source: "job_page" }
+
+  // Page info
+  path      String?  // "/company/netflix/jobs/senior-engineer"
+  referrer  String?  // Where user came from
+
+  // User identification (anonymous)
+  visitorId String?  // Vercel visitor hash (privacy-friendly)
+  sessionId String?  // Session identifier
+
+  // Geo & device
+  country   String?  // "US", "DE", etc.
+  city      String?
+  device    String?  // "desktop", "mobile", "tablet"
+  browser   String?  // "Chrome", "Safari", etc.
+  os        String?  // "macOS", "Windows", etc.
+
+  // Timestamps
+  timestamp DateTime // When event occurred (from Vercel)
+  createdAt DateTime @default(now())
+
+  @@index([name])
+  @@index([timestamp])
+  @@index([path])
+  @@index([visitorId])
+  @@index([name, timestamp])
+}

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { QuickApplyModal } from './QuickApplyModal';
 import { UpgradeModal } from './UpgradeModal';
 import { RegistrationModal } from '@/components/auth/RegistrationModal';
-import { track } from '@/lib/analytics';
+import { track, trackApplyClick, trackSignupStart, trackUpgradeClick } from '@/lib/analytics';
 
 export type UserPlan = 'FREE' | 'PRO' | 'ENTERPRISE';
 
@@ -39,6 +39,8 @@ export function ApplyButton({
 
   const handleApplyClick = (method: 'url' | 'email' | 'linkedin') => {
     track({ name: 'job_apply_click', params: { job_id: jobId, method } });
+    // Also track for Vercel Drains
+    trackApplyClick({ jobId, jobTitle, company: companyName, userPlan });
   };
 
   // Unauthenticated users see registration modal
@@ -50,6 +52,7 @@ export function ApplyButton({
           size="lg"
           onClick={() => {
             track({ name: 'registration_modal_open', params: { job_id: jobId } });
+            trackSignupStart('job_page');
             setShowRegistration(true);
           }}
         >
@@ -75,6 +78,7 @@ export function ApplyButton({
           size="lg"
           onClick={() => {
             track({ name: 'upgrade_modal_open', params: { job_id: jobId } });
+            trackUpgradeClick({ source: 'paywall', jobId });
             setShowUpgrade(true);
           }}
         >
