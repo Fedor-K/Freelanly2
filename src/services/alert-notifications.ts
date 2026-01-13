@@ -445,21 +445,32 @@ export async function queueInstantAlertsForJob(jobId: string): Promise<{ queued:
     return { queued: 0 };
   }
 
-  // Find all active INSTANT alerts (only for verified users who haven't unsubscribed)
+  // Find all active INSTANT alerts
+  // Include alerts with verified users OR alerts without linked user (email-only alerts)
   const instantAlerts = await prisma.jobAlert.findMany({
     where: {
       isActive: true,
       frequency: 'INSTANT',
-      user: {
-        emailVerified: { not: null }, // Only send to verified users
-        unsubscribedFromMarketing: false, // Respect unsubscribe preference
-      },
+      OR: [
+        // Alerts with linked verified user who hasn't unsubscribed
+        {
+          user: {
+            emailVerified: { not: null },
+            unsubscribedFromMarketing: false,
+          },
+        },
+        // Alerts without linked user (email-only, legacy)
+        {
+          userId: null,
+        },
+      ],
     },
     include: {
       languagePairs: true,
       user: {
         select: {
           email: true,
+          unsubscribedFromMarketing: true,
         },
       },
     },
@@ -539,21 +550,32 @@ export async function queueInstantAlertsForOpportunity(opportunityId: string): P
     return { queued: 0 };
   }
 
-  // Find all active INSTANT alerts (only for verified users who haven't unsubscribed)
+  // Find all active INSTANT alerts
+  // Include alerts with verified users OR alerts without linked user (email-only alerts)
   const instantAlerts = await prisma.jobAlert.findMany({
     where: {
       isActive: true,
       frequency: 'INSTANT',
-      user: {
-        emailVerified: { not: null },
-        unsubscribedFromMarketing: false, // Respect unsubscribe preference
-      },
+      OR: [
+        // Alerts with linked verified user who hasn't unsubscribed
+        {
+          user: {
+            emailVerified: { not: null },
+            unsubscribedFromMarketing: false,
+          },
+        },
+        // Alerts without linked user (email-only, legacy)
+        {
+          userId: null,
+        },
+      ],
     },
     include: {
       languagePairs: true,
       user: {
         select: {
           email: true,
+          unsubscribedFromMarketing: true,
         },
       },
     },
