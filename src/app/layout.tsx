@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { siteConfig } from "@/config/site";
 import { AnalyticsScripts } from "@/components/analytics/AnalyticsScripts";
 import { SessionProvider } from "@/components/providers/SessionProvider";
@@ -144,6 +145,7 @@ export default function RootLayout({
         <SessionProvider>
           <OnboardingRedirect />
           {children}
+          <Analytics />
           <ExitIntentPopup />
           <CookieConsentBanner />
         </SessionProvider>
