@@ -8,9 +8,15 @@
 import { prisma } from '@/lib/db';
 
 // Dynamic import for puppeteer to avoid build issues
+// Note: puppeteer is not available on Vercel serverless - this only works locally
 async function getPuppeteer() {
-  const puppeteer = await import('puppeteer');
-  return puppeteer.default;
+  try {
+    // @ts-expect-error - puppeteer may not be installed
+    const puppeteer = await import('puppeteer');
+    return puppeteer.default;
+  } catch {
+    throw new Error('Puppeteer is not available. This feature only works locally, not on Vercel.');
+  }
 }
 
 export interface DiscoveryProgress {
