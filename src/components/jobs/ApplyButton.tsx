@@ -56,7 +56,7 @@ export function ApplyButton({
             setShowRegistration(true);
           }}
         >
-          Apply Now — Free Trial
+          Sign Up to Apply
         </Button>
         <RegistrationModal
           open={showRegistration}
@@ -82,7 +82,7 @@ export function ApplyButton({
             setShowUpgrade(true);
           }}
         >
-          Start Free Trial & Apply
+          Upgrade to Apply
         </Button>
         <UpgradeModal
           open={showUpgrade}

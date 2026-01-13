@@ -178,13 +178,13 @@ function generateFreeNurtureEmailHtml(
           You've been browsing, but haven't applied yet. We get it - taking the first step is hard.
         </p>
         <p style="color: #333; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
-          <strong>Good news:</strong> Try PRO free for 2 days. Apply to unlimited jobs, get direct contact info, see full salary data.
+          <strong>Good news:</strong> Upgrade to PRO and apply to unlimited jobs, get direct contact info, see full salary data.
         </p>
         <p style="color: #333; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
-          No credit card required upfront. Cancel anytime.
+          From €0.39/day. Cancel anytime.
         </p>
       `;
-      ctaText = 'Start Free Trial';
+      ctaText = 'Upgrade to PRO';
       ctaUrl = `${APP_URL}/pricing?utm_source=free_nurture&utm_campaign=day7`;
       break;
   }
@@ -246,7 +246,7 @@ function generateFreeNurtureEmailHtml(
               </a>
               ${type === 'DAY_7' ? `
               <p style="margin: 20px 0 0; color: #666; font-size: 13px;">
-                2-day free trial · No credit card · Cancel anytime
+                From €0.39/day · Cancel anytime
               </p>
               ` : ''}
             </td>

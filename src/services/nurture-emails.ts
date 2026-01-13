@@ -253,7 +253,7 @@ function generateNurtureEmailHtml(params: {
   email: string;
 }): string {
   const introText = params.isImmediate
-    ? `You just found a great opportunity at ${params.companyName}. Start your free trial to apply:`
+    ? `You just found a great opportunity at ${params.companyName}. Upgrade to PRO to apply:`
     : `You found a great opportunity yesterday but couldn't apply. The job is still open:`;
 
   return `
@@ -304,7 +304,7 @@ function generateNurtureEmailHtml(params: {
       <div class="benefit"><span class="check">✓</span> Apply to unlimited jobs directly</div>
       <div class="benefit"><span class="check">✓</span> See direct contact info (emails, phones)</div>
       <div class="benefit"><span class="check">✓</span> Full salary insights with market data</div>
-      <div class="benefit"><span class="check">✓</span> 2-day free trial, cancel anytime</div>
+      <div class="benefit"><span class="check">✓</span> Cancel anytime, no commitment</div>
     </div>
 
     <p style="text-align: center;">
@@ -313,7 +313,7 @@ function generateNurtureEmailHtml(params: {
 
     <div class="footer">
       <p>You're receiving this because you tried to apply to a job on Freelanly.</p>
-      <p><a href="${params.pricingUrl}">Start your free trial</a> or <a href="https://freelanly.com/dashboard/settings">manage your email preferences</a>.</p>
+      <p><a href="${params.pricingUrl}">Upgrade to PRO</a> or <a href="https://freelanly.com/dashboard/settings">manage your email preferences</a>.</p>
       <p><a href="https://freelanly.com/dashboard/alerts" style="color: #666;">Manage job alerts</a> | <a href="${getUnsubscribeUrl(params.email)}" style="color: #666;">Unsubscribe</a></p>
     </div>
   </div>

@@ -2,7 +2,7 @@
  * Abandoned Checkout Email Sequence
  *
  * 1 hour   - "15% off + urgency" (code: QUICK15)
- * 24 hours - "Your free trial is waiting"
+ * 24 hours - "Complete your upgrade"
  * 3 days   - "Last chance + 20% off" (code: WELCOME20)
  */
 
@@ -65,7 +65,7 @@ function getEmailContent(
 
     <div class="offer-box" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">
       <h3>15% OFF</h3>
-      <p style="margin: 0; opacity: 0.9;">Your first month after free trial</p>
+      <p style="margin: 0; opacity: 0.9;">Your first month</p>
       <p style="margin: 10px 0 0; font-size: 18px;"><strong>Code: QUICK15</strong></p>
     </div>
 
@@ -85,7 +85,7 @@ function getEmailContent(
     </p>
 
     <p style="text-align: center; color: #666; font-size: 14px;">
-      2-day free trial included. Cancel anytime.
+      Cancel anytime. No commitment.
     </p>
 
     <p>Best,<br>The Freelanly Team</p>
@@ -101,7 +101,7 @@ function getEmailContent(
 
     case 'HOUR_24':
       return {
-        subject: 'Your 2-day free trial is waiting',
+        subject: 'Complete your Freelanly PRO upgrade',
         html: `
 <!DOCTYPE html>
 <html>
@@ -109,7 +109,7 @@ function getEmailContent(
 <body>
 <div class="container">
   <div class="header" style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);">
-    <h1>Your Free Trial Awaits</h1>
+    <h1>Your PRO Access Awaits</h1>
   </div>
   <div class="content">
     <p>Hi there,</p>
@@ -125,11 +125,11 @@ function getEmailContent(
     <p>Your competitors are already applying. Don't let the best opportunities slip away.</p>
 
     <p style="text-align: center;">
-      <a href="https://freelanly.com/pricing" class="button button-green">Start Free Trial — No Card Needed*</a>
+      <a href="https://freelanly.com/pricing" class="button button-green">Upgrade to PRO Now</a>
     </p>
 
     <p style="text-align: center; color: #666; font-size: 12px;">
-      *Card required but not charged for 2 days
+      From €0.39/day. Cancel anytime.
     </p>
 
     <p>Best,<br>The Freelanly Team</p>
@@ -158,19 +158,19 @@ function getEmailContent(
   <div class="content">
     <p>Hi there,</p>
 
-    <p>This is my last email about your Freelanly trial. I wanted to offer you something special:</p>
+    <p>This is my last email about Freelanly PRO. I wanted to offer you something special:</p>
 
     <div class="offer-box" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">
       <h3>20% OFF</h3>
-      <p style="margin: 0; opacity: 0.9;">Your first month after trial</p>
+      <p style="margin: 0; opacity: 0.9;">Your first month</p>
       <p style="margin: 10px 0 0; font-size: 14px; opacity: 0.8;">Use code: <strong>WELCOME20</strong></p>
     </div>
 
     <p>Here's the deal:</p>
     <ul>
-      <li>Start your <strong>2-day free trial</strong> today</li>
-      <li>If you love it, use code <strong>WELCOME20</strong> for 20% off</li>
-      <li>If not, cancel before day 2 — no charge</li>
+      <li>Upgrade to <strong>PRO</strong> today</li>
+      <li>Use code <strong>WELCOME20</strong> for 20% off your first month</li>
+      <li>Cancel anytime if it's not for you</li>
     </ul>
 
     <p style="text-align: center;">

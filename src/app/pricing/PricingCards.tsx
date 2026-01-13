@@ -150,10 +150,8 @@ export function PricingCards() {
                       </svg>
                       Processing...
                     </span>
-                  ) : info.hasTrial ? (
-                    'Start Free Trial'
                   ) : (
-                    'Select'
+                    'Get Started'
                   )}
                 </Button>
 

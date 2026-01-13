@@ -100,7 +100,7 @@ GOOGLE_CLIENT_SECRET=xxx
 | Apply to jobs | ❌ Blocked | ✅ Unlimited |
 | Contact info in descriptions | ❌ Hidden | ✅ Visible |
 
-**Pricing (EUR) — 2-day trial for Monthly:**
+**Pricing (EUR):**
 | Plan | Price | Per Day | Savings |
 |------|-------|---------|---------|
 | Monthly | €15/month | €0.50 | — |
