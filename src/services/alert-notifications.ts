@@ -640,8 +640,8 @@ export const sendInstantAlertsForOpportunity = queueInstantAlertsForOpportunity;
  * 2. Process only claimed notifications
  * 3. Mark as SENT after successful send
  */
-// Maximum notifications to process per batch (to avoid Vercel timeout)
-const BATCH_LIMIT = 50;
+// Maximum notifications to process per batch (Vercel Pro: 60s timeout)
+const BATCH_LIMIT = 150;
 
 export async function processInstantAlertQueue(): Promise<{ sent: number; failed: number; processed: number }> {
   // Generate a unique batch ID for this processing run
