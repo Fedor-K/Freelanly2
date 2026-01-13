@@ -9,7 +9,10 @@ import { prisma } from '@/lib/db';
  *
  * URL: https://freelanly.com/api/webhooks/vercel-analytics
  * Format: NDJSON
+ * Verification Secret: Set in env VERCEL_DRAIN_SECRET
  */
+
+const DRAIN_SECRET = process.env.VERCEL_DRAIN_SECRET || 'aP1GV1qbmZ3vYs3g8FWJK5aFtRAiafF5';
 
 // Vercel sends events in NDJSON format (newline-delimited JSON)
 interface VercelAnalyticsEvent {
@@ -45,6 +48,17 @@ interface VercelAnalyticsEvent {
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify the secret (Vercel sends it in x-vercel-signature or Authorization header)
+    const authHeader = request.headers.get('authorization');
+    const signature = request.headers.get('x-vercel-signature');
+
+    const providedSecret = authHeader?.replace('Bearer ', '') || signature;
+
+    if (providedSecret && providedSecret !== DRAIN_SECRET) {
+      console.error('[Vercel Analytics] Invalid secret');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Get the raw body
     const body = await request.text();
 
