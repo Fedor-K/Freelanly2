@@ -23,11 +23,9 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
-  // Allow Replit proxy domains
+  // Allowed dev origins (Vercel handles this automatically in production)
   allowedDevOrigins: [
-    'e142b007-0d8f-4274-a4fd-bfc0664f7ce3-00-i2kmu8tllt1d.janeway.replit.dev',
-    '.replit.dev',
-    '.replit.app',
+    'localhost:3000',
   ],
 
   // Image optimization

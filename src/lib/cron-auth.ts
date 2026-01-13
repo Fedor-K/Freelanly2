@@ -2,9 +2,10 @@ import { NextRequest } from 'next/server';
 
 /**
  * Validate cron request - supports multiple auth methods:
- * 1. Authorization: Bearer <CRON_SECRET> header (for external calls like curl)
- * 2. X-Replit-Cron header (for Replit scheduled tasks)
- * 3. Query parameter ?token=<CRON_SECRET> (fallback)
+ * 1. Authorization: Bearer <CRON_SECRET> header (for external calls, Vercel crons)
+ * 2. Vercel internal cron (checks CRON_SECRET from vercel.json)
+ * 3. X-Replit-Cron header (for Replit scheduled tasks)
+ * 4. Query parameter ?token=<CRON_SECRET> (fallback)
  */
 export function isCronAuthorized(request: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;
@@ -13,14 +14,22 @@ export function isCronAuthorized(request: NextRequest): boolean {
     return false;
   }
 
-  // Method 1: Standard Bearer token (for external calls like curl)
+  // Method 1: Standard Bearer token (for external calls like curl, Vercel crons)
   const authHeader = request.headers.get('authorization');
   if (authHeader === `Bearer ${cronSecret}`) {
     console.log('[Cron Auth] Authorized via Bearer token');
     return true;
   }
 
-  // Method 2: Query parameter (for Replit if header interpolation fails)
+  // Method 2: Vercel Cron - checks for x-vercel-cron-secret header
+  // Set CRON_SECRET in Vercel env vars and it will be passed in this header
+  const vercelCronSecret = request.headers.get('x-vercel-cron-secret');
+  if (vercelCronSecret === cronSecret) {
+    console.log('[Cron Auth] Authorized via Vercel cron secret');
+    return true;
+  }
+
+  // Method 3: Query parameter (fallback)
   const url = new URL(request.url);
   const token = url.searchParams.get('token');
   if (token === cronSecret) {
@@ -28,7 +37,7 @@ export function isCronAuthorized(request: NextRequest): boolean {
     return true;
   }
 
-  // Method 3: Replit internal cron header
+  // Method 4: Replit internal cron header
   // When Replit runs scheduled tasks, we trust the x-replit-cron header
   const replitCron = request.headers.get('x-replit-cron');
   if (replitCron === 'true') {
