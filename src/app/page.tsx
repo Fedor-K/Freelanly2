@@ -189,8 +189,10 @@ export default async function Home() {
         </section>
 
         {/* Social proof badges - under hero */}
-        <section className="container pb-16 flex justify-center">
-          <SenjaWidget widgetId="24bc3a5c-2627-4524-a823-e03915f222e5" />
+        <section className="container pb-16 text-center">
+          <div className="inline-block">
+            <SenjaWidget widgetId="24bc3a5c-2627-4524-a823-e03915f222e5" />
+          </div>
         </section>
 
         {/* Featured Jobs */}

@@ -27,7 +27,7 @@ export function SenjaWidget({ widgetId = DEFAULT_WIDGET_ID, className }: SenjaWi
       data-id={widgetId}
       data-mode="shadow"
       data-lazyload="false"
-      style={{ display: 'block', width: '100%' }}
+      style={{ display: 'block' }}
     />
   );
 }
