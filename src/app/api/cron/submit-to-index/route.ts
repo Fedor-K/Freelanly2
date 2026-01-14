@@ -39,7 +39,13 @@ async function getAccessToken(): Promise<string | null> {
   }
 }
 
-async function submitUrl(token: string, url: string): Promise<boolean> {
+interface SubmitResult {
+  success: boolean;
+  error?: string;
+  code?: number;
+}
+
+async function submitUrl(token: string, url: string): Promise<SubmitResult> {
   try {
     const res = await fetch('https://indexing.googleapis.com/v3/urlNotifications:publish', {
       method: 'POST',
@@ -50,9 +56,17 @@ async function submitUrl(token: string, url: string): Promise<boolean> {
       body: JSON.stringify({ url, type: 'URL_UPDATED' }),
     });
     const data = await res.json();
-    return !data.error;
-  } catch {
-    return false;
+
+    if (data.error) {
+      return {
+        success: false,
+        error: data.error.message || data.error.status,
+        code: data.error.code
+      };
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: String(e) };
   }
 }
 
@@ -114,20 +128,46 @@ export async function POST(request: NextRequest) {
 
   // Submit to Google Indexing API (static pages + RICH jobs only)
   let googleSubmitted = 0;
+  let googleFailed = 0;
+  const errors: Record<string, number> = {};
+
   for (const url of urls.slice(0, DAILY_LIMIT)) {
-    if (await submitUrl(token, url)) googleSubmitted++;
+    const result = await submitUrl(token, url);
+    if (result.success) {
+      googleSubmitted++;
+    } else {
+      googleFailed++;
+      const errorKey = result.error || 'unknown';
+      errors[errorKey] = (errors[errorKey] || 0) + 1;
+    }
     await new Promise(r => setTimeout(r, 100));
   }
+
+  // Log to database
+  await prisma.indexingLog.create({
+    data: {
+      provider: 'GOOGLE',
+      urlsCount: Math.min(urls.length, DAILY_LIMIT),
+      success: googleSubmitted,
+      failed: googleFailed,
+      error: Object.keys(errors).length > 0 ? JSON.stringify(errors) : null,
+    },
+  }).catch(err => console.error('[submit-to-index] Failed to log:', err));
 
   // Submit to IndexNow (Bing, Yandex, etc.) - static pages + ALL jobs
   const indexNowUrls = [...new Set([...urls, ...allJobUrls])]; // dedupe
   const indexNowResult = await submitToIndexNow(indexNowUrls);
 
+  console.log(`[submit-to-index] Google: ${googleSubmitted}/${urls.length} success, errors:`, errors);
+  console.log(`[submit-to-index] IndexNow: ${indexNowUrls.length} URLs`);
+
   return NextResponse.json({
     google: {
       submitted: googleSubmitted,
+      failed: googleFailed,
       total: Math.min(urls.length, DAILY_LIMIT),
       richJobsCount: richJobs.length,
+      errors,
     },
     indexNow: { success: indexNowResult.success, urls: indexNowUrls.length },
     totalUrls: indexNowUrls.length,

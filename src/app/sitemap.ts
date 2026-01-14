@@ -80,13 +80,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  // Pagination pages: /jobs?page=2 through /jobs?page=50
-  const jobsPaginationPages: MetadataRoute.Sitemap = Array.from({ length: 49 }, (_, i) => ({
-    url: `${baseUrl}/jobs?page=${i + 2}`,
-    lastModified: now,
-    changeFrequency: 'hourly' as const,
-    priority: 0.7,
-  }));
+  // NOTE: Pagination pages removed - robots.txt blocks ?page=* which conflicts with sitemap
+  // Google recommends not including URLs in sitemap that are blocked by robots.txt
 
   // Category pages: /jobs/[category]
   const categoryPages: MetadataRoute.Sitemap = categories.map((cat) => ({
@@ -238,21 +233,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: getSitemapPriority(opp.contentQuality),
     }));
 
-    const companies = await prisma.company.findMany({
+    // Only include companies that have at least 1 active job
+    // This prevents soft 404 pages (empty company pages) in sitemap
+    const companiesWithJobs = await prisma.company.findMany({
+      where: {
+        jobs: {
+          some: { isActive: true },
+        },
+      },
       select: { slug: true, updatedAt: true },
       take: 5000,
     });
 
-    // Company pages: /company/[slug]
-    companyPages = companies.map((company) => ({
+    // Company pages: /company/[slug] - only for companies with jobs
+    companyPages = companiesWithJobs.map((company) => ({
       url: `${baseUrl}/company/${company.slug}`,
       lastModified: company.updatedAt,
       changeFrequency: 'weekly' as const,
       priority: 0.6,
     }));
 
-    // Company jobs listing pages: /company/[slug]/jobs
-    companyJobsPages = companies.map((company) => ({
+    // Company jobs listing pages: /company/[slug]/jobs - only for companies with jobs
+    companyJobsPages = companiesWithJobs.map((company) => ({
       url: `${baseUrl}/company/${company.slug}/jobs`,
       lastModified: company.updatedAt,
       changeFrequency: 'daily' as const,
@@ -292,7 +294,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     ...staticPages,
-    ...jobsPaginationPages,
     ...categoryPages,
     ...categoryLevelPages,
     ...countryPages,

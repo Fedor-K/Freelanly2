@@ -26,6 +26,9 @@ on:
     # Weekly Sunday 3:00 UTC - discover new companies
     - cron: '0 3 * * 0'
 
+    # Daily at 5:00 UTC - submit to search engines (Google Indexing API + IndexNow)
+    - cron: '0 5 * * *'
+
   workflow_dispatch:
     inputs:
       job:
@@ -39,6 +42,7 @@ on:
           - fetch-sources
           - trial-emails
           - winback-emails
+          - submit-to-index
 
 jobs:
   # Every 2 hours
@@ -146,5 +150,16 @@ jobs:
       - name: Discover Greenhouse companies
         run: |
           curl -X POST "https://freelanly.com/api/cron/discover-greenhouse" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail --silent --show-error || true
+
+  # Daily at 5:00 UTC - submit to search engines
+  daily-submit-to-index:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 5 * * *' || github.event.inputs.job == 'submit-to-index' || github.event.inputs.job == 'all'
+    steps:
+      - name: Submit URLs to Google Indexing API and IndexNow
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/submit-to-index" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --fail --silent --show-error || true
