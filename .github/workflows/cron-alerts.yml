@@ -2,8 +2,8 @@ name: Freelanly Cron Jobs
 
 on:
   schedule:
-    # Every 5 minutes - process instant alerts
-    - cron: '*/5 * * * *'
+    # Every 2 hours - process instant alerts (batched for fewer emails)
+    - cron: '0 */2 * * *'
 
     # 3x daily at 6:00, 14:00, 22:00 UTC - fetch job sources
     - cron: '0 6,14,22 * * *'
@@ -41,10 +41,10 @@ on:
           - winback-emails
 
 jobs:
-  # Every 5 minutes
+  # Every 2 hours
   process-instant-alerts:
     runs-on: ubuntu-latest
-    if: github.event.schedule == '*/5 * * * *' || github.event.inputs.job == 'process-instant-alerts' || github.event.inputs.job == 'all'
+    if: github.event.schedule == '0 */2 * * *' || github.event.inputs.job == 'process-instant-alerts' || github.event.inputs.job == 'all'
     steps:
       - name: Process instant alert queue
         run: |
