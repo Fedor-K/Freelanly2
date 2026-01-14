@@ -2,8 +2,8 @@ name: Freelanly Cron Jobs
 
 on:
   schedule:
-    # Every 2 hours - process instant alerts (batched for fewer emails)
-    - cron: '0 */2 * * *'
+    # DISABLED: instant alerts - now handled by Replit cron only
+    # - cron: '0 */2 * * *'
 
     # 3x daily at 6:00, 14:00, 22:00 UTC - fetch job sources
     - cron: '0 6,14,22 * * *'
@@ -38,23 +38,24 @@ on:
         type: choice
         options:
           - all
-          - process-instant-alerts
           - fetch-sources
           - trial-emails
           - winback-emails
           - submit-to-index
 
 jobs:
-  # Every 2 hours
-  process-instant-alerts:
-    runs-on: ubuntu-latest
-    if: github.event.schedule == '0 */2 * * *' || github.event.inputs.job == 'process-instant-alerts' || github.event.inputs.job == 'all'
-    steps:
-      - name: Process instant alert queue
-        run: |
-          curl -X POST "https://freelanly.com/api/cron/process-instant-alerts" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            --fail --silent --show-error || true
+  # DISABLED - instant alerts now handled by Replit cron only (every 5 min)
+  # to prevent duplicate emails from multiple cron sources
+  #
+  # process-instant-alerts:
+  #   runs-on: ubuntu-latest
+  #   if: github.event.schedule == '0 */2 * * *' || github.event.inputs.job == 'process-instant-alerts' || github.event.inputs.job == 'all'
+  #   steps:
+  #     - name: Process instant alert queue
+  #       run: |
+  #         curl -X POST "https://freelanly.com/api/cron/process-instant-alerts" \
+  #           -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+  #           --fail --silent --show-error || true
 
   # 3x daily - fetch sources
   fetch-sources:
