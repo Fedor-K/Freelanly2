@@ -188,6 +188,11 @@ export default async function Home() {
           </div>
         </section>
 
+        {/* Social proof badges - under hero */}
+        <section className="container pb-16">
+          <SenjaWidget widgetId="24bc3a5c-2627-4524-a823-e03915f222e5" />
+        </section>
+
         {/* Featured Jobs */}
         {featuredJobs.length > 0 && (
           <section className="container py-16 border-t">
