@@ -3,6 +3,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { siteConfig } from '@/config/site';
 import { PricingCards } from './PricingCards';
+import { SenjaWidget } from '@/components/ui/SenjaWidget';
 
 export const metadata: Metadata = {
   title: 'Pricing - Premium Plans for Job Seekers',
@@ -77,43 +78,12 @@ export default function PricingPage() {
           {/* Plans */}
           <PricingCards />
 
-          {/* Testimonials */}
+          {/* Testimonials - Senja Widget */}
           <section className="mt-16 max-w-4xl mx-auto">
             <h2 className="text-2xl font-bold text-center mb-8">
               What Our Members Say
             </h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="border rounded-lg p-6 bg-muted/30">
-                <div className="flex items-center gap-1 mb-3">
-                  {[1,2,3,4,5].map(i => <span key={i} className="text-yellow-500">★</span>)}
-                </div>
-                <p className="text-sm mb-4">
-                  &quot;Got 3 interview calls in my first week. The direct contact info is a game changer - no more applying into the void.&quot;
-                </p>
-                <p className="text-sm font-medium">Michael R.</p>
-                <p className="text-xs text-muted-foreground">Senior Developer, now at Shopify</p>
-              </div>
-              <div className="border rounded-lg p-6 bg-muted/30">
-                <div className="flex items-center gap-1 mb-3">
-                  {[1,2,3,4,5].map(i => <span key={i} className="text-yellow-500">★</span>)}
-                </div>
-                <p className="text-sm mb-4">
-                  &quot;Finally a job board that helps you actually get hired. The salary insights helped me negotiate 20% higher than the initial offer.&quot;
-                </p>
-                <p className="text-sm font-medium">Sarah K.</p>
-                <p className="text-xs text-muted-foreground">Product Manager, Remote</p>
-              </div>
-              <div className="border rounded-lg p-6 bg-muted/30">
-                <div className="flex items-center gap-1 mb-3">
-                  {[1,2,3,4,5].map(i => <span key={i} className="text-yellow-500">★</span>)}
-                </div>
-                <p className="text-sm mb-4">
-                  &quot;Landed my dream remote job within 2 weeks. The weekly plan was perfect for my urgent job search. Worth every penny.&quot;
-                </p>
-                <p className="text-sm font-medium">Alex M.</p>
-                <p className="text-xs text-muted-foreground">Frontend Engineer, EU Remote</p>
-              </div>
-            </div>
+            <SenjaWidget />
           </section>
 
           {/* Features comparison */}

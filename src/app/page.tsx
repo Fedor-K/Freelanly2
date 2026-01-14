@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { CompanyLogo } from '@/components/ui/CompanyLogo';
+import { SenjaWidget } from '@/components/ui/SenjaWidget';
 import { categories, siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
@@ -294,18 +295,15 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* Social proof */}
+        {/* Social proof - Senja testimonials */}
         <section className="container py-16 border-t">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-2xl font-bold mb-4">Trusted by Remote Professionals</h2>
-            <p className="text-muted-foreground mb-6">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-2xl font-bold mb-4 text-center">Trusted by Remote Professionals</h2>
+            <p className="text-muted-foreground mb-8 text-center">
               We've helped thousands of developers, designers, and marketers land remote jobs
               at companies like Shopify, GitLab, Automattic, and fast-growing startups.
             </p>
-            <div className="flex justify-center gap-8 text-sm text-muted-foreground">
-              <span>⚡ 8 days avg. to first interview</span>
-              <span>📈 2.3x more responses vs job boards</span>
-            </div>
+            <SenjaWidget />
           </div>
         </section>
 
