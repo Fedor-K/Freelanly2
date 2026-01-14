@@ -62,7 +62,8 @@ export async function generateMetadata({ params, searchParams }: CategoryCountry
   // Description 150-160 chars
   const description = `Browse remote ${category.name.toLowerCase()} jobs in ${country.name}. Find work from home ${category.name.toLowerCase()} positions at top ${country.name} companies. Updated daily.`;
 
-  // Noindex pagination pages
+  // Only noindex pagination pages (page > 1)
+  // Removed < 3 jobs threshold - let Google decide, pages with 1-2 jobs still have value
   const shouldNoindex = pageNum > 1;
 
   return {
@@ -187,8 +188,8 @@ export default async function CategoryCountryPage({ params, searchParams }: Cate
   const countryContent = getCountryContent(country.slug);
   const categoryContent = getCategoryContent(category.slug);
 
-  // Check if should noindex (thin content)
-  const shouldNoindex = totalJobs < 3 && !isHighVolumeCountry(country.slug);
+  // Removed: noindex for < 3 jobs was too aggressive and caused 231K+ noindex pages in GSC
+  // Let Google decide - pages with 1-2 jobs still have valuable content and internal links
 
   // Get nearby countries (same region)
   const nearbyCountries = countries
@@ -598,10 +599,6 @@ export default async function CategoryCountryPage({ params, searchParams }: Cate
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
 
-      {/* Noindex for thin content */}
-      {shouldNoindex && (
-        <meta name="robots" content="noindex, follow" />
-      )}
     </div>
   );
 }

@@ -186,8 +186,8 @@ export default async function CategorySalaryPage({ params, searchParams }: Categ
   const salaryContent = getSalaryContent(salaryRange.slug);
   const categoryContent = getCategoryContent(category.slug);
 
-  // Thin content check - noindex if < 3 jobs
-  const shouldNoindex = totalJobs < 3;
+  // Removed: noindex for < 3 jobs was too aggressive and caused 231K+ noindex pages in GSC
+  // Let Google decide - pages with 1-2 jobs still have valuable content and internal links
 
   // Get other salary ranges for navigation
   const otherRanges = salaryRanges.filter((r) => r.slug !== salaryRange.slug);
@@ -521,10 +521,6 @@ export default async function CategorySalaryPage({ params, searchParams }: Categ
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
 
-      {/* Noindex if thin content */}
-      {shouldNoindex && (
-        <meta name="robots" content="noindex, follow" />
-      )}
     </div>
   );
 }

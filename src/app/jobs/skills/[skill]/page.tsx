@@ -209,8 +209,8 @@ export default async function SkillPage({ params, searchParams }: SkillPageProps
   const skillContent = getSkillContent(skill);
   const faqs = getSkillFAQs(skill, totalJobs);
 
-  // Thin content check
-  const shouldNoindex = totalJobs < 3;
+  // Removed: noindex for < 3 jobs was too aggressive and caused 231K+ noindex pages in GSC
+  // Let Google decide - pages with 1-2 jobs still have valuable content and internal links
 
   // Related skills
   const relatedSkills = getSkillsByCategory(skill.category)
@@ -566,10 +566,6 @@ export default async function SkillPage({ params, searchParams }: SkillPageProps
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
 
-      {/* Noindex if thin content */}
-      {shouldNoindex && (
-        <meta name="robots" content="noindex, follow" />
-      )}
     </div>
   );
 }
