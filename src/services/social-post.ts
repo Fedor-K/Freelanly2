@@ -52,8 +52,6 @@ function getAIClient(): { client: OpenAI; model: string; provider: AIProvider } 
 
 const SOCIAL_POST_PROMPT = `You are a social media copywriter for a freelance platform. Create an URGENT post for a direct freelance project.
 
-IMPORTANT: Keep the language EXACTLY THE SAME as the original post. Russian = Russian. English = English. French = French.
-
 Generate this format:
 🔥 URGENT: [1 sentence why this is hot - client ready to hire NOW]
 
@@ -70,8 +68,44 @@ Rules:
 - Professional but urgent tone
 - Skip 💰 line if no budget or if it's yearly salary (not freelance rate)
 - Do NOT include "Direct contact" line - it will be added automatically
+- Write in the same language as the original post
 
-Return ONLY the formatted text, nothing else.`;
+CRITICAL: Return ONLY the formatted post text. Do NOT include any explanations, apologies, or meta-commentary.`;
+
+/**
+ * Detect if AI response contains refusal patterns or meta-commentary
+ */
+function isValidPostContent(text: string): boolean {
+  const refusalPatterns = [
+    /^I cannot/i,
+    /^I'm unable/i,
+    /^I apologize/i,
+    /^Sorry,?\s/i,
+    /^Unfortunately/i,
+    /the instructions require/i,
+    /I can't provide/i,
+    /I'm not able/i,
+    /as an AI/i,
+    /I don't have/i,
+    /I need to/i,
+    /the original post is/i,
+    /the request asks/i,
+  ];
+
+  for (const pattern of refusalPatterns) {
+    if (pattern.test(text)) {
+      return false;
+    }
+  }
+
+  // Valid posts should start with emoji or reasonable content, not meta-text
+  // Also reject if it's too long (likely contains explanations)
+  if (text.length > 1000) {
+    return false;
+  }
+
+  return true;
+}
 
 interface OpportunityForSocialPost {
   id: string;
@@ -132,6 +166,13 @@ ${opp.originalContent || opp.description}
 
     if (!postText) {
       console.log(`[SocialPost] ${providerName} returned empty, using fallback`);
+      return generateFallbackPost(opp);
+    }
+
+    // Validate that AI returned actual post content, not refusal/meta-commentary
+    if (!isValidPostContent(postText)) {
+      console.log(`[SocialPost] ${providerName} returned invalid content (refusal/meta), using fallback`);
+      console.log(`[SocialPost] Invalid content preview: ${postText.substring(0, 200)}...`);
       return generateFallbackPost(opp);
     }
 
@@ -250,9 +291,12 @@ export async function processNextSocialPost(): Promise<{ posted: boolean; opport
   const opportunityId = opp.id;
 
   try {
-    // Generate post text if not cached
+    // Generate post text if not cached or if cached content is invalid
     let postText = next.postText;
-    if (!postText) {
+    if (!postText || !isValidPostContent(postText)) {
+      if (postText && !isValidPostContent(postText)) {
+        console.log(`[SocialPost] Cached content for ${opportunityId} was invalid, regenerating`);
+      }
       postText = await generateSocialPost({
         id: opp.id,
         title: opp.title,
@@ -397,9 +441,12 @@ export async function getNextSocialPost(): Promise<{
 
   const opp = next.opportunity;
 
-  // Generate post text if not cached
+  // Generate post text if not cached or if cached content is invalid
   let postText = next.postText;
-  if (!postText) {
+  if (!postText || !isValidPostContent(postText)) {
+    if (postText && !isValidPostContent(postText)) {
+      console.log(`[SocialPost] Cached content for ${opp.id} was invalid in getNextSocialPost, regenerating`);
+    }
     postText = await generateSocialPost({
       id: opp.id,
       title: opp.title,
