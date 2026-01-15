@@ -16,6 +16,10 @@
       "schedule": "0 6,14,22 * * *"
     },
     {
+      "path": "/api/cron/process-instant-alerts",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/cron/send-trial-emails",
       "schedule": "0 * * * *"
     },
