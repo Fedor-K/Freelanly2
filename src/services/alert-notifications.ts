@@ -874,8 +874,75 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
   let failed = 0;
   const processedIds: string[] = [];
 
+  // Track emails we've already sent to in THIS batch (to prevent duplicate emails)
+  const sentInThisBatch = new Set<string>();
+
+  // IMPORTANT: Process OPPORTUNITIES first (usually more items from LinkedIn)
+  // Then skip jobs for users who already received opportunity email
+  // This ensures users get the larger batch, not individual job emails
+
+  // Send ONE email per user with all their pending OPPORTUNITIES
+  for (const [email, notifications] of oppNotificationsByEmail) {
+    // Dedupe opportunities
+    const uniqueOpps = new Map<string, NonNullable<typeof notifications[0]['opportunity']>>();
+    for (const n of notifications) {
+      if (n.opportunity && !uniqueOpps.has(n.opportunity.id)) {
+        uniqueOpps.set(n.opportunity.id, n.opportunity);
+      }
+    }
+
+    const opportunities = Array.from(uniqueOpps.values());
+    const firstAlert = notifications[0].jobAlert;
+
+    // Send opportunity notification
+    const result = await sendOpportunityAlertNotification({
+      alertId: firstAlert.id,
+      email,
+      category: firstAlert.category,
+      opportunities: opportunities.map((opp) => ({
+        id: opp.id,
+        title: opp.title,
+        slug: opp.slug,
+        description: opp.description,
+        clientName: opp.clientName,
+        clientAvatar: opp.clientAvatar,
+        country: opp.country,
+        level: opp.level,
+        salaryMin: opp.salaryMin,
+        salaryMax: opp.salaryMax,
+        salaryCurrency: opp.salaryCurrency,
+        postedAt: opp.postedAt,
+      })),
+    });
+
+    // Always collect notification IDs to mark as processed
+    for (const n of notifications) {
+      processedIds.push(n.id);
+    }
+
+    if (result.success) {
+      sent++;
+      sentInThisBatch.add(email); // Track that we sent to this email
+      console.log(`[InstantAlerts] Sent ${opportunities.length} opportunities to ${email}`);
+    } else {
+      failed++;
+      console.error(`[InstantAlerts] Failed to send opportunities to ${email}: ${result.error}`);
+    }
+  }
+
   // Send ONE email per user with all their pending JOBS
+  // Skip users who already received an opportunity email in this batch
   for (const [email, notifications] of jobNotificationsByEmail) {
+    // Skip if already sent opportunity email to this user in this batch
+    if (sentInThisBatch.has(email)) {
+      console.log(`[InstantAlerts] Skipping jobs for ${email} (already sent opportunities email in this batch)`);
+      // Still mark notifications as processed to clear the queue
+      for (const n of notifications) {
+        processedIds.push(n.id);
+      }
+      continue;
+    }
+
     // Dedupe jobs (same job might match multiple alerts for same user)
     const uniqueJobs = new Map<string, NonNullable<typeof notifications[0]['job']>>();
     for (const n of notifications) {
@@ -931,61 +998,12 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
 
     if (result.success) {
       sent++;
+      sentInThisBatch.add(email); // Track that we sent to this email
       console.log(`[InstantAlerts] Sent ${jobs.length} jobs to ${email}`);
     } else {
       failed++;
       console.error(`[InstantAlerts] Failed to send jobs to ${email}: ${result.error}`);
     }
-
-  }
-
-  // Send ONE email per user with all their pending OPPORTUNITIES
-  for (const [email, notifications] of oppNotificationsByEmail) {
-    // Dedupe opportunities
-    const uniqueOpps = new Map<string, NonNullable<typeof notifications[0]['opportunity']>>();
-    for (const n of notifications) {
-      if (n.opportunity && !uniqueOpps.has(n.opportunity.id)) {
-        uniqueOpps.set(n.opportunity.id, n.opportunity);
-      }
-    }
-
-    const opportunities = Array.from(uniqueOpps.values());
-    const firstAlert = notifications[0].jobAlert;
-
-    // Send opportunity notification
-    const result = await sendOpportunityAlertNotification({
-      alertId: firstAlert.id,
-      email,
-      category: firstAlert.category,
-      opportunities: opportunities.map((opp) => ({
-        id: opp.id,
-        title: opp.title,
-        slug: opp.slug,
-        description: opp.description,
-        clientName: opp.clientName,
-        clientAvatar: opp.clientAvatar,
-        country: opp.country,
-        level: opp.level,
-        salaryMin: opp.salaryMin,
-        salaryMax: opp.salaryMax,
-        salaryCurrency: opp.salaryCurrency,
-        postedAt: opp.postedAt,
-      })),
-    });
-
-    // Always collect notification IDs to mark as processed
-    for (const n of notifications) {
-      processedIds.push(n.id);
-    }
-
-    if (result.success) {
-      sent++;
-      console.log(`[InstantAlerts] Sent ${opportunities.length} opportunities to ${email}`);
-    } else {
-      failed++;
-      console.error(`[InstantAlerts] Failed to send opportunities to ${email}: ${result.error}`);
-    }
-
   }
 
   // Mark all processed notifications as SENT (including failed ones to prevent infinite retries)
