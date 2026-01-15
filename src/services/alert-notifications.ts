@@ -663,7 +663,10 @@ export const sendInstantAlertsForOpportunity = queueInstantAlertsForOpportunity;
 // Maximum users to process per batch (Vercel Pro: 60s timeout)
 const MAX_USERS_PER_BATCH = 50;
 
-export async function processInstantAlertQueue(): Promise<{ sent: number; failed: number; processed: number }> {
+// Minimum time between alert emails for the same user (prevents spam during slow n8n processing)
+const MIN_ALERT_INTERVAL_MINUTES = 30;
+
+export async function processInstantAlertQueue(): Promise<{ sent: number; failed: number; processed: number; skippedDebounce: number }> {
   // Generate a unique batch ID for this processing run
   const batchId = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
@@ -682,6 +685,7 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
         select: {
           id: true,
           email: true,
+          lastSentAt: true,
           user: {
             select: { email: true },
           },
@@ -691,21 +695,47 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
     distinct: ['jobAlertId'],
   });
 
-  // Extract unique emails
-  const uniqueEmails = new Set<string>();
+  // Extract unique emails with their last send time
+  const emailLastSent = new Map<string, Date | null>();
   for (const n of pendingAlerts) {
     const email = n.jobAlert.email || n.jobAlert.user?.email;
-    if (email) uniqueEmails.add(email.toLowerCase());
+    if (email) {
+      const normalizedEmail = email.toLowerCase();
+      // Keep the most recent lastSentAt for this email
+      const existing = emailLastSent.get(normalizedEmail);
+      if (!existing || (n.jobAlert.lastSentAt && (!existing || n.jobAlert.lastSentAt > existing))) {
+        emailLastSent.set(normalizedEmail, n.jobAlert.lastSentAt);
+      }
+    }
   }
 
-  if (uniqueEmails.size === 0) {
+  if (emailLastSent.size === 0) {
     console.log(`[InstantAlerts] No pending notifications in queue`);
-    return { sent: 0, failed: 0, processed: 0 };
+    return { sent: 0, failed: 0, processed: 0, skippedDebounce: 0 };
+  }
+
+  // Filter out emails that were sent to recently (debounce)
+  const debounceThreshold = new Date(Date.now() - MIN_ALERT_INTERVAL_MINUTES * 60 * 1000);
+  const readyEmails: string[] = [];
+  let skippedDebounce = 0;
+
+  for (const [email, lastSent] of emailLastSent) {
+    if (lastSent && lastSent > debounceThreshold) {
+      skippedDebounce++;
+      console.log(`[InstantAlerts] Debounce: skipping ${email} (last sent ${Math.round((Date.now() - lastSent.getTime()) / 60000)} min ago)`);
+    } else {
+      readyEmails.push(email);
+    }
+  }
+
+  if (readyEmails.length === 0) {
+    console.log(`[InstantAlerts] All ${skippedDebounce} emails skipped due to debounce (sent within ${MIN_ALERT_INTERVAL_MINUTES} min)`);
+    return { sent: 0, failed: 0, processed: 0, skippedDebounce };
   }
 
   // Limit to MAX_USERS_PER_BATCH users
-  const emailsToProcess = Array.from(uniqueEmails).slice(0, MAX_USERS_PER_BATCH);
-  console.log(`[InstantAlerts] Batch ${batchId}: Found ${uniqueEmails.size} unique emails, processing ${emailsToProcess.length}`);
+  const emailsToProcess = readyEmails.slice(0, MAX_USERS_PER_BATCH);
+  console.log(`[InstantAlerts] Batch ${batchId}: Found ${emailLastSent.size} unique emails, ${skippedDebounce} debounced, processing ${emailsToProcess.length}`);
 
   // Step 2: Claim ALL PENDING notifications for these emails
   // First, get all notification IDs for these emails
@@ -728,7 +758,7 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
 
   if (idsToProcess.length === 0) {
     console.log(`[InstantAlerts] No notifications found for emails`);
-    return { sent: 0, failed: 0, processed: 0 };
+    return { sent: 0, failed: 0, processed: 0, skippedDebounce };
   }
 
   // Atomically claim these notifications
@@ -744,7 +774,7 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
 
   if (claimResult.count === 0) {
     console.log(`[InstantAlerts] No notifications claimed (already processed by another instance)`);
-    return { sent: 0, failed: 0, processed: 0 };
+    return { sent: 0, failed: 0, processed: 0, skippedDebounce };
   }
 
   console.log(`[InstantAlerts] Batch ${batchId}: Claimed ${claimResult.count} notifications for ${emailsToProcess.length} users`);
@@ -820,12 +850,14 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
   }
 
   // Separate into job notifications and opportunity notifications by email
+  // IMPORTANT: Normalize email to lowercase to properly group notifications
   const jobNotificationsByEmail = new Map<string, typeof validNotifications>();
   const oppNotificationsByEmail = new Map<string, typeof validNotifications>();
 
   for (const notification of validNotifications) {
-    const email = notification.jobAlert.email || notification.jobAlert.user?.email;
-    if (!email) continue;
+    const rawEmail = notification.jobAlert.email || notification.jobAlert.user?.email;
+    if (!rawEmail) continue;
+    const email = rawEmail.toLowerCase(); // Normalize to prevent duplicate emails
 
     if (notification.job !== null) {
       const existing = jobNotificationsByEmail.get(email) || [];
@@ -969,9 +1001,9 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
     });
   }
 
-  console.log(`[InstantAlerts] Batch ${batchId}: ${sent} emails sent, ${failed} failed, ${processedIds.length} notifications processed`);
+  console.log(`[InstantAlerts] Batch ${batchId}: ${sent} emails sent, ${failed} failed, ${processedIds.length} notifications processed, ${skippedDebounce} debounced`);
 
-  return { sent, failed, processed: processedIds.length };
+  return { sent, failed, processed: processedIds.length, skippedDebounce };
 }
 
 /**
