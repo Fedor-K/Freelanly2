@@ -333,6 +333,248 @@ function generateOpportunityAlertEmailText(
 }
 
 /**
+ * Generate HTML for COMBINED email with both jobs and opportunities
+ * Used when user has matching items of both types
+ */
+function generateCombinedAlertEmailHtml(
+  jobs: MatchedJob[],
+  opportunities: MatchedOpportunity[],
+  unsubscribeUrl: string
+): string {
+  const totalItems = jobs.length + opportunities.length;
+
+  // Generate job cards
+  const jobCards = jobs
+    .map((job) => {
+      const companySlug = job.company?.slug || 'unknown';
+      const jobSlug = job.slug || job.id;
+      const jobUrl = `${APP_URL}/company/${companySlug}/jobs/${jobSlug}`;
+      const salary =
+        job.salaryMin && job.salaryMax
+          ? `${job.salaryCurrency || '$'}${(job.salaryMin / 1000).toFixed(0)}K - ${(job.salaryMax / 1000).toFixed(0)}K`
+          : job.salaryMin
+            ? `From ${job.salaryCurrency || '$'}${(job.salaryMin / 1000).toFixed(0)}K`
+            : null;
+
+      return `
+        <tr>
+          <td style="padding: 20px; border-bottom: 1px solid #eee;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td width="60" valign="top">
+                  ${
+                    job.company?.logo
+                      ? `<img src="${job.company.logo}" alt="${job.company?.name || 'Company'}" width="50" height="50" style="border-radius: 8px; object-fit: cover;">`
+                      : `<div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #666;">${(job.company?.name || 'C').charAt(0)}</div>`
+                  }
+                </td>
+                <td style="padding-left: 15px;">
+                  <a href="${jobUrl}" style="color: #000; text-decoration: none; font-weight: 600; font-size: 16px;">
+                    ${job.title}
+                  </a>
+                  <div style="color: #666; font-size: 14px; margin-top: 4px;">
+                    ${job.company?.name || 'Unknown Company'}${job.country ? ` • ${job.country}` : ''}
+                  </div>
+                  ${salary ? `<div style="color: #22c55e; font-size: 14px; margin-top: 4px;">${salary}</div>` : ''}
+                  <div style="margin-top: 10px;">
+                    <a href="${jobUrl}" style="display: inline-block; background: #000; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
+                      View Job
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  // Generate opportunity cards
+  const opportunityCards = opportunities
+    .map((opp) => {
+      const oppUrl = `${APP_URL}/freelance/${opp.slug}`;
+      const salary =
+        opp.salaryMin && opp.salaryMax
+          ? `${opp.salaryCurrency || '$'}${opp.salaryMin} - ${opp.salaryMax}/hr`
+          : opp.salaryMin
+            ? `From ${opp.salaryCurrency || '$'}${opp.salaryMin}/hr`
+            : null;
+
+      return `
+        <tr>
+          <td style="padding: 20px; border-bottom: 1px solid #eee;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td width="60" valign="top">
+                  ${
+                    opp.clientAvatar
+                      ? `<img src="${opp.clientAvatar}" alt="${opp.clientName}" width="50" height="50" style="border-radius: 50%; object-fit: cover;">`
+                      : `<div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #666;">${opp.clientName.charAt(0)}</div>`
+                  }
+                </td>
+                <td style="padding-left: 15px;">
+                  <a href="${oppUrl}" style="color: #000; text-decoration: none; font-weight: 600; font-size: 16px;">
+                    ${opp.title}
+                  </a>
+                  <div style="color: #666; font-size: 14px; margin-top: 4px;">
+                    ${opp.clientName}${opp.country ? ` • ${opp.country}` : ''} • Freelance
+                  </div>
+                  ${salary ? `<div style="color: #22c55e; font-size: 14px; margin-top: 4px;">${salary}</div>` : ''}
+                  <div style="margin-top: 10px;">
+                    <a href="${oppUrl}" style="display: inline-block; background: #000; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
+                      View Project
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  // Build sections - jobs first if any, then opportunities
+  const jobsSection = jobs.length > 0 ? `
+    <!-- Jobs Section Header -->
+    <tr>
+      <td style="padding: 20px 20px 10px; background: #f9fafb;">
+        <h2 style="margin: 0; font-size: 16px; color: #666; font-weight: 600;">
+          Full-Time Jobs (${jobs.length})
+        </h2>
+      </td>
+    </tr>
+    ${jobCards}
+  ` : '';
+
+  const opportunitiesSection = opportunities.length > 0 ? `
+    <!-- Opportunities Section Header -->
+    <tr>
+      <td style="padding: 20px 20px 10px; background: #f9fafb;">
+        <h2 style="margin: 0; font-size: 16px; color: #666; font-weight: 600;">
+          Freelance Projects (${opportunities.length})
+        </h2>
+      </td>
+    </tr>
+    ${opportunityCards}
+  ` : '';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #f9fafb;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 30px; text-align: center; border-bottom: 1px solid #eee;">
+              <h1 style="margin: 0; font-size: 24px; color: #000;">
+                🎯 ${totalItems} New Opportunities for You
+              </h1>
+              <p style="margin: 10px 0 0; color: #666; font-size: 14px;">
+                ${jobs.length > 0 ? `${jobs.length} job${jobs.length > 1 ? 's' : ''}` : ''}${jobs.length > 0 && opportunities.length > 0 ? ' + ' : ''}${opportunities.length > 0 ? `${opportunities.length} freelance project${opportunities.length > 1 ? 's' : ''}` : ''} matching your alerts
+              </p>
+            </td>
+          </tr>
+
+          ${jobsSection}
+          ${opportunitiesSection}
+
+          <!-- View All Button -->
+          <tr>
+            <td style="padding: 30px; text-align: center;">
+              <a href="${APP_URL}/jobs" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 500; margin-right: 10px;">
+                View All Jobs
+              </a>
+              <a href="${APP_URL}/freelance" style="display: inline-block; background: #fff; color: #000; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 500; border: 1px solid #000;">
+                View Freelance
+              </a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 20px 30px; background: #f9fafb; border-radius: 0 0 12px 12px; text-align: center;">
+              <p style="margin: 0; color: #666; font-size: 12px;">
+                You're receiving this because you set up a job alert on Freelanly.
+              </p>
+              <p style="margin: 10px 0 0;">
+                <a href="${unsubscribeUrl}" style="color: #666; font-size: 12px;">
+                  Unsubscribe from this alert
+                </a>
+                &nbsp;•&nbsp;
+                <a href="${APP_URL}/dashboard/alerts" style="color: #666; font-size: 12px;">
+                  Manage alerts
+                </a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+/**
+ * Generate plain text version of combined email
+ */
+function generateCombinedAlertEmailText(
+  jobs: MatchedJob[],
+  opportunities: MatchedOpportunity[]
+): string {
+  const totalItems = jobs.length + opportunities.length;
+  const header = `🎯 ${totalItems} New Opportunities for You\n\n`;
+
+  let content = '';
+
+  if (jobs.length > 0) {
+    content += `=== Full-Time Jobs (${jobs.length}) ===\n\n`;
+    content += jobs
+      .map((job) => {
+        const companySlug = job.company?.slug || 'unknown';
+        const jobSlug = job.slug || job.id;
+        const jobUrl = `${APP_URL}/company/${companySlug}/jobs/${jobSlug}`;
+        const salary =
+          job.salaryMin && job.salaryMax
+            ? `${job.salaryCurrency || '$'}${(job.salaryMin / 1000).toFixed(0)}K - ${(job.salaryMax / 1000).toFixed(0)}K`
+            : '';
+        const companyName = job.company?.name || 'Unknown Company';
+        return `${job.title}\n${companyName}${job.country ? ` • ${job.country}` : ''}${salary ? ` • ${salary}` : ''}\n${jobUrl}\n`;
+      })
+      .join('\n');
+    content += '\n';
+  }
+
+  if (opportunities.length > 0) {
+    content += `=== Freelance Projects (${opportunities.length}) ===\n\n`;
+    content += opportunities
+      .map((opp) => {
+        const oppUrl = `${APP_URL}/freelance/${opp.slug}`;
+        const salary =
+          opp.salaryMin && opp.salaryMax
+            ? `${opp.salaryCurrency || '$'}${opp.salaryMin} - ${opp.salaryMax}/hr`
+            : '';
+        return `${opp.title}\n${opp.clientName}${opp.country ? ` • ${opp.country}` : ''} • Freelance${salary ? ` • ${salary}` : ''}\n${oppUrl}\n`;
+      })
+      .join('\n');
+  }
+
+  const footer = `\n---\nManage your alerts: ${APP_URL}/dashboard/alerts`;
+
+  return header + content + footer;
+}
+
+/**
  * Send email notification for an alert
  */
 export async function sendAlertNotification(
@@ -849,98 +1091,29 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
     }
   }
 
-  // Separate into job notifications and opportunity notifications by email
+  // Group ALL notifications by email (both jobs and opportunities together)
   // IMPORTANT: Normalize email to lowercase to properly group notifications
-  const jobNotificationsByEmail = new Map<string, typeof validNotifications>();
-  const oppNotificationsByEmail = new Map<string, typeof validNotifications>();
+  const notificationsByEmail = new Map<string, typeof validNotifications>();
 
   for (const notification of validNotifications) {
     const rawEmail = notification.jobAlert.email || notification.jobAlert.user?.email;
     if (!rawEmail) continue;
     const email = rawEmail.toLowerCase(); // Normalize to prevent duplicate emails
 
-    if (notification.job !== null) {
-      const existing = jobNotificationsByEmail.get(email) || [];
-      existing.push(notification);
-      jobNotificationsByEmail.set(email, existing);
-    } else if (notification.opportunity !== null) {
-      const existing = oppNotificationsByEmail.get(email) || [];
-      existing.push(notification);
-      oppNotificationsByEmail.set(email, existing);
-    }
+    const existing = notificationsByEmail.get(email) || [];
+    existing.push(notification);
+    notificationsByEmail.set(email, existing);
   }
 
   let sent = 0;
   let failed = 0;
   const processedIds: string[] = [];
 
-  // Track emails we've already sent to in THIS batch (to prevent duplicate emails)
-  const sentInThisBatch = new Set<string>();
-
-  // IMPORTANT: Process OPPORTUNITIES first (usually more items from LinkedIn)
-  // Then skip jobs for users who already received opportunity email
-  // This ensures users get the larger batch, not individual job emails
-
-  // Send ONE email per user with all their pending OPPORTUNITIES
-  for (const [email, notifications] of oppNotificationsByEmail) {
-    // Dedupe opportunities
-    const uniqueOpps = new Map<string, NonNullable<typeof notifications[0]['opportunity']>>();
-    for (const n of notifications) {
-      if (n.opportunity && !uniqueOpps.has(n.opportunity.id)) {
-        uniqueOpps.set(n.opportunity.id, n.opportunity);
-      }
-    }
-
-    const opportunities = Array.from(uniqueOpps.values());
-    const firstAlert = notifications[0].jobAlert;
-
-    // Send opportunity notification
-    const result = await sendOpportunityAlertNotification({
-      alertId: firstAlert.id,
-      email,
-      category: firstAlert.category,
-      opportunities: opportunities.map((opp) => ({
-        id: opp.id,
-        title: opp.title,
-        slug: opp.slug,
-        description: opp.description,
-        clientName: opp.clientName,
-        clientAvatar: opp.clientAvatar,
-        country: opp.country,
-        level: opp.level,
-        salaryMin: opp.salaryMin,
-        salaryMax: opp.salaryMax,
-        salaryCurrency: opp.salaryCurrency,
-        postedAt: opp.postedAt,
-      })),
-    });
-
-    // Always collect notification IDs to mark as processed
+  // Send ONE COMBINED email per user with ALL their pending items (jobs + opportunities)
+  for (const [email, notifications] of notificationsByEmail) {
+    // Collect notification IDs for this email
     for (const n of notifications) {
       processedIds.push(n.id);
-    }
-
-    if (result.success) {
-      sent++;
-      sentInThisBatch.add(email); // Track that we sent to this email
-      console.log(`[InstantAlerts] Sent ${opportunities.length} opportunities to ${email}`);
-    } else {
-      failed++;
-      console.error(`[InstantAlerts] Failed to send opportunities to ${email}: ${result.error}`);
-    }
-  }
-
-  // Send ONE email per user with all their pending JOBS
-  // Skip users who already received an opportunity email in this batch
-  for (const [email, notifications] of jobNotificationsByEmail) {
-    // Skip if already sent opportunity email to this user in this batch
-    if (sentInThisBatch.has(email)) {
-      console.log(`[InstantAlerts] Skipping jobs for ${email} (already sent opportunities email in this batch)`);
-      // Still mark notifications as processed to clear the queue
-      for (const n of notifications) {
-        processedIds.push(n.id);
-      }
-      continue;
     }
 
     // Dedupe jobs (same job might match multiple alerts for same user)
@@ -951,58 +1124,132 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
       }
     }
 
+    // Dedupe opportunities
+    const uniqueOpps = new Map<string, NonNullable<typeof notifications[0]['opportunity']>>();
+    for (const n of notifications) {
+      if (n.opportunity && !uniqueOpps.has(n.opportunity.id)) {
+        uniqueOpps.set(n.opportunity.id, n.opportunity);
+      }
+    }
+
     const jobs = Array.from(uniqueJobs.values());
+    const opportunities = Array.from(uniqueOpps.values());
     const firstAlert = notifications[0].jobAlert;
 
-    // Send notification with all jobs
-    const result = await sendAlertNotification({
-      alert: {
-        id: firstAlert.id,
-        email,
-        userId: firstAlert.userId,
-        category: firstAlert.category,
-        keywords: firstAlert.keywords,
-        country: firstAlert.country,
-        level: firstAlert.level,
-        frequency: firstAlert.frequency,
-        languagePairs: firstAlert.languagePairs.map((lp) => ({
-          translationType: lp.translationType,
-          sourceLanguage: lp.sourceLanguage,
-          targetLanguage: lp.targetLanguage,
-        })),
-        lastSentAt: firstAlert.lastSentAt,
-      },
-      jobs: jobs.map((job) => ({
-        id: job.id,
-        title: job.title,
-        slug: job.slug,
-        description: job.description,
-        company: job.company,
-        category: job.category,
-        country: job.country,
-        level: job.level,
-        salaryMin: job.salaryMin,
-        salaryMax: job.salaryMax,
-        salaryCurrency: job.salaryCurrency,
-        postedAt: job.postedAt,
-        translationTypes: job.translationTypes as string[],
-        sourceLanguages: job.sourceLanguages,
-        targetLanguages: job.targetLanguages,
-      })),
-    });
+    // Determine which email format to use based on what content we have
+    let result: { success: boolean; error?: string };
 
-    // Always collect notification IDs to mark as processed
-    for (const n of notifications) {
-      processedIds.push(n.id);
+    if (jobs.length > 0 && opportunities.length > 0) {
+      // COMBINED email: both jobs AND opportunities
+      result = await sendCombinedAlertNotification({
+        alertId: firstAlert.id,
+        email,
+        jobs: jobs.map((job) => ({
+          id: job.id,
+          title: job.title,
+          slug: job.slug,
+          description: job.description,
+          company: job.company,
+          country: job.country,
+          level: job.level,
+          salaryMin: job.salaryMin,
+          salaryMax: job.salaryMax,
+          salaryCurrency: job.salaryCurrency,
+          postedAt: job.postedAt,
+        })),
+        opportunities: opportunities.map((opp) => ({
+          id: opp.id,
+          title: opp.title,
+          slug: opp.slug,
+          description: opp.description,
+          clientName: opp.clientName,
+          clientAvatar: opp.clientAvatar,
+          country: opp.country,
+          level: opp.level,
+          salaryMin: opp.salaryMin,
+          salaryMax: opp.salaryMax,
+          salaryCurrency: opp.salaryCurrency,
+          postedAt: opp.postedAt,
+        })),
+      });
+      if (result.success) {
+        console.log(`[InstantAlerts] Sent COMBINED email (${jobs.length} jobs + ${opportunities.length} opportunities) to ${email}`);
+      }
+    } else if (opportunities.length > 0) {
+      // Only opportunities
+      result = await sendOpportunityAlertNotification({
+        alertId: firstAlert.id,
+        email,
+        category: firstAlert.category,
+        opportunities: opportunities.map((opp) => ({
+          id: opp.id,
+          title: opp.title,
+          slug: opp.slug,
+          description: opp.description,
+          clientName: opp.clientName,
+          clientAvatar: opp.clientAvatar,
+          country: opp.country,
+          level: opp.level,
+          salaryMin: opp.salaryMin,
+          salaryMax: opp.salaryMax,
+          salaryCurrency: opp.salaryCurrency,
+          postedAt: opp.postedAt,
+        })),
+      });
+      if (result.success) {
+        console.log(`[InstantAlerts] Sent ${opportunities.length} opportunities to ${email}`);
+      }
+    } else if (jobs.length > 0) {
+      // Only jobs
+      result = await sendAlertNotification({
+        alert: {
+          id: firstAlert.id,
+          email,
+          userId: firstAlert.userId,
+          category: firstAlert.category,
+          keywords: firstAlert.keywords,
+          country: firstAlert.country,
+          level: firstAlert.level,
+          frequency: firstAlert.frequency,
+          languagePairs: firstAlert.languagePairs.map((lp) => ({
+            translationType: lp.translationType,
+            sourceLanguage: lp.sourceLanguage,
+            targetLanguage: lp.targetLanguage,
+          })),
+          lastSentAt: firstAlert.lastSentAt,
+        },
+        jobs: jobs.map((job) => ({
+          id: job.id,
+          title: job.title,
+          slug: job.slug,
+          description: job.description,
+          company: job.company,
+          category: job.category,
+          country: job.country,
+          level: job.level,
+          salaryMin: job.salaryMin,
+          salaryMax: job.salaryMax,
+          salaryCurrency: job.salaryCurrency,
+          postedAt: job.postedAt,
+          translationTypes: job.translationTypes as string[],
+          sourceLanguages: job.sourceLanguages,
+          targetLanguages: job.targetLanguages,
+        })),
+      });
+      if (result.success) {
+        console.log(`[InstantAlerts] Sent ${jobs.length} jobs to ${email}`);
+      }
+    } else {
+      // No items (shouldn't happen, but handle gracefully)
+      result = { success: true };
+      console.log(`[InstantAlerts] No items to send to ${email}, skipping`);
     }
 
     if (result.success) {
       sent++;
-      sentInThisBatch.add(email); // Track that we sent to this email
-      console.log(`[InstantAlerts] Sent ${jobs.length} jobs to ${email}`);
     } else {
       failed++;
-      console.error(`[InstantAlerts] Failed to send jobs to ${email}: ${result.error}`);
+      console.error(`[InstantAlerts] Failed to send to ${email}: ${result.error}`);
     }
   }
 
@@ -1067,6 +1314,52 @@ async function sendOpportunityAlertNotification(params: {
     }
   } catch (error) {
     console.error(`[AlertNotifications] Error sending opportunities to ${email}:`, error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/**
+ * Send COMBINED email notification with both jobs and opportunities
+ */
+async function sendCombinedAlertNotification(params: {
+  alertId: string;
+  email: string;
+  jobs: MatchedJob[];
+  opportunities: MatchedOpportunity[];
+}): Promise<{ success: boolean; error?: string }> {
+  const { alertId, email, jobs, opportunities } = params;
+
+  const totalItems = jobs.length + opportunities.length;
+  if (totalItems === 0) {
+    return { success: true };
+  }
+
+  const unsubscribeUrl = `${APP_URL}/api/user/alerts/${alertId}/unsubscribe`;
+
+  // Generate subject line for combined email
+  const subject = `🎯 ${totalItems} new opportunities for you`;
+
+  const html = generateCombinedAlertEmailHtml(jobs, opportunities, unsubscribeUrl);
+  const text = generateCombinedAlertEmailText(jobs, opportunities);
+
+  try {
+    const result = await sendApplicationEmail({
+      to: email,
+      subject,
+      html,
+      text,
+    });
+
+    if (result.success) {
+      console.log(`[AlertNotifications] Sent combined email (${jobs.length} jobs + ${opportunities.length} opportunities) to ${email}`);
+      return { success: true };
+    } else {
+      const errorMsg = typeof result.error === 'object' ? JSON.stringify(result.error) : result.error;
+      console.error(`[AlertNotifications] Failed to send combined email to ${email}: ${errorMsg}`);
+      return { success: false, error: errorMsg };
+    }
+  } catch (error) {
+    console.error(`[AlertNotifications] Error sending combined email to ${email}:`, error);
     return { success: false, error: String(error) };
   }
 }
