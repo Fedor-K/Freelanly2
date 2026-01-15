@@ -443,6 +443,41 @@ enum TranslationType {
 }
 
 // ============================================
+// KEYWORD RUN TRACKING (LinkedIn Search)
+// ============================================
+
+model KeywordRun {
+  id              String   @id @default(cuid())
+
+  keyword         String              // Search keyword used
+  keywordIndex    Int                 // Index 0-76
+
+  status          KeywordRunStatus @default(STARTED)
+
+  // Stats
+  postsReceived       Int @default(0)     // Posts received from Apify
+  postsProcessed      Int @default(0)     // Passed isJobPosting validation
+  opportunitiesCreated Int @default(0)    // Actually created
+
+  // Timestamps
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  // Relations
+  opportunities   Opportunity[]
+
+  @@index([keyword])
+  @@index([startedAt(sort: Desc)])
+  @@index([status])
+}
+
+enum KeywordRunStatus {
+  STARTED
+  COMPLETED
+  FAILED
+}
+
+// ============================================
 // OPPORTUNITIES (LinkedIn Direct Projects)
 // ============================================
 
@@ -500,6 +535,11 @@ model Opportunity {
   sourceUrl       String              // LinkedIn post URL
   sourceId        String?             // LinkedIn post ID
 
+  // === KEYWORD TRACKING ===
+  sourceKeyword   String?             // Which keyword found this post
+  keywordRun      KeywordRun? @relation(fields: [keywordRunId], references: [id], onDelete: SetNull)
+  keywordRunId    String?
+
   // === QUALITY & VISIBILITY ===
   contentQuality  ContentQuality @default(LIGHT)
   qualityScore    Int @default(50)
@@ -520,6 +560,8 @@ model Opportunity {
   @@index([postedAt(sort: Desc)])
   @@index([isActive, postedAt(sort: Desc)])
   @@index([clientLinkedIn])
+  @@index([keywordRunId])
+  @@index([sourceKeyword])
 }
 
 // ============================================

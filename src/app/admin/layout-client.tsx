@@ -17,6 +17,7 @@ import {
   BarChart3,
   Zap,
   UserPlus,
+  Hash,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -40,6 +41,7 @@ const navigation = [
       { name: 'Apify LinkedIn', href: '/admin/sources/apify' },
     ],
   },
+  { name: 'Keywords', href: '/admin/keywords', icon: Hash },
   { name: 'Import Logs', href: '/admin/logs', icon: FileText },
 ];
 

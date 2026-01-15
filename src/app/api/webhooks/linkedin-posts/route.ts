@@ -54,6 +54,8 @@ function validateLevel(level: string | null | undefined): Level | null {
  *
  * Query params:
  * - secret: Webhook secret for authentication
+ * - runId: KeywordRun ID for tracking (from /api/linkedin/next-keyword)
+ * - keyword: Search keyword used (fallback if runId not provided)
  */
 
 interface N8nPostPayload {
@@ -93,8 +95,61 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Get keyword tracking params
+  const runId = request.nextUrl.searchParams.get('runId');
+  const keywordParam = request.nextUrl.searchParams.get('keyword');
+
   try {
     const body: N8nPostPayload = await request.json();
+
+    // Find or create KeywordRun for tracking
+    let keywordRunId: string | null = null;
+    let sourceKeyword: string | null = null;
+
+    if (runId) {
+      // Use provided runId
+      const keywordRun = await prisma.keywordRun.findUnique({ where: { id: runId } });
+      if (keywordRun) {
+        keywordRunId = keywordRun.id;
+        sourceKeyword = keywordRun.keyword;
+        // Increment postsReceived
+        await prisma.keywordRun.update({
+          where: { id: runId },
+          data: { postsReceived: { increment: 1 } },
+        });
+      }
+    } else if (keywordParam) {
+      // Find or create by keyword
+      sourceKeyword = keywordParam;
+      // Find recent run with this keyword (last 30 min)
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+      let keywordRun = await prisma.keywordRun.findFirst({
+        where: {
+          keyword: keywordParam,
+          startedAt: { gte: thirtyMinutesAgo },
+        },
+        orderBy: { startedAt: 'desc' },
+      });
+
+      if (!keywordRun) {
+        // Create new run for this keyword
+        keywordRun = await prisma.keywordRun.create({
+          data: {
+            keyword: keywordParam,
+            keywordIndex: -1, // Unknown index when created from webhook
+            status: 'STARTED',
+            postsReceived: 1,
+          },
+        });
+        console.log(`[LinkedInPosts] Created KeywordRun for "${keywordParam}"`);
+      } else {
+        await prisma.keywordRun.update({
+          where: { id: keywordRun.id },
+          data: { postsReceived: { increment: 1 } },
+        });
+      }
+      keywordRunId = keywordRun.id;
+    }
 
     // Normalize fields - support both n8n mapped and raw Apify formats
     const postUrl = body.postUrl || body.linkedinUrl;
@@ -182,6 +237,14 @@ export async function POST(request: NextRequest) {
         status: 'skipped',
         reason: 'not_job_posting',
         details: validationResult.reason,
+      });
+    }
+
+    // Increment postsProcessed (passed isJobPosting validation)
+    if (keywordRunId) {
+      await prisma.keywordRun.update({
+        where: { id: keywordRunId },
+        data: { postsProcessed: { increment: 1 } },
       });
     }
 
@@ -341,6 +404,9 @@ export async function POST(request: NextRequest) {
           applyUrl: extracted.applyUrl,
           sourceUrl: postUrl,
           sourceId: postId,
+          // Keyword tracking
+          sourceKeyword: sourceKeyword,
+          keywordRunId: keywordRunId,
           contentQuality: qualityResult.quality,
           qualityScore: qualityResult.score,
           postedAt: new Date(),
@@ -348,6 +414,14 @@ export async function POST(request: NextRequest) {
           expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         },
       });
+
+      // Increment opportunitiesCreated
+      if (keywordRunId) {
+        await prisma.keywordRun.update({
+          where: { id: keywordRunId },
+          data: { opportunitiesCreated: { increment: 1 } },
+        });
+      }
     } catch (createError: unknown) {
       // Handle unique constraint violation (race condition)
       if (
@@ -391,6 +465,8 @@ export async function POST(request: NextRequest) {
       clientName,
       contentQuality: qualityResult.quality,
       qualityScore: qualityResult.score,
+      sourceKeyword: sourceKeyword,
+      keywordRunId: keywordRunId,
     });
   } catch (error) {
     console.error('[LinkedInPosts] Error:', error);

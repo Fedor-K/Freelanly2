@@ -111,15 +111,46 @@ export const FREELANCE_SEARCH_QUERIES = [
 export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 77
 
 // ============================================
-// Rotation Logic
+// Rotation Logic (Random selection like original rotator)
 // ============================================
 
 /**
- * Get current keyword index based on time
- * Rotates every 10 minutes
+ * Get random keyword index
+ * Each call returns a new random keyword
  *
  * @returns index 0-76
  */
+export function getRandomKeywordIndex(): number {
+  return Math.floor(Math.random() * TOTAL_KEYWORDS);
+}
+
+/**
+ * Get random keyword
+ */
+export function getRandomKeyword(): string {
+  const index = getRandomKeywordIndex();
+  return FREELANCE_SEARCH_QUERIES[index];
+}
+
+/**
+ * Get keyword info for API response (random selection)
+ */
+export function getKeywordInfo(): {
+  keyword: string;
+  index: number;
+  total: number;
+} {
+  const index = getRandomKeywordIndex();
+  const keyword = FREELANCE_SEARCH_QUERIES[index];
+
+  return {
+    keyword,
+    index,
+    total: TOTAL_KEYWORDS,
+  };
+}
+
+// Legacy time-based functions (kept for reference)
 export function getCurrentKeywordIndex(): number {
   const now = new Date();
   const minutesSinceMidnight = now.getUTCHours() * 60 + now.getUTCMinutes();
@@ -127,39 +158,9 @@ export function getCurrentKeywordIndex(): number {
   return tenMinuteSlot % TOTAL_KEYWORDS;
 }
 
-/**
- * Get current keyword for this 10-minute slot
- */
 export function getCurrentKeyword(): string {
   const index = getCurrentKeywordIndex();
   return FREELANCE_SEARCH_QUERIES[index];
-}
-
-/**
- * Get keyword info for API response
- */
-export function getKeywordInfo(): {
-  keyword: string;
-  index: number;
-  total: number;
-  nextChangeIn: number; // seconds until next keyword
-} {
-  const index = getCurrentKeywordIndex();
-  const keyword = FREELANCE_SEARCH_QUERIES[index];
-
-  // Calculate seconds until next 10-minute slot
-  const now = new Date();
-  const currentMinute = now.getUTCMinutes();
-  const currentSecond = now.getUTCSeconds();
-  const minutesInSlot = currentMinute % 10;
-  const secondsUntilNext = (10 - minutesInSlot) * 60 - currentSecond;
-
-  return {
-    keyword,
-    index,
-    total: TOTAL_KEYWORDS,
-    nextChangeIn: secondsUntilNext,
-  };
 }
 
 /**
