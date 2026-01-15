@@ -505,14 +505,22 @@ export async function queueInstantAlertsForJob(jobId: string): Promise<{ queued:
     }
 
     // Create PENDING notification (will be processed by cron)
-    await prisma.alertNotification.create({
-      data: {
-        jobAlertId: alert.id,
-        jobId: job.id,
-        status: 'PENDING',
-      },
-    });
-    queued++;
+    try {
+      await prisma.alertNotification.create({
+        data: {
+          jobAlertId: alert.id,
+          jobId: job.id,
+          status: 'PENDING',
+        },
+      });
+      queued++;
+    } catch (e: unknown) {
+      // P2002 = unique constraint violation (already exists)
+      if (e && typeof e === 'object' && 'code' in e && e.code === 'P2002') {
+        continue; // Already queued, skip
+      }
+      throw e;
+    }
   }
 
   if (queued > 0) {
@@ -608,14 +616,22 @@ export async function queueInstantAlertsForOpportunity(opportunityId: string): P
     }
 
     // Create PENDING notification (will be processed by cron)
-    await prisma.alertNotification.create({
-      data: {
-        jobAlertId: alert.id,
-        opportunityId: opportunity.id,
-        status: 'PENDING',
-      },
-    });
-    queued++;
+    try {
+      await prisma.alertNotification.create({
+        data: {
+          jobAlertId: alert.id,
+          opportunityId: opportunity.id,
+          status: 'PENDING',
+        },
+      });
+      queued++;
+    } catch (e: unknown) {
+      // P2002 = unique constraint violation (already exists)
+      if (e && typeof e === 'object' && 'code' in e && e.code === 'P2002') {
+        continue; // Already queued, skip
+      }
+      throw e;
+    }
   }
 
   if (queued > 0) {
@@ -633,22 +649,27 @@ export const sendInstantAlertsForOpportunity = queueInstantAlertsForOpportunity;
 /**
  * Process the INSTANT alert queue
  * Groups pending notifications by user email and sends ONE email per user
- * Called by cron every 5-10 minutes
+ * Called by cron every 2 hours
+ *
+ * IMPORTANT: We process by UNIQUE EMAILS first (not by notification count)
+ * to ensure all notifications for a user are sent in ONE email.
  *
  * Uses PROCESSING status as a lock to prevent race conditions:
- * 1. Atomically claim PENDING → PROCESSING
- * 2. Process only claimed notifications
- * 3. Mark as SENT after successful send
+ * 1. Find unique emails with PENDING notifications
+ * 2. Claim ALL notifications for those emails
+ * 3. Process and send ONE email per user
+ * 4. Mark as SENT after successful send
  */
-// Maximum notifications to process per batch (Vercel Pro: 60s timeout)
-const BATCH_LIMIT = 100;
+// Maximum users to process per batch (Vercel Pro: 60s timeout)
+const MAX_USERS_PER_BATCH = 50;
 
 export async function processInstantAlertQueue(): Promise<{ sent: number; failed: number; processed: number }> {
   // Generate a unique batch ID for this processing run
   const batchId = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-  // Step 1: Find a limited number of PENDING notification IDs to claim
-  const pendingIds = await prisma.alertNotification.findMany({
+  // Step 1: Find unique emails with PENDING notifications
+  // We group by jobAlert to get unique alert IDs, then extract emails
+  const pendingAlerts = await prisma.alertNotification.findMany({
     where: {
       status: 'PENDING',
       jobAlert: {
@@ -656,23 +677,65 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
         isActive: true,
       },
     },
-    select: { id: true },
-    take: BATCH_LIMIT,
-    orderBy: { createdAt: 'asc' }, // Process oldest first
+    select: {
+      jobAlert: {
+        select: {
+          id: true,
+          email: true,
+          user: {
+            select: { email: true },
+          },
+        },
+      },
+    },
+    distinct: ['jobAlertId'],
   });
 
-  if (pendingIds.length === 0) {
+  // Extract unique emails
+  const uniqueEmails = new Set<string>();
+  for (const n of pendingAlerts) {
+    const email = n.jobAlert.email || n.jobAlert.user?.email;
+    if (email) uniqueEmails.add(email.toLowerCase());
+  }
+
+  if (uniqueEmails.size === 0) {
     console.log(`[InstantAlerts] No pending notifications in queue`);
     return { sent: 0, failed: 0, processed: 0 };
   }
 
-  const idsToProcess = pendingIds.map(n => n.id);
+  // Limit to MAX_USERS_PER_BATCH users
+  const emailsToProcess = Array.from(uniqueEmails).slice(0, MAX_USERS_PER_BATCH);
+  console.log(`[InstantAlerts] Batch ${batchId}: Found ${uniqueEmails.size} unique emails, processing ${emailsToProcess.length}`);
 
-  // Step 2: Atomically claim these specific notifications by marking them as PROCESSING
+  // Step 2: Claim ALL PENDING notifications for these emails
+  // First, get all notification IDs for these emails
+  const notificationsForEmails = await prisma.alertNotification.findMany({
+    where: {
+      status: 'PENDING',
+      jobAlert: {
+        frequency: 'INSTANT',
+        isActive: true,
+        OR: [
+          { email: { in: emailsToProcess, mode: 'insensitive' } },
+          { user: { email: { in: emailsToProcess, mode: 'insensitive' } } },
+        ],
+      },
+    },
+    select: { id: true },
+  });
+
+  const idsToProcess = notificationsForEmails.map(n => n.id);
+
+  if (idsToProcess.length === 0) {
+    console.log(`[InstantAlerts] No notifications found for emails`);
+    return { sent: 0, failed: 0, processed: 0 };
+  }
+
+  // Atomically claim these notifications
   const claimResult = await prisma.alertNotification.updateMany({
     where: {
       id: { in: idsToProcess },
-      status: 'PENDING', // Double-check still PENDING (race condition protection)
+      status: 'PENDING',
     },
     data: {
       status: 'PROCESSING',
@@ -684,9 +747,9 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
     return { sent: 0, failed: 0, processed: 0 };
   }
 
-  console.log(`[InstantAlerts] Batch ${batchId}: Claimed ${claimResult.count} of ${pendingIds.length} notifications`);
+  console.log(`[InstantAlerts] Batch ${batchId}: Claimed ${claimResult.count} notifications for ${emailsToProcess.length} users`);
 
-  // Step 3: Fetch the claimed notifications by ID - include both jobs AND opportunities
+  // Step 3: Fetch the claimed notifications with full data
   const pendingNotifications = await prisma.alertNotification.findMany({
     where: {
       id: { in: idsToProcess },
@@ -734,7 +797,7 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
     },
   });
 
-  console.log(`[InstantAlerts] Batch ${batchId}: Processing ${pendingNotifications.length} notifications`);
+  console.log(`[InstantAlerts] Batch ${batchId}: Processing ${pendingNotifications.length} notifications for ${emailsToProcess.length} users`);
 
   // Filter out notifications where both job AND opportunity are deleted (orphaned)
   const validNotifications = pendingNotifications.filter(n => n.job !== null || n.opportunity !== null);

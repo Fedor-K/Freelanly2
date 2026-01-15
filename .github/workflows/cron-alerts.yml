@@ -2,8 +2,8 @@ name: Freelanly Cron Jobs
 
 on:
   schedule:
-    # Every 2 hours - process instant alerts (batched for fewer emails)
-    - cron: '0 */2 * * *'
+    # NOTE: process-instant-alerts moved to Vercel cron only (every 2 hours)
+    # to prevent duplicate emails from multiple cron sources
 
     # 3x daily at 6:00, 14:00, 22:00 UTC - fetch job sources
     - cron: '0 6,14,22 * * *'
@@ -38,23 +38,14 @@ on:
         type: choice
         options:
           - all
-          - process-instant-alerts
           - fetch-sources
           - trial-emails
           - winback-emails
           - submit-to-index
 
 jobs:
-  # Every 2 hours
-  process-instant-alerts:
-    runs-on: ubuntu-latest
-    if: github.event.schedule == '0 */2 * * *' || github.event.inputs.job == 'process-instant-alerts' || github.event.inputs.job == 'all'
-    steps:
-      - name: Process instant alert queue
-        run: |
-          curl -X POST "https://freelanly.com/api/cron/process-instant-alerts" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            --fail --silent --show-error || true
+  # NOTE: process-instant-alerts is now handled by Vercel cron only
+  # Removed from GitHub Actions to prevent duplicate emails
 
   # 3x daily - fetch sources
   fetch-sources:
