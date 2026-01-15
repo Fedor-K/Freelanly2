@@ -63,10 +63,11 @@ build = ["npm", "run", "build"]
 # SCHEDULED TASKS (Cron Jobs)
 # ============================================
 
-# INSTANT job alerts - every 5 minutes
+# INSTANT job alerts - every 10 minutes
 # Sends email when new job matches user's alert criteria
+# NOTE: 60-second distributed lock prevents duplicate runs even if triggered more frequently
 [[deployment.scheduled]]
-trigger = "*/5 * * * *"
+trigger = "*/10 * * * *"
 action = "http"
 [deployment.scheduled.http]
 method = "POST"
