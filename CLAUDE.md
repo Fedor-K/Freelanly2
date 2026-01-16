@@ -484,35 +484,34 @@ Reference: `/blog/remote-work-statistics-2026`. Use exact data with sources, int
 2. After DB reset, must run `npm run db:seed` to restore categories
 3. Apollo enrichment can match wrong company (e.g., "Mistral" → bakery instead of AI)
 4. Salary Insights only shown for annual salaries (YEAR period)
-5. **Primary hosting: Replit** — работает из России без проблем
+5. **Primary hosting: Vercel** — автодеплой из GitHub
 6. **VPS (198.12.73.168)** — только для n8n workflows
-7. **Cron jobs** — настраиваются в Replit Scheduled Deployments
+7. **Cron jobs** — настраиваются в vercel.json
 8. **Jobs auto-deleted after 30 days** — this is intentional for freshness, not a bug
 
-## Replit Hosting (Primary)
+## Vercel Hosting (Primary)
 
-**Почему Replit:**
-- Работает из России (Neon DB не блокируется)
-- Простой деплой через GitHub
+**Почему Vercel:**
+- Автодеплой из GitHub (push → deploy)
+- Edge Functions для низкой латентности
 - Встроенный SSL
-- Secrets для env variables
+- Environment Variables через Dashboard
+- Cron Jobs через vercel.json
 
 **Текущий хостинг:**
-- **Primary:** Replit (freelanly.replit.app → freelanly.com)
+- **Primary:** Vercel (freelanly.vercel.app → freelanly.com)
 - **n8n:** VPS 198.12.73.168 через Cloudflare Tunnel (n8n.freelanly.com)
 
 **DNS (Cloudflare):**
 ```
-freelanly.com  → CNAME → xxxx.replit.app (Proxy OFF!)
-www            → CNAME → freelanly.com
+freelanly.com  → CNAME → cname.vercel-dns.com
+www            → CNAME → cname.vercel-dns.com
 n8n            → CNAME → cfargotunnel.com (Proxy ON)
 ```
 
-**⚠️ ВАЖНО: Cloudflare Proxy должен быть OFF (серая тучка) для основного домена!**
+### Vercel Environment Variables
 
-### Replit Secrets (Environment Variables)
-
-Все env variables добавляются в Settings → Secrets:
+Все env variables добавляются в Vercel Dashboard → Settings → Environment Variables:
 
 ```
 DATABASE_URL=postgresql://user:pass@host.neon.tech/db?sslmode=require
@@ -539,12 +538,22 @@ STRIPE_SECRET_KEY=xxx
 STRIPE_WEBHOOK_SECRET=xxx
 ```
 
-### Shell Workflow (Replit)
-`git pull` → edit files → `git add . && git commit -m "msg"` → `git push` → Replit UI → Deploy → Redeploy
+### Deployment Workflow
+`git push origin main` → Vercel автоматически деплоит
 
-### Cron Jobs (Replit)
+### Cron Jobs (Vercel)
 
-Cron jobs настраиваются через Replit Scheduled Deployments или внешние сервисы:
+Cron jobs настраиваются в `vercel.json`:
+
+```json
+{
+  "crons": [
+    { "path": "/api/cron/fetch-sources", "schedule": "0 6,14,22 * * *" },
+    { "path": "/api/cron/send-alerts?frequency=DAILY", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/process-instant-alerts", "schedule": "*/15 * * * *" }
+  ]
+}
+```
 
 **Manual trigger:**
 ```bash
