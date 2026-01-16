@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { JobCard } from '@/components/jobs/JobCard';
@@ -125,6 +125,29 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const category = categories.find((c) => c.slug === categorySlug);
 
   if (!category) {
+    // Maybe this is an old job URL like /jobs/6811-chinese-translator-job
+    // Try to find the job and redirect to new URL format
+    const possibleId = categorySlug.split('-').pop();
+
+    const job = await prisma.job.findFirst({
+      where: {
+        OR: [
+          { slug: categorySlug },
+          { sourceId: possibleId },
+        ]
+      },
+      select: {
+        slug: true,
+        company: { select: { slug: true } }
+      }
+    });
+
+    if (job) {
+      // 301 Permanent Redirect to new URL format
+      redirect(`/company/${job.company.slug}/jobs/${job.slug}`);
+    }
+
+    // Not a category and not a job - return 404
     notFound();
   }
 
