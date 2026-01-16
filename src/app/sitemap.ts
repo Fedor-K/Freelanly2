@@ -6,6 +6,10 @@ import { skills } from '@/config/skills';
 import { prisma } from '@/lib/db';
 import { getSitemapPriority } from '@/lib/content-quality';
 
+// Generate sitemap dynamically on each request (cached for 1 hour)
+export const dynamic = 'force-dynamic';
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = siteConfig.url;
   const now = new Date();
