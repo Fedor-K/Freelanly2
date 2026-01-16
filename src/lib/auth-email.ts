@@ -1,47 +1,6 @@
-// Magic Link email sender using DashaMail
+// Magic Link email sender using email provider abstraction
 
-const DASHAMAIL_API_URL = 'https://api.dashamail.com';
-
-interface DashaMailResponse {
-  msg?: {
-    err_code: number;
-    text: string;
-    type: string;
-  };
-  err_code?: number;
-  text?: string;
-  data?: {
-    transaction_id?: string;
-    [key: string]: unknown;
-  };
-}
-
-async function apiCall(
-  method: string,
-  params: Record<string, unknown> = {}
-): Promise<DashaMailResponse> {
-  const formData = new FormData();
-  formData.append('method', method);
-  formData.append('api_key', process.env.DASHAMAIL_API_KEY || '');
-  formData.append('format', 'json');
-
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== null) {
-      formData.append(
-        key,
-        typeof value === 'object' ? JSON.stringify(value) : String(value)
-      );
-    }
-  }
-
-  const response = await fetch(DASHAMAIL_API_URL, {
-    method: 'POST',
-    body: formData,
-  });
-
-  const data = await response.json();
-  return data.response;
-}
+import { sendApplicationEmail } from '@/lib/email';
 
 export async function sendMagicLinkEmail(
   email: string,
@@ -51,23 +10,19 @@ export async function sendMagicLinkEmail(
   const text = generateMagicLinkText(url);
 
   try {
-    const result = await apiCall('transactional.send', {
+    const result = await sendApplicationEmail({
       to: email,
-      from_email: process.env.DASHAMAIL_FROM_EMAIL || 'noreply@freelanly.com',
-      from_name: 'Freelanly',
       subject: 'Sign in to Freelanly',
-      message: html,
-      plain_text: text,
+      html,
+      text,
     });
 
-    // DashaMail returns { msg: { err_code: 0, text: 'OK' }, data: { transaction_id: '...' } }
-    const errCode = result.msg?.err_code ?? result.err_code;
-    if (errCode !== 0) {
-      console.error('[Auth Email] Failed to send magic link:', result);
-      throw new Error(`Failed to send email: ${JSON.stringify(result)}`);
+    if (!result.success) {
+      console.error('[Auth Email] Failed to send magic link:', result.error);
+      throw new Error(`Failed to send email: ${result.error}`);
     }
 
-    console.log(`[Auth Email] Magic link sent to ${email}, transaction_id: ${result.data?.transaction_id}`);
+    console.log(`[Auth Email] Magic link sent to ${email}, messageId: ${result.messageId}`);
   } catch (error) {
     console.error('[Auth Email] Error sending magic link:', error);
     throw error;

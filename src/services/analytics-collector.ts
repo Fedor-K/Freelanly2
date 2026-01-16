@@ -10,7 +10,7 @@
 
 import { prisma } from '@/lib/db';
 import { getMetrikaLastNDays, testMetrikaConnection, type MetrikaStats } from '@/lib/yandex-metrika-api';
-import { getEmailMarketingStats, testDashaMailConnection, type SubscriberStats, type EmailCampaignStats } from '@/lib/dashamail';
+import { getEmailMarketingStats, testConnection, type SubscriberStats, type EmailCampaignStats } from '@/lib/email';
 import { fetchAnalyticsFromSheet, getAnalyticsSheetId, type AnalyticsData } from '@/lib/google-sheets';
 
 // ============================================
@@ -91,7 +91,7 @@ async function collectMetrikaData(): Promise<MetrikaStats | null> {
  */
 async function collectEmailData() {
   try {
-    const connected = await testDashaMailConnection();
+    const connected = await testConnection();
     if (!connected) return null;
 
     return await getEmailMarketingStats();

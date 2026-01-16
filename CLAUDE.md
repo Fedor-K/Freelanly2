@@ -524,9 +524,11 @@ ZAI_API_KEY=xxx  # Z.ai API key (optional, for AI_PROVIDER=zai)
 AI_PROVIDER=deepseek  # or "zai" to use Z.ai GLM-4-32B (64% cheaper)
 APIFY_API_TOKEN=xxx
 APOLLO_API_KEY1=xxx
+EMAIL_PROVIDER=dashamail  # or "resend" to use Resend API
 DASHAMAIL_API_KEY=xxx
 DASHAMAIL_FROM_EMAIL=info@freelanly.com
 DASHAMAIL_LIST_ID=358581
+RESEND_API_KEY=xxx  # Resend API key (required if EMAIL_PROVIDER=resend)
 GOOGLE_CLIENT_ID=xxx
 GOOGLE_CLIENT_SECRET=xxx
 NEXT_PUBLIC_YANDEX_METRIKA_ID=103606747
