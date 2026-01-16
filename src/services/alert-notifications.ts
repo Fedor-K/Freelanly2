@@ -1,4 +1,4 @@
-import { sendApplicationEmail } from '@/lib/dashamail';
+import { sendApplicationEmail } from '@/lib/email';
 import { AlertWithMatches, markJobsAsSent } from './alert-matcher';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';

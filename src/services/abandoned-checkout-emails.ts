@@ -8,7 +8,7 @@
 
 import { prisma } from '@/lib/db';
 import { getStripe } from '@/lib/stripe';
-import { sendApplicationEmail } from '@/lib/dashamail';
+import { sendApplicationEmail } from '@/lib/email';
 import { AbandonedCheckoutEmailType } from '@prisma/client';
 
 // ============================================

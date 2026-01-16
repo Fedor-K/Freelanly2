@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getStripe, STRIPE_PRICES } from '@/lib/stripe';
-import { getEmailMarketingStats } from '@/lib/dashamail';
+import { getEmailMarketingStats } from '@/lib/email';
 import { getTrialEmailStats } from '@/services/trial-emails';
 import { getWinbackEmailStats } from '@/services/winback-emails';
 import Stripe from 'stripe';
