@@ -1,15 +1,15 @@
 /**
  * Freelance LinkedIn Posts Discovery Configuration
  *
- * 77 search queries for finding freelance/contract opportunities.
+ * 120 search queries for finding freelance/contract opportunities.
  * Used by n8n workflow via /api/linkedin/next-keyword endpoint.
  *
- * Rotation: every 10 minutes, next keyword in list
- * Full cycle: 77 × 10 min = ~13 hours
+ * Rotation: every 10 minutes, next keyword in list (sequential, not random)
+ * Full cycle: 120 × 10 min = ~20 hours
  */
 
 // ============================================
-// All 77 Freelance Search Queries
+// All 120 Freelance Search Queries
 // ============================================
 
 export const FREELANCE_SEARCH_QUERIES = [
@@ -51,7 +51,7 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"freelance web designer"',
   '"freelance graphic designer"',
 
-  // === Translation & Language (18) ===
+  // === Translation & Language - General (18) ===
   '"freelance translator"',
   '"freelance translation"',
   '"translation project"',
@@ -70,6 +70,45 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"freelance editor" language',
   '"voice over" freelance',
   '"dubbing" freelance',
+
+  // === Translation - By Language (19) ===
+  '"french translator"',
+  '"chinese translator"',
+  '"spanish translator"',
+  '"japanese translator"',
+  '"arabic translator"',
+  '"portuguese translator"',
+  '"italian translator"',
+  '"german translator"',
+  '"russian translator"',
+  '"korean translator"',
+  '"turkish translator"',
+  '"hindi translator"',
+  '"polish translator"',
+  '"dutch translator"',
+  '"swedish translator"',
+  '"ukrainian translator"',
+  '"czech translator"',
+  '"greek translator"',
+  '"vietnamese translator"',
+
+  // === Interpreters (8) ===
+  '"hiring interpreter"',
+  '"need interpreter"',
+  '"looking for interpreter"',
+  '"conference interpreter"',
+  '"medical interpreter"',
+  '"legal interpreter"',
+  '"court interpreter"',
+  '"simultaneous interpreter"',
+
+  // === Specialized Translation (6) ===
+  '"MTPE"',
+  '"post-editing"',
+  '"machine translation" editor',
+  '"subtitle" project',
+  '"transcreation"',
+  '"linguist" needed',
 
   // === Writing (8) ===
   '"freelance writer"',
@@ -99,48 +138,63 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"freelance photographer"',
   '"contract creative"',
 
-  // === Other (5) ===
+  // === QA & Testing (5) ===
+  '"freelance QA"',
+  '"freelance tester"',
+  '"QA tester" remote',
+  '"localization QA"',
+  '"LQA"',
+
+  // === Other (10) ===
   '"freelance virtual assistant"',
   '"freelance consultant"',
   '"freelance project manager"',
   '"freelance data analyst"',
   '"freelance VA"',
+  '"freelance recruiter"',
+  '"freelance bookkeeper"',
+  '"freelance accountant"',
+  '"freelance customer support"',
+  '"freelance research"',
 ];
 
 // Total count
-export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 77
+export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 120
 
 // ============================================
-// Rotation Logic (Random selection like original rotator)
+// Rotation Logic (Sequential, time-based)
 // ============================================
 
 /**
- * Get random keyword index
- * Each call returns a new random keyword
+ * Get current keyword index based on time
+ * Uses 10-minute slots to rotate through keywords sequentially
  *
- * @returns index 0-76
+ * @returns index 0 to TOTAL_KEYWORDS-1
  */
-export function getRandomKeywordIndex(): number {
-  return Math.floor(Math.random() * TOTAL_KEYWORDS);
+export function getCurrentKeywordIndex(): number {
+  const now = new Date();
+  const minutesSinceMidnight = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const tenMinuteSlot = Math.floor(minutesSinceMidnight / 10);
+  return tenMinuteSlot % TOTAL_KEYWORDS;
 }
 
 /**
- * Get random keyword
+ * Get current keyword based on time slot
  */
-export function getRandomKeyword(): string {
-  const index = getRandomKeywordIndex();
+export function getCurrentKeyword(): string {
+  const index = getCurrentKeywordIndex();
   return FREELANCE_SEARCH_QUERIES[index];
 }
 
 /**
- * Get keyword info for API response (random selection)
+ * Get keyword info for API response (sequential rotation)
  */
 export function getKeywordInfo(): {
   keyword: string;
   index: number;
   total: number;
 } {
-  const index = getRandomKeywordIndex();
+  const index = getCurrentKeywordIndex();
   const keyword = FREELANCE_SEARCH_QUERIES[index];
 
   return {
@@ -150,16 +204,13 @@ export function getKeywordInfo(): {
   };
 }
 
-// Legacy time-based functions (kept for reference)
-export function getCurrentKeywordIndex(): number {
-  const now = new Date();
-  const minutesSinceMidnight = now.getUTCHours() * 60 + now.getUTCMinutes();
-  const tenMinuteSlot = Math.floor(minutesSinceMidnight / 10);
-  return tenMinuteSlot % TOTAL_KEYWORDS;
+// Legacy random functions (kept for backwards compatibility)
+export function getRandomKeywordIndex(): number {
+  return Math.floor(Math.random() * TOTAL_KEYWORDS);
 }
 
-export function getCurrentKeyword(): string {
-  const index = getCurrentKeywordIndex();
+export function getRandomKeyword(): string {
+  const index = getRandomKeywordIndex();
   return FREELANCE_SEARCH_QUERIES[index];
 }
 
@@ -168,4 +219,20 @@ export function getCurrentKeyword(): string {
  */
 export function getAllKeywords(): string[] {
   return [...FREELANCE_SEARCH_QUERIES];
+}
+
+/**
+ * Get next N keywords starting from current position
+ * Useful for preview in admin panel
+ */
+export function getUpcomingKeywords(count: number = 5): string[] {
+  const currentIndex = getCurrentKeywordIndex();
+  const result: string[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const index = (currentIndex + i) % TOTAL_KEYWORDS;
+    result.push(FREELANCE_SEARCH_QUERIES[index]);
+  }
+
+  return result;
 }
