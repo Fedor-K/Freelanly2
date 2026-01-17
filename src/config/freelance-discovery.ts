@@ -1,15 +1,15 @@
 /**
  * Freelance LinkedIn Posts Discovery Configuration
  *
- * 120 search queries for finding freelance/contract opportunities.
+ * 175 search queries for finding freelance/contract opportunities.
  * Used by n8n workflow via /api/linkedin/next-keyword endpoint.
  *
  * Rotation: every 10 minutes, next keyword in list (sequential, not random)
- * Full cycle: 120 × 10 min = ~20 hours
+ * Full cycle: 175 × 10 min = ~29 hours
  */
 
 // ============================================
-// All 120 Freelance Search Queries
+// All 175 Freelance Search Queries
 // ============================================
 
 export const FREELANCE_SEARCH_QUERIES = [
@@ -71,7 +71,7 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"voice over" freelance',
   '"dubbing" freelance',
 
-  // === Translation - By Language (19) ===
+  // === Translators - By Language (30) ===
   '"french translator"',
   '"chinese translator"',
   '"spanish translator"',
@@ -91,8 +91,51 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"czech translator"',
   '"greek translator"',
   '"vietnamese translator"',
+  '"thai translator"',
+  '"indonesian translator"',
+  '"malay translator"',
+  '"hebrew translator"',
+  '"romanian translator"',
+  '"hungarian translator"',
+  '"norwegian translator"',
+  '"danish translator"',
+  '"finnish translator"',
+  '"bengali translator"',
+  '"persian translator"',
 
-  // === Interpreters (8) ===
+  // === Interpreters - By Language (30) ===
+  '"french interpreter"',
+  '"chinese interpreter"',
+  '"spanish interpreter"',
+  '"japanese interpreter"',
+  '"arabic interpreter"',
+  '"portuguese interpreter"',
+  '"italian interpreter"',
+  '"german interpreter"',
+  '"russian interpreter"',
+  '"korean interpreter"',
+  '"turkish interpreter"',
+  '"hindi interpreter"',
+  '"polish interpreter"',
+  '"dutch interpreter"',
+  '"swedish interpreter"',
+  '"ukrainian interpreter"',
+  '"czech interpreter"',
+  '"greek interpreter"',
+  '"vietnamese interpreter"',
+  '"thai interpreter"',
+  '"indonesian interpreter"',
+  '"malay interpreter"',
+  '"hebrew interpreter"',
+  '"romanian interpreter"',
+  '"hungarian interpreter"',
+  '"norwegian interpreter"',
+  '"danish interpreter"',
+  '"finnish interpreter"',
+  '"bengali interpreter"',
+  '"persian interpreter"',
+
+  // === Interpreters - General (8) ===
   '"hiring interpreter"',
   '"need interpreter"',
   '"looking for interpreter"',
@@ -159,7 +202,7 @@ export const FREELANCE_SEARCH_QUERIES = [
 ];
 
 // Total count
-export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 120
+export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 175
 
 // ============================================
 // Rotation Logic (Sequential, time-based)
