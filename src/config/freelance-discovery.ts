@@ -1,15 +1,15 @@
 /**
  * Freelance LinkedIn Posts Discovery Configuration
  *
- * 175 search queries for finding freelance/contract opportunities.
+ * 169 search queries for finding freelance/contract opportunities.
  * Used by n8n workflow via /api/linkedin/next-keyword endpoint.
  *
  * Rotation: every 10 minutes, next keyword in list (sequential, not random)
- * Full cycle: 175 × 10 min = ~29 hours
+ * Full cycle: 169 × 10 min = ~28 hours
  */
 
 // ============================================
-// All 175 Freelance Search Queries
+// All 169 Freelance Search Queries
 // ============================================
 
 export const FREELANCE_SEARCH_QUERIES = [
@@ -32,26 +32,24 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"hourly rate"',
   '"per project"',
 
-  // === Engineering (8) ===
+  // === Engineering (7) ===
   '"freelance developer"',
   '"freelance engineer"',
-  '"freelance programmer"',
   '"contract developer"',
   '"freelance react"',
   '"freelance node"',
   '"freelance fullstack"',
   '"freelance backend"',
 
-  // === Design (7) ===
+  // === Design (6) ===
   '"freelance designer"',
   '"freelance UX"',
-  '"freelance UI"',
   '"freelance product designer"',
   '"contract designer"',
   '"freelance web designer"',
   '"freelance graphic designer"',
 
-  // === Translation & Language - General (18) ===
+  // === Translation & Language - General (16) ===
   '"freelance translator"',
   '"freelance translation"',
   '"translation project"',
@@ -61,11 +59,9 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"localization project"',
   '"freelance localization"',
   '"app localization"',
-  '"game localization"',
   '"website localization"',
   '"freelance interpreter"',
   '"freelance subtitling"',
-  '"freelance transcription"',
   '"freelance proofreader"',
   '"freelance editor" language',
   '"voice over" freelance',
@@ -135,14 +131,12 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"bengali interpreter"',
   '"persian interpreter"',
 
-  // === Interpreters - General (8) ===
+  // === Interpreters - General (6) ===
   '"hiring interpreter"',
   '"need interpreter"',
   '"looking for interpreter"',
   '"conference interpreter"',
   '"medical interpreter"',
-  '"legal interpreter"',
-  '"court interpreter"',
   '"simultaneous interpreter"',
 
   // === Specialized Translation (6) ===
@@ -202,7 +196,7 @@ export const FREELANCE_SEARCH_QUERIES = [
 ];
 
 // Total count
-export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 175
+export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 169
 
 // ============================================
 // Rotation Logic (Sequential, time-based)
