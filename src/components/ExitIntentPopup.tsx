@@ -31,6 +31,11 @@ export function ExitIntentPopup() {
       return;
     }
 
+    if (!category) {
+      setError('Please select a category');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -44,14 +49,13 @@ export function ExitIntentPopup() {
         }
       });
 
-      // Subscribe to job alerts
-      const selectedCategory = category && category !== 'all' && category !== '' ? category : null;
+      // Subscribe to job alerts (category is required now)
       const response = await fetch('/api/job-alerts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email,
-          category: selectedCategory,
+          category,
           frequency: 'WEEKLY',
           source: 'exit_intent',
         }),
@@ -144,8 +148,7 @@ export function ExitIntentPopup() {
                   disabled={loading}
                   className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <option value="">Select category (optional)</option>
-                  <option value="all">All categories</option>
+                  <option value="">Select category</option>
                   {categories.map((cat) => (
                     <option key={cat.slug} value={cat.slug}>
                       {cat.icon} {cat.name}

@@ -1,9 +1,28 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// Valid category slugs (must match categories in site.ts)
+const VALID_CATEGORIES = new Set([
+  'engineering', 'design', 'data', 'devops', 'qa', 'security',
+  'product', 'marketing', 'sales', 'finance', 'hr', 'operations',
+  'legal', 'project-management', 'writing', 'translation', 'creative',
+  'support', 'education', 'research', 'consulting'
+]);
+
 export function middleware(req: NextRequest) {
   const host = req.headers.get('host') || '';
   const pathname = req.nextUrl.pathname;
+
+  // Detect old job URL patterns like /jobs/italian-translation-job-0398f84e
+  // These should return 404 instead of matching /jobs/[category]
+  const oldJobUrlMatch = pathname.match(/^\/jobs\/([^\/]+)$/);
+  if (oldJobUrlMatch) {
+    const slug = oldJobUrlMatch[1];
+    // If slug is NOT a valid category, it's an old job URL - return 404
+    if (!VALID_CATEGORIES.has(slug)) {
+      return new NextResponse('Not Found', { status: 404 });
+    }
+  }
 
   // WWW to non-WWW redirect (301 permanent)
   if (host.startsWith('www.')) {

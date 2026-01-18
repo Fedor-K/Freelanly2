@@ -1390,6 +1390,18 @@ function checkJobMatchesAlert(
     }>;
   }
 ): boolean {
+  // Skip alerts with ALL null filters - too broad, would match ALL jobs
+  const hasAnyFilter = !!(
+    alert.category ||
+    alert.keywords ||
+    alert.country ||
+    alert.level ||
+    alert.languagePairs.length > 0
+  );
+  if (!hasAnyFilter) {
+    return false;
+  }
+
   // Category filter
   if (alert.category && job.category.slug !== alert.category) {
     return false;

@@ -27,6 +27,7 @@ interface EmailStatsData {
     delivered: number;
     opened: number;
     clicked: number;
+    clickedTotal: number;
     bounced: number;
     complained: number;
     deliveryRate: number;
@@ -228,7 +229,10 @@ export default function EmailStatsPage() {
                 <div className="p-3 bg-indigo-50 rounded-lg text-center">
                   <MousePointer className="h-5 w-5 text-indigo-600 mx-auto mb-1" />
                   <p className="text-2xl font-bold text-indigo-600">{(data.resend?.clicked ?? 0).toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">Clicked</p>
+                  <p className="text-xs text-muted-foreground">Unique Clickers</p>
+                  {(data.resend?.clickedTotal ?? 0) > (data.resend?.clicked ?? 0) && (
+                    <p className="text-xs text-indigo-400 mt-0.5">({data.resend?.clickedTotal} clicks)</p>
+                  )}
                 </div>
                 <div className="p-3 bg-red-50 rounded-lg text-center">
                   <XCircle className="h-5 w-5 text-red-600 mx-auto mb-1" />

@@ -50,12 +50,31 @@ export interface AlertWithMatches {
 }
 
 /**
+ * Check if alert has at least one filter set
+ */
+function hasAnyFilter(alert: JobAlert): boolean {
+  return !!(
+    alert.category ||
+    alert.keywords ||
+    alert.country ||
+    alert.level ||
+    alert.languagePairs.length > 0
+  );
+}
+
+/**
  * Find jobs that match an alert's criteria
  */
 async function findMatchingJobs(
   alert: JobAlert,
   since: Date
 ): Promise<MatchedJob[]> {
+  // Skip alerts with ALL null filters - too broad, would send ALL jobs
+  if (!hasAnyFilter(alert)) {
+    console.log(`[Alert Matcher] Skipping alert ${alert.id} (${alert.email}) - no filters set`);
+    return [];
+  }
+
   // Build where clause based on alert criteria
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = {

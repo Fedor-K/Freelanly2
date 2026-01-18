@@ -15,6 +15,8 @@ export async function GET() {
       eventsByType,
       recentEvents,
       dailyStats,
+      uniqueClickers,
+      uniqueDelivered,
     ] = await Promise.all([
       // Total events count
       prisma.emailEvent.count(),
@@ -26,9 +28,9 @@ export async function GET() {
         _count: true,
       }),
 
-      // Recent events
+      // Recent events (more for filtering)
       prisma.emailEvent.findMany({
-        take: 20,
+        take: 100,
         orderBy: { timestamp: 'desc' },
         select: {
           id: true,
@@ -50,6 +52,20 @@ export async function GET() {
         WHERE "timestamp" >= ${sevenDaysAgo}
         GROUP BY DATE("timestamp"), "type"
         ORDER BY date DESC
+      `,
+
+      // Unique users who clicked (last 30 days)
+      prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(DISTINCT "to") as count
+        FROM "EmailEvent"
+        WHERE "type" = 'CLICKED' AND "timestamp" >= ${thirtyDaysAgo}
+      `,
+
+      // Unique users who received emails (last 30 days)
+      prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(DISTINCT "to") as count
+        FROM "EmailEvent"
+        WHERE "type" = 'DELIVERED' AND "timestamp" >= ${thirtyDaysAgo}
       `,
     ]);
 
@@ -109,13 +125,18 @@ export async function GET() {
     const sent = eventCounts['SENT'] || 0;
     const delivered = eventCounts['DELIVERED'] || 0;
     const opened = eventCounts['OPENED'] || 0;
-    const clicked = eventCounts['CLICKED'] || 0;
+    const clickedTotal = eventCounts['CLICKED'] || 0; // Total click events
     const bounced = eventCounts['BOUNCED'] || 0;
     const complained = eventCounts['COMPLAINED'] || 0;
 
+    // Unique users who clicked/received
+    const uniqueClickedCount = Number(uniqueClickers[0]?.count || 0);
+    const uniqueDeliveredCount = Number(uniqueDelivered[0]?.count || 0);
+
     const deliveryRate = sent > 0 ? ((delivered / sent) * 100).toFixed(1) : '0';
     const openRate = delivered > 0 ? ((opened / delivered) * 100).toFixed(1) : '0';
-    const clickRate = opened > 0 ? ((clicked / opened) * 100).toFixed(1) : '0';
+    // Click rate = unique users who clicked / unique users who received
+    const clickRate = uniqueDeliveredCount > 0 ? ((uniqueClickedCount / uniqueDeliveredCount) * 100).toFixed(1) : '0';
     const bounceRate = sent > 0 ? ((bounced / sent) * 100).toFixed(1) : '0';
 
     // Process daily stats for chart
@@ -143,7 +164,8 @@ export async function GET() {
         sent,
         delivered,
         opened,
-        clicked,
+        clicked: uniqueClickedCount, // Unique users who clicked
+        clickedTotal, // Total click events (for reference)
         bounced,
         complained,
         deliveryRate: parseFloat(deliveryRate),
