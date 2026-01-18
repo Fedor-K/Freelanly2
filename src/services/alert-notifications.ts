@@ -783,7 +783,7 @@ export const sendInstantAlertsForJob = queueInstantAlertsForJob;
  * Same as queueInstantAlertsForJob but for Opportunity model
  */
 export async function queueInstantAlertsForOpportunity(opportunityId: string): Promise<{ queued: number }> {
-  // Fetch the opportunity with category
+  // Fetch the opportunity with category and language fields
   const opportunity = await prisma.opportunity.findUnique({
     where: { id: opportunityId },
     include: {
@@ -795,7 +795,14 @@ export async function queueInstantAlertsForOpportunity(opportunityId: string): P
     },
   });
 
-  if (!opportunity) {
+  // Ensure language arrays exist for checkJobMatchesAlert
+  const opportunityWithLangs = opportunity ? {
+    ...opportunity,
+    sourceLanguages: opportunity.sourceLanguages || [],
+    targetLanguages: opportunity.targetLanguages || [],
+  } : null;
+
+  if (!opportunityWithLangs) {
     console.error(`[InstantAlerts] Opportunity ${opportunityId} not found`);
     return { queued: 0 };
   }
@@ -839,7 +846,7 @@ export async function queueInstantAlertsForOpportunity(opportunityId: string): P
 
   for (const alert of instantAlerts) {
     // Check if this opportunity matches the alert criteria
-    const matches = checkJobMatchesAlert(opportunity, alert);
+    const matches = checkJobMatchesAlert(opportunityWithLangs, alert);
 
     if (!matches) {
       continue;
@@ -849,7 +856,7 @@ export async function queueInstantAlertsForOpportunity(opportunityId: string): P
     const existing = await prisma.alertNotification.findFirst({
       where: {
         jobAlertId: alert.id,
-        opportunityId: opportunity.id,
+        opportunityId: opportunityWithLangs.id,
       },
     });
 
@@ -862,7 +869,7 @@ export async function queueInstantAlertsForOpportunity(opportunityId: string): P
       await prisma.alertNotification.create({
         data: {
           jobAlertId: alert.id,
-          opportunityId: opportunity.id,
+          opportunityId: opportunityWithLangs.id,
           status: 'PENDING',
         },
       });
@@ -877,7 +884,7 @@ export async function queueInstantAlertsForOpportunity(opportunityId: string): P
   }
 
   if (queued > 0) {
-    console.log(`[InstantAlerts] Queued opportunity "${opportunity.title}" for ${queued} alerts`);
+    console.log(`[InstantAlerts] Queued opportunity "${opportunityWithLangs.title}" for ${queued} alerts`);
   }
 
   return { queued };
