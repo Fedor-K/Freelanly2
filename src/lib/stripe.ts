@@ -149,6 +149,13 @@ export async function createCheckoutSession({
         },
     // Allow promotion codes
     allow_promotion_codes: true,
+    // FRAUD PROTECTION: Require 3D Secure authentication for all payments
+    // This shifts liability to the bank and reduces chargebacks
+    payment_method_options: {
+      card: {
+        request_three_d_secure: 'always',
+      },
+    },
   };
 
   return stripe.checkout.sessions.create(sessionParams);
