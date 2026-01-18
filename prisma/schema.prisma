@@ -1565,6 +1565,59 @@ enum ReengagementEmailType {
 }
 
 // ============================================
+// ACTIVITY LOG (for dispute evidence)
+// ============================================
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+
+  // User reference (optional - can be anonymous)
+  userId    String?
+
+  // Action details
+  action    ActivityAction
+  details   Json?    // Additional context: { jobId: "xxx", etc. }
+
+  // Request info (for fraud evidence)
+  ipAddress   String?
+  userAgent   String?
+  country     String?  // Derived from IP
+  city        String?
+
+  // Session tracking
+  sessionId   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([ipAddress])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
+enum ActivityAction {
+  // Auth
+  LOGIN
+  LOGOUT
+  SIGNUP
+  PASSWORD_RESET
+
+  // Subscription
+  SUBSCRIPTION_STARTED
+  SUBSCRIPTION_CANCELLED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+
+  // Core actions
+  JOB_VIEW
+  JOB_APPLY
+  ALERT_CREATED
+  PROFILE_UPDATED
+  RESUME_UPLOADED
+}
+
+// ============================================
 // VERCEL ANALYTICS EVENTS (from Drains)
 // ============================================
 
