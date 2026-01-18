@@ -216,18 +216,14 @@ function generateOpportunityAlertEmailHtml(
             <table cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td width="60" valign="top">
-                  ${
-                    opp.clientAvatar
-                      ? `<img src="${opp.clientAvatar}" alt="${opp.clientName}" width="50" height="50" style="border-radius: 50%; object-fit: cover;">`
-                      : `<div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #666;">${opp.clientName.charAt(0)}</div>`
-                  }
+                  <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff;">💼</div>
                 </td>
                 <td style="padding-left: 15px;">
                   <a href="${oppUrl}" style="color: #000; text-decoration: none; font-weight: 600; font-size: 16px;">
                     ${opp.title}
                   </a>
                   <div style="color: #666; font-size: 14px; margin-top: 4px;">
-                    ${opp.clientName}${opp.country ? ` • ${opp.country}` : ''} • Freelance
+                    ${opp.country ? `${opp.country} • ` : ''}Freelance Project
                   </div>
                   ${salary ? `<div style="color: #22c55e; font-size: 14px; margin-top: 4px;">${salary}</div>` : ''}
                   <div style="margin-top: 10px;">
@@ -323,7 +319,7 @@ function generateOpportunityAlertEmailText(
         opp.salaryMin && opp.salaryMax
           ? `${opp.salaryCurrency || '$'}${opp.salaryMin} - ${opp.salaryMax}/hr`
           : '';
-      return `${opp.title}\n${opp.clientName}${opp.country ? ` • ${opp.country}` : ''} • Freelance${salary ? ` • ${salary}` : ''}\n${oppUrl}\n`;
+      return `${opp.title}\n${opp.country ? `${opp.country} • ` : ''}Freelance Project${salary ? ` • ${salary}` : ''}\n${oppUrl}\n`;
     })
     .join('\n');
 
@@ -407,18 +403,14 @@ function generateCombinedAlertEmailHtml(
             <table cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td width="60" valign="top">
-                  ${
-                    opp.clientAvatar
-                      ? `<img src="${opp.clientAvatar}" alt="${opp.clientName}" width="50" height="50" style="border-radius: 50%; object-fit: cover;">`
-                      : `<div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #666;">${opp.clientName.charAt(0)}</div>`
-                  }
+                  <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff;">💼</div>
                 </td>
                 <td style="padding-left: 15px;">
                   <a href="${oppUrl}" style="color: #000; text-decoration: none; font-weight: 600; font-size: 16px;">
                     ${opp.title}
                   </a>
                   <div style="color: #666; font-size: 14px; margin-top: 4px;">
-                    ${opp.clientName}${opp.country ? ` • ${opp.country}` : ''} • Freelance
+                    ${opp.country ? `${opp.country} • ` : ''}Freelance Project
                   </div>
                   ${salary ? `<div style="color: #22c55e; font-size: 14px; margin-top: 4px;">${salary}</div>` : ''}
                   <div style="margin-top: 10px;">
@@ -564,7 +556,7 @@ function generateCombinedAlertEmailText(
           opp.salaryMin && opp.salaryMax
             ? `${opp.salaryCurrency || '$'}${opp.salaryMin} - ${opp.salaryMax}/hr`
             : '';
-        return `${opp.title}\n${opp.clientName}${opp.country ? ` • ${opp.country}` : ''} • Freelance${salary ? ` • ${salary}` : ''}\n${oppUrl}\n`;
+        return `${opp.title}\n${opp.country ? `${opp.country} • ` : ''}Freelance Project${salary ? ` • ${salary}` : ''}\n${oppUrl}\n`;
       })
       .join('\n');
   }
