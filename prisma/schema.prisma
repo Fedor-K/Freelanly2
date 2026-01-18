@@ -1621,6 +1621,39 @@ enum ActivityAction {
 }
 
 // ============================================
+// EMAIL TRACKING (Resend Webhooks)
+// ============================================
+
+model EmailEvent {
+  id        String   @id @default(cuid())
+
+  messageId String   // Resend email ID
+  type      EmailEventType
+  to        String   // Recipient email
+  subject   String?  // Email subject
+
+  // Additional metadata (click links, bounce reasons, etc.)
+  metadata  Json?
+
+  timestamp DateTime // When event occurred
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
+  @@index([type])
+  @@index([to])
+  @@index([timestamp])
+}
+
+enum EmailEventType {
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  COMPLAINED
+}
+
+// ============================================
 // VERCEL ANALYTICS EVENTS (from Drains)
 // ============================================
 
