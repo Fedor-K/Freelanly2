@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { AlertFrequency } from '@prisma/client';
+import { logActivity, ActivityAction } from '@/lib/activity-log';
 
 /**
  * Convert language codes to language pairs with English
@@ -112,6 +113,18 @@ export async function POST(request: NextRequest) {
       },
       include: {
         languagePairs: true,
+      },
+    });
+
+    // Log alert creation for dispute evidence (with IP)
+    await logActivity({
+      userId: session.user.id,
+      action: ActivityAction.ALERT_CREATED,
+      details: {
+        alertId: alert.id,
+        category,
+        keywords,
+        languages: languages?.length || 0,
       },
     });
 
