@@ -35,9 +35,12 @@ interface EmailStatsData {
     bounceRate: number;
   };
   alerts: {
-    total: number;
-    sent: number;
+    emailsSent: number;
     last7Days: number;
+    last30Days: number;
+    uniqueRecipients: number;
+    avgJobsPerEmail: number;
+    totalJobNotifications: number;
   };
   recentEvents: Array<{
     id: string;
@@ -143,36 +146,45 @@ export default function EmailStatsPage() {
         </Button>
       </div>
 
-      {/* Alert Notifications (DB) */}
+      {/* Job Alert Emails */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <Mail className="h-5 w-5" />
-            Job Alert Emails (Database)
+            Job Alert Emails
           </CardTitle>
-          <CardDescription>Total emails tracked in AlertNotification table</CardDescription>
+          <CardDescription>Actual emails sent to users (one email = many jobs)</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="p-4 bg-blue-50 rounded-lg text-center">
               <p className="text-3xl font-bold text-blue-600">
-                {data.alerts.total.toLocaleString()}
+                {data.alerts.emailsSent.toLocaleString()}
               </p>
-              <p className="text-sm text-muted-foreground">Total</p>
+              <p className="text-sm text-muted-foreground">Emails Sent</p>
             </div>
             <div className="p-4 bg-green-50 rounded-lg text-center">
               <p className="text-3xl font-bold text-green-600">
-                {data.alerts.sent.toLocaleString()}
-              </p>
-              <p className="text-sm text-muted-foreground">Sent</p>
-            </div>
-            <div className="p-4 bg-purple-50 rounded-lg text-center">
-              <p className="text-3xl font-bold text-purple-600">
                 {data.alerts.last7Days.toLocaleString()}
               </p>
               <p className="text-sm text-muted-foreground">Last 7 days</p>
             </div>
+            <div className="p-4 bg-purple-50 rounded-lg text-center">
+              <p className="text-3xl font-bold text-purple-600">
+                {data.alerts.uniqueRecipients.toLocaleString()}
+              </p>
+              <p className="text-sm text-muted-foreground">Unique Recipients</p>
+            </div>
+            <div className="p-4 bg-orange-50 rounded-lg text-center">
+              <p className="text-3xl font-bold text-orange-600">
+                ~{data.alerts.avgJobsPerEmail}
+              </p>
+              <p className="text-sm text-muted-foreground">Jobs per Email</p>
+            </div>
           </div>
+          <p className="text-xs text-muted-foreground mt-4 text-center">
+            Total job notifications: {data.alerts.totalJobNotifications.toLocaleString()}
+          </p>
         </CardContent>
       </Card>
 

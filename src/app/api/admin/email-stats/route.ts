@@ -53,21 +53,51 @@ export async function GET() {
       `,
     ]);
 
-    // Get AlertNotification stats
+    // Get REAL email stats (unique email + date = one email)
     const [
+      realEmailsTotal,
+      realEmailsLast7Days,
+      realEmailsLast30Days,
+      uniqueRecipients,
       totalNotifications,
-      sentNotifications,
-      notificationsLast7Days,
     ] = await Promise.all([
-      prisma.alertNotification.count(),
+      // Total unique emails sent
+      prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(DISTINCT CONCAT(ja."email", DATE(an."sentAt"))) as count
+        FROM "AlertNotification" an
+        JOIN "JobAlert" ja ON an."jobAlertId" = ja."id"
+        WHERE an."status" = 'SENT'
+      `,
+      // Last 7 days
+      prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(DISTINCT CONCAT(ja."email", DATE(an."sentAt"))) as count
+        FROM "AlertNotification" an
+        JOIN "JobAlert" ja ON an."jobAlertId" = ja."id"
+        WHERE an."status" = 'SENT' AND an."sentAt" >= ${sevenDaysAgo}
+      `,
+      // Last 30 days
+      prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(DISTINCT CONCAT(ja."email", DATE(an."sentAt"))) as count
+        FROM "AlertNotification" an
+        JOIN "JobAlert" ja ON an."jobAlertId" = ja."id"
+        WHERE an."status" = 'SENT' AND an."sentAt" >= ${thirtyDaysAgo}
+      `,
+      // Unique recipients
+      prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(DISTINCT ja."email") as count
+        FROM "AlertNotification" an
+        JOIN "JobAlert" ja ON an."jobAlertId" = ja."id"
+        WHERE an."status" = 'SENT'
+      `,
+      // Total job notifications (for avg calculation)
       prisma.alertNotification.count({ where: { status: 'SENT' } }),
-      prisma.alertNotification.count({
-        where: {
-          status: 'SENT',
-          sentAt: { gte: sevenDaysAgo },
-        },
-      }),
     ]);
+
+    const emailsSentTotal = Number(realEmailsTotal[0]?.count || 0);
+    const emailsSent7Days = Number(realEmailsLast7Days[0]?.count || 0);
+    const emailsSent30Days = Number(realEmailsLast30Days[0]?.count || 0);
+    const uniqueUsers = Number(uniqueRecipients[0]?.count || 0);
+    const avgJobsPerEmail = emailsSentTotal > 0 ? (totalNotifications / emailsSentTotal).toFixed(1) : '0';
 
     // Process events by type
     const eventCounts: Record<string, number> = {};
@@ -122,11 +152,14 @@ export async function GET() {
         bounceRate: parseFloat(bounceRate),
       },
 
-      // AlertNotification stats (from DB)
+      // Real email stats (unique email + date = one email sent)
       alerts: {
-        total: totalNotifications,
-        sent: sentNotifications,
-        last7Days: notificationsLast7Days,
+        emailsSent: emailsSentTotal,
+        last7Days: emailsSent7Days,
+        last30Days: emailsSent30Days,
+        uniqueRecipients: uniqueUsers,
+        avgJobsPerEmail: parseFloat(avgJobsPerEmail),
+        totalJobNotifications: totalNotifications,
       },
 
       // Recent events
