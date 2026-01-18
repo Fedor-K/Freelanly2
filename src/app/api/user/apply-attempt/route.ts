@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { sendNurtureEmailForAttempt } from '@/services/nurture-emails';
+import { logActivity, ActivityAction } from '@/lib/activity-log';
 
 // POST - Track when a FREE user tries to apply and send nurture email
 export async function POST(request: NextRequest) {
@@ -49,6 +50,13 @@ export async function POST(request: NextRequest) {
         userId: session.user.id,
         jobId,
       },
+    });
+
+    // Log apply attempt for dispute evidence (with IP)
+    await logActivity({
+      userId: session.user.id,
+      action: ActivityAction.JOB_APPLY,
+      details: { jobId, plan: 'FREE', attemptId: attempt.id },
     });
 
     // Send nurture email immediately (non-blocking)

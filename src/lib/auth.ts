@@ -4,6 +4,7 @@ import Google from 'next-auth/providers/google';
 import Resend from 'next-auth/providers/resend';
 import { prisma } from '@/lib/db';
 import { sendMagicLinkEmail } from '@/lib/auth-email';
+import { ActivityAction } from '@prisma/client';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -81,12 +82,36 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     // Track new signups
     async createUser({ user }) {
       console.log(`[Auth] New user created: ${user.email}`);
-      // Could add analytics tracking here
+      // Log signup for dispute evidence (IP not available in NextAuth events)
+      try {
+        await prisma.activityLog.create({
+          data: {
+            userId: user.id,
+            action: ActivityAction.SIGNUP,
+            details: { email: user.email },
+          },
+        });
+      } catch (e) {
+        console.error('[Auth] Failed to log signup:', e);
+      }
     },
 
     // Fix: Set emailVerified and needsOnboarding for Google OAuth users
     async signIn({ user, account }) {
       console.log(`[Auth Event] signIn: provider=${account?.provider}, email=${user.email}, userId=${user.id}`);
+
+      // Log login for dispute evidence
+      try {
+        await prisma.activityLog.create({
+          data: {
+            userId: user.id || undefined,
+            action: ActivityAction.LOGIN,
+            details: { provider: account?.provider, email: user.email },
+          },
+        });
+      } catch (e) {
+        console.error('[Auth] Failed to log login:', e);
+      }
 
       if (account?.provider === 'google' && user.id) {
         const dbUser = await prisma.user.findUnique({

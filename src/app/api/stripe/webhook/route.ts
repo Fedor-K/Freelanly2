@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
 import { constructWebhookEvent } from '@/lib/stripe';
 import { sendActivationEmail } from '@/services/activation-emails';
+import { ActivityAction } from '@prisma/client';
 
 // Disable body parsing - we need raw body for signature verification
 export const runtime = 'nodejs';
@@ -126,6 +127,24 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   console.log(`[Stripe Webhook] User ${userId} upgraded to PRO`);
 
+  // Log subscription start for dispute evidence
+  try {
+    await prisma.activityLog.create({
+      data: {
+        userId,
+        action: ActivityAction.SUBSCRIPTION_STARTED,
+        details: {
+          customerId,
+          subscriptionId,
+          amount: session.amount_total,
+          currency: session.currency,
+        },
+      },
+    });
+  } catch (e) {
+    console.error('[Stripe Webhook] Failed to log subscription start:', e);
+  }
+
   // Record revenue event
   await prisma.revenueEvent.create({
     data: {
@@ -212,6 +231,23 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   console.log(`[Stripe Webhook] Subscription deleted for user ${user.id}`);
 
+  // Log subscription cancellation for dispute evidence
+  try {
+    await prisma.activityLog.create({
+      data: {
+        userId: user.id,
+        action: ActivityAction.SUBSCRIPTION_CANCELLED,
+        details: {
+          customerId,
+          subscriptionId: subscription.id,
+          reason: subscription.cancellation_details?.reason || 'unknown',
+        },
+      },
+    });
+  } catch (e) {
+    console.error('[Stripe Webhook] Failed to log subscription cancel:', e);
+  }
+
   // Downgrade to FREE
   await prisma.user.update({
     where: { id: user.id },
@@ -254,6 +290,23 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
 
   console.log(`[Stripe Webhook] Invoice paid for user ${user.id}: ${invoiceData.amount_paid} cents`);
 
+  // Log payment success for dispute evidence
+  try {
+    await prisma.activityLog.create({
+      data: {
+        userId: user.id,
+        action: ActivityAction.PAYMENT_SUCCESS,
+        details: {
+          amount: invoiceData.amount_paid,
+          currency: invoiceData.currency,
+          subscriptionId,
+        },
+      },
+    });
+  } catch (e) {
+    console.error('[Stripe Webhook] Failed to log payment success:', e);
+  }
+
   // Ensure user is on PRO plan
   if (user.plan !== 'PRO') {
     await prisma.user.update({
@@ -288,6 +341,22 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
   if (!user) return;
 
   console.log(`[Stripe Webhook] Payment failed for user ${user.id}`);
+
+  // Log payment failure for dispute evidence
+  try {
+    await prisma.activityLog.create({
+      data: {
+        userId: user.id,
+        action: ActivityAction.PAYMENT_FAILED,
+        details: {
+          customerId,
+          invoiceId: invoice.id,
+        },
+      },
+    });
+  } catch (e) {
+    console.error('[Stripe Webhook] Failed to log payment failure:', e);
+  }
 
   // TODO: Send email notification about failed payment
   // For now, Stripe will retry automatically
