@@ -18,6 +18,7 @@ import {
   Zap,
   UserPlus,
   Hash,
+  Mail,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -31,6 +32,7 @@ const navigation = [
   { name: 'Jobs', href: '/admin/jobs', icon: Briefcase },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Analytics', href: '/admin/analytics', icon: TrendingUp },
+  { name: 'Email Stats', href: '/admin/email-stats', icon: Mail },
   { name: 'Clarity', href: '/admin/clarity', icon: BarChart3 },
   { name: 'Cancellations', href: '/admin/cancellations', icon: XCircle },
   {
