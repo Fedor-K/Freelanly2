@@ -159,31 +159,31 @@ export default function EmailStatsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="p-4 bg-blue-50 rounded-lg text-center">
               <p className="text-3xl font-bold text-blue-600">
-                {data.alerts.emailsSent.toLocaleString()}
+                {(data.alerts?.emailsSent ?? 0).toLocaleString()}
               </p>
               <p className="text-sm text-muted-foreground">Emails Sent</p>
             </div>
             <div className="p-4 bg-green-50 rounded-lg text-center">
               <p className="text-3xl font-bold text-green-600">
-                {data.alerts.last7Days.toLocaleString()}
+                {(data.alerts?.last7Days ?? 0).toLocaleString()}
               </p>
               <p className="text-sm text-muted-foreground">Last 7 days</p>
             </div>
             <div className="p-4 bg-purple-50 rounded-lg text-center">
               <p className="text-3xl font-bold text-purple-600">
-                {data.alerts.uniqueRecipients.toLocaleString()}
+                {(data.alerts?.uniqueRecipients ?? 0).toLocaleString()}
               </p>
               <p className="text-sm text-muted-foreground">Unique Recipients</p>
             </div>
             <div className="p-4 bg-orange-50 rounded-lg text-center">
               <p className="text-3xl font-bold text-orange-600">
-                ~{data.alerts.avgJobsPerEmail}
+                ~{data.alerts?.avgJobsPerEmail ?? 0}
               </p>
               <p className="text-sm text-muted-foreground">Jobs per Email</p>
             </div>
           </div>
           <p className="text-xs text-muted-foreground mt-4 text-center">
-            Total job notifications: {data.alerts.totalJobNotifications.toLocaleString()}
+            Total job notifications: {(data.alerts?.totalJobNotifications ?? 0).toLocaleString()}
           </p>
         </CardContent>
       </Card>
@@ -196,44 +196,44 @@ export default function EmailStatsPage() {
             Resend Webhook Events (30 days)
           </CardTitle>
           <CardDescription>
-            {data.resend.hasData
-              ? `${data.resend.totalEvents.toLocaleString()} total events tracked`
+            {data.resend?.hasData
+              ? `${(data.resend?.totalEvents ?? 0).toLocaleString()} total events tracked`
               : 'No webhook events yet. Configure webhook in Resend Dashboard.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {data.resend.hasData ? (
+          {data.resend?.hasData ? (
             <div className="space-y-6">
               {/* Event counts */}
               <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
                 <div className="p-3 bg-blue-50 rounded-lg text-center">
                   <Send className="h-5 w-5 text-blue-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold text-blue-600">{data.resend.sent.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-blue-600">{(data.resend?.sent ?? 0).toLocaleString()}</p>
                   <p className="text-xs text-muted-foreground">Sent</p>
                 </div>
                 <div className="p-3 bg-green-50 rounded-lg text-center">
                   <CheckCircle className="h-5 w-5 text-green-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold text-green-600">{data.resend.delivered.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-green-600">{(data.resend?.delivered ?? 0).toLocaleString()}</p>
                   <p className="text-xs text-muted-foreground">Delivered</p>
                 </div>
                 <div className="p-3 bg-purple-50 rounded-lg text-center">
                   <Eye className="h-5 w-5 text-purple-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold text-purple-600">{data.resend.opened.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-purple-600">{(data.resend?.opened ?? 0).toLocaleString()}</p>
                   <p className="text-xs text-muted-foreground">Opened</p>
                 </div>
                 <div className="p-3 bg-indigo-50 rounded-lg text-center">
                   <MousePointer className="h-5 w-5 text-indigo-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold text-indigo-600">{data.resend.clicked.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-indigo-600">{(data.resend?.clicked ?? 0).toLocaleString()}</p>
                   <p className="text-xs text-muted-foreground">Clicked</p>
                 </div>
                 <div className="p-3 bg-red-50 rounded-lg text-center">
                   <XCircle className="h-5 w-5 text-red-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold text-red-600">{data.resend.bounced}</p>
+                  <p className="text-2xl font-bold text-red-600">{data.resend?.bounced ?? 0}</p>
                   <p className="text-xs text-muted-foreground">Bounced</p>
                 </div>
                 <div className="p-3 bg-orange-50 rounded-lg text-center">
                   <AlertTriangle className="h-5 w-5 text-orange-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold text-orange-600">{data.resend.complained}</p>
+                  <p className="text-2xl font-bold text-orange-600">{data.resend?.complained ?? 0}</p>
                   <p className="text-xs text-muted-foreground">Complaints</p>
                 </div>
               </div>
@@ -241,26 +241,26 @@ export default function EmailStatsPage() {
               {/* Rates */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
                 <div className="text-center">
-                  <p className={`text-2xl font-bold ${data.resend.deliveryRate >= 95 ? 'text-green-600' : data.resend.deliveryRate >= 90 ? 'text-yellow-600' : 'text-red-600'}`}>
-                    {data.resend.deliveryRate}%
+                  <p className={`text-2xl font-bold ${(data.resend?.deliveryRate ?? 0) >= 95 ? 'text-green-600' : (data.resend?.deliveryRate ?? 0) >= 90 ? 'text-yellow-600' : 'text-red-600'}`}>
+                    {data.resend?.deliveryRate ?? 0}%
                   </p>
                   <p className="text-xs text-muted-foreground">Delivery Rate</p>
                 </div>
                 <div className="text-center">
-                  <p className={`text-2xl font-bold ${data.resend.openRate >= 20 ? 'text-green-600' : data.resend.openRate >= 10 ? 'text-yellow-600' : 'text-red-600'}`}>
-                    {data.resend.openRate}%
+                  <p className={`text-2xl font-bold ${(data.resend?.openRate ?? 0) >= 20 ? 'text-green-600' : (data.resend?.openRate ?? 0) >= 10 ? 'text-yellow-600' : 'text-red-600'}`}>
+                    {data.resend?.openRate ?? 0}%
                   </p>
                   <p className="text-xs text-muted-foreground">Open Rate</p>
                 </div>
                 <div className="text-center">
-                  <p className={`text-2xl font-bold ${data.resend.clickRate >= 5 ? 'text-green-600' : data.resend.clickRate >= 2 ? 'text-yellow-600' : 'text-red-600'}`}>
-                    {data.resend.clickRate}%
+                  <p className={`text-2xl font-bold ${(data.resend?.clickRate ?? 0) >= 5 ? 'text-green-600' : (data.resend?.clickRate ?? 0) >= 2 ? 'text-yellow-600' : 'text-red-600'}`}>
+                    {data.resend?.clickRate ?? 0}%
                   </p>
                   <p className="text-xs text-muted-foreground">Click Rate</p>
                 </div>
                 <div className="text-center">
-                  <p className={`text-2xl font-bold ${data.resend.bounceRate <= 2 ? 'text-green-600' : data.resend.bounceRate <= 5 ? 'text-yellow-600' : 'text-red-600'}`}>
-                    {data.resend.bounceRate}%
+                  <p className={`text-2xl font-bold ${(data.resend?.bounceRate ?? 0) <= 2 ? 'text-green-600' : (data.resend?.bounceRate ?? 0) <= 5 ? 'text-yellow-600' : 'text-red-600'}`}>
+                    {data.resend?.bounceRate ?? 0}%
                   </p>
                   <p className="text-xs text-muted-foreground">Bounce Rate</p>
                 </div>
@@ -291,9 +291,9 @@ export default function EmailStatsPage() {
           <CardDescription>Last 20 email events from Resend</CardDescription>
         </CardHeader>
         <CardContent>
-          {data.recentEvents.length > 0 ? (
+          {(data.recentEvents?.length ?? 0) > 0 ? (
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {data.recentEvents.map((event) => (
+              {(data.recentEvents ?? []).map((event) => (
                 <div
                   key={event.id}
                   className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50"
