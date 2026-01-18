@@ -159,18 +159,7 @@ async function findMatchingJobs(
   }
 
   filteredJobs = filteredJobs.filter((job) => {
-    // For non-translation jobs, no language filtering needed
-    if (job.category.slug !== 'translation') {
-      // But if user specified language pairs, they only want translation jobs
-      if (alert.languagePairs.length > 0) {
-        return false;
-      }
-      return true;
-    }
-
-    // This is a translation job - check language matching
-
-    // Collect non-EN languages from the job
+    // Collect non-EN languages from the job (for ANY category)
     const jobNonEnLanguages = new Set<string>();
     for (const lang of job.sourceLanguages) {
       if (lang !== 'EN') jobNonEnLanguages.add(lang);
@@ -179,12 +168,30 @@ async function findMatchingJobs(
       if (lang !== 'EN') jobNonEnLanguages.add(lang);
     }
 
-    // If job has specific non-EN languages (e.g., Indonesian, French)
-    // but user has NO language preferences, DON'T send this job
-    // This prevents Indonesian jobs going to everyone
+    // UNIVERSAL LANGUAGE CHECK (applies to ALL categories):
+    // If job requires specific non-EN languages but user has NO language preferences,
+    // DON'T send this job. This prevents Arabic writing jobs going to non-Arabic speakers.
     if (jobNonEnLanguages.size > 0 && userLanguages.size === 0) {
       return false;
     }
+
+    // For non-translation jobs with no specific languages, send to everyone
+    if (job.category.slug !== 'translation') {
+      // If user specified language pairs, they only want translation jobs
+      if (alert.languagePairs.length > 0) {
+        return false;
+      }
+      // Job has no specific languages OR check if user has matching languages
+      if (jobNonEnLanguages.size === 0) {
+        return true;
+      }
+      // Job has specific languages - check if user has ANY of them
+      return Array.from(jobNonEnLanguages).some((lang) =>
+        userLanguages.has(lang)
+      );
+    }
+
+    // This is a translation job - apply stricter language matching
 
     // If job has no specific languages, it's a general translation job
     // Anyone subscribed to translation category can receive it
