@@ -79,7 +79,47 @@ export default function TermsPage() {
             </section>
 
             <section className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">6. Intellectual Property</h2>
+              <h2 className="text-xl font-semibold mb-4">6. Subscription & Payment Terms</h2>
+              <p className="mb-4">
+                Freelanly offers paid subscription plans (&quot;PRO&quot;) that provide enhanced features
+                including the ability to apply to jobs and access to detailed salary insights.
+              </p>
+              <ul className="list-disc pl-6 mb-4 space-y-2">
+                <li><strong>Billing:</strong> Subscriptions are billed in advance on a recurring basis (monthly, quarterly, or annually) depending on the plan selected.</li>
+                <li><strong>Auto-Renewal:</strong> Your subscription will automatically renew at the end of each billing period unless you cancel before the renewal date.</li>
+                <li><strong>Payment Method:</strong> By subscribing, you authorize us to charge your payment method for all fees incurred.</li>
+                <li><strong>Price Changes:</strong> We may change subscription prices with 30 days notice. Continued use after price changes constitutes acceptance.</li>
+              </ul>
+            </section>
+
+            <section className="mb-8">
+              <h2 className="text-xl font-semibold mb-4">7. Cancellation Policy</h2>
+              <p className="mb-4">
+                You may cancel your subscription at any time through your account dashboard or by contacting us.
+              </p>
+              <ul className="list-disc pl-6 mb-4 space-y-2">
+                <li>Cancellation takes effect at the end of your current billing period.</li>
+                <li>You will retain access to PRO features until your paid period expires.</li>
+                <li>After cancellation, your account reverts to the FREE plan.</li>
+                <li>To cancel, go to Dashboard → Settings → Manage Subscription, or email support@freelanly.com.</li>
+              </ul>
+            </section>
+
+            <section className="mb-8">
+              <h2 className="text-xl font-semibold mb-4">8. Refund Policy</h2>
+              <p className="mb-4">
+                Due to the digital nature of our service and immediate access upon payment:
+              </p>
+              <ul className="list-disc pl-6 mb-4 space-y-2">
+                <li><strong>No refunds</strong> are provided for partial subscription periods.</li>
+                <li>By subscribing, you acknowledge that you receive immediate access to PRO features and waive the right to a &quot;cooling-off&quot; refund.</li>
+                <li>If you experience technical issues preventing access to the Service, contact us within 7 days for a case-by-case review.</li>
+                <li>Refund requests must be sent to support@freelanly.com with your account email and reason.</li>
+              </ul>
+            </section>
+
+            <section className="mb-8">
+              <h2 className="text-xl font-semibold mb-4">9. Intellectual Property</h2>
               <p className="mb-4">
                 All content on Freelanly, including text, graphics, logos, and software,
                 is the property of Freelanly or its content suppliers and is protected by
@@ -88,7 +128,7 @@ export default function TermsPage() {
             </section>
 
             <section className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">7. Limitation of Liability</h2>
+              <h2 className="text-xl font-semibold mb-4">10. Limitation of Liability</h2>
               <p className="mb-4">
                 Freelanly shall not be liable for any indirect, incidental, special, consequential,
                 or punitive damages resulting from your use of the Service. We do not guarantee
@@ -97,7 +137,7 @@ export default function TermsPage() {
             </section>
 
             <section className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">8. Termination</h2>
+              <h2 className="text-xl font-semibold mb-4">11. Termination</h2>
               <p className="mb-4">
                 We reserve the right to terminate or suspend access to our Service immediately,
                 without prior notice, for any reason whatsoever, including without limitation
@@ -106,7 +146,7 @@ export default function TermsPage() {
             </section>
 
             <section className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">9. Changes to Terms</h2>
+              <h2 className="text-xl font-semibold mb-4">12. Changes to Terms</h2>
               <p className="mb-4">
                 We reserve the right to modify these terms at any time. We will notify users
                 of any material changes by posting the new Terms on this page. Continued use
@@ -115,7 +155,7 @@ export default function TermsPage() {
             </section>
 
             <section className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">10. Contact Us</h2>
+              <h2 className="text-xl font-semibold mb-4">13. Contact Us</h2>
               <p className="mb-4">
                 If you have questions about these Terms, please contact us at{' '}
                 <a href="mailto:legal@freelanly.com" className="text-primary hover:underline">
