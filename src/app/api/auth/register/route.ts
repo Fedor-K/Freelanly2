@@ -9,6 +9,7 @@ interface RegisterRequest {
   country?: string;
   languages?: string[]; // Language codes user can translate (e.g., ['ES', 'RU'])
   jobId?: string; // Track which job triggered registration
+  agreedToTerms?: boolean; // User agreed to ToS (for dispute evidence)
 }
 
 /**
@@ -37,7 +38,7 @@ function languagesToPairs(languages: string[]) {
 export async function POST(request: NextRequest) {
   try {
     const body: RegisterRequest = await request.json();
-    const { email, name, categories, country, languages, jobId } = body;
+    const { email, name, categories, country, languages, jobId, agreedToTerms } = body;
 
     // Validate required fields
     if (!email || !email.includes('@')) {
@@ -88,6 +89,8 @@ export async function POST(request: NextRequest) {
         name: name || null,
         // Not verified yet - will be set when magic link is clicked
         emailVerified: null,
+        // Record ToS agreement for dispute evidence
+        agreedToTermsAt: agreedToTerms ? new Date() : null,
       },
     });
 

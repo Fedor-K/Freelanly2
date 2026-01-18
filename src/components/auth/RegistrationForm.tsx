@@ -48,6 +48,7 @@ export function RegistrationForm({
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedCountry, setSelectedCountry] = useState('');
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -264,6 +265,12 @@ export function RegistrationForm({
       return;
     }
 
+    // Validate ToS agreement
+    if (!agreedToTerms) {
+      setError('Please agree to the Terms of Service and Privacy Policy');
+      return;
+    }
+
     setIsLoading(true);
     setError('');
 
@@ -279,6 +286,7 @@ export function RegistrationForm({
           country: selectedCountry || undefined,
           languages: showTranslationFields ? selectedLanguages : undefined,
           jobId,
+          agreedToTerms: true, // User explicitly agreed via checkbox
         }),
       });
 
@@ -791,8 +799,30 @@ export function RegistrationForm({
           <span>You&apos;ll get instant alerts for matching jobs</span>
         </div>
 
+        {/* Terms of Service Agreement */}
+        <div className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            id="terms"
+            checked={agreedToTerms}
+            onChange={(e) => setAgreedToTerms(e.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+          />
+          <label htmlFor="terms" className="text-sm text-muted-foreground">
+            I agree to the{' '}
+            <a href="/terms" target="_blank" className="text-primary underline hover:no-underline">
+              Terms of Service
+            </a>{' '}
+            and{' '}
+            <a href="/privacy" target="_blank" className="text-primary underline hover:no-underline">
+              Privacy Policy
+            </a>
+            , including the subscription and refund policies.
+          </label>
+        </div>
+
         {/* Submit */}
-        <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+        <Button type="submit" className="w-full" size="lg" disabled={isLoading || !agreedToTerms}>
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -805,7 +835,7 @@ export function RegistrationForm({
       </form>
 
       <p className="text-center text-xs text-muted-foreground">
-        By signing up, you agree to receive job alerts. Unsubscribe anytime.
+        You&apos;ll receive job alerts. Unsubscribe anytime.
       </p>
     </div>
   );
