@@ -78,10 +78,14 @@ const typeIcons: Record<string, React.ReactNode> = {
   COMPLAINED: <AlertTriangle className="h-4 w-4" />,
 };
 
+const eventTypes = ['ALL', 'SENT', 'DELIVERED', 'OPENED', 'CLICKED', 'BOUNCED', 'COMPLAINED'] as const;
+type EventFilter = typeof eventTypes[number];
+
 export default function EmailStatsPage() {
   const [data, setData] = useState<EmailStatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [eventFilter, setEventFilter] = useState<EventFilter>('ALL');
 
   const fetchData = useCallback(async () => {
     try {
@@ -288,12 +292,38 @@ export default function EmailStatsPage() {
             <Clock className="h-5 w-5" />
             Recent Events
           </CardTitle>
-          <CardDescription>Last 20 email events from Resend</CardDescription>
+          <CardDescription>Filter by event type to see who clicked, opened, etc.</CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Event Type Filter */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {eventTypes.map((type) => (
+              <button
+                key={type}
+                onClick={() => setEventFilter(type)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  eventFilter === type
+                    ? type === 'ALL'
+                      ? 'bg-gray-900 text-white'
+                      : typeColors[type] || 'bg-gray-900 text-white'
+                    : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                }`}
+              >
+                {type === 'ALL' ? 'All' : (
+                  <span className="flex items-center gap-1">
+                    {typeIcons[type]}
+                    {type.charAt(0) + type.slice(1).toLowerCase()}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
           {(data.recentEvents?.length ?? 0) > 0 ? (
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {(data.recentEvents ?? []).map((event) => (
+              {(data.recentEvents ?? [])
+                .filter((event) => eventFilter === 'ALL' || event.type === eventFilter)
+                .map((event) => (
                 <div
                   key={event.id}
                   className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50"
@@ -302,14 +332,26 @@ export default function EmailStatsPage() {
                     {typeIcons[event.type]}
                     {event.type}
                   </span>
-                  <span className="text-sm truncate flex-1" title={event.to}>
-                    {event.to}
-                  </span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm truncate block" title={event.to}>
+                      {event.to}
+                    </span>
+                    {event.subject && (
+                      <span className="text-xs text-muted-foreground truncate block" title={event.subject}>
+                        {event.subject}
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {new Date(event.timestamp).toLocaleString()}
                   </span>
                 </div>
               ))}
+              {(data.recentEvents ?? []).filter((event) => eventFilter === 'ALL' || event.type === eventFilter).length === 0 && (
+                <p className="text-center py-4 text-muted-foreground">
+                  No {eventFilter.toLowerCase()} events yet
+                </p>
+              )}
             </div>
           ) : (
             <p className="text-center py-8 text-muted-foreground">
