@@ -153,7 +153,7 @@ export async function createCheckoutSession({
     // This shifts liability to the bank and reduces chargebacks
     payment_method_options: {
       card: {
-        request_three_d_secure: 'always',
+        request_three_d_secure: 'any',
       },
     },
   };
