@@ -198,7 +198,7 @@ export default function EmailStatsPage() {
         <CardHeader className="pb-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
-            Resend Webhook Events (30 days)
+            Resend Webhook Events (All Time)
           </CardTitle>
           <CardDescription>
             {data.resend?.hasData

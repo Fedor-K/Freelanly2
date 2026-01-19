@@ -21,10 +21,9 @@ export async function GET() {
       // Total events count
       prisma.emailEvent.count(),
 
-      // Events by type (last 30 days)
+      // Events by type (ALL TIME)
       prisma.emailEvent.groupBy({
         by: ['type'],
-        where: { timestamp: { gte: thirtyDaysAgo } },
         _count: true,
       }),
 
@@ -54,18 +53,18 @@ export async function GET() {
         ORDER BY date DESC
       `,
 
-      // Unique users who clicked (last 30 days)
+      // Unique users who clicked (ALL TIME)
       prisma.$queryRaw<Array<{ count: bigint }>>`
         SELECT COUNT(DISTINCT "to") as count
         FROM "EmailEvent"
-        WHERE "type" = 'CLICKED' AND "timestamp" >= ${thirtyDaysAgo}
+        WHERE "type" = 'CLICKED'
       `,
 
-      // Unique users who received emails (last 30 days)
+      // Unique users who received emails (ALL TIME)
       prisma.$queryRaw<Array<{ count: bigint }>>`
         SELECT COUNT(DISTINCT "to") as count
         FROM "EmailEvent"
-        WHERE "type" = 'DELIVERED' AND "timestamp" >= ${thirtyDaysAgo}
+        WHERE "type" = 'DELIVERED'
       `,
     ]);
 
