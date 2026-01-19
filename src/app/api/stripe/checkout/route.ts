@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { createCheckoutSession, STRIPE_PRICES, type PriceKey } from '@/lib/stripe';
+import { alertCheckoutError } from '@/lib/telegram-alerts';
 
 export async function POST(request: NextRequest) {
+  let userEmail: string | undefined;
+
   try {
     // Check authentication
     const session = await auth();
@@ -12,6 +15,8 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    userEmail = session.user.email;
 
     // Parse request body
     const body = await request.json();
@@ -49,6 +54,9 @@ export async function POST(request: NextRequest) {
     // Return more detailed error for debugging
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorDetails = error instanceof Error && 'type' in error ? (error as { type?: string }).type : undefined;
+
+    // Send alert to Telegram
+    alertCheckoutError(errorMessage, userEmail).catch(() => {});
 
     return NextResponse.json(
       {
