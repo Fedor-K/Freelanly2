@@ -6,19 +6,13 @@ import { UnlockContactModal } from './UnlockContactModal';
 interface OpportunityOriginalPostFooterProps {
   isPro: boolean;
   sourceUrl: string;
-  clientName: string;
-  clientHeadline?: string | null;
   applyEmail?: string | null;
-  title: string;
 }
 
 export function OpportunityOriginalPostFooter({
   isPro,
   sourceUrl,
-  clientName,
-  clientHeadline,
   applyEmail,
-  title,
 }: OpportunityOriginalPostFooterProps) {
   const [showUnlockModal, setShowUnlockModal] = useState(false);
 
@@ -53,10 +47,7 @@ export function OpportunityOriginalPostFooter({
       <UnlockContactModal
         open={showUnlockModal}
         onClose={() => setShowUnlockModal(false)}
-        clientName={clientName}
-        clientHeadline={clientHeadline}
         hasEmail={!!applyEmail}
-        opportunityTitle={title}
       />
     </>
   );

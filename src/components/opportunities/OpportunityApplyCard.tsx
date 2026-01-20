@@ -8,8 +8,6 @@ import { UnlockContactModal } from './UnlockContactModal';
 
 interface OpportunityApplyCardProps {
   isPro: boolean;
-  clientName: string;
-  clientHeadline?: string | null;
   clientLinkedIn: string;
   applyEmail?: string | null;
   applyUrl?: string | null;
@@ -18,8 +16,6 @@ interface OpportunityApplyCardProps {
 
 export function OpportunityApplyCard({
   isPro,
-  clientName,
-  clientHeadline,
   clientLinkedIn,
   applyEmail,
   applyUrl,
@@ -126,10 +122,7 @@ export function OpportunityApplyCard({
       <UnlockContactModal
         open={showUnlockModal}
         onClose={() => setShowUnlockModal(false)}
-        clientName={clientName}
-        clientHeadline={clientHeadline}
         hasEmail={!!applyEmail}
-        opportunityTitle={title}
       />
     </>
   );

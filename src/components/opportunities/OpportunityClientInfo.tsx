@@ -11,7 +11,6 @@ interface OpportunityClientInfoProps {
   clientAvatar?: string | null;
   clientLinkedIn: string;
   applyEmail?: string | null;
-  title: string;
 }
 
 export function OpportunityClientInfo({
@@ -21,7 +20,6 @@ export function OpportunityClientInfo({
   clientAvatar,
   clientLinkedIn,
   applyEmail,
-  title,
 }: OpportunityClientInfoProps) {
   const [showUnlockModal, setShowUnlockModal] = useState(false);
 
@@ -83,10 +81,7 @@ export function OpportunityClientInfo({
       <UnlockContactModal
         open={showUnlockModal}
         onClose={() => setShowUnlockModal(false)}
-        clientName={clientName}
-        clientHeadline={clientHeadline}
         hasEmail={!!applyEmail}
-        opportunityTitle={title}
       />
     </>
   );

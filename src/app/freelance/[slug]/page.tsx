@@ -170,7 +170,6 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                     clientAvatar={opportunity.clientAvatar}
                     clientLinkedIn={opportunity.clientLinkedIn}
                     applyEmail={opportunity.applyEmail}
-                    title={opportunity.title}
                   />
 
                   {/* Title */}
@@ -231,10 +230,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                   <OpportunityOriginalPostFooter
                     isPro={isPro}
                     sourceUrl={opportunity.sourceUrl}
-                    clientName={opportunity.clientName}
-                    clientHeadline={opportunity.clientHeadline}
                     applyEmail={opportunity.applyEmail}
-                    title={opportunity.title}
                   />
                 </CardContent>
               </Card>
@@ -245,8 +241,6 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
               {/* Apply Card */}
               <OpportunityApplyCard
                 isPro={isPro}
-                clientName={opportunity.clientName}
-                clientHeadline={opportunity.clientHeadline}
                 clientLinkedIn={opportunity.clientLinkedIn}
                 applyEmail={opportunity.applyEmail}
                 applyUrl={opportunity.applyUrl}

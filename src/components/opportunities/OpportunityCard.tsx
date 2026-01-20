@@ -173,10 +173,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
         <UnlockContactModal
           open={showUnlockModal}
           onClose={() => setShowUnlockModal(false)}
-          clientName={opportunity.clientName}
-          clientHeadline={opportunity.clientHeadline}
           hasEmail={false}
-          opportunityTitle={opportunity.title}
         />
       )}
     </Card>

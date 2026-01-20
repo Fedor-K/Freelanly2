@@ -16,47 +16,18 @@ import { trackCheckoutStart, trackSignupStart } from '@/lib/analytics';
 interface UnlockContactModalProps {
   open: boolean;
   onClose: () => void;
-  clientName: string;
-  clientHeadline?: string | null;
   hasEmail?: boolean;
-  opportunityTitle: string;
-}
-
-/**
- * Mask a name: "John Smith" → "J*** S***"
- */
-function maskName(name: string): string {
-  return name
-    .split(' ')
-    .map((part) => (part.length > 0 ? part[0] + '***' : ''))
-    .join(' ');
-}
-
-/**
- * Mask headline: "CTO at TechCorp" → "███ at ████████"
- */
-function maskHeadline(headline: string): string {
-  return headline
-    .split(' ')
-    .map((word) => '█'.repeat(Math.min(word.length, 8)))
-    .join(' ');
 }
 
 export function UnlockContactModal({
   open,
   onClose,
-  clientName,
-  clientHeadline,
   hasEmail,
-  opportunityTitle,
 }: UnlockContactModalProps) {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRegistration, setShowRegistration] = useState(false);
-
-  const maskedName = maskName(clientName);
-  const maskedHeadline = clientHeadline ? maskHeadline(clientHeadline) : null;
 
   const handleQuickUpgrade = async () => {
     setError(null);
@@ -112,35 +83,12 @@ export function UnlockContactModal({
                 You'll get access to:
               </p>
 
-              {/* Name preview */}
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-semibold text-sm">
-                  {clientName.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground line-through">
-                      {maskedName}
-                    </span>
-                    <span className="text-sm">→</span>
-                    <span className="text-sm font-medium">{clientName}</span>
-                  </div>
-                  {clientHeadline && maskedHeadline && (
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-muted-foreground line-through">
-                        {maskedHeadline}
-                      </span>
-                      <span className="text-xs">→</span>
-                      <span className="text-xs text-muted-foreground">
-                        {clientHeadline}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
               {/* Benefits list */}
               <ul className="space-y-1.5 text-sm">
+                <li className="flex items-center gap-2">
+                  <span className="text-green-500">✓</span>
+                  Full name and company
+                </li>
                 <li className="flex items-center gap-2">
                   <span className="text-green-500">✓</span>
                   Direct LinkedIn profile link
