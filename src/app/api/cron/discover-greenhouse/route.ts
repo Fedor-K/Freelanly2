@@ -20,8 +20,8 @@ import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 
 const GOOGLE_SEARCH_ACTOR = 'apify/google-search-scraper';
 
-// Use subset of queries to save Apify credits (rotate twice weekly)
-const QUERIES_PER_RUN = 40;
+// Use subset of queries (Greenhouse API is slower than Lever)
+const QUERIES_PER_RUN = 25;
 
 interface GoogleSearchResult {
   url: string;
