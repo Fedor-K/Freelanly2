@@ -20,8 +20,8 @@ import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 
 const GOOGLE_SEARCH_ACTOR = 'apify/google-search-scraper';
 
-// Use subset of queries to save Apify credits (rotate weekly)
-const QUERIES_PER_RUN = 20;
+// Use subset of queries to save Apify credits (rotate twice weekly)
+const QUERIES_PER_RUN = 40;
 
 interface GoogleSearchResult {
   url: string;

@@ -37,7 +37,11 @@
     },
     {
       "path": "/api/cron/discover-lever",
-      "schedule": "0 3 * * 0"
+      "schedule": "0 3 * * 0,3"
+    },
+    {
+      "path": "/api/cron/discover-greenhouse",
+      "schedule": "0 4 * * 0,3"
     },
     {
       "path": "/api/cron/submit-to-index",
