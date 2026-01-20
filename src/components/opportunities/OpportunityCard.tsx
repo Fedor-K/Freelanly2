@@ -1,9 +1,13 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import type { OpportunityCardData } from '@/types';
 import { formatDistanceToNow } from '@/lib/utils';
+import { UnlockContactModal } from './UnlockContactModal';
 
 interface OpportunityCardProps {
   opportunity: OpportunityCardData;
@@ -11,6 +15,7 @@ interface OpportunityCardProps {
 }
 
 export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardProps) {
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
   const salaryDisplay = formatSalary(
     opportunity.salaryMin,
     opportunity.salaryMax,
@@ -146,18 +151,34 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
               ) : (
                 <>
                   <span className="text-xs text-muted-foreground blur-[3px] select-none">linkedin.com/in/•••</span>
-                  <Link
-                    href="/pricing"
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowUnlockModal(true);
+                    }}
                     className="text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-md transition-colors inline-flex items-center gap-1"
                   >
                     🔓 Unlock Contact
-                  </Link>
+                  </button>
                 </>
               )}
             </div>
           </div>
         </div>
       </CardContent>
+
+      {/* Unlock Modal */}
+      {!isPro && (
+        <UnlockContactModal
+          open={showUnlockModal}
+          onClose={() => setShowUnlockModal(false)}
+          clientName={opportunity.clientName}
+          clientHeadline={opportunity.clientHeadline}
+          hasEmail={false}
+          opportunityTitle={opportunity.title}
+        />
+      )}
     </Card>
   );
 }

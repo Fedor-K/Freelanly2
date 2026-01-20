@@ -1,11 +1,9 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
@@ -14,6 +12,9 @@ import { truncateTitle } from '@/lib/seo';
 import { formatDistanceToNow } from '@/lib/utils';
 import { maskLinksForFreeUsers } from '@/lib/content-mask';
 import { CrossSellExitPopup } from '@/components/CrossSellExitPopup';
+import { OpportunityClientInfo } from '@/components/opportunities/OpportunityClientInfo';
+import { OpportunityApplyCard } from '@/components/opportunities/OpportunityApplyCard';
+import { OpportunityOriginalPostFooter } from '@/components/opportunities/OpportunityOriginalPostFooter';
 
 type UserPlan = 'FREE' | 'PRO' | 'ENTERPRISE';
 
@@ -162,51 +163,15 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                   </div>
 
                   {/* Client Info */}
-                  <div className="flex items-start gap-4 mb-6">
-                    <div>
-                      {opportunity.clientAvatar ? (
-                        <Image
-                          src={opportunity.clientAvatar}
-                          alt={opportunity.clientName}
-                          width={64}
-                          height={64}
-                          className={`rounded-full object-cover ${!isPro ? 'blur-[3px]' : ''}`}
-                        />
-                      ) : (
-                        <div className={`w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-2xl ${!isPro ? 'blur-[3px]' : ''}`}>
-                          {opportunity.clientName.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <h2 className={`text-lg font-semibold ${!isPro ? 'blur-[3px] select-none' : ''}`}>
-                        {opportunity.clientName}
-                      </h2>
-                      {opportunity.clientHeadline && (
-                        <p className={`text-sm text-muted-foreground ${!isPro ? 'blur-[3px] select-none' : ''}`}>
-                          {opportunity.clientHeadline}
-                        </p>
-                      )}
-                      {isPro ? (
-                        <a
-                          href={opportunity.clientLinkedIn}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 hover:underline mt-1 inline-block"
-                        >
-                          View LinkedIn Profile →
-                        </a>
-                      ) : (
-                        <Link
-                          href="/pricing"
-                          className="text-sm text-orange-600 hover:underline mt-1 inline-flex items-center gap-1"
-                        >
-                          <span className="blur-[3px] select-none">linkedin.com/in/•••••</span>
-                          <span className="no-blur">Upgrade to see →</span>
-                        </Link>
-                      )}
-                    </div>
-                  </div>
+                  <OpportunityClientInfo
+                    isPro={isPro}
+                    clientName={opportunity.clientName}
+                    clientHeadline={opportunity.clientHeadline}
+                    clientAvatar={opportunity.clientAvatar}
+                    clientLinkedIn={opportunity.clientLinkedIn}
+                    applyEmail={opportunity.applyEmail}
+                    title={opportunity.title}
+                  />
 
                   {/* Title */}
                   <h1 className="text-2xl sm:text-3xl font-bold mb-4">
@@ -263,30 +228,14 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                     <div className="whitespace-pre-wrap">{displayOriginalContent}</div>
                   </div>
 
-                  <div className="mt-4 pt-4 border-t flex items-center justify-between">
-                    {isPro ? (
-                      <a
-                        href={opportunity.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1"
-                      >
-                        View on LinkedIn →
-                      </a>
-                    ) : (
-                      <Link
-                        href="/pricing"
-                        className="text-sm text-orange-600 hover:underline"
-                      >
-                        Upgrade to view on LinkedIn →
-                      </Link>
-                    )}
-                    {!isPro && (
-                      <span className="text-xs text-muted-foreground">
-                        Contact details hidden
-                      </span>
-                    )}
-                  </div>
+                  <OpportunityOriginalPostFooter
+                    isPro={isPro}
+                    sourceUrl={opportunity.sourceUrl}
+                    clientName={opportunity.clientName}
+                    clientHeadline={opportunity.clientHeadline}
+                    applyEmail={opportunity.applyEmail}
+                    title={opportunity.title}
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -294,95 +243,15 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
             {/* Sidebar */}
             <div className="space-y-6">
               {/* Apply Card */}
-              <Card className="sticky top-4 border-orange-200">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2">
-                    <span className="text-orange-500">⚡</span> Apply Now — Be First
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Direct contact with the client. No agencies, no middlemen. Respond quickly — freelance projects get filled fast.
-                  </p>
-
-                  {isPro ? (
-                    <a
-                      href={opportunity.clientLinkedIn}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block"
-                    >
-                      <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                        Message on LinkedIn
-                      </Button>
-                    </a>
-                  ) : (
-                    <div className="relative">
-                      <div className="blur-[3px] select-none pointer-events-none">
-                        <Button className="w-full bg-blue-600">
-                          Message on LinkedIn
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {opportunity.applyEmail && (
-                    isPro ? (
-                      <a
-                        href={`mailto:${opportunity.applyEmail}?subject=Re: ${encodeURIComponent(opportunity.title)}`}
-                        className="block"
-                      >
-                        <Button variant="outline" className="w-full">
-                          Email: {opportunity.applyEmail}
-                        </Button>
-                      </a>
-                    ) : (
-                      <div className="blur-[3px] select-none pointer-events-none">
-                        <Button variant="outline" className="w-full">
-                          Email: •••••@••••.com
-                        </Button>
-                      </div>
-                    )
-                  )}
-
-                  {opportunity.applyUrl && (
-                    isPro ? (
-                      <a
-                        href={opportunity.applyUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block"
-                      >
-                        <Button variant="outline" className="w-full">
-                          Apply via Link
-                        </Button>
-                      </a>
-                    ) : (
-                      <div className="blur-[3px] select-none pointer-events-none">
-                        <Button variant="outline" className="w-full">
-                          Apply via Link
-                        </Button>
-                      </div>
-                    )
-                  )}
-
-                  {!isPro && (
-                    <Link href="/pricing" className="block">
-                      <Button className="w-full bg-orange-600 hover:bg-orange-700">
-                        🔓 Unlock Contact Info
-                      </Button>
-                    </Link>
-                  )}
-
-                  <div className="pt-4 border-t">
-                    <p className="text-xs text-muted-foreground">
-                      {isPro
-                        ? '⚡ This project was posted recently. Clients often hire within 48 hours — act now.'
-                        : '🔒 PRO members see all contact info and can apply directly. Upgrade to stop missing opportunities.'}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              <OpportunityApplyCard
+                isPro={isPro}
+                clientName={opportunity.clientName}
+                clientHeadline={opportunity.clientHeadline}
+                clientLinkedIn={opportunity.clientLinkedIn}
+                applyEmail={opportunity.applyEmail}
+                applyUrl={opportunity.applyUrl}
+                title={opportunity.title}
+              />
 
               {/* Category Link */}
               <Card>
