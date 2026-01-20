@@ -163,7 +163,7 @@ export function UnlockContactModal({
 
             {/* Trust signals */}
             <p className="text-xs text-center text-muted-foreground">
-              🔒 Secure payment via Stripe · 100% money-back guarantee
+              🔒 Secure payment via Stripe
             </p>
           </div>
         </DialogContent>

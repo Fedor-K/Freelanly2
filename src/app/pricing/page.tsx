@@ -70,8 +70,8 @@ export default function PricingPage() {
               <span>Average time to first interview: <strong>8 days</strong></span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-2xl">🛡️</span>
-              <span><strong>100% money-back</strong> if not satisfied</span>
+              <span className="text-2xl">🔒</span>
+              <span><strong>Secure payment</strong> via Stripe</span>
             </div>
           </div>
 
