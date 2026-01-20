@@ -1,15 +1,15 @@
 /**
  * Freelance LinkedIn Posts Discovery Configuration
  *
- * 169 search queries for finding freelance/contract opportunities.
+ * 159 search queries for finding freelance/contract opportunities.
  * Used by n8n workflow via /api/linkedin/next-keyword endpoint.
  *
  * Rotation: every 10 minutes, next keyword in list (sequential, not random)
- * Full cycle: 169 × 10 min = ~28 hours
+ * Full cycle: 159 × 10 min = ~26.5 hours
  */
 
 // ============================================
-// All 169 Freelance Search Queries
+// All 159 Freelance Search Queries
 // ============================================
 
 export const FREELANCE_SEARCH_QUERIES = [
@@ -19,7 +19,6 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"need a freelancer"',
   '"seeking freelancer"',
   '"freelance opportunity"',
-  '"freelancer needed"',
   '"looking for contractor"',
   '"hiring contractor"',
   '"contract opportunity"',
@@ -27,7 +26,6 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"project based"',
   '"short term project"',
   '"quick project"',
-  '"gig opportunity"',
   '"immediate project"',
   '"hourly rate"',
   '"per project"',
@@ -37,7 +35,6 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"freelance engineer"',
   '"contract developer"',
   '"freelance react"',
-  '"freelance node"',
   '"freelance fullstack"',
   '"freelance backend"',
 
@@ -59,11 +56,8 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"localization project"',
   '"freelance localization"',
   '"app localization"',
-  '"website localization"',
   '"freelance interpreter"',
   '"freelance subtitling"',
-  '"freelance proofreader"',
-  '"freelance editor" language',
   '"voice over" freelance',
   '"dubbing" freelance',
 
@@ -135,14 +129,12 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"hiring interpreter"',
   '"need interpreter"',
   '"looking for interpreter"',
-  '"conference interpreter"',
   '"medical interpreter"',
   '"simultaneous interpreter"',
 
   // === Specialized Translation (6) ===
   '"MTPE"',
   '"post-editing"',
-  '"machine translation" editor',
   '"subtitle" project',
   '"transcreation"',
   '"linguist" needed',
@@ -153,9 +145,7 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"freelance content writer"',
   '"contract writer"',
   '"freelance editor"',
-  '"freelance blogger"',
   '"freelance technical writer"',
-  '"freelance ghostwriter"',
 
   // === Marketing (8) ===
   '"freelance marketing"',
@@ -163,9 +153,6 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"contract marketing"',
   '"freelance social media"',
   '"freelance SEO"',
-  '"freelance PPC"',
-  '"freelance content marketing"',
-  '"freelance email marketing"',
 
   // === Creative (6) ===
   '"freelance video editor"',
@@ -183,11 +170,9 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"LQA"',
 
   // === Other (10) ===
-  '"freelance virtual assistant"',
   '"freelance consultant"',
   '"freelance project manager"',
   '"freelance data analyst"',
-  '"freelance VA"',
   '"freelance recruiter"',
   '"freelance bookkeeper"',
   '"freelance accountant"',
@@ -196,7 +181,7 @@ export const FREELANCE_SEARCH_QUERIES = [
 ];
 
 // Total count
-export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 169
+export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 159
 
 // ============================================
 // Rotation Logic (Sequential, time-based)

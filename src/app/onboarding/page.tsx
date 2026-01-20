@@ -126,8 +126,15 @@ export default function OnboardingPage() {
       // Clear stored callback URL
       sessionStorage.removeItem('onboarding-callback-url');
 
-      // Redirect to callback URL
-      router.push(callbackUrl);
+      // Redirect to jobs page for first selected category (better engagement)
+      // If user came from a specific page, use that instead
+      if (callbackUrl !== '/dashboard' && !callbackUrl.startsWith('/onboarding')) {
+        router.push(callbackUrl);
+      } else {
+        // Redirect to first selected category's jobs page
+        const firstCategory = selectedCategories[0];
+        router.push(`/jobs/${firstCategory}`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
       setIsLoading(false);
