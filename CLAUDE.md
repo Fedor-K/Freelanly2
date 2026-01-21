@@ -187,13 +187,19 @@ model AlertLanguagePair {
 - WEEKLY — Monday 7:00 UTC (TODO: separate cron)
 
 **INSTANT alerts implementation:**
-- `sendInstantAlertsForJob(jobId)` in `src/services/alert-notifications.ts`
+- `queueInstantAlertsForJob(jobId)` in `src/services/alert-notifications.ts`
 - Called after job creation in:
   - `/api/webhooks/linkedin-posts` (n8n real-time)
   - `linkedin-processor.ts` (batch import)
 - Checks job against all active INSTANT alerts
-- Sends email if criteria match (category, keywords, country, level, language pairs)
-- Uses AlertNotification to prevent duplicates
+- Queues notifications for matching alerts (not immediate send)
+- Cron `process-instant-alerts` runs every 15 min to send grouped emails
+
+**Rate Limiting:**
+- **Daily limit:** 3 emails per user per day (prevents spam)
+- **Debounce:** 30 minutes between emails to same user
+- **Batch size:** 50 users per cron run
+- Notifications stay in queue until user becomes eligible
 
 **Duplicate Prevention:**
 - AlertNotification model tracks sent job+alert pairs

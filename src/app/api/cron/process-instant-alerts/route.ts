@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     const result = await processInstantAlertQueue();
 
-    console.log(`[Cron] INSTANT alerts processed: ${result.sent} emails sent, ${result.failed} failed, ${result.processed} notifications, ${result.skippedDebounce || 0} debounced`);
+    console.log(`[Cron] INSTANT alerts processed: ${result.sent} emails sent, ${result.failed} failed, ${result.processed} notifications, ${result.skippedDebounce || 0} debounced, ${result.skippedDailyLimit || 0} daily limit`);
 
     return NextResponse.json({
       success: true,

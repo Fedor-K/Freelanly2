@@ -907,7 +907,10 @@ const MAX_USERS_PER_BATCH = 50;
 // Minimum time between alert emails for the same user (prevents spam during slow n8n processing)
 const MIN_ALERT_INTERVAL_MINUTES = 30;
 
-export async function processInstantAlertQueue(): Promise<{ sent: number; failed: number; processed: number; skippedDebounce: number }> {
+// Maximum emails per user per day (prevents overwhelming users and Resend limits)
+const MAX_EMAILS_PER_USER_PER_DAY = 3;
+
+export async function processInstantAlertQueue(): Promise<{ sent: number; failed: number; processed: number; skippedDebounce: number; skippedDailyLimit: number }> {
   // Generate a unique batch ID for this processing run
   const batchId = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
@@ -952,31 +955,84 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
 
   if (emailLastSent.size === 0) {
     console.log(`[InstantAlerts] No pending notifications in queue`);
-    return { sent: 0, failed: 0, processed: 0, skippedDebounce: 0 };
+    return { sent: 0, failed: 0, processed: 0, skippedDebounce: 0, skippedDailyLimit: 0 };
   }
 
-  // Filter out emails that were sent to recently (debounce)
-  const debounceThreshold = new Date(Date.now() - MIN_ALERT_INTERVAL_MINUTES * 60 * 1000);
-  const readyEmails: string[] = [];
-  let skippedDebounce = 0;
+  // Get today's start for daily limit check
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
 
-  for (const [email, lastSent] of emailLastSent) {
-    if (lastSent && lastSent > debounceThreshold) {
-      skippedDebounce++;
-      console.log(`[InstantAlerts] Debounce: skipping ${email} (last sent ${Math.round((Date.now() - lastSent.getTime()) / 60000)} min ago)`);
-    } else {
-      readyEmails.push(email);
+  // Count emails sent today per user (from AlertNotification sentAt)
+  const todaysSentNotifications = await prisma.alertNotification.groupBy({
+    by: ['jobAlertId'],
+    where: {
+      status: 'SENT',
+      sentAt: { gte: todayStart },
+    },
+    _count: { id: true },
+  });
+
+  // Map alert IDs to their today's send count
+  const alertSentToday = new Map<string, number>();
+  for (const item of todaysSentNotifications) {
+    alertSentToday.set(item.jobAlertId, item._count.id);
+  }
+
+  // Get alert IDs for each email to check daily limits
+  const emailAlertIds = new Map<string, string[]>();
+  for (const n of pendingAlerts) {
+    const email = (n.jobAlert.email || n.jobAlert.user?.email)?.toLowerCase();
+    if (email) {
+      const existing = emailAlertIds.get(email) || [];
+      existing.push(n.jobAlert.id);
+      emailAlertIds.set(email, existing);
     }
   }
 
+  // Calculate total emails sent today per email
+  const emailSentToday = new Map<string, number>();
+  for (const [email, alertIds] of emailAlertIds) {
+    let totalSent = 0;
+    for (const alertId of alertIds) {
+      totalSent += alertSentToday.get(alertId) || 0;
+    }
+    emailSentToday.set(email, totalSent);
+  }
+
+  // Filter out emails that were sent to recently (debounce) or hit daily limit
+  const debounceThreshold = new Date(Date.now() - MIN_ALERT_INTERVAL_MINUTES * 60 * 1000);
+  const readyEmails: string[] = [];
+  let skippedDebounce = 0;
+  let skippedDailyLimit = 0;
+
+  for (const [email, lastSent] of emailLastSent) {
+    const sentToday = emailSentToday.get(email) || 0;
+
+    // Check daily limit first
+    if (sentToday >= MAX_EMAILS_PER_USER_PER_DAY) {
+      skippedDailyLimit++;
+      console.log(`[InstantAlerts] Daily limit: skipping ${email} (${sentToday}/${MAX_EMAILS_PER_USER_PER_DAY} emails today)`);
+      continue;
+    }
+
+    // Check debounce
+    if (lastSent && lastSent > debounceThreshold) {
+      skippedDebounce++;
+      console.log(`[InstantAlerts] Debounce: skipping ${email} (last sent ${Math.round((Date.now() - lastSent.getTime()) / 60000)} min ago)`);
+      continue;
+    }
+
+    readyEmails.push(email);
+  }
+
   if (readyEmails.length === 0) {
-    console.log(`[InstantAlerts] All ${skippedDebounce} emails skipped due to debounce (sent within ${MIN_ALERT_INTERVAL_MINUTES} min)`);
-    return { sent: 0, failed: 0, processed: 0, skippedDebounce };
+    console.log(`[InstantAlerts] All emails skipped: ${skippedDebounce} debounced, ${skippedDailyLimit} daily limit`);
+    return { sent: 0, failed: 0, processed: 0, skippedDebounce, skippedDailyLimit };
   }
 
   // Limit to MAX_USERS_PER_BATCH users
   const emailsToProcess = readyEmails.slice(0, MAX_USERS_PER_BATCH);
-  console.log(`[InstantAlerts] Batch ${batchId}: Found ${emailLastSent.size} unique emails, ${skippedDebounce} debounced, processing ${emailsToProcess.length}`);
+  console.log(`[InstantAlerts] Batch ${batchId}: Found ${emailLastSent.size} unique emails, ${skippedDebounce} debounced, ${skippedDailyLimit} daily limit, processing ${emailsToProcess.length}`);
 
   // Step 2: Claim ALL PENDING notifications for these emails
   // First, get all notification IDs for these emails
@@ -1265,9 +1321,9 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
     });
   }
 
-  console.log(`[InstantAlerts] Batch ${batchId}: ${sent} emails sent, ${failed} failed, ${processedIds.length} notifications processed, ${skippedDebounce} debounced`);
+  console.log(`[InstantAlerts] Batch ${batchId}: ${sent} emails sent, ${failed} failed, ${processedIds.length} notifications processed, ${skippedDebounce} debounced, ${skippedDailyLimit} daily limit`);
 
-  return { sent, failed, processed: processedIds.length, skippedDebounce };
+  return { sent, failed, processed: processedIds.length, skippedDebounce, skippedDailyLimit };
 }
 
 /**
