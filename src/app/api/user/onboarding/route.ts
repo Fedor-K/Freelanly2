@@ -3,24 +3,16 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { AlertFrequency } from '@prisma/client';
 
+interface LanguagePair {
+  translationType: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+}
+
 interface OnboardingRequest {
   categories: string[];
   country?: string;
-  languages?: string[]; // Language codes user can translate (e.g., ['ES', 'RU'])
-}
-
-/**
- * Convert language codes to language pairs with English
- */
-function languagesToPairs(languages: string[]) {
-  const pairs: Array<{ translationType: string; sourceLanguage: string; targetLanguage: string }> = [];
-  for (const lang of languages) {
-    if (lang && lang !== 'EN') {
-      pairs.push({ translationType: 'TRANSLATION', sourceLanguage: 'EN', targetLanguage: lang.toUpperCase() });
-      pairs.push({ translationType: 'TRANSLATION', sourceLanguage: lang.toUpperCase(), targetLanguage: 'EN' });
-    }
-  }
-  return pairs;
+  languagePairs?: LanguagePair[]; // Full language pairs from frontend
 }
 
 /**
@@ -37,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: OnboardingRequest = await request.json();
-    const { categories, country, languages } = body;
+    const { categories, country, languagePairs } = body;
 
     if (!categories || categories.length === 0) {
       return NextResponse.json(
@@ -46,12 +38,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate languages for translation category
+    // Validate language pairs for translation category
+    // Filter valid pairs: must have both source and target languages
+    const validPairs = (languagePairs || []).filter(
+      (p) => p.sourceLanguage && p.targetLanguage
+    );
+
     if (categories.includes('translation')) {
-      const validLanguages = languages?.filter((l) => l && l !== 'EN') || [];
-      if (validLanguages.length === 0) {
+      if (validPairs.length === 0) {
         return NextResponse.json(
-          { error: 'At least one language is required for translation alerts' },
+          { error: 'At least one language pair is required for translation alerts' },
           { status: 400 }
         );
       }
@@ -60,13 +56,10 @@ export async function POST(request: NextRequest) {
     const userId = session.user.id;
     const email = session.user.email;
 
-    // Convert languages to pairs with English
-    const languagePairs = languages ? languagesToPairs(languages) : [];
-
     // Create job alerts for each category
     for (const category of categories) {
       const isTranslation = category === 'translation';
-      const validPairs = isTranslation ? languagePairs : [];
+      const pairsForAlert = isTranslation ? validPairs : [];
 
       // Check if alert already exists
       const existingAlert = await prisma.jobAlert.findFirst({
@@ -87,9 +80,9 @@ export async function POST(request: NextRequest) {
           frequency: AlertFrequency.INSTANT,
           isActive: true,
           languagePairs:
-            validPairs.length > 0
+            pairsForAlert.length > 0
               ? {
-                  create: validPairs.map((pair) => ({
+                  create: pairsForAlert.map((pair) => ({
                     translationType: pair.translationType,
                     sourceLanguage: pair.sourceLanguage,
                     targetLanguage: pair.targetLanguage,
