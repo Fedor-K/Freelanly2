@@ -1,15 +1,20 @@
 /**
  * Freelance LinkedIn Posts Discovery Configuration
  *
- * 159 search queries for finding freelance/contract opportunities.
+ * 149 search queries for finding freelance/contract opportunities.
  * Used by n8n workflow via /api/linkedin/next-keyword endpoint.
  *
  * Rotation: every 10 minutes, next keyword in list (sequential, not random)
- * Full cycle: 159 × 10 min = ~26.5 hours
+ * Full cycle: 149 × 10 min = ~24.8 hours
+ *
+ * Removed (0% conversion):
+ * - "localization project", "contract marketing", "freelance SEO"
+ * - "freelance photographer", "freelance illustrator", "LQA", "localization QA"
+ * - "freelance bookkeeper", "freelance accountant", "freelance marketing"
  */
 
 // ============================================
-// All 159 Freelance Search Queries
+// All 149 Freelance Search Queries
 // ============================================
 
 export const FREELANCE_SEARCH_QUERIES = [
@@ -53,7 +58,6 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"need translator"',
   '"looking for translator"',
   '"hiring translator"',
-  '"localization project"',
   '"freelance localization"',
   '"app localization"',
   '"freelance interpreter"',
@@ -147,41 +151,32 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"freelance editor"',
   '"freelance technical writer"',
 
-  // === Marketing (8) ===
-  '"freelance marketing"',
+  // === Marketing (2) ===
   '"freelance growth"',
-  '"contract marketing"',
   '"freelance social media"',
-  '"freelance SEO"',
 
-  // === Creative (6) ===
+  // === Creative (4) ===
   '"freelance video editor"',
   '"freelance motion"',
   '"freelance animator"',
-  '"freelance illustrator"',
-  '"freelance photographer"',
   '"contract creative"',
 
-  // === QA & Testing (5) ===
+  // === QA & Testing (3) ===
   '"freelance QA"',
   '"freelance tester"',
   '"QA tester" remote',
-  '"localization QA"',
-  '"LQA"',
 
-  // === Other (10) ===
+  // === Other (6) ===
   '"freelance consultant"',
   '"freelance project manager"',
   '"freelance data analyst"',
   '"freelance recruiter"',
-  '"freelance bookkeeper"',
-  '"freelance accountant"',
   '"freelance customer support"',
   '"freelance research"',
 ];
 
 // Total count
-export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 159
+export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 149
 
 // ============================================
 // Rotation Logic (Sequential, time-based)
