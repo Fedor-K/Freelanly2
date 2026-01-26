@@ -14,7 +14,7 @@ import { ensureSalaryData } from '@/lib/salary-estimation';
 import { validateAndEnrichCompany } from '@/services/company-enrichment';
 import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
-import { sendInstantAlertsForJob } from '@/services/alert-notifications';
+// Job alerts disabled - only sending alerts for Opportunities (freelance)
 import { addToSocialQueue } from '@/services/social-post';
 import { shouldSkipJob } from '@/lib/job-filter';
 import type { FilterReason, TranslationType } from '@prisma/client';
@@ -631,10 +631,7 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
 
   // Note: Company enrichment is already done in validateAndEnrichCompany()
 
-  // Send INSTANT alerts for this job (non-blocking)
-  sendInstantAlertsForJob(job.id).catch((err) => {
-    console.error('[LinkedIn] Instant alerts failed:', err);
-  });
+  // Job alerts disabled - only Opportunities get alerts now
 
   // Add to social post queue (non-blocking)
   addToSocialQueue(job.id).catch((err) => {

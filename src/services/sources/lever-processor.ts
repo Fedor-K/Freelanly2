@@ -21,7 +21,7 @@ import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from 
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
 // Note: Social queue is only for Opportunities (freelance), not regular Jobs
-import { queueInstantAlertsForJob } from '@/services/alert-notifications';
+// Job alerts disabled - only sending alerts for Opportunities (freelance)
 import { isPhysicalLocation } from '@/lib/job-filter';
 import { isBlockedCompany } from '@/config/company-blacklist';
 import { LeverFilterPipeline, type FilteredJobData } from './filters';
@@ -273,12 +273,9 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
           if (result.jobSlug) {
             stats.createdJobUrls!.push(buildJobUrl(company.slug, result.jobSlug));
           }
-          // Queue instant alerts for job
           if (result.jobId) {
             stats.createdJobIds!.push(result.jobId);
-            queueInstantAlertsForJob(result.jobId).catch((err) => {
-              console.error('[Lever] Instant alerts failed:', err);
-            });
+            // Job alerts disabled - only Opportunities get alerts now
           }
         } else if (result.status === 'skipped') {
           stats.skipped++;

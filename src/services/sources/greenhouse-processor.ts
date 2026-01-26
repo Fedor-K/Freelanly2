@@ -21,7 +21,7 @@ import { queueCompanyEnrichmentBySlug } from '@/services/company-enrichment';
 import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
 import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
-import { queueInstantAlertsForJob } from '@/services/alert-notifications';
+// Job alerts disabled - only sending alerts for Opportunities (freelance)
 // Note: Social queue is only for Opportunities (freelance), not regular Jobs
 import { isPhysicalLocation, shouldSkipJob } from '@/lib/job-filter';
 import { isBlockedCompany } from '@/config/company-blacklist';
@@ -243,10 +243,7 @@ export async function processGreenhouseSource(context: ProcessorContext): Promis
           }
           if (result.jobId) {
             stats.createdJobIds!.push(result.jobId);
-            // Queue instant alerts for job
-            queueInstantAlertsForJob(result.jobId).catch((err) => {
-              console.error('[Greenhouse] Instant alerts failed:', err);
-            });
+            // Job alerts disabled - only Opportunities get alerts now
           }
         } else if (result.status === 'skipped') {
           stats.skipped++;
