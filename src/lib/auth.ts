@@ -46,14 +46,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             jobViewsToday: true,
             lastViewReset: true,
             resumeUrl: true,
-            needsOnboarding: true,
           },
         });
         if (fullUser) {
           session.user.plan = fullUser.plan;
           session.user.jobViewsToday = fullUser.jobViewsToday;
           session.user.resumeUrl = fullUser.resumeUrl;
-          session.user.needsOnboarding = fullUser.needsOnboarding;
         }
       }
       return session;
@@ -153,7 +151,6 @@ declare module 'next-auth' {
       plan: 'FREE' | 'PRO' | 'ENTERPRISE';
       jobViewsToday: number;
       resumeUrl?: string | null;
-      needsOnboarding?: boolean;
     };
   }
 }
