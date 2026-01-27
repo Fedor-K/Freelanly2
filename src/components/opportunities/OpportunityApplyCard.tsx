@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { UnlockContactModal } from './UnlockContactModal';
+import { RegistrationModal } from '@/components/auth/RegistrationModal';
+import { trackCheckoutStart, trackSignupStart } from '@/lib/analytics';
 
 interface OpportunityApplyCardProps {
   isPro: boolean;
@@ -21,7 +22,39 @@ export function OpportunityApplyCard({
   applyUrl,
   title,
 }: OpportunityApplyCardProps) {
-  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const { data: session } = useSession();
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  const handleUpgradeClick = async () => {
+    // If not logged in, show registration modal first
+    if (!session?.user) {
+      trackSignupStart('opportunity_apply_card');
+      setShowRegistration(true);
+      return;
+    }
+
+    // User is logged in — redirect directly to Stripe checkout
+    trackCheckoutStart({ plan: 'monthly', source: 'opportunity_apply_card' });
+    setIsRedirecting(true);
+
+    try {
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priceKey: 'monthly' }),
+      });
+
+      const data = await response.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error('Checkout error:', err);
+      setIsRedirecting(false);
+    }
+  };
 
   return (
     <>
@@ -51,7 +84,8 @@ export function OpportunityApplyCard({
           ) : (
             <Button
               className="w-full bg-blue-600 hover:bg-blue-700 blur-[2px]"
-              onClick={() => setShowUnlockModal(true)}
+              onClick={handleUpgradeClick}
+              disabled={isRedirecting}
             >
               Message on LinkedIn
             </Button>
@@ -71,7 +105,8 @@ export function OpportunityApplyCard({
               <Button
                 variant="outline"
                 className="w-full blur-[2px]"
-                onClick={() => setShowUnlockModal(true)}
+                onClick={handleUpgradeClick}
+                disabled={isRedirecting}
               >
                 Email: •••••@••••.com
               </Button>
@@ -93,7 +128,8 @@ export function OpportunityApplyCard({
               <Button
                 variant="outline"
                 className="w-full blur-[2px]"
-                onClick={() => setShowUnlockModal(true)}
+                onClick={handleUpgradeClick}
+                disabled={isRedirecting}
               >
                 Apply via Link
               </Button>
@@ -102,9 +138,10 @@ export function OpportunityApplyCard({
           {!isPro && (
             <Button
               className="w-full bg-orange-600 hover:bg-orange-700"
-              onClick={() => setShowUnlockModal(true)}
+              onClick={handleUpgradeClick}
+              disabled={isRedirecting}
             >
-              🔓 Unlock Contact Info
+              {isRedirecting ? 'Redirecting to checkout...' : '🔓 Unlock Contact Info'}
             </Button>
           )}
 
@@ -118,11 +155,11 @@ export function OpportunityApplyCard({
         </CardContent>
       </Card>
 
-      {/* Unlock Modal */}
-      <UnlockContactModal
-        open={showUnlockModal}
-        onClose={() => setShowUnlockModal(false)}
-        hasEmail={!!applyEmail}
+      {/* Registration Modal for non-authenticated users */}
+      <RegistrationModal
+        open={showRegistration}
+        onClose={() => setShowRegistration(false)}
+        callbackUrl="/pricing?plan=monthly"
       />
     </>
   );

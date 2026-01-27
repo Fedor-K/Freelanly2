@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { UnlockContactModal } from './UnlockContactModal';
+import { useSession } from 'next-auth/react';
+import { RegistrationModal } from '@/components/auth/RegistrationModal';
+import { trackCheckoutStart, trackSignupStart } from '@/lib/analytics';
 
 interface OpportunityClientInfoProps {
   isPro: boolean;
@@ -19,9 +21,40 @@ export function OpportunityClientInfo({
   clientHeadline,
   clientAvatar,
   clientLinkedIn,
-  applyEmail,
 }: OpportunityClientInfoProps) {
-  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const { data: session } = useSession();
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  const handleUpgradeClick = async () => {
+    // If not logged in, show registration modal first
+    if (!session?.user) {
+      trackSignupStart('opportunity_contact');
+      setShowRegistration(true);
+      return;
+    }
+
+    // User is logged in — redirect directly to Stripe checkout
+    trackCheckoutStart({ plan: 'monthly', source: 'opportunity_contact' });
+    setIsRedirecting(true);
+
+    try {
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priceKey: 'monthly' }),
+      });
+
+      const data = await response.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error('Checkout error:', err);
+      setIsRedirecting(false);
+    }
+  };
 
   return (
     <>
@@ -67,21 +100,24 @@ export function OpportunityClientInfo({
             </a>
           ) : (
             <button
-              onClick={() => setShowUnlockModal(true)}
-              className="text-sm text-orange-600 hover:underline mt-1 inline-flex items-center gap-1"
+              onClick={handleUpgradeClick}
+              disabled={isRedirecting}
+              className="text-sm text-orange-600 hover:underline mt-1 inline-flex items-center gap-1 disabled:opacity-50"
             >
               <span className="blur-[3px] select-none">linkedin.com/in/•••••</span>
-              <span className="no-blur">Upgrade to see →</span>
+              <span className="no-blur">
+                {isRedirecting ? 'Redirecting...' : 'Upgrade to see →'}
+              </span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Unlock Modal */}
-      <UnlockContactModal
-        open={showUnlockModal}
-        onClose={() => setShowUnlockModal(false)}
-        hasEmail={!!applyEmail}
+      {/* Registration Modal for non-authenticated users */}
+      <RegistrationModal
+        open={showRegistration}
+        onClose={() => setShowRegistration(false)}
+        callbackUrl="/pricing?plan=monthly"
       />
     </>
   );
