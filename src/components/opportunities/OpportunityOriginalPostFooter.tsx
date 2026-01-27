@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { UnlockContactModal } from './UnlockContactModal';
+import { useSession } from 'next-auth/react';
+import { RegistrationModal } from '@/components/auth/RegistrationModal';
+import { trackCheckoutStart, trackSignupStart } from '@/lib/analytics';
 
 interface OpportunityOriginalPostFooterProps {
   isPro: boolean;
@@ -12,9 +14,36 @@ interface OpportunityOriginalPostFooterProps {
 export function OpportunityOriginalPostFooter({
   isPro,
   sourceUrl,
-  applyEmail,
 }: OpportunityOriginalPostFooterProps) {
-  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const { data: session } = useSession();
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  const handleUpgradeClick = async () => {
+    if (!session?.user) {
+      trackSignupStart('opportunity_footer');
+      setShowRegistration(true);
+      return;
+    }
+
+    trackCheckoutStart({ plan: 'monthly', source: 'opportunity_footer' });
+    setIsRedirecting(true);
+
+    try {
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priceKey: 'monthly' }),
+      });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error('Checkout error:', err);
+      setIsRedirecting(false);
+    }
+  };
 
   return (
     <>
@@ -30,10 +59,11 @@ export function OpportunityOriginalPostFooter({
           </a>
         ) : (
           <button
-            onClick={() => setShowUnlockModal(true)}
-            className="text-sm text-orange-600 hover:underline"
+            onClick={handleUpgradeClick}
+            disabled={isRedirecting}
+            className="text-sm text-orange-600 hover:underline disabled:opacity-50"
           >
-            Upgrade to view on LinkedIn →
+            {isRedirecting ? 'Redirecting...' : 'Upgrade to view on LinkedIn →'}
           </button>
         )}
         {!isPro && (
@@ -43,11 +73,10 @@ export function OpportunityOriginalPostFooter({
         )}
       </div>
 
-      {/* Unlock Modal */}
-      <UnlockContactModal
-        open={showUnlockModal}
-        onClose={() => setShowUnlockModal(false)}
-        hasEmail={!!applyEmail}
+      <RegistrationModal
+        open={showRegistration}
+        onClose={() => setShowRegistration(false)}
+        callbackUrl="/pricing?plan=monthly"
       />
     </>
   );
