@@ -962,41 +962,47 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
-  // Count emails sent today per user (from AlertNotification sentAt)
-  const todaysSentNotifications = await prisma.alertNotification.groupBy({
-    by: ['jobAlertId'],
+  // Count ACTUAL EMAILS sent today per user (by distinct sentAt timestamps)
+  // When we send 1 email with 5 notifications, all 5 get same sentAt timestamp
+  // So distinct timestamps = distinct emails
+  const allEmailAddresses = Array.from(emailLastSent.keys());
+  const todaysSentNotifications = await prisma.alertNotification.findMany({
     where: {
       status: 'SENT',
       sentAt: { gte: todayStart },
+      jobAlert: {
+        OR: [
+          { email: { in: allEmailAddresses, mode: 'insensitive' } },
+          { user: { email: { in: allEmailAddresses, mode: 'insensitive' } } },
+        ],
+      },
     },
-    _count: { id: true },
+    select: {
+      sentAt: true,
+      jobAlert: {
+        select: {
+          email: true,
+          user: { select: { email: true } },
+        },
+      },
+    },
   });
 
-  // Map alert IDs to their today's send count
-  const alertSentToday = new Map<string, number>();
-  for (const item of todaysSentNotifications) {
-    alertSentToday.set(item.jobAlertId, item._count.id);
-  }
-
-  // Get alert IDs for each email to check daily limits
-  const emailAlertIds = new Map<string, string[]>();
-  for (const n of pendingAlerts) {
+  // Group by email and count distinct timestamps (= distinct emails)
+  const emailTimestamps = new Map<string, Set<number>>();
+  for (const n of todaysSentNotifications) {
     const email = (n.jobAlert.email || n.jobAlert.user?.email)?.toLowerCase();
-    if (email) {
-      const existing = emailAlertIds.get(email) || [];
-      existing.push(n.jobAlert.id);
-      emailAlertIds.set(email, existing);
+    if (email && n.sentAt) {
+      const timestamps = emailTimestamps.get(email) || new Set();
+      timestamps.add(n.sentAt.getTime());
+      emailTimestamps.set(email, timestamps);
     }
   }
 
-  // Calculate total emails sent today per email
+  // Convert to count: number of distinct timestamps = number of emails
   const emailSentToday = new Map<string, number>();
-  for (const [email, alertIds] of emailAlertIds) {
-    let totalSent = 0;
-    for (const alertId of alertIds) {
-      totalSent += alertSentToday.get(alertId) || 0;
-    }
-    emailSentToday.set(email, totalSent);
+  for (const [email, timestamps] of emailTimestamps) {
+    emailSentToday.set(email, timestamps.size);
   }
 
   // Filter out emails that were sent to recently (debounce) or hit daily limit
@@ -1055,7 +1061,7 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
 
   if (idsToProcess.length === 0) {
     console.log(`[InstantAlerts] No notifications found for emails`);
-    return { sent: 0, failed: 0, processed: 0, skippedDebounce };
+    return { sent: 0, failed: 0, processed: 0, skippedDebounce, skippedDailyLimit };
   }
 
   // Atomically claim these notifications
@@ -1071,10 +1077,30 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
 
   if (claimResult.count === 0) {
     console.log(`[InstantAlerts] No notifications claimed (already processed by another instance)`);
-    return { sent: 0, failed: 0, processed: 0, skippedDebounce };
+    return { sent: 0, failed: 0, processed: 0, skippedDebounce, skippedDailyLimit };
   }
 
   console.log(`[InstantAlerts] Batch ${batchId}: Claimed ${claimResult.count} notifications for ${emailsToProcess.length} users`);
+
+  // Step 2.5: IMMEDIATELY update lastSentAt on all affected alerts
+  // This prevents race conditions: other cron instances will see these alerts
+  // as recently sent and skip them (debounce check)
+  const alertIdsToUpdate = new Set<string>();
+  const claimedNotifications = await prisma.alertNotification.findMany({
+    where: { id: { in: idsToProcess }, status: 'PROCESSING' },
+    select: { jobAlertId: true },
+  });
+  for (const n of claimedNotifications) {
+    alertIdsToUpdate.add(n.jobAlertId);
+  }
+
+  if (alertIdsToUpdate.size > 0) {
+    await prisma.jobAlert.updateMany({
+      where: { id: { in: Array.from(alertIdsToUpdate) } },
+      data: { lastSentAt: new Date() },
+    });
+    console.log(`[InstantAlerts] Batch ${batchId}: Updated lastSentAt on ${alertIdsToUpdate.size} alerts (race condition prevention)`);
+  }
 
   // Step 3: Fetch the claimed notifications with full data
   const pendingNotifications = await prisma.alertNotification.findMany({
@@ -1302,6 +1328,14 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
 
     if (result.success) {
       sent++;
+      // Increment emailsSent counter for all alerts that were part of this email
+      const alertIdsForEmail = new Set(notifications.map(n => n.jobAlertId));
+      if (alertIdsForEmail.size > 0) {
+        await prisma.jobAlert.updateMany({
+          where: { id: { in: Array.from(alertIdsForEmail) } },
+          data: { emailsSent: { increment: 1 } },
+        });
+      }
     } else {
       failed++;
       console.error(`[InstantAlerts] Failed to send to ${email}: ${result.error}`);
