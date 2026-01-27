@@ -96,7 +96,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
     },
 
-    // Fix: Set emailVerified and needsOnboarding for Google OAuth users
+    // Set emailVerified for Google OAuth users
     async signIn({ user, account }) {
       console.log(`[Auth Event] signIn: provider=${account?.provider}, email=${user.email}, userId=${user.id}`);
 
@@ -113,32 +113,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         console.error('[Auth] Failed to log login:', e);
       }
 
+      // Verify email for Google users (Google already verified it)
       if (account?.provider === 'google' && user.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
-          select: { emailVerified: true, jobAlerts: { select: { id: true }, take: 1 } },
+          select: { emailVerified: true },
         });
 
-        if (dbUser) {
-          const updates: { emailVerified?: Date; needsOnboarding?: boolean } = {};
-
-          // Verify email for Google users
-          if (!dbUser.emailVerified) {
-            updates.emailVerified = new Date();
-          }
-
-          // Set needsOnboarding if user has no job alerts (new Google user)
-          if (dbUser.jobAlerts.length === 0) {
-            updates.needsOnboarding = true;
-          }
-
-          if (Object.keys(updates).length > 0) {
-            await prisma.user.update({
-              where: { id: user.id },
-              data: updates,
-            });
-            console.log(`[Auth Event] Updated Google user ${user.email}:`, updates);
-          }
+        if (dbUser && !dbUser.emailVerified) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { emailVerified: new Date() },
+          });
+          console.log(`[Auth Event] Verified email for Google user ${user.email}`);
         }
       }
     },
