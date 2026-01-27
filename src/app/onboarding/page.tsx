@@ -27,6 +27,9 @@ export default function OnboardingPage() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
 
+  // Check if user just completed payment
+  const isPostPayment = searchParams.get('subscription') === 'success';
+
   // Form fields
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedCountry, setSelectedCountry] = useState('');
@@ -40,13 +43,14 @@ export default function OnboardingPage() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Redirect if not authenticated or doesn't need onboarding
+  // Show onboarding if: just paid (subscription=success) OR needsOnboarding flag
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/signin');
-    } else if (status === 'authenticated' && !session?.user?.needsOnboarding) {
+    } else if (status === 'authenticated' && !session?.user?.needsOnboarding && !isPostPayment) {
       router.push(callbackUrl);
     }
-  }, [status, session, router, callbackUrl]);
+  }, [status, session, router, callbackUrl, isPostPayment]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -126,15 +130,10 @@ export default function OnboardingPage() {
       // Clear stored callback URL
       sessionStorage.removeItem('onboarding-callback-url');
 
-      // Redirect to jobs page for first selected category (better engagement)
-      // If user came from a specific page, use that instead
-      if (callbackUrl !== '/dashboard' && !callbackUrl.startsWith('/onboarding')) {
-        router.push(callbackUrl);
-      } else {
-        // Redirect to first selected category's jobs page
-        const firstCategory = selectedCategories[0];
-        router.push(`/jobs/${firstCategory}`);
-      }
+      // Redirect to jobs page for first selected category
+      const firstCategory = selectedCategories[0];
+      // Add welcome=1 param to show welcome toast
+      router.push(`/jobs/${firstCategory}?welcome=1`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
       setIsLoading(false);
@@ -162,7 +161,14 @@ export default function OnboardingPage() {
         {/* Card */}
         <div className="bg-white rounded-xl shadow-sm border p-8">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-semibold">Welcome to Freelanly!</h1>
+            {isPostPayment && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-800 font-medium">Payment successful! You now have PRO access.</p>
+              </div>
+            )}
+            <h1 className="text-2xl font-semibold">
+              {isPostPayment ? 'One last step!' : 'Welcome to Freelanly!'}
+            </h1>
             <p className="mt-2 text-muted-foreground">
               Tell us what roles interest you so we can send you relevant job alerts.
             </p>
