@@ -343,17 +343,6 @@ async function recordEmailSent(
 }
 
 /**
- * Check if user has already subscribed
- */
-async function hasSubscribed(email: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: { plan: true },
-  });
-  return user?.plan === 'PRO';
-}
-
-/**
  * Check if user has unsubscribed from marketing
  */
 async function hasUnsubscribed(email: string): Promise<boolean> {
@@ -413,15 +402,14 @@ export async function processAbandonedCheckoutEmails(): Promise<{
     for (const session of abandonedSessions) {
       stats.processed++;
 
-      // Check if user has already subscribed
-      const subscribed = await hasSubscribed(session.email);
-      if (subscribed) {
+      // Check if user has already subscribed (with actual Stripe subscription)
+      const user = await prisma.user.findUnique({
+        where: { email: session.email },
+        select: { plan: true, stripeSubscriptionId: true },
+      });
+      // Only skip if user is PRO with active Stripe subscription (not manual PRO)
+      if (user?.plan === 'PRO' && user?.stripeSubscriptionId) {
         stats.alreadySubscribed++;
-        // Mark session as completed since they subscribed (maybe via different session)
-        await prisma.checkoutSession.update({
-          where: { id: session.id },
-          data: { status: 'COMPLETED', completedAt: new Date() },
-        }).catch(() => {});
         continue;
       }
 
