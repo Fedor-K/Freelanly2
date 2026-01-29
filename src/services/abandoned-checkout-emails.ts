@@ -81,7 +81,7 @@ function getEmailContent(
     </ul>
 
     <p style="text-align: center;">
-      <a href="https://freelanly.com/pricing?coupon=QUICK15" class="button" style="background: #dc2626;">Claim 15% Off Now</a>
+      <a href="https://freelanly.com/pricing?coupon=QUICK15&source=email_abandoned" class="button" style="background: #dc2626;">Claim 15% Off Now</a>
     </p>
 
     <p style="text-align: center; color: #666; font-size: 14px;">
@@ -174,7 +174,7 @@ function getEmailContent(
     </ul>
 
     <p style="text-align: center;">
-      <a href="https://freelanly.com/pricing?coupon=WELCOME20" class="button" style="background: #dc2626;">Claim Your 20% Discount</a>
+      <a href="https://freelanly.com/pricing?coupon=WELCOME20&source=email_abandoned" class="button" style="background: #dc2626;">Claim Your 20% Discount</a>
     </p>
 
     <p style="text-align: center; color: #666; font-size: 14px;">

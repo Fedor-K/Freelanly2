@@ -118,7 +118,7 @@ function getWinbackEmailContent(
     </ul>
 
     <p style="text-align: center;">
-      <a href="https://freelanly.com/pricing?coupon=COMEBACK50" class="button button-purple">Claim Your 50% Discount</a>
+      <a href="https://freelanly.com/pricing?coupon=COMEBACK50&source=email_winback" class="button button-purple">Claim Your 50% Discount</a>
     </p>
 
     <p style="text-align: center; color: #666; font-size: 14px;">
@@ -167,7 +167,7 @@ function getWinbackEmailContent(
     </ul>
 
     <p style="text-align: center;">
-      <a href="https://freelanly.com/pricing?coupon=LASTCHANCE60" class="button" style="background: #dc2626;">Claim 60% Off - Final Offer</a>
+      <a href="https://freelanly.com/pricing?coupon=LASTCHANCE60&source=email_winback" class="button" style="background: #dc2626;">Claim 60% Off - Final Offer</a>
     </p>
 
     <p style="text-align: center; color: #666; font-size: 14px;">

@@ -185,7 +185,7 @@ function generateFreeNurtureEmailHtml(
         </p>
       `;
       ctaText = 'Upgrade to PRO';
-      ctaUrl = `${APP_URL}/pricing?utm_source=free_nurture&utm_campaign=day7`;
+      ctaUrl = `${APP_URL}/pricing?utm_source=free_nurture&utm_campaign=day7&source=email_free_nurture`;
       break;
   }
 

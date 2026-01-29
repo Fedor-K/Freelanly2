@@ -69,7 +69,7 @@ export async function sendNurtureEmailForAttempt(attemptId: string): Promise<boo
 
     // Generate email content
     const jobUrl = `${siteConfig.url}/company/${attempt.job.company.slug}/jobs/${attempt.job.slug}`;
-    const pricingUrl = `${siteConfig.url}/pricing?utm_source=nurture&utm_medium=email&job=${attempt.job.id}`;
+    const pricingUrl = `${siteConfig.url}/pricing?utm_source=nurture&utm_medium=email&source=email_nurture&jobId=${attempt.job.id}`;
 
     const salaryText = attempt.job.salaryMin && attempt.job.salaryMax
       ? `${attempt.job.salaryCurrency || '$'}${(attempt.job.salaryMin / 1000).toFixed(0)}K - ${attempt.job.salaryCurrency || '$'}${(attempt.job.salaryMax / 1000).toFixed(0)}K`
@@ -188,7 +188,7 @@ export async function sendNurtureEmails(): Promise<NurtureStats> {
 
         // Generate email content
         const jobUrl = `${siteConfig.url}/company/${attempt.job.company.slug}/jobs/${attempt.job.slug}`;
-        const pricingUrl = `${siteConfig.url}/pricing?utm_source=nurture&utm_medium=email&job=${attempt.job.id}`;
+        const pricingUrl = `${siteConfig.url}/pricing?utm_source=nurture&utm_medium=email&source=email_nurture&jobId=${attempt.job.id}`;
 
         const salaryText = attempt.job.salaryMin && attempt.job.salaryMax
           ? `${attempt.job.salaryCurrency || '$'}${(attempt.job.salaryMin / 1000).toFixed(0)}K - ${attempt.job.salaryCurrency || '$'}${(attempt.job.salaryMax / 1000).toFixed(0)}K`
