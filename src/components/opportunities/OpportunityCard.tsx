@@ -45,7 +45,11 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priceKey: 'monthly' }),
+        body: JSON.stringify({
+          priceKey: 'monthly',
+          source: 'opportunity_card',
+          opportunityId: opportunity.id,
+        }),
       });
       const data = await response.json();
       if (data.url) {

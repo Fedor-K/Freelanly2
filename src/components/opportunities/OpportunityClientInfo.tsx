@@ -7,6 +7,7 @@ import { RegistrationModal } from '@/components/auth/RegistrationModal';
 import { trackCheckoutStart, trackSignupStart } from '@/lib/analytics';
 
 interface OpportunityClientInfoProps {
+  opportunityId: string;
   isPro: boolean;
   clientName: string;
   clientHeadline?: string | null;
@@ -16,6 +17,7 @@ interface OpportunityClientInfoProps {
 }
 
 export function OpportunityClientInfo({
+  opportunityId,
   isPro,
   clientName,
   clientHeadline,
@@ -42,7 +44,11 @@ export function OpportunityClientInfo({
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priceKey: 'monthly' }),
+        body: JSON.stringify({
+          priceKey: 'monthly',
+          source: 'opportunity_page',
+          opportunityId,
+        }),
       });
 
       const data = await response.json();

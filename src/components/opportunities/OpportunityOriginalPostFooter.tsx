@@ -6,12 +6,14 @@ import { RegistrationModal } from '@/components/auth/RegistrationModal';
 import { trackCheckoutStart, trackSignupStart } from '@/lib/analytics';
 
 interface OpportunityOriginalPostFooterProps {
+  opportunityId: string;
   isPro: boolean;
   sourceUrl: string;
   applyEmail?: string | null;
 }
 
 export function OpportunityOriginalPostFooter({
+  opportunityId,
   isPro,
   sourceUrl,
 }: OpportunityOriginalPostFooterProps) {
@@ -33,7 +35,11 @@ export function OpportunityOriginalPostFooter({
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priceKey: 'monthly' }),
+        body: JSON.stringify({
+          priceKey: 'monthly',
+          source: 'opportunity_page',
+          opportunityId,
+        }),
       });
       const data = await response.json();
       if (data.url) {

@@ -164,6 +164,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
 
                   {/* Client Info */}
                   <OpportunityClientInfo
+                    opportunityId={opportunity.id}
                     isPro={isPro}
                     clientName={opportunity.clientName}
                     clientHeadline={opportunity.clientHeadline}
@@ -228,6 +229,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
                   </div>
 
                   <OpportunityOriginalPostFooter
+                    opportunityId={opportunity.id}
                     isPro={isPro}
                     sourceUrl={opportunity.sourceUrl}
                     applyEmail={opportunity.applyEmail}
