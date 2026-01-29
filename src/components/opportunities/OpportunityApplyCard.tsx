@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RegistrationModal } from '@/components/auth/RegistrationModal';
-import { trackCheckoutStart, trackSignupStart } from '@/lib/analytics';
+import { trackCheckoutStart, trackSignupStart, trackUpgradeClick } from '@/lib/analytics';
 
 interface OpportunityApplyCardProps {
+  opportunityId: string;
   isPro: boolean;
   clientLinkedIn: string;
   applyEmail?: string | null;
@@ -16,6 +17,7 @@ interface OpportunityApplyCardProps {
 }
 
 export function OpportunityApplyCard({
+  opportunityId,
   isPro,
   clientLinkedIn,
   applyEmail,
@@ -25,8 +27,32 @@ export function OpportunityApplyCard({
   const { data: session } = useSession();
   const [showRegistration, setShowRegistration] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const trackedRef = useRef(false);
+
+  // Track apply attempt when FREE user clicks on any apply button
+  const trackApplyAttempt = () => {
+    if (trackedRef.current) return;
+    trackedRef.current = true;
+
+    fetch('/api/user/apply-attempt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ opportunityId }),
+    }).catch(() => {});
+  };
+
+  // Reset tracking when component unmounts or opportunityId changes
+  useEffect(() => {
+    return () => {
+      trackedRef.current = false;
+    };
+  }, [opportunityId]);
 
   const handleUpgradeClick = async () => {
+    // Track the apply attempt for conversion analytics
+    trackApplyAttempt();
+    trackUpgradeClick({ source: 'paywall', jobId: opportunityId });
+
     // If not logged in, show registration modal first
     if (!session?.user) {
       trackSignupStart('opportunity_apply_card');

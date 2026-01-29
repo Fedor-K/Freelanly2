@@ -240,6 +240,7 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
             <div className="space-y-6">
               {/* Apply Card */}
               <OpportunityApplyCard
+                opportunityId={opportunity.id}
                 isPro={isPro}
                 clientLinkedIn={opportunity.clientLinkedIn}
                 applyEmail={opportunity.applyEmail}

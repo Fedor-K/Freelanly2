@@ -557,6 +557,7 @@ model Opportunity {
   // === RELATIONS ===
   alertNotifications AlertNotification[]
   socialPostQueue    SocialPostQueue[]
+  applyAttempts      ApplyAttempt[]
 
   @@index([categoryId])
   @@index([companyId])
@@ -1267,8 +1268,11 @@ model ApplyAttempt {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
 
-  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  jobId     String
+  // Either job OR opportunity (one must be set)
+  job           Job?         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId         String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  opportunityId String?
 
   // Email nurture tracking
   nurtureEmailSent Boolean  @default(false)
@@ -1280,6 +1284,7 @@ model ApplyAttempt {
 
   @@index([userId])
   @@index([jobId])
+  @@index([opportunityId])
   @@index([nurtureEmailSent, createdAt]) // For cron: find unsent
 }
 

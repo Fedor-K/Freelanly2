@@ -14,10 +14,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const { jobId } = await request.json();
+    const { jobId, opportunityId } = await request.json();
 
-    if (!jobId) {
-      return NextResponse.json({ error: 'jobId required' }, { status: 400 });
+    // Require either jobId or opportunityId
+    if (!jobId && !opportunityId) {
+      return NextResponse.json({ error: 'jobId or opportunityId required' }, { status: 400 });
     }
 
     // Check if user is already PRO (shouldn't happen but just in case)
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     const recentAttempt = await prisma.applyAttempt.findFirst({
       where: {
         userId: session.user.id,
-        jobId,
+        ...(jobId ? { jobId } : { opportunityId }),
         createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
     });
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     const attempt = await prisma.applyAttempt.create({
       data: {
         userId: session.user.id,
-        jobId,
+        ...(jobId ? { jobId } : { opportunityId }),
       },
     });
 
@@ -56,7 +57,12 @@ export async function POST(request: NextRequest) {
     await logActivity({
       userId: session.user.id,
       action: ActivityAction.JOB_APPLY,
-      details: { jobId, plan: 'FREE', attemptId: attempt.id },
+      details: {
+        ...(jobId ? { jobId } : { opportunityId }),
+        plan: 'FREE',
+        attemptId: attempt.id,
+        type: jobId ? 'job' : 'opportunity',
+      },
     });
 
     // Send nurture email immediately (non-blocking)
@@ -91,6 +97,14 @@ export async function GET() {
             company: {
               select: { name: true, slug: true },
             },
+          },
+        },
+        opportunity: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            clientName: true,
           },
         },
       },
