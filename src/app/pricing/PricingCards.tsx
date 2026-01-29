@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,10 +21,16 @@ const plans: Array<{
 
 export function PricingCards() {
   const { data: session, status } = useSession();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState<PriceKey | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showRegistration, setShowRegistration] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PriceKey | null>(null);
+
+  // Get source tracking from URL params (passed from job/opportunity pages)
+  const sourceFromUrl = searchParams.get('source') || 'pricing_page';
+  const jobIdFromUrl = searchParams.get('jobId');
+  const opportunityIdFromUrl = searchParams.get('opportunityId');
 
   const handleSubscribe = async (priceKey: PriceKey) => {
     setError(null);
@@ -37,14 +44,19 @@ export function PricingCards() {
     }
 
     // Track checkout start
-    trackCheckoutStart({ plan: priceKey, source: 'pricing_page' });
+    trackCheckoutStart({ plan: priceKey, source: sourceFromUrl });
     setLoading(priceKey);
 
     try {
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priceKey }),
+        body: JSON.stringify({
+          priceKey,
+          source: sourceFromUrl,
+          ...(jobIdFromUrl && { jobId: jobIdFromUrl }),
+          ...(opportunityIdFromUrl && { opportunityId: opportunityIdFromUrl }),
+        }),
       });
 
       const data = await response.json();

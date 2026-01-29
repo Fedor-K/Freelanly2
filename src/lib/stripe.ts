@@ -105,12 +105,18 @@ export async function createCheckoutSession({
   priceKey,
   successUrl,
   cancelUrl,
+  source,
+  jobId,
+  opportunityId,
 }: {
   userId: string;
   userEmail: string;
   priceKey: PriceKey;
   successUrl: string;
   cancelUrl: string;
+  source?: string;      // Where user came from: 'job_page', 'opportunity_page', 'pricing', 'header', etc.
+  jobId?: string;       // If came from a specific job
+  opportunityId?: string; // If came from a specific opportunity
 }): Promise<Stripe.Checkout.Session> {
   const priceId = STRIPE_PRICES[priceKey];
   const priceInfo = PRICE_INFO[priceKey];
@@ -131,6 +137,9 @@ export async function createCheckoutSession({
     metadata: {
       userId,
       priceKey,
+      ...(source && { source }),
+      ...(jobId && { jobId }),
+      ...(opportunityId && { opportunityId }),
     },
     // Add trial for monthly and annual
     subscription_data: priceInfo.hasTrial

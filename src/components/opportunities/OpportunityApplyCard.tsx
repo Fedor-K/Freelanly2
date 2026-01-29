@@ -68,7 +68,11 @@ export function OpportunityApplyCard({
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priceKey: 'monthly' }),
+        body: JSON.stringify({
+          priceKey: 'monthly',
+          source: 'opportunity_page',
+          opportunityId,
+        }),
       });
 
       const data = await response.json();

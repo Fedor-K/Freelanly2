@@ -51,7 +51,19 @@ export async function GET() {
       status: s.status,
       amount: s.amount_total ? `€${s.amount_total / 100}` : 'Trial',
       priceKey: s.metadata?.priceKey || 'unknown',
+      source: s.metadata?.source || null,
+      jobId: s.metadata?.jobId || null,
+      opportunityId: s.metadata?.opportunityId || null,
     }));
+
+    // Group by source
+    const bySource: Record<string, { total: number; completed: number }> = {};
+    sessionsMonth.data.forEach(s => {
+      const source = s.metadata?.source || 'unknown';
+      if (!bySource[source]) bySource[source] = { total: 0, completed: 0 };
+      bySource[source].total++;
+      if (s.status === 'complete') bySource[source].completed++;
+    });
 
     // Get user registration stats from database
     const weekAgoDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -86,6 +98,7 @@ export async function GET() {
       week: weekStats,
       month: monthStats,
       recentSessions,
+      bySource,
       users: {
         pro: totalPro,
         free: totalFree,

@@ -20,7 +20,12 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { priceKey } = body as { priceKey?: string };
+    const { priceKey, source, jobId, opportunityId } = body as {
+      priceKey?: string;
+      source?: string;
+      jobId?: string;
+      opportunityId?: string;
+    };
 
     // Validate price key
     if (!priceKey || !Object.keys(STRIPE_PRICES).includes(priceKey)) {
@@ -35,13 +40,16 @@ export async function POST(request: NextRequest) {
     const successUrl = `${baseUrl}/jobs?subscription=success&welcome=1`;
     const cancelUrl = `${baseUrl}/pricing?subscription=cancelled`;
 
-    // Create Stripe Checkout session
+    // Create Stripe Checkout session with source tracking
     const checkoutSession = await createCheckoutSession({
       userId: session.user.id,
       userEmail: session.user.email,
       priceKey: priceKey as PriceKey,
       successUrl,
       cancelUrl,
+      source,
+      jobId,
+      opportunityId,
     });
 
     return NextResponse.json({
