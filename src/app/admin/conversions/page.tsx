@@ -40,7 +40,11 @@ interface ConversionStats {
     status: string;
     amount: string;
     priceKey: string;
+    source: string | null;
+    jobId: string | null;
+    opportunityId: string | null;
   }>;
+  bySource: Record<string, { total: number; completed: number }>;
   users: {
     pro: number;
     free: number;
@@ -289,6 +293,42 @@ export default function ConversionsDashboard() {
 
         <Card>
           <CardHeader>
+            <CardTitle>By Source (30 days)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {stats.bySource && Object.entries(stats.bySource).map(([source, data]) => {
+                const rate = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
+                const label = source === 'job_page' ? '💼 Jobs' :
+                              source === 'opportunity_page' ? '🔥 Opportunities' :
+                              source === 'pricing_page' ? '💰 Pricing' :
+                              source === 'unknown' ? '❓ Unknown' : source;
+                return (
+                  <div key={source} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="font-medium">{label}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {data.completed}/{data.total} completed
+                      </p>
+                    </div>
+                    <div className={`text-lg font-bold ${rate >= 20 ? 'text-green-600' : rate > 0 ? 'text-yellow-600' : 'text-red-600'}`}>
+                      {rate}%
+                    </div>
+                  </div>
+                );
+              })}
+              {(!stats.bySource || Object.keys(stats.bySource).length === 0) && (
+                <p className="text-muted-foreground text-sm">No data yet</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Revenue Events */}
+      <div className="grid gap-6 md:grid-cols-1 mb-6">
+        <Card>
+          <CardHeader>
             <CardTitle>Recent Revenue Events</CardTitle>
           </CardHeader>
           <CardContent>
@@ -330,6 +370,7 @@ export default function ConversionsDashboard() {
                 <tr className="border-b">
                   <th className="text-left py-2 px-2">Date</th>
                   <th className="text-left py-2 px-2">Email</th>
+                  <th className="text-left py-2 px-2">Source</th>
                   <th className="text-left py-2 px-2">Plan</th>
                   <th className="text-left py-2 px-2">Amount</th>
                   <th className="text-left py-2 px-2">Status</th>
@@ -342,6 +383,19 @@ export default function ConversionsDashboard() {
                       {new Date(session.date).toLocaleDateString()}
                     </td>
                     <td className="py-2 px-2 truncate max-w-[200px]">{session.email}</td>
+                    <td className="py-2 px-2">
+                      {session.source ? (
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          session.source === 'job_page' ? 'bg-blue-100 text-blue-700' :
+                          session.source === 'opportunity_page' ? 'bg-orange-100 text-orange-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {session.source.replace('_page', '')}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
                     <td className="py-2 px-2 capitalize">{session.priceKey}</td>
                     <td className="py-2 px-2">{session.amount}</td>
                     <td className="py-2 px-2">
