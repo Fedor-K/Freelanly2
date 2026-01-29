@@ -127,6 +127,25 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   console.log(`[Stripe Webhook] User ${userId} upgraded to PRO`);
 
+  // Mark all ApplyAttempts as converted (for conversion analytics)
+  try {
+    const updated = await prisma.applyAttempt.updateMany({
+      where: {
+        userId,
+        converted: false,
+      },
+      data: {
+        converted: true,
+        convertedAt: new Date(),
+      },
+    });
+    if (updated.count > 0) {
+      console.log(`[Stripe Webhook] Marked ${updated.count} ApplyAttempts as converted for user ${userId}`);
+    }
+  } catch (e) {
+    console.error('[Stripe Webhook] Failed to update ApplyAttempts:', e);
+  }
+
   // Log subscription start for dispute evidence
   try {
     await prisma.activityLog.create({
