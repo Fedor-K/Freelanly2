@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { Suspense } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { siteConfig } from '@/config/site';
@@ -76,7 +77,9 @@ export default function PricingPage() {
           </div>
 
           {/* Plans */}
-          <PricingCards />
+          <Suspense fallback={<div className="text-center py-8">Loading plans...</div>}>
+            <PricingCards />
+          </Suspense>
 
           {/* Testimonials - Senja Widget */}
           <section className="mt-16 max-w-4xl mx-auto">

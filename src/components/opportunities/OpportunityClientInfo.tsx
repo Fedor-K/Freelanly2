@@ -123,7 +123,7 @@ export function OpportunityClientInfo({
       <RegistrationModal
         open={showRegistration}
         onClose={() => setShowRegistration(false)}
-        callbackUrl="/pricing?plan=monthly"
+        callbackUrl={`/pricing?plan=monthly&source=opportunity_page&opportunityId=${opportunityId}`}
       />
     </>
   );

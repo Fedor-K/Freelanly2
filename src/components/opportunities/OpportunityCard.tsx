@@ -207,7 +207,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
       <RegistrationModal
         open={showRegistration}
         onClose={() => setShowRegistration(false)}
-        callbackUrl="/pricing?plan=monthly"
+        callbackUrl={`/pricing?plan=monthly&source=opportunity_card&opportunityId=${opportunity.id}`}
       />
     </Card>
   );
