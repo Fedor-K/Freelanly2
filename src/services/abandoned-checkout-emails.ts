@@ -257,18 +257,20 @@ async function getAbandonedSessions(): Promise<AbandonedSession[]> {
 
 /**
  * Determine which email to send based on hours since checkout
+ * Note: Cron runs once daily at 9 AM UTC, so windows must be wide enough
+ * to catch all checkouts from the previous period
  */
 function getEmailTypeForHours(hours: number): AbandonedEmailType | null {
-  // 1 hour (with 30 min buffer)
-  if (hours >= 1 && hours < 2) {
+  // First email: 1-8 hours after checkout (catches same-day abandonments)
+  if (hours >= 1 && hours < 8) {
     return 'HOUR_1';
   }
-  // 24 hours (with 2 hour buffer)
-  if (hours >= 24 && hours < 26) {
+  // Second email: 18-32 hours after checkout (catches previous day)
+  if (hours >= 18 && hours < 32) {
     return 'HOUR_24';
   }
-  // 3 days (72 hours, with 4 hour buffer)
-  if (hours >= 72 && hours < 76) {
+  // Third email: 66-80 hours after checkout (catches ~3 days ago)
+  if (hours >= 66 && hours < 80) {
     return 'DAY_3';
   }
   return null;
