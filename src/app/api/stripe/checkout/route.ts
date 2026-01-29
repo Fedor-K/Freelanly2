@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { createCheckoutSession, STRIPE_PRICES, type PriceKey } from '@/lib/stripe';
 import { alertCheckoutError } from '@/lib/telegram-alerts';
+import { prisma } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   let userEmail: string | undefined;
@@ -50,6 +51,20 @@ export async function POST(request: NextRequest) {
       source,
       jobId,
       opportunityId,
+    });
+
+    // Save checkout session to DB for abandoned cart tracking
+    await prisma.checkoutSession.create({
+      data: {
+        stripeSessionId: checkoutSession.id,
+        email: session.user.email,
+        userId: session.user.id,
+        priceKey: priceKey as string,
+        amount: checkoutSession.amount_total,
+        source,
+        jobId,
+        opportunityId,
+      },
     });
 
     return NextResponse.json({

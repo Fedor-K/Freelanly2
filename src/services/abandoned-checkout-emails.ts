@@ -1,13 +1,15 @@
 /**
  * Abandoned Checkout Email Sequence
  *
- * 1 hour   - "15% off + urgency" (code: QUICK15)
- * 24 hours - "Complete your upgrade"
- * 3 days   - "Last chance + 20% off" (code: WELCOME20)
+ * 10 minutes - IMMEDIATE recovery email with 15% off (QUICK15)
+ * 1 hour     - Reminder email
+ * 24 hours   - "Complete your upgrade"
+ * 3 days     - "Last chance + 20% off" (code: WELCOME20)
+ *
+ * Cron runs every 5 minutes to catch 10-minute abandonments quickly
  */
 
 import { prisma } from '@/lib/db';
-import { getStripe } from '@/lib/stripe';
 import { sendApplicationEmail } from '@/lib/email';
 import { AbandonedCheckoutEmailType } from '@prisma/client';
 
@@ -43,9 +45,10 @@ function getEmailContent(
   `;
 
   switch (emailType) {
-    case 'HOUR_1':
+    // 10-minute email - IMMEDIATE recovery with discount
+    case 'MINUTE_10':
       return {
-        subject: '15% off expires in 3 hours — complete your signup',
+        subject: 'Forgot something? Here\'s 15% off to complete your upgrade',
         html: `
 <!DOCTYPE html>
 <html>
@@ -56,12 +59,12 @@ function getEmailContent(
 <body>
 <div class="container">
   <div class="header" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">
-    <h1>15% OFF — Limited Time</h1>
+    <h1>Your checkout is waiting!</h1>
   </div>
   <div class="content">
     <p>Hi there,</p>
 
-    <p>You were just one step away from unlocking <strong>unlimited job applications</strong> on Freelanly.</p>
+    <p>I noticed you didn't complete your checkout. No worries — here's a <strong>special discount</strong> to help:</p>
 
     <div class="offer-box" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">
       <h3>15% OFF</h3>
@@ -69,9 +72,49 @@ function getEmailContent(
       <p style="margin: 10px 0 0; font-size: 18px;"><strong>Code: QUICK15</strong></p>
     </div>
 
-    <div class="timer">
-      <p class="timer-text">This offer expires in 3 hours</p>
-    </div>
+    <p><strong>With PRO, you get:</strong></p>
+    <ul>
+      <li><strong>Direct contact info</strong> — email hiring managers directly</li>
+      <li><strong>Instant job alerts</strong> — be the first to apply</li>
+      <li><strong>Unlimited applications</strong> — no more limits</li>
+    </ul>
+
+    <p style="text-align: center;">
+      <a href="https://freelanly.com/pricing?coupon=QUICK15&source=email_abandoned_10min" class="button" style="background: #dc2626;">Complete My Upgrade →</a>
+    </p>
+
+    <p style="text-align: center; color: #666; font-size: 14px;">
+      Cancel anytime. 100% satisfaction guaranteed.
+    </p>
+
+    <p>Best,<br>Fedor<br><em>Founder, Freelanly</em></p>
+  </div>
+  <div class="footer">
+    <p><a href="https://freelanly.com">Freelanly</a> — Remote Jobs for Professionals</p>
+    <p><a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
+  </div>
+</div>
+</body>
+</html>`,
+      };
+
+    // 1 hour email - gentle reminder
+    case 'HOUR_1':
+      return {
+        subject: 'Still thinking about PRO? Here\'s what you\'re missing',
+        html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><style>${baseStyle}</style></head>
+<body>
+<div class="container">
+  <div class="header" style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);">
+    <h1>Your PRO Access Awaits</h1>
+  </div>
+  <div class="content">
+    <p>Hi there,</p>
+
+    <p>Just checking in — you started upgrading to Freelanly PRO earlier.</p>
 
     <p><strong>What you're missing right now:</strong></p>
     <ul>
@@ -81,24 +124,25 @@ function getEmailContent(
     </ul>
 
     <p style="text-align: center;">
-      <a href="https://freelanly.com/pricing?coupon=QUICK15&source=email_abandoned" class="button" style="background: #dc2626;">Claim 15% Off Now</a>
+      <a href="https://freelanly.com/pricing?source=email_abandoned_1h" class="button button-green">Upgrade to PRO Now</a>
     </p>
 
     <p style="text-align: center; color: #666; font-size: 14px;">
-      Cancel anytime. No commitment.
+      From €0.39/day. Cancel anytime.
     </p>
 
     <p>Best,<br>The Freelanly Team</p>
   </div>
   <div class="footer">
     <p><a href="https://freelanly.com">Freelanly</a> — Remote Jobs for Professionals</p>
-    <p><a href="https://freelanly.com/dashboard/alerts" style="color: #666;">Manage job alerts</a> | <a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
+    <p><a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
   </div>
 </div>
 </body>
 </html>`,
       };
 
+    // 24 hour email - social proof
     case 'HOUR_24':
       return {
         subject: 'Complete your Freelanly PRO upgrade',
@@ -109,7 +153,7 @@ function getEmailContent(
 <body>
 <div class="container">
   <div class="header" style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);">
-    <h1>Your PRO Access Awaits</h1>
+    <h1>Don't Miss Out</h1>
   </div>
   <div class="content">
     <p>Hi there,</p>
@@ -125,7 +169,7 @@ function getEmailContent(
     <p>Your competitors are already applying. Don't let the best opportunities slip away.</p>
 
     <p style="text-align: center;">
-      <a href="https://freelanly.com/pricing" class="button button-green">Upgrade to PRO Now</a>
+      <a href="https://freelanly.com/pricing?source=email_abandoned_24h" class="button button-green">Upgrade to PRO Now</a>
     </p>
 
     <p style="text-align: center; color: #666; font-size: 12px;">
@@ -136,13 +180,14 @@ function getEmailContent(
   </div>
   <div class="footer">
     <p><a href="https://freelanly.com">Freelanly</a> — Remote Jobs for Professionals</p>
-    <p><a href="https://freelanly.com/dashboard/alerts" style="color: #666;">Manage job alerts</a> | <a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
+    <p><a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
   </div>
 </div>
 </body>
 </html>`,
       };
 
+    // 3 day email - last chance with bigger discount
     case 'DAY_3':
       return {
         subject: 'Last chance: 20% off your first month',
@@ -174,7 +219,7 @@ function getEmailContent(
     </ul>
 
     <p style="text-align: center;">
-      <a href="https://freelanly.com/pricing?coupon=WELCOME20&source=email_abandoned" class="button" style="background: #dc2626;">Claim Your 20% Discount</a>
+      <a href="https://freelanly.com/pricing?coupon=WELCOME20&source=email_abandoned_3d" class="button" style="background: #dc2626;">Claim Your 20% Discount</a>
     </p>
 
     <p style="text-align: center; color: #666; font-size: 14px;">
@@ -187,7 +232,7 @@ function getEmailContent(
   </div>
   <div class="footer">
     <p><a href="https://freelanly.com">Freelanly</a> — Remote Jobs for Professionals</p>
-    <p><a href="https://freelanly.com/dashboard/alerts" style="color: #666;">Manage job alerts</a> | <a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
+    <p><a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(data.email)}">Unsubscribe</a></p>
   </div>
 </div>
 </body>
@@ -200,77 +245,66 @@ function getEmailContent(
 }
 
 // ============================================
-// MAIN PROCESSING
+// MAIN PROCESSING (Using Database)
 // ============================================
 
 interface AbandonedSession {
-  sessionId: string;
+  id: string;
+  stripeSessionId: string;
   email: string;
   createdAt: Date;
-  hoursSinceCreated: number;
-  planName: string;
-  status: string;
+  minutesSinceCreated: number;
+  priceKey: string;
 }
 
 /**
- * Get abandoned checkout sessions from Stripe
+ * Get abandoned checkout sessions from our database
  */
 async function getAbandonedSessions(): Promise<AbandonedSession[]> {
-  const stripe = getStripe();
+  // Get pending sessions from last 4 days
+  const fourDaysAgo = new Date();
+  fourDaysAgo.setDate(fourDaysAgo.getDate() - 4);
 
-  // Get sessions from last 4 days
-  const fourDaysAgo = Math.floor((Date.now() - 4 * 24 * 60 * 60 * 1000) / 1000);
-
-  const sessions = await stripe.checkout.sessions.list({
-    limit: 100,
-    created: { gte: fourDaysAgo },
+  const sessions = await prisma.checkoutSession.findMany({
+    where: {
+      status: 'PENDING',
+      createdAt: { gte: fourDaysAgo },
+    },
+    orderBy: { createdAt: 'asc' },
   });
 
-  const result: AbandonedSession[] = [];
-
-  for (const session of sessions.data) {
-    // Only process incomplete sessions
-    if (session.status === 'complete') continue;
-    if (!session.customer_email) continue;
-
-    const createdAt = new Date(session.created * 1000);
-    const hoursSinceCreated = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
-
-    // Get plan name from metadata or line items
-    let planName = 'PRO';
-    if (session.metadata?.plan) {
-      planName = session.metadata.plan;
-    }
-
-    result.push({
-      sessionId: session.id,
-      email: session.customer_email,
-      createdAt,
-      hoursSinceCreated,
-      planName,
-      status: session.status || 'unknown',
-    });
-  }
-
-  return result;
+  return sessions.map((session) => {
+    const minutesSinceCreated = (Date.now() - session.createdAt.getTime()) / (1000 * 60);
+    return {
+      id: session.id,
+      stripeSessionId: session.stripeSessionId,
+      email: session.email,
+      createdAt: session.createdAt,
+      minutesSinceCreated,
+      priceKey: session.priceKey,
+    };
+  });
 }
 
 /**
- * Determine which email to send based on hours since checkout
- * Note: Cron runs once daily at 9 AM UTC, so windows must be wide enough
- * to catch all checkouts from the previous period
+ * Determine which email to send based on minutes since checkout
+ * Cron runs every 5 minutes
  */
-function getEmailTypeForHours(hours: number): AbandonedEmailType | null {
-  // First email: 1-8 hours after checkout (catches same-day abandonments)
-  if (hours >= 1 && hours < 8) {
+function getEmailTypeForMinutes(minutes: number): AbandonedEmailType | null {
+  // 10 minutes (10-20 min window)
+  if (minutes >= 10 && minutes < 20) {
+    return 'MINUTE_10';
+  }
+  // 1 hour (55-70 min window)
+  if (minutes >= 55 && minutes < 70) {
     return 'HOUR_1';
   }
-  // Second email: 18-32 hours after checkout (catches previous day)
-  if (hours >= 18 && hours < 32) {
+  // 24 hours (23-25 hour window = 1380-1500 minutes)
+  if (minutes >= 1380 && minutes < 1500) {
     return 'HOUR_24';
   }
-  // Third email: 66-80 hours after checkout (catches ~3 days ago)
-  if (hours >= 66 && hours < 80) {
+  // 3 days (70-74 hour window = 4200-4440 minutes)
+  if (minutes >= 4200 && minutes < 4440) {
     return 'DAY_3';
   }
   return null;
@@ -320,6 +354,17 @@ async function hasSubscribed(email: string): Promise<boolean> {
 }
 
 /**
+ * Check if user has unsubscribed from marketing
+ */
+async function hasUnsubscribed(email: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { unsubscribedFromMarketing: true },
+  });
+  return user?.unsubscribedFromMarketing ?? false;
+}
+
+/**
  * Send abandoned checkout email
  */
 async function sendAbandonedEmail(
@@ -328,7 +373,7 @@ async function sendAbandonedEmail(
 ): Promise<boolean> {
   const content = getEmailContent(emailType, {
     email: session.email,
-    planName: session.planName,
+    planName: session.priceKey,
   });
 
   const result = await sendApplicationEmail({
@@ -342,7 +387,7 @@ async function sendAbandonedEmail(
 
 /**
  * Main function: Process all abandoned checkout emails
- * Should be called by cron every hour
+ * Should be called by cron every 5 minutes
  */
 export async function processAbandonedCheckoutEmails(): Promise<{
   processed: number;
@@ -363,7 +408,7 @@ export async function processAbandonedCheckoutEmails(): Promise<{
 
   try {
     const abandonedSessions = await getAbandonedSessions();
-    console.log(`[AbandonedCheckout] Found ${abandonedSessions.length} abandoned sessions`);
+    console.log(`[AbandonedCheckout] Found ${abandonedSessions.length} pending checkout sessions`);
 
     for (const session of abandonedSessions) {
       stats.processed++;
@@ -372,38 +417,41 @@ export async function processAbandonedCheckoutEmails(): Promise<{
       const subscribed = await hasSubscribed(session.email);
       if (subscribed) {
         stats.alreadySubscribed++;
+        // Mark session as completed since they subscribed (maybe via different session)
+        await prisma.checkoutSession.update({
+          where: { id: session.id },
+          data: { status: 'COMPLETED', completedAt: new Date() },
+        }).catch(() => {});
         continue;
       }
 
       // Check if user has unsubscribed from marketing emails
-      const user = await prisma.user.findUnique({
-        where: { email: session.email },
-        select: { unsubscribedFromMarketing: true },
-      });
-      if (user?.unsubscribedFromMarketing) {
+      const unsubscribed = await hasUnsubscribed(session.email);
+      if (unsubscribed) {
         stats.skipped++;
         continue;
       }
 
-      const emailType = getEmailTypeForHours(session.hoursSinceCreated);
+      const emailType = getEmailTypeForMinutes(session.minutesSinceCreated);
       if (!emailType) {
-        // Not a time we send emails
+        // Not in a time window for sending emails
         continue;
       }
 
-      // Check if already sent
-      const alreadySent = await wasEmailSent(session.sessionId, emailType);
+      // Check if already sent this email type
+      const alreadySent = await wasEmailSent(session.stripeSessionId, emailType);
       if (alreadySent) {
         stats.skipped++;
         continue;
       }
 
       // Send email
-      console.log(`[AbandonedCheckout] Sending ${emailType} to ${session.email} (${Math.round(session.hoursSinceCreated)}h ago)`);
+      const minutesAgo = Math.round(session.minutesSinceCreated);
+      console.log(`[AbandonedCheckout] Sending ${emailType} to ${session.email} (${minutesAgo} min ago)`);
       const success = await sendAbandonedEmail(session, emailType);
 
       if (success) {
-        await recordEmailSent(session.sessionId, session.email, emailType);
+        await recordEmailSent(session.stripeSessionId, session.email, emailType);
         stats.sent++;
         stats.details.push({ email: session.email, emailType, status: 'sent' });
         console.log(`[AbandonedCheckout] Sent ${emailType} to ${session.email}`);

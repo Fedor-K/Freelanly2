@@ -146,6 +146,21 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     console.error('[Stripe Webhook] Failed to update ApplyAttempts:', e);
   }
 
+  // Mark CheckoutSession as completed (for abandoned cart tracking)
+  try {
+    await prisma.checkoutSession.update({
+      where: { stripeSessionId: session.id },
+      data: {
+        status: 'COMPLETED',
+        completedAt: new Date(),
+      },
+    });
+    console.log(`[Stripe Webhook] Marked CheckoutSession ${session.id} as completed`);
+  } catch {
+    // Session might not exist if created before this feature was added
+    console.log(`[Stripe Webhook] CheckoutSession not found for ${session.id} (may be legacy)`);
+  }
+
   // Log subscription start for dispute evidence
   try {
     await prisma.activityLog.create({
