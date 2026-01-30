@@ -52,7 +52,7 @@ function generateVideoScript(job: {
   // Caption text (correct spelling for subtitles)
   const captionText = `Hot job alert! ${job.company.name} is hiring a ${job.title}. ${salaryCaption} ${location}. Apply now at freelanly.com!`;
 
-  const jobUrl = `https://freelanly.com/company/${job.company.slug}/jobs/${job.slug}`;
+  const jobUrl = `https://freelanly.com/company/${job.company.slug}/jobs/${job.slug}?utm_source=linkedin&utm_medium=social&utm_campaign=video_post`;
 
   return {
     scenes: [{

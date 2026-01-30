@@ -323,8 +323,8 @@ export async function processNextSocialPost(): Promise<{ posted: boolean; opport
       });
     }
 
-    // Build freelanly URL for opportunities
-    const freelanlyUrl = `https://freelanly.com/freelance/${opp.slug}`;
+    // Build freelanly URL for opportunities with UTM tracking
+    const freelanlyUrl = `https://freelanly.com/freelance/${opp.slug}?utm_source=linkedin&utm_medium=social&utm_campaign=job_post&utm_content=${opp.id}`;
 
     console.log(`[SocialPost] Preparing to send opportunity ${opportunityId}:`);
     console.log(`[SocialPost] - Title: ${opp.title}`);
@@ -473,8 +473,8 @@ export async function getNextSocialPost(): Promise<{
     });
   }
 
-  // URL for freelance opportunities
-  const freelanlyUrl = `https://freelanly.com/freelance/${opp.slug}`;
+  // URL for freelance opportunities with UTM tracking
+  const freelanlyUrl = `https://freelanly.com/freelance/${opp.slug}?utm_source=linkedin&utm_medium=social&utm_campaign=job_post&utm_content=${opp.id}`;
 
   // Sanitize post content for Telegram markdown compatibility
   const sanitizedContent = escapeTelegramMarkdown(postText);
