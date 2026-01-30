@@ -11,6 +11,7 @@ import { siteConfig } from '@/config/site';
 import { truncateTitle } from '@/lib/seo';
 import { formatDistanceToNow } from '@/lib/utils';
 import { maskLinksForFreeUsers } from '@/lib/content-mask';
+import { Button } from '@/components/ui/button';
 import { CrossSellExitPopup } from '@/components/CrossSellExitPopup';
 import { OpportunityClientInfo } from '@/components/opportunities/OpportunityClientInfo';
 import { OpportunityApplyCard } from '@/components/opportunities/OpportunityApplyCard';
@@ -47,6 +48,39 @@ async function getOpportunity(slug: string) {
   });
 
   return opportunity;
+}
+
+async function getSimilarProjects(opportunityId: string, categoryId: string, limit: number = 6) {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const opportunities = await prisma.opportunity.findMany({
+      where: {
+        id: { not: opportunityId },
+        categoryId: categoryId,
+        isActive: true,
+        createdAt: { gte: thirtyDaysAgo },
+      },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        clientName: true,
+        location: true,
+        salaryMin: true,
+        salaryMax: true,
+        salaryCurrency: true,
+        salaryPeriod: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+    return opportunities;
+  } catch (error) {
+    console.error('Failed to fetch similar projects:', error);
+    return [];
+  }
 }
 
 export async function generateMetadata({ params }: FreelancePageProps): Promise<Metadata> {
@@ -110,6 +144,9 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
   }
 
   const isPro = userPlan === 'PRO' || userPlan === 'ENTERPRISE';
+
+  // Fetch similar projects
+  const similarProjects = await getSimilarProjects(opportunity.id, opportunity.categoryId);
 
   // Mask links/emails in original content for FREE users
   const displayOriginalContent = maskLinksForFreeUsers(opportunity.originalContent, userPlan);
@@ -274,6 +311,51 @@ export default async function FreelancePage({ params }: FreelancePageProps) {
               </div>
             </div>
           </div>
+
+          {/* Similar Projects Section */}
+          {similarProjects.length > 0 && (
+            <div className="mt-12">
+              <h2 className="text-2xl font-bold mb-6">Similar {opportunity.category.name} Projects</h2>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {similarProjects.map((project) => (
+                  <Link
+                    key={project.id}
+                    href={`/freelance/${project.slug}`}
+                    className="block"
+                  >
+                    <Card className="h-full hover:shadow-md transition-shadow">
+                      <CardContent className="pt-4">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-sm line-clamp-2">{project.title}</h3>
+                          <p className="text-sm text-muted-foreground truncate">{project.clientName}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {project.location && (
+                              <span className="text-xs text-muted-foreground">{project.location}</span>
+                            )}
+                            {project.salaryMin && (
+                              <>
+                                {project.location && <span className="text-xs text-muted-foreground">·</span>}
+                                <span className="text-xs font-medium text-green-600">
+                                  {formatSalary(project.salaryMin, project.salaryMax, project.salaryCurrency, project.salaryPeriod)}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+              <div className="mt-6 text-center">
+                <Link href={`/jobs/${opportunity.category.slug}`}>
+                  <Button variant="outline">
+                    View all {opportunity.category.name} projects →
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
