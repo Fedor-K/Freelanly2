@@ -340,7 +340,7 @@ export async function processNextSocialPost(): Promise<{ posted: boolean; opport
 
     const payload = {
       workType: opp.title,
-      postContent: postText,
+      postContent: escapeTelegramMarkdown(postText || ''),
       freelanlyUrl,
       languages: opp.skills.slice(0, 5),
       opportunityId: opp.id,
