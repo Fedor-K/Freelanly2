@@ -339,12 +339,12 @@ export async function processNextSocialPost(): Promise<{ posted: boolean; opport
     }
 
     const payload = {
-      workType: opp.title,
+      workType: escapeTelegramMarkdown(opp.title),
       postContent: escapeTelegramMarkdown(postText || ''),
       freelanlyUrl,
-      languages: opp.skills.slice(0, 5),
+      languages: opp.skills.slice(0, 5).map(s => escapeTelegramMarkdown(s)),
       opportunityId: opp.id,
-      clientName: opp.clientName,
+      clientName: escapeTelegramMarkdown(opp.clientName),
       isFreelance: true,
     };
 
