@@ -691,8 +691,8 @@ export async function isJobPosting(postContent: string): Promise<{ isJob: boolea
   } catch (error) {
     const provider = getAIProvider();
     console.error(`[${provider}] isJobPosting error:`, error);
-    // On error, assume it might be a job (let extractJobData decide)
-    return { isJob: true, reason: 'Error during validation, allowing through' };
+    // On error, reject — better to skip a real job than let spam through
+    return { isJob: false, reason: 'Error during validation, rejecting to be safe' };
   }
 }
 

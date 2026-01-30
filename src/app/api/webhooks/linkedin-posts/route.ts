@@ -225,6 +225,34 @@ export async function POST(request: NextRequest) {
     }
 
     // =========================================================================
+    // KEYWORD PRE-FILTER: Catch obvious self-promotion before calling AI
+    // =========================================================================
+    const contentLower = postContent.toLowerCase();
+    const selfPromoPatterns = [
+      /\bi am a\s+(freelance|translator|copywriter|designer|developer|writer|editor|consultant)/,
+      /\bi'?m a\s+(freelance|translator|copywriter|designer|developer|writer|editor|consultant)/,
+      /\bi offer\s+(my\s+)?services/,
+      /\bmy services include/,
+      /\bhire me\b/,
+      /\bi'?m available for\s+(projects|work|freelance)/,
+      /\blooking for\s+(new\s+)?clients/,
+      /\bneed a\b.{0,30}\?\s*(then\s+)?(hit me up|reach out|contact me|send me|let'?s connect|dm me|get in touch)/i,
+      /\bbook a\s+(free\s+)?(call|consultation|session)\b/,
+      /\bcheck out my\s+(portfolio|website|work)\b/,
+    ];
+
+    const selfPromoMatch = selfPromoPatterns.find(pattern => pattern.test(contentLower));
+    if (selfPromoMatch) {
+      console.log(`[LinkedInPosts] Self-promotion detected by keyword filter: ${selfPromoMatch}`);
+      return NextResponse.json({
+        success: true,
+        status: 'skipped',
+        reason: 'not_job_posting',
+        details: 'Self-promotion detected by keyword filter',
+      });
+    }
+
+    // =========================================================================
     // AI VALIDATION: Check if post is actually a job posting (not event/announcement)
     // =========================================================================
     console.log(`[LinkedInPosts] Validating post type...`);
