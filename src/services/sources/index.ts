@@ -3,6 +3,9 @@ import { Source } from '@prisma/client';
 import type { ProcessingStats, ProcessorContext } from './types';
 import { processLeverSource } from './lever-processor';
 import { processGreenhouseSource } from './greenhouse-processor';
+import { processAshbySource } from './ashby-processor';
+import { processSmartRecruitersSource } from './smartrecruiters-processor';
+import { processWorkableSource } from './workable-processor';
 import { notifySearchEngines } from '@/lib/indexing';
 
 export * from './types';
@@ -11,8 +14,9 @@ export * from './types';
 const SOURCE_PROCESSORS: Partial<Record<Source, (context: ProcessorContext) => Promise<ProcessingStats>>> = {
   LEVER: processLeverSource,
   GREENHOUSE: processGreenhouseSource,
-  // TODO: Add more processors
-  // ASHBY: processAshbySource,
+  ASHBY: processAshbySource,
+  SMARTRECRUITERS: processSmartRecruitersSource,
+  WORKABLE: processWorkableSource,
 };
 
 // Process a single data source
@@ -188,6 +192,32 @@ export async function validateDataSource(sourceType: Source, companySlug?: strin
         valid: true,
         name: companySlug,
         jobCount: data.jobs?.length || 0,
+      };
+    }
+
+    if (sourceType === 'WORKABLE' && companySlug) {
+      const response = await fetch(`https://apply.workable.com/api/v1/widget/accounts/${companySlug}`);
+      if (!response.ok) {
+        return { valid: false, error: `Workable API returned ${response.status}` };
+      }
+      const data = await response.json();
+      return {
+        valid: true,
+        name: companySlug,
+        jobCount: data.jobs?.length || 0,
+      };
+    }
+
+    if (sourceType === 'SMARTRECRUITERS' && companySlug) {
+      const response = await fetch(`https://api.smartrecruiters.com/v1/companies/${companySlug}/postings`);
+      if (!response.ok) {
+        return { valid: false, error: `SmartRecruiters API returned ${response.status}` };
+      }
+      const data = await response.json();
+      return {
+        valid: true,
+        name: companySlug,
+        jobCount: data.content?.length || 0,
       };
     }
 

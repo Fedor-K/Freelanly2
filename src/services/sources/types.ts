@@ -88,6 +88,80 @@ export interface GreenhouseApiResponse {
   };
 }
 
+export interface AshbyJob {
+  id: string;
+  title: string;
+  department: string;
+  team: string;
+  employmentType: string;
+  location: string;
+  isRemote: boolean;
+  jobUrl: string;
+  applyUrl: string;
+  descriptionHtml: string;
+  descriptionPlain: string;
+  publishedAt: string;
+}
+
+export interface AshbyApiResponse {
+  jobs: AshbyJob[];
+}
+
+export interface SmartRecruitersJob {
+  id: string;
+  uuid: string;
+  name: string;
+  company: {
+    name: string;
+    identifier: string;
+  };
+  location: {
+    city?: string;
+    region?: string;
+    country?: string;
+    remote?: boolean;
+  };
+  releasedDate: string;
+  department?: {
+    id: string;
+    label: string;
+  };
+  experienceLevel?: {
+    id: string;
+    label: string;
+  };
+  ref: string;
+}
+
+export interface SmartRecruitersApiResponse {
+  content: SmartRecruitersJob[];
+  totalFound?: number;
+}
+
+export interface WorkableJob {
+  title: string;
+  shortcode: string;
+  employment_type: string;
+  telecommuting: boolean;
+  department: string;
+  url: string;
+  application_url: string;
+  published_on: string;
+  country: string;
+  city: string;
+  locations?: Array<{
+    country: string;
+    city: string;
+    region: string;
+    telecommuting: boolean;
+  }>;
+}
+
+export interface WorkableApiResponse {
+  name: string;
+  jobs: WorkableJob[];
+}
+
 // ATS API URL templates
 export const ATS_API_TEMPLATES: Record<string, string> = {
   LEVER: 'https://api.lever.co/v0/postings/{companySlug}?mode=json',

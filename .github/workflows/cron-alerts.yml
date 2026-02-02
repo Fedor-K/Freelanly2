@@ -143,6 +143,21 @@ jobs:
           curl -X POST "https://freelanly.com/api/cron/discover-greenhouse" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --fail --silent --show-error || true
+      - name: Discover Ashby companies
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/discover-ashby" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail --silent --show-error || true
+      - name: Discover SmartRecruiters companies
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/discover-smartrecruiters" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail --silent --show-error || true
+      - name: Discover Workable companies
+        run: |
+          curl -X POST "https://freelanly.com/api/cron/discover-workable" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail --silent --show-error || true
 
   # Daily at 5:00 UTC - submit to search engines
   daily-submit-to-index:
