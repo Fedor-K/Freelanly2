@@ -2,6 +2,7 @@
  * Cron: Discover new Lever companies via Apify Google Search
  *
  * Runs weekly to find new companies using Lever ATS.
+ * Supports both US (jobs.lever.co) and EU (jobs.eu.lever.co) companies.
  * Schedule: Once per week (e.g., Sunday 3:00 UTC)
  *
  * Usage:
@@ -30,6 +31,11 @@ interface GoogleSearchResult {
 
 interface ApifyGoogleSearchPage {
   organicResults?: GoogleSearchResult[];
+}
+
+function getLeverApiUrl(slug: string, region: 'us' | 'eu'): string {
+  const host = region === 'eu' ? 'api.eu.lever.co' : 'api.lever.co';
+  return `https://${host}/v0/postings/${slug}?mode=json`;
 }
 
 export async function POST(request: NextRequest) {
@@ -100,10 +106,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Extract unique slugs
-    const slugs = extractUniqueSlugs(allUrls);
+    // Extract unique slugs (now with region info)
+    const slugResults = extractUniqueSlugs(allUrls);
 
-    if (slugs.length === 0) {
+    if (slugResults.length === 0) {
       return NextResponse.json({
         message: 'No Lever companies found',
         duration: Date.now() - startTime,
@@ -111,10 +117,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Check existing
+    const allSlugs = slugResults.map((s) => s.slug);
     const existingSources = await prisma.dataSource.findMany({
       where: {
         sourceType: 'LEVER',
-        companySlug: { in: slugs },
+        companySlug: { in: allSlugs },
       },
       select: { companySlug: true },
     });
@@ -123,31 +130,32 @@ export async function POST(request: NextRequest) {
       existingSources.map((s) => s.companySlug?.toLowerCase()).filter(Boolean)
     );
 
-    const newSlugs = slugs.filter((slug) => !existingSlugsSet.has(slug));
+    const newSlugResults = slugResults.filter(
+      (s) => !existingSlugsSet.has(s.slug)
+    );
 
-    if (newSlugs.length === 0) {
+    if (newSlugResults.length === 0) {
       return NextResponse.json({
         message: 'All companies already in database',
-        found: slugs.length,
+        found: slugResults.length,
         existing: existingSlugsSet.size,
         new: 0,
         duration: Date.now() - startTime,
       });
     }
 
-    // Validate new slugs against Lever API
-    const validSlugs: { slug: string; jobCount: number }[] = [];
+    // Validate new slugs against Lever API (using correct regional endpoint)
+    const validSlugs: { slug: string; region: 'us' | 'eu'; jobCount: number }[] = [];
 
-    for (const slug of newSlugs) {
+    for (const { slug, region } of newSlugResults) {
       try {
-        const response = await fetch(
-          `https://api.lever.co/v0/postings/${slug}?mode=json`
-        );
+        const apiUrl = getLeverApiUrl(slug, region);
+        const response = await fetch(apiUrl);
 
         if (response.ok) {
           const jobs = await response.json();
           if (Array.isArray(jobs) && jobs.length > 0) {
-            validSlugs.push({ slug, jobCount: jobs.length });
+            validSlugs.push({ slug, region, jobCount: jobs.length });
           }
         }
       } catch {
@@ -161,25 +169,27 @@ export async function POST(request: NextRequest) {
     // Add valid companies to database
     const addedCompanies: string[] = [];
 
-    for (const { slug } of validSlugs) {
+    for (const { slug, region } of validSlugs) {
       try {
         const displayName = slug
           .split('-')
           .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
           .join(' ');
 
+        const apiUrl = getLeverApiUrl(slug, region);
+
         await prisma.dataSource.create({
           data: {
             name: displayName,
             sourceType: 'LEVER',
             companySlug: slug,
-            apiUrl: `https://api.lever.co/v0/postings/${slug}?mode=json`,
+            apiUrl,
             isActive: true,
           },
         });
 
-        addedCompanies.push(slug);
-        console.log(`[Lever Discovery] Added: ${slug}`);
+        addedCompanies.push(`${slug}${region === 'eu' ? ' (EU)' : ''}`);
+        console.log(`[Lever Discovery] Added: ${slug} (${region})`);
       } catch (error) {
         console.error(`[Lever Discovery] Failed to add ${slug}:`, error);
       }
@@ -187,9 +197,9 @@ export async function POST(request: NextRequest) {
 
     const result = {
       message: `Added ${addedCompanies.length} new Lever companies`,
-      found: slugs.length,
+      found: slugResults.length,
       existing: existingSlugsSet.size,
-      newFound: newSlugs.length,
+      newFound: newSlugResults.length,
       validated: validSlugs.length,
       added: addedCompanies.length,
       companies: addedCompanies,

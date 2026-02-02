@@ -86,11 +86,11 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Lever Discovery] Processing ${urls.length} URLs`);
 
-    // Extract unique company slugs
-    const slugs = extractUniqueSlugs(urls);
-    console.log(`[Lever Discovery] Found ${slugs.length} unique slugs:`, slugs);
+    // Extract unique company slugs (with region info)
+    const slugResults = extractUniqueSlugs(urls);
+    console.log(`[Lever Discovery] Found ${slugResults.length} unique slugs:`, slugResults);
 
-    if (slugs.length === 0) {
+    if (slugResults.length === 0) {
       return NextResponse.json({
         message: 'No valid Lever company slugs found in URLs',
         added: 0,
@@ -100,10 +100,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Get existing Lever sources
+    const allSlugs = slugResults.map((s) => s.slug);
     const existingSources = await prisma.dataSource.findMany({
       where: {
         sourceType: 'LEVER',
-        companySlug: { in: slugs },
+        companySlug: { in: allSlugs },
       },
       select: { companySlug: true },
     });
@@ -113,21 +114,21 @@ export async function POST(request: NextRequest) {
     );
 
     // Filter out already existing companies
-    const newSlugs = slugs.filter(
-      (slug) => !existingSlugs.has(slug.toLowerCase())
+    const newSlugResults = slugResults.filter(
+      (s) => !existingSlugs.has(s.slug.toLowerCase())
     );
 
     console.log(
-      `[Lever Discovery] ${newSlugs.length} new companies to add:`,
-      newSlugs
+      `[Lever Discovery] ${newSlugResults.length} new companies to add:`,
+      newSlugResults
     );
 
-    if (newSlugs.length === 0) {
+    if (newSlugResults.length === 0) {
       return NextResponse.json({
         message: 'All companies already exist in database',
         added: 0,
-        skipped: slugs.length,
-        existingSlugs: slugs,
+        skipped: slugResults.length,
+        existingSlugs: allSlugs,
       });
     }
 
@@ -135,7 +136,7 @@ export async function POST(request: NextRequest) {
     const addedCompanies: string[] = [];
     const errors: { slug: string; error: string }[] = [];
 
-    for (const slug of newSlugs) {
+    for (const { slug, region } of newSlugResults) {
       try {
         // Generate display name from slug (stripe → Stripe, my-company → My Company)
         const displayName = slug
@@ -143,18 +144,21 @@ export async function POST(request: NextRequest) {
           .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
           .join(' ');
 
+        const host = region === 'eu' ? 'api.eu.lever.co' : 'api.lever.co';
+        const apiUrl = `https://${host}/v0/postings/${slug}?mode=json`;
+
         await prisma.dataSource.create({
           data: {
             name: displayName,
             sourceType: 'LEVER',
             companySlug: slug,
-            apiUrl: `https://api.lever.co/v0/postings/${slug}?mode=json`,
+            apiUrl,
             isActive: true,
           },
         });
 
-        addedCompanies.push(slug);
-        console.log(`[Lever Discovery] Added: ${slug} (${displayName})`);
+        addedCompanies.push(`${slug}${region === 'eu' ? ' (EU)' : ''}`);
+        console.log(`[Lever Discovery] Added: ${slug} (${region})`);
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'Unknown error';
@@ -166,7 +170,7 @@ export async function POST(request: NextRequest) {
     const response = {
       message: `Added ${addedCompanies.length} new Lever companies`,
       added: addedCompanies.length,
-      skipped: slugs.length - newSlugs.length,
+      skipped: slugResults.length - newSlugResults.length,
       newCompanies: addedCompanies,
       errors: errors.length > 0 ? errors : undefined,
     };
