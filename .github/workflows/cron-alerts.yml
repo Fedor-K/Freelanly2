@@ -47,10 +47,10 @@ jobs:
   # NOTE: process-instant-alerts is now handled by Vercel cron only
   # Removed from GitHub Actions to prevent duplicate emails
 
-  # 3x daily - fetch sources
+  # Every 15 min - fetch sources (process batch of ATS companies)
   fetch-sources:
     runs-on: ubuntu-latest
-    if: github.event.schedule == '0 6,14,22 * * *' || github.event.inputs.job == 'fetch-sources' || github.event.inputs.job == 'all'
+    if: github.event.schedule == '*/15 * * * *' || github.event.inputs.job == 'fetch-sources' || github.event.inputs.job == 'all'
     steps:
       - name: Fetch job sources
         run: |

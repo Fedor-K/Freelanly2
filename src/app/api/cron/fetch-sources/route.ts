@@ -13,7 +13,7 @@ import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
  * curl -X POST https://freelanly.com/api/cron/fetch-sources -H "Authorization: Bearer $CRON_SECRET"
  */
 
-const MAX_EXECUTION_TIME = 55 * 60 * 1000; // 55 minutes max (leave buffer)
+const MAX_EXECUTION_TIME = 4.5 * 60 * 1000; // 4.5 minutes max (Vercel Pro limit is 5 min)
 const TASK_TIMEOUT = 30 * 60 * 1000; // 30 min = stuck task
 const PARALLEL_TASKS = 10; // Process 10 sources in parallel
 
