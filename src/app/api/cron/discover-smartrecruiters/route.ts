@@ -15,7 +15,7 @@ import {
 import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 
 const GOOGLE_SEARCH_ACTOR = 'apify/google-search-scraper';
-const QUERIES_PER_RUN = 25;
+const QUERIES_PER_RUN = 10;
 
 interface ApifyGoogleSearchPage {
   organicResults?: { url: string; title?: string }[];
