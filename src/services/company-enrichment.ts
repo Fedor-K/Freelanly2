@@ -1,12 +1,9 @@
 import { prisma } from '@/lib/db';
-import { isFreeEmail, extractDomainFromEmail, slugify } from '@/lib/utils';
+import { isFreeEmail, extractDomainFromEmail } from '@/lib/utils';
 import { validateDomainHasLogo } from '@/lib/company-logo';
 import OpenAI from 'openai';
 
-// Apollo.io Organization Enrichment API
-const APOLLO_API = 'https://api.apollo.io/api/v1/organizations/enrich';
-
-// Z.ai client for AI-generated descriptions (fallback when Apollo has no data)
+// Z.ai client for AI-generated descriptions
 let zaiClient: OpenAI | null = null;
 
 function getZaiClient(): OpenAI | null {
@@ -36,7 +33,7 @@ Style guidelines:
 Return ONLY the description text, no headers or formatting.`;
 
 /**
- * Generate company description using Z.ai when Apollo doesn't have data
+ * Generate company description using Z.ai
  */
 async function generateCompanyDescriptionWithAI(name: string, domain: string): Promise<string | null> {
   const zai = getZaiClient();
@@ -73,33 +70,6 @@ async function generateCompanyDescriptionWithAI(name: string, domain: string): P
   }
 }
 
-// Response structure from Apollo Organization Enrichment API
-interface ApolloOrganization {
-  id?: string;
-  name?: string;
-  website_url?: string;
-  logo_url?: string;
-  short_description?: string;
-  industry?: string;
-  estimated_num_employees?: number;
-  linkedin_url?: string;
-  twitter_url?: string;
-  facebook_url?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  street_address?: string;
-  postal_code?: string;
-  phone?: string;
-  founded_year?: number;
-  keywords?: string[];
-  annual_revenue?: number;
-}
-
-interface ApolloResponse {
-  organization: ApolloOrganization | null;
-}
-
 // Enrichment stats
 export interface EnrichmentStats {
   total: number;
@@ -109,178 +79,43 @@ export interface EnrichmentStats {
   errors: string[];
 }
 
-// Map company size from employee count
-function mapCompanySize(employees?: number): 'STARTUP' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'ENTERPRISE' | null {
-  if (!employees) return null;
-
-  if (employees <= 10) return 'STARTUP';
-  if (employees <= 50) return 'SMALL';
-  if (employees <= 200) return 'MEDIUM';
-  if (employees <= 1000) return 'LARGE';
-  return 'ENTERPRISE';
-}
-
-// Format headquarters from Apollo location
-function formatHeadquarters(org: ApolloOrganization): string | null {
-  const parts = [org.city, org.state, org.country].filter(Boolean);
-  return parts.length > 0 ? parts.join(', ') : null;
-}
-
-// Fetch company data from Apollo API
-async function fetchCompanyFromApollo(domain: string): Promise<ApolloOrganization | null> {
-  const apolloApiKey = process.env.APOLLO_API_KEY1;
-
-  if (!apolloApiKey) {
-    console.warn('APOLLO_API_KEY1 not set, skipping enrichment');
-    return null;
-  }
-
-  try {
-    console.log(`Fetching Apollo data for domain: ${domain}`);
-
-    const url = `${APOLLO_API}?domain=${encodeURIComponent(domain)}`;
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'x-api-key': apolloApiKey,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    console.log(`Apollo API response status: ${response.status}`);
-
-    if (response.status === 404) {
-      console.log(`No Apollo data found for domain: ${domain}`);
-      return null;
-    }
-
-    if (!response.ok) {
-      const text = await response.text();
-      console.error(`Apollo API error: ${response.status} - ${text.substring(0, 500)}`);
-      throw new Error(`Apollo API error: ${response.status}`);
-    }
-
-    const data: ApolloResponse = await response.json();
-
-    if (!data.organization) {
-      console.log(`No organization data from Apollo for: ${domain}`);
-      return null;
-    }
-
-    console.log(`Apollo returned data for ${domain}: name=${data.organization.name}, logo=${!!data.organization.logo_url}, desc=${!!data.organization.short_description}`);
-
-    return data.organization;
-  } catch (error) {
-    console.error(`Error fetching Apollo data for ${domain}:`, error);
-    throw error;
-  }
-}
-
-// Update company with enriched data from Apollo
-async function updateCompanyWithApolloData(
-  companyId: string,
-  org: ApolloOrganization,
-  domain: string
-): Promise<void> {
-  const updateData: Record<string, unknown> = {};
-
-  // Update company name and slug if Apollo has a better one
-  if (org.name) {
-    updateData.name = org.name;
-    // Generate new slug from Apollo company name
-    const newSlug = slugify(org.name);
-    // Check if slug is available
-    const existingWithSlug = await prisma.company.findFirst({
-      where: { slug: newSlug, NOT: { id: companyId } },
-    });
-    if (!existingWithSlug) {
-      updateData.slug = newSlug;
-    }
-  }
-
-  if (org.logo_url) updateData.logo = org.logo_url;
-  if (org.short_description) updateData.description = org.short_description;
-  if (org.industry) updateData.industry = org.industry;
-
-  updateData.website = org.website_url || `https://${domain}`;
-
-  if (org.linkedin_url) updateData.linkedinUrl = org.linkedin_url;
-
-  const headquarters = formatHeadquarters(org);
-  if (headquarters) updateData.headquarters = headquarters;
-
-  const size = mapCompanySize(org.estimated_num_employees);
-  if (size) updateData.size = size;
-
-  // Mark as enriched
-  updateData.apolloEnrichedAt = new Date();
-
-  await prisma.company.update({
-    where: { id: companyId },
-    data: updateData,
-  });
-}
-
 // Enrich a single company by domain (used after job import)
 export async function enrichCompanyByDomain(
   companyId: string,
   domain: string
 ): Promise<boolean> {
   try {
-    // Check if already enriched
     const company = await prisma.company.findUnique({
       where: { id: companyId },
-      select: { apolloEnrichedAt: true, name: true },
+      select: { apolloEnrichedAt: true, description: true, name: true, website: true },
     });
 
     if (!company) return false;
-    if (company.apolloEnrichedAt !== null) {
-      console.log(`Company ${company.name} already enriched, skipping`);
+
+    // Skip if already has description
+    if (company.description) {
+      console.log(`Company ${company.name} already has description, skipping`);
       return false;
     }
 
-    const apolloData = await fetchCompanyFromApollo(domain);
+    const aiDescription = await generateCompanyDescriptionWithAI(company.name, domain);
 
-    if (!apolloData) {
-      // No Apollo data - try to generate description with Z.ai
-      const aiDescription = await generateCompanyDescriptionWithAI(company.name, domain);
+    await prisma.company.update({
+      where: { id: companyId },
+      data: {
+        apolloEnrichedAt: new Date(),
+        ...(!company.website ? { website: `https://${domain}` } : {}),
+        ...(aiDescription ? { description: aiDescription } : {}),
+      },
+    });
 
-      await prisma.company.update({
-        where: { id: companyId },
-        data: {
-          apolloEnrichedAt: new Date(),
-          website: `https://${domain}`,
-          ...(aiDescription ? { description: aiDescription } : {}),
-        },
-      });
-
-      if (aiDescription) {
-        console.log(`No Apollo data for ${company.name}, but generated AI description`);
-        return true;
-      }
-
-      console.log(`No Apollo data for ${company.name}, marked as tried`);
-      return false;
+    if (aiDescription) {
+      console.log(`[Z.ai] Enriched company: ${company.name}`);
+      return true;
     }
 
-    await updateCompanyWithApolloData(companyId, apolloData, domain);
-
-    // If Apollo didn't have a description, generate one with Z.ai
-    if (!apolloData.short_description) {
-      const aiDescription = await generateCompanyDescriptionWithAI(company.name, domain);
-      if (aiDescription) {
-        await prisma.company.update({
-          where: { id: companyId },
-          data: { description: aiDescription },
-        });
-        console.log(`Enriched company: ${company.name} (Apollo + AI description)`);
-        return true;
-      }
-    }
-
-    console.log(`Enriched company: ${company.name}`);
-    return true;
+    console.log(`[Z.ai] Failed to generate description for ${company.name}`);
+    return false;
   } catch (error) {
     console.error(`Failed to enrich company ${companyId}:`, error);
     return false;
@@ -302,19 +137,15 @@ export function queueCompanyEnrichment(companyId: string, email: string): void {
 }
 
 /**
- * Validate company via Apollo and check for logo (Apollo or Logo.dev)
+ * Validate company via Logo.dev and enrich with Z.ai description
  * Used ONLY for LinkedIn sources to filter fake recruiters
  *
  * Flow:
- * 1. Apollo doesn't know company → REJECT (fake)
- * 2. Apollo knows, has logo → OK
- * 3. Apollo knows, no logo → check Logo.dev with Apollo's website domain
- * 4. Logo.dev has logo → OK
- * 5. No logo anywhere → REJECT
+ * 1. Check Logo.dev for company logo → if found, APPROVE
+ * 2. No logo → REJECT
+ * 3. Generate Z.ai description in background
  *
- * Also generates Z.ai description if Apollo doesn't provide one.
- *
- * @returns true if company is valid and has logo, false if should be rejected
+ * @returns true if company has logo, false if should be rejected
  */
 export async function validateAndEnrichCompany(
   companyId: string,
@@ -327,79 +158,44 @@ export async function validateAndEnrichCompany(
   }
 
   try {
-    // Get company name for Z.ai fallback
     const company = await prisma.company.findUnique({
       where: { id: companyId },
-      select: { name: true },
+      select: { name: true, description: true },
     });
     const companyName = company?.name || domain;
 
-    // 1. Check Apollo - this is the PRIMARY validator
-    console.log(`[Validation] Checking Apollo for domain: ${domain}`);
-    const apolloData = await fetchCompanyFromApollo(domain);
+    // 1. Check Logo.dev for logo
+    const hasLogo = await validateDomainHasLogo(domain);
 
-    // If Apollo doesn't know this company - it's likely fake
-    if (!apolloData) {
-      // Mark as tried
+    if (!hasLogo) {
+      console.log(`[Validation] No logo found for ${domain} - REJECTED`);
       await prisma.company.update({
         where: { id: companyId },
         data: { apolloEnrichedAt: new Date() },
       });
-      console.log(`[Validation] Apollo doesn't know ${domain} - REJECTED as fake company`);
       return false;
     }
 
-    // Apollo knows this company - enrich it (sets apolloEnrichedAt)
-    console.log(`[Validation] Apollo found company: ${apolloData.name || domain}`);
-    await updateCompanyWithApolloData(companyId, apolloData, domain);
+    console.log(`[Validation] Logo found for ${domain} - APPROVED`);
 
-    // Z.ai fallback: Generate description if Apollo didn't provide one
-    if (!apolloData.short_description) {
-      console.log(`[Validation] Apollo has no description, trying Z.ai for ${companyName}`);
-      const aiDescription = await generateCompanyDescriptionWithAI(companyName, domain);
-      if (aiDescription) {
-        await prisma.company.update({
-          where: { id: companyId },
-          data: { description: aiDescription },
-        });
-        console.log(`[Validation] Z.ai generated description for ${companyName} (${aiDescription.length} chars)`);
-      }
+    // 2. Generate Z.ai description if missing (background, don't block)
+    if (!company?.description) {
+      generateCompanyDescriptionWithAI(companyName, domain).then(async (aiDescription) => {
+        if (aiDescription) {
+          await prisma.company.update({
+            where: { id: companyId },
+            data: { description: aiDescription, apolloEnrichedAt: new Date() },
+          });
+          console.log(`[Validation] Z.ai generated description for ${companyName}`);
+        }
+      }).catch(err => {
+        console.error(`[Validation] Z.ai description failed for ${companyName}:`, err);
+      });
     }
 
-    // 2. Check for logo - Apollo logo is preferred
-    if (apolloData.logo_url) {
-      console.log(`[Validation] Apollo logo found for ${domain} - APPROVED`);
-      return true;
-    }
-
-    // 3. No Apollo logo - try Logo.dev with Apollo's website domain
-    const websiteDomain = apolloData.website_url
-      ? extractDomainFromUrl(apolloData.website_url)
-      : domain;
-
-    if (websiteDomain) {
-      const hasLogoDevLogo = await validateDomainHasLogo(websiteDomain);
-      if (hasLogoDevLogo) {
-        console.log(`[Validation] Logo.dev logo found for ${websiteDomain} - APPROVED`);
-        return true;
-      }
-    }
-
-    // 4. Try Logo.dev with email domain (if different from website)
-    if (websiteDomain !== domain) {
-      const hasLogoDevLogo = await validateDomainHasLogo(domain);
-      if (hasLogoDevLogo) {
-        console.log(`[Validation] Logo.dev logo found for ${domain} - APPROVED`);
-        return true;
-      }
-    }
-
-    // 5. No logo found anywhere - reject
-    console.log(`[Validation] No logo found for ${domain} - REJECTED (no logo)`);
-    return false;
+    return true;
   } catch (error) {
     console.error(`[Validation] Error validating company:`, error);
-    // On error, be permissive - don't block the job
     return true;
   }
 }
@@ -484,7 +280,7 @@ export async function getCompaniesForEnrichment(limit: number = 50): Promise<Arr
   return Array.from(companiesMap.values());
 }
 
-// Main enrichment function (batch)
+// Main enrichment function (batch) — Z.ai only
 export async function enrichCompanies(limit: number = 10): Promise<EnrichmentStats> {
   const stats: EnrichmentStats = {
     total: 0,
@@ -506,59 +302,27 @@ export async function enrichCompanies(limit: number = 10): Promise<EnrichmentSta
 
   for (const company of companies) {
     try {
-      const apolloData = await fetchCompanyFromApollo(company.domain);
+      const aiDescription = await generateCompanyDescriptionWithAI(company.name, company.domain);
 
-      if (!apolloData) {
-        // No Apollo data - try Z.ai description
-        const aiDescription = await generateCompanyDescriptionWithAI(company.name, company.domain);
+      await prisma.company.update({
+        where: { id: company.id },
+        data: {
+          apolloEnrichedAt: new Date(),
+          website: `https://${company.domain}`,
+          ...(aiDescription ? { description: aiDescription } : {}),
+        },
+      });
 
-        await prisma.company.update({
-          where: { id: company.id },
-          data: {
-            apolloEnrichedAt: new Date(),
-            website: `https://${company.domain}`,
-            ...(aiDescription ? { description: aiDescription } : {}),
-          },
-        });
-
-        if (aiDescription) {
-          stats.enriched++;
-          console.log(`AI description for: ${company.name} (${company.domain})`);
-        } else {
-          stats.skipped++;
-          console.log(`No Apollo data for: ${company.name} (${company.domain})`);
-        }
-        continue;
-      }
-
-      await updateCompanyWithApolloData(company.id, apolloData, company.domain);
-
-      const hasLogo = !!apolloData.logo_url;
-      let hasDescription = !!apolloData.short_description;
-
-      // If Apollo didn't have description, generate with Z.ai
-      if (!hasDescription) {
-        const aiDescription = await generateCompanyDescriptionWithAI(company.name, company.domain);
-        if (aiDescription) {
-          await prisma.company.update({
-            where: { id: company.id },
-            data: { description: aiDescription },
-          });
-          hasDescription = true;
-          console.log(`Added AI description for: ${company.name}`);
-        }
-      }
-
-      if (hasLogo || hasDescription) {
+      if (aiDescription) {
         stats.enriched++;
-        console.log(`Enriched company: ${company.name} (logo: ${hasLogo}, desc: ${hasDescription})`);
+        console.log(`[Z.ai] Description for: ${company.name} (${company.domain})`);
       } else {
         stats.skipped++;
-        console.log(`Partial data for: ${company.name}`);
+        console.log(`[Z.ai] No description for: ${company.name} (${company.domain})`);
       }
 
-      // Rate limiting - be conservative
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Rate limiting
+      await new Promise(resolve => setTimeout(resolve, 200));
     } catch (error) {
       stats.failed++;
       const errorMsg = `${company.name}: ${String(error)}`;
@@ -627,7 +391,7 @@ function deriveDomainFromName(name: string): string {
   return `${cleaned}.com`;
 }
 
-// Enrich companies that don't have email (using website or name)
+// Enrich companies that don't have email (using website or name) — Z.ai only
 export async function enrichCompaniesByName(limit: number = 50): Promise<EnrichmentStats> {
   const stats: EnrichmentStats = {
     total: 0,
@@ -637,10 +401,10 @@ export async function enrichCompaniesByName(limit: number = 50): Promise<Enrichm
     errors: [],
   };
 
-  // Find companies that haven't been enriched yet
+  // Find companies without description
   const companies = await prisma.company.findMany({
     where: {
-      apolloEnrichedAt: null,
+      description: null,
     },
     select: {
       id: true,
@@ -661,67 +425,34 @@ export async function enrichCompaniesByName(limit: number = 50): Promise<Enrichm
 
   for (const company of companies) {
     try {
-      // Try to get domain from website first, then from name
       let domain = extractDomainFromUrl(company.website);
 
       if (!domain) {
         domain = deriveDomainFromName(company.name);
       }
 
-      console.log(`Trying to enrich ${company.name} with domain: ${domain}`);
+      console.log(`[Z.ai] Enriching ${company.name} with domain: ${domain}`);
 
-      const apolloData = await fetchCompanyFromApollo(domain);
+      const aiDescription = await generateCompanyDescriptionWithAI(company.name, domain);
 
-      if (!apolloData) {
-        // No Apollo data - try Z.ai description
-        const aiDescription = await generateCompanyDescriptionWithAI(company.name, domain);
+      await prisma.company.update({
+        where: { id: company.id },
+        data: {
+          apolloEnrichedAt: new Date(),
+          ...(aiDescription ? { description: aiDescription } : {}),
+        },
+      });
 
-        await prisma.company.update({
-          where: { id: company.id },
-          data: {
-            apolloEnrichedAt: new Date(),
-            ...(aiDescription ? { description: aiDescription } : {}),
-          },
-        });
-
-        if (aiDescription) {
-          stats.enriched++;
-          console.log(`AI description for: ${company.name} (${domain})`);
-        } else {
-          stats.skipped++;
-          console.log(`No Apollo data for: ${company.name} (${domain})`);
-        }
-        continue;
-      }
-
-      await updateCompanyWithApolloData(company.id, apolloData, domain);
-
-      const hasLogo = !!apolloData.logo_url;
-      let hasDescription = !!apolloData.short_description;
-
-      // If Apollo didn't have description, generate with Z.ai
-      if (!hasDescription) {
-        const aiDescription = await generateCompanyDescriptionWithAI(company.name, domain);
-        if (aiDescription) {
-          await prisma.company.update({
-            where: { id: company.id },
-            data: { description: aiDescription },
-          });
-          hasDescription = true;
-          console.log(`Added AI description for: ${company.name}`);
-        }
-      }
-
-      if (hasLogo || hasDescription) {
+      if (aiDescription) {
         stats.enriched++;
-        console.log(`Enriched company: ${company.name} (logo: ${hasLogo}, desc: ${hasDescription})`);
+        console.log(`[Z.ai] Description for: ${company.name} (${domain})`);
       } else {
         stats.skipped++;
-        console.log(`Partial data for: ${company.name}`);
+        console.log(`[Z.ai] No description for: ${company.name} (${domain})`);
       }
 
       // Rate limiting
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 200));
     } catch (error) {
       stats.failed++;
       const errorMsg = `${company.name}: ${String(error)}`;
