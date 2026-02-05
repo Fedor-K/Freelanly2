@@ -1,0 +1,276 @@
+{
+  "name": "Jobs posting Twitter (with reply)",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://freelanly.com/api/cron/post-to-social",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 9c3827de0523441631996ab6f2b012801b8bef944873df5e218fdbf3b6b4552c"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        496,
+        336
+      ],
+      "id": "38f9ee40-2cb0-4c9c-91a3-17b575ab991b",
+      "name": "Trigger Freelanly"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-haspost",
+              "leftValue": "={{ $json.hasPost }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        752,
+        336
+      ],
+      "id": "b33d191f-0588-473c-9f1a-589369f8b8d8",
+      "name": "Has Post?"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.body.postContent.substring(0, 240) + '...\\n\\n👇 Apply link below' }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        336
+      ],
+      "id": "b22acbae-814c-4938-99bc-4997a319d7d4",
+      "name": "Create Tweet (no link)",
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "MH6X9BgBWNXlSmxg",
+          "name": "X account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 90
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1264,
+        336
+      ],
+      "id": "f21feb9c-cc88-44bd-b251-cd53d4839423",
+      "name": "Wait 90 sec",
+      "webhookId": "wait-90-sec"
+    },
+    {
+      "parameters": {
+        "text": "={{ 'Apply here: ' + $('Trigger Freelanly').item.json.body.freelanlyUrl }}",
+        "additionalFields": {
+          "inReplyToStatusId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "={{ $json.id }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        336
+      ],
+      "id": "83aec3f1-9619-48e9-8b7f-29c372c92b08",
+      "name": "Reply with Link",
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "MH6X9BgBWNXlSmxg",
+          "name": "X account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://freelanly.com/api/cron/post-to-social",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 9c3827de0523441631996ab6f2b012801b8bef944873df5e218fdbf3b6b4552c"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "queueItemId",
+              "value": "={{ $('Trigger Freelanly').item.json.body.queueItemId }}"
+            },
+            {
+              "name": "status",
+              "value": "posted"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1776,
+        336
+      ],
+      "id": "8b0a7edf-cdad-4b64-9c75-1ba9d7c55556",
+      "name": "Mark as Posted"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        528
+      ],
+      "id": "88721e95-c2c5-4f63-bbf9-5b1c050895b9",
+      "name": "No Post Available"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 3
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        336
+      ],
+      "id": "bd7016f3-8a00-471a-9706-8c7b74e28ce8",
+      "name": "Every 4 hours"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Trigger Freelanly": {
+      "main": [
+        [
+          {
+            "node": "Has Post?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Post?": {
+      "main": [
+        [
+          {
+            "node": "Create Tweet (no link)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Post Available",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Tweet (no link)": {
+      "main": [
+        [
+          {
+            "node": "Wait 90 sec",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 90 sec": {
+      "main": [
+        [
+          {
+            "node": "Reply with Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply with Link": {
+      "main": [
+        [
+          {
+            "node": "Mark as Posted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every 4 hours": {
+      "main": [
+        [
+          {
+            "node": "Trigger Freelanly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9fbbf707-4759-4647-bdbb-859c9c951249",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9ac3df996a6969731c39b775f0e2c8d5314afc00e665ad6d05b0abf76e66355d"
+  },
+  "id": "Z3sOlxqVHbMIcUDN",
+  "tags": []
+}
