@@ -1,24 +1,25 @@
 /**
  * Freelance LinkedIn Posts Discovery Configuration
  *
- * 149 search queries for finding freelance/contract opportunities.
+ * 129 search queries for finding freelance/contract opportunities.
  * Used by n8n workflow via /api/linkedin/next-keyword endpoint.
  *
  * Rotation: every 10 minutes, next keyword in list (sequential, not random)
- * Full cycle: 149 × 10 min = ~24.8 hours
+ * Full cycle: 129 × 10 min = ~21.5 hours
  *
- * Removed (0% conversion):
+ * Removed (low conversion <5%):
  * - "localization project", "contract marketing", "freelance SEO"
  * - "freelance photographer", "freelance illustrator", "LQA", "localization QA"
  * - "freelance bookkeeper", "freelance accountant", "freelance marketing"
+ * - "freelancer needed" (1%), "transcreation" (3%) — removed 2026-02-05
  */
 
 // ============================================
-// All 149 Freelance Search Queries
+// All 129 Freelance Search Queries
 // ============================================
 
 export const FREELANCE_SEARCH_QUERIES = [
-  // === General Freelance Phrases (17) ===
+  // === General Freelance Phrases (16) ===
   '"looking for freelance"',
   '"hiring freelancer"',
   '"need a freelancer"',
@@ -136,11 +137,10 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"medical interpreter"',
   '"simultaneous interpreter"',
 
-  // === Specialized Translation (6) ===
+  // === Specialized Translation (5) ===
   '"MTPE"',
   '"post-editing"',
   '"subtitle" project',
-  '"transcreation"',
   '"linguist" needed',
 
   // === Writing (8) ===
@@ -176,7 +176,7 @@ export const FREELANCE_SEARCH_QUERIES = [
 ];
 
 // Total count
-export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 149
+export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 129
 
 // ============================================
 // Rotation Logic (Sequential, time-based)
