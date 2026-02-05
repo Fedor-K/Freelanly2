@@ -1,0 +1,595 @@
+{
+  "name": "YouTube Shorts Video Posting",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 4
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "id": "schedule",
+      "name": "Every 4 hours"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://freelanly.com/api/cron/post-video-to-social",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 9c3827de0523441631996ab6f2b012801b8bef944873df5e218fdbf3b6b4552c"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0],
+      "id": "get-job-data",
+      "name": "Get Job Data from Freelanly"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-post",
+              "leftValue": "={{ $json.hasPost }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 0],
+      "id": "if-has-post",
+      "name": "Has Post?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://198.12.73.168:3123/api/short-video",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ scenes: $json.body.scenes, config: $json.body.config }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, -100],
+      "id": "create-video",
+      "name": "Create Video"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "videoId",
+              "name": "videoId",
+              "value": "={{ $json.videoId }}",
+              "type": "string"
+            },
+            {
+              "id": "queueItemId",
+              "name": "queueItemId",
+              "value": "={{ $('Get Job Data from Freelanly').item.json.body.queueItemId }}",
+              "type": "string"
+            },
+            {
+              "id": "jobUrl",
+              "name": "jobUrl",
+              "value": "={{ $('Get Job Data from Freelanly').item.json.body.jobUrl }}",
+              "type": "string"
+            },
+            {
+              "id": "socialCaption",
+              "name": "socialCaption",
+              "value": "={{ $('Get Job Data from Freelanly').item.json.body.socialCaption }}",
+              "type": "string"
+            },
+            {
+              "id": "jobTitle",
+              "name": "jobTitle",
+              "value": "={{ $('Get Job Data from Freelanly').item.json.body.workType || 'Remote Job' }}",
+              "type": "string"
+            },
+            {
+              "id": "retryCount",
+              "name": "retryCount",
+              "value": "0",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [880, -100],
+      "id": "init-data",
+      "name": "Init Data"
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1100, -100],
+      "id": "wait-render",
+      "name": "Wait 2 min"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://198.12.73.168:3123/api/short-video/{{ $json.videoId }}/status",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, -100],
+      "id": "check-status",
+      "name": "Check Video Status"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-ready",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "ready",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1540, -100],
+      "id": "if-ready",
+      "name": "Video Ready?"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://198.12.73.168:3123/api/short-video/{{ $('Init Data').item.json.videoId }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, -200],
+      "id": "download-video",
+      "name": "Download Video"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "folderId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "root"
+        },
+        "name": "=freelanly-{{ $('Init Data').item.json.videoId }}.mp4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1980, -200],
+      "id": "upload-gdrive",
+      "name": "Upload to Google Drive"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [2200, -200],
+      "id": "download-gdrive",
+      "name": "Download from Google Drive"
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $('Init Data').item.json.jobTitle }} | Remote Job 2026 #shorts",
+        "categoryId": "22",
+        "options": {
+          "description": "={{ $('Init Data').item.json.socialCaption }}\n\nApply here: {{ $('Init Data').item.json.jobUrl }}\n\n#remotejobs #remotework #hiring #jobs #shorts",
+          "privacyStatus": "public",
+          "tags": "remote jobs,remote work,hiring,work from home,freelance,jobs 2026"
+        }
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [2640, -200],
+      "id": "upload-youtube",
+      "name": "Upload to YouTube"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://freelanly.com/api/cron/post-video-to-social",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 9c3827de0523441631996ab6f2b012801b8bef944873df5e218fdbf3b6b4552c"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ queueItemId: $('Init Data').item.json.queueItemId, status: 'posted', videoId: $('Init Data').item.json.videoId }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2860, -200],
+      "id": "mark-posted",
+      "name": "Mark as Posted"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "can-retry",
+              "leftValue": "={{ $('Init Data').item.json.retryCount }}",
+              "rightValue": 15,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1760, 0],
+      "id": "if-can-retry",
+      "name": "Can Retry?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "videoId",
+              "name": "videoId",
+              "value": "={{ $('Init Data').item.json.videoId }}",
+              "type": "string"
+            },
+            {
+              "id": "queueItemId",
+              "name": "queueItemId",
+              "value": "={{ $('Init Data').item.json.queueItemId }}",
+              "type": "string"
+            },
+            {
+              "id": "jobUrl",
+              "name": "jobUrl",
+              "value": "={{ $('Init Data').item.json.jobUrl }}",
+              "type": "string"
+            },
+            {
+              "id": "socialCaption",
+              "name": "socialCaption",
+              "value": "={{ $('Init Data').item.json.socialCaption }}",
+              "type": "string"
+            },
+            {
+              "id": "jobTitle",
+              "name": "jobTitle",
+              "value": "={{ $('Init Data').item.json.jobTitle }}",
+              "type": "string"
+            },
+            {
+              "id": "retryCount",
+              "name": "retryCount",
+              "value": "={{ $('Init Data').item.json.retryCount + 1 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1980, 0],
+      "id": "increment-retry",
+      "name": "Increment Retry"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://freelanly.com/api/cron/post-video-to-social",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 9c3827de0523441631996ab6f2b012801b8bef944873df5e218fdbf3b6b4552c"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ queueItemId: $('Init Data').item.json.queueItemId, status: 'failed', error: 'Video render timeout after 15 retries (30 min)' }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1980, 150],
+      "id": "mark-failed",
+      "name": "Mark as Failed"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [660, 100],
+      "id": "no-post",
+      "name": "No Post Available"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [3080, -200],
+      "id": "done",
+      "name": "Done"
+    }
+  ],
+  "connections": {
+    "Every 4 hours": {
+      "main": [
+        [
+          {
+            "node": "Get Job Data from Freelanly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Job Data from Freelanly": {
+      "main": [
+        [
+          {
+            "node": "Has Post?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Post?": {
+      "main": [
+        [
+          {
+            "node": "Create Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Post Available",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Video": {
+      "main": [
+        [
+          {
+            "node": "Init Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init Data": {
+      "main": [
+        [
+          {
+            "node": "Wait 2 min",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 2 min": {
+      "main": [
+        [
+          {
+            "node": "Check Video Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Video Status": {
+      "main": [
+        [
+          {
+            "node": "Video Ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Video Ready?": {
+      "main": [
+        [
+          {
+            "node": "Download Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Can Retry?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Video": {
+      "main": [
+        [
+          {
+            "node": "Upload to Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Download from Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download from Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Upload to YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to YouTube": {
+      "main": [
+        [
+          {
+            "node": "Mark as Posted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Posted": {
+      "main": [
+        [
+          {
+            "node": "Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Retry?": {
+      "main": [
+        [
+          {
+            "node": "Increment Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark as Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment Retry": {
+      "main": [
+        [
+          {
+            "node": "Wait 2 min",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "meta": {
+    "instanceId": "freelanly-youtube-shorts"
+  }
+}
