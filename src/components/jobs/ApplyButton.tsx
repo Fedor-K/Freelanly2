@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { QuickApplyModal } from './QuickApplyModal';
 import { UpgradeModal } from './UpgradeModal';
@@ -32,6 +33,7 @@ export function ApplyButton({
   userPlan = 'FREE',
   isAuthenticated = false,
 }: ApplyButtonProps) {
+  const pathname = usePathname();
   const [showQuickApply, setShowQuickApply] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
@@ -64,6 +66,7 @@ export function ApplyButton({
           jobId={jobId}
           jobTitle={jobTitle}
           companyName={companyName}
+          callbackUrl={pathname}
         />
       </>
     );
