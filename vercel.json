@@ -20,10 +20,6 @@
       "schedule": "*/15 * * * *"
     },
     {
-      "path": "/api/cron/send-trial-emails",
-      "schedule": "0 * * * *"
-    },
-    {
       "path": "/api/cron/send-winback-emails",
       "schedule": "0 10 * * *"
     },
@@ -54,6 +50,10 @@
     {
       "path": "/api/cron/send-activation-emails",
       "schedule": "30 8 * * *"
+    },
+    {
+      "path": "/api/cron/send-free-nurture",
+      "schedule": "0 9 * * *"
     },
     {
       "path": "/api/cron/send-reengagement-emails",

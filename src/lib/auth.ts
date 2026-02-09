@@ -46,12 +46,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             jobViewsToday: true,
             lastViewReset: true,
             resumeUrl: true,
+            lastActiveAt: true,
           },
         });
         if (fullUser) {
           session.user.plan = fullUser.plan;
           session.user.jobViewsToday = fullUser.jobViewsToday;
           session.user.resumeUrl = fullUser.resumeUrl;
+
+          // Throttled lastActiveAt update (fire-and-forget, max once per hour)
+          const now = new Date();
+          const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+          if (!fullUser.lastActiveAt || fullUser.lastActiveAt < oneHourAgo) {
+            prisma.user.update({
+              where: { id: user.id },
+              data: { lastActiveAt: now },
+            }).catch(() => {});
+          }
         }
       }
       return session;
