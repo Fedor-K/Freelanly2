@@ -1231,6 +1231,21 @@ enum SocialPostStatus {
 }
 
 // ============================================
+// LINKEDIN COMMENT REPLIES (auto-responder tracking)
+// ============================================
+
+model LinkedInCommentReply {
+  id          String   @id @default(cuid())
+  commentId   String   @unique  // LinkedIn comment ID — prevents double replies
+  postUrn     String             // Which LinkedIn post this comment was on
+  commentText String   @db.Text  // Original comment text
+  aiReply     String   @db.Text  // AI-generated reply text
+  repliedAt   DateTime @default(now())
+
+  @@index([postUrn])
+}
+
+// ============================================
 // VIDEO POST QUEUE
 // ============================================
 
