@@ -104,13 +104,6 @@ export function UserMenu() {
 
           {/* Menu items */}
           <div className="py-1">
-            <Link
-              href="/dashboard"
-              onClick={() => setIsOpen(false)}
-              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-            >
-              Dashboard
-            </Link>
 <Link
               href="/dashboard/alerts"
               onClick={() => setIsOpen(false)}
