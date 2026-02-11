@@ -494,15 +494,16 @@ export async function getNextSocialPost(): Promise<{
 /**
  * Mark queue item as posted
  */
-export async function markAsPosted(queueItemId: string): Promise<void> {
+export async function markAsPosted(queueItemId: string, linkedinPostUrn?: string): Promise<void> {
   await prisma.socialPostQueue.update({
     where: { id: queueItemId },
     data: {
       status: 'POSTED',
       postedAt: new Date(),
+      ...(linkedinPostUrn ? { linkedinPostUrn } : {}),
     }
   });
-  console.log(`[SocialPost] Marked ${queueItemId} as posted`);
+  console.log(`[SocialPost] Marked ${queueItemId} as posted${linkedinPostUrn ? ` (LinkedIn: ${linkedinPostUrn})` : ''}`);
 }
 
 /**

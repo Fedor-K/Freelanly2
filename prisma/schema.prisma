@@ -1212,8 +1212,9 @@ model SocialPostQueue {
   status      SocialPostStatus @default(PENDING)
 
   // Tracking
-  postedAt    DateTime?
-  error       String?
+  postedAt         DateTime?
+  linkedinPostUrn  String?    // URN of the LinkedIn post (e.g. urn:li:share:123) — for comment monitoring
+  error            String?
 
   createdAt   DateTime  @default(now())
 

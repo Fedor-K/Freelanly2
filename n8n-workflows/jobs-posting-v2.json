@@ -1,0 +1,250 @@
+{
+  "name": "Jobs posting",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -784,
+        272
+      ],
+      "id": "3d92c759-df63-42ba-a622-a5af8e6e9638",
+      "name": "Every 15 min"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://freelanly.com/api/cron/post-to-social",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 9c3827de0523441631996ab6f2b012801b8bef944873df5e218fdbf3b6b4552c"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -560,
+        272
+      ],
+      "id": "ba3fe36a-48f9-4e9c-8ea2-355524f42c5a",
+      "name": "Trigger Freelanly"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-haspost",
+              "leftValue": "={{ $json.hasPost }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -336,
+        272
+      ],
+      "id": "3ab742c8-cf96-4103-8261-f2804037675a",
+      "name": "Has Post?"
+    },
+    {
+      "parameters": {
+        "authentication": "communityManagement",
+        "postAs": "organization",
+        "organization": "53520294",
+        "text": "={{ $json.body.workType + \"\\n\\n\" + $json.body.postContent + \"\\n\\n\\u26a1 Direct contact with recruiter - no agencies, no middlemen!\\n\\n\\ud83d\\udd17 Apply NOW: \" + $json.body.freelanlyUrl + \"\\n\\n\\ud83d\\udce9 Get instant freelance alerts: Freelanly.com\\n\\ud83d\\udc4d Like + \\ud83d\\udd04 Repost to help freelancers find work!\\n\\nTelegram: https://t.me/PCFTI\" }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        80
+      ],
+      "id": "570cb569-ea37-44ef-a2b3-95004484f770",
+      "name": "LinkedIn",
+      "credentials": {
+        "linkedInCommunityManagementOAuth2Api": {
+          "id": "3B9YSIs4S4P9GPv5",
+          "name": "LinkedIn Community Management account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "@PCFTI",
+        "text": "={{ $json.body.workType + \"\\n\\n\" + $json.body.postContent + \"\\n\\n\\u26a1 Direct contact with recruiter - no agencies, no middlemen!\\n\\n\\ud83d\\udd17 Apply NOW: \" + $json.body.freelanlyUrl + \"\\n\\n\\ud83d\\udce9 Get instant freelance alerts on Freelanly.com\\nLinkedIn: https://www.linkedin.com/company/53520294\" }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -112,
+        256
+      ],
+      "id": "434b4b51-3a8e-44a9-ae00-c6ff41420a86",
+      "name": "Telegram",
+      "webhookId": "eb3085cb-cf8c-478e-a405-15f174bb0294",
+      "credentials": {
+        "telegramApi": {
+          "id": "qayGIKed5OGXqNmB",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://freelanly.com/api/cron/post-to-social",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 9c3827de0523441631996ab6f2b012801b8bef944873df5e218fdbf3b6b4552c"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "queueItemId",
+              "value": "={{ $('Trigger Freelanly').item.json.body.queueItemId }}"
+            },
+            {
+              "name": "status",
+              "value": "posted"
+            },
+            {
+              "name": "linkedinPostUrn",
+              "value": "={{ $json.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        112,
+        256
+      ],
+      "id": "2bdba646-3fe6-4081-84b7-f4729fd0f76f",
+      "name": "Mark as Posted"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        464
+      ],
+      "id": "6ba08166-6b9f-406b-a61f-a9987fcfbdb3",
+      "name": "No Post Available"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every 15 min": {
+      "main": [
+        [
+          {
+            "node": "Trigger Freelanly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Freelanly": {
+      "main": [
+        [
+          {
+            "node": "Has Post?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Post?": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Post Available",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Mark as Posted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d159c090-e549-4e70-b438-7771da4deb31",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9ac3df996a6969731c39b775f0e2c8d5314afc00e665ad6d05b0abf76e66355d"
+  },
+  "id": "qX0II3yKdIo0LMxE",
+  "tags": []
+}

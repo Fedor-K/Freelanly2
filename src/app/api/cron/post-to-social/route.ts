@@ -100,14 +100,14 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const { queueItemId, status, error } = await request.json();
+    const { queueItemId, status, error, linkedinPostUrn } = await request.json();
 
     if (!queueItemId) {
       return NextResponse.json({ error: 'queueItemId required' }, { status: 400 });
     }
 
     if (status === 'posted') {
-      await markAsPosted(queueItemId);
+      await markAsPosted(queueItemId, linkedinPostUrn);
       return NextResponse.json({ success: true, message: 'Marked as posted' });
     } else if (status === 'failed') {
       await markAsFailed(queueItemId, error || 'Unknown error');
