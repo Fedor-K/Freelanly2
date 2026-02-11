@@ -58,7 +58,7 @@ export function ApplyButton({
             setShowRegistration(true);
           }}
         >
-          Sign Up to Apply
+          Log In to see contact details
         </Button>
         <RegistrationModal
           open={showRegistration}
@@ -85,7 +85,7 @@ export function ApplyButton({
             setShowUpgrade(true);
           }}
         >
-          Upgrade to Apply
+          Upgrade to see contact details
         </Button>
         <UpgradeModal
           open={showUpgrade}

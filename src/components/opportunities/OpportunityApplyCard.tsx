@@ -173,7 +173,7 @@ export function OpportunityApplyCard({
               onClick={handleUpgradeClick}
               disabled={isRedirecting}
             >
-              {isRedirecting ? 'Redirecting to checkout...' : '🔓 Unlock Contact Info'}
+              {isRedirecting ? 'Redirecting...' : session?.user ? '🔓 Upgrade to see contact details' : '🔓 Log In to see contact details'}
             </Button>
           )}
 

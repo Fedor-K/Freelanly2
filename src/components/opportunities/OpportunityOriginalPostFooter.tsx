@@ -71,7 +71,7 @@ export function OpportunityOriginalPostFooter({
             disabled={isRedirecting}
             className="text-sm text-orange-600 hover:underline disabled:opacity-50"
           >
-            {isRedirecting ? 'Redirecting...' : 'Upgrade to view on LinkedIn →'}
+            {isRedirecting ? 'Redirecting...' : session?.user ? 'Upgrade to view on LinkedIn →' : 'Log In to view on LinkedIn →'}
           </button>
         )}
         {!isPro && (

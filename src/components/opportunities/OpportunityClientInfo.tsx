@@ -114,7 +114,7 @@ export function OpportunityClientInfo({
             >
               <span className="blur-[3px] select-none">linkedin.com/in/•••••</span>
               <span className="no-blur">
-                {isRedirecting ? 'Redirecting...' : 'Upgrade to see →'}
+                {isRedirecting ? 'Redirecting...' : session?.user ? 'Upgrade to see →' : 'Log In to see →'}
               </span>
             </button>
           )}

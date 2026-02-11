@@ -156,7 +156,7 @@ export function UpgradeModal({ open, onClose, jobId, jobTitle, companyName }: Up
         <div className="space-y-2 pt-2">
           <Button className="w-full" size="lg" asChild>
             <Link href={jobId ? `/pricing?source=job_page&jobId=${jobId}` : '/pricing'}>
-              Upgrade to PRO
+              Upgrade to see contact details
             </Link>
           </Button>
           <p className="text-center text-xs text-muted-foreground">

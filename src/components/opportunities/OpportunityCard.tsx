@@ -196,7 +196,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
                     disabled={isRedirecting}
                     className="text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-md transition-colors inline-flex items-center gap-1 disabled:opacity-50"
                   >
-                    {isRedirecting ? 'Redirecting...' : '🔓 Unlock Contact'}
+                    {isRedirecting ? 'Redirecting...' : session?.user ? '🔓 Upgrade to see contact details' : '🔓 Log In to see contact details'}
                   </button>
                 </>
               )}
