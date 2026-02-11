@@ -668,62 +668,6 @@ export function RegistrationForm({
           </div>
         </div>
 
-        {/* Countries Multi-select */}
-        <div>
-          <Label>Preferred countries (optional)</Label>
-          <div className="relative mt-1" ref={countryDropdownRef}>
-            <div
-              onClick={() => setShowCountryDropdown(!showCountryDropdown)}
-              className="min-h-[42px] px-3 py-2 border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center"
-            >
-              {selectedCountries.length === 0 ? (
-                <span className="text-muted-foreground">Any country</span>
-              ) : (
-                selectedCountries.map((code) => {
-                  const c = countries.find((ct) => ct.code === code);
-                  return (
-                    <span
-                      key={code}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-sm"
-                    >
-                      {c?.flag} {c?.name || code}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeCountry(code);
-                        }}
-                        className="hover:text-primary/70"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  );
-                })
-              )}
-              <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
-            </div>
-
-            {showCountryDropdown && (
-              <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {countries.filter((c) => c.code).map((c) => (
-                  <button
-                    key={c.code}
-                    type="button"
-                    onClick={() => toggleCountry(c.code!)}
-                    className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between"
-                  >
-                    <span>{c.flag} {c.name}</span>
-                    {selectedCountries.includes(c.code!) && (
-                      <Check className="h-4 w-4 text-primary" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Job Count Preview */}
         {selectedCategories.length > 0 && (
           <div className={`p-3 rounded-lg border ${
