@@ -150,7 +150,7 @@
             },
             {
               "name": "linkedinPostUrn",
-              "value": "={{ $json.id }}"
+              "value": "={{ $json.urn }}"
             }
           ]
         },
