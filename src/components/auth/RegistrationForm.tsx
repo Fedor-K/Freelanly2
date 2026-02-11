@@ -135,12 +135,12 @@ export function RegistrationForm({
   // Debounced fetch on filter changes
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (step === 'register') {
+      if (step === 'register' || (step === 'email' && isExistingUser === false)) {
         fetchJobCount();
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [selectedCategories, selectedLanguages, step, fetchJobCount]);
+  }, [selectedCategories, selectedLanguages, step, isExistingUser, fetchJobCount]);
 
   const showTranslationFields = selectedCategories.includes('translation');
 
@@ -616,6 +616,27 @@ export function RegistrationForm({
               <Zap className="h-4 w-4 text-yellow-500" />
               <span>You&apos;ll get instant alerts for matching jobs</span>
             </div>
+
+            {/* Terms of Service Agreement */}
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="terms-email"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <label htmlFor="terms-email" className="text-sm text-muted-foreground">
+                I agree to the{' '}
+                <a href="/terms" target="_blank" className="text-primary underline hover:no-underline">
+                  Terms of Service
+                </a>{' '}
+                and{' '}
+                <a href="/privacy" target="_blank" className="text-primary underline hover:no-underline">
+                  Privacy Policy
+                </a>
+              </label>
+            </div>
           </>
         )}
 
@@ -623,7 +644,7 @@ export function RegistrationForm({
 
         <Button
           onClick={handleSendMagicLink}
-          disabled={isLoading || isExistingUser === null || (isExistingUser === false && selectedCategories.length === 0)}
+          disabled={isLoading || isExistingUser === null || (isExistingUser === false && (selectedCategories.length === 0 || !agreedToTerms))}
           className="w-full"
           size="lg"
         >
