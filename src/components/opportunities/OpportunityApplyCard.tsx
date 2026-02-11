@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ export function OpportunityApplyCard({
   applyUrl,
   title,
 }: OpportunityApplyCardProps) {
+  const pathname = usePathname();
   const { data: session } = useSession();
   const [showRegistration, setShowRegistration] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -189,7 +191,7 @@ export function OpportunityApplyCard({
       <RegistrationModal
         open={showRegistration}
         onClose={() => setShowRegistration(false)}
-        callbackUrl={`/pricing?plan=monthly&source=opportunity_page&opportunityId=${opportunityId}`}
+        callbackUrl={pathname}
       />
     </>
   );

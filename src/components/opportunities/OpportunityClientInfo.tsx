@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { RegistrationModal } from '@/components/auth/RegistrationModal';
 import { trackCheckoutStart, trackSignupStart } from '@/lib/analytics';
@@ -24,6 +25,7 @@ export function OpportunityClientInfo({
   clientAvatar,
   clientLinkedIn,
 }: OpportunityClientInfoProps) {
+  const pathname = usePathname();
   const { data: session } = useSession();
   const [showRegistration, setShowRegistration] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -123,7 +125,7 @@ export function OpportunityClientInfo({
       <RegistrationModal
         open={showRegistration}
         onClose={() => setShowRegistration(false)}
-        callbackUrl={`/pricing?plan=monthly&source=opportunity_page&opportunityId=${opportunityId}`}
+        callbackUrl={pathname}
       />
     </>
   );

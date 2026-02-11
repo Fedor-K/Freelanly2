@@ -189,10 +189,7 @@ export function PricingCards() {
       <RegistrationModal
         open={showRegistration}
         onClose={() => setShowRegistration(false)}
-        callbackUrl={selectedPlan
-          ? `/pricing?plan=${selectedPlan}&source=${sourceFromUrl}${jobIdFromUrl ? `&jobId=${jobIdFromUrl}` : ''}${opportunityIdFromUrl ? `&opportunityId=${opportunityIdFromUrl}` : ''}`
-          : `/pricing?source=${sourceFromUrl}`
-        }
+        callbackUrl="/pricing"
       />
     </div>
   );

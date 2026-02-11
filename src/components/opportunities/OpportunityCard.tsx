@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,6 +18,7 @@ interface OpportunityCardProps {
 }
 
 export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardProps) {
+  const pathname = usePathname();
   const { data: session } = useSession();
   const [showRegistration, setShowRegistration] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -207,7 +209,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
       <RegistrationModal
         open={showRegistration}
         onClose={() => setShowRegistration(false)}
-        callbackUrl={`/pricing?plan=monthly&source=opportunity_card&opportunityId=${opportunity.id}`}
+        callbackUrl={pathname}
       />
     </Card>
   );
