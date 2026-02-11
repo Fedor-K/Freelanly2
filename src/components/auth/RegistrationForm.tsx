@@ -239,7 +239,7 @@ export function RegistrationForm({
       );
     }
 
-    await signIn('google', { callbackUrl: callbackUrl || '/dashboard' });
+    await signIn('google', { callbackUrl: callbackUrl || '/' });
   };
 
   // Magic Link Sign In (for existing users)
@@ -250,7 +250,7 @@ export function RegistrationForm({
     try {
       const result = await signIn('resend', {
         email,
-        callbackUrl: callbackUrl || '/dashboard',
+        callbackUrl: callbackUrl || '/',
         redirect: false,
       });
 
@@ -315,7 +315,7 @@ export function RegistrationForm({
       // Send magic link
       const result = await signIn('resend', {
         email,
-        callbackUrl: callbackUrl || '/dashboard',
+        callbackUrl: callbackUrl || '/',
         redirect: false,
       });
 

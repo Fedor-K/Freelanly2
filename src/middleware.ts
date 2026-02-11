@@ -62,7 +62,6 @@ export function middleware(req: NextRequest) {
   // Redirect to sign in if accessing protected route without auth
   if (isProtectedRoute && !isLoggedIn) {
     const signInUrl = new URL('/auth/signin', req.url);
-    signInUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(signInUrl);
   }
 

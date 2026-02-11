@@ -14,7 +14,7 @@ export default async function AlertsPage() {
   const session = await auth();
 
   if (!session?.user?.id) {
-    redirect('/auth/signin?callbackUrl=/dashboard/alerts');
+    redirect('/auth/signin');
   }
 
   const alerts = await prisma.jobAlert.findMany({
