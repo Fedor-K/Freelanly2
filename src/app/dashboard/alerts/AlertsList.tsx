@@ -245,14 +245,19 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
     return lang?.name || code;
   };
 
-  // Extract unique non-EN languages from language pairs
-  const extractLanguagesFromPairs = (pairs: LanguagePair[]) => {
-    const langs = new Set<string>();
+  // Group language pairs into bidirectional pairs (EN ↔ ES) for display
+  const groupLanguagePairs = (pairs: LanguagePair[]) => {
+    const bidirectional = new Map<string, { lang: string; directions: string[] }>();
     for (const pair of pairs) {
-      if (pair.sourceLanguage !== 'EN') langs.add(pair.sourceLanguage);
-      if (pair.targetLanguage !== 'EN') langs.add(pair.targetLanguage);
+      const otherLang = pair.sourceLanguage === 'EN' ? pair.targetLanguage : pair.sourceLanguage;
+      if (!bidirectional.has(otherLang)) {
+        bidirectional.set(otherLang, { lang: otherLang, directions: [] });
+      }
+      bidirectional.get(otherLang)!.directions.push(
+        `${getLanguageName(pair.sourceLanguage)} → ${getLanguageName(pair.targetLanguage)}`
+      );
     }
-    return Array.from(langs);
+    return Array.from(bidirectional.values());
   };
 
   return (
@@ -526,7 +531,7 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
       ) : (
         <div className="space-y-4">
           {alerts.map((alert) => {
-            const alertLanguages = extractLanguagesFromPairs(alert.languagePairs || []);
+            const alertPairGroups = groupLanguagePairs(alert.languagePairs || []);
 
             return (
               <div
@@ -560,13 +565,21 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
                       )}
                     </div>
 
-                    {/* Languages display */}
-                    {alertLanguages.length > 0 && (
-                      <div className="mt-3">
-                        <span className="text-sm font-medium text-purple-700">Languages: </span>
-                        <span className="text-sm text-gray-600">
-                          {alertLanguages.map((code) => getLanguageName(code)).join(', ')}
-                        </span>
+                    {/* Language pairs display */}
+                    {alertPairGroups.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {alertPairGroups.map((group) => (
+                          <div key={group.lang} className="flex flex-wrap gap-1">
+                            {group.directions.map((dir) => (
+                              <span
+                                key={dir}
+                                className="px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded"
+                              >
+                                🌐 {dir}
+                              </span>
+                            ))}
+                          </div>
+                        ))}
                       </div>
                     )}
 
