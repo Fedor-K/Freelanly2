@@ -2,11 +2,13 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { RegistrationModal } from './RegistrationModal';
 
 export function UserMenu() {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -43,6 +45,7 @@ export function UserMenu() {
         <RegistrationModal
           open={showRegistration}
           onClose={() => setShowRegistration(false)}
+          callbackUrl={pathname}
         />
       </>
     );

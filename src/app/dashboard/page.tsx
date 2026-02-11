@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { ActivationProgress } from '@/components/dashboard/ActivationProgress';
-import { AlertsOnboardingModal } from '@/components/dashboard/AlertsOnboardingModal';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -39,7 +38,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AlertsOnboardingModal alertsCount={alertsCount} />
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-6xl mx-auto px-4 py-8">
