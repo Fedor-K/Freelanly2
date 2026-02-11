@@ -24,7 +24,6 @@ export default async function SettingsPage() {
     select: {
       name: true,
       email: true,
-      resumeUrl: true,
       plan: true,
       createdAt: true,
       subscriptionEndsAt: true,
@@ -46,7 +45,6 @@ export default async function SettingsPage() {
           initialData={{
             name: user.name || '',
             email: user.email,
-            resumeUrl: user.resumeUrl || '',
           }}
         />
 

@@ -6,13 +6,11 @@ interface SettingsFormProps {
   initialData: {
     name: string;
     email: string;
-    resumeUrl: string;
   };
 }
 
 export function SettingsForm({ initialData }: SettingsFormProps) {
   const [name, setName] = useState(initialData.name);
-  const [resumeUrl, setResumeUrl] = useState(initialData.resumeUrl);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -25,7 +23,7 @@ export function SettingsForm({ initialData }: SettingsFormProps) {
       const res = await fetch('/api/user/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, resumeUrl }),
+        body: JSON.stringify({ name }),
       });
 
       if (res.ok) {
@@ -83,22 +81,6 @@ export function SettingsForm({ initialData }: SettingsFormProps) {
           />
           <p className="mt-1 text-xs text-gray-500">
             Email cannot be changed
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Resume URL
-          </label>
-          <input
-            type="url"
-            value={resumeUrl}
-            onChange={(e) => setResumeUrl(e.target.value)}
-            placeholder="https://linkedin.com/in/yourprofile or link to your resume"
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            Link to your LinkedIn profile, personal website, or online resume
           </p>
         </div>
 
