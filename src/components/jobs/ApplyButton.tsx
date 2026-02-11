@@ -4,9 +4,8 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { QuickApplyModal } from './QuickApplyModal';
-import { UpgradeModal } from './UpgradeModal';
 import { RegistrationModal } from '@/components/auth/RegistrationModal';
-import { track, trackApplyClick, trackSignupStart, trackUpgradeClick } from '@/lib/analytics';
+import { track, trackApplyClick, trackSignupStart, trackUpgradeClick, trackCheckoutStart } from '@/lib/analytics';
 
 export type UserPlan = 'FREE' | 'PRO' | 'ENTERPRISE';
 
@@ -35,8 +34,8 @@ export function ApplyButton({
 }: ApplyButtonProps) {
   const pathname = usePathname();
   const [showQuickApply, setShowQuickApply] = useState(false);
-  const [showUpgrade, setShowUpgrade] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const isPro = userPlan === 'PRO' || userPlan === 'ENTERPRISE';
 
   const handleApplyClick = (method: 'url' | 'email' | 'linkedin') => {
@@ -76,33 +75,46 @@ export function ApplyButton({
     );
   }
 
-  // Authenticated FREE users see upgrade modal
+  // Authenticated FREE users go directly to Stripe checkout
   if (!isPro) {
+    const handleUpgradeClick = async () => {
+      trackUpgradeClick({ source: 'paywall', jobId });
+      trackCheckoutStart({ plan: 'monthly', source: 'job_page' });
+      setIsRedirecting(true);
+
+      try {
+        const response = await fetch('/api/stripe/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            priceKey: 'monthly',
+            source: 'job_page',
+            jobId,
+          }),
+        });
+        const data = await response.json();
+        if (data.url) {
+          window.location.href = data.url;
+        }
+      } catch (err) {
+        console.error('Checkout error:', err);
+        setIsRedirecting(false);
+      }
+    };
+
     return (
-      <>
-        <div className="space-y-3">
-          <button
-            className="w-full py-3.5 px-6 rounded-xl font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/25 transition-all hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:translate-y-0"
-            onClick={() => {
-              track({ name: 'upgrade_modal_open', params: { job_id: jobId } });
-              trackUpgradeClick({ source: 'paywall', jobId });
-              setShowUpgrade(true);
-            }}
-          >
-            Upgrade to see contact details
-          </button>
-          <p className="text-xs text-center text-muted-foreground">
-            From €0.39/day. Cancel anytime.
-          </p>
-        </div>
-        <UpgradeModal
-          open={showUpgrade}
-          onClose={() => setShowUpgrade(false)}
-          jobId={jobId}
-          jobTitle={jobTitle}
-          companyName={companyName}
-        />
-      </>
+      <div className="space-y-3">
+        <button
+          className="w-full py-3.5 px-6 rounded-xl font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/25 transition-all hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60"
+          onClick={handleUpgradeClick}
+          disabled={isRedirecting}
+        >
+          {isRedirecting ? 'Redirecting to checkout...' : 'Upgrade to see contact details'}
+        </button>
+        <p className="text-xs text-center text-muted-foreground">
+          From €0.39/day. Cancel anytime.
+        </p>
+      </div>
     );
   }
 
