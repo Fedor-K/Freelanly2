@@ -21,8 +21,7 @@
     {
       "parameters": {
         "url": "https://freelanly.com/api/social/posted-urns?days=3",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -63,39 +62,20 @@
     },
     {
       "parameters": {
-        "url": "=https://api.linkedin.com/rest/socialActions/{{ $json.postUrn }}/comments",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "linkedInCommunityManagementOAuth2Api",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Linkedin-Version",
-              "value": "202501"
-            },
-            {
-              "name": "X-Restli-Protocol-Version",
-              "value": "2.0.0"
-            }
-          ]
-        },
+        "url": "=https://api.linkedin.com/v2/socialActions/{{ encodeURIComponent($json.postUrn) }}/comments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
         "options": {}
       },
       "id": "fetch-comments-001",
       "name": "Fetch Comments",
       "type": "n8n-nodes-base.httpRequest",
       "position": [496, 480],
-      "typeVersion": 4.2,
-      "credentials": {
-        "linkedInCommunityManagementOAuth2Api": {
-          "id": "3B9YSIs4S4P9GPv5",
-          "name": "LinkedIn Community Management account"
-        }
-      }
+      "typeVersion": 4.2
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst elements = input.elements || [];\nconst postUrn = $('Loop Posts').first().json.postUrn;\nconst postText = $('Loop Posts').first().json.postText;\n\nif (elements.length === 0) {\n  return [{ json: { noComments: true, postUrn } }];\n}\n\nreturn elements.map(c => ({\n  json: {\n    commentId: c.id,\n    commentUrn: c.commentUrn || ('urn:li:comment:(' + postUrn + ',' + c.id + ')'),\n    authorUrn: c.actor,\n    commentText: c.message?.text || '',\n    createdTime: c.created?.time || 0,\n    postUrn,\n    postText\n  }\n}));"
+        "jsCode": "const input = $input.first().json;\nconst elements = input.elements || [];\nconst postUrn = $('Loop Posts').first().json.postUrn;\nconst postText = $('Loop Posts').first().json.postText;\nconst ownOrgUrn = 'urn:li:organization:53520294';\n\n// Filter out own comments and replies (from Freelanly org)\nconst externalComments = elements.filter(c => c.actor !== ownOrgUrn);\n\nif (externalComments.length === 0) {\n  return [{ json: { noComments: true, postUrn } }];\n}\n\nreturn externalComments.map(c => ({\n  json: {\n    commentId: c.id,\n    commentUrn: c.commentUrn || ('urn:li:comment:(' + postUrn + ',' + c.id + ')'),\n    authorUrn: c.actor,\n    commentText: c.message?.text || '',\n    createdTime: c.created?.time || 0,\n    postUrn,\n    postText\n  }\n}));"
       },
       "id": "extract-comments-001",
       "name": "Extract Comments",
@@ -136,8 +116,7 @@
       "parameters": {
         "method": "POST",
         "url": "https://freelanly.com/api/social/check-replied",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -190,9 +169,8 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://open.z.ai/v1/chat/completions",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "https://api.z.ai/api/paas/v4/chat/completions",
+        "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -208,7 +186,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"glm-4-32b\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are Fedor, founder of Freelanly.com \\u2014 a platform that connects freelancers with direct clients. You reply to comments on your company's LinkedIn posts. Rules:\\n- Reply in the SAME LANGUAGE as the comment\\n- Be friendly, helpful, and concise (1-3 sentences)\\n- If someone asks about the platform, briefly explain and invite them to check freelanly.com\\n- If someone is looking for work, tell them to register on freelanly.com for free alerts\\n- If it's just a supportive comment (like/great/cool), thank them warmly\\n- Never be salesy or pushy\\n- Sound like a real person, not a bot\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Our LinkedIn post was about:\\n{{ $('Extract Comments').item.json.postText }}\\n\\nSomeone commented:\\n{{ $('Extract Comments').item.json.commentText }}\\n\\nWrite a reply:\"\n    }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 200\n}",
+        "jsonBody": "={{ JSON.stringify({ model: 'glm-4-32b-0414-128k', messages: [{ role: 'system', content: 'You are the social media manager for Freelanly.com \\u2014 a platform that aggregates 1000+ fresh remote freelance jobs daily from LinkedIn, Lever, and other sources. You reply to comments on Freelanly\\'s LinkedIn posts. EVERY post is about a specific freelance job opportunity.\\n\\nYour goals:\\n1. Engage the commenter warmly\\n2. ALWAYS encourage them to visit freelanly.com to apply or set up free instant job alerts\\n3. Highlight the value: free alerts, fresh jobs daily, direct client contacts\\n\\nRules:\\n- Reply in the SAME LANGUAGE as the comment\\n- 2-3 sentences max\\n- Be enthusiastic but genuine, not robotic\\n- ALWAYS include a call-to-action: sign up for free alerts at freelanly.com, apply on freelanly.com, or check freelanly.com for more jobs like this\\n- If someone says they\\'re interested or this is great \\u2014 tell them to apply NOW on freelanly.com before the client hires someone else\\n- If someone tags a friend or says \\'following\\' \\u2014 tell them both to set up free alerts on freelanly.com so they never miss opportunities\\n- Never just say \\'thanks\\' without directing them to freelanly.com\\n- Sound human and friendly, like a helpful community manager' }, { role: 'user', content: 'Our LinkedIn post was about this job:\\n' + $('Extract Comments').item.json.postText + '\\n\\nSomeone commented:\\n' + $('Extract Comments').item.json.commentText + '\\n\\nWrite an engaging reply that motivates them to visit freelanly.com:' }], temperature: 0.8, max_tokens: 250 }) }}",
         "options": {}
       },
       "id": "ai-reply-001",
@@ -232,20 +210,12 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.linkedin.com/rest/socialActions/{{ $('Extract Comments').item.json.postUrn }}/comments",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "linkedInCommunityManagementOAuth2Api",
+        "url": "=https://api.linkedin.com/v2/socialActions/{{ encodeURIComponent($('Extract Comments').item.json.postUrn) }}/comments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Linkedin-Version",
-              "value": "202501"
-            },
-            {
-              "name": "X-Restli-Protocol-Version",
-              "value": "2.0.0"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -261,20 +231,13 @@
       "name": "Post Reply",
       "type": "n8n-nodes-base.httpRequest",
       "position": [2064, 400],
-      "typeVersion": 4.2,
-      "credentials": {
-        "linkedInCommunityManagementOAuth2Api": {
-          "id": "3B9YSIs4S4P9GPv5",
-          "name": "LinkedIn Community Management account"
-        }
-      }
+      "typeVersion": 4.2
     },
     {
       "parameters": {
         "method": "POST",
         "url": "https://freelanly.com/api/social/log-reply",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -349,6 +312,7 @@
     },
     "Loop Posts": {
       "main": [
+        [],
         [
           {
             "node": "Fetch Comments",
