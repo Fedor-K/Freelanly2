@@ -53,7 +53,7 @@ export function PendingRegistrationHandler() {
             email: session.user.email,
             name: data.name || session.user.name,
             categories: data.categories,
-            country: data.country,
+            countries: data.countries || (data.country ? [data.country] : []),
             languages: data.languages,
           }),
         });

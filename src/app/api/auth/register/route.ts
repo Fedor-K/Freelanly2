@@ -6,7 +6,8 @@ interface RegisterRequest {
   email: string;
   name?: string;
   categories: string[];
-  country?: string;
+  country?: string; // Legacy single country (backwards compat)
+  countries?: string[]; // New: multiple countries
   languages?: string[]; // Language codes user can translate (e.g., ['ES', 'RU'])
   jobId?: string; // Track which job triggered registration
   agreedToTerms?: boolean; // User agreed to ToS (for dispute evidence)
@@ -32,13 +33,18 @@ function languagesToPairs(languages: string[]) {
  * POST /api/auth/register
  *
  * Pre-registers user preferences before magic link authentication.
- * Creates JobAlerts for each selected category with INSTANT frequency.
+ * Creates JobAlerts for each selected category × country with INSTANT frequency.
  * Alerts are created with email only (no userId) - will be linked when user signs in.
  */
 export async function POST(request: NextRequest) {
   try {
     const body: RegisterRequest = await request.json();
-    const { email, name, categories, country, languages, jobId, agreedToTerms } = body;
+    const { email, name, categories, country, countries, languages, jobId, agreedToTerms } = body;
+
+    // Normalize countries: support both old `country` and new `countries` field
+    const selectedCountries = countries && countries.length > 0
+      ? countries
+      : country ? [country] : [];
 
     // Validate required fields
     if (!email || !email.includes('@')) {
@@ -72,7 +78,7 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       // User exists - just create alerts linked to their account
       console.log(`[Register] User ${normalizedEmail} already exists, creating alerts`);
-      await createAlertsForUser(existingUser.id, normalizedEmail, categories, country, languagePairs);
+      await createAlertsForUser(existingUser.id, normalizedEmail, categories, selectedCountries, languagePairs);
 
       return NextResponse.json({
         success: true,
@@ -96,8 +102,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Register] Created new user: ${normalizedEmail}`);
 
-    // Create alerts for each category
-    await createAlertsForUser(user.id, normalizedEmail, categories, country, languagePairs);
+    // Create alerts for each category × country
+    await createAlertsForUser(user.id, normalizedEmail, categories, selectedCountries, languagePairs);
 
     // Track registration source (which job triggered it)
     if (jobId) {
@@ -132,57 +138,62 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Create job alerts for a user
+ * Create job alerts for a user.
+ * Creates one alert per category × country combination.
+ * If no countries selected, creates one alert per category with country=null (worldwide).
  */
 async function createAlertsForUser(
   userId: string,
   email: string,
   categories: string[],
-  country?: string,
+  countries: string[],
   languagePairs?: Array<{ translationType: string; sourceLanguage: string; targetLanguage: string }>
 ) {
-  // Create one alert per category
+  // If no countries, use [null] to create one worldwide alert per category
+  const countryList: (string | null)[] = countries.length > 0 ? countries : [null];
+
   for (const category of categories) {
     const isTranslation = category === 'translation';
-
-    // Use language pairs for translation category
     const validPairs = isTranslation && languagePairs ? languagePairs : [];
 
-    // Check if alert already exists for this user + category
-    const existingAlert = await prisma.jobAlert.findFirst({
-      where: {
-        userId,
-        category,
-      },
-    });
+    for (const country of countryList) {
+      // Check if alert already exists for this user + category + country
+      const existingAlert = await prisma.jobAlert.findFirst({
+        where: {
+          userId,
+          category,
+          country: country || null,
+        },
+      });
 
-    if (existingAlert) {
-      console.log(`[Register] Alert already exists for ${email} + ${category}, skipping`);
-      continue;
+      if (existingAlert) {
+        console.log(`[Register] Alert already exists for ${email} + ${category} + ${country || 'worldwide'}, skipping`);
+        continue;
+      }
+
+      await prisma.jobAlert.create({
+        data: {
+          userId,
+          email,
+          category,
+          country: country || null,
+          frequency: AlertFrequency.INSTANT,
+          isActive: true,
+          // Add language pairs for translation category
+          languagePairs:
+            validPairs.length > 0
+              ? {
+                  create: validPairs.map((pair) => ({
+                    translationType: pair.translationType,
+                    sourceLanguage: pair.sourceLanguage,
+                    targetLanguage: pair.targetLanguage,
+                  })),
+                }
+              : undefined,
+        },
+      });
+
+      console.log(`[Register] Created INSTANT alert for ${email}: ${category} (${country || 'worldwide'})`);
     }
-
-    await prisma.jobAlert.create({
-      data: {
-        userId,
-        email,
-        category,
-        country: country || null,
-        frequency: AlertFrequency.INSTANT,
-        isActive: true,
-        // Add language pairs for translation category
-        languagePairs:
-          validPairs.length > 0
-            ? {
-                create: validPairs.map((pair) => ({
-                  translationType: pair.translationType,
-                  sourceLanguage: pair.sourceLanguage,
-                  targetLanguage: pair.targetLanguage,
-                })),
-              }
-            : undefined,
-      },
-    });
-
-    console.log(`[Register] Created INSTANT alert for ${email}: ${category}`);
   }
 }

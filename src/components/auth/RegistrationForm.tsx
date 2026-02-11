@@ -46,7 +46,7 @@ export function RegistrationForm({
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
@@ -54,6 +54,7 @@ export function RegistrationForm({
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [error, setError] = useState('');
 
@@ -62,6 +63,7 @@ export function RegistrationForm({
   const [isLoadingJobCount, setIsLoadingJobCount] = useState(false);
 
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
+  const countryDropdownRef = useRef<HTMLDivElement>(null);
   const languageDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on outside click
@@ -70,6 +72,9 @@ export function RegistrationForm({
       if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
         setShowCategoryDropdown(false);
       }
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target as Node)) {
+        setShowCountryDropdown(false);
+      }
       if (languageDropdownRef.current && !languageDropdownRef.current.contains(event.target as Node)) {
         setShowLanguageDropdown(false);
       }
@@ -77,6 +82,17 @@ export function RegistrationForm({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Country handlers
+  const toggleCountry = (code: string) => {
+    setSelectedCountries((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  };
+
+  const removeCountry = (code: string) => {
+    setSelectedCountries((prev) => prev.filter((c) => c !== code));
+  };
 
   // Fetch job count preview when filters change
   const fetchJobCount = useCallback(async () => {
@@ -87,23 +103,21 @@ export function RegistrationForm({
 
     setIsLoadingJobCount(true);
     try {
-      // Fetch count for each category and sum up
+      // Fetch count for each category (no country filter — show worldwide total)
       const counts = await Promise.all(
         selectedCategories.map(async (category) => {
           const params = new URLSearchParams({ category, days: '7' });
-          if (selectedCountry) params.set('country', selectedCountry);
           const res = await fetch(`/api/jobs/count?${params}`);
           return res.json();
         })
       );
 
       const totalCount = counts.reduce((sum, c) => sum + (c.count || 0), 0);
-      const totalWithoutCountry = counts.reduce((sum, c) => sum + (c.countWithoutCountry || 0), 0);
       const avgDaily = counts.reduce((sum, c) => sum + (c.dailyAverage || 0), 0);
 
       setJobCountPreview({
         count: totalCount,
-        countWithoutCountry: totalWithoutCountry,
+        countWithoutCountry: totalCount,
         dailyAverage: Math.round(avgDaily * 10) / 10,
       });
     } catch (err) {
@@ -112,7 +126,7 @@ export function RegistrationForm({
     } finally {
       setIsLoadingJobCount(false);
     }
-  }, [selectedCategories, selectedCountry]);
+  }, [selectedCategories]);
 
   // Debounced fetch on filter changes
   useEffect(() => {
@@ -122,7 +136,7 @@ export function RegistrationForm({
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [selectedCategories, selectedCountry, step, fetchJobCount]);
+  }, [selectedCategories, step, fetchJobCount]);
 
   const showTranslationFields = selectedCategories.includes('translation');
 
@@ -216,7 +230,7 @@ export function RegistrationForm({
         JSON.stringify({
           name,
           categories: selectedCategories,
-          country: selectedCountry,
+          countries: selectedCountries,
           languages: showTranslationFields ? selectedLanguages : [],
         })
       );
@@ -283,7 +297,7 @@ export function RegistrationForm({
           email,
           name: name || undefined,
           categories: selectedCategories,
-          country: selectedCountry || undefined,
+          countries: selectedCountries.length > 0 ? selectedCountries : undefined,
           languages: showTranslationFields ? selectedLanguages : undefined,
           jobId,
           agreedToTerms: true, // User explicitly agreed via checkbox
@@ -654,22 +668,60 @@ export function RegistrationForm({
           </div>
         </div>
 
-        {/* Country */}
+        {/* Countries Multi-select */}
         <div>
-          <Label htmlFor="country">Preferred country (optional)</Label>
-          <select
-            id="country"
-            value={selectedCountry}
-            onChange={(e) => setSelectedCountry(e.target.value)}
-            className="mt-1 w-full px-3 py-2 border rounded-lg bg-background"
-          >
-            <option value="">Any country</option>
-            {countries.map((c) => (
-              <option key={c.code || c.slug} value={c.code || ''}>
-                {c.flag} {c.name}
-              </option>
-            ))}
-          </select>
+          <Label>Preferred countries (optional)</Label>
+          <div className="relative mt-1" ref={countryDropdownRef}>
+            <div
+              onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+              className="min-h-[42px] px-3 py-2 border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center"
+            >
+              {selectedCountries.length === 0 ? (
+                <span className="text-muted-foreground">Any country</span>
+              ) : (
+                selectedCountries.map((code) => {
+                  const c = countries.find((ct) => ct.code === code);
+                  return (
+                    <span
+                      key={code}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-sm"
+                    >
+                      {c?.flag} {c?.name || code}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeCountry(code);
+                        }}
+                        className="hover:text-primary/70"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  );
+                })
+              )}
+              <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
+            </div>
+
+            {showCountryDropdown && (
+              <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {countries.filter((c) => c.code).map((c) => (
+                  <button
+                    key={c.code}
+                    type="button"
+                    onClick={() => toggleCountry(c.code!)}
+                    className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between"
+                  >
+                    <span>{c.flag} {c.name}</span>
+                    {selectedCountries.includes(c.code!) && (
+                      <Check className="h-4 w-4 text-primary" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Job Count Preview */}
@@ -703,21 +755,7 @@ export function RegistrationForm({
                     </>
                   )}
                 </div>
-                {/* Suggestion to expand if count is low */}
-                {jobCountPreview.count < 5 && selectedCountry && jobCountPreview.countWithoutCountry > jobCountPreview.count && (
-                  <p className="text-xs text-amber-700">
-                    Tip: {jobCountPreview.countWithoutCountry} jobs available worldwide.{' '}
-                    <button
-                      type="button"
-                      onClick={() => setSelectedCountry('')}
-                      className="underline hover:no-underline font-medium"
-                    >
-                      Remove country filter
-                    </button>{' '}
-                    to get more alerts.
-                  </p>
-                )}
-                {jobCountPreview.count < 5 && !selectedCountry && selectedCategories.length === 1 && (
+                {jobCountPreview.count < 5 && selectedCategories.length === 1 && (
                   <p className="text-xs text-amber-700">
                     Tip: Add more categories to receive more job alerts.
                   </p>
