@@ -49,17 +49,21 @@ export function ApplyButton({
   if (!isAuthenticated) {
     return (
       <>
-        <Button
-          className="w-full"
-          size="lg"
-          onClick={() => {
-            track({ name: 'registration_modal_open', params: { job_id: jobId } });
-            trackSignupStart('job_page');
-            setShowRegistration(true);
-          }}
-        >
-          Log In to see contact details
-        </Button>
+        <div className="space-y-3">
+          <button
+            className="w-full py-3.5 px-6 rounded-xl font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/25 transition-all hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:translate-y-0"
+            onClick={() => {
+              track({ name: 'registration_modal_open', params: { job_id: jobId } });
+              trackSignupStart('job_page');
+              setShowRegistration(true);
+            }}
+          >
+            Log In to see contact details
+          </button>
+          <p className="text-xs text-center text-muted-foreground">
+            Free to sign up. Takes 30 seconds.
+          </p>
+        </div>
         <RegistrationModal
           open={showRegistration}
           onClose={() => setShowRegistration(false)}
@@ -76,17 +80,21 @@ export function ApplyButton({
   if (!isPro) {
     return (
       <>
-        <Button
-          className="w-full"
-          size="lg"
-          onClick={() => {
-            track({ name: 'upgrade_modal_open', params: { job_id: jobId } });
-            trackUpgradeClick({ source: 'paywall', jobId });
-            setShowUpgrade(true);
-          }}
-        >
-          Upgrade to see contact details
-        </Button>
+        <div className="space-y-3">
+          <button
+            className="w-full py-3.5 px-6 rounded-xl font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/25 transition-all hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:translate-y-0"
+            onClick={() => {
+              track({ name: 'upgrade_modal_open', params: { job_id: jobId } });
+              trackUpgradeClick({ source: 'paywall', jobId });
+              setShowUpgrade(true);
+            }}
+          >
+            Upgrade to see contact details
+          </button>
+          <p className="text-xs text-center text-muted-foreground">
+            From €0.39/day. Cancel anytime.
+          </p>
+        </div>
         <UpgradeModal
           open={showUpgrade}
           onClose={() => setShowUpgrade(false)}

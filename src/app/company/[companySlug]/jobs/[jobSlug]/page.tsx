@@ -521,25 +521,8 @@ export default async function JobPage({ params }: JobPageProps) {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Salary Insights - wrapped in Suspense for progressive loading */}
-              <Suspense fallback={<SalaryInsightsSkeleton />}>
-                <SalaryInsightsAsync
-                  jobTitle={job.title}
-                  location={job.location}
-                  country={job.country}
-                  categoryId={job.categoryId}
-                  level={job.level}
-                  categorySlug={job.category?.slug ?? null}
-                  salaryMin={job.salaryMin}
-                  salaryMax={job.salaryMax}
-                  salaryCurrency={job.salaryCurrency}
-                  salaryIsEstimate={job.salaryIsEstimate}
-                  userPlan={userPlan}
-                />
-              </Suspense>
-
-              {/* Apply Card */}
-              <Card className="lg:sticky lg:top-20">
+              {/* Apply Card — primary CTA, always on top */}
+              <Card className="lg:sticky lg:top-20 border-orange-200">
                 <CardContent className="pt-6 space-y-4">
                   <ApplyButton
                     jobId={job.id}
@@ -649,6 +632,23 @@ export default async function JobPage({ params }: JobPageProps) {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Salary Insights - below the main CTA */}
+              <Suspense fallback={<SalaryInsightsSkeleton />}>
+                <SalaryInsightsAsync
+                  jobTitle={job.title}
+                  location={job.location}
+                  country={job.country}
+                  categoryId={job.categoryId}
+                  level={job.level}
+                  categorySlug={job.category?.slug ?? null}
+                  salaryMin={job.salaryMin}
+                  salaryMax={job.salaryMax}
+                  salaryCurrency={job.salaryCurrency}
+                  salaryIsEstimate={job.salaryIsEstimate}
+                  userPlan={userPlan}
+                />
+              </Suspense>
             </div>
           </div>
 
