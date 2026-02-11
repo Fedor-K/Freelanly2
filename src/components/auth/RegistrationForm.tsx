@@ -142,6 +142,19 @@ export function RegistrationForm({
     return () => clearTimeout(timer);
   }, [selectedCategories, selectedLanguages, step, isExistingUser, fetchJobCount]);
 
+  // Debounced email check on typing
+  useEffect(() => {
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      setIsExistingUser(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      checkEmailExists(email);
+    }, 500);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email]);
+
   const showTranslationFields = selectedCategories.includes('translation');
 
   // Check email on blur — determines if user exists
