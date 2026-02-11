@@ -50,7 +50,9 @@ export async function POST(request: NextRequest) {
     if (!email || !email.includes('@')) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400 });
     }
-    // Categories are optional — user can set up alerts later
+    if (!categories || categories.length === 0) {
+      return NextResponse.json({ error: 'At least one category is required' }, { status: 400 });
+    }
 
     // Validate languages for translation category
     if (categories.includes('translation')) {
@@ -76,9 +78,7 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       // User exists - just create alerts linked to their account
       console.log(`[Register] User ${normalizedEmail} already exists, creating alerts`);
-      if (categories && categories.length > 0) {
-        await createAlertsForUser(existingUser.id, normalizedEmail, categories, selectedCountries, languagePairs);
-      }
+      await createAlertsForUser(existingUser.id, normalizedEmail, categories, selectedCountries, languagePairs);
 
       return NextResponse.json({
         success: true,
@@ -102,10 +102,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Register] Created new user: ${normalizedEmail}`);
 
-    // Create alerts for each category × country (if any selected)
-    if (categories && categories.length > 0) {
-      await createAlertsForUser(user.id, normalizedEmail, categories, selectedCountries, languagePairs);
-    }
+    // Create alerts for each category × country
+    await createAlertsForUser(user.id, normalizedEmail, categories, selectedCountries, languagePairs);
 
     // Track registration source (which job triggered it)
     if (jobId) {

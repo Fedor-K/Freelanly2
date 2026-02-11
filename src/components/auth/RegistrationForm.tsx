@@ -53,6 +53,7 @@ export function RegistrationForm({
   // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [isExistingUser, setIsExistingUser] = useState<boolean | null>(null); // null = not checked yet
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
@@ -143,31 +144,62 @@ export function RegistrationForm({
 
   const showTranslationFields = selectedCategories.includes('translation');
 
-  // Send magic link directly (for both new and existing users)
+  // Check email on blur — determines if user exists
+  const checkEmailExists = async (emailToCheck: string) => {
+    if (!emailToCheck || !emailToCheck.includes('@')) return;
+
+    setIsCheckingEmail(true);
+    try {
+      const res = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailToCheck }),
+      });
+      const data = await res.json();
+      setIsExistingUser(data.exists);
+    } catch {
+      setIsExistingUser(null);
+    } finally {
+      setIsCheckingEmail(false);
+    }
+  };
+
+  // Send magic link (existing user) or register + send (new user)
   const handleSendMagicLink = async () => {
     if (!email || !email.includes('@')) {
       setError('Please enter a valid email');
       return;
     }
 
-    setIsCheckingEmail(true);
+    // New user — validate categories
+    if (isExistingUser === false) {
+      if (selectedCategories.length === 0) {
+        setError('Please select at least one job category');
+        return;
+      }
+      if (showTranslationFields && selectedLanguages.length === 0) {
+        setError('Please select at least one language for translation alerts');
+        return;
+      }
+    }
+
+    setIsLoading(true);
     setError('');
 
     try {
-      // Check if user exists, if not — register them
-      const checkRes = await fetch('/api/auth/check-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const checkData = await checkRes.json();
-
-      if (!checkData.exists) {
-        // Create user without alerts (they can set up later)
+      // New user: register first
+      if (isExistingUser === false) {
         const regRes = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, categories: [], agreedToTerms: true }),
+          body: JSON.stringify({
+            email,
+            name: name || undefined,
+            categories: selectedCategories,
+            languages: showTranslationFields ? selectedLanguages : undefined,
+            jobId,
+            agreedToTerms: true,
+          }),
         });
         if (!regRes.ok) {
           const data = await regRes.json();
@@ -191,14 +223,16 @@ export function RegistrationForm({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
-      setIsCheckingEmail(false);
+      setIsLoading(false);
     }
   };
 
   const handleEmailKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleSendMagicLink();
+      if (isExistingUser !== null) {
+        handleSendMagicLink();
+      }
     }
   };
 
@@ -379,10 +413,10 @@ export function RegistrationForm({
     );
   }
 
-  // Step: Email Input
+  // Step: Email Input (+ registration fields for new users)
   if (step === 'email') {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Job context */}
         {showJobContext && jobTitle && companyName && (
           <div className="rounded-lg bg-muted/50 p-3 text-center text-sm">
@@ -397,29 +431,212 @@ export function RegistrationForm({
             id="email"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setIsExistingUser(null); // reset on change
+            }}
+            onBlur={() => checkEmailExists(email)}
             onKeyDown={handleEmailKeyDown}
             placeholder="your@email.com"
             className="mt-1"
             autoFocus
           />
+          {isCheckingEmail && (
+            <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" /> Checking...
+            </p>
+          )}
         </div>
+
+        {/* Registration fields — only for NEW users */}
+        {isExistingUser === false && (
+          <>
+            {/* Categories Multi-select */}
+            <div>
+              <Label>What roles interest you? *</Label>
+              <div className="relative mt-1" ref={categoryDropdownRef}>
+                <div
+                  onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                  className="min-h-[42px] px-3 py-2 border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center"
+                >
+                  {selectedCategories.length === 0 ? (
+                    <span className="text-muted-foreground">Select categories...</span>
+                  ) : (
+                    selectedCategories.map((slug) => {
+                      const cat = categories.find((c) => c.slug === slug);
+                      return (
+                        <span
+                          key={slug}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-sm"
+                        >
+                          {cat?.name || slug}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeCategory(slug);
+                            }}
+                            className="hover:text-primary/70"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      );
+                    })
+                  )}
+                  <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
+                </div>
+
+                {showCategoryDropdown && (
+                  <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.slug}
+                        type="button"
+                        onClick={() => toggleCategory(cat.slug)}
+                        className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between"
+                      >
+                        <span>
+                          {cat.icon} {cat.name}
+                        </span>
+                        {selectedCategories.includes(cat.slug) && (
+                          <Check className="h-4 w-4 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Job Count Preview */}
+            {selectedCategories.length > 0 && (
+              <div className={`p-3 rounded-lg border ${
+                jobCountPreview && jobCountPreview.count < 5
+                  ? 'bg-amber-50 border-amber-200'
+                  : 'bg-green-50 border-green-200'
+              }`}>
+                {isLoadingJobCount ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Checking job availability...</span>
+                  </div>
+                ) : jobCountPreview ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm">
+                      {jobCountPreview.count < 5 ? (
+                        <>
+                          <AlertTriangle className="h-4 w-4 text-amber-600" />
+                          <span className="font-medium text-amber-800">
+                            Only {jobCountPreview.count} job{jobCountPreview.count !== 1 ? 's' : ''} in the last 7 days
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <TrendingUp className="h-4 w-4 text-green-600" />
+                          <span className="font-medium text-green-800">
+                            {jobCountPreview.count} jobs in the last 7 days (~{jobCountPreview.dailyAverage}/day)
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {jobCountPreview.count < 5 && selectedCategories.length === 1 && (
+                      <p className="text-xs text-amber-700">
+                        Tip: Add more categories to receive more job alerts.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            {/* Translation Languages */}
+            {showTranslationFields && (
+              <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
+                <Label>Your Languages *</Label>
+                <p className="text-xs text-muted-foreground -mt-1">Select languages you can translate (besides English)</p>
+                <div className="relative" ref={languageDropdownRef}>
+                  <div
+                    onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+                    className="min-h-[42px] px-3 py-2 border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center bg-background"
+                  >
+                    {selectedLanguages.length === 0 ? (
+                      <span className="text-muted-foreground">Select languages...</span>
+                    ) : (
+                      selectedLanguages.map((code) => {
+                        const lang = languages.find((l) => l.code === code);
+                        return (
+                          <span
+                            key={code}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-sm"
+                          >
+                            {lang?.name || code}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeLanguage(code);
+                              }}
+                              className="hover:text-primary/70"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        );
+                      })
+                    )}
+                    <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
+                  </div>
+
+                  {showLanguageDropdown && (
+                    <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {languages
+                        .filter((l) => l.code !== 'EN')
+                        .map((lang) => (
+                          <button
+                            key={lang.code}
+                            type="button"
+                            onClick={() => toggleLanguage(lang.code)}
+                            className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between"
+                          >
+                            <span>{lang.name}</span>
+                            {selectedLanguages.includes(lang.code) && (
+                              <Check className="h-4 w-4 text-primary" />
+                            )}
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Instant alerts notice */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+              <Zap className="h-4 w-4 text-yellow-500" />
+              <span>You&apos;ll get instant alerts for matching jobs</span>
+            </div>
+          </>
+        )}
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button
           onClick={handleSendMagicLink}
-          disabled={isCheckingEmail || !email}
+          disabled={isLoading || isExistingUser === null || (isExistingUser === false && selectedCategories.length === 0)}
           className="w-full"
           size="lg"
         >
-          {isCheckingEmail ? (
+          {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Sending...
             </>
           ) : (
-            'Send Magic Link'
+            <>
+              <Mail className="mr-2 h-4 w-4" />
+              Send Magic Link
+            </>
           )}
         </Button>
 
