@@ -8,6 +8,7 @@ import { prisma } from '@/lib/db';
  * Query params:
  * - category: category slug (optional)
  * - country: country code (optional)
+ * - languages: comma-separated language codes, e.g. "ES,FR" (optional, filters by source/target)
  * - days: number of days to look back (default 7)
  */
 export async function GET(request: NextRequest) {
@@ -15,9 +16,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const country = searchParams.get('country');
+    const languagesParam = searchParams.get('languages');
     const days = parseInt(searchParams.get('days') || '7');
 
     const dateFilter = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const langCodes = languagesParam ? languagesParam.split(',').map(l => l.trim().toUpperCase()).filter(Boolean) : [];
 
     // Build where clause (same structure for both Job and Opportunity)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,6 +35,15 @@ export async function GET(request: NextRequest) {
 
     if (country) {
       where.country = country;
+    }
+
+    // Filter by languages: job must have at least one of the selected languages
+    // in either sourceLanguages or targetLanguages
+    if (langCodes.length > 0) {
+      where.OR = [
+        { sourceLanguages: { hasSome: langCodes } },
+        { targetLanguages: { hasSome: langCodes } },
+      ];
     }
 
     // Count both jobs and opportunities

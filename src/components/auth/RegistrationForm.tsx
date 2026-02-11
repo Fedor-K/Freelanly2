@@ -103,10 +103,13 @@ export function RegistrationForm({
 
     setIsLoadingJobCount(true);
     try {
-      // Fetch count for each category (no country filter — show worldwide total)
       const counts = await Promise.all(
         selectedCategories.map(async (category) => {
           const params = new URLSearchParams({ category, days: '7' });
+          // For translation category, filter by selected languages
+          if (category === 'translation' && selectedLanguages.length > 0) {
+            params.set('languages', selectedLanguages.join(','));
+          }
           const res = await fetch(`/api/jobs/count?${params}`);
           return res.json();
         })
@@ -126,7 +129,7 @@ export function RegistrationForm({
     } finally {
       setIsLoadingJobCount(false);
     }
-  }, [selectedCategories]);
+  }, [selectedCategories, selectedLanguages]);
 
   // Debounced fetch on filter changes
   useEffect(() => {
@@ -136,7 +139,7 @@ export function RegistrationForm({
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [selectedCategories, step, fetchJobCount]);
+  }, [selectedCategories, selectedLanguages, step, fetchJobCount]);
 
   const showTranslationFields = selectedCategories.includes('translation');
 
