@@ -143,8 +143,8 @@ export function RegistrationForm({
 
   const showTranslationFields = selectedCategories.includes('translation');
 
-  // Check if email exists
-  const checkEmail = async () => {
+  // Send magic link directly (for both new and existing users)
+  const handleSendMagicLink = async () => {
     if (!email || !email.includes('@')) {
       setError('Please enter a valid email');
       return;
@@ -154,22 +154,42 @@ export function RegistrationForm({
     setError('');
 
     try {
-      const response = await fetch('/api/auth/check-email', {
+      // Check if user exists, if not — register them
+      const checkRes = await fetch('/api/auth/check-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
+      const checkData = await checkRes.json();
 
-      const data = await response.json();
-
-      if (data.exists) {
-        setUserInfo({ name: data.name, isVerified: data.isVerified });
-        setStep('login');
-      } else {
-        setStep('register');
+      if (!checkData.exists) {
+        // Create user without alerts (they can set up later)
+        const regRes = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, categories: [], agreedToTerms: true }),
+        });
+        if (!regRes.ok) {
+          const data = await regRes.json();
+          throw new Error(data.error || 'Registration failed');
+        }
       }
-    } catch {
-      setError('Something went wrong. Please try again.');
+
+      // Send magic link
+      const result = await signIn('resend', {
+        email,
+        callbackUrl: callbackUrl || '/',
+        redirect: false,
+      });
+
+      if (result?.ok) {
+        setStep('sent');
+        onEmailSent?.(email);
+      } else {
+        throw new Error('Failed to send magic link');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
       setIsCheckingEmail(false);
     }
@@ -178,7 +198,7 @@ export function RegistrationForm({
   const handleEmailKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      checkEmail();
+      handleSendMagicLink();
     }
   };
 
@@ -388,7 +408,7 @@ export function RegistrationForm({
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button
-          onClick={checkEmail}
+          onClick={handleSendMagicLink}
           disabled={isCheckingEmail || !email}
           className="w-full"
           size="lg"
@@ -396,15 +416,15 @@ export function RegistrationForm({
           {isCheckingEmail ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Checking...
+              Sending...
             </>
           ) : (
-            'Continue'
+            'Send Magic Link'
           )}
         </Button>
 
         <p className="text-center text-xs text-muted-foreground">
-          We&apos;ll check if you have an account or help you create one.
+          We&apos;ll send a sign-in link to your email.
         </p>
       </div>
     );
