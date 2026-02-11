@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 
 /**
  * GET /api/jobs/count
- * Returns job count for given criteria (for alert preview)
+ * Returns job + opportunity count for given criteria (for alert preview)
  *
  * Query params:
  * - category: category slug (optional)
@@ -17,13 +17,13 @@ export async function GET(request: NextRequest) {
     const country = searchParams.get('country');
     const days = parseInt(searchParams.get('days') || '7');
 
-    // Build where clause
+    const dateFilter = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    // Build where clause (same structure for both Job and Opportunity)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
       isActive: true,
-      postedAt: {
-        gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
-      },
+      postedAt: { gte: dateFilter },
     };
 
     if (category) {
@@ -34,15 +34,23 @@ export async function GET(request: NextRequest) {
       where.country = country;
     }
 
-    // Count jobs matching criteria
-    const count = await prisma.job.count({ where });
+    // Count both jobs and opportunities
+    const [jobCount, oppCount] = await Promise.all([
+      prisma.job.count({ where }),
+      prisma.opportunity.count({ where }),
+    ]);
+    const count = jobCount + oppCount;
 
     // Also get count without country filter for comparison
     let countWithoutCountry = count;
     if (country) {
       const whereWithoutCountry = { ...where };
       delete whereWithoutCountry.country;
-      countWithoutCountry = await prisma.job.count({ where: whereWithoutCountry });
+      const [jobCountNoCountry, oppCountNoCountry] = await Promise.all([
+        prisma.job.count({ where: whereWithoutCountry }),
+        prisma.opportunity.count({ where: whereWithoutCountry }),
+      ]);
+      countWithoutCountry = jobCountNoCountry + oppCountNoCountry;
     }
 
     // Calculate daily average
