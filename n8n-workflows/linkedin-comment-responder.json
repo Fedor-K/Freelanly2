@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "url": "https://freelanly.com/api/social/posted-urns?days=3",
+        "url": "https://freelanly.com/api/social/posted-urns?days=14",
         "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
@@ -62,7 +62,7 @@
     },
     {
       "parameters": {
-        "url": "=https://api.linkedin.com/v2/socialActions/{{ encodeURIComponent($json.postUrn) }}/comments",
+        "url": "=https://api.linkedin.com/v2/socialActions/{{ encodeURIComponent($json.postUrn) }}/comments?projection=(elements*(id,actor~(localizedFirstName,localizedLastName,localizedHeadline),message,created,commentUrn))",
         "authentication": "genericCredentialType",
         "genericAuthType": "oAuth2Api",
         "options": {}
@@ -75,7 +75,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst elements = input.elements || [];\nconst postUrn = $('Loop Posts').first().json.postUrn;\nconst postText = $('Loop Posts').first().json.postText;\nconst ownOrgUrn = 'urn:li:organization:53520294';\n\n// Filter out own comments and replies (from Freelanly org)\nconst externalComments = elements.filter(c => c.actor !== ownOrgUrn);\n\nif (externalComments.length === 0) {\n  return [{ json: { noComments: true, postUrn } }];\n}\n\nreturn externalComments.map(c => ({\n  json: {\n    commentId: c.id,\n    commentUrn: c.commentUrn || ('urn:li:comment:(' + postUrn + ',' + c.id + ')'),\n    authorUrn: c.actor,\n    commentText: c.message?.text || '',\n    createdTime: c.created?.time || 0,\n    postUrn,\n    postText\n  }\n}));"
+        "jsCode": "const input = $input.first().json;\nconst elements = input.elements || [];\nconst postUrn = $('Loop Posts').first().json.postUrn;\nconst postText = $('Loop Posts').first().json.postText;\nconst ownOrgUrn = 'urn:li:organization:53520294';\n\n// Filter out own org comments, keep only external\nconst external = elements.filter(c => c.actor !== ownOrgUrn);\n\nif (external.length === 0) {\n  return [{ json: { noComments: true, postUrn } }];\n}\n\nreturn external.map(c => {\n  const profile = c['actor~'] || {};\n  const firstName = profile.localizedFirstName || '';\n  const lastName = profile.localizedLastName || '';\n  return {\n    json: {\n      commentUrn: c.commentUrn || ('urn:li:comment:(' + postUrn + ',' + c.id + ')'),\n      commentId: c.id,\n      authorUrn: c.actor,\n      authorName: [firstName, lastName].filter(Boolean).join(' ') || 'there',\n      authorHeadline: profile.localizedHeadline || '',\n      commentText: c.message?.text || '',\n      createdTime: c.created?.time || 0,\n      postUrn,\n      postText\n    }\n  };\n});"
       },
       "id": "extract-comments-001",
       "name": "Extract Comments",
@@ -114,6 +114,17 @@
     },
     {
       "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-replies-001",
+      "name": "Loop Replies",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [1168, 400],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "https://freelanly.com/api/social/check-replied",
         "authentication": "none",
@@ -134,7 +145,7 @@
       "id": "check-replied-001",
       "name": "Already Replied?",
       "type": "n8n-nodes-base.httpRequest",
-      "position": [1168, 400],
+      "position": [1392, 400],
       "typeVersion": 4.2
     },
     {
@@ -163,7 +174,7 @@
       "id": "is-new-001",
       "name": "Is New?",
       "type": "n8n-nodes-base.if",
-      "position": [1392, 400],
+      "position": [1616, 400],
       "typeVersion": 2
     },
     {
@@ -186,13 +197,13 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'glm-4-32b-0414-128k', messages: [{ role: 'system', content: 'You are the social media manager for Freelanly.com \\u2014 a platform that aggregates 1000+ fresh remote freelance jobs daily from LinkedIn, Lever, and other sources. You reply to comments on Freelanly\\'s LinkedIn posts. EVERY post is about a specific freelance job opportunity.\\n\\nYour goals:\\n1. Engage the commenter warmly\\n2. ALWAYS encourage them to visit freelanly.com to apply or set up free instant job alerts\\n3. Highlight the value: free alerts, fresh jobs daily, direct client contacts\\n\\nRules:\\n- Reply in the SAME LANGUAGE as the comment\\n- 2-3 sentences max\\n- Be enthusiastic but genuine, not robotic\\n- ALWAYS include a call-to-action: sign up for free alerts at freelanly.com, apply on freelanly.com, or check freelanly.com for more jobs like this\\n- If someone says they\\'re interested or this is great \\u2014 tell them to apply NOW on freelanly.com before the client hires someone else\\n- If someone tags a friend or says \\'following\\' \\u2014 tell them both to set up free alerts on freelanly.com so they never miss opportunities\\n- Never just say \\'thanks\\' without directing them to freelanly.com\\n- Sound human and friendly, like a helpful community manager' }, { role: 'user', content: 'Our LinkedIn post was about this job:\\n' + $('Extract Comments').item.json.postText + '\\n\\nSomeone commented:\\n' + $('Extract Comments').item.json.commentText + '\\n\\nWrite an engaging reply that motivates them to visit freelanly.com:' }], temperature: 0.8, max_tokens: 250 }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'glm-4-32b-0414-128k', messages: [{ role: 'system', content: 'You are the social media manager for Freelanly.com \\u2014 a platform that aggregates 1000+ fresh remote freelance jobs daily from LinkedIn, Lever, and other sources. You reply to comments on Freelanly\\'s LinkedIn posts. EVERY post is about a specific freelance job opportunity.\\n\\nYour goals:\\n1. Engage the commenter BY NAME (use their first name!)\\n2. If their headline/profession is relevant to the job \\u2014 mention it to personalize\\n3. Encourage them to apply on freelanly.com\\n4. ALWAYS mention signing up for FREE instant job alerts on freelanly.com to never miss similar projects\\n\\nRules:\\n- Reply in the SAME LANGUAGE as the comment\\n- 2-3 sentences max\\n- Start with their name if available (e.g. \\\"Hey John!\\\" or \\\"Thanks Maria!\\\")\\n- If their headline matches the job (e.g. they\\'re a designer and the job is for designers) \\u2014 say something like \\\"This looks like a perfect fit for you!\\\"\\n- Structure: (1) personalized greeting with name, (2) encourage to apply NOW on freelanly.com, (3) mention free instant job alerts for similar projects\\n- ALWAYS end with something about signing up for free instant alerts on freelanly.com\\n- Sound human and friendly, like a helpful community manager\\n- Never just say \\'thanks\\' without the CTA' }, { role: 'user', content: 'Our LinkedIn post was about this job:\\n' + $('Loop Replies').first().json.postText + '\\n\\nCommenter\\'s name: ' + $('Loop Replies').first().json.authorName + '\\nCommenter\\'s headline: ' + ($('Loop Replies').first().json.authorHeadline || 'unknown') + '\\nTheir comment: ' + $('Loop Replies').first().json.commentText + '\\n\\nWrite a personalized reply using their name. Must mention applying on freelanly.com AND signing up for free instant job alerts:' }], temperature: 0.8, max_tokens: 250 }) }}",
         "options": {}
       },
       "id": "ai-reply-001",
       "name": "Generate AI Reply",
       "type": "n8n-nodes-base.httpRequest",
-      "position": [1616, 400],
+      "position": [1840, 400],
       "typeVersion": 4.2
     },
     {
@@ -203,14 +214,14 @@
       "id": "wait-001",
       "name": "Wait 65s",
       "type": "n8n-nodes-base.wait",
-      "position": [1840, 400],
+      "position": [2064, 400],
       "typeVersion": 1.1,
       "webhookId": "wait-linkedin-rate"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.linkedin.com/v2/socialActions/{{ encodeURIComponent($('Extract Comments').item.json.postUrn) }}/comments",
+        "url": "=https://api.linkedin.com/v2/socialActions/{{ encodeURIComponent($('Loop Replies').first().json.postUrn) }}/comments",
         "authentication": "genericCredentialType",
         "genericAuthType": "oAuth2Api",
         "sendHeaders": true,
@@ -224,13 +235,13 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"actor\": \"urn:li:organization:53520294\",\n  \"object\": \"{{ $('Extract Comments').item.json.postUrn }}\",\n  \"message\": {\n    \"text\": \"{{ $('Generate AI Reply').item.json.choices[0].message.content }}\"\n  },\n  \"parentComment\": \"{{ $('Extract Comments').item.json.commentUrn }}\"\n}",
+        "jsonBody": "={\n  \"actor\": \"urn:li:organization:53520294\",\n  \"object\": \"{{ $('Loop Replies').first().json.postUrn }}\",\n  \"message\": {\n    \"text\": \"{{ $('Generate AI Reply').item.json.choices[0].message.content }}\"\n  },\n  \"parentComment\": \"{{ $('Loop Replies').first().json.commentUrn }}\"\n}",
         "options": {}
       },
       "id": "post-reply-001",
       "name": "Post Reply",
       "type": "n8n-nodes-base.httpRequest",
-      "position": [2064, 400],
+      "position": [2288, 400],
       "typeVersion": 4.2
     },
     {
@@ -249,20 +260,20 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"commentId\": \"{{ $('Extract Comments').item.json.commentId }}\",\n  \"postUrn\": \"{{ $('Extract Comments').item.json.postUrn }}\",\n  \"commentText\": \"{{ $('Extract Comments').item.json.commentText }}\",\n  \"aiReply\": \"{{ $('Generate AI Reply').item.json.choices[0].message.content }}\"\n}",
+        "jsonBody": "={\n  \"commentId\": \"{{ $('Loop Replies').first().json.commentId }}\",\n  \"postUrn\": \"{{ $('Loop Replies').first().json.postUrn }}\",\n  \"commentText\": \"{{ $('Loop Replies').first().json.commentText }}\",\n  \"aiReply\": \"{{ $('Generate AI Reply').item.json.choices[0].message.content }}\"\n}",
         "options": {}
       },
       "id": "log-reply-001",
       "name": "Log Reply",
       "type": "n8n-nodes-base.httpRequest",
-      "position": [2288, 400],
+      "position": [2512, 400],
       "typeVersion": 4.2
     },
     {
       "parameters": {},
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [1168, 600],
+      "position": [1168, 650],
       "id": "no-comments-001",
       "name": "No Comments"
     },
@@ -270,8 +281,8 @@
       "parameters": {},
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [1616, 600],
-      "id": "already-replied-001",
+      "position": [1840, 550],
+      "id": "skip-replied-001",
       "name": "Skip Replied"
     }
   ],
@@ -280,33 +291,21 @@
     "Every 10 min": {
       "main": [
         [
-          {
-            "node": "Fetch Post URNs",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Fetch Post URNs", "type": "main", "index": 0 }
         ]
       ]
     },
     "Fetch Post URNs": {
       "main": [
         [
-          {
-            "node": "Extract Posts",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Extract Posts", "type": "main", "index": 0 }
         ]
       ]
     },
     "Extract Posts": {
       "main": [
         [
-          {
-            "node": "Loop Posts",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Loop Posts", "type": "main", "index": 0 }
         ]
       ]
     },
@@ -314,146 +313,100 @@
       "main": [
         [],
         [
-          {
-            "node": "Fetch Comments",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Fetch Comments", "type": "main", "index": 0 }
         ]
       ]
     },
     "Fetch Comments": {
       "main": [
         [
-          {
-            "node": "Extract Comments",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Extract Comments", "type": "main", "index": 0 }
         ]
       ]
     },
     "Extract Comments": {
       "main": [
         [
-          {
-            "node": "Has Comments?",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Has Comments?", "type": "main", "index": 0 }
         ]
       ]
     },
     "Has Comments?": {
       "main": [
         [
-          {
-            "node": "Already Replied?",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Loop Replies", "type": "main", "index": 0 }
         ],
         [
-          {
-            "node": "No Comments",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "No Comments", "type": "main", "index": 0 }
         ]
       ]
     },
     "No Comments": {
       "main": [
         [
-          {
-            "node": "Loop Posts",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Loop Posts", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Loop Replies": {
+      "main": [
+        [
+          { "node": "Loop Posts", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Already Replied?", "type": "main", "index": 0 }
         ]
       ]
     },
     "Already Replied?": {
       "main": [
         [
-          {
-            "node": "Is New?",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Is New?", "type": "main", "index": 0 }
         ]
       ]
     },
     "Is New?": {
       "main": [
         [
-          {
-            "node": "Generate AI Reply",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Generate AI Reply", "type": "main", "index": 0 }
         ],
         [
-          {
-            "node": "Skip Replied",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Skip Replied", "type": "main", "index": 0 }
         ]
       ]
     },
     "Generate AI Reply": {
       "main": [
         [
-          {
-            "node": "Wait 65s",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Wait 65s", "type": "main", "index": 0 }
         ]
       ]
     },
     "Wait 65s": {
       "main": [
         [
-          {
-            "node": "Post Reply",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Post Reply", "type": "main", "index": 0 }
         ]
       ]
     },
     "Post Reply": {
       "main": [
         [
-          {
-            "node": "Log Reply",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Log Reply", "type": "main", "index": 0 }
         ]
       ]
     },
     "Log Reply": {
       "main": [
         [
-          {
-            "node": "Loop Posts",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Loop Replies", "type": "main", "index": 0 }
         ]
       ]
     },
     "Skip Replied": {
       "main": [
         [
-          {
-            "node": "Loop Posts",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Loop Replies", "type": "main", "index": 0 }
         ]
       ]
     }
