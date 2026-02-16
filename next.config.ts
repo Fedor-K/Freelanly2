@@ -18,6 +18,10 @@ const skillRedirects = [
 ];
 
 const nextConfig: NextConfig = {
+  // Enforce no trailing slashes — prevents duplicate URLs
+  // /company/x/jobs/y/ → 301 → /company/x/jobs/y
+  trailingSlash: false,
+
   // Skip type checking during build (faster, less memory)
   typescript: {
     ignoreBuildErrors: true,

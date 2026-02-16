@@ -12,19 +12,10 @@ const VALID_CATEGORIES = new Set([
 export function middleware(req: NextRequest) {
   const host = req.headers.get('host') || '';
   const pathname = req.nextUrl.pathname;
+  const search = req.nextUrl.search;
 
-  // Detect old job URL patterns like /jobs/italian-translation-job-0398f84e
-  // These should return 404 instead of matching /jobs/[category]
-  const oldJobUrlMatch = pathname.match(/^\/jobs\/([^\/]+)$/);
-  if (oldJobUrlMatch) {
-    const slug = oldJobUrlMatch[1];
-    // If slug is NOT a valid category, it's an old job URL - return 404
-    if (!VALID_CATEGORIES.has(slug)) {
-      return new NextResponse('Not Found', { status: 404 });
-    }
-  }
-
-  // WWW to non-WWW redirect (301 permanent)
+  // 1. WWW to non-WWW redirect (301 permanent) — MUST be first
+  // Fixes 12.3K "Duplicate without user-selected canonical" in GSC
   if (host.startsWith('www.')) {
     const newHost = host.replace('www.', '');
     const newUrl = new URL(req.url);
@@ -32,7 +23,27 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(newUrl, 301);
   }
 
-  // SEO redirects for old/removed pages
+  // 2. Trailing slash redirect: /path/ → /path (301 permanent)
+  // Fixes duplicate content: /company/x/jobs/y vs /company/x/jobs/y/
+  // Don't redirect root "/" or paths that are just "/"
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    const newUrl = new URL(req.url);
+    newUrl.pathname = pathname.slice(0, -1);
+    return NextResponse.redirect(newUrl, 301);
+  }
+
+  // 3. Old job URL patterns → 410 Gone (not 404!)
+  // Google deindexes 410 on first crawl, 404 requires multiple recrawls
+  // Catches: /jobs/italian-translation-job-0398f84e, /jobs/some-old-slug
+  const oldJobUrlMatch = pathname.match(/^\/jobs\/([^\/]+)$/);
+  if (oldJobUrlMatch) {
+    const slug = oldJobUrlMatch[1];
+    if (!VALID_CATEGORIES.has(slug)) {
+      return new NextResponse('Gone', { status: 410 });
+    }
+  }
+
+  // 4. SEO redirects for old/removed pages (301 permanent)
   const seoRedirects: Record<string, string> = {
     '/for-interpreters': '/jobs/translation',
     '/for-translators': '/jobs/translation',
@@ -42,7 +53,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(seoRedirects[pathname], req.url), 301);
   }
 
-  // Check for session cookie (NextAuth session token)
+  // 5. Auth: check for session cookie (NextAuth session token)
   const sessionToken =
     req.cookies.get('authjs.session-token')?.value ||
     req.cookies.get('__Secure-authjs.session-token')?.value;

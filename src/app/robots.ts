@@ -17,8 +17,9 @@ export default function robots(): MetadataRoute.Robots {
           // Static assets (allow JS/CSS for rendering)
           '/_next/static/media/',
 
-          // Pagination pages (saves crawl budget, already noindexed)
-          '*?page=*',
+          // NOTE: *?page=* deliberately NOT blocked — Google must crawl
+          // paginated pages to see their noindex tag and deindex them.
+          // Blocking via robots.txt prevents Google from seeing noindex/404/410.
 
           // Search queries (dynamic, duplicate content)
           '*?q=*',
@@ -74,7 +75,6 @@ export default function robots(): MetadataRoute.Robots {
           '/admin/',
           '/dashboard/',
           '/auth/',
-          '*?page=*',
           '*?q=*',
           // Complex filter combinations (faceted navigation)
           '/jobs?*level=*&*level=*',
