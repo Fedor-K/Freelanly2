@@ -48,10 +48,7 @@ export async function generateMetadata({ params, searchParams }: CategoryCountry
   const country = getCountryBySlug(countrySlug);
 
   if (!category || !country) {
-    return {
-      title: 'Page Not Found',
-      robots: { index: false, follow: true },
-    };
+    notFound();
   }
 
   const pageNum = parseInt(page || '1', 10);

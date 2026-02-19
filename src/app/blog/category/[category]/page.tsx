@@ -59,10 +59,7 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   const category = await getCategory(categorySlug);
 
   if (!category) {
-    return {
-      title: 'Category Not Found',
-      robots: { index: false, follow: true },
-    };
+    notFound();
   }
 
   const title = category.metaTitle || `${category.name} - Remote Work Articles`;

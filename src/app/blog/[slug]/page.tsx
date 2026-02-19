@@ -71,10 +71,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   });
 
   if (!post) {
-    return {
-      title: 'Article Not Found',
-      robots: { index: false },
-    };
+    notFound();
   }
 
   const title = post.metaTitle || post.title;

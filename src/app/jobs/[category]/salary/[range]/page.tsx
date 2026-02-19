@@ -47,10 +47,7 @@ export async function generateMetadata({ params, searchParams }: CategorySalaryP
   const salaryRange = getSalaryRangeBySlug(rangeSlug);
 
   if (!category || !salaryRange) {
-    return {
-      title: 'Page Not Found',
-      robots: { index: false, follow: true },
-    };
+    notFound();
   }
 
   const pageNum = parseInt(page || '1', 10);

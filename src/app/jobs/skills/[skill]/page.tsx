@@ -38,10 +38,7 @@ export async function generateMetadata({ params, searchParams }: SkillPageProps)
   const skill = getSkillBySlug(skillSlug);
 
   if (!skill) {
-    return {
-      title: 'Skill Not Found',
-      robots: { index: false, follow: true },
-    };
+    notFound();
   }
 
   const pageNum = parseInt(page || '1', 10);

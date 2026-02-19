@@ -66,10 +66,7 @@ export async function generateMetadata({ params, searchParams }: CategoryPagePro
   const category = categories.find((c) => c.slug === categorySlug);
 
   if (!category) {
-    return {
-      title: 'Category Not Found',
-      robots: { index: false, follow: true },
-    };
+    notFound();
   }
 
   // Use SEO utility for consistent title truncation (max 60 chars)
