@@ -63,8 +63,8 @@
     {
       "parameters": {
         "url": "=https://api.linkedin.com/v2/socialActions/{{ encodeURIComponent($json.postUrn) }}/comments?projection=(elements*(id,actor~(localizedFirstName,localizedLastName,localizedHeadline),message,created,commentUrn))",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "oAuth2Api",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "linkedInCommunityManagementOAuth2Api",
         "options": {}
       },
       "id": "fetch-comments-001",
@@ -222,8 +222,8 @@
       "parameters": {
         "method": "POST",
         "url": "=https://api.linkedin.com/v2/socialActions/{{ encodeURIComponent($('Loop Replies').first().json.postUrn) }}/comments",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "oAuth2Api",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "linkedInCommunityManagementOAuth2Api",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

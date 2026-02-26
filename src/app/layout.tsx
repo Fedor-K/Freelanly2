@@ -139,6 +139,7 @@ export default function RootLayout({
             <img src="https://mc.yandex.ru/watch/103606747" style={{ position: 'absolute', left: '-9999px' }} alt="" />
           </div>
         </noscript>
+        <script id="vtag-ai-js" async src="https://r2.leadsy.ai/tag.js" data-pid="XmXSR8r7W3uP84n0" data-version="062024" />
       </head>
       <body className="font-sans antialiased">
         <SessionProvider>
