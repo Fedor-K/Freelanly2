@@ -123,7 +123,6 @@ export async function createCheckoutSession({
 
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: 'subscription',
-    payment_method_types: ['card'],
     line_items: [
       {
         price: priceId,
