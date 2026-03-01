@@ -211,11 +211,19 @@ export async function listCampaigns(): Promise<CampaignData[]> {
       ORDER BY campaign.name
     `);
 
+    const CHANNEL_TYPE_MAP: Record<number, string> = {
+      2: "SEARCH", 3: "DISPLAY", 6: "SHOPPING", 8: "VIDEO",
+      10: "PERFORMANCE_MAX", 14: "DISCOVERY", 16: "DEMAND_GEN",
+    };
+    const STATUS_MAP: Record<number, string> = {
+      2: "ENABLED", 3: "PAUSED", 4: "REMOVED",
+    };
+
     return rows.map((row: any) => ({
       id: String(row.campaign?.id ?? ""),
       name: row.campaign?.name ?? "",
-      status: row.campaign?.status ?? "UNKNOWN",
-      channelType: row.campaign?.advertising_channel_type ?? "UNKNOWN",
+      status: STATUS_MAP[row.campaign?.status] || String(row.campaign?.status ?? "UNKNOWN"),
+      channelType: CHANNEL_TYPE_MAP[row.campaign?.advertising_channel_type] || String(row.campaign?.advertising_channel_type ?? "UNKNOWN"),
       budgetAmountMicros: Number(row.campaign_budget?.amount_micros ?? 0),
       budgetAmount: fromMicros(Number(row.campaign_budget?.amount_micros ?? 0)),
       impressions: Number(row.metrics?.impressions ?? 0),
