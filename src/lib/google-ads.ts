@@ -194,85 +194,90 @@ export async function listCampaigns(dateRange?: { from: string; to: string }): P
   try {
     const customer = getCustomer();
 
-    // При фильтрации по дате GAQL требует segments.date в SELECT
-    // и возвращает по строке на каждый день — агрегируем вручную
-    const dateSelect = dateRange ? ', segments.date' : '';
-    const dateWhere = dateRange
-      ? ` AND segments.date BETWEEN '${dateRange.from}' AND '${dateRange.to}'`
-      : '';
-
-    const rows = await customer.query(`
-      SELECT
-        campaign.id,
-        campaign.name,
-        campaign.status,
-        campaign.advertising_channel_type,
-        campaign_budget.amount_micros,
-        metrics.impressions,
-        metrics.clicks,
-        metrics.cost_micros,
-        metrics.conversions,
-        metrics.ctr,
-        metrics.average_cpc
-        ${dateSelect}
-      FROM campaign
-      WHERE campaign.status != 'REMOVED'${dateWhere}
-      ORDER BY campaign.name
-    `);
-
     const CHANNEL_TYPE_MAP: Record<number, string> = {
       2: "SEARCH", 3: "DISPLAY", 6: "SHOPPING", 8: "VIDEO",
-      10: "PERFORMANCE_MAX", 14: "DISCOVERY", 16: "DEMAND_GEN",
+      9: "SMART", 10: "PERFORMANCE_MAX", 14: "DISCOVERY", 16: "DEMAND_GEN",
     };
     const STATUS_MAP: Record<number, string> = {
       2: "ENABLED", 3: "PAUSED", 4: "REMOVED",
     };
 
-    if (dateRange) {
-      // Агрегируем по campaign.id (несколько строк на кампанию — по дням)
-      const map = new Map<string, any>();
-      for (const row of rows as any[]) {
-        const id = String(row.campaign?.id ?? "");
-        if (!map.has(id)) {
-          map.set(id, {
-            id,
-            name: row.campaign?.name ?? "",
-            status: STATUS_MAP[row.campaign?.status] || String(row.campaign?.status ?? "UNKNOWN"),
-            channelType: CHANNEL_TYPE_MAP[row.campaign?.advertising_channel_type] || String(row.campaign?.advertising_channel_type ?? "UNKNOWN"),
-            budgetAmountMicros: Number(row.campaign_budget?.amount_micros ?? 0),
-            budgetAmount: fromMicros(Number(row.campaign_budget?.amount_micros ?? 0)),
-            impressions: 0, clicks: 0, costMicros: 0, conversions: 0,
-          });
-        }
-        const agg = map.get(id)!;
-        agg.impressions += Number(row.metrics?.impressions ?? 0);
-        agg.clicks += Number(row.metrics?.clicks ?? 0);
-        agg.costMicros += Number(row.metrics?.cost_micros ?? 0);
-        agg.conversions += Number(row.metrics?.conversions ?? 0);
-      }
-      return Array.from(map.values()).map((agg) => ({
-        ...agg,
-        cost: fromMicros(agg.costMicros),
-        ctr: agg.impressions > 0 ? agg.clicks / agg.impressions : 0,
-        averageCpc: agg.clicks > 0 ? fromMicros(agg.costMicros / agg.clicks) : 0,
-      }));
+    // Запрос 1: все кампании (без фильтра по дате) — для полного списка
+    const allRows = await customer.query(`
+      SELECT
+        campaign.id,
+        campaign.name,
+        campaign.status,
+        campaign.advertising_channel_type,
+        campaign_budget.amount_micros
+      FROM campaign
+      WHERE campaign.status != 'REMOVED'
+      ORDER BY campaign.name
+    `);
+
+    // Базовый список кампаний с нулевыми метриками
+    const campaignsMap = new Map<string, CampaignData>();
+    for (const row of allRows as any[]) {
+      const id = String(row.campaign?.id ?? "");
+      campaignsMap.set(id, {
+        id,
+        name: row.campaign?.name ?? "",
+        status: STATUS_MAP[row.campaign?.status] || String(row.campaign?.status ?? "UNKNOWN"),
+        channelType: CHANNEL_TYPE_MAP[row.campaign?.advertising_channel_type] || String(row.campaign?.advertising_channel_type ?? "UNKNOWN"),
+        budgetAmountMicros: Number(row.campaign_budget?.amount_micros ?? 0),
+        budgetAmount: fromMicros(Number(row.campaign_budget?.amount_micros ?? 0)),
+        impressions: 0, clicks: 0, costMicros: 0, cost: 0,
+        conversions: 0, ctr: 0, averageCpc: 0,
+      });
     }
 
-    return rows.map((row: any) => ({
-      id: String(row.campaign?.id ?? ""),
-      name: row.campaign?.name ?? "",
-      status: STATUS_MAP[row.campaign?.status] || String(row.campaign?.status ?? "UNKNOWN"),
-      channelType: CHANNEL_TYPE_MAP[row.campaign?.advertising_channel_type] || String(row.campaign?.advertising_channel_type ?? "UNKNOWN"),
-      budgetAmountMicros: Number(row.campaign_budget?.amount_micros ?? 0),
-      budgetAmount: fromMicros(Number(row.campaign_budget?.amount_micros ?? 0)),
-      impressions: Number(row.metrics?.impressions ?? 0),
-      clicks: Number(row.metrics?.clicks ?? 0),
-      costMicros: Number(row.metrics?.cost_micros ?? 0),
-      cost: fromMicros(Number(row.metrics?.cost_micros ?? 0)),
-      conversions: Number(row.metrics?.conversions ?? 0),
-      ctr: Number(row.metrics?.ctr ?? 0),
-      averageCpc: fromMicros(Number(row.metrics?.average_cpc ?? 0)),
-    }));
+    // Запрос 2: метрики (с фильтром по дате если указан)
+    const dateSelect = dateRange ? ', segments.date' : '';
+    const dateWhere = dateRange
+      ? ` AND segments.date BETWEEN '${dateRange.from}' AND '${dateRange.to}'`
+      : '';
+
+    const metricRows = await customer.query(`
+      SELECT
+        campaign.id,
+        metrics.impressions,
+        metrics.clicks,
+        metrics.cost_micros,
+        metrics.conversions
+        ${dateSelect}
+      FROM campaign
+      WHERE campaign.status != 'REMOVED'${dateWhere}
+    `);
+
+    // Агрегируем метрики по campaign.id
+    const metricsMap = new Map<string, { impressions: number; clicks: number; costMicros: number; conversions: number }>();
+    for (const row of metricRows as any[]) {
+      const id = String(row.campaign?.id ?? "");
+      if (!metricsMap.has(id)) {
+        metricsMap.set(id, { impressions: 0, clicks: 0, costMicros: 0, conversions: 0 });
+      }
+      const m = metricsMap.get(id)!;
+      m.impressions += Number(row.metrics?.impressions ?? 0);
+      m.clicks += Number(row.metrics?.clicks ?? 0);
+      m.costMicros += Number(row.metrics?.cost_micros ?? 0);
+      m.conversions += Number(row.metrics?.conversions ?? 0);
+    }
+
+    // Склеиваем: кампании + метрики
+    for (const [id, metrics] of metricsMap) {
+      const campaign = campaignsMap.get(id);
+      if (campaign) {
+        campaign.impressions = metrics.impressions;
+        campaign.clicks = metrics.clicks;
+        campaign.costMicros = metrics.costMicros;
+        campaign.cost = fromMicros(metrics.costMicros);
+        campaign.conversions = metrics.conversions;
+        campaign.ctr = metrics.impressions > 0 ? metrics.clicks / metrics.impressions : 0;
+        campaign.averageCpc = metrics.clicks > 0 ? fromMicros(metrics.costMicros / metrics.clicks) : 0;
+      }
+    }
+
+    return Array.from(campaignsMap.values());
   } catch (error) {
     console.error("[Google Ads] Ошибка получения кампаний:", error);
     throw new GoogleAdsError("Не удалось получить список кампаний", error);
