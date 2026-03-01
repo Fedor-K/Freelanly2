@@ -24,6 +24,12 @@ export const analyticsConfig = {
     enabled: !!process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
   },
 
+  // Google Ads Conversion Tracking
+  googleAds: {
+    id: process.env.NEXT_PUBLIC_GOOGLE_ADS_ID || '',
+    enabled: !!process.env.NEXT_PUBLIC_GOOGLE_ADS_ID,
+  },
+
   // Microsoft Clarity (бесплатные записи сессий)
   clarity: {
     id: process.env.NEXT_PUBLIC_CLARITY_ID || 'uqwmja72lg',
@@ -83,6 +89,18 @@ declare global {
 }
 
 /**
+ * Маппинг событий → Google Ads Conversion Labels
+ * Настраиваются в Google Ads → Tools → Conversions
+ * После создания конверсий в Google Ads, добавь label сюда
+ */
+const GOOGLE_ADS_CONVERSIONS: Record<string, string | undefined> = {
+  signup: process.env.NEXT_PUBLIC_GADS_CONV_SIGNUP || undefined,
+  upgrade_complete: process.env.NEXT_PUBLIC_GADS_CONV_PURCHASE || undefined,
+  job_apply_click: process.env.NEXT_PUBLIC_GADS_CONV_APPLY || undefined,
+  job_alert_subscribe: process.env.NEXT_PUBLIC_GADS_CONV_SUBSCRIBE || undefined,
+};
+
+/**
  * Отправляет событие во все подключённые системы аналитики
  */
 export function track<E extends AnalyticsEvent>(event: E): void {
@@ -106,6 +124,19 @@ export function track<E extends AnalyticsEvent>(event: E): void {
   // Google Analytics 4
   if (analyticsConfig.googleAnalytics.enabled && window.gtag) {
     window.gtag('event', name, params);
+  }
+
+  // Google Ads Conversion Tracking
+  if (analyticsConfig.googleAds.enabled && window.gtag) {
+    const conversionLabel = GOOGLE_ADS_CONVERSIONS[name];
+    if (conversionLabel) {
+      window.gtag('event', 'conversion', {
+        send_to: `${analyticsConfig.googleAds.id}/${conversionLabel}`,
+        ...(name === 'upgrade_complete' && 'amount' in params
+          ? { value: params.amount, currency: 'EUR' }
+          : {}),
+      });
+    }
   }
 
   // Console log in development

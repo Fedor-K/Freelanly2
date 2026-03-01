@@ -19,6 +19,7 @@ import {
   UserPlus,
   Hash,
   Mail,
+  Megaphone,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -43,6 +44,7 @@ const navigation = [
       { name: 'Apify LinkedIn', href: '/admin/sources/apify' },
     ],
   },
+  { name: 'Google Ads', href: '/admin/google-ads', icon: Megaphone },
   { name: 'Keywords', href: '/admin/keywords', icon: Hash },
   { name: 'Import Logs', href: '/admin/logs', icon: FileText },
 ];

@@ -56,6 +56,35 @@ export function AnalyticsScripts() {
         </>
       )}
 
+      {/* Google Ads Conversion Tracking */}
+      {analyticsConfig.googleAds.enabled && (
+        <>
+          {/* Если GA4 не включён, нужен свой gtag скрипт */}
+          {!analyticsConfig.googleAnalytics.enabled && (
+            <>
+              <Script
+                src={`https://www.googletagmanager.com/gtag/js?id=${analyticsConfig.googleAds.id}`}
+                strategy="afterInteractive"
+              />
+              <Script id="google-ads-gtag" strategy="afterInteractive">
+                {`
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                `}
+              </Script>
+            </>
+          )}
+          <Script id="google-ads-config" strategy="afterInteractive">
+            {`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('config', '${analyticsConfig.googleAds.id}');
+            `}
+          </Script>
+        </>
+      )}
+
       {/* Microsoft Clarity (бесплатные записи сессий + heatmaps) */}
       {analyticsConfig.clarity.enabled && (
         <Script id="microsoft-clarity" strategy="afterInteractive">
