@@ -108,6 +108,7 @@ export async function createCheckoutSession({
   source,
   jobId,
   opportunityId,
+  gclid,
 }: {
   userId: string;
   userEmail: string;
@@ -117,6 +118,7 @@ export async function createCheckoutSession({
   source?: string;      // Where user came from: 'job_page', 'opportunity_page', 'pricing', 'header', etc.
   jobId?: string;       // If came from a specific job
   opportunityId?: string; // If came from a specific opportunity
+  gclid?: string;       // Google Click ID for offline conversion tracking
 }): Promise<Stripe.Checkout.Session> {
   const priceId = STRIPE_PRICES[priceKey];
   const priceInfo = PRICE_INFO[priceKey];
@@ -139,6 +141,7 @@ export async function createCheckoutSession({
       ...(source && { source }),
       ...(jobId && { jobId }),
       ...(opportunityId && { opportunityId }),
+      ...(gclid && { gclid }),
     },
     // Add trial for monthly and annual
     subscription_data: priceInfo.hasTrial

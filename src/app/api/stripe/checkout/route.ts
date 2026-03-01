@@ -41,6 +41,12 @@ export async function POST(request: NextRequest) {
     const successUrl = `${baseUrl}/jobs?subscription=success&welcome=1`;
     const cancelUrl = `${baseUrl}/pricing?subscription=cancelled`;
 
+    // Fetch user to get gclid for Google Ads attribution
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { gclid: true },
+    });
+
     // Create Stripe Checkout session with source tracking
     const checkoutSession = await createCheckoutSession({
       userId: session.user.id,
@@ -51,6 +57,7 @@ export async function POST(request: NextRequest) {
       source,
       jobId,
       opportunityId,
+      gclid: user?.gclid || undefined,
     });
 
     // Save checkout session to DB for abandoned cart tracking

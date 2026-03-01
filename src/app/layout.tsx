@@ -6,6 +6,8 @@ import { AnalyticsScripts } from "@/components/analytics/AnalyticsScripts";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { ExitIntentPopup } from "@/components/ExitIntentPopup";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
+import { GclidCapture } from "@/components/analytics/GclidCapture";
+import { Suspense } from "react";
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -143,6 +145,9 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased">
         <SessionProvider>
+          <Suspense fallback={null}>
+            <GclidCapture />
+          </Suspense>
           {children}
           <Analytics />
           <ExitIntentPopup />

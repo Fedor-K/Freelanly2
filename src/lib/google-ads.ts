@@ -869,6 +869,61 @@ export class GoogleAdsError extends Error {
 }
 
 // ---------------------------------------------------------------------------
+// Offline Conversion Upload
+// ---------------------------------------------------------------------------
+
+/**
+ * Upload an offline conversion to Google Ads.
+ * Call this after successful Stripe payment when user has a gclid.
+ * Non-blocking — errors are logged but don't break the payment flow.
+ *
+ * @param gclid - Google Click ID from the user record
+ * @param conversionValue - Payment amount in main currency units (e.g. 15 for €15)
+ * @param currencyCode - ISO 4217 currency code (e.g. 'EUR')
+ * @param orderId - Optional Stripe session/subscription ID for deduplication
+ */
+export async function uploadOfflineConversion(params: {
+  gclid: string;
+  conversionValue: number;
+  currencyCode: string;
+  orderId?: string;
+}): Promise<void> {
+  const conversionActionId = (process.env.GOOGLE_ADS_CONVERSION_ACTION_ID || "").trim();
+
+  if (!conversionActionId) {
+    console.log('[Google Ads] GOOGLE_ADS_CONVERSION_ACTION_ID not set — skipping offline conversion');
+    return;
+  }
+
+  try {
+    const customer = getCustomer();
+
+    // Format datetime: yyyy-mm-dd hh:mm:ss+|-hh:mm
+    const now = new Date();
+    const conversionDateTime = now.toISOString().replace('T', ' ').replace('Z', '+00:00').slice(0, 25);
+
+    await customer.uploadClickConversions({
+      conversions: [
+        {
+          gclid: params.gclid,
+          conversion_action: `customers/${CUSTOMER_ID}/conversionActions/${conversionActionId}`,
+          conversion_date_time: conversionDateTime,
+          conversion_value: params.conversionValue,
+          currency_code: params.currencyCode,
+          order_id: params.orderId,
+        },
+      ],
+      partial_failure: true,
+    });
+
+    console.log(`[Google Ads] Offline conversion uploaded: gclid=${params.gclid}, value=${params.conversionValue} ${params.currencyCode}`);
+  } catch (error) {
+    // Non-blocking: log error but don't throw
+    console.error('[Google Ads] Failed to upload offline conversion:', error);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Утилиты (реэкспорт)
 // ---------------------------------------------------------------------------
 

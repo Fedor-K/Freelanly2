@@ -57,6 +57,9 @@ model User {
   // Legal compliance (for dispute evidence)
   agreedToTermsAt           DateTime?                 // When user agreed to ToS
 
+  // Google Ads attribution
+  gclid                     String?                   // Google Click ID for offline conversion tracking
+
   // Relations
   accounts      Account[]
   sessions      Session[]

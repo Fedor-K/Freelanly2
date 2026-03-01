@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
 import { constructWebhookEvent } from '@/lib/stripe';
 import { sendActivationEmail } from '@/services/activation-emails';
+import { uploadOfflineConversion } from '@/lib/google-ads';
 import { ActivityAction } from '@prisma/client';
 
 // Disable body parsing - we need raw body for signature verification
@@ -192,6 +193,29 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       stripeSubscriptionId: subscriptionId,
     },
   });
+
+  // Upload offline conversion to Google Ads (non-blocking)
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { gclid: true },
+    });
+
+    if (user?.gclid) {
+      const amountInCurrency = (session.amount_total || 0) / 100;
+      uploadOfflineConversion({
+        gclid: user.gclid,
+        conversionValue: amountInCurrency,
+        currencyCode: (session.currency || 'eur').toUpperCase(),
+        orderId: session.id,
+      }).catch((err) => {
+        console.error('[Stripe Webhook] Offline conversion upload failed:', err);
+      });
+      console.log(`[Stripe Webhook] Offline conversion queued for user ${userId}, gclid=${user.gclid}`);
+    }
+  } catch (e) {
+    console.error('[Stripe Webhook] Error reading gclid for offline conversion:', e);
+  }
 
   // Send welcome activation email with personalized job picks
   try {
