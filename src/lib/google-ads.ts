@@ -14,14 +14,14 @@ import type { Customer } from "google-ads-api";
 // ---------------------------------------------------------------------------
 
 const GOOGLE_ADS_CONFIG = {
-  client_id: process.env.GOOGLE_ADS_CLIENT_ID || "",
-  client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET || "",
-  developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN || "",
+  client_id: (process.env.GOOGLE_ADS_CLIENT_ID || "").trim(),
+  client_secret: (process.env.GOOGLE_ADS_CLIENT_SECRET || "").trim(),
+  developer_token: (process.env.GOOGLE_ADS_DEVELOPER_TOKEN || "").trim(),
 };
 
-const CUSTOMER_ID = process.env.GOOGLE_ADS_CUSTOMER_ID || "";
-const MANAGER_ID = process.env.GOOGLE_ADS_MANAGER_ID || "";
-const REFRESH_TOKEN = process.env.GOOGLE_ADS_REFRESH_TOKEN || "";
+const CUSTOMER_ID = (process.env.GOOGLE_ADS_CUSTOMER_ID || "").trim();
+const MANAGER_ID = (process.env.GOOGLE_ADS_MANAGER_ID || "").trim();
+const REFRESH_TOKEN = (process.env.GOOGLE_ADS_REFRESH_TOKEN || "").trim();
 
 // ---------------------------------------------------------------------------
 // Типы
