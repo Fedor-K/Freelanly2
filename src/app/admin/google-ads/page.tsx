@@ -15,6 +15,7 @@ import {
   Target,
   RefreshCw,
   Loader2,
+  Calendar,
 } from 'lucide-react';
 
 // ============================================
@@ -161,20 +162,38 @@ export default function GoogleAdsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState('');
+  const [datePeriod, setDatePeriod] = useState('30'); // '' = all time, '0' = today, '7', '30'
+
+  // Вычислить from/to из периода
+  function getDateRange(period: string): { from: string; to: string } | undefined {
+    if (!period) return undefined;
+    const today = new Date();
+    const to = today.toISOString().slice(0, 10);
+    const days = Number(period);
+    const from = new Date(today);
+    from.setDate(from.getDate() - days);
+    return { from: from.toISOString().slice(0, 10), to };
+  }
 
   // Загрузка кампаний
   const loadCampaigns = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await api('GET', { action: 'campaigns' });
+      const range = getDateRange(datePeriod);
+      const params: Record<string, string> = { action: 'campaigns' };
+      if (range) {
+        params.from = range.from;
+        params.to = range.to;
+      }
+      const data = await api('GET', params);
       setCampaigns(data.campaigns);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load campaigns');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [datePeriod]);
 
   useEffect(() => { loadCampaigns(); }, [loadCampaigns]);
 
@@ -281,7 +300,22 @@ export default function GoogleAdsPage() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {view === 'campaigns' && (
+            <div className="flex items-center gap-1 text-sm">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <select
+                value={datePeriod}
+                onChange={(e) => setDatePeriod(e.target.value)}
+                className="border rounded-lg px-2 py-1.5 bg-background text-sm"
+              >
+                <option value="">Всё время</option>
+                <option value="0">Сегодня</option>
+                <option value="7">Последние 7 дней</option>
+                <option value="30">Последние 30 дней</option>
+              </select>
+            </div>
+          )}
           <button onClick={loadCampaigns} className="p-2 hover:bg-muted rounded-lg" title="Обновить">
             <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
           </button>

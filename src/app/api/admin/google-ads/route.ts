@@ -54,7 +54,10 @@ export async function GET(req: NextRequest) {
   try {
     switch (action) {
       case 'campaigns': {
-        const campaigns = await listCampaigns();
+        const from = searchParams.get('from');
+        const to = searchParams.get('to');
+        const dateRange = from && to ? { from, to } : undefined;
+        const campaigns = await listCampaigns(dateRange);
         return NextResponse.json({ campaigns });
       }
 

@@ -187,11 +187,19 @@ export function getCustomer(customerId?: string): Customer {
 
 /**
  * Получает список всех кампаний со статистикой.
+ * @param dateRange - Опциональный диапазон дат { from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }
  * @returns Массив кампаний с метриками
  */
-export async function listCampaigns(): Promise<CampaignData[]> {
+export async function listCampaigns(dateRange?: { from: string; to: string }): Promise<CampaignData[]> {
   try {
     const customer = getCustomer();
+
+    // При фильтрации по дате GAQL требует segments.date в SELECT
+    // и возвращает по строке на каждый день — агрегируем вручную
+    const dateSelect = dateRange ? ', segments.date' : '';
+    const dateWhere = dateRange
+      ? ` AND segments.date BETWEEN '${dateRange.from}' AND '${dateRange.to}'`
+      : '';
 
     const rows = await customer.query(`
       SELECT
@@ -206,8 +214,9 @@ export async function listCampaigns(): Promise<CampaignData[]> {
         metrics.conversions,
         metrics.ctr,
         metrics.average_cpc
+        ${dateSelect}
       FROM campaign
-      WHERE campaign.status != 'REMOVED'
+      WHERE campaign.status != 'REMOVED'${dateWhere}
       ORDER BY campaign.name
     `);
 
@@ -218,6 +227,36 @@ export async function listCampaigns(): Promise<CampaignData[]> {
     const STATUS_MAP: Record<number, string> = {
       2: "ENABLED", 3: "PAUSED", 4: "REMOVED",
     };
+
+    if (dateRange) {
+      // Агрегируем по campaign.id (несколько строк на кампанию — по дням)
+      const map = new Map<string, any>();
+      for (const row of rows as any[]) {
+        const id = String(row.campaign?.id ?? "");
+        if (!map.has(id)) {
+          map.set(id, {
+            id,
+            name: row.campaign?.name ?? "",
+            status: STATUS_MAP[row.campaign?.status] || String(row.campaign?.status ?? "UNKNOWN"),
+            channelType: CHANNEL_TYPE_MAP[row.campaign?.advertising_channel_type] || String(row.campaign?.advertising_channel_type ?? "UNKNOWN"),
+            budgetAmountMicros: Number(row.campaign_budget?.amount_micros ?? 0),
+            budgetAmount: fromMicros(Number(row.campaign_budget?.amount_micros ?? 0)),
+            impressions: 0, clicks: 0, costMicros: 0, conversions: 0,
+          });
+        }
+        const agg = map.get(id)!;
+        agg.impressions += Number(row.metrics?.impressions ?? 0);
+        agg.clicks += Number(row.metrics?.clicks ?? 0);
+        agg.costMicros += Number(row.metrics?.cost_micros ?? 0);
+        agg.conversions += Number(row.metrics?.conversions ?? 0);
+      }
+      return Array.from(map.values()).map((agg) => ({
+        ...agg,
+        cost: fromMicros(agg.costMicros),
+        ctr: agg.impressions > 0 ? agg.clicks / agg.impressions : 0,
+        averageCpc: agg.clicks > 0 ? fromMicros(agg.costMicros / agg.clicks) : 0,
+      }));
+    }
 
     return rows.map((row: any) => ({
       id: String(row.campaign?.id ?? ""),
