@@ -14,6 +14,7 @@ import {
   updateCampaignStatus,
   updateCampaignBudget,
   listAdGroups,
+  listAssetGroups,
   createAdGroup,
   listAds,
   createResponsiveSearchAd,
@@ -62,6 +63,13 @@ export async function GET(req: NextRequest) {
         if (!campaignId) return errorResponse('campaignId required', 400);
         const adGroups = await listAdGroups(campaignId);
         return NextResponse.json({ adGroups });
+      }
+
+      case 'asset-groups': {
+        const campaignId = searchParams.get('campaignId');
+        if (!campaignId) return errorResponse('campaignId required', 400);
+        const assetGroups = await listAssetGroups(campaignId);
+        return NextResponse.json({ assetGroups });
       }
 
       case 'ads': {

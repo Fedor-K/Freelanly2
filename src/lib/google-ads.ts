@@ -409,6 +409,94 @@ export async function updateCampaignBudget(
 }
 
 // ---------------------------------------------------------------------------
+// Группы ассетов (Performance Max)
+// ---------------------------------------------------------------------------
+
+/** Данные группы ассетов PMax */
+export interface AssetGroupData {
+  id: string;
+  name: string;
+  status: string;
+  path1: string;
+  path2: string;
+  headlines: string[];
+  descriptions: string[];
+  longHeadlines: string[];
+}
+
+/**
+ * Получает список групп ассетов для PMax кампании с текстовыми ассетами.
+ */
+export async function listAssetGroups(campaignId: string): Promise<AssetGroupData[]> {
+  try {
+    const customer = getCustomer();
+
+    // Fetch asset groups
+    const agRows = await customer.query(`
+      SELECT
+        asset_group.id,
+        asset_group.name,
+        asset_group.status,
+        asset_group.path1,
+        asset_group.path2
+      FROM asset_group
+      WHERE campaign.id = ${campaignId}
+        AND asset_group.status != 'REMOVED'
+      ORDER BY asset_group.name
+    `);
+
+    const STATUS_MAP: Record<number, string> = { 2: "ENABLED", 3: "PAUSED", 4: "REMOVED" };
+
+    const results: AssetGroupData[] = [];
+
+    for (const agRow of agRows as any[]) {
+      const agId = String(agRow.asset_group?.id ?? "");
+      const FT_MAP: Record<number, string> = { 2: "HEADLINE", 3: "DESCRIPTION", 17: "LONG_HEADLINE" };
+
+      // Fetch text assets for this asset group
+      const assetRows = await customer.query(`
+        SELECT
+          asset_group_asset.field_type,
+          asset.text_asset.text
+        FROM asset_group_asset
+        WHERE asset_group.id = ${agId}
+          AND asset_group_asset.field_type IN ('HEADLINE', 'DESCRIPTION', 'LONG_HEADLINE')
+          AND asset_group_asset.status = 'ENABLED'
+        ORDER BY asset_group_asset.field_type
+      `);
+
+      const headlines: string[] = [];
+      const descriptions: string[] = [];
+      const longHeadlines: string[] = [];
+
+      for (const ar of assetRows as any[]) {
+        const ft = ar.asset_group_asset?.field_type;
+        const text = ar.asset?.text_asset?.text || "";
+        if (ft === 2) headlines.push(text);
+        else if (ft === 3) descriptions.push(text);
+        else if (ft === 17) longHeadlines.push(text);
+      }
+
+      results.push({
+        id: agId,
+        name: agRow.asset_group?.name ?? "",
+        status: STATUS_MAP[agRow.asset_group?.status] || "UNKNOWN",
+        path1: agRow.asset_group?.path1 || "",
+        path2: agRow.asset_group?.path2 || "",
+        headlines,
+        descriptions,
+        longHeadlines,
+      });
+    }
+
+    return results;
+  } catch (error) {
+    console.error("[Google Ads] Ошибка получения групп ассетов:", error);
+    throw new GoogleAdsError("Не удалось получить группы ассетов", error);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Группы объявлений
 // ---------------------------------------------------------------------------
 

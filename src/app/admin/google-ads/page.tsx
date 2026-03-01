@@ -56,6 +56,17 @@ interface Ad {
   finalUrls: string[];
 }
 
+interface AssetGroup {
+  id: string;
+  name: string;
+  status: string;
+  path1: string;
+  path2: string;
+  headlines: string[];
+  descriptions: string[];
+  longHeadlines: string[];
+}
+
 interface ReportRow {
   date?: string;
   impressions: number;
@@ -67,7 +78,7 @@ interface ReportRow {
   averageCpc: number;
 }
 
-type View = 'campaigns' | 'ad-groups' | 'ads' | 'create-campaign' | 'create-ad-group' | 'create-ad';
+type View = 'campaigns' | 'ad-groups' | 'asset-groups' | 'ads' | 'create-campaign' | 'create-ad-group' | 'create-ad';
 
 // ============================================
 // API HELPERS
@@ -143,6 +154,7 @@ export default function GoogleAdsPage() {
   const [view, setView] = useState<View>('campaigns');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [adGroups, setAdGroups] = useState<AdGroup[]>([]);
+  const [assetGroups, setAssetGroups] = useState<AssetGroup[]>([]);
   const [ads, setAds] = useState<Ad[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [selectedAdGroup, setSelectedAdGroup] = useState<AdGroup | null>(null);
@@ -166,19 +178,32 @@ export default function GoogleAdsPage() {
 
   useEffect(() => { loadCampaigns(); }, [loadCampaigns]);
 
-  // Загрузка групп объявлений
+  // Загрузка групп объявлений / ассетов (зависит от типа кампании)
   const loadAdGroups = async (campaign: Campaign) => {
     setSelectedCampaign(campaign);
-    setView('ad-groups');
     setLoading(true);
     setError('');
-    try {
-      const data = await api('GET', { action: 'ad-groups', campaignId: campaign.id });
-      setAdGroups(data.adGroups);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load ad groups');
-    } finally {
-      setLoading(false);
+
+    if (campaign.channelType === 'PERFORMANCE_MAX') {
+      setView('asset-groups');
+      try {
+        const data = await api('GET', { action: 'asset-groups', campaignId: campaign.id });
+        setAssetGroups(data.assetGroups);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load asset groups');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setView('ad-groups');
+      try {
+        const data = await api('GET', { action: 'ad-groups', campaignId: campaign.id });
+        setAdGroups(data.adGroups);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load ad groups');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -232,6 +257,7 @@ export default function GoogleAdsPage() {
             <button
               onClick={() => {
                 if (view === 'ads') setView('ad-groups');
+                else if (view === 'asset-groups') setView('campaigns');
                 else setView('campaigns');
               }}
               className="p-2 hover:bg-muted rounded-lg"
@@ -247,6 +273,7 @@ export default function GoogleAdsPage() {
             <p className="text-sm text-muted-foreground">
               {view === 'campaigns' && 'Управление рекламными кампаниями'}
               {view === 'ad-groups' && `Группы объявлений — ${selectedCampaign?.name}`}
+              {view === 'asset-groups' && `Группы ассетов — ${selectedCampaign?.name}`}
               {view === 'ads' && `Объявления — ${selectedAdGroup?.name}`}
               {view === 'create-campaign' && 'Новая кампания'}
               {view === 'create-ad-group' && 'Новая группа объявлений'}
@@ -406,6 +433,68 @@ export default function GoogleAdsPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Список групп ассетов (PMax) */}
+          {view === 'asset-groups' && (
+            <div className="space-y-4">
+              {assetGroups.map((ag) => (
+                <div key={ag.id} className="bg-card border rounded-lg p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold text-lg">{ag.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Display URL: freelanly.com/{ag.path1}{ag.path2 ? `/${ag.path2}` : ''}
+                      </p>
+                    </div>
+                    {statusBadge(ag.status)}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Headlines */}
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-2">
+                        Заголовки ({ag.headlines.length})
+                      </h4>
+                      <div className="space-y-1">
+                        {ag.headlines.map((h, i) => (
+                          <div key={i} className="text-sm bg-muted/30 rounded px-2 py-1">{h}</div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Long Headlines */}
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-2">
+                        Длинные заголовки ({ag.longHeadlines.length})
+                      </h4>
+                      <div className="space-y-1">
+                        {ag.longHeadlines.map((lh, i) => (
+                          <div key={i} className="text-sm bg-muted/30 rounded px-2 py-1">{lh}</div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Descriptions */}
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-2">
+                        Описания ({ag.descriptions.length})
+                      </h4>
+                      <div className="space-y-1">
+                        {ag.descriptions.map((d, i) => (
+                          <div key={i} className="text-sm bg-muted/30 rounded px-2 py-1">{d}</div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {assetGroups.length === 0 && (
+                <div className="bg-card border rounded-lg p-8 text-center text-muted-foreground">
+                  Нет групп ассетов.
+                </div>
+              )}
             </div>
           )}
 
