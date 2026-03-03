@@ -5,6 +5,12 @@ import { prisma } from '@/lib/db';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url;
 
+function truncateDescription(description: string, maxLength = 150): string {
+  const text = description.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength).trim() + '...';
+}
+
 interface MatchedJob {
   id: string;
   title: string;
@@ -82,6 +88,7 @@ function generateJobAlertEmailHtml(
                   <div style="color: #666; font-size: 14px; margin-top: 4px;">
                     ${job.company?.name || 'Unknown Company'}${job.country ? ` • ${job.country}` : ''}
                   </div>
+                  ${job.description ? `<div style="color: #555; font-size: 13px; margin-top: 6px; line-height: 1.4;">${truncateDescription(job.description)}</div>` : ''}
                   ${salary ? `<div style="color: #22c55e; font-size: 14px; margin-top: 4px;">${salary}</div>` : ''}
                   <div style="margin-top: 10px;">
                     <a href="${jobUrl}" style="display: inline-block; background: #000; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
@@ -179,7 +186,8 @@ function generateJobAlertEmailText(
           ? `${job.salaryCurrency || '$'}${(job.salaryMin / 1000).toFixed(0)}K - ${(job.salaryMax / 1000).toFixed(0)}K`
           : '';
       const companyName = job.company?.name || 'Unknown Company';
-      return `${job.title}\n${companyName}${job.country ? ` • ${job.country}` : ''}${salary ? ` • ${salary}` : ''}\n${jobUrl}\n`;
+      const desc = job.description ? truncateDescription(job.description) : '';
+      return `${job.title}\n${companyName}${job.country ? ` • ${job.country}` : ''}${salary ? ` • ${salary}` : ''}${desc ? `\n${desc}` : ''}\n${jobUrl}\n`;
     })
     .join('\n');
 
@@ -225,6 +233,7 @@ function generateOpportunityAlertEmailHtml(
                   <div style="color: #666; font-size: 14px; margin-top: 4px;">
                     ${opp.country ? `${opp.country} • ` : ''}Freelance Project
                   </div>
+                  ${opp.description ? `<div style="color: #555; font-size: 13px; margin-top: 6px; line-height: 1.4;">${truncateDescription(opp.description)}</div>` : ''}
                   ${salary ? `<div style="color: #22c55e; font-size: 14px; margin-top: 4px;">${salary}</div>` : ''}
                   <div style="margin-top: 10px;">
                     <a href="${oppUrl}" style="display: inline-block; background: #000; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
@@ -319,7 +328,8 @@ function generateOpportunityAlertEmailText(
         opp.salaryMin && opp.salaryMax
           ? `${opp.salaryCurrency || '$'}${opp.salaryMin} - ${opp.salaryMax}/hr`
           : '';
-      return `${opp.title}\n${opp.country ? `${opp.country} • ` : ''}Freelance Project${salary ? ` • ${salary}` : ''}\n${oppUrl}\n`;
+      const desc = opp.description ? truncateDescription(opp.description) : '';
+      return `${opp.title}\n${opp.country ? `${opp.country} • ` : ''}Freelance Project${salary ? ` • ${salary}` : ''}${desc ? `\n${desc}` : ''}\n${oppUrl}\n`;
     })
     .join('\n');
 
@@ -371,6 +381,7 @@ function generateCombinedAlertEmailHtml(
                   <div style="color: #666; font-size: 14px; margin-top: 4px;">
                     ${job.company?.name || 'Unknown Company'}${job.country ? ` • ${job.country}` : ''}
                   </div>
+                  ${job.description ? `<div style="color: #555; font-size: 13px; margin-top: 6px; line-height: 1.4;">${truncateDescription(job.description)}</div>` : ''}
                   ${salary ? `<div style="color: #22c55e; font-size: 14px; margin-top: 4px;">${salary}</div>` : ''}
                   <div style="margin-top: 10px;">
                     <a href="${jobUrl}" style="display: inline-block; background: #000; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
@@ -412,6 +423,7 @@ function generateCombinedAlertEmailHtml(
                   <div style="color: #666; font-size: 14px; margin-top: 4px;">
                     ${opp.country ? `${opp.country} • ` : ''}Freelance Project
                   </div>
+                  ${opp.description ? `<div style="color: #555; font-size: 13px; margin-top: 6px; line-height: 1.4;">${truncateDescription(opp.description)}</div>` : ''}
                   ${salary ? `<div style="color: #22c55e; font-size: 14px; margin-top: 4px;">${salary}</div>` : ''}
                   <div style="margin-top: 10px;">
                     <a href="${oppUrl}" style="display: inline-block; background: #000; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
@@ -541,7 +553,8 @@ function generateCombinedAlertEmailText(
             ? `${job.salaryCurrency || '$'}${(job.salaryMin / 1000).toFixed(0)}K - ${(job.salaryMax / 1000).toFixed(0)}K`
             : '';
         const companyName = job.company?.name || 'Unknown Company';
-        return `${job.title}\n${companyName}${job.country ? ` • ${job.country}` : ''}${salary ? ` • ${salary}` : ''}\n${jobUrl}\n`;
+        const desc = job.description ? truncateDescription(job.description) : '';
+        return `${job.title}\n${companyName}${job.country ? ` • ${job.country}` : ''}${salary ? ` • ${salary}` : ''}${desc ? `\n${desc}` : ''}\n${jobUrl}\n`;
       })
       .join('\n');
     content += '\n';
@@ -556,7 +569,8 @@ function generateCombinedAlertEmailText(
           opp.salaryMin && opp.salaryMax
             ? `${opp.salaryCurrency || '$'}${opp.salaryMin} - ${opp.salaryMax}/hr`
             : '';
-        return `${opp.title}\n${opp.country ? `${opp.country} • ` : ''}Freelance Project${salary ? ` • ${salary}` : ''}\n${oppUrl}\n`;
+        const desc = opp.description ? truncateDescription(opp.description) : '';
+        return `${opp.title}\n${opp.country ? `${opp.country} • ` : ''}Freelance Project${salary ? ` • ${salary}` : ''}${desc ? `\n${desc}` : ''}\n${oppUrl}\n`;
       })
       .join('\n');
   }
