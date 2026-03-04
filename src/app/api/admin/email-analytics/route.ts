@@ -12,10 +12,9 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const periodStart = new Date(now.getTime() - validDays * 24 * 60 * 60 * 1000);
 
-    // Run all queries in parallel
+    // Queries that don't depend on AlertNotification.messageId column
     const [
       funnelData,
-      categoryStats,
       topClickedLinks,
       freeVsProStats,
       emailsToProData,
@@ -29,23 +28,6 @@ export async function GET(request: NextRequest) {
         WHERE "timestamp" >= ${periodStart}
           AND "type" IN ('SENT', 'DELIVERED', 'OPENED', 'CLICKED')
         GROUP BY "type"
-      `,
-
-      // 2. Stats by job alert category
-      // Join: EmailEvent.messageId -> AlertNotification.messageId -> JobAlert.category
-      prisma.$queryRaw<Array<{ category: string; sent: bigint; opened: bigint; clicked: bigint }>>`
-        SELECT
-          COALESCE(ja."category", 'unknown') as category,
-          COUNT(DISTINCT CASE WHEN ee."type" = 'SENT' THEN ee."id" END) as sent,
-          COUNT(DISTINCT CASE WHEN ee."type" = 'OPENED' THEN ee."id" END) as opened,
-          COUNT(DISTINCT CASE WHEN ee."type" = 'CLICKED' THEN ee."id" END) as clicked
-        FROM "EmailEvent" ee
-        JOIN "AlertNotification" an ON ee."messageId" = an."messageId"
-        JOIN "JobAlert" ja ON an."jobAlertId" = ja."id"
-        WHERE ee."timestamp" >= ${periodStart}
-          AND an."messageId" IS NOT NULL
-        GROUP BY ja."category"
-        ORDER BY sent DESC
       `,
 
       // 3. Top clicked job links (from click event metadata)
@@ -123,6 +105,27 @@ export async function GET(request: NextRequest) {
         ORDER BY date ASC
       `,
     ]);
+
+    // Category stats query uses AlertNotification.messageId — may fail if column not yet added
+    let categoryStats: Array<{ category: string; sent: bigint; opened: bigint; clicked: bigint }> = [];
+    try {
+      categoryStats = await prisma.$queryRaw`
+        SELECT
+          COALESCE(ja."category", 'unknown') as category,
+          COUNT(DISTINCT CASE WHEN ee."type" = 'SENT' THEN ee."id" END) as sent,
+          COUNT(DISTINCT CASE WHEN ee."type" = 'OPENED' THEN ee."id" END) as opened,
+          COUNT(DISTINCT CASE WHEN ee."type" = 'CLICKED' THEN ee."id" END) as clicked
+        FROM "EmailEvent" ee
+        JOIN "AlertNotification" an ON ee."messageId" = an."messageId"
+        JOIN "JobAlert" ja ON an."jobAlertId" = ja."id"
+        WHERE ee."timestamp" >= ${periodStart}
+          AND an."messageId" IS NOT NULL
+        GROUP BY ja."category"
+        ORDER BY sent DESC
+      `;
+    } catch (e) {
+      console.warn('[Email Analytics] Category stats query failed (messageId column may not exist yet):', e);
+    }
 
     // Process funnel
     const funnelMap: Record<string, number> = {};
