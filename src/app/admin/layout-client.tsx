@@ -20,6 +20,7 @@ import {
   Hash,
   Mail,
   Megaphone,
+  Activity,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -29,6 +30,7 @@ const navigation = [
   { name: 'Conversions', href: '/admin/conversions', icon: CreditCard },
   { name: 'Activation', href: '/admin/activation', icon: Zap },
   { name: 'Free Nurture', href: '/admin/free-nurture', icon: UserPlus },
+  { name: 'Free Activity', href: '/admin/free-users-activity', icon: Activity },
   { name: 'Parsing', href: '/admin/parsing', icon: RefreshCw },
   { name: 'Jobs', href: '/admin/jobs', icon: Briefcase },
   { name: 'Users', href: '/admin/users', icon: Users },
