@@ -17,14 +17,14 @@ function generateFreeUpsellBlock(hiddenCount: number): string {
         <tr>
           <td style="padding: 20px; text-align: center; background: linear-gradient(180deg, #fff 0%, #f0f9ff 100%);">
             <p style="font-size: 16px; font-weight: 600; color: #1e40af; margin: 0 0 8px;">
-              +${hiddenCount} more matching your alert
+              +${hiddenCount} more — upgrade to see contacts & apply
             </p>
             <p style="color: #666; font-size: 14px; margin: 0 0 16px;">
-              Upgrade to PRO to see all opportunities and apply directly
+              You found the projects. Get direct contacts to apply first.
             </p>
             <a href="https://freelanly.com/pricing?source=email_alert_upsell"
                style="display: inline-block; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-              Unlock All Opportunities →
+              Get Contact Details →
             </a>
           </td>
         </tr>`;

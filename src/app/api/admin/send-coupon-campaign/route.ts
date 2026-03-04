@@ -29,31 +29,30 @@ function getCouponEmailHtml(email: string): string {
 <body>
 <div class="container">
   <div class="header" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
-    <h1>You've been active — here's a reward!</h1>
+    <h1>You found great projects — now apply directly</h1>
   </div>
   <div class="content">
     <p>Hi there,</p>
 
-    <p>We noticed you've been actively browsing projects and jobs on Freelanly. That's great — and we'd love to help you get even more out of the platform.</p>
+    <p>You've been actively browsing freelance projects and jobs on Freelanly — but every time you find a great match, the <strong>contact details are hidden</strong>.</p>
 
-    <p>Here's an <strong>exclusive discount</strong> just for you:</p>
+    <p>We'd like to change that. Here's a <strong>special offer</strong> just for you:</p>
 
     <div class="offer-box">
       <h3>15% OFF PRO</h3>
-      <p style="margin: 0; opacity: 0.9;">Your first month of Freelanly PRO</p>
+      <p style="margin: 0; opacity: 0.9;">Get direct access to client contacts</p>
       <p style="margin: 10px 0 0; font-size: 18px;"><strong>Code: QUICK15</strong></p>
     </div>
 
-    <p><strong>With PRO, you unlock:</strong></p>
+    <p><strong>With PRO, you can actually apply:</strong></p>
     <ul>
-      <li><strong>Direct contact info</strong> — email hiring managers and clients directly</li>
-      <li><strong>All matching opportunities</strong> — no more hidden results</li>
-      <li><strong>Instant job alerts</strong> — be the first to apply</li>
-      <li><strong>Unlimited applications</strong> — no limits on reaching out</li>
+      <li><strong>See contact details</strong> — email, LinkedIn, direct links on every project</li>
+      <li><strong>Apply first</strong> — freelance projects get filled fast, reach out before others</li>
+      <li><strong>All matching opportunities</strong> — no more hidden results in your alerts</li>
     </ul>
 
     <p style="text-align: center;">
-      <a href="https://freelanly.com/pricing?coupon=QUICK15&source=email_hot_free_campaign" class="button" style="background: #2563eb;">Upgrade to PRO — 15% Off →</a>
+      <a href="https://freelanly.com/pricing?coupon=QUICK15&source=email_hot_free_campaign" class="button" style="background: #2563eb;">Get Contact Details — 15% Off →</a>
     </p>
 
     <p style="text-align: center; color: #666; font-size: 14px;">
@@ -116,9 +115,9 @@ export async function POST() {
         const html = getCouponEmailHtml(user.email);
         const result = await sendApplicationEmail({
           to: user.email,
-          subject: "You've been active — here's 15% off PRO",
+          subject: "You found great projects — now get contact details (15% off)",
           html,
-          text: `Hi! We noticed you've been actively browsing on Freelanly. Here's 15% off PRO — use code QUICK15 at https://freelanly.com/pricing?coupon=QUICK15&source=email_hot_free_campaign`,
+          text: `Hi! You've been browsing great projects on Freelanly but contact details are hidden. Upgrade to PRO and apply directly — 15% off with code QUICK15: https://freelanly.com/pricing?coupon=QUICK15&source=email_hot_free_campaign`,
         });
 
         if (result.success) {
