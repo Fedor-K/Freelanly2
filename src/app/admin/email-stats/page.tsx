@@ -94,6 +94,14 @@ interface AnalyticsData {
     pro: { users: number; opens: number; clicks: number };
   };
   emailsToPro: { avgEmails: number; proUsers: number };
+  proConversions: Array<{
+    email: string;
+    lastClick: string;
+    linkType: string;
+    clickTime: string;
+    proStarted: string;
+    hoursToConvert: number;
+  }>;
   heatmap: Array<{ hour: number; count: number }>;
   chartData: Array<{
     date: string;
@@ -541,6 +549,60 @@ export default function EmailStatsPage() {
           </Card>
         )}
       </div>
+
+      {/* Last Click Before PRO */}
+      {analytics && analytics.proConversions && analytics.proConversions.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Crown className="h-5 w-5 text-amber-600" />
+              Last Click Before PRO Purchase
+            </CardTitle>
+            <CardDescription>
+              What email link each user clicked before upgrading ({analytics.proConversions.length} conversions tracked)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {analytics.proConversions.map((conv, i) => {
+                const displayName = decodeURIComponent(conv.lastClick).replace(/-/g, ' ');
+                const hoursLabel = conv.hoursToConvert < 24
+                  ? `${conv.hoursToConvert}h before PRO`
+                  : `${Math.round(conv.hoursToConvert / 24)}d before PRO`;
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-amber-50/50 border border-amber-100"
+                  >
+                    <span className="text-sm font-medium text-muted-foreground w-6 text-right shrink-0">
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                          conv.linkType === 'job' ? 'bg-blue-100 text-blue-700' : conv.linkType === 'freelance' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {conv.linkType}
+                        </span>
+                        <span className="text-sm font-medium truncate" title={conv.lastClick}>
+                          {displayName || 'unknown link'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                        <span>{conv.email}</span>
+                        <span>·</span>
+                        <span>clicked {new Date(conv.clickTime).toLocaleDateString()}</span>
+                        <span>·</span>
+                        <span className="text-amber-600 font-medium">{hoursLabel}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Top Clicked Jobs */}
       {analytics && analytics.topJobs.length > 0 && (

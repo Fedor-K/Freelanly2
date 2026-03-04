@@ -106,6 +106,29 @@ export async function GET(request: NextRequest) {
       `,
     ]);
 
+    // Last click before PRO purchase — what link did each user click before converting
+    const lastClickBeforePro = await prisma.$queryRaw<Array<{
+      email: string;
+      last_click: string | null;
+      click_time: Date;
+      pro_started: Date;
+      hours_to_convert: number;
+    }>>`
+      SELECT DISTINCT ON (u."id")
+        u."email",
+        ee."metadata"->>'link' as last_click,
+        ee."timestamp" as click_time,
+        u."proStartedAt" as pro_started,
+        EXTRACT(EPOCH FROM (u."proStartedAt" - ee."timestamp")) / 3600 as hours_to_convert
+      FROM "User" u
+      JOIN "EmailEvent" ee ON LOWER(ee."to") = LOWER(u."email")
+      WHERE u."plan" = 'PRO'
+        AND u."proStartedAt" IS NOT NULL
+        AND ee."type" = 'CLICKED'
+        AND ee."timestamp" < u."proStartedAt"
+      ORDER BY u."id", ee."timestamp" DESC
+    `;
+
     // Category stats query uses AlertNotification.messageId — may fail if column not yet added
     let categoryStats: Array<{ category: string; sent: bigint; opened: bigint; clicked: bigint }> = [];
     try {
@@ -190,6 +213,23 @@ export async function GET(request: NextRequest) {
       count: hourlyMap.get(i) || 0,
     }));
 
+    // Process last click before PRO
+    const proConversions = lastClickBeforePro.map((row) => {
+      const link = row.last_click || '';
+      const match = link.match(/\/company\/[^/]+\/jobs\/([^?]+)/);
+      const oppMatch = link.match(/\/freelance\/([^?]+)/);
+      const slug = match ? match[1] : oppMatch ? oppMatch[1] : link;
+      const type = match ? 'job' : oppMatch ? 'freelance' : 'other';
+      return {
+        email: row.email.replace(/(.{2}).*(@.*)/, '$1***$2'), // mask email
+        lastClick: slug,
+        linkType: type,
+        clickTime: row.click_time,
+        proStarted: row.pro_started,
+        hoursToConvert: Math.round(Number(row.hours_to_convert)),
+      };
+    });
+
     // Process daily trend
     const dailyMap: Record<string, Record<string, number>> = {};
     for (const row of dailyTrend) {
@@ -211,6 +251,7 @@ export async function GET(request: NextRequest) {
       topJobs,
       planStats,
       emailsToPro,
+      proConversions,
       heatmap,
       chartData,
     });
