@@ -112,7 +112,7 @@ export function ApplyButton({
           {isRedirecting ? 'Redirecting to checkout...' : 'Upgrade to see contact details'}
         </button>
         <p className="text-xs text-center text-muted-foreground">
-          From €0.39/day. Cancel anytime.
+          Contact details are on this page. From €0.39/day.
         </p>
       </div>
     );

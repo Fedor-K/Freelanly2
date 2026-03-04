@@ -98,8 +98,9 @@ export function OpportunityApplyCard({
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Direct contact with the client. No agencies, no middlemen. Respond
-            quickly — freelance projects get filled fast.
+            {isPro
+              ? 'Direct contact with the client. No agencies, no middlemen. Respond quickly — freelance projects get filled fast.'
+              : 'Client\'s email and LinkedIn are on this page. Upgrade to see them and apply before others.'}
           </p>
 
           {isPro ? (
@@ -181,7 +182,7 @@ export function OpportunityApplyCard({
             <p className="text-xs text-muted-foreground">
               {isPro
                 ? '⚡ This project was posted recently. Clients often hire within 48 hours — act now.'
-                : '🔒 PRO members see all contact info and can apply directly. Upgrade to stop missing opportunities.'}
+                : '🔒 Contact info is hidden on FREE plan. PRO members apply directly and get hired faster.'}
             </p>
           </div>
         </CardContent>
