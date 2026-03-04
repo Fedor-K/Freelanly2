@@ -4,6 +4,14 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   RefreshCw,
   Loader2,
   Users,
@@ -12,6 +20,7 @@ import {
   Crown,
   TrendingDown,
   ExternalLink,
+  Send,
 } from 'lucide-react';
 import {
   LineChart,
@@ -81,6 +90,29 @@ interface Data {
 export default function FreeUsersActivityPage() {
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
+  const [couponDialog, setCouponDialog] = useState(false);
+  const [couponSending, setCouponSending] = useState(false);
+  const [couponResult, setCouponResult] = useState<{ sent: number; failed: number; skipped: number } | null>(null);
+
+  const sendCouponCampaign = async () => {
+    setCouponSending(true);
+    setCouponResult(null);
+    try {
+      const res = await fetch('/api/admin/send-coupon-campaign', { method: 'POST' });
+      const json = await res.json();
+      if (res.ok) {
+        setCouponResult(json);
+      } else {
+        console.error('Coupon campaign error:', json.error);
+        setCouponResult({ sent: 0, failed: 0, skipped: 0 });
+      }
+    } catch (err) {
+      console.error('Coupon campaign failed:', err);
+      setCouponResult({ sent: 0, failed: 0, skipped: 0 });
+    } finally {
+      setCouponSending(false);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -113,9 +145,20 @@ export default function FreeUsersActivityPage() {
             Почему FREE юзеры не покупают PRO — анализ email-активности
           </p>
         </div>
-        <Button onClick={fetchData} variant="outline" size="sm" disabled={loading}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => { setCouponResult(null); setCouponDialog(true); }}
+            variant="default"
+            size="sm"
+            disabled={!data?.hotFreeUsers?.length}
+          >
+            <Send className="h-4 w-4 mr-1" />
+            Send Coupon
+          </Button>
+          <Button onClick={fetchData} variant="outline" size="sm" disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          </Button>
+        </div>
       </div>
 
       {loading && !data ? (
@@ -385,6 +428,46 @@ export default function FreeUsersActivityPage() {
           </Card>
         </>
       )}
+
+      <Dialog open={couponDialog} onOpenChange={setCouponDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Coupon Campaign</DialogTitle>
+            <DialogDescription>
+              Send QUICK15 (15% off) coupon email to up to {data?.hotFreeUsers?.length ?? 0} hot FREE users with clicks.
+              Only verified, non-unsubscribed users will receive the email.
+            </DialogDescription>
+          </DialogHeader>
+
+          {couponResult ? (
+            <div className="space-y-2 py-4">
+              <p className="text-sm">
+                <span className="font-medium text-green-600">{couponResult.sent} sent</span>
+                {couponResult.failed > 0 && (
+                  <span className="font-medium text-red-600 ml-3">{couponResult.failed} failed</span>
+                )}
+                <span className="text-muted-foreground ml-3">{couponResult.skipped} skipped</span>
+              </p>
+            </div>
+          ) : (
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCouponDialog(false)} disabled={couponSending}>
+                Cancel
+              </Button>
+              <Button onClick={sendCouponCampaign} disabled={couponSending}>
+                {couponSending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    Sending...
+                  </>
+                ) : (
+                  'Send Coupon Emails'
+                )}
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

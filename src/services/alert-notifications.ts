@@ -4,10 +4,30 @@ import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url;
+const FREE_ITEM_LIMIT = 3;
 
 function addUtmParams(url: string, contentId: string): string {
   const separator = url.includes('?') ? '&' : '?';
   return `${url}${separator}utm_source=job_alert&utm_medium=email&utm_content=${encodeURIComponent(contentId)}`;
+}
+
+function generateFreeUpsellBlock(hiddenCount: number): string {
+  if (hiddenCount <= 0) return '';
+  return `
+        <tr>
+          <td style="padding: 20px; text-align: center; background: linear-gradient(180deg, #fff 0%, #f0f9ff 100%);">
+            <p style="font-size: 16px; font-weight: 600; color: #1e40af; margin: 0 0 8px;">
+              +${hiddenCount} more matching your alert
+            </p>
+            <p style="color: #666; font-size: 14px; margin: 0 0 16px;">
+              Upgrade to PRO to see all opportunities and apply directly
+            </p>
+            <a href="https://freelanly.com/pricing?source=email_alert_upsell"
+               style="display: inline-block; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+              Unlock All Opportunities →
+            </a>
+          </td>
+        </tr>`;
 }
 
 function truncateDescription(description: string, maxLength = 150): string {
@@ -55,7 +75,8 @@ interface MatchedOpportunity {
 function generateJobAlertEmailHtml(
   jobs: MatchedJob[],
   alertCategory: string | null,
-  unsubscribeUrl: string
+  unsubscribeUrl: string,
+  hiddenCount = 0
 ): string {
   const categoryName = alertCategory
     ? alertCategory.charAt(0).toUpperCase() + alertCategory.slice(1)
@@ -136,6 +157,8 @@ function generateJobAlertEmailHtml(
           <!-- Job Cards -->
           ${jobCards}
 
+          ${generateFreeUpsellBlock(hiddenCount)}
+
           <!-- View All Button -->
           <tr>
             <td style="padding: 30px; text-align: center;">
@@ -207,7 +230,8 @@ function generateJobAlertEmailText(
 function generateOpportunityAlertEmailHtml(
   opportunities: MatchedOpportunity[],
   alertCategory: string | null,
-  unsubscribeUrl: string
+  unsubscribeUrl: string,
+  hiddenCount = 0
 ): string {
   const categoryName = alertCategory
     ? alertCategory.charAt(0).toUpperCase() + alertCategory.slice(1)
@@ -281,6 +305,8 @@ function generateOpportunityAlertEmailHtml(
           <!-- Opportunity Cards -->
           ${opportunityCards}
 
+          ${generateFreeUpsellBlock(hiddenCount)}
+
           <!-- View All Button -->
           <tr>
             <td style="padding: 30px; text-align: center;">
@@ -350,7 +376,8 @@ function generateOpportunityAlertEmailText(
 function generateCombinedAlertEmailHtml(
   jobs: MatchedJob[],
   opportunities: MatchedOpportunity[],
-  unsubscribeUrl: string
+  unsubscribeUrl: string,
+  hiddenCount = 0
 ): string {
   const totalItems = jobs.length + opportunities.length;
 
@@ -496,6 +523,8 @@ function generateCombinedAlertEmailHtml(
           ${jobsSection}
           ${opportunitiesSection}
 
+          ${generateFreeUpsellBlock(hiddenCount)}
+
           <!-- View All Button -->
           <tr>
             <td style="padding: 30px; text-align: center;">
@@ -589,13 +618,18 @@ function generateCombinedAlertEmailText(
  * Send email notification for an alert
  */
 export async function sendAlertNotification(
-  alertWithMatches: AlertWithMatches
+  alertWithMatches: AlertWithMatches & { userPlan?: string }
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
-  const { alert, jobs } = alertWithMatches;
+  const { alert, jobs, userPlan } = alertWithMatches;
 
   if (jobs.length === 0) {
     return { success: true }; // Nothing to send
   }
+
+  // Limit items for FREE users
+  const isFreeLimited = userPlan === 'FREE' && jobs.length > FREE_ITEM_LIMIT;
+  const hiddenCount = isFreeLimited ? jobs.length - FREE_ITEM_LIMIT : 0;
+  const visibleJobs = isFreeLimited ? jobs.slice(0, FREE_ITEM_LIMIT) : jobs;
 
   const unsubscribeUrl = `${APP_URL}/api/user/alerts/${alert.id}/unsubscribe`;
 
@@ -606,8 +640,8 @@ export async function sendAlertNotification(
     ? `🎯 ${jobs[0].title} at ${jobs[0].company.name}${jobs[0].country ? ` — ${jobs[0].country}` : ''}`
     : `🎯 ${jobs.length} new ${alert.category || ''} jobs for you`;
 
-  const html = generateJobAlertEmailHtml(jobs, alert.category, unsubscribeUrl);
-  const text = generateJobAlertEmailText(jobs, alert.category);
+  const html = generateJobAlertEmailHtml(visibleJobs, alert.category, unsubscribeUrl, hiddenCount);
+  const text = generateJobAlertEmailText(visibleJobs, alert.category);
 
   try {
     const result = await sendApplicationEmail({
@@ -1159,6 +1193,7 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
           user: {
             select: {
               email: true,
+              plan: true,
             },
           },
         },
@@ -1237,6 +1272,9 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
     const opportunities = Array.from(uniqueOpps.values());
     const firstAlert = notifications[0].jobAlert;
 
+    // Determine user plan for FREE content limiting
+    const userPlan = notifications[0].jobAlert.user?.plan || 'FREE';
+
     // Determine which email format to use based on what content we have
     let result: { success: boolean; error?: string; messageId?: string };
 
@@ -1245,6 +1283,7 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
       result = await sendCombinedAlertNotification({
         alertId: firstAlert.id,
         email,
+        userPlan,
         jobs: jobs.map((job) => ({
           id: job.id,
           title: job.title,
@@ -1281,6 +1320,7 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
       result = await sendOpportunityAlertNotification({
         alertId: firstAlert.id,
         email,
+        userPlan,
         category: firstAlert.category,
         opportunities: opportunities.map((opp) => ({
           id: opp.id,
@@ -1303,6 +1343,7 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
     } else if (jobs.length > 0) {
       // Only jobs
       result = await sendAlertNotification({
+        userPlan,
         alert: {
           id: firstAlert.id,
           email,
@@ -1409,14 +1450,20 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
 async function sendOpportunityAlertNotification(params: {
   alertId: string;
   email: string;
+  userPlan?: string;
   category: string | null;
   opportunities: MatchedOpportunity[];
 }): Promise<{ success: boolean; error?: string; messageId?: string }> {
-  const { alertId, email, category, opportunities } = params;
+  const { alertId, email, userPlan, category, opportunities } = params;
 
   if (opportunities.length === 0) {
     return { success: true };
   }
+
+  // Limit items for FREE users
+  const isFreeLimited = userPlan === 'FREE' && opportunities.length > FREE_ITEM_LIMIT;
+  const hiddenCount = isFreeLimited ? opportunities.length - FREE_ITEM_LIMIT : 0;
+  const visibleOpps = isFreeLimited ? opportunities.slice(0, FREE_ITEM_LIMIT) : opportunities;
 
   const unsubscribeUrl = `${APP_URL}/api/user/alerts/${alertId}/unsubscribe`;
 
@@ -1425,8 +1472,8 @@ async function sendOpportunityAlertNotification(params: {
     ? `🎯 ${opportunities[0].title} — Freelance Project`
     : `🎯 ${opportunities.length} new freelance projects for you`;
 
-  const html = generateOpportunityAlertEmailHtml(opportunities, category, unsubscribeUrl);
-  const text = generateOpportunityAlertEmailText(opportunities, category);
+  const html = generateOpportunityAlertEmailHtml(visibleOpps, category, unsubscribeUrl, hiddenCount);
+  const text = generateOpportunityAlertEmailText(visibleOpps, category);
 
   try {
     const result = await sendApplicationEmail({
@@ -1456,14 +1503,29 @@ async function sendOpportunityAlertNotification(params: {
 async function sendCombinedAlertNotification(params: {
   alertId: string;
   email: string;
+  userPlan?: string;
   jobs: MatchedJob[];
   opportunities: MatchedOpportunity[];
 }): Promise<{ success: boolean; error?: string; messageId?: string }> {
-  const { alertId, email, jobs, opportunities } = params;
+  const { alertId, email, userPlan, jobs, opportunities } = params;
 
   const totalItems = jobs.length + opportunities.length;
   if (totalItems === 0) {
     return { success: true };
+  }
+
+  // Limit items for FREE users (limit total across both types)
+  const isFreeLimited = userPlan === 'FREE' && totalItems > FREE_ITEM_LIMIT;
+  let visibleJobs = jobs;
+  let visibleOpps = opportunities;
+  let hiddenCount = 0;
+
+  if (isFreeLimited) {
+    // Show jobs first, then opportunities, up to FREE_ITEM_LIMIT total
+    visibleJobs = jobs.slice(0, FREE_ITEM_LIMIT);
+    const remainingSlots = Math.max(0, FREE_ITEM_LIMIT - visibleJobs.length);
+    visibleOpps = opportunities.slice(0, remainingSlots);
+    hiddenCount = totalItems - visibleJobs.length - visibleOpps.length;
   }
 
   const unsubscribeUrl = `${APP_URL}/api/user/alerts/${alertId}/unsubscribe`;
@@ -1471,8 +1533,8 @@ async function sendCombinedAlertNotification(params: {
   // Generate subject line for combined email
   const subject = `🎯 ${totalItems} new opportunities for you`;
 
-  const html = generateCombinedAlertEmailHtml(jobs, opportunities, unsubscribeUrl);
-  const text = generateCombinedAlertEmailText(jobs, opportunities);
+  const html = generateCombinedAlertEmailHtml(visibleJobs, visibleOpps, unsubscribeUrl, hiddenCount);
+  const text = generateCombinedAlertEmailText(visibleJobs, visibleOpps);
 
   try {
     const result = await sendApplicationEmail({
