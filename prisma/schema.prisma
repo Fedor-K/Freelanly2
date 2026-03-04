@@ -743,6 +743,7 @@ model AlertNotification {
   status      NotificationStatus @default(PENDING)
   createdAt   DateTime  @default(now())
   sentAt      DateTime?  // When actually sent (null if pending)
+  messageId   String?    // Resend email ID — links webhook events to this notification
 
   @@unique([jobAlertId, jobId])  // Prevent sending same job twice to same alert
   @@unique([jobAlertId, opportunityId])  // Prevent sending same opportunity twice
@@ -750,6 +751,7 @@ model AlertNotification {
   @@index([jobId])
   @@index([opportunityId])
   @@index([status, createdAt])  // For queue processing
+  @@index([messageId])           // For joining with EmailEvent
 }
 
 // ============================================

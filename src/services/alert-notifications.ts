@@ -5,6 +5,11 @@ import { prisma } from '@/lib/db';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url;
 
+function addUtmParams(url: string, contentId: string): string {
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}utm_source=job_alert&utm_medium=email&utm_content=${encodeURIComponent(contentId)}`;
+}
+
 function truncateDescription(description: string, maxLength = 150): string {
   const text = description.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
   if (text.length <= maxLength) return text;
@@ -61,7 +66,7 @@ function generateJobAlertEmailHtml(
       // Ensure we have valid slugs for URL generation
       const companySlug = job.company?.slug || 'unknown';
       const jobSlug = job.slug || job.id;
-      const jobUrl = `${APP_URL}/company/${companySlug}/jobs/${jobSlug}`;
+      const jobUrl = addUtmParams(`${APP_URL}/company/${companySlug}/jobs/${jobSlug}`, `job_${job.id}`);
       const salary =
         job.salaryMin && job.salaryMax
           ? `${job.salaryCurrency || '$'}${(job.salaryMin / 1000).toFixed(0)}K - ${(job.salaryMax / 1000).toFixed(0)}K`
@@ -134,7 +139,7 @@ function generateJobAlertEmailHtml(
           <!-- View All Button -->
           <tr>
             <td style="padding: 30px; text-align: center;">
-              <a href="${APP_URL}/jobs${alertCategory ? `/${alertCategory}` : ''}" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 500;">
+              <a href="${addUtmParams(`${APP_URL}/jobs${alertCategory ? `/${alertCategory}` : ''}`, 'view_all_jobs')}" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 500;">
                 View All Jobs
               </a>
             </td>
@@ -180,7 +185,7 @@ function generateJobAlertEmailText(
     .map((job) => {
       const companySlug = job.company?.slug || 'unknown';
       const jobSlug = job.slug || job.id;
-      const jobUrl = `${APP_URL}/company/${companySlug}/jobs/${jobSlug}`;
+      const jobUrl = addUtmParams(`${APP_URL}/company/${companySlug}/jobs/${jobSlug}`, `job_${job.id}`);
       const salary =
         job.salaryMin && job.salaryMax
           ? `${job.salaryCurrency || '$'}${(job.salaryMin / 1000).toFixed(0)}K - ${(job.salaryMax / 1000).toFixed(0)}K`
@@ -210,7 +215,7 @@ function generateOpportunityAlertEmailHtml(
 
   const opportunityCards = opportunities
     .map((opp) => {
-      const oppUrl = `${APP_URL}/freelance/${opp.slug}`;
+      const oppUrl = addUtmParams(`${APP_URL}/freelance/${opp.slug}`, `opp_${opp.id}`);
       const salary =
         opp.salaryMin && opp.salaryMax
           ? `${opp.salaryCurrency || '$'}${opp.salaryMin} - ${opp.salaryMax}/hr`
@@ -279,7 +284,7 @@ function generateOpportunityAlertEmailHtml(
           <!-- View All Button -->
           <tr>
             <td style="padding: 30px; text-align: center;">
-              <a href="${APP_URL}/freelance" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 500;">
+              <a href="${addUtmParams(`${APP_URL}/freelance`, 'view_all_projects')}" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 500;">
                 View All Projects
               </a>
             </td>
@@ -323,7 +328,7 @@ function generateOpportunityAlertEmailText(
 
   const oppList = opportunities
     .map((opp) => {
-      const oppUrl = `${APP_URL}/freelance/${opp.slug}`;
+      const oppUrl = addUtmParams(`${APP_URL}/freelance/${opp.slug}`, `opp_${opp.id}`);
       const salary =
         opp.salaryMin && opp.salaryMax
           ? `${opp.salaryCurrency || '$'}${opp.salaryMin} - ${opp.salaryMax}/hr`
@@ -354,7 +359,7 @@ function generateCombinedAlertEmailHtml(
     .map((job) => {
       const companySlug = job.company?.slug || 'unknown';
       const jobSlug = job.slug || job.id;
-      const jobUrl = `${APP_URL}/company/${companySlug}/jobs/${jobSlug}`;
+      const jobUrl = addUtmParams(`${APP_URL}/company/${companySlug}/jobs/${jobSlug}`, `job_${job.id}`);
       const salary =
         job.salaryMin && job.salaryMax
           ? `${job.salaryCurrency || '$'}${(job.salaryMin / 1000).toFixed(0)}K - ${(job.salaryMax / 1000).toFixed(0)}K`
@@ -400,7 +405,7 @@ function generateCombinedAlertEmailHtml(
   // Generate opportunity cards
   const opportunityCards = opportunities
     .map((opp) => {
-      const oppUrl = `${APP_URL}/freelance/${opp.slug}`;
+      const oppUrl = addUtmParams(`${APP_URL}/freelance/${opp.slug}`, `opp_${opp.id}`);
       const salary =
         opp.salaryMin && opp.salaryMax
           ? `${opp.salaryCurrency || '$'}${opp.salaryMin} - ${opp.salaryMax}/hr`
@@ -494,10 +499,10 @@ function generateCombinedAlertEmailHtml(
           <!-- View All Button -->
           <tr>
             <td style="padding: 30px; text-align: center;">
-              <a href="${APP_URL}/jobs" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 500; margin-right: 10px;">
+              <a href="${addUtmParams(`${APP_URL}/jobs`, 'view_all_jobs')}" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 500; margin-right: 10px;">
                 View All Jobs
               </a>
-              <a href="${APP_URL}/freelance" style="display: inline-block; background: #fff; color: #000; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 500; border: 1px solid #000;">
+              <a href="${addUtmParams(`${APP_URL}/freelance`, 'view_all_projects')}" style="display: inline-block; background: #fff; color: #000; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 500; border: 1px solid #000;">
                 View Freelance
               </a>
             </td>
@@ -547,7 +552,7 @@ function generateCombinedAlertEmailText(
       .map((job) => {
         const companySlug = job.company?.slug || 'unknown';
         const jobSlug = job.slug || job.id;
-        const jobUrl = `${APP_URL}/company/${companySlug}/jobs/${jobSlug}`;
+        const jobUrl = addUtmParams(`${APP_URL}/company/${companySlug}/jobs/${jobSlug}`, `job_${job.id}`);
         const salary =
           job.salaryMin && job.salaryMax
             ? `${job.salaryCurrency || '$'}${(job.salaryMin / 1000).toFixed(0)}K - ${(job.salaryMax / 1000).toFixed(0)}K`
@@ -564,7 +569,7 @@ function generateCombinedAlertEmailText(
     content += `=== Freelance Projects (${opportunities.length}) ===\n\n`;
     content += opportunities
       .map((opp) => {
-        const oppUrl = `${APP_URL}/freelance/${opp.slug}`;
+        const oppUrl = addUtmParams(`${APP_URL}/freelance/${opp.slug}`, `opp_${opp.id}`);
         const salary =
           opp.salaryMin && opp.salaryMax
             ? `${opp.salaryCurrency || '$'}${opp.salaryMin} - ${opp.salaryMax}/hr`
@@ -585,7 +590,7 @@ function generateCombinedAlertEmailText(
  */
 export async function sendAlertNotification(
   alertWithMatches: AlertWithMatches
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; messageId?: string }> {
   const { alert, jobs } = alertWithMatches;
 
   if (jobs.length === 0) {
@@ -621,7 +626,7 @@ export async function sendAlertNotification(
       console.log(
         `[AlertNotifications] Sent ${jobs.length} jobs to ${alert.email}`
       );
-      return { success: true };
+      return { success: true, messageId: result.messageId };
     } else {
       const errorMsg = typeof result.error === 'object' ? JSON.stringify(result.error) : result.error;
       console.error(
@@ -1203,6 +1208,7 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
   let sent = 0;
   let failed = 0;
   const processedIds: string[] = [];
+  const messageIdForIds = new Map<string, string>(); // notificationId -> Resend messageId
 
   // Send ONE COMBINED email per user with ALL their pending items (jobs + opportunities)
   for (const [email, notifications] of notificationsByEmail) {
@@ -1232,7 +1238,7 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
     const firstAlert = notifications[0].jobAlert;
 
     // Determine which email format to use based on what content we have
-    let result: { success: boolean; error?: string };
+    let result: { success: boolean; error?: string; messageId?: string };
 
     if (jobs.length > 0 && opportunities.length > 0) {
       // COMBINED email: both jobs AND opportunities
@@ -1342,6 +1348,12 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
 
     if (result.success) {
       sent++;
+      // Store messageId for all notifications in this email
+      if (result.messageId) {
+        for (const n of notifications) {
+          messageIdForIds.set(n.id, result.messageId);
+        }
+      }
       // Increment emailsSent counter for all alerts that were part of this email
       const alertIdsForEmail = new Set(notifications.map(n => n.jobAlertId));
       if (alertIdsForEmail.size > 0) {
@@ -1358,15 +1370,32 @@ export async function processInstantAlertQueue(): Promise<{ sent: number; failed
 
   // Mark all processed notifications as SENT (including failed ones to prevent infinite retries)
   if (processedIds.length > 0) {
+    const now = new Date();
+
+    // Update all to SENT first
     await prisma.alertNotification.updateMany({
       where: {
         id: { in: processedIds },
       },
       data: {
         status: 'SENT',
-        sentAt: new Date(),
+        sentAt: now,
       },
     });
+
+    // Group notification IDs by messageId and batch-update
+    const idsByMessageId = new Map<string, string[]>();
+    for (const [nId, msgId] of messageIdForIds) {
+      const ids = idsByMessageId.get(msgId) || [];
+      ids.push(nId);
+      idsByMessageId.set(msgId, ids);
+    }
+    for (const [msgId, ids] of idsByMessageId) {
+      await prisma.alertNotification.updateMany({
+        where: { id: { in: ids } },
+        data: { messageId: msgId },
+      });
+    }
   }
 
   console.log(`[InstantAlerts] Batch ${batchId}: ${sent} emails sent, ${failed} failed, ${processedIds.length} notifications processed, ${skippedDebounce} debounced, ${skippedDailyLimit} daily limit`);
@@ -1382,7 +1411,7 @@ async function sendOpportunityAlertNotification(params: {
   email: string;
   category: string | null;
   opportunities: MatchedOpportunity[];
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; error?: string; messageId?: string }> {
   const { alertId, email, category, opportunities } = params;
 
   if (opportunities.length === 0) {
@@ -1409,7 +1438,7 @@ async function sendOpportunityAlertNotification(params: {
 
     if (result.success) {
       console.log(`[AlertNotifications] Sent ${opportunities.length} opportunities to ${email}`);
-      return { success: true };
+      return { success: true, messageId: result.messageId };
     } else {
       const errorMsg = typeof result.error === 'object' ? JSON.stringify(result.error) : result.error;
       console.error(`[AlertNotifications] Failed to send opportunities to ${email}: ${errorMsg}`);
@@ -1429,7 +1458,7 @@ async function sendCombinedAlertNotification(params: {
   email: string;
   jobs: MatchedJob[];
   opportunities: MatchedOpportunity[];
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; error?: string; messageId?: string }> {
   const { alertId, email, jobs, opportunities } = params;
 
   const totalItems = jobs.length + opportunities.length;
@@ -1455,7 +1484,7 @@ async function sendCombinedAlertNotification(params: {
 
     if (result.success) {
       console.log(`[AlertNotifications] Sent combined email (${jobs.length} jobs + ${opportunities.length} opportunities) to ${email}`);
-      return { success: true };
+      return { success: true, messageId: result.messageId };
     } else {
       const errorMsg = typeof result.error === 'object' ? JSON.stringify(result.error) : result.error;
       console.error(`[AlertNotifications] Failed to send combined email to ${email}: ${errorMsg}`);
