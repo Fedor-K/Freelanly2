@@ -18,6 +18,8 @@ import {
   Crown,
   Users,
   BarChart3,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import {
   LineChart,
@@ -100,6 +102,20 @@ interface AnalyticsData {
     clickTime: string;
     proStarted: string;
     hoursToConvert: number;
+  }>;
+  proJourneys: Array<{
+    email: string;
+    proStarted: string;
+    totalEmails: number;
+    totalClicks: number;
+    firstEmail: string | null;
+    daysFromFirstEmail: number | null;
+    events: Array<{
+      type: string;
+      subject: string | null;
+      link: string | null;
+      timestamp: string;
+    }>;
   }>;
   heatmap: Array<{ hour: number; count: number }>;
   chartData: Array<{
@@ -213,6 +229,7 @@ export default function EmailStatsPage() {
   const [error, setError] = useState<string | null>(null);
   const [eventFilter, setEventFilter] = useState<EventFilter>('ALL');
   const [period, setPeriod] = useState<number>(30);
+  const [expandedJourney, setExpandedJourney] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -692,6 +709,131 @@ export default function EmailStatsPage() {
           </Card>
         );
       })()}
+
+      {/* PRO User Journeys — full email history before conversion */}
+      {analytics && analytics.proJourneys && analytics.proJourneys.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-amber-600" />
+              Путь к PRO — полная история
+            </CardTitle>
+            <CardDescription>
+              Все email-события для каждого PRO юзера от первого письма до покупки. Кликни на юзера чтобы развернуть.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {analytics.proJourneys.map((journey) => {
+                const isExpanded = expandedJourney === journey.email;
+                return (
+                  <div key={journey.email} className="border rounded-lg overflow-hidden">
+                    {/* Summary row — clickable */}
+                    <button
+                      onClick={() => setExpandedJourney(isExpanded ? null : journey.email)}
+                      className="w-full flex items-center gap-3 p-3 hover:bg-amber-50/50 transition-colors text-left"
+                    >
+                      {isExpanded
+                        ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                        : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      }
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="font-medium text-sm">{journey.email}</span>
+                          <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">
+                            PRO {new Date(journey.proStarted).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          <span>{journey.totalEmails} писем получил</span>
+                          <span>·</span>
+                          <span>{journey.totalClicks} кликов сделал</span>
+                          {journey.daysFromFirstEmail !== null && (
+                            <>
+                              <span>·</span>
+                              <span>
+                                {journey.daysFromFirstEmail === 0
+                                  ? 'купил в день первого письма'
+                                  : `${journey.daysFromFirstEmail}д от первого письма до покупки`}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Expanded timeline */}
+                    {isExpanded && (
+                      <div className="border-t bg-gray-50/50 p-3">
+                        <div className="space-y-1 max-h-64 overflow-y-auto">
+                          {journey.events.map((event, i) => {
+                            const isSent = event.type === 'SENT';
+                            let label = '';
+                            if (isSent) {
+                              label = event.subject || 'email';
+                            } else {
+                              // CLICKED — parse link
+                              const url = event.link || '';
+                              if (url.includes('/company/') && url.includes('/jobs/')) {
+                                const m = url.match(/\/jobs\/([^?]+)/);
+                                label = 'Клик: вакансия ' + (m ? decodeURIComponent(m[1]).replace(/-/g, ' ') : '');
+                              } else if (url.includes('/freelance/') && !url.includes('callback')) {
+                                const m = url.match(/\/freelance\/([^?]+)/);
+                                label = 'Клик: проект ' + (m ? decodeURIComponent(m[1]).replace(/-/g, ' ') : '');
+                              } else if (url.includes('coupon=')) {
+                                label = 'Клик: abandoned checkout (купон)';
+                              } else if (url.includes('callback') && url.includes('freelance')) {
+                                label = 'Клик: вход → фриланс';
+                              } else if (url.includes('callback') && url.includes('pricing')) {
+                                label = 'Клик: вход → pricing';
+                              } else if (url.includes('callback') && url.includes('jobs')) {
+                                label = 'Клик: вход → вакансии';
+                              } else if (url.includes('callback')) {
+                                label = 'Клик: magic link (вход)';
+                              } else if (url.includes('/pricing')) {
+                                label = 'Клик: pricing';
+                              } else {
+                                label = 'Клик: ' + (url.replace(/https?:\/\/[^/]+/, '').split('?')[0] || 'ссылка');
+                              }
+                            }
+                            return (
+                              <div key={i} className="flex items-start gap-2 text-xs">
+                                <span className="text-muted-foreground w-28 shrink-0">
+                                  {new Date(event.timestamp).toLocaleDateString()}{' '}
+                                  {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                <span className={`px-1.5 py-0.5 rounded font-medium shrink-0 ${
+                                  isSent ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'
+                                }`}>
+                                  {isSent ? 'SENT' : 'CLICK'}
+                                </span>
+                                <span className="truncate" title={label}>
+                                  {label}
+                                </span>
+                              </div>
+                            );
+                          })}
+                          {/* PRO purchase marker */}
+                          <div className="flex items-start gap-2 text-xs pt-1 border-t mt-1">
+                            <span className="text-muted-foreground w-28 shrink-0">
+                              {new Date(journey.proStarted).toLocaleDateString()}{' '}
+                              {new Date(journey.proStarted).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded font-medium bg-amber-200 text-amber-800">
+                              PRO
+                            </span>
+                            <span className="font-medium text-amber-700">Купил подписку</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Top Clicked Jobs */}
       {analytics && analytics.topJobs.length > 0 && (

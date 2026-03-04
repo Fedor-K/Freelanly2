@@ -129,6 +129,31 @@ export async function GET(request: NextRequest) {
       ORDER BY u."id", ee."timestamp" DESC
     `;
 
+    // Full journey for each PRO user: all email events before conversion
+    const proJourneys = await prisma.$queryRaw<Array<{
+      email: string;
+      pro_started: Date;
+      type: string;
+      subject: string | null;
+      link: string | null;
+      timestamp: Date;
+    }>>`
+      SELECT
+        u."email",
+        u."proStartedAt" as pro_started,
+        ee."type",
+        ee."subject",
+        ee."metadata"->>'link' as link,
+        ee."timestamp"
+      FROM "User" u
+      JOIN "EmailEvent" ee ON LOWER(ee."to") = LOWER(u."email")
+      WHERE u."plan" = 'PRO'
+        AND u."proStartedAt" IS NOT NULL
+        AND ee."timestamp" < u."proStartedAt"
+        AND ee."type" IN ('SENT', 'CLICKED')
+      ORDER BY u."email", ee."timestamp" ASC
+    `;
+
     // Category stats query uses AlertNotification.messageId — may fail if column not yet added
     let categoryStats: Array<{ category: string; sent: bigint; opened: bigint; clicked: bigint }> = [];
     try {
@@ -231,6 +256,40 @@ export async function GET(request: NextRequest) {
       };
     }).sort((a, b) => new Date(b.clickTime).getTime() - new Date(a.clickTime).getTime()); // newest first
 
+    // Process PRO journeys — group events by user
+    const journeyMap = new Map<string, {
+      email: string;
+      proStarted: Date;
+      events: Array<{ type: string; subject: string | null; link: string | null; timestamp: Date }>;
+    }>();
+    for (const row of proJourneys) {
+      const masked = row.email.replace(/(.{2}).*(@.*)/, '$1***$2');
+      if (!journeyMap.has(row.email)) {
+        journeyMap.set(row.email, { email: masked, proStarted: row.pro_started, events: [] });
+      }
+      let link = row.link || null;
+      if (link) {
+        link = link.replace(/[&?]token=[^&]+/g, '').replace(/[&?]email=[^&]+/g, '').replace(/[?&]$/, '');
+      }
+      journeyMap.get(row.email)!.events.push({
+        type: row.type,
+        subject: row.subject,
+        link,
+        timestamp: row.timestamp,
+      });
+    }
+    const proJourneyList = Array.from(journeyMap.values())
+      .map((j) => ({
+        ...j,
+        totalEmails: j.events.filter(e => e.type === 'SENT').length,
+        totalClicks: j.events.filter(e => e.type === 'CLICKED').length,
+        firstEmail: j.events.find(e => e.type === 'SENT')?.timestamp || null,
+        daysFromFirstEmail: j.events.find(e => e.type === 'SENT')
+          ? Math.round((j.proStarted.getTime() - new Date(j.events.find(e => e.type === 'SENT')!.timestamp).getTime()) / (1000 * 60 * 60 * 24))
+          : null,
+      }))
+      .sort((a, b) => new Date(b.proStarted).getTime() - new Date(a.proStarted).getTime());
+
     // Process daily trend
     const dailyMap: Record<string, Record<string, number>> = {};
     for (const row of dailyTrend) {
@@ -253,6 +312,7 @@ export async function GET(request: NextRequest) {
       planStats,
       emailsToPro,
       proConversions,
+      proJourneys: proJourneyList,
       heatmap,
       chartData,
     });
