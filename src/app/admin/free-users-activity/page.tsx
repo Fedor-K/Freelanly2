@@ -11,6 +11,7 @@ import {
   Mail,
   Crown,
   TrendingDown,
+  ExternalLink,
 } from 'lucide-react';
 import {
   LineChart,
@@ -63,11 +64,18 @@ interface ContentSegment {
   otherPct: number;
 }
 
+interface ProOtherLink {
+  link: string;
+  clicks: number;
+  users: number;
+}
+
 interface Data {
   segmentAverages: SegmentAverage[];
   hotFreeUsers: HotFreeUser[];
   decayCurve: DecayPoint[];
   contentBreakdown: ContentSegment[];
+  proOtherLinks: ProOtherLink[];
 }
 
 export default function FreeUsersActivityPage() {
@@ -331,6 +339,48 @@ export default function FreeUsersActivityPage() {
               ) : (
                 <p className="text-center text-muted-foreground py-8">Нет данных</p>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Block 5: PRO "Other" Links Detail */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ExternalLink className="h-5 w-5" />
+                PRO: на что кликали до покупки (все ссылки)
+              </CardTitle>
+              <CardDescription>
+                Конкретные URL, по которым кликали будущие PRO-юзеры перед оплатой
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="pb-2 pr-4">#</th>
+                      <th className="pb-2 pr-4">Ссылка</th>
+                      <th className="pb-2 pr-4 text-right">Кликов</th>
+                      <th className="pb-2 text-right">Юзеров</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data?.proOtherLinks?.map((l, i) => (
+                      <tr key={i} className="border-b last:border-0 hover:bg-muted/50">
+                        <td className="py-2 pr-4 text-muted-foreground">{i + 1}</td>
+                        <td className="py-2 pr-4 font-mono text-xs max-w-md truncate">
+                          {l.link}
+                        </td>
+                        <td className="py-2 pr-4 text-right font-medium">{l.clicks}</td>
+                        <td className="py-2 text-right">{l.users}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {(!data?.proOtherLinks || data.proOtherLinks.length === 0) && (
+                  <p className="text-center text-muted-foreground py-8">Нет данных</p>
+                )}
+              </div>
             </CardContent>
           </Card>
         </>

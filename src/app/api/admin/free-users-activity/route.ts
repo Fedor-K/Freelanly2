@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const [segmentAverages, hotFreeUsers, decayCurve, contentBreakdown] =
+    const [segmentAverages, hotFreeUsers, decayCurve, contentBreakdown, proOtherLinks] =
       await Promise.all([
         // Query 1: FREE vs PRO averages (PRO = only events before proStartedAt)
         prisma.$queryRaw<
@@ -126,6 +126,30 @@ export async function GET() {
             AND (u."plan" = 'FREE' OR (u."plan" = 'PRO' AND u."proStartedAt" IS NOT NULL AND ee."timestamp" < u."proStartedAt"))
           GROUP BY CASE WHEN u."plan" = 'PRO' THEN 'PRO' ELSE 'FREE' END
         `,
+
+        // Query 5: PRO "other" links detail — what exactly did PRO users click before buying?
+        prisma.$queryRaw<
+          Array<{
+            link: string;
+            clicks: bigint;
+            users: bigint;
+          }>
+        >`
+          SELECT
+            ee."metadata"->>'link' as link,
+            COUNT(*) as clicks,
+            COUNT(DISTINCT ee."to") as users
+          FROM "EmailEvent" ee
+          JOIN "User" u ON LOWER(ee."to") = LOWER(u."email")
+          WHERE ee."type" = 'CLICKED'
+            AND u."plan" = 'PRO'
+            AND u."proStartedAt" IS NOT NULL
+            AND ee."timestamp" < u."proStartedAt"
+            AND ee."metadata"->>'link' IS NOT NULL
+          GROUP BY ee."metadata"->>'link'
+          ORDER BY clicks DESC
+          LIMIT 50
+        `,
       ]);
 
     // Serialize bigints and mask emails
@@ -178,6 +202,12 @@ export async function GET() {
           Number(d.recipients) > 0
             ? Math.round((Number(d.clickers) / Number(d.recipients)) * 1000) / 10
             : 0,
+      })),
+
+      proOtherLinks: proOtherLinks.map((l) => ({
+        link: l.link,
+        clicks: Number(l.clicks),
+        users: Number(l.users),
       })),
 
       contentBreakdown: contentBreakdown.map((c) => {
