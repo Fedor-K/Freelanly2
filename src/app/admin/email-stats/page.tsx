@@ -97,7 +97,6 @@ interface AnalyticsData {
   proConversions: Array<{
     email: string;
     lastClick: string;
-    linkType: string;
     clickTime: string;
     proStarted: string;
     hoursToConvert: number;
@@ -551,58 +550,142 @@ export default function EmailStatsPage() {
       </div>
 
       {/* Last Click Before PRO */}
-      {analytics && analytics.proConversions && analytics.proConversions.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Crown className="h-5 w-5 text-amber-600" />
-              Last Click Before PRO Purchase
-            </CardTitle>
-            <CardDescription>
-              What email link each user clicked before upgrading ({analytics.proConversions.length} conversions tracked)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {analytics.proConversions.map((conv, i) => {
-                const displayName = decodeURIComponent(conv.lastClick).replace(/-/g, ' ');
-                const hoursLabel = conv.hoursToConvert < 24
-                  ? `${conv.hoursToConvert}h before PRO`
-                  : `${Math.round(conv.hoursToConvert / 24)}d before PRO`;
-                return (
-                  <div
-                    key={i}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-amber-50/50 border border-amber-100"
-                  >
-                    <span className="text-sm font-medium text-muted-foreground w-6 text-right shrink-0">
-                      {i + 1}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                          conv.linkType === 'job' ? 'bg-blue-100 text-blue-700' : conv.linkType === 'freelance' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'
-                        }`}>
-                          {conv.linkType}
-                        </span>
-                        <span className="text-sm font-medium truncate" title={conv.lastClick}>
-                          {displayName || 'unknown link'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                        <span>{conv.email}</span>
-                        <span>·</span>
-                        <span>clicked {new Date(conv.clickTime).toLocaleDateString()}</span>
-                        <span>·</span>
-                        <span className="text-amber-600 font-medium">{hoursLabel}</span>
+      {analytics && analytics.proConversions && analytics.proConversions.length > 0 && (() => {
+        // Parse each conversion into a readable source
+        const parsed = analytics.proConversions.map((conv) => {
+          const url = conv.lastClick || '';
+          let source: string;
+          let detail: string;
+          let sourceType: 'abandoned_checkout' | 'job_alert' | 'freelance' | 'login' | 'pricing' | 'other';
+          let badgeColor: string;
+
+          if (url.includes('coupon=') || url.includes('source=email_abandoned')) {
+            source = 'Abandoned Checkout Email';
+            const couponMatch = url.match(/coupon=([^&]+)/);
+            detail = couponMatch ? `coupon: ${couponMatch[1]}` : '';
+            sourceType = 'abandoned_checkout';
+            badgeColor = 'bg-orange-100 text-orange-700';
+          } else if (url.includes('/company/') && url.includes('/jobs/')) {
+            const match = url.match(/\/company\/[^/]+\/jobs\/([^?]+)/);
+            source = 'Job Alert Click';
+            detail = match ? decodeURIComponent(match[1]).replace(/-/g, ' ') : '';
+            sourceType = 'job_alert';
+            badgeColor = 'bg-blue-100 text-blue-700';
+          } else if (url.includes('/freelance/') && !url.includes('callback')) {
+            const match = url.match(/\/freelance\/([^?]+)/);
+            source = 'Freelance Project Click';
+            detail = match ? decodeURIComponent(match[1]).replace(/-/g, ' ') : '';
+            sourceType = 'freelance';
+            badgeColor = 'bg-purple-100 text-purple-700';
+          } else if (url.includes('callback') && url.includes('pricing')) {
+            source = 'Login → Pricing';
+            const planMatch = url.match(/plan=([^&]+)/);
+            detail = planMatch ? planMatch[1] : '';
+            sourceType = 'pricing';
+            badgeColor = 'bg-green-100 text-green-700';
+          } else if (url.includes('callback') && url.includes('freelance')) {
+            const match = url.match(/callbackUrl=[^/]*\/freelance\/([^&?]+)/);
+            source = 'Login → Freelance';
+            detail = match ? decodeURIComponent(match[1]).replace(/-/g, ' ') : '';
+            sourceType = 'freelance';
+            badgeColor = 'bg-purple-100 text-purple-700';
+          } else if (url.includes('callback') && url.includes('jobs')) {
+            source = 'Login → Jobs';
+            detail = '';
+            sourceType = 'job_alert';
+            badgeColor = 'bg-blue-100 text-blue-700';
+          } else if (url.includes('callback')) {
+            source = 'Login (magic link)';
+            detail = '';
+            sourceType = 'login';
+            badgeColor = 'bg-gray-100 text-gray-700';
+          } else if (url.includes('/pricing')) {
+            source = 'Pricing Page';
+            detail = '';
+            sourceType = 'pricing';
+            badgeColor = 'bg-green-100 text-green-700';
+          } else {
+            source = 'Other';
+            detail = url.replace(/https?:\/\/[^/]+/, '').split('?')[0];
+            sourceType = 'other';
+            badgeColor = 'bg-gray-100 text-gray-700';
+          }
+
+          return { ...conv, source, detail, sourceType, badgeColor };
+        });
+
+        // Count by source type for summary
+        const sourceCounts: Record<string, number> = {};
+        for (const p of parsed) {
+          sourceCounts[p.source] = (sourceCounts[p.source] || 0) + 1;
+        }
+        const sortedSources = Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]);
+
+        return (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Crown className="h-5 w-5 text-amber-600" />
+                Last Click Before PRO Purchase
+              </CardTitle>
+              <CardDescription>
+                What brought {analytics.proConversions.length} users to PRO — their last email click before upgrading
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Summary: conversion sources */}
+              <div className="flex flex-wrap gap-2">
+                {sortedSources.map(([source, count]) => (
+                  <div key={source} className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-sm">
+                    <span className="font-semibold">{count}</span>
+                    <span className="text-muted-foreground ml-1">{source}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Individual conversions */}
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {parsed.map((conv, i) => {
+                  const hoursLabel = conv.hoursToConvert < 1
+                    ? 'same session'
+                    : conv.hoursToConvert < 24
+                      ? `${conv.hoursToConvert}h before`
+                      : `${Math.round(conv.hoursToConvert / 24)}d before`;
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 p-3 rounded-lg bg-amber-50/50 border border-amber-100"
+                    >
+                      <span className="text-sm font-medium text-muted-foreground w-6 text-right shrink-0">
+                        {i + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${conv.badgeColor}`}>
+                            {conv.source}
+                          </span>
+                          {conv.detail && (
+                            <span className="text-sm truncate" title={conv.detail}>
+                              {conv.detail}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                          <span>{conv.email}</span>
+                          <span>·</span>
+                          <span>{new Date(conv.clickTime).toLocaleDateString()}</span>
+                          <span>·</span>
+                          <span className="text-amber-600 font-medium">{hoursLabel}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Top Clicked Jobs */}
       {analytics && analytics.topJobs.length > 0 && (

@@ -213,17 +213,18 @@ export async function GET(request: NextRequest) {
       count: hourlyMap.get(i) || 0,
     }));
 
-    // Process last click before PRO
+    // Process last click before PRO — strip tokens for security
     const proConversions = lastClickBeforePro.map((row) => {
-      const link = row.last_click || '';
-      const match = link.match(/\/company\/[^/]+\/jobs\/([^?]+)/);
-      const oppMatch = link.match(/\/freelance\/([^?]+)/);
-      const slug = match ? match[1] : oppMatch ? oppMatch[1] : link;
-      const type = match ? 'job' : oppMatch ? 'freelance' : 'other';
+      let link = row.last_click || '';
+      // Remove sensitive tokens from URL
+      link = link.replace(/[&?]token=[^&]+/g, '');
+      // Remove email params
+      link = link.replace(/[&?]email=[^&]+/g, '');
+      // Clean up leftover ? or & at end
+      link = link.replace(/[?&]$/, '');
       return {
         email: row.email.replace(/(.{2}).*(@.*)/, '$1***$2'), // mask email
-        lastClick: slug,
-        linkType: type,
+        lastClick: link,
         clickTime: row.click_time,
         proStarted: row.pro_started,
         hoursToConvert: Math.round(Number(row.hours_to_convert)),
