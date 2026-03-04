@@ -229,7 +229,7 @@ export async function GET(request: NextRequest) {
         proStarted: row.pro_started,
         hoursToConvert: Math.round(Number(row.hours_to_convert)),
       };
-    });
+    }).sort((a, b) => new Date(b.clickTime).getTime() - new Date(a.clickTime).getTime()); // newest first
 
     // Process daily trend
     const dailyMap: Record<string, Record<string, number>> = {};

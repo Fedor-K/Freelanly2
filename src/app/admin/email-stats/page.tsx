@@ -633,14 +633,19 @@ export default function EmailStatsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Summary: conversion sources */}
-              <div className="flex flex-wrap gap-2">
-                {sortedSources.map(([source, count]) => (
-                  <div key={source} className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-sm">
-                    <span className="font-semibold">{count}</span>
-                    <span className="text-muted-foreground ml-1">{source}</span>
-                  </div>
-                ))}
+              {/* Summary: what type of email click led to PRO */}
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Что кликнули последним перед покупкой PRO:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {sortedSources.map(([source, count]) => (
+                    <div key={source} className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-sm">
+                      <span className="font-semibold">{count}</span>
+                      <span className="text-muted-foreground ml-1">× {source}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Individual conversions */}
