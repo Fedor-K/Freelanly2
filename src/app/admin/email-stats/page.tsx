@@ -560,52 +560,52 @@ export default function EmailStatsPage() {
           let badgeColor: string;
 
           if (url.includes('coupon=') || url.includes('source=email_abandoned')) {
-            source = 'Abandoned Checkout Email';
+            source = 'Письмо "брошенная корзина"';
             const couponMatch = url.match(/coupon=([^&]+)/);
-            detail = couponMatch ? `coupon: ${couponMatch[1]}` : '';
+            detail = couponMatch ? `купон ${couponMatch[1]}` : '';
             sourceType = 'abandoned_checkout';
             badgeColor = 'bg-orange-100 text-orange-700';
           } else if (url.includes('/company/') && url.includes('/jobs/')) {
             const match = url.match(/\/company\/[^/]+\/jobs\/([^?]+)/);
-            source = 'Job Alert Click';
+            source = 'Клик по вакансии из email';
             detail = match ? decodeURIComponent(match[1]).replace(/-/g, ' ') : '';
             sourceType = 'job_alert';
             badgeColor = 'bg-blue-100 text-blue-700';
           } else if (url.includes('/freelance/') && !url.includes('callback')) {
             const match = url.match(/\/freelance\/([^?]+)/);
-            source = 'Freelance Project Click';
+            source = 'Клик по проекту из email';
             detail = match ? decodeURIComponent(match[1]).replace(/-/g, ' ') : '';
             sourceType = 'freelance';
             badgeColor = 'bg-purple-100 text-purple-700';
           } else if (url.includes('callback') && url.includes('pricing')) {
-            source = 'Login → Pricing';
+            source = 'Вошёл по ссылке → Pricing';
             const planMatch = url.match(/plan=([^&]+)/);
-            detail = planMatch ? planMatch[1] : '';
+            detail = planMatch ? `план: ${planMatch[1]}` : '';
             sourceType = 'pricing';
             badgeColor = 'bg-green-100 text-green-700';
           } else if (url.includes('callback') && url.includes('freelance')) {
             const match = url.match(/callbackUrl=[^/]*\/freelance\/([^&?]+)/);
-            source = 'Login → Freelance';
+            source = 'Вошёл по ссылке → Фриланс';
             detail = match ? decodeURIComponent(match[1]).replace(/-/g, ' ') : '';
             sourceType = 'freelance';
             badgeColor = 'bg-purple-100 text-purple-700';
           } else if (url.includes('callback') && url.includes('jobs')) {
-            source = 'Login → Jobs';
+            source = 'Вошёл по ссылке → Вакансии';
             detail = '';
             sourceType = 'job_alert';
             badgeColor = 'bg-blue-100 text-blue-700';
           } else if (url.includes('callback')) {
-            source = 'Login (magic link)';
+            source = 'Вошёл по ссылке из email';
             detail = '';
             sourceType = 'login';
             badgeColor = 'bg-gray-100 text-gray-700';
           } else if (url.includes('/pricing')) {
-            source = 'Pricing Page';
+            source = 'Перешёл на Pricing';
             detail = '';
             sourceType = 'pricing';
             badgeColor = 'bg-green-100 text-green-700';
           } else {
-            source = 'Other';
+            source = 'Другое';
             detail = url.replace(/https?:\/\/[^/]+/, '').split('?')[0];
             sourceType = 'other';
             badgeColor = 'bg-gray-100 text-gray-700';
@@ -626,10 +626,11 @@ export default function EmailStatsPage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Crown className="h-5 w-5 text-amber-600" />
-                Last Click Before PRO Purchase
+                Последний клик перед покупкой PRO
               </CardTitle>
               <CardDescription>
-                What brought {analytics.proConversions.length} users to PRO — their last email click before upgrading
+                Для каждого PRO-юзера — какую ссылку из email он кликнул последней перед оплатой.
+                Показывает что именно привело к конверсии ({analytics.proConversions.length} юзеров).
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -652,10 +653,10 @@ export default function EmailStatsPage() {
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {parsed.map((conv, i) => {
                   const hoursLabel = conv.hoursToConvert < 1
-                    ? 'same session'
+                    ? '< 1ч до покупки'
                     : conv.hoursToConvert < 24
-                      ? `${conv.hoursToConvert}h before`
-                      : `${Math.round(conv.hoursToConvert / 24)}d before`;
+                      ? `${conv.hoursToConvert}ч до покупки`
+                      : `${Math.round(conv.hoursToConvert / 24)}д до покупки`;
                   return (
                     <div
                       key={i}
