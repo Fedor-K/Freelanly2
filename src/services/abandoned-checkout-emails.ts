@@ -259,6 +259,8 @@ interface AbandonedSession {
 
 /**
  * Get abandoned checkout sessions from our database
+ * Returns only the EARLIEST pending session per user email
+ * to prevent duplicate emails when user creates multiple checkout sessions
  */
 async function getAbandonedSessions(): Promise<AbandonedSession[]> {
   // Get pending sessions from last 4 days
@@ -273,7 +275,15 @@ async function getAbandonedSessions(): Promise<AbandonedSession[]> {
     orderBy: { createdAt: 'asc' },
   });
 
-  return sessions.map((session) => {
+  // Deduplicate: keep only the earliest session per email
+  const earliestByEmail = new Map<string, (typeof sessions)[0]>();
+  for (const session of sessions) {
+    if (!earliestByEmail.has(session.email)) {
+      earliestByEmail.set(session.email, session);
+    }
+  }
+
+  return Array.from(earliestByEmail.values()).map((session) => {
     const minutesSinceCreated = (Date.now() - session.createdAt.getTime()) / (1000 * 60);
     return {
       id: session.id,
@@ -311,15 +321,15 @@ function getEmailTypeForMinutes(minutes: number): AbandonedEmailType | null {
 }
 
 /**
- * Check if email was already sent for this session/type
+ * Check if this email type was already sent to this user (by email address)
+ * Deduplicates by email, not by sessionId, to prevent duplicate emails
+ * when user creates multiple checkout sessions
  */
-async function wasEmailSent(sessionId: string, emailType: AbandonedEmailType): Promise<boolean> {
-  const existing = await prisma.abandonedCheckoutEmail.findUnique({
+async function wasEmailSent(email: string, emailType: AbandonedEmailType): Promise<boolean> {
+  const existing = await prisma.abandonedCheckoutEmail.findFirst({
     where: {
-      sessionId_emailType: {
-        sessionId,
-        emailType,
-      },
+      email,
+      emailType,
     },
   });
   return !!existing;
@@ -426,8 +436,8 @@ export async function processAbandonedCheckoutEmails(): Promise<{
         continue;
       }
 
-      // Check if already sent this email type
-      const alreadySent = await wasEmailSent(session.stripeSessionId, emailType);
+      // Check if already sent this email type (by user email, not session)
+      const alreadySent = await wasEmailSent(session.email, emailType);
       if (alreadySent) {
         stats.skipped++;
         continue;
