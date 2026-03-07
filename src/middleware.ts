@@ -32,25 +32,14 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(newUrl, 301);
   }
 
-  // 3. Old job URL patterns → 410 Gone (not 404!)
-  // Google deindexes 410 on first crawl, 404 requires multiple recrawls
+  // 3. Old job URL patterns → 301 to /freelance
   // Catches: /jobs/italian-translation-job-0398f84e, /jobs/some-old-slug
   const oldJobUrlMatch = pathname.match(/^\/jobs\/([^\/]+)$/);
   if (oldJobUrlMatch) {
     const slug = oldJobUrlMatch[1];
     if (!VALID_CATEGORIES.has(slug)) {
-      return new NextResponse('Gone', { status: 410 });
+      return NextResponse.redirect(new URL('/freelance', req.url), 301);
     }
-  }
-
-  // 4. SEO redirects for old/removed pages (301 permanent)
-  const seoRedirects: Record<string, string> = {
-    '/for-interpreters': '/jobs/translation',
-    '/for-translators': '/jobs/translation',
-  };
-
-  if (seoRedirects[pathname]) {
-    return NextResponse.redirect(new URL(seoRedirects[pathname], req.url), 301);
   }
 
   // 5. Auth: check for session cookie (NextAuth session token)
