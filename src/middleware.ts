@@ -46,24 +46,6 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  // 4. Expired/deleted job pages → redirect to category
-  const companyJobMatch = pathname.match(/^\/company\/[^\/]+\/jobs\/([^\/]+)$/);
-  if (companyJobMatch) {
-    const jobSlug = companyJobMatch[1];
-    try {
-      const origin = req.nextUrl.origin;
-      const res = await fetch(`${origin}/api/job-redirect?slug=${encodeURIComponent(jobSlug)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.redirect) {
-          return NextResponse.redirect(new URL(data.redirect, req.url), 301);
-        }
-      }
-    } catch {
-      // API unavailable, let page handle it
-    }
-  }
-
   // 5. Auth: check for session cookie (NextAuth session token)
   const sessionToken =
     req.cookies.get('authjs.session-token')?.value ||
