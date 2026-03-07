@@ -122,6 +122,51 @@ const nextConfig: NextConfig = {
       });
     }
 
+    // === Legacy URL redirects (GSC 404s) → /freelance ===
+
+    // Language pair pages
+    redirects.push({
+      source: '/language-is-:pair',
+      destination: '/freelance',
+      permanent: true,
+    });
+
+    // Legacy posts
+    redirects.push({
+      source: '/posts/:id',
+      destination: '/freelance',
+      permanent: true,
+    });
+
+    // Legacy blog pages
+    redirects.push({
+      source: '/blog/:slug',
+      destination: '/freelance',
+      permanent: true,
+    });
+
+    // Static legacy pages
+    const legacyRedirects: Record<string, string> = {
+      '/how-it-works': '/freelance',
+      '/register': '/freelance',
+      '/faq': '/freelance',
+      '/contact-us': '/freelance',
+      '/terms-of-use': '/freelance',
+      '/privacy-policy': '/freelance',
+      '/popular': '/freelance',
+      '/linguist-rate-calculator': '/freelance',
+      '/for-interpreters': '/freelance',
+      '/for-translators': '/freelance',
+    };
+
+    for (const [source, destination] of Object.entries(legacyRedirects)) {
+      redirects.push({
+        source,
+        destination,
+        permanent: true,
+      });
+    }
+
     return redirects;
   },
 };
