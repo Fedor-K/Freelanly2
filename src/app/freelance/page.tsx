@@ -249,6 +249,35 @@ export default async function FreelancePage({ searchParams }: FreelancePageProps
   const { opportunities, totalCount } = await getOpportunities(currentPage, filters);
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
+  // Get per-category counts for the category grid
+  let categoryCounts: { slug: string; count: number }[] = [];
+  try {
+    const maxAgeDate = getMaxJobAgeDate();
+    const counts = await prisma.opportunity.groupBy({
+      by: ['categoryId'],
+      where: {
+        isActive: true,
+        postedAt: { gte: maxAgeDate },
+      },
+      _count: { id: true },
+    });
+
+    if (counts.length > 0) {
+      const categoryIds = counts.map(c => c.categoryId);
+      const cats = await prisma.category.findMany({
+        where: { id: { in: categoryIds } },
+        select: { id: true, slug: true },
+      });
+      const idToSlug = Object.fromEntries(cats.map(c => [c.id, c.slug]));
+      categoryCounts = counts
+        .map(c => ({ slug: idToSlug[c.categoryId] || '', count: c._count.id }))
+        .filter(c => c.slug && c.count > 0)
+        .sort((a, b) => b.count - a.count);
+    }
+  } catch (error) {
+    // DB might not be available
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -263,18 +292,25 @@ export default async function FreelancePage({ searchParams }: FreelancePageProps
           </div>
 
           {/* Category Grid */}
-          <div className="mb-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {categories.map((cat) => (
-              <Link
-                key={cat.slug}
-                href={`/freelance/${cat.slug}`}
-                className="flex items-center gap-2 px-3 py-2.5 border rounded-lg hover:bg-muted/50 transition-colors"
-              >
-                <span>{cat.icon}</span>
-                <span className="text-sm font-medium truncate">{cat.name}</span>
-              </Link>
-            ))}
-          </div>
+          {categoryCounts.length > 0 && (
+            <div className="mb-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {categoryCounts.map(({ slug, count }) => {
+                const cat = categories.find(c => c.slug === slug);
+                if (!cat) return null;
+                return (
+                  <Link
+                    key={slug}
+                    href={`/freelance/${slug}`}
+                    className="flex items-center gap-2 px-3 py-2.5 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <span>{cat.icon}</span>
+                    <span className="text-sm font-medium truncate">{cat.name}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{count}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
 
           <div className="mb-6">
             <TopFilters
