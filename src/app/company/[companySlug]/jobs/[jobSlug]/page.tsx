@@ -201,8 +201,9 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
   const { companySlug, jobSlug } = await params;
   const job = await getJob(jobSlug);
 
-  if (!job) {
-    notFound();
+  if (!job || !job.isActive) {
+    const categorySlug = job?.category?.slug;
+    redirect(categorySlug ? `/jobs/${categorySlug}` : '/jobs');
   }
 
   const jobUrl = buildJobUrl(job.company.slug, job.slug);
