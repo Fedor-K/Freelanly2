@@ -35,13 +35,6 @@ export function Header() {
                 >
                   All Jobs
                 </Link>
-                <Link
-                  href="/freelance"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-lg font-medium hover:text-primary transition-colors"
-                >
-                  Freelance
-                </Link>
                 <div className="border-t pt-4">
                   <span className="text-sm text-muted-foreground mb-2 block">Categories</span>
                   {mainCategories.map((category) => (
@@ -103,12 +96,6 @@ export function Header() {
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               All Jobs
-            </Link>
-            <Link
-              href="/freelance"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Freelance
             </Link>
             {mainCategories.map((category) => (
               <Link
