@@ -122,23 +122,23 @@ const nextConfig: NextConfig = {
       });
     }
 
-    // === Legacy URL redirects (GSC 404s) → /freelance ===
+    // === Legacy URL redirects (GSC 404s) ===
 
-    // Language pair pages
+    // Language pair pages → translation category
     redirects.push({
       source: '/language-is-:pair',
-      destination: '/freelance',
+      destination: '/freelance/translation',
       permanent: true,
     });
 
-    // Legacy posts
+    // Legacy posts → general freelance
     redirects.push({
       source: '/posts/:id',
       destination: '/freelance',
       permanent: true,
     });
 
-    // Legacy blog pages
+    // Legacy blog pages → general freelance
     redirects.push({
       source: '/blog/:slug',
       destination: '/freelance',
@@ -154,9 +154,9 @@ const nextConfig: NextConfig = {
       '/terms-of-use': '/freelance',
       '/privacy-policy': '/freelance',
       '/popular': '/freelance',
-      '/linguist-rate-calculator': '/freelance',
-      '/for-interpreters': '/freelance',
-      '/for-translators': '/freelance',
+      '/linguist-rate-calculator': '/freelance/translation',
+      '/for-interpreters': '/freelance/translation',
+      '/for-translators': '/freelance/translation',
     };
 
     for (const [source, destination] of Object.entries(legacyRedirects)) {

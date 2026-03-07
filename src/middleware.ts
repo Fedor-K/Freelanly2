@@ -32,13 +32,17 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(newUrl, 301);
   }
 
-  // 3. Old job URL patterns → 301 to /freelance
+  // 3. Old job URL patterns → 301 to /freelance (by category when possible)
   // Catches: /jobs/italian-translation-job-0398f84e, /jobs/some-old-slug
   const oldJobUrlMatch = pathname.match(/^\/jobs\/([^\/]+)$/);
   if (oldJobUrlMatch) {
     const slug = oldJobUrlMatch[1];
     if (!VALID_CATEGORIES.has(slug)) {
-      return NextResponse.redirect(new URL('/freelance', req.url), 301);
+      // Route translation/interpretation jobs to the right category
+      const dest = /translation|interpretation/.test(slug)
+        ? '/freelance/translation'
+        : '/freelance';
+      return NextResponse.redirect(new URL(dest, req.url), 301);
     }
   }
 
