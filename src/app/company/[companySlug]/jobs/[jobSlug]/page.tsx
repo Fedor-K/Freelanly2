@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound, permanentRedirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -202,7 +202,8 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
   const job = await getJob(jobSlug);
 
   if (!job || !job.isActive) {
-    return { title: 'Job No Longer Available' };
+    const categorySlug = job?.category?.slug;
+    redirect(categorySlug ? `/jobs/${categorySlug}` : '/jobs');
   }
 
   const jobUrl = buildJobUrl(job.company.slug, job.slug);
@@ -270,10 +271,10 @@ export default async function JobPage({ params }: JobPageProps) {
   const { companySlug, jobSlug } = await params;
   const job = await getJob(jobSlug);
 
-  // Job not found or inactive → permanent redirect to category or /jobs
+  // Job not found or inactive → redirect to category or /jobs
   if (!job || !job.isActive) {
     const categorySlug = job?.category?.slug;
-    permanentRedirect(categorySlug ? `/jobs/${categorySlug}` : '/jobs');
+    redirect(categorySlug ? `/jobs/${categorySlug}` : '/jobs');
   }
 
   const isLinkedInPost = job.sourceType === 'UNSTRUCTURED';
