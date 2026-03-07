@@ -122,44 +122,82 @@ const nextConfig: NextConfig = {
       });
     }
 
-    // === Legacy URL redirects (GSC 404s) → all to /freelance ===
+    // === Legacy URL redirects (GSC 404s) ===
 
-    // Language pair pages
+    // Group 1: Language pair pages → translation landing pages
+    const languagePairRedirects: Record<string, string> = {
+      'English-to-Arabic': '/jobs/translation/english-arabic',
+      'English-to-French': '/jobs/translation/english-french',
+      'English-to-German': '/jobs/translation/english-german',
+      'English-to-Russian': '/jobs/translation/english-russian',
+      'English-to-Chinese': '/jobs/translation/english-chinese',
+      'English-to-Korean': '/jobs/translation/english-korean',
+      'English-to-Portuguese': '/jobs/translation/english-portuguese',
+      'English-to-Italian': '/jobs/translation/english-italian',
+      'English-to-Dutch': '/jobs/translation/english-dutch',
+      'English-to-Polish': '/jobs/translation/english-polish',
+      'English-to-Spanish': '/jobs/translation/english-spanish',
+      'English-to-Japanese': '/jobs/translation/english-japanese',
+      'English-to-Turkish': '/jobs/translation/english-turkish',
+      'English-to-Swedish': '/jobs/translation/english-swedish',
+      'Chinese-to-English': '/jobs/translation/chinese-english',
+      'French-to-English': '/jobs/translation/french-english',
+      'Japanese-to-English': '/jobs/translation/japanese-english',
+      'Arabic-to-English': '/jobs/translation/arabic-english',
+      'German-to-English': '/jobs/translation/german-english',
+      'Korean-to-English': '/jobs/translation/korean-english',
+      'Italian-to-English': '/jobs/translation/italian-english',
+      'Russian-to-English': '/jobs/translation/russian-english',
+      'Spanish-to-English': '/jobs/translation/spanish-english',
+      'Portuguese-to-English': '/jobs/translation/portuguese-english',
+      'Dutch-to-English': '/jobs/translation/dutch-english',
+      'Polish-to-English': '/jobs/translation/polish-english',
+      'Turkish-to-English': '/jobs/translation/turkish-english',
+      'Swedish-to-English': '/jobs/translation/swedish-english',
+    };
+
+    for (const [pair, destination] of Object.entries(languagePairRedirects)) {
+      redirects.push({
+        source: `/language-is-${pair}`,
+        destination,
+        permanent: true,
+      });
+    }
+
+    // Catch-all for remaining language pair URLs
     redirects.push({
       source: '/language-is-:pair',
-      destination: '/freelance',
+      destination: '/jobs/translation',
       permanent: true,
     });
 
-    // Legacy posts
+    // Group 2: Legacy posts → /freelance
     redirects.push({
       source: '/posts/:id',
       destination: '/freelance',
       permanent: true,
     });
 
-    // Legacy blog pages
+    // Group 3: Legacy blog pages → /blog
     redirects.push({
       source: '/blog/:slug',
-      destination: '/freelance',
+      destination: '/blog',
       permanent: true,
     });
 
-    // Static legacy pages
-    const legacyRedirects: Record<string, string> = {
-      '/how-it-works': '/freelance',
-      '/register': '/freelance',
-      '/faq': '/freelance',
-      '/contact-us': '/freelance',
-      '/terms-of-use': '/freelance',
-      '/privacy-policy': '/freelance',
-      '/popular': '/freelance',
-      '/linguist-rate-calculator': '/freelance',
-      '/for-interpreters': '/freelance',
-      '/for-translators': '/freelance',
+    // Group 5: Static page redirects
+    const staticRedirects: Record<string, string> = {
+      '/how-it-works': '/',
+      '/register': '/auth/signin',
+      '/faq': '/',
+      '/contact-us': '/',
+      '/terms-of-use': '/terms',
+      '/privacy-policy': '/privacy',
+      '/popular': '/jobs',
+      '/linguist-rate-calculator': '/jobs/translation',
     };
 
-    for (const [source, destination] of Object.entries(legacyRedirects)) {
+    for (const [source, destination] of Object.entries(staticRedirects)) {
       redirects.push({
         source,
         destination,
