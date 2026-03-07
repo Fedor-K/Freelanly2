@@ -5,11 +5,12 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { OpportunityCard } from '@/components/opportunities/OpportunityCard';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
-import { siteConfig } from '@/config/site';
+import { siteConfig, categories } from '@/config/site';
 import { truncateTitle } from '@/lib/seo';
-import { formatDistanceToNow } from '@/lib/utils';
+import { formatDistanceToNow, getMaxJobAgeDate } from '@/lib/utils';
 import { maskLinksForFreeUsers } from '@/lib/content-mask';
 import { Button } from '@/components/ui/button';
 import { CrossSellExitPopup } from '@/components/CrossSellExitPopup';
@@ -19,11 +20,15 @@ import { OpportunityOriginalPostFooter } from '@/components/opportunities/Opport
 
 type UserPlan = 'FREE' | 'PRO' | 'ENTERPRISE';
 
+// Check if slug is a known category
+const categorySlugs = new Set(categories.map(c => c.slug));
+
 // force-dynamic required: auth() checks user session for PRO/FREE content
 export const dynamic = 'force-dynamic';
 
 interface FreelancePageProps {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ page?: string }>;
 }
 
 async function getOpportunity(slug: string) {
@@ -85,6 +90,25 @@ async function getSimilarProjects(opportunityId: string, categoryId: string, lim
 
 export async function generateMetadata({ params }: FreelancePageProps): Promise<Metadata> {
   const { slug } = await params;
+
+  // Category page metadata
+  if (categorySlugs.has(slug)) {
+    const category = categories.find(c => c.slug === slug)!;
+    return {
+      title: `Freelance ${category.name} Projects`,
+      description: `Browse freelance ${category.name.toLowerCase()} projects from LinkedIn. Direct client opportunities updated daily.`,
+      openGraph: {
+        title: `Freelance ${category.name} Projects`,
+        url: `${siteConfig.url}/freelance/${slug}`,
+        siteName: siteConfig.name,
+      },
+      alternates: {
+        canonical: `${siteConfig.url}/freelance/${slug}`,
+      },
+    };
+  }
+
+  // Single opportunity metadata
   const opportunity = await getOpportunity(slug);
 
   if (!opportunity) {
@@ -122,8 +146,162 @@ export async function generateMetadata({ params }: FreelancePageProps): Promise<
   };
 }
 
-export default async function FreelancePage({ params }: FreelancePageProps) {
+export default async function FreelancePage({ params, searchParams }: FreelancePageProps) {
   const { slug } = await params;
+
+  // === Category listing page ===
+  if (categorySlugs.has(slug)) {
+    const category = categories.find(c => c.slug === slug)!;
+    const resolvedSearchParams = await (searchParams || Promise.resolve({}));
+    const currentPage = Math.max(1, parseInt(resolvedSearchParams.page || '1', 10) || 1);
+    const perPage = 20;
+
+    const session = await auth();
+    let userPlan: UserPlan = 'FREE';
+    if (session?.user?.id) {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { plan: true },
+      });
+      if (user?.plan) userPlan = user.plan as UserPlan;
+    }
+    const isPro = userPlan === 'PRO' || userPlan === 'ENTERPRISE';
+
+    const maxAgeDate = getMaxJobAgeDate();
+    const where = {
+      isActive: true,
+      postedAt: { gte: maxAgeDate },
+      category: { slug },
+    };
+
+    let categoryOpps: any[] = [];
+    let totalCount = 0;
+    try {
+      [categoryOpps, totalCount] = await Promise.all([
+        prisma.opportunity.findMany({
+          where,
+          include: {
+            company: {
+              select: { name: true, slug: true, logo: true, website: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          skip: (currentPage - 1) * perPage,
+          take: perPage,
+        }),
+        prisma.opportunity.count({ where }),
+      ]);
+    } catch (error) {
+      console.error('Failed to fetch opportunities:', error);
+    }
+
+    const totalPages = Math.ceil(totalCount / perPage);
+
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <main className="flex-1">
+          <div className="container py-6 sm:py-8">
+            <nav className="mb-6 text-sm text-muted-foreground" aria-label="Breadcrumb">
+              <ol className="flex items-center space-x-2">
+                <li><Link href="/" className="hover:text-foreground">Home</Link></li>
+                <li>/</li>
+                <li><Link href="/freelance" className="hover:text-foreground">Freelance</Link></li>
+                <li>/</li>
+                <li className="text-foreground font-medium">{category.name}</li>
+              </ol>
+            </nav>
+
+            <div className="mb-6">
+              <h1 className="text-2xl sm:text-3xl font-bold mb-1">
+                Freelance {category.name} Projects
+              </h1>
+              <p className="text-muted-foreground text-sm">
+                {totalCount > 0
+                  ? `${totalCount} ${category.name.toLowerCase()} projects available`
+                  : `Browse ${category.name.toLowerCase()} freelance opportunities`}
+              </p>
+            </div>
+
+            {categoryOpps.length > 0 ? (
+              <div className="space-y-4">
+                {categoryOpps.map((opp) => (
+                  <OpportunityCard key={opp.id} opportunity={opp} isPro={isPro} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16 border rounded-lg bg-muted/30">
+                <p className="text-muted-foreground mb-4">
+                  No {category.name.toLowerCase()} freelance projects found at the moment.
+                </p>
+                <Link href="/freelance">
+                  <Button variant="outline">Browse all categories</Button>
+                </Link>
+              </div>
+            )}
+
+            {totalPages > 1 && (
+              <nav className="mt-8 flex justify-center gap-2">
+                {currentPage > 1 ? (
+                  <Link href={`/freelance/${slug}?page=${currentPage - 1}`}>
+                    <Button variant="outline">Previous</Button>
+                  </Link>
+                ) : (
+                  <Button variant="outline" disabled>Previous</Button>
+                )}
+                <span className="flex items-center px-4 text-sm text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </span>
+                {currentPage < totalPages ? (
+                  <Link href={`/freelance/${slug}?page=${currentPage + 1}`}>
+                    <Button variant="outline">Next</Button>
+                  </Link>
+                ) : (
+                  <Button variant="outline" disabled>Next</Button>
+                )}
+              </nav>
+            )}
+
+            {/* Other categories */}
+            <div className="mt-12 border-t pt-8">
+              <h2 className="text-lg font-semibold mb-3">Other Categories</h2>
+              <div className="flex flex-wrap gap-2">
+                {categories
+                  .filter((c) => c.slug !== slug)
+                  .slice(0, 8)
+                  .map((cat) => (
+                    <Link
+                      key={cat.slug}
+                      href={`/freelance/${cat.slug}`}
+                      className="px-3 py-1.5 text-sm border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      {cat.icon} {cat.name}
+                    </Link>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'BreadcrumbList',
+              itemListElement: [
+                { '@type': 'ListItem', position: 1, name: 'Home', item: siteConfig.url },
+                { '@type': 'ListItem', position: 2, name: 'Freelance', item: `${siteConfig.url}/freelance` },
+                { '@type': 'ListItem', position: 3, name: category.name, item: `${siteConfig.url}/freelance/${slug}` },
+              ],
+            }),
+          }}
+        />
+      </div>
+    );
+  }
+
+  // === Single opportunity page ===
   const opportunity = await getOpportunity(slug);
 
   if (!opportunity) {
