@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -270,10 +270,10 @@ export default async function JobPage({ params }: JobPageProps) {
   const { companySlug, jobSlug } = await params;
   const job = await getJob(jobSlug);
 
-  // Job not found or inactive → redirect to category or /jobs
+  // Job not found or inactive → permanent redirect to category or /jobs
   if (!job || !job.isActive) {
     const categorySlug = job?.category?.slug;
-    redirect(categorySlug ? `/jobs/${categorySlug}` : '/jobs');
+    permanentRedirect(categorySlug ? `/jobs/${categorySlug}` : '/jobs');
   }
 
   const isLinkedInPost = job.sourceType === 'UNSTRUCTURED';
