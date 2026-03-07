@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -201,8 +201,8 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
   const { companySlug, jobSlug } = await params;
   const job = await getJob(jobSlug);
 
-  if (!job) {
-    notFound();
+  if (!job || !job.isActive) {
+    return { title: 'Job No Longer Available' };
   }
 
   const jobUrl = buildJobUrl(job.company.slug, job.slug);
@@ -270,10 +270,10 @@ export default async function JobPage({ params }: JobPageProps) {
   const { companySlug, jobSlug } = await params;
   const job = await getJob(jobSlug);
 
-  // Job not found - return proper 404 status code
-  // This tells Google to remove the page from its index
-  if (!job) {
-    notFound();
+  // Job not found or inactive → redirect to category or /jobs
+  if (!job || !job.isActive) {
+    const categorySlug = job?.category?.slug;
+    redirect(categorySlug ? `/jobs/${categorySlug}` : '/jobs');
   }
 
   const isLinkedInPost = job.sourceType === 'UNSTRUCTURED';
