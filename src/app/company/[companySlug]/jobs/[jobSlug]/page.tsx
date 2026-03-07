@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -201,9 +201,8 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
   const { companySlug, jobSlug } = await params;
   const job = await getJob(jobSlug);
 
-  if (!job || !job.isActive) {
-    const categorySlug = job?.category?.slug;
-    redirect(categorySlug ? `/jobs/${categorySlug}` : '/jobs');
+  if (!job) {
+    notFound();
   }
 
   const jobUrl = buildJobUrl(job.company.slug, job.slug);
@@ -271,10 +270,9 @@ export default async function JobPage({ params }: JobPageProps) {
   const { companySlug, jobSlug } = await params;
   const job = await getJob(jobSlug);
 
-  // Job not found or inactive → redirect to category or /jobs
-  if (!job || !job.isActive) {
-    const categorySlug = job?.category?.slug;
-    redirect(categorySlug ? `/jobs/${categorySlug}` : '/jobs');
+  // Job not found — middleware should have redirected, but fallback to notFound
+  if (!job) {
+    notFound();
   }
 
   const isLinkedInPost = job.sourceType === 'UNSTRUCTURED';
