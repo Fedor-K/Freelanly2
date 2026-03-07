@@ -95,6 +95,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.9,
   }));
 
+  // Freelance pages: /freelance and /freelance/[category]
+  const freelancePages: MetadataRoute.Sitemap = [
+    {
+      url: `${baseUrl}/freelance`,
+      lastModified: now,
+      changeFrequency: 'daily' as const,
+      priority: 0.9,
+    },
+    ...categories.map((cat) => ({
+      url: `${baseUrl}/freelance/${cat.slug}`,
+      lastModified: now,
+      changeFrequency: 'daily' as const,
+      priority: 0.85,
+    })),
+  ];
+
   // Category + Level pages: /jobs/[category]/[level]
   const categoryLevelPages: MetadataRoute.Sitemap = categories.flatMap((cat) =>
     levels.map((level) => ({
@@ -298,6 +314,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     ...staticPages,
+    ...freelancePages,
     ...categoryPages,
     ...categoryLevelPages,
     ...countryPages,
