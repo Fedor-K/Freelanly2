@@ -73,6 +73,10 @@ export interface CampaignData {
   costMicros: number;
   cost: number;
   conversions: number;
+  convSignup: number;
+  convApply: number;
+  convSubscribe: number;
+  convPurchase: number;
   ctr: number;
   averageCpc: number;
 }
@@ -227,7 +231,8 @@ export async function listCampaigns(dateRange?: { from: string; to: string }): P
         budgetAmountMicros: Number(row.campaign_budget?.amount_micros ?? 0),
         budgetAmount: fromMicros(Number(row.campaign_budget?.amount_micros ?? 0)),
         impressions: 0, clicks: 0, costMicros: 0, cost: 0,
-        conversions: 0, ctr: 0, averageCpc: 0,
+        conversions: 0, convSignup: 0, convApply: 0, convSubscribe: 0, convPurchase: 0,
+        ctr: 0, averageCpc: 0,
       });
     }
 
@@ -275,6 +280,43 @@ export async function listCampaigns(dateRange?: { from: string; to: string }): P
         campaign.ctr = metrics.impressions > 0 ? metrics.clicks / metrics.impressions : 0;
         campaign.averageCpc = metrics.clicks > 0 ? fromMicros(metrics.costMicros / metrics.clicks) : 0;
       }
+    }
+
+    // Запрос 3: конверсии по типу (conversion_action.name)
+    const CONV_NAME_MAP: Record<string, keyof Pick<CampaignData, 'convSignup' | 'convApply' | 'convSubscribe' | 'convPurchase'>> = {
+      'Website - Signup': 'convSignup',
+      'Регистрация (1)': 'convSignup',
+      'Website - Apply Click': 'convApply',
+      'Job Apply Click': 'convApply',
+      'Website - Alert Subscribe': 'convSubscribe',
+      'Job Alert Subscribe': 'convSubscribe',
+      'Website - Purchase': 'convPurchase',
+      'PRO Subscription Purchase': 'convPurchase',
+    };
+
+    try {
+      const convRows = await customer.query(`
+        SELECT
+          campaign.id,
+          conversion_action.name,
+          metrics.conversions
+          ${dateSelect}
+        FROM campaign
+        WHERE campaign.status != 'REMOVED'${dateWhere}
+          AND metrics.conversions > 0
+      `);
+
+      for (const row of convRows as any[]) {
+        const id = String(row.campaign?.id ?? "");
+        const convName = row.conversion_action?.name ?? "";
+        const field = CONV_NAME_MAP[convName];
+        const campaign = campaignsMap.get(id);
+        if (campaign && field) {
+          campaign[field] += Number(row.metrics?.conversions ?? 0);
+        }
+      }
+    } catch {
+      // Conversion breakdown not critical
     }
 
     return Array.from(campaignsMap.values());

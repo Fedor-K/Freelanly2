@@ -34,6 +34,10 @@ interface Campaign {
   costMicros: number;
   cost: number;
   conversions: number;
+  convSignup: number;
+  convApply: number;
+  convSubscribe: number;
+  convPurchase: number;
   ctr: number;
   averageCpc: number;
 }
@@ -263,8 +267,12 @@ export default function GoogleAdsPage() {
       clicks: acc.clicks + c.clicks,
       cost: acc.cost + c.cost,
       conversions: acc.conversions + c.conversions,
+      convSignup: acc.convSignup + (c.convSignup || 0),
+      convApply: acc.convApply + (c.convApply || 0),
+      convSubscribe: acc.convSubscribe + (c.convSubscribe || 0),
+      convPurchase: acc.convPurchase + (c.convPurchase || 0),
     }),
-    { impressions: 0, clicks: 0, cost: 0, conversions: 0 }
+    { impressions: 0, clicks: 0, cost: 0, conversions: 0, convSignup: 0, convApply: 0, convSubscribe: 0, convPurchase: 0 }
   );
 
   return (
@@ -363,7 +371,7 @@ export default function GoogleAdsPage() {
           <StatCard icon={Eye} label="Показы" value={formatNumber(totals.impressions)} />
           <StatCard icon={MousePointerClick} label="Клики" value={formatNumber(totals.clicks)} sub={totals.impressions > 0 ? `CTR: ${formatPercent(totals.clicks / totals.impressions)}` : ''} />
           <StatCard icon={DollarSign} label="Расходы" value={formatCurrency(totals.cost)} sub={totals.clicks > 0 ? `CPC: ${formatCurrency(totals.cost / totals.clicks)}` : ''} />
-          <StatCard icon={Target} label="Конверсии" value={formatNumber(totals.conversions)} sub={totals.clicks > 0 ? `CR: ${formatPercent(totals.conversions / totals.clicks)}` : ''} />
+          <StatCard icon={Target} label="Конверсии" value={formatNumber(totals.conversions)} sub={`Reg: ${totals.convSignup} | Apply: ${totals.convApply} | Sub: ${totals.convSubscribe} | Buy: ${totals.convPurchase}`} />
         </div>
       )}
 
@@ -387,7 +395,10 @@ export default function GoogleAdsPage() {
                     <th className="text-right p-3 font-medium">Показы</th>
                     <th className="text-right p-3 font-medium">Клики</th>
                     <th className="text-right p-3 font-medium">Расходы</th>
-                    <th className="text-right p-3 font-medium">Conv</th>
+                    <th className="text-right p-3 font-medium" title="Signup">Reg</th>
+                    <th className="text-right p-3 font-medium" title="Apply Click">Apply</th>
+                    <th className="text-right p-3 font-medium" title="Alert Subscribe">Sub</th>
+                    <th className="text-right p-3 font-medium" title="Purchase">Buy</th>
                     <th className="p-3"></th>
                   </tr>
                 </thead>
@@ -401,7 +412,10 @@ export default function GoogleAdsPage() {
                       <td className="p-3 text-right">{formatNumber(c.impressions)}</td>
                       <td className="p-3 text-right">{formatNumber(c.clicks)}</td>
                       <td className="p-3 text-right">{formatCurrency(c.cost)}</td>
-                      <td className="p-3 text-right">{c.conversions}</td>
+                      <td className="p-3 text-right">{c.convSignup || 0}</td>
+                      <td className="p-3 text-right">{c.convApply || 0}</td>
+                      <td className="p-3 text-right">{c.convSubscribe || 0}</td>
+                      <td className="p-3 text-right">{c.convPurchase || 0}</td>
                       <td className="p-3">
                         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                           <button
@@ -425,7 +439,7 @@ export default function GoogleAdsPage() {
                   ))}
                   {campaigns.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={12} className="p-8 text-center text-muted-foreground">
                         Нет кампаний. Создайте первую кампанию.
                       </td>
                     </tr>
