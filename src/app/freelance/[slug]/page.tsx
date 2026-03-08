@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -306,6 +306,12 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
 
   if (!opportunity) {
     notFound();
+  }
+
+  // THIN content → redirect to category (saves crawl budget)
+  if (opportunity.contentQuality === 'THIN') {
+    const categorySlug = opportunity.category?.slug;
+    redirect(categorySlug ? `/freelance/${categorySlug}` : '/freelance');
   }
 
   // Get user session and plan
