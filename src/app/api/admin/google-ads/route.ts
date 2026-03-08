@@ -20,6 +20,7 @@ import {
   createResponsiveSearchAd,
   addKeywords,
   listConversions,
+  createConversionAction,
   getAccountReport,
   getCampaignReport,
   GoogleAdsError,
@@ -163,6 +164,13 @@ export async function POST(req: NextRequest) {
           return errorResponse('adGroupId, headlines, descriptions, finalUrl required', 400);
         }
         const resourceName = await createResponsiveSearchAd(adGroupId, headlines, descriptions, finalUrl);
+        return NextResponse.json({ success: true, resourceName });
+      }
+
+      case 'create-conversion': {
+        const { name, category, type } = body;
+        if (!name) return errorResponse('name required', 400);
+        const resourceName = await createConversionAction(name, category, type);
         return NextResponse.json({ success: true, resourceName });
       }
 
