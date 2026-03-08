@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -121,15 +121,18 @@ export async function generateMetadata({ params }: FreelancePageProps): Promise<
   const description = opportunity.description?.slice(0, 155) ||
     `Freelance ${opportunity.title} opportunity from ${opportunity.clientName}. Apply directly to the client.`;
 
-  // THIN content → 301 redirect to category (saves crawl budget)
-  if (opportunity.contentQuality === 'THIN') {
-    const categorySlug = opportunity.category?.slug;
-    redirect(categorySlug ? `/freelance/${categorySlug}` : '/freelance');
-  }
+  // Noindex for THIN content
+  const shouldNoindex = opportunity.contentQuality === 'THIN';
 
   return {
     title: seoTitle,
     description,
+    ...(shouldNoindex && {
+      robots: {
+        index: false,
+        follow: true,
+      },
+    }),
     openGraph: {
       title: seoTitle,
       description,
@@ -303,12 +306,6 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
 
   if (!opportunity) {
     notFound();
-  }
-
-  // THIN content → redirect to category (saves crawl budget)
-  if (opportunity.contentQuality === 'THIN') {
-    const categorySlug = opportunity.category?.slug;
-    redirect(categorySlug ? `/freelance/${categorySlug}` : '/freelance');
   }
 
   // Get user session and plan
