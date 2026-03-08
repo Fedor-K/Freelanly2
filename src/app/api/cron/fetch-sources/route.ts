@@ -36,7 +36,18 @@ export async function POST(request: NextRequest) {
   try {
     console.log('[FetchSources] Starting...');
 
-    // Step 1: Reset stuck tasks
+    // Step 1a: Delete zombie tasks (retryCount >= 3, will never be processed)
+    const zombieDeleted = await prisma.importTask.deleteMany({
+      where: {
+        status: 'PENDING',
+        retryCount: { gte: 3 },
+      },
+    });
+    if (zombieDeleted.count > 0) {
+      console.log(`[FetchSources] Deleted ${zombieDeleted.count} zombie tasks (retryCount >= 3)`);
+    }
+
+    // Step 1b: Reset stuck tasks
     const stuckReset = await prisma.importTask.updateMany({
       where: {
         status: 'PROCESSING',
