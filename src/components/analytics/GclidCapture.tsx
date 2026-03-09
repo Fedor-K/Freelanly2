@@ -26,6 +26,12 @@ export function GclidCapture() {
         localStorage.setItem(`_${key}`, JSON.stringify({ value, expires: expiry }));
       }
     }
+
+    // Support short ?ref=telegram param (Telegram strips underscores from URLs)
+    const ref = searchParams.get('ref');
+    if (ref) {
+      localStorage.setItem('_utm_source', JSON.stringify({ value: ref, expires: expiry }));
+    }
   }, [searchParams]);
 
   return null;
