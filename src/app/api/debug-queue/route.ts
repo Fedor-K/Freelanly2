@@ -26,17 +26,18 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const [pending, processing, retry3Plus] = await Promise.all([
+  const [pending, processing, retry3Plus, instantAlerts, pendingNotifications, recentJobs] = await Promise.all([
     prisma.importTask.count({ where: { status: 'PENDING' } }),
     prisma.importTask.count({ where: { status: 'PROCESSING' } }),
     prisma.importTask.count({ where: { status: 'PENDING', retryCount: { gte: 3 } } }),
+    prisma.jobAlert.count({ where: { isActive: true, frequency: 'INSTANT' } }),
+    prisma.alertNotification.count({ where: { status: 'PENDING' } }),
+    prisma.job.count({ where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
   ]);
 
   return NextResponse.json({
-    pending,
-    processing,
-    stuckWithRetry3Plus: retry3Plus,
-    allStuck: retry3Plus === pending,
-    fix: 'Add &fix=true to clear all tasks',
+    importQueue: { pending, processing, stuckWithRetry3Plus: retry3Plus, allStuck: retry3Plus === pending },
+    alerts: { instantAlerts, pendingNotifications, jobsLast24h: recentJobs },
+    fix: 'Add &fix=true to clear all import tasks',
   });
 }
