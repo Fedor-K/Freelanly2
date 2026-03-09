@@ -5,7 +5,6 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { queueInstantAlertsForJob } from '@/services/alert-notifications';
 
 const SETUP_KEY = 'fr33lanly-setup-2026';
 
@@ -19,7 +18,6 @@ export async function GET(req: NextRequest) {
   const backfillHours = parseInt(req.nextUrl.searchParams.get('backfill') || '0', 10);
 
   if (fix) {
-    // Delete ALL import tasks — fresh start
     const deleted = await prisma.importTask.deleteMany({});
     return NextResponse.json({
       action: 'cleared',
@@ -29,68 +27,66 @@ export async function GET(req: NextRequest) {
   }
 
   if (backfillHours > 0) {
-    // Debug: test queueInstantAlertsForOpportunity on a recent opp
-    const recentOpp = await prisma.opportunity.findFirst({
+    const { queueInstantAlertsForOpportunity } = await import('@/services/alert-notifications');
+    const recentOpps = await prisma.opportunity.findMany({
       where: { createdAt: { gte: new Date(Date.now() - backfillHours * 60 * 60 * 1000) } },
       orderBy: { createdAt: 'desc' },
-      include: { category: { select: { slug: true } } },
+      select: { id: true },
+      take: 20,
     });
 
-    if (!recentOpp) {
-      return NextResponse.json({ action: 'debug', error: 'No recent opportunities' });
+    let totalQueued = 0;
+    for (const opp of recentOpps) {
+      try {
+        const result = await queueInstantAlertsForOpportunity(opp.id);
+        totalQueued += result.queued;
+      } catch { /* skip */ }
     }
-
-    // Check how many alerts match this opportunity
-    const { queueInstantAlertsForOpportunity } = await import('@/services/alert-notifications');
-    const result = await queueInstantAlertsForOpportunity(recentOpp.id);
-
     return NextResponse.json({
-      action: 'debug-opp-match',
-      opportunity: {
-        id: recentOpp.id,
-        title: recentOpp.title?.slice(0, 80),
-        category: recentOpp.category?.slug,
-        country: recentOpp.country,
-        level: recentOpp.level,
-        sourceLanguages: recentOpp.sourceLanguages,
-        targetLanguages: recentOpp.targetLanguages,
-      },
-      queued: result.queued,
+      action: 'backfill',
+      oppsProcessed: recentOpps.length,
+      notificationsQueued: totalQueued,
     });
   }
 
-  const [pending, processing, retry3Plus, instantAlerts, pendingAll, pendingInstant, recentJobs, oppsToday, oppsWeek, sentToday, sentWeek, lastSent] = await Promise.all([
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+
+  const [
+    importPending, importProcessing, importStuck,
+    instantAlerts,
+    notifPending, notifPendingInstant, notifFailed, notifFailedToday, notifSentToday, notifSentWeek,
+    lastSent,
+    jobsToday, oppsToday, oppsWeek,
+  ] = await Promise.all([
     prisma.importTask.count({ where: { status: 'PENDING' } }),
     prisma.importTask.count({ where: { status: 'PROCESSING' } }),
     prisma.importTask.count({ where: { status: 'PENDING', retryCount: { gte: 3 } } }),
     prisma.jobAlert.count({ where: { isActive: true, frequency: 'INSTANT' } }),
     prisma.alertNotification.count({ where: { status: 'PENDING' } }),
-    prisma.alertNotification.count({
-      where: {
-        status: 'PENDING',
-        jobAlert: { frequency: 'INSTANT', isActive: true },
-      },
-    }),
-    prisma.job.count({ where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
-    prisma.opportunity.count({ where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
-    prisma.opportunity.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }),
-    prisma.alertNotification.count({
-      where: { status: 'SENT', sentAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
-    }),
-    prisma.alertNotification.count({
-      where: { status: 'SENT', sentAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
-    }),
-    // Last sent notification timestamp
-    prisma.alertNotification.findFirst({
-      where: { status: 'SENT' },
-      orderBy: { sentAt: 'desc' },
-      select: { sentAt: true },
-    }),
+    prisma.alertNotification.count({ where: { status: 'PENDING', jobAlert: { frequency: 'INSTANT', isActive: true } } }),
+    prisma.alertNotification.count({ where: { status: 'FAILED' } }),
+    prisma.alertNotification.count({ where: { status: 'FAILED', createdAt: { gte: new Date(now - day) } } }),
+    prisma.alertNotification.count({ where: { status: 'SENT', sentAt: { gte: new Date(now - day) } } }),
+    prisma.alertNotification.count({ where: { status: 'SENT', sentAt: { gte: new Date(now - 7 * day) } } }),
+    prisma.alertNotification.findFirst({ where: { status: 'SENT' }, orderBy: { sentAt: 'desc' }, select: { sentAt: true } }),
+    prisma.job.count({ where: { createdAt: { gte: new Date(now - day) } } }),
+    prisma.opportunity.count({ where: { createdAt: { gte: new Date(now - day) } } }),
+    prisma.opportunity.count({ where: { createdAt: { gte: new Date(now - 7 * day) } } }),
   ]);
 
   return NextResponse.json({
-    importQueue: { pending, processing, stuckWithRetry3Plus: retry3Plus, allStuck: retry3Plus === pending },
-    alerts: { instantAlerts, pendingAll, pendingInstant, sentToday, sentWeek, lastSentAt: lastSent?.sentAt, jobsLast24h: recentJobs, oppsToday, oppsWeek },
-    fix: 'Add &fix=true to clear all import tasks',
+    importQueue: { pending: importPending, processing: importProcessing, stuck: importStuck },
+    alerts: {
+      instantAlerts,
+      pending: notifPending,
+      pendingInstant: notifPendingInstant,
+      failed: notifFailed,
+      failedToday: notifFailedToday,
+      sentToday: notifSentToday,
+      sentWeek: notifSentWeek,
+      lastSentAt: lastSent?.sentAt,
+    },
+    content: { jobsToday, oppsToday, oppsWeek },
   });
 }
