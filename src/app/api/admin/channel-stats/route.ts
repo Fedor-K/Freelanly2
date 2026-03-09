@@ -105,6 +105,12 @@ export async function GET(request: NextRequest) {
       ch.alerts = Number(r.count);
     }
 
+    // Ensure all predefined channels exist (even with zeros)
+    const PREDEFINED_CHANNELS = ['direct', 'telegram', 'linkedin', 'twitter', 'google', 'job_alert'];
+    for (const ch of PREDEFINED_CHANNELS) {
+      ensureChannel(ch);
+    }
+
     // Build channels array with conv rate
     const channels = Array.from(channelMap.values()).map(ch => ({
       ...ch,
