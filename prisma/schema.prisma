@@ -60,9 +60,6 @@ model User {
   // Google Ads attribution
   gclid                     String?                   // Google Click ID for offline conversion tracking
 
-  // Registration traffic source
-  source                    String?                   // linkedin, telegram, twitter, job_alert, google, direct
-
   // Relations
   accounts      Account[]
   sessions      Session[]
