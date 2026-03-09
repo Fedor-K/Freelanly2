@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { categories, countries, languages } from '@/config/site';
 import { Mail, ChevronDown, Check, X, Zap, ArrowLeft, Loader2, AlertTriangle, TrendingUp } from 'lucide-react';
-import { getStoredClickId } from '@/components/analytics/GclidCapture';
+import { getStoredClickId, getStoredUtmSource } from '@/components/analytics/GclidCapture';
 
 interface JobCountPreview {
   count: number;
@@ -214,6 +214,7 @@ export function RegistrationForm({
             jobId,
             agreedToTerms: true,
             gclid: getStoredClickId()?.value,
+            source: getStoredUtmSource() || undefined,
           }),
         });
         if (!regRes.ok) {
@@ -374,6 +375,7 @@ export function RegistrationForm({
           jobId,
           agreedToTerms: true, // User explicitly agreed via checkbox
           gclid: getStoredClickId()?.value,
+          source: getStoredUtmSource() || undefined,
         }),
       });
 

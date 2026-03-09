@@ -12,6 +12,7 @@ interface RegisterRequest {
   jobId?: string; // Track which job triggered registration
   agreedToTerms?: boolean; // User agreed to ToS (for dispute evidence)
   gclid?: string; // Google Click ID for offline conversion tracking
+  source?: string; // Registration traffic source (utm_source)
 }
 
 /**
@@ -40,7 +41,7 @@ function languagesToPairs(languages: string[]) {
 export async function POST(request: NextRequest) {
   try {
     const body: RegisterRequest = await request.json();
-    const { email, name, categories, country, countries, languages, jobId, agreedToTerms, gclid } = body;
+    const { email, name, categories, country, countries, languages, jobId, agreedToTerms, gclid, source } = body;
 
     // Normalize countries: support both old `country` and new `countries` field
     const selectedCountries = countries && countries.length > 0
@@ -80,11 +81,14 @@ export async function POST(request: NextRequest) {
       // User exists - just create alerts linked to their account
       console.log(`[Register] User ${normalizedEmail} already exists, creating alerts`);
 
-      // Save gclid if not already set
-      if (gclid && !existingUser.gclid) {
+      // Save gclid/source if not already set
+      const updateData: Record<string, string> = {};
+      if (gclid && !existingUser.gclid) updateData.gclid = gclid;
+      if (source && !existingUser.source) updateData.source = source;
+      if (Object.keys(updateData).length > 0) {
         await prisma.user.update({
           where: { id: existingUser.id },
-          data: { gclid },
+          data: updateData,
         });
       }
 
@@ -109,6 +113,8 @@ export async function POST(request: NextRequest) {
         agreedToTermsAt: agreedToTerms ? new Date() : null,
         // Google Ads attribution
         gclid: gclid || null,
+        // Traffic source
+        source: source || null,
       },
     });
 
