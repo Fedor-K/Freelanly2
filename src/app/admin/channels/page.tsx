@@ -43,6 +43,7 @@ const CHANNEL_COLORS: Record<string, string> = {
   job_alert: '#F59E0B',
   google: '#34A853',
   direct: '#6B7280',
+  reddit: '#FF4500',
 };
 
 function getColor(channel: string) {
