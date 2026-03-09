@@ -5,6 +5,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { queueInstantAlertsForJob } from '@/services/alert-notifications';
 
 const SETUP_KEY = 'fr33lanly-setup-2026';
 
@@ -15,6 +16,7 @@ export async function GET(req: NextRequest) {
   }
 
   const fix = req.nextUrl.searchParams.get('fix') === 'true';
+  const backfillHours = parseInt(req.nextUrl.searchParams.get('backfill') || '0', 10);
 
   if (fix) {
     // Delete ALL import tasks — fresh start
@@ -23,6 +25,32 @@ export async function GET(req: NextRequest) {
       action: 'cleared',
       deleted: deleted.count,
       message: 'All import tasks deleted. Next fetch-sources cron will create fresh tasks.',
+    });
+  }
+
+  if (backfillHours > 0) {
+    // Queue alerts for jobs created in the last N hours that don't have notifications yet
+    const recentJobs = await prisma.job.findMany({
+      where: {
+        createdAt: { gte: new Date(Date.now() - backfillHours * 60 * 60 * 1000) },
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    let queued = 0;
+    for (const job of recentJobs) {
+      try {
+        const result = await queueInstantAlertsForJob(job.id);
+        queued += result.queued;
+      } catch {
+        // skip errors
+      }
+    }
+    return NextResponse.json({
+      action: 'backfill',
+      jobsChecked: recentJobs.length,
+      notificationsQueued: queued,
     });
   }
 
