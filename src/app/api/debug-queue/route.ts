@@ -43,20 +43,62 @@ export async function GET(req: NextRequest) {
       take,
     });
 
-    let queued = 0;
-    for (const job of recentJobs) {
-      try {
-        const result = await queueInstantAlertsForJob(job.id);
-        queued += result.queued;
-      } catch {
-        // skip errors
-      }
+    // Instead of full backfill, just check a sample job for debugging
+    const sampleJob = recentJobs[0];
+    if (!sampleJob) {
+      return NextResponse.json({ action: 'backfill', error: 'No recent jobs found' });
     }
+
+    const job = await prisma.job.findUnique({
+      where: { id: sampleJob.id },
+      include: { category: { select: { slug: true } } },
+    });
+
+    const instantAlertCount = await prisma.jobAlert.count({
+      where: {
+        isActive: true,
+        frequency: 'INSTANT',
+        OR: [
+          { user: { emailVerified: { not: null }, unsubscribedFromMarketing: false } },
+          { userId: null },
+        ],
+      },
+    });
+
+    // Check a few alerts to see why no match
+    const sampleAlerts = await prisma.jobAlert.findMany({
+      where: {
+        isActive: true,
+        frequency: 'INSTANT',
+        OR: [
+          { user: { emailVerified: { not: null }, unsubscribedFromMarketing: false } },
+          { userId: null },
+        ],
+      },
+      include: { languagePairs: true },
+      take: 5,
+    });
+
     return NextResponse.json({
-      action: 'backfill',
-      jobsProcessed: recentJobs.length,
-      notificationsQueued: queued,
-      nextSkip: recentJobs.length === take ? skip + take : null,
+      action: 'debug-match',
+      sampleJob: {
+        id: job?.id,
+        category: job?.category?.slug,
+        country: job?.country,
+        level: job?.level,
+        title: job?.title?.slice(0, 80),
+        sourceLanguages: job?.sourceLanguages,
+        targetLanguages: job?.targetLanguages,
+      },
+      instantAlertsEligible: instantAlertCount,
+      sampleAlerts: sampleAlerts.map(a => ({
+        id: a.id,
+        category: a.category,
+        keywords: a.keywords,
+        country: a.country,
+        level: a.level,
+        langPairs: a.languagePairs.length,
+      })),
     });
   }
 
