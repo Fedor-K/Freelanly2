@@ -767,54 +767,47 @@ export async function queueInstantAlertsForJob(jobId: string): Promise<{ queued:
     return { queued: 0 };
   }
 
-  let queued = 0;
+  // Filter alerts that match this job
+  const matchingAlertIds = instantAlerts
+    .filter(alert => checkJobMatchesAlert(job, alert))
+    .map(alert => alert.id);
 
-  for (const alert of instantAlerts) {
-    // Check if this job matches the alert criteria
-    const matches = checkJobMatchesAlert(job, alert);
-
-    if (!matches) {
-      continue;
-    }
-
-    // Check if already queued or sent for this alert
-    const existing = await prisma.alertNotification.findUnique({
-      where: {
-        jobAlertId_jobId: {
-          jobAlertId: alert.id,
-          jobId: job.id,
-        },
-      },
-    });
-
-    if (existing) {
-      continue; // Already queued or sent
-    }
-
-    // Create PENDING notification (will be processed by cron)
-    try {
-      await prisma.alertNotification.create({
-        data: {
-          jobAlertId: alert.id,
-          jobId: job.id,
-          status: 'PENDING',
-        },
-      });
-      queued++;
-    } catch (e: unknown) {
-      // P2002 = unique constraint violation (already exists)
-      if (e && typeof e === 'object' && 'code' in e && e.code === 'P2002') {
-        continue; // Already queued, skip
-      }
-      throw e;
-    }
+  if (matchingAlertIds.length === 0) {
+    return { queued: 0 };
   }
 
-  if (queued > 0) {
-    console.log(`[InstantAlerts] Queued job "${job.title}" for ${queued} alerts`);
+  // Batch check: which alerts already have notifications for this job
+  const existingNotifications = await prisma.alertNotification.findMany({
+    where: {
+      jobId: job.id,
+      jobAlertId: { in: matchingAlertIds },
+    },
+    select: { jobAlertId: true },
+  });
+  const existingAlertIds = new Set(existingNotifications.map(n => n.jobAlertId));
+
+  // Filter out already notified alerts
+  const newAlertIds = matchingAlertIds.filter(id => !existingAlertIds.has(id));
+
+  if (newAlertIds.length === 0) {
+    return { queued: 0 };
   }
 
-  return { queued };
+  // Batch create all PENDING notifications
+  const result = await prisma.alertNotification.createMany({
+    data: newAlertIds.map(alertId => ({
+      jobAlertId: alertId,
+      jobId: job.id,
+      status: 'PENDING' as const,
+    })),
+    skipDuplicates: true,
+  });
+
+  if (result.count > 0) {
+    console.log(`[InstantAlerts] Queued job "${job.title}" for ${result.count} alerts`);
+  }
+
+  return { queued: result.count };
 }
 
 /**
@@ -887,52 +880,47 @@ export async function queueInstantAlertsForOpportunity(opportunityId: string): P
     return { queued: 0 };
   }
 
-  let queued = 0;
+  // Filter alerts that match this opportunity
+  const matchingAlertIds = instantAlerts
+    .filter(alert => checkJobMatchesAlert(opportunityWithLangs, alert))
+    .map(alert => alert.id);
 
-  for (const alert of instantAlerts) {
-    // Check if this opportunity matches the alert criteria
-    const matches = checkJobMatchesAlert(opportunityWithLangs, alert);
-
-    if (!matches) {
-      continue;
-    }
-
-    // Check if already queued or sent for this alert
-    const existing = await prisma.alertNotification.findFirst({
-      where: {
-        jobAlertId: alert.id,
-        opportunityId: opportunityWithLangs.id,
-      },
-    });
-
-    if (existing) {
-      continue; // Already queued or sent
-    }
-
-    // Create PENDING notification (will be processed by cron)
-    try {
-      await prisma.alertNotification.create({
-        data: {
-          jobAlertId: alert.id,
-          opportunityId: opportunityWithLangs.id,
-          status: 'PENDING',
-        },
-      });
-      queued++;
-    } catch (e: unknown) {
-      // P2002 = unique constraint violation (already exists)
-      if (e && typeof e === 'object' && 'code' in e && e.code === 'P2002') {
-        continue; // Already queued, skip
-      }
-      throw e;
-    }
+  if (matchingAlertIds.length === 0) {
+    return { queued: 0 };
   }
 
-  if (queued > 0) {
-    console.log(`[InstantAlerts] Queued opportunity "${opportunityWithLangs.title}" for ${queued} alerts`);
+  // Batch check: which alerts already have notifications for this opportunity
+  const existingNotifications = await prisma.alertNotification.findMany({
+    where: {
+      opportunityId: opportunityWithLangs.id,
+      jobAlertId: { in: matchingAlertIds },
+    },
+    select: { jobAlertId: true },
+  });
+  const existingAlertIds = new Set(existingNotifications.map(n => n.jobAlertId));
+
+  // Filter out already notified alerts
+  const newAlertIds = matchingAlertIds.filter(id => !existingAlertIds.has(id));
+
+  if (newAlertIds.length === 0) {
+    return { queued: 0 };
   }
 
-  return { queued };
+  // Batch create all PENDING notifications
+  const result = await prisma.alertNotification.createMany({
+    data: newAlertIds.map(alertId => ({
+      jobAlertId: alertId,
+      opportunityId: opportunityWithLangs.id,
+      status: 'PENDING' as const,
+    })),
+    skipDuplicates: true,
+  });
+
+  if (result.count > 0) {
+    console.log(`[InstantAlerts] Queued opportunity "${opportunityWithLangs.title}" for ${result.count} alerts`);
+  }
+
+  return { queued: result.count };
 }
 
 /**
