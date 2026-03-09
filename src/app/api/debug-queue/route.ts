@@ -18,6 +18,19 @@ export async function GET(req: NextRequest) {
   const backfillHours = parseInt(req.nextUrl.searchParams.get('backfill') || '0', 10);
 
   if (fix) {
+    const fixTarget = req.nextUrl.searchParams.get('target') || 'import';
+    if (fixTarget === 'alerts') {
+      // Reset stuck PROCESSING notifications back to PENDING
+      const reset = await prisma.alertNotification.updateMany({
+        where: { status: 'PROCESSING' },
+        data: { status: 'PENDING' },
+      });
+      return NextResponse.json({
+        action: 'alerts-reset',
+        reset: reset.count,
+        message: 'Stuck PROCESSING notifications reset to PENDING. Next cron run will process them.',
+      });
+    }
     const deleted = await prisma.importTask.deleteMany({});
     return NextResponse.json({
       action: 'cleared',
