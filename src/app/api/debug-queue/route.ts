@@ -29,13 +29,18 @@ export async function GET(req: NextRequest) {
   }
 
   if (backfillHours > 0) {
-    // Queue alerts for jobs created in the last N hours that don't have notifications yet
+    const skip = parseInt(req.nextUrl.searchParams.get('skip') || '0', 10);
+    const take = 50;
+    // Queue alerts for jobs created in the last N hours
     const recentJobs = await prisma.job.findMany({
       where: {
         createdAt: { gte: new Date(Date.now() - backfillHours * 60 * 60 * 1000) },
         isActive: true,
       },
       select: { id: true },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
     });
 
     let queued = 0;
@@ -49,8 +54,9 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.json({
       action: 'backfill',
-      jobsChecked: recentJobs.length,
+      jobsProcessed: recentJobs.length,
       notificationsQueued: queued,
+      nextSkip: recentJobs.length === take ? skip + take : null,
     });
   }
 
