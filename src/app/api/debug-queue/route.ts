@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const [pending, processing, retry3Plus, instantAlerts, pendingAll, pendingInstant, recentJobs, sentToday, sentWeek] = await Promise.all([
+  const [pending, processing, retry3Plus, instantAlerts, pendingAll, pendingInstant, recentJobs, oppsToday, oppsWeek, sentToday, sentWeek] = await Promise.all([
     prisma.importTask.count({ where: { status: 'PENDING' } }),
     prisma.importTask.count({ where: { status: 'PROCESSING' } }),
     prisma.importTask.count({ where: { status: 'PENDING', retryCount: { gte: 3 } } }),
@@ -115,6 +115,8 @@ export async function GET(req: NextRequest) {
       },
     }),
     prisma.job.count({ where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
+    prisma.opportunity.count({ where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
+    prisma.opportunity.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }),
     prisma.alertNotification.count({
       where: { status: 'SENT', sentAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
     }),
@@ -125,7 +127,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     importQueue: { pending, processing, stuckWithRetry3Plus: retry3Plus, allStuck: retry3Plus === pending },
-    alerts: { instantAlerts, pendingAll, pendingInstant, sentToday, sentWeek, jobsLast24h: recentJobs },
+    alerts: { instantAlerts, pendingAll, pendingInstant, sentToday, sentWeek, jobsLast24h: recentJobs, oppsToday, oppsWeek },
     fix: 'Add &fix=true to clear all import tasks',
   });
 }
