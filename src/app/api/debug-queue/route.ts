@@ -29,76 +29,33 @@ export async function GET(req: NextRequest) {
   }
 
   if (backfillHours > 0) {
-    const skip = parseInt(req.nextUrl.searchParams.get('skip') || '0', 10);
-    const take = 50;
-    // Queue alerts for jobs created in the last N hours
-    const recentJobs = await prisma.job.findMany({
-      where: {
-        createdAt: { gte: new Date(Date.now() - backfillHours * 60 * 60 * 1000) },
-        isActive: true,
-      },
-      select: { id: true },
+    // Debug: test queueInstantAlertsForOpportunity on a recent opp
+    const recentOpp = await prisma.opportunity.findFirst({
+      where: { createdAt: { gte: new Date(Date.now() - backfillHours * 60 * 60 * 1000) } },
       orderBy: { createdAt: 'desc' },
-      skip,
-      take,
-    });
-
-    // Instead of full backfill, just check a sample job for debugging
-    const sampleJob = recentJobs[0];
-    if (!sampleJob) {
-      return NextResponse.json({ action: 'backfill', error: 'No recent jobs found' });
-    }
-
-    const job = await prisma.job.findUnique({
-      where: { id: sampleJob.id },
       include: { category: { select: { slug: true } } },
     });
 
-    const instantAlertCount = await prisma.jobAlert.count({
-      where: {
-        isActive: true,
-        frequency: 'INSTANT',
-        OR: [
-          { user: { emailVerified: { not: null }, unsubscribedFromMarketing: false } },
-          { userId: null },
-        ],
-      },
-    });
+    if (!recentOpp) {
+      return NextResponse.json({ action: 'debug', error: 'No recent opportunities' });
+    }
 
-    // Check a few alerts to see why no match
-    const sampleAlerts = await prisma.jobAlert.findMany({
-      where: {
-        isActive: true,
-        frequency: 'INSTANT',
-        OR: [
-          { user: { emailVerified: { not: null }, unsubscribedFromMarketing: false } },
-          { userId: null },
-        ],
-      },
-      include: { languagePairs: true },
-      take: 5,
-    });
+    // Check how many alerts match this opportunity
+    const { queueInstantAlertsForOpportunity } = await import('@/services/alert-notifications');
+    const result = await queueInstantAlertsForOpportunity(recentOpp.id);
 
     return NextResponse.json({
-      action: 'debug-match',
-      sampleJob: {
-        id: job?.id,
-        category: job?.category?.slug,
-        country: job?.country,
-        level: job?.level,
-        title: job?.title?.slice(0, 80),
-        sourceLanguages: job?.sourceLanguages,
-        targetLanguages: job?.targetLanguages,
+      action: 'debug-opp-match',
+      opportunity: {
+        id: recentOpp.id,
+        title: recentOpp.title?.slice(0, 80),
+        category: recentOpp.category?.slug,
+        country: recentOpp.country,
+        level: recentOpp.level,
+        sourceLanguages: recentOpp.sourceLanguages,
+        targetLanguages: recentOpp.targetLanguages,
       },
-      instantAlertsEligible: instantAlertCount,
-      sampleAlerts: sampleAlerts.map(a => ({
-        id: a.id,
-        category: a.category,
-        keywords: a.keywords,
-        country: a.country,
-        level: a.level,
-        langPairs: a.languagePairs.length,
-      })),
+      queued: result.queued,
     });
   }
 
