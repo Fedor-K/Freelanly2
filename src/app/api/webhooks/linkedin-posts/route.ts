@@ -470,10 +470,12 @@ export async function POST(request: NextRequest) {
 
     console.log(`[LinkedInPosts] Created opportunity: ${opportunity.slug} (quality: ${qualityResult.quality})`);
 
-    // Send INSTANT alerts for this opportunity (non-blocking)
-    sendInstantAlertsForOpportunity(opportunity.id).catch((err) => {
+    // Send INSTANT alerts for this opportunity
+    try {
+      await sendInstantAlertsForOpportunity(opportunity.id);
+    } catch (err) {
       console.error('[LinkedInPosts] Instant alerts failed:', err);
-    });
+    }
 
     // Notify search engines - ONLY for non-THIN content
     if (qualityResult.quality !== 'THIN') {
