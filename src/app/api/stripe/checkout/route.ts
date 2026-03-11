@@ -21,12 +21,21 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { priceKey, source, jobId, opportunityId } = body as {
+    const { priceKey, source, jobId, opportunityId, coupon } = body as {
       priceKey?: string;
       source?: string;
       jobId?: string;
       opportunityId?: string;
+      coupon?: string;
     };
+
+    // Map promo code strings to Stripe promotion_code IDs
+    const PROMO_CODE_IDS: Record<string, string> = {
+      QUICK15: 'promo_1SlvdHKHJU6KLxM34HzwoOyb',
+      COMEBACK20: 'promo_1SdzJQKHJU6KLxM3NuHLP61B',
+      DANGRMUSA: 'promo_1SqXNrKHJU6KLxM3C9tqaibo',
+    };
+    const promotionCodeId = coupon ? PROMO_CODE_IDS[coupon.toUpperCase()] : undefined;
 
     // Validate price key
     if (!priceKey || !Object.keys(STRIPE_PRICES).includes(priceKey)) {
@@ -58,6 +67,7 @@ export async function POST(request: NextRequest) {
       jobId,
       opportunityId,
       gclid: user?.gclid || undefined,
+      promotionCodeId,
     });
 
     // Save checkout session to DB for abandoned cart tracking

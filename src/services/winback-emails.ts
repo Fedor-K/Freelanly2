@@ -2,7 +2,7 @@
  * Win-back Email Sequence for Churned Users
  *
  * Day 7  - "We miss you" + what's new
- * Day 14 - Special offer (50% off)
+ * Day 14 - Special offer (20% off)
  * Day 30 - Last chance offer
  */
 
@@ -88,7 +88,7 @@ function getWinbackEmailContent(
 
     case 'DAY_14_SPECIAL_OFFER':
       return {
-        subject: 'Special offer: 50% off to come back',
+        subject: 'Special offer: 20% off to come back',
         html: `
 <!DOCTYPE html>
 <html>
@@ -104,9 +104,9 @@ function getWinbackEmailContent(
     <p>We really valued having you as a PRO member, and we'd love to welcome you back.</p>
 
     <div class="offer-box">
-      <h3>50% OFF</h3>
+      <h3>20% OFF</h3>
       <p style="margin: 0; opacity: 0.9;">Your first month back</p>
-      <p style="margin: 10px 0 0; font-size: 14px; opacity: 0.8;">That's just €10 for full PRO access</p>
+      <p style="margin: 10px 0 0; font-size: 14px; opacity: 0.8;">That's just €12 for full PRO access</p>
     </div>
 
     <p>With PRO, you get:</p>
@@ -118,7 +118,7 @@ function getWinbackEmailContent(
     </ul>
 
     <p style="text-align: center;">
-      <a href="https://freelanly.com/pricing?coupon=COMEBACK50&source=email_winback" class="button button-purple">Claim Your 50% Discount</a>
+      <a href="https://freelanly.com/pricing?coupon=COMEBACK20&source=email_winback" class="button button-purple">Claim Your 20% Discount</a>
     </p>
 
     <p style="text-align: center; color: #666; font-size: 14px;">
@@ -138,7 +138,7 @@ function getWinbackEmailContent(
 
     case 'DAY_30_LAST_CHANCE':
       return {
-        subject: 'Last chance: Your 60% off offer expires soon',
+        subject: 'Last chance: Your 20% off offer expires soon',
         html: `
 <!DOCTYPE html>
 <html>
@@ -154,7 +154,7 @@ function getWinbackEmailContent(
     <p>It's been a month since you left Freelanly. This is our final attempt to win you back with our <strong>best offer ever</strong>.</p>
 
     <div class="offer-box" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">
-      <h3>60% OFF</h3>
+      <h3>20% OFF</h3>
       <p style="margin: 0; opacity: 0.9;">Your first month back</p>
       <p style="margin: 10px 0 0; font-size: 14px; opacity: 0.8;">Just €8 for full PRO access</p>
     </div>
@@ -167,7 +167,7 @@ function getWinbackEmailContent(
     </ul>
 
     <p style="text-align: center;">
-      <a href="https://freelanly.com/pricing?coupon=LASTCHANCE60&source=email_winback" class="button" style="background: #dc2626;">Claim 60% Off - Final Offer</a>
+      <a href="https://freelanly.com/pricing?coupon=COMEBACK20&source=email_winback" class="button" style="background: #dc2626;">Claim Your 20% Discount</a>
     </p>
 
     <p style="text-align: center; color: #666; font-size: 14px;">

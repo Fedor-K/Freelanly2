@@ -31,6 +31,7 @@ export function PricingCards() {
   const sourceFromUrl = searchParams.get('source') || 'pricing_page';
   const jobIdFromUrl = searchParams.get('jobId');
   const opportunityIdFromUrl = searchParams.get('opportunityId');
+  const couponFromUrl = searchParams.get('coupon'); // Auto-apply coupon from email links
 
   const handleSubscribe = async (priceKey: PriceKey) => {
     setError(null);
@@ -56,6 +57,7 @@ export function PricingCards() {
           source: sourceFromUrl,
           ...(jobIdFromUrl && { jobId: jobIdFromUrl }),
           ...(opportunityIdFromUrl && { opportunityId: opportunityIdFromUrl }),
+          ...(couponFromUrl && { coupon: couponFromUrl }),
         }),
       });
 

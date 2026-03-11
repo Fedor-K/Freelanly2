@@ -109,16 +109,18 @@ export async function createCheckoutSession({
   jobId,
   opportunityId,
   gclid,
+  promotionCodeId,
 }: {
   userId: string;
   userEmail: string;
   priceKey: PriceKey;
   successUrl: string;
   cancelUrl: string;
-  source?: string;      // Where user came from: 'job_page', 'opportunity_page', 'pricing', 'header', etc.
-  jobId?: string;       // If came from a specific job
-  opportunityId?: string; // If came from a specific opportunity
-  gclid?: string;       // Google Click ID for offline conversion tracking
+  source?: string;
+  jobId?: string;
+  opportunityId?: string;
+  gclid?: string;
+  promotionCodeId?: string; // Stripe promotion_code ID to auto-apply
 }): Promise<Stripe.Checkout.Session> {
   const priceId = STRIPE_PRICES[priceKey];
   const priceInfo = PRICE_INFO[priceKey];
@@ -158,8 +160,10 @@ export async function createCheckoutSession({
             priceKey,
           },
         },
-    // Allow promotion codes
-    allow_promotion_codes: true,
+    // Apply promotion code if provided, otherwise allow manual entry
+    ...(promotionCodeId
+      ? { discounts: [{ promotion_code: promotionCodeId }] }
+      : { allow_promotion_codes: true }),
   };
 
   return stripe.checkout.sessions.create(sessionParams);

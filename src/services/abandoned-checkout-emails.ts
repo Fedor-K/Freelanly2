@@ -4,7 +4,7 @@
  * 10 minutes - IMMEDIATE recovery email with 15% off (QUICK15)
  * 1 hour     - Reminder email
  * 24 hours   - "Complete your upgrade"
- * 3 days     - "Last chance + 20% off" (code: WELCOME20)
+ * 3 days     - "Last chance + 20% off" (code: COMEBACK20)
  *
  * Cron runs every 5 minutes to catch 10-minute abandonments quickly
  */
@@ -208,18 +208,18 @@ function getEmailContent(
     <div class="offer-box" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">
       <h3>20% OFF</h3>
       <p style="margin: 0; opacity: 0.9;">Your first month</p>
-      <p style="margin: 10px 0 0; font-size: 14px; opacity: 0.8;">Use code: <strong>WELCOME20</strong></p>
+      <p style="margin: 10px 0 0; font-size: 14px; opacity: 0.8;">Use code: <strong>COMEBACK20</strong></p>
     </div>
 
     <p>Here's the deal:</p>
     <ul>
       <li>Upgrade to <strong>PRO</strong> today</li>
-      <li>Use code <strong>WELCOME20</strong> for 20% off your first month</li>
+      <li>Use code <strong>COMEBACK20</strong> for 20% off your first month</li>
       <li>Cancel anytime if it's not for you</li>
     </ul>
 
     <p style="text-align: center;">
-      <a href="https://freelanly.com/pricing?coupon=WELCOME20&source=email_abandoned_3d" class="button" style="background: #dc2626;">Claim Your 20% Discount</a>
+      <a href="https://freelanly.com/pricing?coupon=COMEBACK20&source=email_abandoned_3d" class="button" style="background: #dc2626;">Claim Your 20% Discount</a>
     </p>
 
     <p style="text-align: center; color: #666; font-size: 14px;">
