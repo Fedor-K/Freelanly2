@@ -300,7 +300,6 @@ export async function listCampaigns(dateRange?: { from: string; to: string }): P
           campaign.id,
           conversion_action.name,
           metrics.conversions
-          ${dateSelect}
         FROM campaign
         WHERE campaign.status != 'REMOVED'${dateWhere}
           AND metrics.conversions > 0
@@ -315,8 +314,8 @@ export async function listCampaigns(dateRange?: { from: string; to: string }): P
           campaign[field] += Number(row.metrics?.conversions ?? 0);
         }
       }
-    } catch {
-      // Conversion breakdown not critical
+    } catch (err) {
+      console.error('[Google Ads] Conversion breakdown query failed:', err);
     }
 
     return Array.from(campaignsMap.values());
