@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Lock, Check, Zap, Mail, DollarSign, Star } from 'lucide-react';
@@ -34,25 +35,6 @@ const TESTIMONIALS = [
 export function UpgradeModal({ open, onClose, jobId, jobTitle, companyName }: UpgradeModalProps) {
   const [testimonialIndex, setTestimonialIndex] = useState(0);
   const [upgradeCount, setUpgradeCount] = useState(847);
-  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
-
-  const handleUpgrade = async () => {
-    setIsCheckoutLoading(true);
-    try {
-      const response = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priceKey: 'monthly', source: 'job_page', jobId }),
-      });
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (err) {
-      console.error('Checkout error:', err);
-      setIsCheckoutLoading(false);
-    }
-  };
   const trackedRef = useRef(false);
 
   // Track apply attempt when modal opens
@@ -172,16 +154,13 @@ export function UpgradeModal({ open, onClose, jobId, jobTitle, companyName }: Up
 
         {/* CTA */}
         <div className="space-y-2 pt-2">
-          <Button
-            className="w-full"
-            size="lg"
-            onClick={handleUpgrade}
-            disabled={isCheckoutLoading}
-          >
-            {isCheckoutLoading ? 'Loading...' : 'Upgrade — €15/month'}
+          <Button className="w-full" size="lg" asChild>
+            <Link href={jobId ? `/pricing?source=job_page&jobId=${jobId}` : '/pricing'}>
+              Upgrade to see contact details
+            </Link>
           </Button>
           <p className="text-center text-xs text-muted-foreground">
-            €15/month • Cancel anytime • 30-day money-back guarantee
+            From €0.39/day. Cancel anytime.
           </p>
         </div>
       </DialogContent>
