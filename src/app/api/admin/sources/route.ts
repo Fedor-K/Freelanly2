@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkAdminSession } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import { Source } from '@prisma/client';
 import { getAvailableSourceTypes, validateDataSource, buildAtsApiUrl } from '@/services/sources';
@@ -6,11 +7,8 @@ import { getSourcesOverview, getAvailableTags } from '@/services/source-scoring'
 
 // GET /api/admin/sources - List data sources with pagination
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const adminSecret = process.env.CRON_SECRET;
-  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -130,11 +128,8 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/sources - Create a new data source
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const adminSecret = process.env.CRON_SECRET;
-  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
 
   try {
     const body = await request.json();

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkAdminSession } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import { isFreeEmail } from '@/lib/utils';
 import { Source } from '@prisma/client';
@@ -8,11 +9,8 @@ const APIFY_SOURCES: Source[] = [Source.LINKEDIN];
 
 // POST - Cleanup jobs from Apify sources without corporate emails
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const adminSecret = process.env.CRON_SECRET;
-  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
 
   try {
     console.log('Starting cleanup of non-corporate email jobs from Apify sources...');
@@ -93,11 +91,8 @@ export async function POST(request: NextRequest) {
 
 // GET - Preview what would be deleted
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const adminSecret = process.env.CRON_SECRET;
-  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
 
   try {
     // Only check Apify sources

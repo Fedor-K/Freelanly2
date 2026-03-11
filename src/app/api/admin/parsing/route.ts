@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkAdminSession } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 
 // GET /api/admin/parsing - Get parsing stats for last 20 days
 // Optional: ?dataSourceId=xxx to filter by specific source
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const adminSecret = process.env.CRON_SECRET;
-  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
 
   try {
     const { searchParams } = new URL(request.url);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkAdminSession } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import { getStripe, STRIPE_PRICES } from '@/lib/stripe';
 import { getMetrikaLastNDays, testMetrikaConnection } from '@/lib/yandex-metrika-api';
@@ -19,11 +20,8 @@ const TARGET_DATE = new Date('2026-05-31');
  * No auth required here - admin layout handles authentication
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const adminSecret = process.env.CRON_SECRET;
-  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
 
   try {
     const now = new Date();

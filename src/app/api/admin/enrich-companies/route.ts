@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkAdminSession } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
 import {
   enrichCompanies,
@@ -10,11 +11,8 @@ import {
 
 // GET - Get enrichment status and preview companies to enrich
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const adminSecret = process.env.CRON_SECRET;
-  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -43,11 +41,8 @@ export async function GET(request: NextRequest) {
 
 // POST - Run company enrichment
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const adminSecret = process.env.CRON_SECRET;
-  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
 
   try {
     const body = await request.json().catch(() => ({}));

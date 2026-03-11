@@ -1,10 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { checkAdminSession } from '@/lib/admin-auth';
 
 /**
  * Start parsing - triggers fetch-sources internally
  * POST /api/admin/start-parsing
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
+
   const cronSecret = process.env.CRON_SECRET;
   const baseUrl = process.env.AUTH_URL || 'https://freelanly.com';
 

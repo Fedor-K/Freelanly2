@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { checkAdminSession } from '@/lib/admin-auth';
 import {
   listCampaigns,
   createCampaign,
@@ -28,21 +29,14 @@ import {
   type DateRange,
 } from '@/lib/google-ads';
 
-function checkAuth(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  const adminSecret = process.env.CRON_SECRET;
-  return !!(adminSecret && authHeader === `Bearer ${adminSecret}`);
-}
-
 function errorResponse(message: string, status = 500) {
   return NextResponse.json({ error: message }, { status });
 }
 
 // GET — получение данных
 export async function GET(req: NextRequest) {
-  if (!checkAuth(req)) {
-    return errorResponse('Unauthorized', 401);
-  }
+  const authError = await checkAdminSession(req);
+  if (authError) return authError;
 
   const { searchParams } = new URL(req.url);
   const action = searchParams.get('action') || 'campaigns';
@@ -125,9 +119,8 @@ export async function GET(req: NextRequest) {
 
 // POST — создание
 export async function POST(req: NextRequest) {
-  if (!checkAuth(req)) {
-    return errorResponse('Unauthorized', 401);
-  }
+  const authError = await checkAdminSession(req);
+  if (authError) return authError;
 
   try {
     const body = await req.json();
@@ -190,9 +183,8 @@ export async function POST(req: NextRequest) {
 
 // PUT — обновление
 export async function PUT(req: NextRequest) {
-  if (!checkAuth(req)) {
-    return errorResponse('Unauthorized', 401);
-  }
+  const authError = await checkAdminSession(req);
+  if (authError) return authError;
 
   try {
     const body = await req.json();
