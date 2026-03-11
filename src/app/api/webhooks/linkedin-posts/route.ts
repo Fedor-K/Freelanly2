@@ -90,9 +90,20 @@ export async function POST(request: NextRequest) {
   const secret = request.nextUrl.searchParams.get('secret');
   const webhookSecret = process.env.N8N_WEBHOOK_SECRET || process.env.APIFY_WEBHOOK_SECRET;
 
-  if (webhookSecret && secret !== webhookSecret) {
-    console.error('[LinkedInPosts] Invalid webhook secret');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (webhookSecret) {
+    if (!secret) {
+      console.error('[LinkedInPosts] Missing webhook secret');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const secretBuf = Buffer.from(webhookSecret);
+    const providedBuf = Buffer.from(secret);
+    const isValid =
+      secretBuf.length === providedBuf.length &&
+      require('crypto').timingSafeEqual(secretBuf, providedBuf);
+    if (!isValid) {
+      console.error('[LinkedInPosts] Invalid webhook secret');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
   }
 
   // Get keyword tracking params
