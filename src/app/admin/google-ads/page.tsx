@@ -597,6 +597,7 @@ export default function GoogleAdsPage() {
             <CreateAdForm
               adGroupId={selectedAdGroup.id}
               adGroupName={selectedAdGroup.name}
+              campaignName={selectedCampaign?.name ?? ''}
               onSuccess={() => { setView('ads'); loadAds(selectedAdGroup); }}
               onCancel={() => setView('ads')}
             />
@@ -796,17 +797,20 @@ function CreateAdGroupForm({
 function CreateAdForm({
   adGroupId,
   adGroupName,
+  campaignName,
   onSuccess,
   onCancel,
 }: {
   adGroupId: string;
   adGroupName: string;
+  campaignName: string;
   onSuccess: () => void;
   onCancel: () => void;
 }) {
   const [headlines, setHeadlines] = useState(['', '', '']);
   const [descriptions, setDescriptions] = useState(['', '']);
-  const [finalUrl, setFinalUrl] = useState('https://freelanly.com');
+  const utmCampaign = campaignName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+  const [finalUrl, setFinalUrl] = useState(`https://freelanly.com?utm_source=google&utm_medium=cpc&utm_campaign=${utmCampaign}`);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 

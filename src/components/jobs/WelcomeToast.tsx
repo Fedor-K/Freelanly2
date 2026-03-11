@@ -15,6 +15,14 @@ export function WelcomeToast() {
     if (subscription === 'success' && welcome === '1') {
       setShow(true);
 
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('event', 'conversion', {
+          send_to: process.env.NEXT_PUBLIC_GOOGLE_ADS_ID,
+          value: parseFloat(new URLSearchParams(window.location.search).get('amount') || '0'),
+          currency: 'USD',
+        });
+      }
+
       // Remove the query params from URL after showing toast
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('subscription');
