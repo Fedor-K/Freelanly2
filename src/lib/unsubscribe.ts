@@ -1,14 +1,18 @@
-import { createHmac } from 'crypto';
+import { createHmac, randomBytes } from 'crypto';
 import { siteConfig } from '@/config/site';
 
-const SECRET = process.env.AUTH_SECRET || 'fallback-secret';
+const SECRET = process.env.AUTH_SECRET;
+if (!SECRET) {
+  console.error('[Unsubscribe] AUTH_SECRET is not set — unsubscribe tokens are insecure!');
+}
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url;
 
 /**
  * Generate unsubscribe token for email
  */
 export function generateUnsubscribeToken(email: string): string {
-  return createHmac('sha256', SECRET)
+  const secret = SECRET || randomBytes(32).toString('hex');
+  return createHmac('sha256', secret)
     .update(email.toLowerCase())
     .digest('hex')
     .substring(0, 32);
@@ -19,7 +23,10 @@ export function generateUnsubscribeToken(email: string): string {
  */
 export function verifyUnsubscribeToken(email: string, token: string): boolean {
   const expectedToken = generateUnsubscribeToken(email);
-  return token === expectedToken;
+  const expectedBuf = Buffer.from(expectedToken);
+  const tokenBuf = Buffer.from(token);
+  return expectedBuf.length === tokenBuf.length &&
+    require('crypto').timingSafeEqual(expectedBuf, tokenBuf);
 }
 
 /**

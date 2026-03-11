@@ -101,10 +101,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // New user flow: pre-create user record
+    // New user flow: pre-create user record (upsert to handle race conditions)
     // NextAuth will find and use this user when they verify email
-    const user = await prisma.user.create({
-      data: {
+    const user = await prisma.user.upsert({
+      where: { email: normalizedEmail },
+      update: {},
+      create: {
         email: normalizedEmail,
         name: name || null,
         // Not verified yet - will be set when magic link is clicked

@@ -76,10 +76,21 @@ export async function POST(request: NextRequest, context: RouteContext) {
   }
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function generatePortalEmailHtml(params: {
   userName: string;
   portalUrl: string;
 }): string {
+  const safeUserName = escapeHtml(params.userName);
+  const safePortalUrl = escapeHtml(params.portalUrl);
   return `
 <!DOCTYPE html>
 <html>
@@ -108,7 +119,7 @@ function generatePortalEmailHtml(params: {
 
     <div class="content">
       <h1>Manage Your Subscription</h1>
-      <p>Hi ${params.userName},</p>
+      <p>Hi ${safeUserName},</p>
       <p>Click the button below to access your subscription management portal where you can:</p>
       <ul>
         <li>Update your payment method</li>
@@ -118,7 +129,7 @@ function generatePortalEmailHtml(params: {
       </ul>
 
       <p style="text-align: center;">
-        <a href="${params.portalUrl}" class="button">Manage Subscription</a>
+        <a href="${safePortalUrl}" class="button">Manage Subscription</a>
       </p>
 
       <p class="note">

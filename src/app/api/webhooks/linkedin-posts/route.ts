@@ -562,15 +562,19 @@ function getCategoryName(slug: string): string {
 
 // Generate unique slug for opportunity
 async function generateUniqueOpportunitySlug(base: string): Promise<string> {
+  const MAX_ATTEMPTS = 100;
   let slug = base;
   let counter = 1;
 
-  while (true) {
+  while (counter <= MAX_ATTEMPTS) {
     const exists = await prisma.opportunity.findUnique({ where: { slug } });
     if (!exists) return slug;
     slug = `${base}-${counter}`;
     counter++;
   }
+
+  // Fallback: append random suffix to guarantee uniqueness
+  return `${base}-${Date.now()}`;
 }
 
 // Map location type - default to REMOTE for remote job board
