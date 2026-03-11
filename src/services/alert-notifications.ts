@@ -4,6 +4,14 @@ import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url;
+// A/B variant limits per variant
+const AB_LIMITS: Record<'A' | 'B' | 'C', number> = { A: 3, B: 2, C: 1 };
+
+function getAlertAbVariant(seed: string): 'A' | 'B' | 'C' {
+  const idx = parseInt(seed.slice(-2), 16) % 3;
+  return (['A', 'B', 'C'] as const)[idx];
+}
+
 const FREE_ITEM_LIMIT = 3;
 
 function addUtmParams(url: string, contentId: string): string {
@@ -22,9 +30,9 @@ function generateFreeUpsellBlock(hiddenCount: number): string {
             <p style="color: #666; font-size: 14px; margin: 0 0 16px;">
               You found the projects. Get direct contacts to apply first.
             </p>
-            <a href="https://freelanly.com/pricing?source=email_alert_upsell"
+            <a href="https://freelanly.com/pricing?source=email_alert_upsell&utm_source=job_alert&utm_medium=email"
                style="display: inline-block; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-              Get Contact Details →
+              Unlock Contact Details →
             </a>
           </td>
         </tr>`;
@@ -596,19 +604,32 @@ export async function sendAlertNotification(
     return { success: true }; // Nothing to send
   }
 
+  // A/B variant: stable per user email
+  const abVariant = getAlertAbVariant(alert.email);
+  const freeLimit = AB_LIMITS[abVariant];
+
   // Limit items for FREE users
-  const isFreeLimited = userPlan === 'FREE' && jobs.length > FREE_ITEM_LIMIT;
-  const hiddenCount = isFreeLimited ? jobs.length - FREE_ITEM_LIMIT : 0;
-  const visibleJobs = isFreeLimited ? jobs.slice(0, FREE_ITEM_LIMIT) : jobs;
+  const isFreeLimited = userPlan === 'FREE' && jobs.length > freeLimit;
+  const hiddenCount = isFreeLimited ? jobs.length - freeLimit : 0;
+  const visibleJobs = isFreeLimited ? jobs.slice(0, freeLimit) : jobs;
 
-  const unsubscribeUrl = `${APP_URL}/api/user/alerts/${alert.id}/unsubscribe`;
+  const unsubscribeUrl = `${APP_URL}/api/user/alerts/${alert.id}/unsubscribe?utm_variant=${abVariant}`;
 
-  // Generate engaging subject line
-  // 1 job: "🎯 French Translator at Crystalhues — Remote"
-  // Multiple: "🎯 3 new translation jobs for you"
-  const subject = jobs.length === 1
-    ? `🎯 ${jobs[0].title} at ${jobs[0].company.name}${jobs[0].country ? ` — ${jobs[0].country}` : ''}`
-    : `🎯 ${jobs.length} new ${alert.category || ''} jobs for you`;
+  // Subject line per A/B variant
+  // C (1 job): personalized "Company is hiring Role — direct contact inside"
+  // B (2 jobs): urgency "X jobs matched — apply before others"
+  // A (3 jobs): current style "🎯 N new jobs for you"
+  let subject: string;
+  if (abVariant === 'C' && jobs.length >= 1) {
+    const job = jobs[0];
+    subject = `${job.company.name} is hiring ${job.title} — direct contact inside`;
+  } else if (abVariant === 'B') {
+    subject = `${jobs.length} ${alert.category || ''} job${jobs.length > 1 ? 's' : ''} matched you — apply before others`;
+  } else {
+    subject = jobs.length === 1
+      ? `🎯 ${jobs[0].title} at ${jobs[0].company.name}${jobs[0].country ? ` — ${jobs[0].country}` : ''}`
+      : `🎯 ${jobs.length} new ${alert.category || ''} jobs for you`;
+  }
 
   const html = generateJobAlertEmailHtml(visibleJobs, alert.category, unsubscribeUrl, hiddenCount);
   const text = generateJobAlertEmailText(visibleJobs, alert.category);
@@ -1418,17 +1439,28 @@ async function sendOpportunityAlertNotification(params: {
     return { success: true };
   }
 
+  // A/B variant: stable per email
+  const abVariant = getAlertAbVariant(email);
+  const freeLimit = AB_LIMITS[abVariant];
+
   // Limit items for FREE users
-  const isFreeLimited = userPlan === 'FREE' && opportunities.length > FREE_ITEM_LIMIT;
-  const hiddenCount = isFreeLimited ? opportunities.length - FREE_ITEM_LIMIT : 0;
-  const visibleOpps = isFreeLimited ? opportunities.slice(0, FREE_ITEM_LIMIT) : opportunities;
+  const isFreeLimited = userPlan === 'FREE' && opportunities.length > freeLimit;
+  const hiddenCount = isFreeLimited ? opportunities.length - freeLimit : 0;
+  const visibleOpps = isFreeLimited ? opportunities.slice(0, freeLimit) : opportunities;
 
-  const unsubscribeUrl = `${APP_URL}/api/user/alerts/${alertId}/unsubscribe`;
+  const unsubscribeUrl = `${APP_URL}/api/user/alerts/${alertId}/unsubscribe?utm_variant=${abVariant}`;
 
-  // Generate subject line (don't include client name - may be personal)
-  const subject = opportunities.length === 1
-    ? `🎯 ${opportunities[0].title} — Freelance Project`
-    : `🎯 ${opportunities.length} new freelance projects for you`;
+  // Subject line per A/B variant
+  let subject: string;
+  if (abVariant === 'C' && opportunities.length >= 1) {
+    subject = `${opportunities[0].title} — client contact inside`;
+  } else if (abVariant === 'B') {
+    subject = `${opportunities.length} freelance project${opportunities.length > 1 ? 's' : ''} matched you — apply before others`;
+  } else {
+    subject = opportunities.length === 1
+      ? `🎯 ${opportunities[0].title} — Freelance Project`
+      : `🎯 ${opportunities.length} new freelance projects for you`;
+  }
 
   const html = generateOpportunityAlertEmailHtml(visibleOpps, category, unsubscribeUrl, hiddenCount);
   const text = generateOpportunityAlertEmailText(visibleOpps, category);
