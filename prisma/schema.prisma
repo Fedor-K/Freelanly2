@@ -49,6 +49,7 @@ model User {
   // FREE user nurture tracking (drip emails to convert to PRO)
   freeNurtureEmailsSent  Int @default(0)  // 0=none, 1=welcome, 2=day3, 3=day7
   lastFreeNurtureEmailAt DateTime?
+  nurtureEmailVariant    String?          // A/B/C - which DAY_7 variant they received
 
   // Email preferences
   unsubscribedFromMarketing Boolean @default(false)  // User opted out of marketing emails

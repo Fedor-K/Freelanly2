@@ -432,11 +432,13 @@ export async function sendFreeNurtureEmail(
 
     // Update tracking
     const emailsSent = type === 'WELCOME' ? 1 : type === 'DAY_3' ? 2 : 3;
+    const variantToSave = type === 'DAY_7' ? getDay7Variant(userId) : undefined;
     await prisma.user.update({
       where: { id: userId },
       data: {
         freeNurtureEmailsSent: emailsSent,
         lastFreeNurtureEmailAt: new Date(),
+        ...(variantToSave ? { nurtureEmailVariant: variantToSave } : {}),
       },
     });
 
