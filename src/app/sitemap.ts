@@ -217,7 +217,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: 10000,
+      take: 50000, // Include all active jobs (was 10000 - missing ~18K pages from sitemap)
     });
 
     // Job pages: /company/[companySlug]/jobs/[jobSlug]
