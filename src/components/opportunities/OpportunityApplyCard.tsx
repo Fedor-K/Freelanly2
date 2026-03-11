@@ -169,20 +169,26 @@ export function OpportunityApplyCard({
             ))}
 
           {!isPro && (
-            <Button
-              className="w-full bg-orange-600 hover:bg-orange-700"
-              onClick={handleUpgradeClick}
-              disabled={isRedirecting}
-            >
-              {isRedirecting ? 'Redirecting...' : session?.user ? '🔓 Upgrade to see contact details' : '🔓 Log In to see contact details'}
-            </Button>
+            <div className="space-y-2">
+              <Button
+                className="w-full bg-orange-600 hover:bg-orange-700 text-base font-semibold"
+                size="lg"
+                onClick={handleUpgradeClick}
+                disabled={isRedirecting}
+              >
+                {isRedirecting ? 'Loading...' : '🔓 Unlock Contact — €15/month'}
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Cancel anytime • 30-day money-back guarantee
+              </p>
+            </div>
           )}
 
           <div className="pt-4 border-t">
             <p className="text-xs text-muted-foreground">
               {isPro
                 ? '⚡ This project was posted recently. Clients often hire within 48 hours — act now.'
-                : '🔒 Contact info is hidden on FREE plan. PRO members apply directly and get hired faster.'}
+                : '✉️ Direct email & LinkedIn • No agencies • Apply before others'}
             </p>
           </div>
         </CardContent>
