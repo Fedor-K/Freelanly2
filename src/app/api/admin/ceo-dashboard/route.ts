@@ -18,7 +18,13 @@ const TARGET_DATE = new Date('2026-05-31');
  *
  * No auth required here - admin layout handles authentication
  */
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const adminSecret = process.env.CRON_SECRET;
+  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);

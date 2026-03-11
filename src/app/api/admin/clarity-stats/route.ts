@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 const CLARITY_TOKEN = process.env.CLARITY_API_TOKEN;
 
@@ -6,7 +6,13 @@ const CLARITY_TOKEN = process.env.CLARITY_API_TOKEN;
  * Get Microsoft Clarity analytics data
  * GET /api/admin/clarity-stats
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const adminSecret = process.env.CRON_SECRET;
+  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   if (!CLARITY_TOKEN) {
     return NextResponse.json({ error: 'CLARITY_API_TOKEN not configured' }, { status: 500 });
   }

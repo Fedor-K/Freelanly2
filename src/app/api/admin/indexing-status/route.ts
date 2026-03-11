@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { SignJWT, importPKCS8 } from 'jose';
 import { siteConfig } from '@/config/site';
@@ -87,7 +87,13 @@ async function getCrawlErrors(accessToken: string): Promise<any> {
   return { note: 'Crawl errors now checked via URL Inspection API' };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const adminSecret = process.env.CRON_SECRET;
+  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     // Get tokens for both APIs
     const gscToken = await getAccessToken('https://www.googleapis.com/auth/webmasters.readonly');

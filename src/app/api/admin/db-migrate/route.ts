@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -6,7 +6,13 @@ export const dynamic = 'force-dynamic';
 // One-time endpoint to add messageId column to AlertNotification
 // Safe to run multiple times (IF NOT EXISTS)
 // DELETE THIS FILE after confirming the column exists
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const adminSecret = process.env.CRON_SECRET;
+  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     // Add messageId column if it doesn't exist
     await prisma.$executeRawUnsafe(`

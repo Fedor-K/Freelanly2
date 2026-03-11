@@ -6,6 +6,12 @@ import { getSourcesOverview, getAvailableTags } from '@/services/source-scoring'
 
 // GET /api/admin/sources - List data sources with pagination
 export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const adminSecret = process.env.CRON_SECRET;
+  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const sortBy = searchParams.get('sortBy') || 'name';
@@ -124,6 +130,12 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/sources - Create a new data source
 export async function POST(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const adminSecret = process.env.CRON_SECRET;
+  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { sourceType, companySlug, name, apiUrl, config } = body;

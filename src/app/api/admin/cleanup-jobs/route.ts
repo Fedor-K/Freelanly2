@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { isFreeEmail } from '@/lib/utils';
 import { Source } from '@prisma/client';
@@ -7,7 +7,13 @@ import { Source } from '@prisma/client';
 const APIFY_SOURCES: Source[] = [Source.LINKEDIN];
 
 // POST - Cleanup jobs from Apify sources without corporate emails
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const adminSecret = process.env.CRON_SECRET;
+  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     console.log('Starting cleanup of non-corporate email jobs from Apify sources...');
 
@@ -86,7 +92,13 @@ export async function POST() {
 }
 
 // GET - Preview what would be deleted
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const adminSecret = process.env.CRON_SECRET;
+  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     // Only check Apify sources
     const apifyJobs = await prisma.job.findMany({

@@ -6,6 +6,12 @@ import { prisma } from '@/lib/db';
  * Returns registration, PRO conversion, and revenue stats grouped by traffic source.
  */
 export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const adminSecret = process.env.CRON_SECRET;
+  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = request.nextUrl;
     const days = parseInt(searchParams.get('days') || '30', 10);

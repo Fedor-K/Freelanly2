@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
 
@@ -8,7 +8,13 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
  * Get conversion funnel stats from Stripe and database
  * GET /api/admin/conversion-stats
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const adminSecret = process.env.CRON_SECRET;
+  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const now = Math.floor(Date.now() / 1000);
     const weekAgo = now - 7 * 24 * 60 * 60;
