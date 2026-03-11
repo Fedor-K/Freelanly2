@@ -1439,6 +1439,8 @@ model WinbackEmail {
   canceledAt     DateTime
   planAtCancel   String?
 
+  abVariant      String?          // A/B/C test variant
+
   @@unique([email, emailType]) // One email of each type per user
   @@index([email])
   @@index([emailType])
@@ -1505,6 +1507,8 @@ model AbandonedCheckoutEmail {
 
   // Did they convert?
   convertedAt DateTime?
+
+  abVariant   String?          // A/B/C test variant
 
   @@unique([sessionId, emailType]) // One email of each type per session
   @@index([email])

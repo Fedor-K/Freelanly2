@@ -24,10 +24,16 @@ interface EmailContent {
   html: string;
 }
 
+function getAbVariant(seed: string): 'A' | 'B' | 'C' {
+  const idx = parseInt(seed.slice(-2), 16) % 3;
+  return (['A', 'B', 'C'] as const)[idx];
+}
+
 function getEmailContent(
   emailType: AbandonedEmailType,
-  data: { email: string; planName?: string }
+  data: { email: string; planName?: string; abVariant?: 'A' | 'B' | 'C' }
 ): EmailContent {
+  const v = data.abVariant || 'A';
   const baseStyle = `
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; margin: 0; padding: 20px; }
     .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; }
@@ -46,9 +52,10 @@ function getEmailContent(
 
   switch (emailType) {
     // 10-minute email - IMMEDIATE recovery with discount
-    case 'MINUTE_10':
+    case 'MINUTE_10': {
+      const s10 = { A: "Forgot something? Here's 15% off to complete your upgrade", B: "Your PRO access is one click away — 15% off inside", C: "You left PRO behind. Here's a discount to finish." };
       return {
-        subject: 'Forgot something? Here\'s 15% off to complete your upgrade',
+        subject: s10[v],
         html: `
 <!DOCTYPE html>
 <html>
@@ -98,10 +105,13 @@ function getEmailContent(
 </html>`,
       };
 
+    }
+
     // 1 hour email - gentle reminder
-    case 'HOUR_1':
+    case 'HOUR_1': {
+      const s1h = { A: "Still thinking about PRO? Here's what you're missing", B: "Jobs are being filled while you wait", C: "Your checkout expired — but PRO is still waiting for you" };
       return {
-        subject: 'Still thinking about PRO? Here\'s what you\'re missing',
+        subject: s1h[v],
         html: `
 <!DOCTYPE html>
 <html>
@@ -142,10 +152,13 @@ function getEmailContent(
 </html>`,
       };
 
+    }
+
     // 24 hour email - social proof
-    case 'HOUR_24':
+    case 'HOUR_24': {
+      const s24 = { A: "Complete your Freelanly PRO upgrade", B: "43 members upgraded this month. You're close.", C: "One thing standing between you and direct job contacts" };
       return {
-        subject: 'Complete your Freelanly PRO upgrade',
+        subject: s24[v],
         html: `
 <!DOCTYPE html>
 <html>
@@ -187,8 +200,11 @@ function getEmailContent(
 </html>`,
       };
 
+    }
+
     // 3 day email - last chance with bigger discount
-    case 'DAY_3':
+    case 'DAY_3': {
+      const s3d = { A: "Last chance: 20% off your first month", B: "Final offer: apply directly to jobs for €12/month", C: "This is your last discount — 20% off expires soon" };
       return {
         subject: 'Last chance: 20% off your first month',
         html: `
@@ -238,6 +254,7 @@ function getEmailContent(
 </body>
 </html>`,
       };
+    }
 
     default:
       throw new Error(`Unknown email type: ${emailType}`);
@@ -341,13 +358,15 @@ async function wasEmailSent(email: string, emailType: AbandonedEmailType): Promi
 async function recordEmailSent(
   sessionId: string,
   email: string,
-  emailType: AbandonedEmailType
+  emailType: AbandonedEmailType,
+  abVariant?: string
 ): Promise<void> {
   await prisma.abandonedCheckoutEmail.create({
     data: {
       sessionId,
       email,
       emailType,
+      ...(abVariant ? { abVariant } : {}),
     },
   });
 }
@@ -369,10 +388,12 @@ async function hasUnsubscribed(email: string): Promise<boolean> {
 async function sendAbandonedEmail(
   session: AbandonedSession,
   emailType: AbandonedEmailType
-): Promise<boolean> {
+): Promise<{ success: boolean; variant: 'A' | 'B' | 'C' }> {
+  const variant = getAbVariant(session.email);
   const content = getEmailContent(emailType, {
     email: session.email,
     planName: session.priceKey,
+    abVariant: variant,
   });
 
   const result = await sendApplicationEmail({
@@ -381,7 +402,7 @@ async function sendAbandonedEmail(
     html: content.html,
   });
 
-  return result.success;
+  return { success: result.success, variant };
 }
 
 /**
@@ -446,10 +467,10 @@ export async function processAbandonedCheckoutEmails(): Promise<{
       // Send email
       const minutesAgo = Math.round(session.minutesSinceCreated);
       console.log(`[AbandonedCheckout] Sending ${emailType} to ${session.email} (${minutesAgo} min ago)`);
-      const success = await sendAbandonedEmail(session, emailType);
+      const { success, variant } = await sendAbandonedEmail(session, emailType);
 
       if (success) {
-        await recordEmailSent(session.stripeSessionId, session.email, emailType);
+        await recordEmailSent(session.stripeSessionId, session.email, emailType, variant);
         stats.sent++;
         stats.details.push({ email: session.email, emailType, status: 'sent' });
         console.log(`[AbandonedCheckout] Sent ${emailType} to ${session.email}`);

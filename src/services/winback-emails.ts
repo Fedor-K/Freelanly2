@@ -20,10 +20,16 @@ interface WinbackEmailContent {
   html: string;
 }
 
+function getWbVariant(seed: string): 'A' | 'B' | 'C' {
+  const idx = parseInt(seed.slice(-2), 16) % 3;
+  return (['A', 'B', 'C'] as const)[idx];
+}
+
 function getWinbackEmailContent(
   emailType: WinbackEmailType,
-  data: { email: string }
+  data: { email: string; abVariant?: 'A' | 'B' | 'C' }
 ): WinbackEmailContent {
+  const v = data.abVariant || 'A';
   const baseStyle = `
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; margin: 0; padding: 20px; }
     .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; }
@@ -42,9 +48,10 @@ function getWinbackEmailContent(
   `;
 
   switch (emailType) {
-    case 'DAY_7_MISS_YOU':
+    case 'DAY_7_MISS_YOU': {
+      const s7 = { A: 'We miss you at Freelanly', B: 'Remote jobs kept coming — you stopped looking', C: 'Your job matches are piling up' };
       return {
-        subject: 'We miss you at Freelanly',
+        subject: s7[v],
         html: `
 <!DOCTYPE html>
 <html>
@@ -85,10 +92,12 @@ function getWinbackEmailContent(
 </body>
 </html>`,
       };
+    }
 
-    case 'DAY_14_SPECIAL_OFFER':
+    case 'DAY_14_SPECIAL_OFFER': {
+      const s14 = { A: 'Special offer: 20% off to come back', B: 'Your ex-PRO discount: 20% off this week only', C: '20% off — direct contacts, unlimited jobs, one click' };
       return {
-        subject: 'Special offer: 20% off to come back',
+        subject: s14[v],
         html: `
 <!DOCTYPE html>
 <html>
@@ -136,9 +145,12 @@ function getWinbackEmailContent(
 </html>`,
       };
 
-    case 'DAY_30_LAST_CHANCE':
+    }
+
+    case 'DAY_30_LAST_CHANCE': {
+      const s30 = { A: 'Last chance: Your 20% off offer expires soon', B: "Final offer — we won't email again after this", C: 'Last call: 20% off PRO, then we stop' };
       return {
-        subject: 'Last chance: Your 20% off offer expires soon',
+        subject: s30[v],
         html: `
 <!DOCTYPE html>
 <html>
@@ -186,6 +198,7 @@ function getWinbackEmailContent(
 </body>
 </html>`,
       };
+    }
 
     default:
       throw new Error(`Unknown winback email type: ${emailType}`);
@@ -299,7 +312,8 @@ async function recordEmailSent(
   customerId: string,
   emailType: WinbackEmailType,
   canceledAt: Date,
-  planAtCancel: string
+  planAtCancel: string,
+  abVariant?: string
 ): Promise<void> {
   await prisma.winbackEmail.create({
     data: {
@@ -308,6 +322,7 @@ async function recordEmailSent(
       emailType,
       canceledAt,
       planAtCancel,
+      ...(abVariant ? { abVariant } : {}),
     },
   });
 }
@@ -329,8 +344,9 @@ async function hasResubscribed(email: string): Promise<boolean> {
 async function sendWinbackEmail(
   churned: ChurnedSubscription,
   emailType: WinbackEmailType
-): Promise<boolean> {
-  const content = getWinbackEmailContent(emailType, { email: churned.email });
+): Promise<{ success: boolean; variant: 'A' | 'B' | 'C' }> {
+  const variant = getWbVariant(churned.email);
+  const content = getWinbackEmailContent(emailType, { email: churned.email, abVariant: variant });
 
   const result = await sendApplicationEmail({
     to: churned.email,
@@ -338,7 +354,7 @@ async function sendWinbackEmail(
     html: content.html,
   });
 
-  return result.success;
+  return { success: result.success, variant };
 }
 
 /**
@@ -401,7 +417,7 @@ export async function processWinbackEmails(): Promise<{
 
       // Send email
       console.log(`[WinbackEmails] Sending ${emailType} to ${churned.email} (${churned.daysSinceCancel} days since cancel)`);
-      const success = await sendWinbackEmail(churned, emailType);
+      const { success, variant } = await sendWinbackEmail(churned, emailType);
 
       if (success) {
         await recordEmailSent(
@@ -409,7 +425,8 @@ export async function processWinbackEmails(): Promise<{
           churned.customerId,
           emailType,
           churned.canceledAt,
-          churned.planAtCancel
+          churned.planAtCancel,
+          variant
         );
         stats.sent++;
         stats.details.push({ email: churned.email, emailType, status: 'sent' });
