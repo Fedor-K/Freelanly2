@@ -49,14 +49,26 @@ interface OpportunityForEmail {
 // EMAIL CONTENT
 // ============================================
 
-function getEmailSubject(type: FreeNurtureEmailType, jobCount: number): string {
+function getDay7Variant(userId: string): 'A' | 'B' | 'C' {
+  const idx = parseInt(userId.slice(-2), 16) % 3;
+  return (['A', 'B', 'C'] as const)[idx];
+}
+
+function getEmailSubject(type: FreeNurtureEmailType, jobCount: number, userId?: string): string {
   switch (type) {
     case 'WELCOME':
       return `Welcome! Here are ${jobCount} remote opportunities for you`;
     case 'DAY_3':
-      return `These opportunities won't last - ${jobCount} new matches`;
-    case 'DAY_7':
-      return 'Unlock unlimited applications - 2 days free';
+      return `${jobCount} remote jobs matched you — apply before they're filled`;
+    case 'DAY_7': {
+      const variant = userId ? getDay7Variant(userId) : 'A';
+      const subjects = {
+        A: "You're one step away from applying — unlock PRO",
+        B: `${jobCount} jobs matched you this week. Contact info is hidden.`,
+        C: 'How 43 freelancers applied directly this month (you can too)',
+      };
+      return subjects[variant];
+    }
   }
 }
 
@@ -133,7 +145,8 @@ function generateFreeNurtureEmailHtml(
   jobs: JobForEmail[],
   opportunities: OpportunityForEmail[],
   userName?: string | null,
-  email?: string
+  email?: string,
+  userId?: string
 ): string {
   const name = userName || 'there';
 
@@ -171,22 +184,53 @@ function generateFreeNurtureEmailHtml(
       ctaUrl = `${APP_URL}/jobs?utm_source=free_nurture&utm_campaign=day3`;
       break;
 
-    case 'DAY_7':
-      headerText = `Ready to apply, ${name}?`;
-      introText = `
-        <p style="color: #333; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
-          You've been browsing, but haven't applied yet. We get it - taking the first step is hard.
-        </p>
-        <p style="color: #333; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
-          <strong>Good news:</strong> Upgrade to PRO and apply to unlimited jobs, get direct contact info, see full salary data.
-        </p>
-        <p style="color: #333; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
-          From €0.39/day. Cancel anytime.
-        </p>
-      `;
-      ctaText = 'Upgrade to PRO';
-      ctaUrl = `${APP_URL}/pricing?utm_source=free_nurture&utm_campaign=day7&source=email_free_nurture`;
+    case 'DAY_7': {
+      const d7variant = userId ? getDay7Variant(userId) : 'A';
+      const d7copy = {
+        A: {
+          header: `${name}, the contacts are right there`,
+          body: `
+            <p style="color: #333; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
+              You've been browsing for a week. The jobs you like have direct contact info — email, LinkedIn, full salary.
+            </p>
+            <p style="color: #333; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
+              PRO members skip the queue and email hiring managers directly. €15/month. Cancel anytime.
+            </p>
+          `,
+          cta: 'Unlock PRO — Apply Directly',
+        },
+        B: {
+          header: `${name}, these matched jobs are filling up`,
+          body: `
+            <p style="color: #333; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
+              Remote jobs get 50–200 applications in the first week. PRO members apply in the first hours — not after the queue builds.
+            </p>
+            <p style="color: #333; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
+              Direct email. Direct LinkedIn. No recruiters. €15/month.
+            </p>
+          `,
+          cta: 'Get Ahead — Upgrade Now',
+        },
+        C: {
+          header: `How others land remote jobs on Freelanly`,
+          body: `
+            <p style="color: #333; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
+              This month, 43 people upgraded to PRO. They stopped waiting for job boards to forward their CVs.
+              They emailed hiring managers directly. A few landed offers.
+            </p>
+            <p style="color: #333; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
+              Direct contact info, unlimited applications. €15/month.
+            </p>
+          `,
+          cta: 'Join Them — Upgrade to PRO',
+        },
+      };
+      headerText = d7copy[d7variant].header;
+      introText = d7copy[d7variant].body;
+      ctaText = d7copy[d7variant].cta;
+      ctaUrl = `${APP_URL}/pricing?utm_source=free_nurture&utm_campaign=day7&utm_variant=${d7variant}&source=email_free_nurture`;
       break;
+    }
   }
 
   // Build job cards HTML
@@ -200,7 +244,7 @@ function generateFreeNurtureEmailHtml(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${getEmailSubject(type, jobs.length + opportunities.length)}</title>
+  <title>${getEmailSubject(type, jobs.length + opportunities.length, userId)}</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f5f5f5;">
   <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f5f5f5;">
@@ -376,8 +420,8 @@ export async function sendFreeNurtureEmail(
       return { success: false, error: 'No jobs to send' };
     }
 
-    const subject = getEmailSubject(type, jobs.length + opportunities.length);
-    const html = generateFreeNurtureEmailHtml(type, jobs, opportunities, user.name, user.email);
+    const subject = getEmailSubject(type, jobs.length + opportunities.length, user.id);
+    const html = generateFreeNurtureEmailHtml(type, jobs, opportunities, user.name, user.email, user.id);
 
     // Send via DashaMail
     await sendApplicationEmail({

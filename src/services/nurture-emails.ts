@@ -49,6 +49,17 @@ export async function sendNurtureEmailForAttempt(attemptId: string): Promise<boo
             },
           },
         },
+        opportunity: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            clientName: true,
+            salaryMin: true,
+            salaryMax: true,
+            salaryCurrency: true,
+          },
+        },
       },
     });
 
@@ -67,26 +78,46 @@ export async function sendNurtureEmailForAttempt(attemptId: string): Promise<boo
       return false;
     }
 
-    // Generate email content
-    const jobUrl = `${siteConfig.url}/company/${attempt.job.company.slug}/jobs/${attempt.job.slug}`;
-    const pricingUrl = `${siteConfig.url}/pricing?utm_source=nurture&utm_medium=email&source=email_nurture&jobId=${attempt.job.id}`;
+    // Resolve job or opportunity
+    const isOpportunity = !!attempt.opportunity;
+    const title = isOpportunity ? attempt.opportunity!.title : attempt.job?.title || 'this job';
+    const company = isOpportunity ? attempt.opportunity!.clientName : attempt.job?.company?.name || 'the company';
+    const itemId = isOpportunity ? attempt.opportunity!.id : attempt.job?.id || '';
+    const itemUrl = isOpportunity
+      ? `${siteConfig.url}/freelance/${attempt.opportunity!.slug}`
+      : `${siteConfig.url}/company/${attempt.job!.company.slug}/jobs/${attempt.job!.slug}`;
 
-    const salaryText = attempt.job.salaryMin && attempt.job.salaryMax
-      ? `${attempt.job.salaryCurrency || '$'}${(attempt.job.salaryMin / 1000).toFixed(0)}K - ${attempt.job.salaryCurrency || '$'}${(attempt.job.salaryMax / 1000).toFixed(0)}K`
-      : 'Competitive salary';
+    const rawSalary = isOpportunity ? attempt.opportunity!.salaryMin : attempt.job?.salaryMin;
+    const rawSalaryMax = isOpportunity ? attempt.opportunity!.salaryMax : attempt.job?.salaryMax;
+    const currency = isOpportunity ? attempt.opportunity!.salaryCurrency : attempt.job?.salaryCurrency;
+    const salaryText = rawSalary && rawSalaryMax
+      ? `${currency || '$'}${(rawSalary / 1000).toFixed(0)}K - ${(rawSalaryMax / 1000).toFixed(0)}K`
+      : rawSalary ? `From ${currency || '$'}${(rawSalary / 1000).toFixed(0)}K` : 'Competitive salary';
+
+    // A/B variant by userId (stable assignment, no DB needed)
+    const variantIndex = parseInt(attempt.userId.slice(-2), 16) % 3;
+    const variant = (['A', 'B', 'C'] as const)[variantIndex];
+
+    const pricingUrl = `${siteConfig.url}/pricing?utm_source=nurture&utm_medium=email&utm_variant=${variant}&source=email_nurture&${isOpportunity ? 'opportunityId' : 'jobId'}=${itemId}`;
 
     const html = generateNurtureEmailHtml({
       userName: attempt.user.name || 'there',
-      jobTitle: attempt.job.title,
-      companyName: attempt.job.company.name,
+      jobTitle: title,
+      companyName: company,
       salary: salaryText,
-      jobUrl,
+      jobUrl: itemUrl,
       pricingUrl,
-      isImmediate: true, // Different copy for immediate send
+      isImmediate: true,
       email: attempt.user.email,
+      variant,
     });
 
-    const subject = `Complete your application to "${attempt.job.title}" at ${attempt.job.company.name}`;
+    const subjectByVariant = {
+      A: `You tried to apply to "${title}" — here's how`,
+      B: `Someone else is applying to "${title}" right now`,
+      C: `"${title}" at ${company} — contact info is one step away`,
+    };
+    const subject = subjectByVariant[variant];
 
     const result = await sendApplicationEmail({
       to: attempt.user.email,
@@ -168,6 +199,17 @@ export async function sendNurtureEmails(): Promise<NurtureStats> {
             },
           },
         },
+        opportunity: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            clientName: true,
+            salaryMin: true,
+            salaryMax: true,
+            salaryCurrency: true,
+          },
+        },
       },
       take: 50, // Process in batches
     });
@@ -186,25 +228,43 @@ export async function sendNurtureEmails(): Promise<NurtureStats> {
           continue;
         }
 
-        // Generate email content
-        const jobUrl = `${siteConfig.url}/company/${attempt.job.company.slug}/jobs/${attempt.job.slug}`;
-        const pricingUrl = `${siteConfig.url}/pricing?utm_source=nurture&utm_medium=email&source=email_nurture&jobId=${attempt.job.id}`;
+        // Resolve job or opportunity
+        const isOpportunity = !!attempt.opportunity;
+        const title = isOpportunity ? attempt.opportunity!.title : attempt.job?.title || 'this job';
+        const company = isOpportunity ? attempt.opportunity!.clientName : attempt.job?.company?.name || 'the company';
+        const itemId = isOpportunity ? attempt.opportunity!.id : attempt.job?.id || '';
+        const itemUrl = isOpportunity
+          ? `${siteConfig.url}/freelance/${attempt.opportunity!.slug}`
+          : `${siteConfig.url}/company/${attempt.job!.company.slug}/jobs/${attempt.job!.slug}`;
 
-        const salaryText = attempt.job.salaryMin && attempt.job.salaryMax
-          ? `${attempt.job.salaryCurrency || '$'}${(attempt.job.salaryMin / 1000).toFixed(0)}K - ${attempt.job.salaryCurrency || '$'}${(attempt.job.salaryMax / 1000).toFixed(0)}K`
-          : 'Competitive salary';
+        const rawSalary = isOpportunity ? attempt.opportunity!.salaryMin : attempt.job?.salaryMin;
+        const rawSalaryMax = isOpportunity ? attempt.opportunity!.salaryMax : attempt.job?.salaryMax;
+        const currency = isOpportunity ? attempt.opportunity!.salaryCurrency : attempt.job?.salaryCurrency;
+        const salaryText = rawSalary && rawSalaryMax
+          ? `${currency || '$'}${(rawSalary / 1000).toFixed(0)}K - ${(rawSalaryMax / 1000).toFixed(0)}K`
+          : rawSalary ? `From ${currency || '$'}${(rawSalary / 1000).toFixed(0)}K` : 'Competitive salary';
+
+        const variantIndex = parseInt(attempt.userId.slice(-2), 16) % 3;
+        const variant = (['A', 'B', 'C'] as const)[variantIndex];
+        const pricingUrl = `${siteConfig.url}/pricing?utm_source=nurture&utm_medium=email&utm_variant=${variant}&source=email_nurture&${isOpportunity ? 'opportunityId' : 'jobId'}=${itemId}`;
 
         const html = generateNurtureEmailHtml({
           userName: attempt.user.name || 'there',
-          jobTitle: attempt.job.title,
-          companyName: attempt.job.company.name,
+          jobTitle: title,
+          companyName: company,
           salary: salaryText,
-          jobUrl,
+          jobUrl: itemUrl,
           pricingUrl,
           email: attempt.user.email,
+          variant,
         });
 
-        const subject = `You tried to apply to "${attempt.job.title}" at ${attempt.job.company.name}`;
+        const subjectByVariant = {
+          A: `You tried to apply to "${title}" — here's how`,
+          B: `Someone else is applying to "${title}" right now`,
+          C: `"${title}" at ${company} — contact info is one step away`,
+        };
+        const subject = subjectByVariant[variant];
 
         const result = await sendApplicationEmail({
           to: attempt.user.email,
@@ -251,10 +311,30 @@ function generateNurtureEmailHtml(params: {
   pricingUrl: string;
   isImmediate?: boolean;
   email: string;
+  variant?: 'A' | 'B' | 'C';
 }): string {
-  const introText = params.isImmediate
-    ? `You just found a great opportunity at ${params.companyName}. Upgrade to PRO to apply:`
-    : `You found a great opportunity yesterday but couldn't apply. The job is still open:`;
+  const v = params.variant || 'A';
+
+  // Variant copy
+  const headlines = {
+    A: `Hey ${params.userName}, you're one step away`,
+    B: `${params.userName}, don't let others get there first`,
+    C: `The contact info for this job is waiting for you`,
+  };
+  const intros = {
+    A: `You tried to apply to <strong>${params.jobTitle}</strong> at ${params.companyName}. The direct contact info is right there — you just need PRO to see it.`,
+    B: `While you're reading this, PRO members are emailing the hiring manager at ${params.companyName} directly for <strong>${params.jobTitle}</strong>. You found the job first.`,
+    C: `You found <strong>${params.jobTitle}</strong> at ${params.companyName}. Behind the paywall: their direct email, LinkedIn, and full salary breakdown.`,
+  };
+  const ctaLabels = {
+    A: 'Unlock & Apply Now →',
+    B: 'Get Ahead — Upgrade to PRO →',
+    C: 'See Contact Info & Apply →',
+  };
+
+  const headerText = headlines[v];
+  const introText = intros[v];
+  const ctaLabel = ctaLabels[v];
 
   return `
 <!DOCTYPE html>
@@ -281,7 +361,7 @@ function generateNurtureEmailHtml(params: {
 </head>
 <body>
   <div class="container">
-    <h1>Hey ${params.userName}!</h1>
+    <h1>${headerText}</h1>
 
     <p>${introText}</p>
 
@@ -292,11 +372,11 @@ function generateNurtureEmailHtml(params: {
     </div>
 
     <div class="urgency">
-      ⏰ Good jobs get filled fast. Don't miss this one.
+      ⏰ Remote jobs get 50–200 applications in the first week. Apply early.
     </div>
 
     <p style="text-align: center;">
-      <a href="${params.pricingUrl}" class="cta">Unlock This Application →</a>
+      <a href="${params.pricingUrl}" class="cta">${ctaLabel}</a>
     </p>
 
     <div class="benefits">
