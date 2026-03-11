@@ -17,9 +17,9 @@ export function WelcomeToast() {
 
       if (typeof window !== 'undefined' && (window as any).gtag) {
         (window as any).gtag('event', 'conversion', {
-          send_to: process.env.NEXT_PUBLIC_GOOGLE_ADS_ID,
+          send_to: `${process.env.NEXT_PUBLIC_GOOGLE_ADS_ID}/${process.env.NEXT_PUBLIC_GADS_CONV_PURCHASE}`,
           value: parseFloat(new URLSearchParams(window.location.search).get('amount') || '0'),
-          currency: 'USD',
+          currency: 'EUR',
         });
       }
 

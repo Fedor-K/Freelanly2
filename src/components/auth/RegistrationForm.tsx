@@ -233,6 +233,12 @@ export function RegistrationForm({
       if (result?.ok) {
         setStep('sent');
         onEmailSent?.(email);
+        // Track signup conversion in Google Ads (new users only)
+        if (isExistingUser === false && typeof window !== 'undefined' && (window as any).gtag) {
+          (window as any).gtag('event', 'conversion', {
+            send_to: `${process.env.NEXT_PUBLIC_GOOGLE_ADS_ID}/${process.env.NEXT_PUBLIC_GADS_CONV_SIGNUP}`,
+          });
+        }
       } else {
         throw new Error('Failed to send magic link');
       }
