@@ -467,6 +467,7 @@ export async function updateCampaignBudget(
   campaignId: string,
   amountMicros: number
 ): Promise<void> {
+  if (!/^\d+$/.test(String(campaignId))) throw new Error(`Invalid campaignId: ${campaignId}`);
   try {
     const customer = getCustomer();
 
@@ -522,6 +523,7 @@ export interface AssetGroupData {
  * Получает список групп ассетов для PMax кампании с текстовыми ассетами.
  */
 export async function listAssetGroups(campaignId: string): Promise<AssetGroupData[]> {
+  if (!/^\d+$/.test(String(campaignId))) throw new Error(`Invalid campaignId: ${campaignId}`);
   try {
     const customer = getCustomer();
 
@@ -600,6 +602,7 @@ export async function listAssetGroups(campaignId: string): Promise<AssetGroupDat
  * @returns Массив групп объявлений
  */
 export async function listAdGroups(campaignId: string): Promise<AdGroupData[]> {
+  if (!/^\d+$/.test(String(campaignId))) throw new Error(`Invalid campaignId: ${campaignId}`);
   try {
     const customer = getCustomer();
 
@@ -881,6 +884,7 @@ export async function getCampaignReport(
   campaignId: string,
   dateRange?: DateRange
 ): Promise<PerformanceReportRow[]> {
+  if (!/^\d+$/.test(String(campaignId))) throw new Error(`Invalid campaignId: ${campaignId}`);
   try {
     const customer = getCustomer();
     const dateClause = buildDateClause(dateRange);
