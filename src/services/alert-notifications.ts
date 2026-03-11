@@ -159,15 +159,6 @@ function generateJobAlertEmailHtml(
 
           ${generateFreeUpsellBlock(hiddenCount)}
 
-          <!-- View All Button -->
-          <tr>
-            <td style="padding: 30px; text-align: center;">
-              <a href="${addUtmParams(`${APP_URL}/jobs${alertCategory ? `/${alertCategory}` : ''}`, 'view_all_jobs')}" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 500;">
-                View All Jobs
-              </a>
-            </td>
-          </tr>
-
           <!-- Footer -->
           <tr>
             <td style="padding: 20px 30px; background: #f9fafb; border-radius: 0 0 12px 12px; text-align: center;">
@@ -306,15 +297,6 @@ function generateOpportunityAlertEmailHtml(
           ${opportunityCards}
 
           ${generateFreeUpsellBlock(hiddenCount)}
-
-          <!-- View All Button -->
-          <tr>
-            <td style="padding: 30px; text-align: center;">
-              <a href="${addUtmParams(`${APP_URL}/freelance`, 'view_all_projects')}" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 500;">
-                View All Projects
-              </a>
-            </td>
-          </tr>
 
           <!-- Footer -->
           <tr>
@@ -524,18 +506,6 @@ function generateCombinedAlertEmailHtml(
           ${opportunitiesSection}
 
           ${generateFreeUpsellBlock(hiddenCount)}
-
-          <!-- View All Button -->
-          <tr>
-            <td style="padding: 30px; text-align: center;">
-              <a href="${addUtmParams(`${APP_URL}/jobs`, 'view_all_jobs')}" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 500; margin-right: 10px;">
-                View All Jobs
-              </a>
-              <a href="${addUtmParams(`${APP_URL}/freelance`, 'view_all_projects')}" style="display: inline-block; background: #fff; color: #000; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 500; border: 1px solid #000;">
-                View Freelance
-              </a>
-            </td>
-          </tr>
 
           <!-- Footer -->
           <tr>
