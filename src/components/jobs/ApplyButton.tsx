@@ -42,6 +42,12 @@ export function ApplyButton({
     track({ name: 'job_apply_click', params: { job_id: jobId, method } });
     // Also track for Vercel Drains
     trackApplyClick({ jobId, jobTitle, company: companyName, userPlan });
+    // Track in DB for all users (non-blocking)
+    fetch('/api/user/apply-attempt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId, method }),
+    }).catch(() => {});
   };
 
   // Unauthenticated users see registration modal

@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
       emailsSent,
       emailsDelivered,
       emailsClicked,
+      applyClicks,
       stripePayments,
       googleAdsData,
     ] = await Promise.all([
@@ -83,6 +84,9 @@ export async function GET(request: NextRequest) {
       prisma.emailEvent.count({ where: { type: 'DELIVERED', timestamp: dateRange } }),
       prisma.emailEvent.count({ where: { type: 'CLICKED', timestamp: dateRange } }),
 
+      // 9b. Apply clicks on site (all users)
+      prisma.applyAttempt.count({ where: { createdAt: dateRange } }),
+
       // 9. Stripe checkout sessions (completed payments)
       getStripePayments(dayStart, dayEnd),
 
@@ -119,6 +123,7 @@ export async function GET(request: NextRequest) {
       },
       newJobs,
       newAlerts,
+      applyClicks,
       emails: {
         sent: emailsSent,
         delivered: emailsDelivered,

@@ -21,15 +21,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'jobId or opportunityId required' }, { status: 400 });
     }
 
-    // Check if user is already PRO (shouldn't happen but just in case)
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { plan: true, email: true, name: true },
     });
-
-    if (user?.plan !== 'FREE') {
-      return NextResponse.json({ ok: true, isPro: true });
-    }
 
     // Check if we already tracked this attempt recently (within 24h)
     const recentAttempt = await prisma.applyAttempt.findFirst({
@@ -65,10 +60,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Send nurture email immediately (non-blocking)
-    sendNurtureEmailForAttempt(attempt.id).catch((err) => {
-      console.error('[ApplyAttempt] Nurture email failed:', err);
-    });
+    // Send nurture email only for FREE users (non-blocking)
+    if (user?.plan === 'FREE') {
+      sendNurtureEmailForAttempt(attempt.id).catch((err) => {
+        console.error('[ApplyAttempt] Nurture email failed:', err);
+      });
+    }
 
     return NextResponse.json({ ok: true, tracked: true });
   } catch (error) {
