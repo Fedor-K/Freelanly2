@@ -97,6 +97,11 @@ export function CancelSubscriptionSection({ subscriptionEndsAt }: Props) {
       return;
     }
 
+    if (!feedback.trim()) {
+      setError('Please tell us what job you were looking for — this helps us improve');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -325,18 +330,20 @@ export function CancelSubscriptionSection({ subscriptionEndsAt }: Props) {
                   </div>
                 )}
 
-                {/* Additional feedback */}
+                {/* Job search feedback — required */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium mb-1">
-                    Anything else you&apos;d like to share? (optional)
+                    What job were you looking for but couldn&apos;t find? <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
-                    placeholder="How could we have done better?"
+                    placeholder="E.g. Senior React Developer, $5000+, remote EU..."
                     rows={3}
+                    required
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent resize-none"
                   />
+                  <p className="text-xs text-gray-500 mt-1">This helps us improve job matching for everyone.</p>
                 </div>
 
                 {/* Error */}

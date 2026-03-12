@@ -1723,3 +1723,18 @@ enum EmailEventType {
   BOUNCED
   COMPLAINED
 }
+
+// Alert Email Feedback (👍/👎 кнопки в письмах)
+model AlertEmailFeedback {
+  id         String   @id @default(cuid())
+  userId     String?
+  alertId    String?
+  emailBatch String?
+  rating     String   // "helpful" | "not_helpful"
+  category   String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([alertId])
+  @@index([createdAt])
+}

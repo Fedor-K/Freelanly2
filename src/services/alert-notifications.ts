@@ -84,7 +84,9 @@ function generateJobAlertEmailHtml(
   jobs: MatchedJob[],
   alertCategory: string | null,
   unsubscribeUrl: string,
-  hiddenCount = 0
+  hiddenCount = 0,
+  userId?: string,
+  alertId?: string
 ): string {
   const categoryName = alertCategory
     ? alertCategory.charAt(0).toUpperCase() + alertCategory.slice(1)
@@ -167,7 +169,24 @@ function generateJobAlertEmailHtml(
 
           ${generateFreeUpsellBlock(hiddenCount)}
 
-          <!-- Footer -->
+          <!-- Feedback -->
+          \${userId ? `
+          <tr>
+            <td style="padding: 16px 30px; text-align: center; border-top: 1px solid #eee;">
+              <p style="margin: 0 0 10px; font-size: 13px; color: #666;">Эти вакансии вам подходят?</p>
+              <a href="\${APP_URL}/api/alert-feedback?r=helpful&u=\${encodeURIComponent(userId)}&a=\${encodeURIComponent(alertId || '')}&c=\${encodeURIComponent(alertCategory || '')}"
+                 style="display: inline-block; background: #000; color: #fff; padding: 8px 18px; text-decoration: none; border-radius: 6px; font-size: 13px; margin-right: 8px;">
+                👍 Да
+              </a>
+              <a href="\${APP_URL}/api/alert-feedback?r=not_helpful&u=\${encodeURIComponent(userId)}&a=\${encodeURIComponent(alertId || '')}&c=\${encodeURIComponent(alertCategory || '')}"
+                 style="display: inline-block; background: #f3f4f6; color: #333; padding: 8px 18px; text-decoration: none; border-radius: 6px; font-size: 13px;">
+                👎 Нет
+              </a>
+            </td>
+          </tr>
+          ` : ''}
+
+                    <!-- Footer -->
           <tr>
             <td style="padding: 20px 30px; background: #f9fafb; border-radius: 0 0 12px 12px; text-align: center;">
               <p style="margin: 0; color: #666; font-size: 12px;">
