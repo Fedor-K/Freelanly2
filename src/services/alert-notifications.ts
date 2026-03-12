@@ -170,15 +170,15 @@ function generateJobAlertEmailHtml(
           ${generateFreeUpsellBlock(hiddenCount)}
 
           <!-- Feedback -->
-          \${userId ? `
+          ${userId ? `
           <tr>
             <td style="padding: 16px 30px; text-align: center; border-top: 1px solid #eee;">
               <p style="margin: 0 0 10px; font-size: 13px; color: #666;">Эти вакансии вам подходят?</p>
-              <a href="\${APP_URL}/api/alert-feedback?r=helpful&u=\${encodeURIComponent(userId)}&a=\${encodeURIComponent(alertId || '')}&c=\${encodeURIComponent(alertCategory || '')}"
+              <a href="${APP_URL}/api/alert-feedback?r=helpful&u=${encodeURIComponent(userId)}&a=${encodeURIComponent(alertId || '')}&c=${encodeURIComponent(alertCategory || '')}"
                  style="display: inline-block; background: #000; color: #fff; padding: 8px 18px; text-decoration: none; border-radius: 6px; font-size: 13px; margin-right: 8px;">
                 👍 Да
               </a>
-              <a href="\${APP_URL}/api/alert-feedback?r=not_helpful&u=\${encodeURIComponent(userId)}&a=\${encodeURIComponent(alertId || '')}&c=\${encodeURIComponent(alertCategory || '')}"
+              <a href="${APP_URL}/api/alert-feedback?r=not_helpful&u=${encodeURIComponent(userId)}&a=${encodeURIComponent(alertId || '')}&c=${encodeURIComponent(alertCategory || '')}"
                  style="display: inline-block; background: #f3f4f6; color: #333; padding: 8px 18px; text-decoration: none; border-radius: 6px; font-size: 13px;">
                 👎 Нет
               </a>

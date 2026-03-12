@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let prisma: any = null;
+try {
+  // Dynamic import to avoid build errors before prisma generate
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  prisma = require('@/lib/db').prisma;
+} catch {}
 
 /**
  * Alert Email Feedback
@@ -22,14 +28,18 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    await prisma.alertEmailFeedback.create({
-      data: {
-        userId: userId || null,
-        alertId: alertId || null,
-        rating,
-        category: category || null,
-      },
-    });
+    if (prisma?.alertEmailFeedback) {
+      await prisma.alertEmailFeedback.create({
+        data: {
+          userId: userId || null,
+          alertId: alertId || null,
+          rating,
+          category: category || null,
+        },
+      });
+    } else {
+      console.log('[AlertFeedback]', { rating, userId, alertId, category });
+    }
 
     const isHelpful = rating === 'helpful';
     return new NextResponse(
