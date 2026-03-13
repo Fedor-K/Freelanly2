@@ -36,7 +36,7 @@ function generateFreeUpsellBlock(hiddenCount: number): string {
 }
 
 function truncateDescription(description: string, maxLength = 150): string {
-  const text = description.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  const text = description.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').replace(/^About the Role\s*/i, '').trim();
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength).trim() + '...';
 }
@@ -80,7 +80,7 @@ function generateOpportunityAlertEmailHtml(
             <table cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td>
-                  ${opp.clientAvatar ? `<img src="${opp.clientAvatar}" width="50" height="50" style="border-radius: 50%; display: block; margin-right: 15px;">` : ''}
+                  ${opp.clientAvatar ? `<img src="${opp.clientAvatar}" width="50" height="50" style="border-radius: 50%; display: block; margin-right: 15px; filter: blur(4px);">` : ''}
                   <a href="${oppUrl}" style="color: #000; text-decoration: none; font-weight: 600; font-size: 16px;">
                     ${opp.title}
                   </a>
