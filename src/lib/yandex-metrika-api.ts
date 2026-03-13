@@ -251,6 +251,89 @@ export async function getMetrikaGoals(
 }
 
 /**
+ * Получает данные по периодам (день/неделя/месяц)
+ */
+export async function getMetrikaByPeriod(
+  period: 'day' | 'week' | 'month',
+  periodsBack: number = 30
+): Promise<Array<{ date: string; visits: number; visitors: number }>> {
+  const token = process.env.YANDEX_METRIKA_TOKEN;
+  const counterId = process.env.YANDEX_METRIKA_COUNTER_ID || process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
+
+  if (!token || !counterId) {
+    return [];
+  }
+
+  const endDate = new Date().toISOString().slice(0, 10);
+  let daysBack: number;
+  if (period === 'day') daysBack = periodsBack;
+  else if (period === 'week') daysBack = periodsBack * 7;
+  else daysBack = periodsBack * 31;
+
+  const startDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  try {
+    const url = new URL(METRIKA_API_BASE);
+    url.searchParams.set('ids', counterId);
+    url.searchParams.set('metrics', 'ym:s:visits,ym:s:users');
+    url.searchParams.set('dimensions', 'ym:s:date');
+    url.searchParams.set('date1', startDate);
+    url.searchParams.set('date2', endDate);
+    url.searchParams.set('group', period);
+    url.searchParams.set('sort', 'ym:s:date');
+    url.searchParams.set('limit', '10000');
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `OAuth ${token}`,
+        Accept: 'application/json',
+      },
+      next: { revalidate: 300 },
+    });
+
+    if (!response.ok) {
+      console.error(`[MetrikaByPeriod] API error: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json() as {
+      data: Array<{
+        dimensions: Array<{ name: string }>;
+        metrics: number[];
+      }>;
+    };
+
+    if (!data.data) return [];
+
+    return data.data.map((row) => {
+      const rawDate = row.dimensions?.[0]?.name || '';
+      let date = rawDate;
+
+      if (period === 'week') {
+        // Convert date to ISO week format YYYY-Wxx
+        const d = new Date(rawDate);
+        const jan1 = new Date(d.getFullYear(), 0, 1);
+        const weekNum = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
+        date = `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+      } else if (period === 'month') {
+        date = rawDate.slice(0, 7); // YYYY-MM
+      }
+
+      return {
+        date,
+        visits: row.metrics?.[0] || 0,
+        visitors: row.metrics?.[1] || 0,
+      };
+    });
+  } catch (error) {
+    console.error('[MetrikaByPeriod] Error:', error);
+    return [];
+  }
+}
+
+/**
  * Получает данные за последние N дней
  */
 export async function getMetrikaLastNDays(days: number = 30): Promise<MetrikaStats> {

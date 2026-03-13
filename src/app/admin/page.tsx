@@ -72,12 +72,21 @@ interface GoalData {
   roadmap: GoalRoadmapItem[];
 }
 
+interface TrafficRow {
+  date: string;
+  visits: number;
+  visitors: number;
+  registrations: number;
+  newPro: number;
+}
+
 interface DashboardData {
   hotLeads: HotLead[];
   channels: Channel[];
   buyerProfile: BuyerProfile;
   quick: QuickMetrics;
   goal: GoalData;
+  trafficChart: TrafficRow[];
 }
 
 function fmt(n: number | null | undefined): string {
@@ -88,16 +97,35 @@ function fmt(n: number | null | undefined): string {
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [trafficPeriod, setTrafficPeriod] = useState<'day' | 'week' | 'month'>('day');
+  const [trafficData, setTrafficData] = useState<TrafficRow[]>([]);
+  const [trafficLoading, setTrafficLoading] = useState(false);
 
   useEffect(() => {
     fetch('/api/admin/management-dashboard')
       .then(res => res.json())
       .then(json => {
-        if (json.success) setData(json);
+        if (json.success) {
+          setData(json);
+          setTrafficData(json.trafficChart || []);
+        }
       })
       .catch(err => console.error('Failed to fetch dashboard:', err))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!data) return; // skip initial load
+    setTrafficLoading(true);
+    fetch(`/api/admin/management-dashboard?period=${trafficPeriod}`)
+      .then(res => res.json())
+      .then(json => {
+        if (json.success) setTrafficData(json.trafficChart || []);
+      })
+      .catch(err => console.error('Failed to fetch traffic:', err))
+      .finally(() => setTrafficLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trafficPeriod]);
 
   if (loading) {
     return (
@@ -238,6 +266,87 @@ export default function AdminDashboard() {
           </Card>
         </div>
       )}
+
+      {/* BLOCK: Traffic Dynamics */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-indigo-600" />
+          Dynamics
+        </h2>
+
+        <div className="flex gap-1 mb-3">
+          {(['day', 'week', 'month'] as const).map(p => (
+            <button
+              key={p}
+              onClick={() => setTrafficPeriod(p)}
+              className={`px-3 py-1 text-sm rounded-md font-medium transition-colors ${
+                trafficPeriod === p
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+              }`}
+            >
+              {p === 'day' ? 'Day' : p === 'week' ? 'Week' : 'Month'}
+            </button>
+          ))}
+        </div>
+
+        <Card>
+          <CardContent className="pt-6">
+            {trafficLoading ? (
+              <p className="text-muted-foreground text-sm">Loading...</p>
+            ) : trafficData.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No data available</p>
+            ) : (() => {
+              const displayRows = trafficPeriod === 'day'
+                ? trafficData.slice(-14)
+                : trafficPeriod === 'week'
+                  ? trafficData.slice(-8)
+                  : trafficData.slice(-6);
+              const maxVisits = Math.max(...displayRows.map(r => r.visits));
+
+              return (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-muted-foreground">
+                        <th className="pb-2 pr-4">Period</th>
+                        <th className="pb-2 pr-4 text-right">Visits</th>
+                        <th className="pb-2 pr-4 text-right">Visitors</th>
+                        <th className="pb-2 pr-4 text-right">Registrations</th>
+                        <th className="pb-2 text-right">New PRO</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayRows.map(row => (
+                        <tr
+                          key={row.date}
+                          className={`border-b last:border-0 ${
+                            row.visits === maxVisits && maxVisits > 0 ? 'bg-indigo-50 dark:bg-indigo-950/30' : ''
+                          }`}
+                        >
+                          <td className="py-2 pr-4 font-medium">{row.date}</td>
+                          <td className="py-2 pr-4 text-right">{fmt(row.visits)}</td>
+                          <td className="py-2 pr-4 text-right">{fmt(row.visitors)}</td>
+                          <td className="py-2 pr-4 text-right">
+                            {row.registrations > 0 ? (
+                              <span className="text-green-600 font-medium">{fmt(row.registrations)}</span>
+                            ) : '-'}
+                          </td>
+                          <td className="py-2 text-right">
+                            {row.newPro > 0 ? (
+                              <span className="text-yellow-600 font-bold">{fmt(row.newPro)}</span>
+                            ) : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* BLOCK 4: Quick Metrics */}
       <div className="grid gap-4 md:grid-cols-4 mb-8">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminSession } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
+import { getMetrikaByPeriod } from '@/lib/yandex-metrika-api';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,15 +10,21 @@ export async function GET(request: NextRequest) {
   if (authError) return authError;
 
   try {
+    const url = new URL(request.url);
+    const period = (url.searchParams.get('period') || 'day') as 'day' | 'week' | 'month';
+    const defaultRange = period === 'day' ? 30 : period === 'week' ? 12 : 6;
+    const range = parseInt(url.searchParams.get('range') || String(defaultRange), 10);
+
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const [hotLeads, channels, buyerProfile, quick, goal] = await Promise.all([
+    const [hotLeads, channels, buyerProfile, quick, goal, trafficChart] = await Promise.all([
       getHotLeads(),
       getChannels(thirtyDaysAgo),
       getBuyerProfile(),
       getQuickMetrics(thirtyDaysAgo),
       getGoalMetrics(thirtyDaysAgo),
+      getTrafficChart(period, range),
     ]);
 
     return NextResponse.json({
@@ -27,6 +34,7 @@ export async function GET(request: NextRequest) {
       buyerProfile,
       quick,
       goal,
+      trafficChart,
     });
   } catch (error) {
     console.error('[ManagementDashboard] Error:', error);
@@ -345,4 +353,96 @@ async function getQuickMetrics(thirtyDaysAgo: Date) {
     freeUsersWithPaywallHit: Number(freeData.count),
     avgPaywallHitsPerFreeUser: freeData.avgHits ? parseFloat(freeData.avgHits.toFixed(1)) : 0,
   };
+}
+
+// BLOCK: Traffic chart — Metrika + DB registrations/newPro
+async function getTrafficChart(period: 'day' | 'week' | 'month', range: number) {
+  // Calculate date range
+  let daysBack: number;
+  if (period === 'day') daysBack = range;
+  else if (period === 'week') daysBack = range * 7;
+  else daysBack = range * 31;
+
+  const fromDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+
+  // Fetch Metrika data and DB data in parallel
+  const [metrikaData, dbRegistrations, dbNewPro] = await Promise.all([
+    getMetrikaByPeriod(period, range),
+
+    prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
+      SELECT TO_CHAR("createdAt", 'YYYY-MM-DD') as date, COUNT(*) as count
+      FROM "User"
+      WHERE "createdAt" >= ${fromDate}
+      GROUP BY TO_CHAR("createdAt", 'YYYY-MM-DD')
+      ORDER BY date
+    `,
+
+    prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
+      SELECT TO_CHAR("proStartedAt", 'YYYY-MM-DD') as date, COUNT(*) as count
+      FROM "User"
+      WHERE plan = 'PRO' AND "proStartedAt" >= ${fromDate}
+      GROUP BY TO_CHAR("proStartedAt", 'YYYY-MM-DD')
+      ORDER BY date
+    `,
+  ]);
+
+  // Build lookup maps for DB data, grouped by period
+  const regMap = new Map<string, number>();
+  const proMap = new Map<string, number>();
+
+  for (const row of dbRegistrations) {
+    const key = periodKey(row.date, period);
+    regMap.set(key, (regMap.get(key) || 0) + Number(row.count));
+  }
+  for (const row of dbNewPro) {
+    const key = periodKey(row.date, period);
+    proMap.set(key, (proMap.get(key) || 0) + Number(row.count));
+  }
+
+  // If Metrika returned data, merge with DB data
+  if (metrikaData.length > 0) {
+    // Collect all dates from both sources
+    const allDates = new Set<string>();
+    for (const m of metrikaData) allDates.add(m.date);
+    for (const key of regMap.keys()) allDates.add(key);
+    for (const key of proMap.keys()) allDates.add(key);
+
+    const metrikaMap = new Map(metrikaData.map(m => [m.date, m]));
+
+    return Array.from(allDates)
+      .sort()
+      .map(date => ({
+        date,
+        visits: metrikaMap.get(date)?.visits || 0,
+        visitors: metrikaMap.get(date)?.visitors || 0,
+        registrations: regMap.get(date) || 0,
+        newPro: proMap.get(date) || 0,
+      }));
+  }
+
+  // Metrika unavailable — return DB data only
+  const allDates = new Set<string>();
+  for (const key of regMap.keys()) allDates.add(key);
+  for (const key of proMap.keys()) allDates.add(key);
+
+  return Array.from(allDates)
+    .sort()
+    .map(date => ({
+      date,
+      visits: 0,
+      visitors: 0,
+      registrations: regMap.get(date) || 0,
+      newPro: proMap.get(date) || 0,
+    }));
+}
+
+function periodKey(dateStr: string, period: 'day' | 'week' | 'month'): string {
+  if (period === 'day') return dateStr; // YYYY-MM-DD
+  if (period === 'month') return dateStr.slice(0, 7); // YYYY-MM
+
+  // week: YYYY-Wxx
+  const d = new Date(dateStr);
+  const jan1 = new Date(d.getFullYear(), 0, 1);
+  const weekNum = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
+  return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 }
