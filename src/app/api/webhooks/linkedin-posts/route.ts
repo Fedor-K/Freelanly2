@@ -4,7 +4,6 @@ import { extractJobData, classifyJobCategory, isJobPosting, type ExtractedJobDat
 import { slugify, extractDomainFromEmail, cleanEmail } from '@/lib/utils';
 import { ensureSalaryData } from '@/lib/salary-estimation';
 import { notifySearchEngines } from '@/lib/indexing';
-import { sendInstantAlertsForOpportunity } from '@/services/alert-notifications';
 import { shouldSkipJob } from '@/lib/job-filter';
 import { assessContentQuality, isFreeEmailProvider, isPersonalAnnouncement } from '@/lib/content-quality';
 import { siteConfig } from '@/config/site';
@@ -481,12 +480,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`[LinkedInPosts] Created opportunity: ${opportunity.slug} (quality: ${qualityResult.quality})`);
 
-    // Send INSTANT alerts for this opportunity
-    try {
-      await sendInstantAlertsForOpportunity(opportunity.id);
-    } catch (err) {
-      console.error('[LinkedInPosts] Instant alerts failed:', err);
-    }
+    // INSTANT alerts are now handled by pull-model cron (process-instant-alerts)
+    // No queue operation needed here
 
     // Notify search engines - ONLY for non-THIN content
     if (qualityResult.quality !== 'THIN') {

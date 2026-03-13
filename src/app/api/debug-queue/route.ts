@@ -40,25 +40,11 @@ export async function GET(req: NextRequest) {
   }
 
   if (backfillHours > 0) {
-    const { queueInstantAlertsForOpportunity } = await import('@/services/alert-notifications');
-    const recentOpps = await prisma.opportunity.findMany({
-      where: { createdAt: { gte: new Date(Date.now() - backfillHours * 60 * 60 * 1000) } },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true },
-      take: 20,
-    });
-
-    let totalQueued = 0;
-    for (const opp of recentOpps) {
-      try {
-        const result = await queueInstantAlertsForOpportunity(opp.id);
-        totalQueued += result.queued;
-      } catch { /* skip */ }
-    }
+    // Backfill is no longer needed — pull-model cron automatically picks up
+    // opportunities based on lastSentAt. To force re-send, reset lastSentAt on alerts.
     return NextResponse.json({
       action: 'backfill',
-      oppsProcessed: recentOpps.length,
-      notificationsQueued: totalQueued,
+      message: 'Backfill is deprecated. Pull-model cron handles alert delivery based on lastSentAt.',
     });
   }
 

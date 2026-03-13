@@ -7,7 +7,6 @@ import { processAshbySource } from './ashby-processor';
 import { processSmartRecruitersSource } from './smartrecruiters-processor';
 import { processWorkableSource } from './workable-processor';
 import { notifySearchEngines } from '@/lib/indexing';
-import { queueInstantAlertsForJob } from '@/services/alert-notifications';
 
 export * from './types';
 
@@ -78,17 +77,6 @@ export async function processDataSource(dataSourceId: string): Promise<Processin
         completedAt: new Date(),
       },
     });
-
-    // Queue instant alert notifications for new jobs
-    if (stats.createdJobIds && stats.createdJobIds.length > 0) {
-      for (const jobId of stats.createdJobIds) {
-        try {
-          await queueInstantAlertsForJob(jobId);
-        } catch (alertError) {
-          console.error(`[Sources] Alert queue failed for job ${jobId}:`, alertError);
-        }
-      }
-    }
 
     // Notify search engines about new jobs (IndexNow + Google)
     if (stats.createdJobUrls && stats.createdJobUrls.length > 0) {
