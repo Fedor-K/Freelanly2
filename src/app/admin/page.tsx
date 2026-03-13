@@ -263,33 +263,28 @@ export default function AdminDashboard() {
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="text-muted-foreground border-b">
-                        <th className="pb-1 text-left font-normal">Источник</th>
-                        <th className="pb-1 text-right font-normal">Посетители</th>
-                        <th className="pb-1 text-right font-normal">→</th>
+                        <th className="pb-1 text-left font-normal">UTM источник</th>
                         <th className="pb-1 text-right font-normal">Регистрации</th>
-                        <th className="pb-1 text-right font-normal">→</th>
+                        <th className="pb-1 text-right font-normal">Клик контакт</th>
                         <th className="pb-1 text-right font-normal">PRO</th>
-                        <th className="pb-1 text-right font-normal">Конверсия</th>
+                        <th className="pb-1 text-right font-normal">Рег→PRO</th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.channels
-                        .filter(ch => ch.registered > 0 || ch.visitors > 0)
-                        .sort((a, b) => (b.visitors || 0) - (a.visitors || 0))
+                        .filter(ch => ch.registered > 0)
+                        .sort((a, b) => b.registered - a.registered)
                         .map(ch => {
-                          const v2r = ch.visitors > 0 ? ((ch.registered / ch.visitors) * 100).toFixed(1) : null;
                           const r2p = ch.registered > 0 ? ((ch.converted / ch.registered) * 100).toFixed(1) : null;
                           return (
                             <tr key={ch.source} className="border-b last:border-0">
-                              <td className="py-1 font-medium capitalize">{ch.source || 'unknown'}</td>
-                              <td className="py-1 text-right text-blue-600">{ch.visitors > 0 ? fmt(ch.visitors) : '—'}</td>
-                              <td className="py-1 text-right text-muted-foreground text-xs">{v2r ? `${v2r}%` : ''}</td>
+                              <td className="py-1 font-medium capitalize">{ch.source || 'direct/unknown'}</td>
                               <td className="py-1 text-right text-green-600">{fmt(ch.registered)}</td>
-                              <td className="py-1 text-right text-muted-foreground text-xs">{r2p ? `${r2p}%` : ''}</td>
+                              <td className="py-1 text-right">{ch.hitPaywall > 0 ? fmt(ch.hitPaywall) : '—'}</td>
                               <td className="py-1 text-right text-yellow-600 font-bold">{ch.converted > 0 ? ch.converted : '—'}</td>
                               <td className="py-1 text-right">
                                 <span className={ch.conversionRate >= 5 ? 'text-green-600 font-bold' : 'text-muted-foreground'}>
-                                  {ch.conversionRate > 0 ? `${ch.conversionRate}%` : '—'}
+                                  {r2p && Number(r2p) > 0 ? `${r2p}%` : '—'}
                                 </span>
                               </td>
                             </tr>
@@ -297,6 +292,7 @@ export default function AdminDashboard() {
                         })}
                     </tbody>
                   </table>
+                  <p className="text-xs text-muted-foreground mt-2">* UTM источник из БД. Посетители из Метрики — в воронке выше.</p>
                 </div>
               )}
             </CardContent>
