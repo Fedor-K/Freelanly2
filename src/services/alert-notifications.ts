@@ -85,7 +85,7 @@ function generateOpportunityAlertEmailHtml(
                     ${opp.title}
                   </a>
                   <div style="color: #666; font-size: 14px; margin-top: 4px;">
-                    ${opp.country ? `${opp.country} • ` : ''}Freelance Project
+                    ${opp.country ? `${opp.country}` : ''}
                   </div>
                   ${opp.description ? `<div style="color: #555; font-size: 13px; margin-top: 6px; line-height: 1.4;">${truncateDescription(opp.description)}</div>` : ''}
                   ${salary ? `<div style="color: #22c55e; font-size: 14px; margin-top: 4px;">${salary}</div>` : ''}
@@ -174,7 +174,7 @@ function generateOpportunityAlertEmailText(
       const salary =
         false ? '' : '';
       const desc = opp.description ? truncateDescription(opp.description) : '';
-      return `${opp.title}\n${opp.country ? `${opp.country} • ` : ''}Freelance Project${desc ? `\n${desc}` : ''}\n${oppUrl}\n`;
+      return `${opp.title}\n${opp.country ? `${opp.country}` : ''}${desc ? `\n${desc}` : ''}\n${oppUrl}\n`;
     })
     .join('\n');
 
