@@ -18,11 +18,15 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    // Period window for funnel
-    const periodMs = period === 'day' ? 24 * 60 * 60 * 1000
-      : period === 'week' ? 7 * 24 * 60 * 60 * 1000
-      : 30 * 24 * 60 * 60 * 1000;
-    const periodStart = new Date(now.getTime() - periodMs);
+    // Period window for funnel — use calendar boundaries, not rolling hours
+    let periodStart: Date;
+    if (period === 'day') {
+      periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // start of today
+    } else if (period === 'week') {
+      periodStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else {
+      periodStart = new Date(now.getFullYear(), now.getMonth(), 1); // start of this month
+    }
 
     const [hotLeads, channels, buyerProfile, quick, goal, trafficChart] = await Promise.all([
       getHotLeads(),
@@ -380,7 +384,7 @@ async function getMetrikaForDateRange(from: Date, to: Date): Promise<number> {
   const date1 = from.toISOString().slice(0, 10);
   const date2 = to.toISOString().slice(0, 10);
   const url = `https://api-metrika.yandex.net/stat/v1/data?ids=${counterId}&metrics=ym:s:users&date1=${date1}&date2=${date2}`;
-  const res = await fetch(url, { headers: { Authorization: `OAuth ${token}` }, next: { revalidate: 300 } });
+  const res = await fetch(url, { headers: { Authorization: `OAuth ${token}` }, cache: 'no-store' });
   if (!res.ok) return 0;
   const data = await res.json();
   return Math.round(data?.totals?.[0] || 0);
