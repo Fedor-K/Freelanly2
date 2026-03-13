@@ -469,6 +469,9 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
                 applyEmail={opportunity.applyEmail}
                 applyUrl={opportunity.applyUrl}
                 title={opportunity.title}
+                clientName={opportunity.clientName}
+                postedAt={opportunity.createdAt.toISOString()}
+                budget={salaryDisplay}
               />
 
               {/* Category Link */}

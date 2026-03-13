@@ -300,6 +300,11 @@ export default async function JobPage({ params }: JobPageProps) {
   // Fetch similar jobs
   const similarJobs = await getSimilarJobs(job.id, job.categoryId);
 
+  // Budget string for upgrade modal
+  const jobBudget = (job.salaryMin || job.salaryMax)
+    ? `${formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency)}${formatSalaryPeriod(job.salaryPeriod)}`
+    : null;
+
   return (
     <div className="flex min-h-screen flex-col">
       <JobViewTracker
@@ -528,6 +533,8 @@ export default async function JobPage({ params }: JobPageProps) {
                     jobDescription={job.description}
                     userPlan={userPlan}
                     isAuthenticated={!!session}
+                    postedAt={job.postedAt.toISOString()}
+                    budget={jobBudget}
                   />
 
                   {/* LinkedIn Links - PRO only */}

@@ -51,6 +51,9 @@ model User {
   lastFreeNurtureEmailAt DateTime?
   nurtureEmailVariant    String?          // A/B/C - which DAY_7 variant they received
 
+  // FOMO email tracking (sent 3 days after registration)
+  fomoEmailSentAt        DateTime?        // When FOMO email was sent (null = not sent)
+
   // Email preferences
   unsubscribedFromMarketing Boolean @default(false)  // User opted out of marketing emails
   unsubscribedAt            DateTime?                 // When they unsubscribed
