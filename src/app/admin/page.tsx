@@ -20,6 +20,7 @@ interface HotLead {
 
 interface Channel {
   source: string;
+  visitors: number;
   registered: number;
   hitPaywall: number;
   converted: number;
@@ -125,7 +126,11 @@ export default function AdminDashboard() {
         if (json.success) {
           // Update both chart AND funnel (goal.funnel is period-dependent)
           setTrafficData(json.trafficChart || []);
-          setData(prev => prev ? { ...prev, goal: { ...prev.goal, funnel: json.goal?.funnel || prev.goal.funnel } } : prev);
+          setData(prev => prev ? {
+            ...prev,
+            channels: json.channels || prev.channels,
+            goal: { ...prev.goal, funnel: json.goal?.funnel || prev.goal.funnel },
+          } : prev);
         }
       })
       .catch(err => console.error('Failed to fetch traffic:', err))
@@ -483,16 +488,18 @@ export default function AdminDashboard() {
                   <thead>
                     <tr className="border-b text-left text-muted-foreground">
                       <th className="pb-2 pr-4">Channel</th>
+                      <th className="pb-2 pr-4 text-right">Visitors</th>
                       <th className="pb-2 pr-4 text-right">Registered</th>
                       <th className="pb-2 pr-4 text-right">Hit Paywall</th>
                       <th className="pb-2 pr-4 text-right">Bought PRO</th>
-                      <th className="pb-2 text-right">Conversion %</th>
+                      <th className="pb-2 text-right">Conv reg→PRO</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.channels.map(ch => (
                       <tr key={ch.source} className="border-b last:border-0">
                         <td className="py-2 pr-4 font-medium">{ch.source}</td>
+                        <td className="py-2 pr-4 text-right">{ch.visitors > 0 ? fmt(ch.visitors) : '-'}</td>
                         <td className="py-2 pr-4 text-right">{fmt(ch.registered)}</td>
                         <td className="py-2 pr-4 text-right">{fmt(ch.hitPaywall)}</td>
                         <td className="py-2 pr-4 text-right">{fmt(ch.converted)}</td>

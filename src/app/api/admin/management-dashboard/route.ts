@@ -28,14 +28,16 @@ export async function GET(request: NextRequest) {
       periodStart = new Date(now.getFullYear(), now.getMonth(), 1); // start of this month
     }
 
-    const [hotLeads, channels, buyerProfile, quick, goal, trafficChart] = await Promise.all([
+    const [hotLeads, trafficBySource, buyerProfile, quick, goal, trafficChart] = await Promise.all([
       getHotLeads(),
-      getChannels(thirtyDaysAgo),
+      getMetrikaTrafficBySource(periodStart, now).catch(() => ({} as Record<string, number>)),
       getBuyerProfile(),
       getQuickMetrics(thirtyDaysAgo),
       getGoalMetrics(thirtyDaysAgo, periodStart, period),
       getTrafficChart(period, range),
     ]);
+
+    const channels = getChannelsWithVisitors(await getChannels(thirtyDaysAgo), trafficBySource);
 
     return NextResponse.json({
       success: true,
@@ -388,6 +390,44 @@ async function getMetrikaForDateRange(from: Date, to: Date): Promise<number> {
   if (!res.ok) return 0;
   const data = await res.json();
   return Math.round(data?.totals?.[0] || 0);
+}
+
+async function getMetrikaTrafficBySource(from: Date, to: Date): Promise<Record<string, number>> {
+  const token = process.env.YANDEX_METRIKA_TOKEN;
+  const counterId = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
+  if (!token || !counterId) return {};
+  const date1 = from.toISOString().slice(0, 10);
+  const date2 = to.toISOString().slice(0, 10);
+  const url = `https://api-metrika.yandex.net/stat/v1/data?ids=${counterId}&metrics=ym:s:users&dimensions=ym:s:trafficSource&date1=${date1}&date2=${date2}`;
+  const res = await fetch(url, { headers: { Authorization: `OAuth ${token}` }, cache: 'no-store' });
+  if (!res.ok) return {};
+  const data = await res.json();
+
+  const SOURCE_MAP: Record<string, string> = {
+    'Переходы из поисковых систем': 'organic',
+    'Прямые заходы': 'direct',
+    'Переходы по рекламе': 'google_ads',
+    'Переходы из социальных сетей': 'linkedin',
+    'Переходы с других сайтов': 'referral',
+  };
+
+  const result: Record<string, number> = {};
+  for (const row of data?.data || []) {
+    const sourceName = row.dimensions?.[0]?.name || '';
+    const key = SOURCE_MAP[sourceName] || 'unknown';
+    result[key] = (result[key] || 0) + Math.round(row.metrics?.[0] || 0);
+  }
+  return result;
+}
+
+function getChannelsWithVisitors(
+  channels: Array<{ source: string; registered: number; hitPaywall: number; converted: number; conversionRate: number }>,
+  trafficBySource: Record<string, number>,
+) {
+  return channels.map(ch => ({
+    ...ch,
+    visitors: trafficBySource[ch.source] || 0,
+  }));
 }
 
 async function getTrafficChart(period: 'day' | 'week' | 'month', range: number) {
