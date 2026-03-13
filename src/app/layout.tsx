@@ -9,6 +9,7 @@ import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { GclidCapture } from "@/components/analytics/GclidCapture";
 import { ConversionUTMTracker } from "@/components/ConversionUTMTracker";
 import { Suspense } from "react";
+import Script from "next/script";
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -156,7 +157,7 @@ export default function RootLayout({
           <CookieConsentBanner />
         </SessionProvider>
         <AnalyticsScripts />
-        <script src="//code.tidio.co/uquevng3hordznvrmb5mk3zix6pxbpxa.js" async></script>
+        <Script src="//code.tidio.co/uquevng3hordznvrmb5mk3zix6pxbpxa.js" strategy="afterInteractive" />
         {/* JSON-LD Structured Data - placed in body per Google recommendations */}
         <script
           type="application/ld+json"
