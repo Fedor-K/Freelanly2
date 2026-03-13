@@ -8,6 +8,7 @@ import { ExitIntentPopup } from "@/components/ExitIntentPopup";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { GclidCapture } from "@/components/analytics/GclidCapture";
 import { ConversionUTMTracker } from "@/components/ConversionUTMTracker";
+import { TidioChat } from "@/components/TidioChat";
 import { Suspense } from "react";
 import Script from "next/script";
 
@@ -157,7 +158,7 @@ export default function RootLayout({
           <CookieConsentBanner />
         </SessionProvider>
         <AnalyticsScripts />
-        <Script src="https://code.tidio.co/uquevng3hordznvrmb5mk3zix6pxbpxa.js" strategy="lazyOnload" />
+        <TidioChat />
         {/* JSON-LD Structured Data - placed in body per Google recommendations */}
         <script
           type="application/ld+json"
