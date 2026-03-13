@@ -122,7 +122,11 @@ export default function AdminDashboard() {
     fetch(`/api/admin/management-dashboard?period=${trafficPeriod}`)
       .then(res => res.json())
       .then(json => {
-        if (json.success) setTrafficData(json.trafficChart || []);
+        if (json.success) {
+          // Update both chart AND funnel (goal.funnel is period-dependent)
+          setTrafficData(json.trafficChart || []);
+          setData(prev => prev ? { ...prev, goal: { ...prev.goal, funnel: json.goal?.funnel || prev.goal.funnel } } : prev);
+        }
       })
       .catch(err => console.error('Failed to fetch traffic:', err))
       .finally(() => setTrafficLoading(false));
