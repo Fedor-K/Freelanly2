@@ -7,6 +7,7 @@ import { SessionProvider } from "@/components/providers/SessionProvider";
 import { ExitIntentPopup } from "@/components/ExitIntentPopup";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { GclidCapture } from "@/components/analytics/GclidCapture";
+import { ConversionUTMTracker } from "@/components/ConversionUTMTracker";
 import { Suspense } from "react";
 
 export const viewport: Viewport = {
@@ -147,6 +148,7 @@ export default function RootLayout({
         <SessionProvider>
           <Suspense fallback={null}>
             <GclidCapture />
+            <ConversionUTMTracker />
           </Suspense>
           {children}
           <Analytics />

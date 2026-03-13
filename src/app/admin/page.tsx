@@ -31,6 +31,7 @@ interface BuyerProfile {
   avgPaywallHitsBeforeBuy: number;
   topCategories: Array<{ category: string; count: number }>;
   topSources: Array<{ source: string; count: number }>;
+  conversionSources: Array<{ source: string; count: number }>;
   avgDaysToConvert: number;
   medianDaysToConvert: number;
 }
@@ -564,7 +565,7 @@ export default function AdminDashboard() {
           <UserCheck className="h-5 w-5 text-green-600" />
           Buyer Profile
         </h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Avg Clicks Before Buy</CardTitle>
@@ -628,6 +629,27 @@ export default function AdminDashboard() {
                   ))}
                 </ul>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Conversion Source</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!data.buyerProfile.conversionSources || data.buyerProfile.conversionSources.length === 0 ? (
+                <p className="text-muted-foreground text-sm">-</p>
+              ) : (
+                <ul className="space-y-1">
+                  {data.buyerProfile.conversionSources.map(s => (
+                    <li key={s.source} className="flex justify-between text-sm">
+                      <span>{s.source}</span>
+                      <span className="font-medium">{s.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-xs text-muted-foreground mt-2">UTM at purchase time</p>
             </CardContent>
           </Card>
         </div>

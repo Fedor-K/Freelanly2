@@ -110,6 +110,9 @@ export async function createCheckoutSession({
   opportunityId,
   gclid,
   promotionCodeId,
+  conversionSource,
+  conversionMedium,
+  conversionCampaign,
 }: {
   userId: string;
   userEmail: string;
@@ -121,6 +124,9 @@ export async function createCheckoutSession({
   opportunityId?: string;
   gclid?: string;
   promotionCodeId?: string; // Stripe promotion_code ID to auto-apply
+  conversionSource?: string;
+  conversionMedium?: string;
+  conversionCampaign?: string;
 }): Promise<Stripe.Checkout.Session> {
   const priceId = STRIPE_PRICES[priceKey];
   const priceInfo = PRICE_INFO[priceKey];
@@ -144,6 +150,9 @@ export async function createCheckoutSession({
       ...(jobId && { jobId }),
       ...(opportunityId && { opportunityId }),
       ...(gclid && { gclid }),
+      ...(conversionSource && { conversionSource }),
+      ...(conversionMedium && { conversionMedium }),
+      ...(conversionCampaign && { conversionCampaign }),
     },
     // Add trial for monthly and annual
     subscription_data: priceInfo.hasTrial

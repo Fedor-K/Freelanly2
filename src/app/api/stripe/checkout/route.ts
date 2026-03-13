@@ -56,6 +56,22 @@ export async function POST(request: NextRequest) {
       select: { gclid: true },
     });
 
+    // Read conversion UTM from cookie
+    const convUtmCookie = request.cookies.get('conv_utm')?.value;
+    let conversionSource: string | undefined;
+    let conversionMedium: string | undefined;
+    let conversionCampaign: string | undefined;
+    if (convUtmCookie) {
+      const decoded = decodeURIComponent(convUtmCookie);
+      for (const part of decoded.split('|')) {
+        const [key, ...rest] = part.split(':');
+        const val = rest.join(':');
+        if (key === 'source' && val) conversionSource = val;
+        if (key === 'medium' && val) conversionMedium = val;
+        if (key === 'campaign' && val) conversionCampaign = val;
+      }
+    }
+
     // Create Stripe Checkout session with source tracking
     const checkoutSession = await createCheckoutSession({
       userId: session.user.id,
@@ -68,6 +84,9 @@ export async function POST(request: NextRequest) {
       opportunityId,
       gclid: user?.gclid || undefined,
       promotionCodeId,
+      conversionSource,
+      conversionMedium,
+      conversionCampaign,
     });
 
     // Save checkout session to DB for abandoned cart tracking

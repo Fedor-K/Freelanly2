@@ -70,6 +70,12 @@ model User {
   utmCampaign               String?                   // utm_campaign (campaign name)
   utmContent                String?                   // utm_content (specific ad/post)
 
+  // Conversion tracking (UTM at moment of purchase)
+  conversionSource          String?                   // utm_source at purchase time
+  conversionMedium          String?                   // utm_medium at purchase time
+  conversionCampaign        String?                   // utm_campaign at purchase time
+  conversionAt              DateTime?                 // when the purchase happened
+
   // Relations
   accounts      Account[]
   sessions      Session[]

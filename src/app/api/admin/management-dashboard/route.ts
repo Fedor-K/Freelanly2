@@ -200,6 +200,16 @@ async function getBuyerProfile() {
     LIMIT 5
   `;
 
+  // Conversion sources — UTM source at moment of purchase
+  const conversionSources = await prisma.$queryRaw<Array<{ source: string | null; count: bigint }>>`
+    SELECT "conversionSource" as source, COUNT(*) as count
+    FROM "User"
+    WHERE plan = 'PRO' AND "conversionSource" IS NOT NULL
+    GROUP BY "conversionSource"
+    ORDER BY count DESC
+    LIMIT 10
+  `;
+
   // Days to convert: difference between proStartedAt and createdAt
   const daysToConvert = await prisma.$queryRaw<Array<{ days: number }>>`
     SELECT EXTRACT(EPOCH FROM ("proStartedAt" - "createdAt")) / 86400.0 as days
@@ -223,6 +233,7 @@ async function getBuyerProfile() {
     avgPaywallHitsBeforeBuy: avgHits[0]?.avg ? parseFloat(avgHits[0].avg.toFixed(1)) : 0,
     topCategories: topCategories.map(r => ({ category: r.category, count: Number(r.count) })),
     topSources: topSources.map(r => ({ source: r.source || 'unknown', count: Number(r.count) })),
+    conversionSources: conversionSources.map(r => ({ source: r.source || 'unknown', count: Number(r.count) })),
     avgDaysToConvert,
     medianDaysToConvert,
   };

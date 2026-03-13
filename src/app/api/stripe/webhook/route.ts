@@ -115,6 +115,22 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     }
   }
 
+  // Build conversion UTM data (only on first purchase)
+  const conversionData: Record<string, unknown> = {};
+  if (session.metadata?.conversionSource) {
+    // Only set conversionAt if not already set (first purchase only)
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { conversionAt: true },
+    });
+    if (!existingUser?.conversionAt) {
+      conversionData.conversionSource = session.metadata.conversionSource;
+      conversionData.conversionMedium = session.metadata.conversionMedium || null;
+      conversionData.conversionCampaign = session.metadata.conversionCampaign || null;
+      conversionData.conversionAt = new Date();
+    }
+  }
+
   // Update user with Stripe IDs and subscription end date
   await prisma.user.update({
     where: { id: userId },
@@ -123,6 +139,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       stripeSubscriptionId: subscriptionId,
       plan: 'PRO',
       subscriptionEndsAt,
+      ...conversionData,
     },
   });
 
