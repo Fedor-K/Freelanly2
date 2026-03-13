@@ -63,6 +63,9 @@ model User {
 
   // Registration traffic source
   source                    String?                   // linkedin, telegram, twitter, job_alert, google, direct
+  utmMedium                 String?                   // utm_medium (cpc, email, social, organic)
+  utmCampaign               String?                   // utm_campaign (campaign name)
+  utmContent                String?                   // utm_content (specific ad/post)
 
   // Relations
   accounts      Account[]

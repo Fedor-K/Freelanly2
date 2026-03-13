@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 const STORAGE_KEYS = ['gclid', 'gbraid', 'wbraid'] as const;
-const UTM_KEYS = ['utm_source', 'utm_medium'] as const;
+const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content'] as const;
 const EXPIRY_DAYS = 90;
 
 export function GclidCapture() {
@@ -71,4 +71,32 @@ export function getStoredUtmSource(): string | null {
     localStorage.removeItem('_utm_source');
   }
   return null;
+}
+
+/** Read all stored UTM params */
+export function getStoredUtmParams(): {
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmContent?: string;
+} {
+  if (typeof window === 'undefined') return {};
+  const result: Record<string, string> = {};
+  for (const [key, field] of [
+    ['_utm_source', 'utmSource'],
+    ['_utm_medium', 'utmMedium'],
+    ['_utm_campaign', 'utmCampaign'],
+    ['_utm_content', 'utmContent'],
+  ] as const) {
+    const raw = localStorage.getItem(key);
+    if (!raw) continue;
+    try {
+      const item = JSON.parse(raw) as { value: string; expires: number };
+      if (Date.now() < item.expires) result[field] = item.value;
+      else localStorage.removeItem(key);
+    } catch {
+      localStorage.removeItem(key);
+    }
+  }
+  return result;
 }
