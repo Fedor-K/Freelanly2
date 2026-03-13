@@ -20,6 +20,7 @@ import {
   createResponsiveSearchAd,
   addKeywords,
   listConversions,
+  listConversionTags,
   createConversionAction,
   getAccountReport,
   getCampaignReport,
@@ -75,6 +76,11 @@ export async function GET(req: NextRequest) {
       case 'conversions': {
         const conversions = await listConversions();
         return NextResponse.json({ conversions });
+      }
+
+      case 'conversion-tags': {
+        const tags = await listConversionTags();
+        return NextResponse.json({ tags });
       }
 
       case 'account-report': {

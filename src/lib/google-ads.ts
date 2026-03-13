@@ -952,6 +952,44 @@ export async function getAccountReport(
 // ---------------------------------------------------------------------------
 
 /**
+ * Получает tag snippets (labels) для конверсионных действий.
+ * Используется для настройки NEXT_PUBLIC_GADS_CONV_* переменных.
+ */
+export async function listConversionTags(): Promise<{ id: string; name: string; label: string; globalSiteTag: string }[]> {
+  try {
+    const customer = getCustomer();
+    const rows = await customer.query(`
+      SELECT
+        conversion_action.id,
+        conversion_action.name,
+        conversion_action.status,
+        conversion_action.tag_snippets
+      FROM conversion_action
+      WHERE conversion_action.status = 'ENABLED'
+        AND conversion_action.type = 'WEBPAGE'
+      ORDER BY conversion_action.name
+    `);
+
+    return (rows as any[]).map((row) => {
+      const snippets = row.conversion_action?.tag_snippets ?? [];
+      const gtagSnippet = snippets.find((s: any) => s.type === 'GLOBAL_SITE_TAG' || s.type === 4) ?? snippets[0] ?? {};
+      const eventSnippet = snippets.find((s: any) => s.type === 'EVENT_SNIPPET' || s.type === 3) ?? {};
+      // Extract label from event snippet: send_to: 'AW-xxx/LABEL'
+      const labelMatch = (eventSnippet.event_snippet || eventSnippet.unescaped_event_snippet || '').match(/\/([A-Za-z0-9_-]+)'/);
+      return {
+        id: String(row.conversion_action?.id ?? ''),
+        name: row.conversion_action?.name ?? '',
+        label: labelMatch?.[1] ?? '',
+        globalSiteTag: gtagSnippet.global_site_tag || gtagSnippet.unescaped_global_site_tag || '',
+      };
+    });
+  } catch (error) {
+    console.error('[Google Ads] Ошибка получения tag snippets:', error);
+    throw new GoogleAdsError('Не удалось получить conversion tags', error);
+  }
+}
+
+/**
  * Получает список всех действий конверсии в аккаунте.
  * @returns Массив конверсионных действий
  */
