@@ -157,7 +157,7 @@ export default function RootLayout({
           <CookieConsentBanner />
         </SessionProvider>
         <AnalyticsScripts />
-        <Script src="//code.tidio.co/uquevng3hordznvrmb5mk3zix6pxbpxa.js" strategy="afterInteractive" />
+        <Script src="https://code.tidio.co/uquevng3hordznvrmb5mk3zix6pxbpxa.js" strategy="lazyOnload" />
         {/* JSON-LD Structured Data - placed in body per Google recommendations */}
         <script
           type="application/ld+json"
