@@ -151,46 +151,57 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          {/* Funnel cards */}
-          <div className="grid gap-4 md:grid-cols-3 mb-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Visitors/mo</CardTitle>
-                <Users className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{fmt(data.goal.funnel.monthlyVisitors)}</div>
-              </CardContent>
-            </Card>
+          {/* Funnel — horizontal flow with drop-off */}
+          <Card className="mb-4">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between gap-2">
+                {/* Step 1: Visitors */}
+                <div className="flex-1 text-center">
+                  <div className="text-xs text-muted-foreground mb-1">Посетители/мес</div>
+                  <div className="text-2xl font-bold text-blue-600">{fmt(data.goal.funnel.monthlyVisitors)}</div>
+                </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Registrations/mo</CardTitle>
-                <UserCheck className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{fmt(data.goal.funnel.monthlyRegistrations)}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {data.goal.funnel.monthlyVisitors > 0
-                    ? ((data.goal.funnel.monthlyRegistrations / data.goal.funnel.monthlyVisitors) * 100).toFixed(1)
-                    : 0}% of visitors
-                </p>
-              </CardContent>
-            </Card>
+                {/* Arrow 1 */}
+                <div className="text-center flex flex-col items-center px-1">
+                  <div className="text-green-600 font-bold text-sm">
+                    {data.goal.funnel.monthlyVisitors > 0
+                      ? ((data.goal.funnel.monthlyRegistrations / data.goal.funnel.monthlyVisitors) * 100).toFixed(1)
+                      : 0}%
+                  </div>
+                  <div className="text-xl text-muted-foreground">→</div>
+                  <div className="text-red-500 text-xs">
+                    -{fmt(data.goal.funnel.monthlyVisitors - data.goal.funnel.monthlyRegistrations)}
+                  </div>
+                </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">New PRO/mo</CardTitle>
-                <Crown className="h-4 w-4 text-yellow-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{fmt(data.goal.funnel.monthlyNewPro)}</div>
-                <p className={`text-xs mt-1 ${data.goal.funnel.regToProRate < data.goal.funnel.targetRegToProRate ? 'text-red-500 font-medium' : 'text-green-600 font-medium'}`}>
-                  {data.goal.funnel.regToProRate}% conv (target {data.goal.funnel.targetRegToProRate}%)
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+                {/* Step 2: Registrations */}
+                <div className="flex-1 text-center">
+                  <div className="text-xs text-muted-foreground mb-1">Регистраций/мес</div>
+                  <div className="text-2xl font-bold text-green-600">{fmt(data.goal.funnel.monthlyRegistrations)}</div>
+                </div>
+
+                {/* Arrow 2 */}
+                <div className="text-center flex flex-col items-center px-1">
+                  <div className={`font-bold text-sm ${data.goal.funnel.regToProRate < data.goal.funnel.targetRegToProRate ? 'text-red-500' : 'text-green-600'}`}>
+                    {data.goal.funnel.regToProRate}%
+                  </div>
+                  <div className="text-xl text-muted-foreground">→</div>
+                  <div className="text-red-500 text-xs">
+                    -{fmt(data.goal.funnel.monthlyRegistrations - data.goal.funnel.monthlyNewPro)}
+                  </div>
+                </div>
+
+                {/* Step 3: New PRO */}
+                <div className="flex-1 text-center">
+                  <div className="text-xs text-muted-foreground mb-1">Новых PRO/мес</div>
+                  <div className="text-2xl font-bold text-yellow-600">{fmt(data.goal.funnel.monthlyNewPro)}</div>
+                  <div className={`text-xs mt-1 ${data.goal.funnel.regToProRate < data.goal.funnel.targetRegToProRate ? 'text-red-500' : 'text-green-600'}`}>
+                    цель: {data.goal.funnel.targetRegToProRate}%
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Roadmap table */}
           <Card>
