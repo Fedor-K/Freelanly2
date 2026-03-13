@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminSession } from '@/lib/admin-auth';
 import { prisma } from '@/lib/db';
-import { getMetrikaLastNDays, testMetrikaConnection } from '@/lib/yandex-metrika-api';
-import { getTransactionalStats } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,73 +10,21 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const [dbData, trafficData, emailProviderStats] = await Promise.all([
-      getDBMetrics(todayStart, sevenDaysAgo, thirtyDaysAgo, now),
-      getTrafficSafe(),
-      getEmailProviderStatsSafe(),
+    const [hotLeads, channels, buyerProfile, quick] = await Promise.all([
+      getHotLeads(),
+      getChannels(thirtyDaysAgo),
+      getBuyerProfile(),
+      getQuickMetrics(thirtyDaysAgo),
     ]);
-
-    // Funnel conversions
-    const regToVerified = dbData.registrations30d > 0
-      ? parseFloat(((dbData.verifiedEmails30d / dbData.registrations30d) * 100).toFixed(1))
-      : 0;
-    const verifiedToPaywall = dbData.verifiedEmails30d > 0
-      ? parseFloat(((dbData.paywallHits30d / dbData.verifiedEmails30d) * 100).toFixed(1))
-      : 0;
-    const paywallToPro = dbData.paywallHits30d > 0
-      ? parseFloat(((dbData.newPro30d / dbData.paywallHits30d) * 100).toFixed(1))
-      : 0;
-
-    // Email rates from provider stats
-    const alertsSent7d = dbData.alertsSent7d;
-    const openRate7d = alertsSent7d > 0
-      ? parseFloat(((emailProviderStats.opened / Math.max(alertsSent7d, 1)) * 100).toFixed(1))
-      : 0;
-    const clickRate7d = alertsSent7d > 0
-      ? parseFloat(((emailProviderStats.clicked / Math.max(alertsSent7d, 1)) * 100).toFixed(1))
-      : 0;
-
-    // MRR from DB: count active PRO subscriptions and estimate
-    // Using actual subscription data from User model
-    const mrrEstimate = await estimateMRRFromDB(now);
 
     return NextResponse.json({
       success: true,
-      funnel: {
-        visitors30d: trafficData,
-        registrations30d: dbData.registrations30d,
-        verifiedEmails30d: dbData.verifiedEmails30d,
-        paywallHits30d: dbData.paywallHits30d,
-        newPro30d: dbData.newPro30d,
-        regToVerified,
-        verifiedToPaywall,
-        paywallToPro,
-      },
-      today: {
-        registrations: dbData.registrationsToday,
-        newPro: dbData.newProToday,
-        paywallHits: dbData.paywallHitsToday,
-        newOpportunities: dbData.newOpportunitiesToday,
-      },
-      revenue: {
-        mrr: mrrEstimate.mrr,
-        totalProUsers: mrrEstimate.totalPro,
-        churnedLast30d: dbData.churnedLast30d,
-      },
-      emails: {
-        alertsSentLast7d: alertsSent7d,
-        openRate7d,
-        clickRate7d,
-      },
-      content: {
-        activeOpportunities: dbData.activeOpportunities,
-        opportunitiesLast7d: dbData.opportunitiesLast7d,
-        activeAlerts: dbData.activeAlerts,
-      },
+      hotLeads,
+      channels,
+      buyerProfile,
+      quick,
     });
   } catch (error) {
     console.error('[ManagementDashboard] Error:', error);
@@ -89,115 +35,209 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function getDBMetrics(
-  todayStart: Date,
-  sevenDaysAgo: Date,
-  thirtyDaysAgo: Date,
-  now: Date,
-) {
-  const [
-    registrations30d,
-    verifiedEmails30d,
-    paywallHits30d,
-    newPro30d,
-    registrationsToday,
-    newProToday,
-    paywallHitsToday,
-    newOpportunitiesToday,
-    churnedLast30d,
-    alertsSent7d,
-    activeOpportunities,
-    opportunitiesLast7d,
-    activeAlerts,
-  ] = await Promise.all([
-    // 30-day funnel
-    prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
-    prisma.user.count({ where: { emailVerified: { not: null }, createdAt: { gte: thirtyDaysAgo } } }),
-    prisma.applyAttempt.groupBy({
-      by: ['userId'],
-      where: { createdAt: { gte: thirtyDaysAgo } },
-    }).then(r => r.length),
-    prisma.user.count({
-      where: {
-        plan: 'PRO',
-        createdAt: { gte: thirtyDaysAgo },
-      },
-    }),
-    // Today
-    prisma.user.count({ where: { createdAt: { gte: todayStart } } }),
-    prisma.user.count({
-      where: {
-        plan: 'PRO',
-        createdAt: { gte: todayStart },
-      },
-    }),
-    prisma.applyAttempt.count({ where: { createdAt: { gte: todayStart } } }),
-    prisma.opportunity.count({ where: { createdAt: { gte: todayStart } } }),
-    // Churned: subscriptionEndsAt passed in last 30 days and plan is FREE
-    prisma.user.count({
-      where: {
-        plan: 'FREE',
-        subscriptionEndsAt: { gte: thirtyDaysAgo, lte: now },
-      },
-    }),
-    // Alert emails sent last 7 days
-    prisma.alertNotification.count({
-      where: { status: 'SENT', sentAt: { gte: sevenDaysAgo } },
-    }),
-    // Content
-    prisma.opportunity.count({ where: { isActive: true } }),
-    prisma.opportunity.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
-    prisma.jobAlert.count({ where: { isActive: true } }),
-  ]);
+// BLOCK 1: Hot leads — FREE users stuck at paywall with 2+ hits
+async function getHotLeads() {
+  const results = await prisma.$queryRaw<Array<{
+    userId: string;
+    email: string;
+    paywallHits: bigint;
+    lastHitAt: Date;
+    createdAt: Date;
+    category: string | null;
+    source: string | null;
+  }>>`
+    SELECT
+      u.id as "userId",
+      u.email,
+      COUNT(a.id) as "paywallHits",
+      MAX(a."createdAt") as "lastHitAt",
+      u."createdAt",
+      (SELECT ja.category FROM "JobAlert" ja WHERE ja."userId" = u.id AND ja."isActive" = true LIMIT 1) as category,
+      u.source
+    FROM "User" u
+    JOIN "ApplyAttempt" a ON a."userId" = u.id
+    WHERE u.plan = 'FREE'
+    GROUP BY u.id, u.email, u."createdAt", u.source
+    HAVING COUNT(a.id) >= 2
+    ORDER BY COUNT(a.id) DESC
+    LIMIT 20
+  `;
+
+  const now = new Date();
+  return results.map(r => ({
+    userId: r.userId,
+    email: r.email,
+    paywallHits: Number(r.paywallHits),
+    lastHitDaysAgo: Math.floor((now.getTime() - new Date(r.lastHitAt).getTime()) / (1000 * 60 * 60 * 24)),
+    registeredDaysAgo: Math.floor((now.getTime() - new Date(r.createdAt).getTime()) / (1000 * 60 * 60 * 24)),
+    category: r.category || null,
+    source: r.source || null,
+  }));
+}
+
+// BLOCK 2: Conversion by channels
+async function getChannels(thirtyDaysAgo: Date) {
+  // All users grouped by source
+  const allBySource = await prisma.$queryRaw<Array<{
+    source: string | null;
+    registered: bigint;
+  }>>`
+    SELECT source, COUNT(*) as registered
+    FROM "User"
+    GROUP BY source
+  `;
+
+  // Users who hit paywall grouped by source
+  const paywallBySource = await prisma.$queryRaw<Array<{
+    source: string | null;
+    hitPaywall: bigint;
+  }>>`
+    SELECT u.source, COUNT(DISTINCT u.id) as "hitPaywall"
+    FROM "User" u
+    JOIN "ApplyAttempt" a ON a."userId" = u.id
+    GROUP BY u.source
+  `;
+
+  // Users who converted to PRO grouped by source
+  const proBySource = await prisma.$queryRaw<Array<{
+    source: string | null;
+    converted: bigint;
+  }>>`
+    SELECT source, COUNT(*) as converted
+    FROM "User"
+    WHERE plan = 'PRO'
+    GROUP BY source
+  `;
+
+  // Merge into single structure
+  const sourceMap = new Map<string, { registered: number; hitPaywall: number; converted: number }>();
+
+  for (const row of allBySource) {
+    const key = row.source || 'unknown';
+    sourceMap.set(key, { registered: Number(row.registered), hitPaywall: 0, converted: 0 });
+  }
+  for (const row of paywallBySource) {
+    const key = row.source || 'unknown';
+    const entry = sourceMap.get(key) || { registered: 0, hitPaywall: 0, converted: 0 };
+    entry.hitPaywall = Number(row.hitPaywall);
+    sourceMap.set(key, entry);
+  }
+  for (const row of proBySource) {
+    const key = row.source || 'unknown';
+    const entry = sourceMap.get(key) || { registered: 0, hitPaywall: 0, converted: 0 };
+    entry.converted = Number(row.converted);
+    sourceMap.set(key, entry);
+  }
+
+  return Array.from(sourceMap.entries())
+    .map(([source, data]) => ({
+      source,
+      registered: data.registered,
+      hitPaywall: data.hitPaywall,
+      converted: data.converted,
+      conversionRate: data.hitPaywall > 0
+        ? parseFloat(((data.converted / data.hitPaywall) * 100).toFixed(1))
+        : 0,
+    }))
+    .sort((a, b) => b.conversionRate - a.conversionRate);
+}
+
+// BLOCK 3: Buyer profile from PRO users
+async function getBuyerProfile() {
+  // Average paywall hits before buying (PRO users who have ApplyAttempts)
+  const avgHits = await prisma.$queryRaw<Array<{ avg: number | null }>>`
+    SELECT AVG(cnt)::float as avg FROM (
+      SELECT COUNT(a.id) as cnt
+      FROM "User" u
+      JOIN "ApplyAttempt" a ON a."userId" = u.id
+      WHERE u.plan = 'PRO'
+      GROUP BY u.id
+    ) sub
+  `;
+
+  // Top categories of PRO users (from their alerts)
+  const topCategories = await prisma.$queryRaw<Array<{ category: string; count: bigint }>>`
+    SELECT ja.category, COUNT(DISTINCT u.id) as count
+    FROM "User" u
+    JOIN "JobAlert" ja ON ja."userId" = u.id
+    WHERE u.plan = 'PRO' AND ja.category IS NOT NULL
+    GROUP BY ja.category
+    ORDER BY count DESC
+    LIMIT 5
+  `;
+
+  // Top sources of PRO users
+  const topSources = await prisma.$queryRaw<Array<{ source: string | null; count: bigint }>>`
+    SELECT source, COUNT(*) as count
+    FROM "User"
+    WHERE plan = 'PRO'
+    GROUP BY source
+    ORDER BY count DESC
+    LIMIT 5
+  `;
+
+  // Days to convert: difference between proStartedAt and createdAt
+  const daysToConvert = await prisma.$queryRaw<Array<{ days: number }>>`
+    SELECT EXTRACT(EPOCH FROM ("proStartedAt" - "createdAt")) / 86400.0 as days
+    FROM "User"
+    WHERE plan = 'PRO' AND "proStartedAt" IS NOT NULL
+  `;
+
+  let avgDaysToConvert = 0;
+  let medianDaysToConvert = 0;
+
+  if (daysToConvert.length > 0) {
+    const dayValues = daysToConvert.map(d => Math.max(0, Math.round(Number(d.days)))).sort((a, b) => a - b);
+    avgDaysToConvert = Math.round(dayValues.reduce((sum, v) => sum + v, 0) / dayValues.length);
+    const mid = Math.floor(dayValues.length / 2);
+    medianDaysToConvert = dayValues.length % 2 === 0
+      ? Math.round((dayValues[mid - 1] + dayValues[mid]) / 2)
+      : dayValues[mid];
+  }
 
   return {
-    registrations30d,
-    verifiedEmails30d,
-    paywallHits30d,
-    newPro30d,
-    registrationsToday,
-    newProToday,
-    paywallHitsToday,
-    newOpportunitiesToday,
-    churnedLast30d,
-    alertsSent7d,
-    activeOpportunities,
-    opportunitiesLast7d,
-    activeAlerts,
+    avgPaywallHitsBeforeBuy: avgHits[0]?.avg ? parseFloat(avgHits[0].avg.toFixed(1)) : 0,
+    topCategories: topCategories.map(r => ({ category: r.category, count: Number(r.count) })),
+    topSources: topSources.map(r => ({ source: r.source || 'unknown', count: Number(r.count) })),
+    avgDaysToConvert,
+    medianDaysToConvert,
   };
 }
 
-async function getTrafficSafe(): Promise<number | null> {
-  try {
-    const isConnected = await testMetrikaConnection();
-    if (!isConnected) return null;
-    const stats = await getMetrikaLastNDays(30);
-    return stats.visitors;
-  } catch {
-    return null;
-  }
-}
+// Quick metrics
+async function getQuickMetrics(thirtyDaysAgo: Date) {
+  const [totalPro, newProLast30d, freeWithPaywall] = await Promise.all([
+    // All PRO users — no extra conditions (PayPal users may not have subscriptionEndsAt)
+    prisma.user.count({ where: { plan: 'PRO' } }),
 
-async function getEmailProviderStatsSafe() {
-  try {
-    const stats = await getTransactionalStats(7);
-    return { opened: stats.opened || 0, clicked: stats.clicked || 0 };
-  } catch {
-    return { opened: 0, clicked: 0 };
-  }
-}
+    // New PRO in last 30 days
+    prisma.user.count({
+      where: { plan: 'PRO', proStartedAt: { gte: thirtyDaysAgo } },
+    }),
 
-async function estimateMRRFromDB(now: Date) {
-  // Count active PRO users with valid subscriptions
-  const totalPro = await prisma.user.count({
-    where: {
-      plan: { in: ['PRO', 'ENTERPRISE'] },
-      subscriptionEndsAt: { gt: now },
-    },
-  });
+    // FREE users who hit paywall but didn't buy
+    prisma.$queryRaw<Array<{ count: bigint; avgHits: number | null }>>`
+      SELECT
+        COUNT(DISTINCT u.id) as count,
+        AVG(cnt)::float as "avgHits"
+      FROM (
+        SELECT u.id, COUNT(a.id) as cnt
+        FROM "User" u
+        JOIN "ApplyAttempt" a ON a."userId" = u.id
+        WHERE u.plan = 'FREE'
+        GROUP BY u.id
+      ) sub
+      JOIN "User" u ON u.id = sub.id
+    `,
+  ]);
 
-  // Average €18/month per PRO user (mix of monthly/quarterly/annual)
-  const mrr = totalPro * 18;
+  const freeData = freeWithPaywall[0] || { count: BigInt(0), avgHits: null };
 
-  return { mrr, totalPro };
+  return {
+    totalPro,
+    newProLast30d,
+    mrrEstimate: totalPro * 18,
+    freeUsersWithPaywallHit: Number(freeData.count),
+    avgPaywallHitsPerFreeUser: freeData.avgHits ? parseFloat(freeData.avgHits.toFixed(1)) : 0,
+  };
 }
