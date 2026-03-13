@@ -84,10 +84,8 @@ function generateOpportunityAlertEmailHtml(
           <td style="padding: 20px; border-bottom: 1px solid #eee;">
             <table cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
-                <td width="60" valign="top">
-                  <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; color: #fff;">${(opp.clientName || 'F').charAt(0).toUpperCase()}</div>
-                </td>
-                <td style="padding-left: 15px;">
+                <td>
+                  ${opp.clientAvatar ? `<img src="${opp.clientAvatar}" width="50" height="50" style="border-radius: 50%; display: block; margin-right: 15px;">` : ''}
                   <a href="${oppUrl}" style="color: #000; text-decoration: none; font-weight: 600; font-size: 16px;">
                     ${opp.title}
                   </a>
