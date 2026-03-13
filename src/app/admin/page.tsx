@@ -638,18 +638,18 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               {!data.buyerProfile.conversionSources || data.buyerProfile.conversionSources.length === 0 ? (
-                <p className="text-muted-foreground text-sm">-</p>
+                <p className="text-muted-foreground text-sm italic">Заполнится с новых покупок</p>
               ) : (
                 <ul className="space-y-1">
                   {data.buyerProfile.conversionSources.map(s => (
                     <li key={s.source} className="flex justify-between text-sm">
-                      <span>{s.source}</span>
-                      <span className="font-medium">{s.count}</span>
+                      <span className="capitalize">{s.source || 'direct'}</span>
+                      <span className="font-bold">{s.count}</span>
                     </li>
                   ))}
                 </ul>
               )}
-              <p className="text-xs text-muted-foreground mt-2">UTM at purchase time</p>
+              <p className="text-xs text-muted-foreground mt-2">UTM в момент оплаты</p>
             </CardContent>
           </Card>
         </div>
