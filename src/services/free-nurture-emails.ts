@@ -325,16 +325,16 @@ async function getMatchingJobs(userId: string, limit: number = 3): Promise<JobFo
   // Get user's alert categories for personalization
   const userAlerts = await prisma.jobAlert.findMany({
     where: { userId },
-    select: { categoryId: true },
+    select: { category: true },
   });
-  const categoryIds = userAlerts.map(a => a.categoryId).filter(Boolean) as string[];
+  const categorySlugs = userAlerts.map(a => a.category).filter(Boolean) as string[];
 
   // Get recent jobs, prioritize matching categories
   const jobs = await prisma.job.findMany({
     where: {
       isActive: true,
       postedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-      ...(categoryIds.length > 0 ? { categoryId: { in: categoryIds } } : {}),
+      ...(categorySlugs.length > 0 ? { category: { slug: { in: categorySlugs } } } : {}),
     },
     include: {
       company: {
