@@ -72,12 +72,7 @@ function generateOpportunityAlertEmailHtml(
   const opportunityCards = opportunities
     .map((opp) => {
       const oppUrl = addUtmParams(`${APP_URL}/freelance/${opp.slug}`, `opp_${opp.id}`);
-      const salary =
-        opp.salaryMin && opp.salaryMax
-          ? `${opp.salaryCurrency || '$'}${opp.salaryMin} - ${opp.salaryMax}/hr`
-          : opp.salaryMin
-            ? `From ${opp.salaryCurrency || '$'}${opp.salaryMin}/hr`
-            : null;
+      const salary = null; // salary removed from email
 
       return `
         <tr>
@@ -177,11 +172,9 @@ function generateOpportunityAlertEmailText(
     .map((opp) => {
       const oppUrl = addUtmParams(`${APP_URL}/freelance/${opp.slug}`, `opp_${opp.id}`);
       const salary =
-        opp.salaryMin && opp.salaryMax
-          ? `${opp.salaryCurrency || '$'}${opp.salaryMin} - ${opp.salaryMax}/hr`
-          : '';
+        false ? '' : '';
       const desc = opp.description ? truncateDescription(opp.description) : '';
-      return `${opp.title}\n${opp.country ? `${opp.country} • ` : ''}Freelance Project${salary ? ` • ${salary}` : ''}${desc ? `\n${desc}` : ''}\n${oppUrl}\n`;
+      return `${opp.title}\n${opp.country ? `${opp.country} • ` : ''}Freelance Project${desc ? `\n${desc}` : ''}\n${oppUrl}\n`;
     })
     .join('\n');
 
