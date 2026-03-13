@@ -42,11 +42,42 @@ interface QuickMetrics {
   avgPaywallHitsPerFreeUser: number;
 }
 
+interface GoalRoadmapItem {
+  month: string;
+  action: string;
+  targetPro: number;
+  targetMRR: number;
+}
+
+interface GoalData {
+  targetMRR: number;
+  currentMRR: number;
+  progressPercent: number;
+  targetDate: string;
+  daysRemaining: number;
+  monthsRemaining: number;
+  funnel: {
+    monthlyVisitors: number;
+    monthlyRegistrations: number;
+    monthlyNewPro: number;
+    regToProRate: number;
+    targetRegToProRate: number;
+  };
+  required: {
+    newProPerMonth: number;
+    currentNewProPerMonth: number;
+    growthNeeded: number;
+  };
+  totalPro: number;
+  roadmap: GoalRoadmapItem[];
+}
+
 interface DashboardData {
   hotLeads: HotLead[];
   channels: Channel[];
   buyerProfile: BuyerProfile;
   quick: QuickMetrics;
+  goal: GoalData;
 }
 
 function fmt(n: number | null | undefined): string {
@@ -89,6 +120,113 @@ export default function AdminDashboard() {
   return (
     <div>
       <h1 className="text-3xl font-bold mb-8">Management Dashboard</h1>
+
+      {/* GOAL: €10k MRR */}
+      {data.goal && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Target className="h-5 w-5 text-purple-600" />
+            Goal: &euro;10k MRR by December 2026
+          </h2>
+
+          {/* Progress bar */}
+          <Card className="mb-4">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-2xl font-bold">&euro;{fmt(data.goal.currentMRR)}</span>
+                <span className="text-sm text-muted-foreground">
+                  {data.goal.monthsRemaining} months left &middot; need +{fmt(data.goal.required.newProPerMonth)} PRO/mo
+                </span>
+                <span className="text-2xl font-bold text-muted-foreground">&euro;{fmt(data.goal.targetMRR)}</span>
+              </div>
+              <div className="w-full bg-secondary rounded-full h-4 overflow-hidden">
+                <div
+                  className="h-full bg-purple-600 rounded-full transition-all"
+                  style={{ width: `${Math.min(data.goal.progressPercent, 100)}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 text-center">
+                {data.goal.progressPercent}% &middot; {fmt(data.goal.totalPro)} PRO of 667 needed
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Funnel cards */}
+          <div className="grid gap-4 md:grid-cols-3 mb-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Visitors/mo</CardTitle>
+                <Users className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{fmt(data.goal.funnel.monthlyVisitors)}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Registrations/mo</CardTitle>
+                <UserCheck className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{fmt(data.goal.funnel.monthlyRegistrations)}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {data.goal.funnel.monthlyVisitors > 0
+                    ? ((data.goal.funnel.monthlyRegistrations / data.goal.funnel.monthlyVisitors) * 100).toFixed(1)
+                    : 0}% of visitors
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">New PRO/mo</CardTitle>
+                <Crown className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{fmt(data.goal.funnel.monthlyNewPro)}</div>
+                <p className={`text-xs mt-1 ${data.goal.funnel.regToProRate < data.goal.funnel.targetRegToProRate ? 'text-red-500 font-medium' : 'text-green-600 font-medium'}`}>
+                  {data.goal.funnel.regToProRate}% conv (target {data.goal.funnel.targetRegToProRate}%)
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Roadmap table */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="pb-2 pr-4">Month</th>
+                      <th className="pb-2 pr-4">Focus</th>
+                      <th className="pb-2 pr-4 text-right">Target PRO</th>
+                      <th className="pb-2 pr-4 text-right">Target MRR</th>
+                      <th className="pb-2 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.goal.roadmap.map(item => (
+                      <tr key={item.month} className="border-b last:border-0">
+                        <td className="py-2 pr-4 font-medium">{item.month}</td>
+                        <td className="py-2 pr-4 text-muted-foreground">{item.action}</td>
+                        <td className="py-2 pr-4 text-right">{fmt(item.targetPro)}</td>
+                        <td className="py-2 pr-4 text-right">&euro;{fmt(item.targetMRR)}</td>
+                        <td className="py-2 text-center">
+                          {data.goal.totalPro >= item.targetPro ? (
+                            <span className="text-green-600 font-bold">DONE</span>
+                          ) : null}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* BLOCK 4: Quick Metrics */}
       <div className="grid gap-4 md:grid-cols-4 mb-8">

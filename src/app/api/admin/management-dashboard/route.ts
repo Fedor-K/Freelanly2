@@ -12,11 +12,12 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const [hotLeads, channels, buyerProfile, quick] = await Promise.all([
+    const [hotLeads, channels, buyerProfile, quick, goal] = await Promise.all([
       getHotLeads(),
       getChannels(thirtyDaysAgo),
       getBuyerProfile(),
       getQuickMetrics(thirtyDaysAgo),
+      getGoalMetrics(thirtyDaysAgo),
     ]);
 
     return NextResponse.json({
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
       channels,
       buyerProfile,
       quick,
+      goal,
     });
   } catch (error) {
     console.error('[ManagementDashboard] Error:', error);
@@ -201,6 +203,109 @@ async function getBuyerProfile() {
     topSources: topSources.map(r => ({ source: r.source || 'unknown', count: Number(r.count) })),
     avgDaysToConvert,
     medianDaysToConvert,
+  };
+}
+
+// BLOCK: Goal — €10k MRR target
+async function getGoalMetrics(thirtyDaysAgo: Date) {
+  const TARGET_MRR = 10000;
+  const TARGET_DATE = new Date('2026-12-31');
+  const MONTHLY_VISITORS = 20000; // hardcoded from Metrika
+  const TARGET_REG_TO_PRO_RATE = 3.5;
+
+  const now = new Date();
+  const daysRemaining = Math.max(0, Math.ceil((TARGET_DATE.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+  const monthsRemaining = Math.max(0, Math.ceil(daysRemaining / 30.44));
+
+  // Calculate MRR from active PRO users' checkout sessions
+  const mrrByPlan = await prisma.$queryRaw<Array<{ priceKey: string; count: bigint }>>`
+    SELECT cs."priceKey", COUNT(DISTINCT u.id) as count
+    FROM "User" u
+    JOIN "CheckoutSession" cs ON cs.email = u.email AND cs.status = 'COMPLETED'
+    WHERE u.plan = 'PRO'
+    AND cs.id = (
+      SELECT cs2.id FROM "CheckoutSession" cs2
+      WHERE cs2.email = u.email AND cs2.status = 'COMPLETED'
+      ORDER BY cs2."completedAt" DESC NULLS LAST, cs2."createdAt" DESC
+      LIMIT 1
+    )
+    GROUP BY cs."priceKey"
+  `;
+
+  const MRR_PER_PLAN: Record<string, number> = {
+    monthly: 15,
+    quarterly: 35 / 3,
+    annual: 150 / 12,
+  };
+
+  let currentMRR = 0;
+  let matchedUsers = 0;
+  for (const row of mrrByPlan) {
+    const count = Number(row.count);
+    matchedUsers += count;
+    currentMRR += count * (MRR_PER_PLAN[row.priceKey] || 15);
+  }
+
+  // Fallback: PRO users without checkout sessions → assume €15/mo
+  const totalPro = await prisma.user.count({ where: { plan: 'PRO' } });
+  const unmatchedPro = totalPro - matchedUsers;
+  if (unmatchedPro > 0) {
+    currentMRR += unmatchedPro * 15;
+  }
+  currentMRR = Math.round(currentMRR);
+
+  // Funnel metrics
+  const [monthlyRegistrations, monthlyNewPro] = await Promise.all([
+    prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+    prisma.user.count({ where: { plan: 'PRO', proStartedAt: { gte: thirtyDaysAgo } } }),
+  ]);
+
+  const regToProRate = monthlyRegistrations > 0
+    ? parseFloat(((monthlyNewPro / monthlyRegistrations) * 100).toFixed(2))
+    : 0;
+
+  // Required growth
+  const mrrGap = TARGET_MRR - currentMRR;
+  const newProPerMonthNeeded = monthsRemaining > 0
+    ? Math.ceil(mrrGap / 15 / monthsRemaining)
+    : 0;
+  const growthNeeded = monthlyNewPro > 0
+    ? parseFloat((newProPerMonthNeeded / monthlyNewPro).toFixed(1))
+    : 0;
+
+  return {
+    targetMRR: TARGET_MRR,
+    currentMRR,
+    progressPercent: parseFloat(((currentMRR / TARGET_MRR) * 100).toFixed(1)),
+    targetDate: '2026-12-31',
+    daysRemaining,
+    monthsRemaining,
+
+    funnel: {
+      monthlyVisitors: MONTHLY_VISITORS,
+      monthlyRegistrations,
+      monthlyNewPro,
+      regToProRate,
+      targetRegToProRate: TARGET_REG_TO_PRO_RATE,
+    },
+
+    required: {
+      newProPerMonth: newProPerMonthNeeded,
+      currentNewProPerMonth: monthlyNewPro,
+      growthNeeded,
+    },
+
+    totalPro,
+
+    roadmap: [
+      { month: 'Апрель', action: 'Исправить nurture/reengagement письма, fix paywall UX', targetPro: 90, targetMRR: 1350 },
+      { month: 'Май', action: 'A/B тест оффера, email после пейволл-хита', targetPro: 150, targetMRR: 2250 },
+      { month: 'Июнь', action: 'SEO рост (контент по категориям), LinkedIn органика', targetPro: 230, targetMRR: 3450 },
+      { month: 'Июль-Авг', action: 'Scale Google Ads если CAC окупается', targetPro: 350, targetMRR: 5250 },
+      { month: 'Сент-Окт', action: 'Реферальная программа, партнёрства', targetPro: 500, targetMRR: 7500 },
+      { month: 'Ноябрь', action: 'Retention, upsell annual', targetPro: 620, targetMRR: 9300 },
+      { month: 'Декабрь', action: 'Цель достигнута', targetPro: 667, targetMRR: 10000 },
+    ],
   };
 }
 
