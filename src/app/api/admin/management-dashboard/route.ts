@@ -18,12 +18,18 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
+    // Period window for funnel
+    const periodMs = period === 'day' ? 24 * 60 * 60 * 1000
+      : period === 'week' ? 7 * 24 * 60 * 60 * 1000
+      : 30 * 24 * 60 * 60 * 1000;
+    const periodStart = new Date(now.getTime() - periodMs);
+
     const [hotLeads, channels, buyerProfile, quick, goal, trafficChart] = await Promise.all([
       getHotLeads(),
       getChannels(thirtyDaysAgo),
       getBuyerProfile(),
       getQuickMetrics(thirtyDaysAgo),
-      getGoalMetrics(thirtyDaysAgo),
+      getGoalMetrics(thirtyDaysAgo, periodStart, period),
       getTrafficChart(period, range),
     ]);
 
@@ -215,11 +221,12 @@ async function getBuyerProfile() {
 }
 
 // BLOCK: Goal — €10k MRR target
-async function getGoalMetrics(thirtyDaysAgo: Date) {
+async function getGoalMetrics(thirtyDaysAgo: Date, periodStart?: Date, period?: string) {
   const TARGET_MRR = 10000;
   const TARGET_DATE = new Date('2026-12-31');
-  const MONTHLY_VISITORS = 20000; // hardcoded from Metrika
   const TARGET_REG_TO_PRO_RATE = 3.5;
+  const funnelFrom = periodStart || thirtyDaysAgo;
+  const periodLabel = period === 'day' ? 'сегодня' : period === 'week' ? 'неделю' : 'месяц';
 
   const now = new Date();
   const daysRemaining = Math.max(0, Math.ceil((TARGET_DATE.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
@@ -262,15 +269,25 @@ async function getGoalMetrics(thirtyDaysAgo: Date) {
   }
   currentMRR = Math.round(currentMRR);
 
-  // Funnel metrics
-  const [monthlyRegistrations, monthlyNewPro] = await Promise.all([
-    prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
-    prisma.user.count({ where: { plan: 'PRO', proStartedAt: { gte: thirtyDaysAgo } } }),
+  // Funnel metrics — scoped to selected period
+  const [periodRegistrations, periodNewPro, metrikaVisitors] = await Promise.all([
+    prisma.user.count({ where: { createdAt: { gte: funnelFrom } } }),
+    prisma.user.count({ where: { plan: 'PRO', proStartedAt: { gte: funnelFrom } } }),
+    getMetrikaByPeriod(period as 'day' | 'week' | 'month' || 'month', 1)
+      .then(d => d.reduce((s, r) => s + r.visitors, 0))
+      .catch(() => 0),
   ]);
 
-  const regToProRate = monthlyRegistrations > 0
-    ? parseFloat(((monthlyNewPro / monthlyRegistrations) * 100).toFixed(2))
+  // Monthly equivalents for "need +X PRO/mo" calc (always 30d)
+  const monthlyNewPro = await prisma.user.count({ where: { plan: 'PRO', proStartedAt: { gte: thirtyDaysAgo } } });
+
+  const periodVisitors = metrikaVisitors || 0;
+  const regToProRate = periodRegistrations > 0
+    ? parseFloat(((periodNewPro / periodRegistrations) * 100).toFixed(2))
     : 0;
+  const visitorToRegRate = periodVisitors > 0
+    ? parseFloat(((periodRegistrations / periodVisitors) * 100).toFixed(1))
+    : null;
 
   // Required growth
   const mrrGap = TARGET_MRR - currentMRR;
@@ -290,10 +307,12 @@ async function getGoalMetrics(thirtyDaysAgo: Date) {
     monthsRemaining,
 
     funnel: {
-      monthlyVisitors: MONTHLY_VISITORS,
-      monthlyRegistrations,
-      monthlyNewPro,
+      periodLabel,
+      visitors: periodVisitors,
+      registrations: periodRegistrations,
+      newPro: periodNewPro,
       regToProRate,
+      visitorToRegRate,
       targetRegToProRate: TARGET_REG_TO_PRO_RATE,
     },
 
