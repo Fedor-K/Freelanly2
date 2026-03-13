@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       getTrafficChart(period, range),
     ]);
 
-    const channels = getChannelsWithVisitors(await getChannels(thirtyDaysAgo), trafficBySource);
+    const channels = getChannelsWithVisitors(await getChannels(periodStart), trafficBySource);
 
     return NextResponse.json({
       success: true,
@@ -98,18 +98,19 @@ async function getHotLeads() {
 }
 
 // BLOCK 2: Conversion by channels
-async function getChannels(thirtyDaysAgo: Date) {
-  // All users grouped by source
+async function getChannels(periodStart: Date) {
+  // All users grouped by source — filtered by period
   const allBySource = await prisma.$queryRaw<Array<{
     source: string | null;
     registered: bigint;
   }>>`
     SELECT source, COUNT(*) as registered
     FROM "User"
+    WHERE "createdAt" >= ${periodStart}
     GROUP BY source
   `;
 
-  // Users who hit paywall grouped by source
+  // Users who hit paywall grouped by source — filtered by period
   const paywallBySource = await prisma.$queryRaw<Array<{
     source: string | null;
     hitPaywall: bigint;
@@ -117,17 +118,18 @@ async function getChannels(thirtyDaysAgo: Date) {
     SELECT u.source, COUNT(DISTINCT u.id) as "hitPaywall"
     FROM "User" u
     JOIN "ApplyAttempt" a ON a."userId" = u.id
+    WHERE u."createdAt" >= ${periodStart}
     GROUP BY u.source
   `;
 
-  // Users who converted to PRO grouped by source
+  // Users who converted to PRO grouped by source — filtered by period
   const proBySource = await prisma.$queryRaw<Array<{
     source: string | null;
     converted: bigint;
   }>>`
     SELECT source, COUNT(*) as converted
     FROM "User"
-    WHERE plan = 'PRO'
+    WHERE plan = 'PRO' AND "createdAt" >= ${periodStart}
     GROUP BY source
   `;
 
