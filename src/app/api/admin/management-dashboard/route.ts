@@ -273,9 +273,7 @@ async function getGoalMetrics(thirtyDaysAgo: Date, periodStart?: Date, period?: 
   const [periodRegistrations, periodNewPro, metrikaVisitors] = await Promise.all([
     prisma.user.count({ where: { createdAt: { gte: funnelFrom } } }),
     prisma.user.count({ where: { plan: 'PRO', proStartedAt: { gte: funnelFrom } } }),
-    getMetrikaByPeriod(period as 'day' | 'week' | 'month' || 'month', 1)
-      .then(d => d.reduce((s, r) => s + r.visitors, 0))
-      .catch(() => 0),
+    getMetrikaForDateRange(funnelFrom, new Date()).catch(() => 0),
   ]);
 
   // Monthly equivalents for "need +X PRO/mo" calc (always 30d)
@@ -375,6 +373,19 @@ async function getQuickMetrics(thirtyDaysAgo: Date) {
 }
 
 // BLOCK: Traffic chart — Metrika + DB registrations/newPro
+async function getMetrikaForDateRange(from: Date, to: Date): Promise<number> {
+  const token = process.env.YANDEX_METRIKA_TOKEN;
+  const counterId = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
+  if (!token || !counterId) return 0;
+  const date1 = from.toISOString().slice(0, 10);
+  const date2 = to.toISOString().slice(0, 10);
+  const url = `https://api-metrika.yandex.net/stat/v1/data?ids=${counterId}&metrics=ym:s:users&date1=${date1}&date2=${date2}`;
+  const res = await fetch(url, { headers: { Authorization: `OAuth ${token}` }, next: { revalidate: 300 } });
+  if (!res.ok) return 0;
+  const data = await res.json();
+  return Math.round(data?.totals?.[0] || 0);
+}
+
 async function getTrafficChart(period: 'day' | 'week' | 'month', range: number) {
   // Calculate date range
   let daysBack: number;
