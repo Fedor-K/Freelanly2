@@ -388,31 +388,66 @@ function checkOpportunityMatchesAlert(
 // Minimum time between alert emails for the same user (prevents spam)
 const MIN_ALERT_INTERVAL_MINUTES = 30;
 
-// Maximum users to process per cron run (Vercel Pro: 60s timeout)
-const MAX_USERS_PER_BATCH = 50;
+// Settings key for tracking last cron run
+const LAST_CRON_RUN_KEY = 'lastAlertCronRun';
 
-// Default lookback window when lastSentAt is null
-const DEFAULT_LOOKBACK_HOURS = 24;
+// Default lookback when no previous cron run recorded
+const DEFAULT_LOOKBACK_HOURS = 2;
 
 /**
- * Process INSTANT alerts using pull model.
+ * Process INSTANT alerts — opportunity-first model.
  *
- * Instead of reading from a queue of PENDING AlertNotification records,
- * this function:
- * 1. Gets all active INSTANT JobAlerts
- * 2. Groups them by user email
- * 3. For each user: finds Opportunities created AFTER lastSentAt
- * 4. Filters opportunities matching alert criteria
- * 5. Sends ONE email per user with all matching opportunities
- * 6. Updates lastSentAt on processed alerts
+ * Instead of iterating all users and querying opportunities per user,
+ * this flips the approach:
+ * 1. Find new Opportunities since last cron run (1-5 per run)
+ * 2. For each opportunity: find all matching INSTANT alerts
+ * 3. Group matches by user email
+ * 4. Send ONE email per user with all their matched opportunities
+ * 5. Update lastSentAt on affected alerts
  */
 export async function processInstantAlertQueue(): Promise<{
   sent: number;
   failed: number;
   processed: number;
   skippedDebounce: number;
+  newOpportunities: number;
 }> {
-  // Step 1: Get all active INSTANT alerts with verified users
+  // Step 1: Get last cron run timestamp
+  const lastRunSetting = await prisma.settings.findUnique({
+    where: { key: LAST_CRON_RUN_KEY },
+  });
+  const lastRun = lastRunSetting
+    ? new Date(lastRunSetting.value as string)
+    : new Date(Date.now() - DEFAULT_LOOKBACK_HOURS * 60 * 60 * 1000);
+  const now = new Date();
+
+  // Step 2: Find new opportunities since last run
+  const newOpportunities = await prisma.opportunity.findMany({
+    where: {
+      isActive: true,
+      postedAt: { gte: lastRun },
+    },
+    include: {
+      category: { select: { slug: true } },
+    },
+    orderBy: { postedAt: 'desc' },
+  });
+
+  // Save current timestamp immediately (even if no opportunities — prevents re-scanning)
+  await prisma.settings.upsert({
+    where: { key: LAST_CRON_RUN_KEY },
+    create: { key: LAST_CRON_RUN_KEY, value: now.toISOString() },
+    update: { value: now.toISOString() },
+  });
+
+  if (newOpportunities.length === 0) {
+    console.log(`[InstantAlerts] No new opportunities since ${lastRun.toISOString()}`);
+    return { sent: 0, failed: 0, processed: 0, skippedDebounce: 0, newOpportunities: 0 };
+  }
+
+  console.log(`[InstantAlerts] Found ${newOpportunities.length} new opportunities since ${lastRun.toISOString()}`);
+
+  // Step 3: Load all active INSTANT alerts (once, for matching against all opportunities)
   const instantAlerts = await prisma.jobAlert.findMany({
     where: {
       isActive: true,
@@ -424,7 +459,7 @@ export async function processInstantAlertQueue(): Promise<{
             unsubscribedFromMarketing: false,
           },
         },
-        { userId: null }, // Legacy email-only alerts
+        { userId: null },
       ],
     },
     include: {
@@ -436,35 +471,91 @@ export async function processInstantAlertQueue(): Promise<{
   });
 
   if (instantAlerts.length === 0) {
-    console.log('[InstantAlerts] No active INSTANT alerts found');
-    return { sent: 0, failed: 0, processed: 0, skippedDebounce: 0 };
+    console.log('[InstantAlerts] No active INSTANT alerts');
+    return { sent: 0, failed: 0, processed: 0, skippedDebounce: 0, newOpportunities: newOpportunities.length };
   }
 
-  // Step 2: Group alerts by user email (send ONE email per user)
-  const alertsByEmail = new Map<string, typeof instantAlerts>();
-  for (const alert of instantAlerts) {
-    const email = (alert.email || alert.user?.email)?.toLowerCase();
-    if (!email) continue;
-    const existing = alertsByEmail.get(email) || [];
-    existing.push(alert);
-    alertsByEmail.set(email, existing);
+  // Step 4: For each opportunity, find matching alerts → group by email
+  // Map: email → { alerts, matched opportunities }
+  const matchesByEmail = new Map<string, {
+    alerts: typeof instantAlerts;
+    opportunities: Map<string, MatchedOpportunity>;
+  }>();
+
+  for (const opp of newOpportunities) {
+    const oppData = {
+      category: opp.category,
+      country: opp.country,
+      level: opp.level,
+      title: opp.title,
+      description: opp.description,
+      translationTypes: opp.translationTypes as string[],
+      sourceLanguages: opp.sourceLanguages,
+      targetLanguages: opp.targetLanguages,
+    };
+
+    const matchedOpp: MatchedOpportunity = {
+      id: opp.id,
+      title: opp.title,
+      slug: opp.slug,
+      description: opp.description,
+      clientName: opp.clientName,
+      clientAvatar: opp.clientAvatar,
+      country: opp.country,
+      level: opp.level,
+      salaryMin: opp.salaryMin,
+      salaryMax: opp.salaryMax,
+      salaryCurrency: opp.salaryCurrency,
+      postedAt: opp.postedAt,
+    };
+
+    for (const alert of instantAlerts) {
+      const matches = checkOpportunityMatchesAlert(oppData, {
+        category: alert.category,
+        keywords: alert.keywords,
+        country: alert.country,
+        level: alert.level,
+        languagePairs: alert.languagePairs.map((lp) => ({
+          translationType: lp.translationType,
+          sourceLanguage: lp.sourceLanguage,
+          targetLanguage: lp.targetLanguage,
+        })),
+      });
+
+      if (!matches) continue;
+
+      const email = (alert.email || alert.user?.email)?.toLowerCase();
+      if (!email) continue;
+
+      let entry = matchesByEmail.get(email);
+      if (!entry) {
+        entry = { alerts: [], opportunities: new Map() };
+        matchesByEmail.set(email, entry);
+      }
+      // Collect unique alerts for this user (avoid duplicates)
+      if (!entry.alerts.some((a) => a.id === alert.id)) {
+        entry.alerts.push(alert);
+      }
+      entry.opportunities.set(opp.id, matchedOpp);
+    }
   }
 
-  console.log(`[InstantAlerts] Found ${instantAlerts.length} alerts for ${alertsByEmail.size} unique emails`);
+  if (matchesByEmail.size === 0) {
+    console.log(`[InstantAlerts] No matches found for ${newOpportunities.length} opportunities against ${instantAlerts.length} alerts`);
+    return { sent: 0, failed: 0, processed: 0, skippedDebounce: 0, newOpportunities: newOpportunities.length };
+  }
 
+  console.log(`[InstantAlerts] ${matchesByEmail.size} users matched`);
+
+  // Step 5: Send emails, respecting debounce
   const debounceThreshold = new Date(Date.now() - MIN_ALERT_INTERVAL_MINUTES * 60 * 1000);
-  const defaultSince = new Date(Date.now() - DEFAULT_LOOKBACK_HOURS * 60 * 60 * 1000);
-
   let sent = 0;
   let failed = 0;
   let processed = 0;
   let skippedDebounce = 0;
-  let usersProcessed = 0;
 
-  for (const [email, alerts] of alertsByEmail) {
-    if (usersProcessed >= MAX_USERS_PER_BATCH) break;
-
-    // Check debounce: use the most recent lastSentAt across all user's alerts
+  for (const [email, { alerts, opportunities }] of matchesByEmail) {
+    // Debounce check
     const mostRecentSent = alerts.reduce((latest, a) => {
       if (!a.lastSentAt) return latest;
       if (!latest) return a.lastSentAt;
@@ -476,111 +567,20 @@ export async function processInstantAlertQueue(): Promise<{
       continue;
     }
 
-    // For each alert, find matching opportunities and merge into a single set
-    const allMatchingOpps = new Map<string, MatchedOpportunity>();
-    let primaryCategory: string | null = null;
-
-    for (const alert of alerts) {
-      const since = alert.lastSentAt || defaultSince;
-
-      // Build base query: active opportunities created after lastSentAt
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const where: any = {
-        isActive: true,
-        postedAt: { gte: since },
-      };
-
-      // Category filter at DB level for efficiency
-      if (alert.category) {
-        where.category = { slug: alert.category };
-        if (!primaryCategory) primaryCategory = alert.category;
-      }
-
-      // Country filter at DB level
-      if (alert.country) {
-        where.country = alert.country;
-      }
-
-      // Level filter at DB level
-      if (alert.level) {
-        where.level = alert.level;
-      }
-
-      const opportunities = await prisma.opportunity.findMany({
-        where,
-        include: {
-          category: { select: { slug: true } },
-        },
-        orderBy: { postedAt: 'desc' },
-        // No limit - pull model sends all new opportunities since lastSentAt
-      });
-
-      // Apply in-memory filters (keywords, language pairs)
-      for (const opp of opportunities) {
-        if (allMatchingOpps.has(opp.id)) continue; // Already matched by another alert
-
-        const matches = checkOpportunityMatchesAlert(
-          {
-            category: opp.category,
-            country: opp.country,
-            level: opp.level,
-            title: opp.title,
-            description: opp.description,
-            translationTypes: opp.translationTypes as string[],
-            sourceLanguages: opp.sourceLanguages,
-            targetLanguages: opp.targetLanguages,
-          },
-          {
-            category: alert.category,
-            keywords: alert.keywords,
-            country: alert.country,
-            level: alert.level,
-            languagePairs: alert.languagePairs.map((lp) => ({
-              translationType: lp.translationType,
-              sourceLanguage: lp.sourceLanguage,
-              targetLanguage: lp.targetLanguage,
-            })),
-          }
-        );
-
-        if (matches) {
-          allMatchingOpps.set(opp.id, {
-            id: opp.id,
-            title: opp.title,
-            slug: opp.slug,
-            description: opp.description,
-            clientName: opp.clientName,
-            clientAvatar: opp.clientAvatar,
-            country: opp.country,
-            level: opp.level,
-            salaryMin: opp.salaryMin,
-            salaryMax: opp.salaryMax,
-            salaryCurrency: opp.salaryCurrency,
-            postedAt: opp.postedAt,
-          });
-        }
-      }
-    }
-
-    if (allMatchingOpps.size === 0) continue;
-
-    usersProcessed++;
-    processed += allMatchingOpps.size;
-
+    processed += opportunities.size;
     const userPlan = alerts[0].user?.plan || 'FREE';
-    const firstAlertId = alerts[0].id;
+    const primaryCategory = alerts.find((a) => a.category)?.category || null;
 
     const result = await sendOpportunityAlertNotification({
-      alertId: firstAlertId,
+      alertId: alerts[0].id,
       email,
       userPlan,
       category: primaryCategory,
-      opportunities: Array.from(allMatchingOpps.values()),
+      opportunities: Array.from(opportunities.values()),
     });
 
     if (result.success) {
       sent++;
-      // Update lastSentAt and increment emailsSent on all alerts for this user
       const alertIds = alerts.map((a) => a.id);
       await prisma.jobAlert.updateMany({
         where: { id: { in: alertIds } },
@@ -594,11 +594,11 @@ export async function processInstantAlertQueue(): Promise<{
       console.error(`[InstantAlerts] Failed to send to ${email}: ${result.error}`);
     }
 
-    // Rate limit: 200ms between emails (Resend limits)
+    // Rate limit: 200ms between emails
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
 
-  console.log(`[InstantAlerts] Done: ${sent} sent, ${failed} failed, ${processed} opportunities, ${skippedDebounce} debounced`);
+  console.log(`[InstantAlerts] Done: ${sent} sent, ${failed} failed, ${processed} opps, ${skippedDebounce} debounced, ${newOpportunities.length} new opps`);
 
-  return { sent, failed, processed, skippedDebounce };
+  return { sent, failed, processed, skippedDebounce, newOpportunities: newOpportunities.length };
 }
