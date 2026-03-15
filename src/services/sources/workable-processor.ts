@@ -22,7 +22,7 @@ import { ensureSalaryData } from '@/lib/salary-estimation';
 import { queueCompanyEnrichmentBySlug } from '@/services/company-enrichment';
 import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
-import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
+import { getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
 import { isPhysicalLocation, shouldSkipJob } from '@/lib/job-filter';
 import { isBlockedCompany } from '@/config/company-blacklist';
 import type { ProcessingStats, ProcessorContext, WorkableJob, WorkableApiResponse } from './types';
@@ -337,9 +337,6 @@ async function processWorkableJob(
     return { status: 'skipped' };
   }
 
-  console.log(`[Workable] Processing through AI: ${job.title}`);
-  const aiData = await extractJobData(description);
-
   const department = job.department;
   const categorySlug = mapDepartmentToCategory(department, job.title);
   let category = await prisma.category.findUnique({ where: { slug: categorySlug } });
@@ -369,10 +366,10 @@ async function processWorkableJob(
         slug,
         title: job.title,
         description,
-        cleanDescription: aiData?.cleanDescription || null,
-        summaryBullets: aiData?.summaryBullets || [],
-        requirementBullets: aiData?.requirementBullets || [],
-        benefitBullets: aiData?.benefitBullets || [],
+        cleanDescription: null,
+        summaryBullets: [],
+        requirementBullets: [],
+        benefitBullets: [],
         companyId,
         categoryId: category.id,
         location: locationStr,
@@ -382,7 +379,7 @@ async function processWorkableJob(
         type: jobType,
         ...salaryData,
         skills,
-        benefits: aiData?.benefits || [],
+        benefits: [],
         source: 'WORKABLE',
         sourceType: 'STRUCTURED',
         sourceUrl: jobUrl,

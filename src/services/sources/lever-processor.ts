@@ -19,7 +19,7 @@ import { ensureSalaryData } from '@/lib/salary-estimation';
 import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@/services/company-enrichment';
 import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
-import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
+import { getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
 // Note: Social queue is only for Opportunities (freelance), not regular Jobs
 // Job alerts disabled - only sending alerts for Opportunities (freelance)
 import { isPhysicalLocation } from '@/lib/job-filter';
@@ -361,10 +361,6 @@ async function processLeverJob(
   // Build full description (with RESPONSIBILITIES, QUALIFICATIONS, etc.)
   const fullDescription = buildDescription(job);
 
-  // Process through DeepSeek AI for clean description
-  console.log(`[Lever] Processing new job through AI: ${job.text}`);
-  const aiData = await extractJobData(fullDescription);
-
   // Get category (check department first, then title as fallback)
   const categorySlug = mapDepartmentToCategory(job.categories.department, job.text);
   let category = await prisma.category.findUnique({ where: { slug: categorySlug } });
@@ -381,7 +377,7 @@ async function processLeverJob(
 
   // Parse location (whitelist filter already applied in batch pre-processing)
   const location = job.categories.location || 'Remote';
-  const locationType = mapWorkplaceType(job.workplaceType, location, aiData?.isRemote);
+  const locationType = mapWorkplaceType(job.workplaceType, location);
   const country = extractCountryCode(location);
 
   // Parse level from title or department
@@ -410,10 +406,10 @@ async function processLeverJob(
         slug,
         title: job.text,
         description: fullDescription,
-        cleanDescription: aiData?.cleanDescription || null,
-        summaryBullets: aiData?.summaryBullets || [],
-        requirementBullets: aiData?.requirementBullets || [],
-        benefitBullets: aiData?.benefitBullets || [],
+        cleanDescription: null,
+        summaryBullets: [],
+        requirementBullets: [],
+        benefitBullets: [],
         companyId,
         categoryId: category.id,
         location,
@@ -423,7 +419,7 @@ async function processLeverJob(
         type: jobType,
         ...actualSalary,
         skills,
-        benefits: aiData?.benefits || [],
+        benefits: [],
         source: 'LEVER',
         sourceType: 'STRUCTURED',
         sourceUrl: job.hostedUrl,

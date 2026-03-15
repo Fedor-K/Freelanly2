@@ -22,7 +22,7 @@ import { ensureSalaryData } from '@/lib/salary-estimation';
 import { queueCompanyEnrichmentBySlug } from '@/services/company-enrichment';
 import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
-import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
+import { getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
 import { isPhysicalLocation, shouldSkipJob } from '@/lib/job-filter';
 import { isBlockedCompany } from '@/config/company-blacklist';
 import type { ProcessingStats, ProcessorContext, SmartRecruitersJob, SmartRecruitersApiResponse } from './types';
@@ -327,9 +327,6 @@ async function processSmartRecruitersJob(
     return { status: 'skipped' };
   }
 
-  console.log(`[SmartRecruiters] Processing through AI: ${job.name}`);
-  const aiData = await extractJobData(description);
-
   const department = job.department?.label;
   const categorySlug = mapDepartmentToCategory(department, job.name);
   let category = await prisma.category.findUnique({ where: { slug: categorySlug } });
@@ -358,10 +355,10 @@ async function processSmartRecruitersJob(
         slug,
         title: job.name,
         description,
-        cleanDescription: aiData?.cleanDescription || null,
-        summaryBullets: aiData?.summaryBullets || [],
-        requirementBullets: aiData?.requirementBullets || [],
-        benefitBullets: aiData?.benefitBullets || [],
+        cleanDescription: null,
+        summaryBullets: [],
+        requirementBullets: [],
+        benefitBullets: [],
         companyId,
         categoryId: category.id,
         location: locationStr,
@@ -371,7 +368,7 @@ async function processSmartRecruitersJob(
         type: 'FULL_TIME',
         ...salaryData,
         skills,
-        benefits: aiData?.benefits || [],
+        benefits: [],
         source: 'SMARTRECRUITERS',
         sourceType: 'STRUCTURED',
         sourceUrl: jobUrl,

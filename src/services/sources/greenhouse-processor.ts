@@ -20,7 +20,7 @@ import { ensureSalaryData } from '@/lib/salary-estimation';
 import { queueCompanyEnrichmentBySlug } from '@/services/company-enrichment';
 import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
-import { extractJobData, getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
+import { getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
 // Job alerts disabled - only sending alerts for Opportunities (freelance)
 // Note: Social queue is only for Opportunities (freelance), not regular Jobs
 import { isPhysicalLocation, shouldSkipJob } from '@/lib/job-filter';
@@ -338,11 +338,7 @@ async function processGreenhouseJob(
     return { status: 'skipped' };
   }
 
-  // Process through DeepSeek AI
-  console.log(`[Greenhouse] Processing through AI: ${job.title}`);
-  const aiData = await extractJobData(description);
-
-  // Get category from department or title
+    // Get category from department or title
   const department = job.departments?.[0]?.name;
   const categorySlug = mapDepartmentToCategory(department, job.title);
   let category = await prisma.category.findUnique({ where: { slug: categorySlug } });
@@ -382,10 +378,10 @@ async function processGreenhouseJob(
         slug,
         title: job.title,
         description,
-        cleanDescription: aiData?.cleanDescription || null,
-        summaryBullets: aiData?.summaryBullets || [],
-        requirementBullets: aiData?.requirementBullets || [],
-        benefitBullets: aiData?.benefitBullets || [],
+        cleanDescription: null,
+        summaryBullets: [],
+        requirementBullets: [],
+        benefitBullets: [],
         companyId,
         categoryId: category.id,
         location,
@@ -395,7 +391,7 @@ async function processGreenhouseJob(
         type: 'FULL_TIME',
         ...salaryData,
         skills,
-        benefits: aiData?.benefits || [],
+        benefits: [],
         source: 'GREENHOUSE',
         sourceType: 'STRUCTURED',
         sourceUrl: job.absolute_url,
