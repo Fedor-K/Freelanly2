@@ -14,6 +14,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Only run on production to prevent duplicate emails from preview deployments
+  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== 'production') {
+    return NextResponse.json({ skipped: true, reason: 'non-production deployment' });
+  }
+
   try {
     console.log('[Cron] Processing INSTANT alert queue...');
 

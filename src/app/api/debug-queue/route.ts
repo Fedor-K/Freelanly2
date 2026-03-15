@@ -19,16 +19,15 @@ export async function GET(req: NextRequest) {
 
   if (fix) {
     const fixTarget = req.nextUrl.searchParams.get('target') || 'import';
-    if (fixTarget === 'alerts') {
-      // Reset stuck PROCESSING notifications back to PENDING
-      const reset = await prisma.alertNotification.updateMany({
-        where: { status: 'PROCESSING' },
-        data: { status: 'PENDING' },
+    if (fixTarget === 'alerts-cleanup') {
+      // Clean up orphaned AlertNotification records from old queue system
+      const deleted = await prisma.alertNotification.deleteMany({
+        where: { status: { in: ['PENDING', 'PROCESSING'] } },
       });
       return NextResponse.json({
-        action: 'alerts-reset',
-        reset: reset.count,
-        message: 'Stuck PROCESSING notifications reset to PENDING. Next cron run will process them.',
+        action: 'alerts-cleanup',
+        deleted: deleted.count,
+        message: 'Orphaned AlertNotification records from old queue system deleted.',
       });
     }
     const deleted = await prisma.importTask.deleteMany({});
@@ -53,23 +52,22 @@ export async function GET(req: NextRequest) {
 
   const [
     importPending, importProcessing, importStuck,
-    instantAlerts,
-    notifPending, notifPendingInstant, notifFailed, notifFailedToday, notifSentToday, notifSentWeek,
-    lastSent,
-    jobsToday, oppsToday, oppsWeek,
+    instantAlerts, totalEmailsSent,
+    alertsSentToday, alertsSentWeek, lastAlertSent,
+    orphanedPending,
+    oppsToday, oppsWeek,
   ] = await Promise.all([
     prisma.importTask.count({ where: { status: 'PENDING' } }),
     prisma.importTask.count({ where: { status: 'PROCESSING' } }),
     prisma.importTask.count({ where: { status: 'PENDING', retryCount: { gte: 3 } } }),
     prisma.jobAlert.count({ where: { isActive: true, frequency: 'INSTANT' } }),
-    prisma.alertNotification.count({ where: { status: 'PENDING' } }),
-    prisma.alertNotification.count({ where: { status: 'PENDING', jobAlert: { frequency: 'INSTANT', isActive: true } } }),
-    prisma.alertNotification.count({ where: { status: 'PROCESSING' } }),
-    prisma.alertNotification.count({ where: { status: 'PROCESSING', createdAt: { gte: new Date(now - day) } } }),
-    prisma.alertNotification.count({ where: { status: 'SENT', sentAt: { gte: new Date(now - day) } } }),
-    prisma.alertNotification.count({ where: { status: 'SENT', sentAt: { gte: new Date(now - 7 * day) } } }),
-    prisma.alertNotification.findFirst({ where: { status: 'SENT' }, orderBy: { sentAt: 'desc' }, select: { sentAt: true } }),
-    prisma.job.count({ where: { createdAt: { gte: new Date(now - day) } } }),
+    prisma.jobAlert.aggregate({ where: { isActive: true, frequency: 'INSTANT' }, _sum: { emailsSent: true } }),
+    // Pull-model metrics: count alerts with lastSentAt today/this week
+    prisma.jobAlert.count({ where: { isActive: true, frequency: 'INSTANT', lastSentAt: { gte: new Date(now - day) } } }),
+    prisma.jobAlert.count({ where: { isActive: true, frequency: 'INSTANT', lastSentAt: { gte: new Date(now - 7 * day) } } }),
+    prisma.jobAlert.findFirst({ where: { isActive: true, frequency: 'INSTANT', lastSentAt: { not: null } }, orderBy: { lastSentAt: 'desc' }, select: { lastSentAt: true, email: true } }),
+    // Orphaned records from old queue system
+    prisma.alertNotification.count({ where: { status: { in: ['PENDING', 'PROCESSING'] } } }),
     prisma.opportunity.count({ where: { createdAt: { gte: new Date(now - day) } } }),
     prisma.opportunity.count({ where: { createdAt: { gte: new Date(now - 7 * day) } } }),
   ]);
@@ -78,14 +76,13 @@ export async function GET(req: NextRequest) {
     importQueue: { pending: importPending, processing: importProcessing, stuck: importStuck },
     alerts: {
       instantAlerts,
-      pending: notifPending,
-      pendingInstant: notifPendingInstant,
-      processing: notifFailed,
-      processingToday: notifFailedToday,
-      sentToday: notifSentToday,
-      sentWeek: notifSentWeek,
-      lastSentAt: lastSent?.sentAt,
+      totalEmailsSent: totalEmailsSent._sum.emailsSent || 0,
+      alertsSentToday,
+      alertsSentWeek,
+      lastSentAt: lastAlertSent?.lastSentAt,
+      lastSentTo: lastAlertSent?.email,
+      orphanedNotifications: orphanedPending,
     },
-    content: { jobsToday, oppsToday, oppsWeek },
+    content: { oppsToday, oppsWeek },
   });
 }

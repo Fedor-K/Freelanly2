@@ -199,6 +199,12 @@ async function sendOpportunityAlertNotification(params: {
     return { success: true };
   }
 
+  // Basic email validation — skip obviously invalid addresses
+  if (!email.includes('@') || !/\.[a-z]{2,}$/i.test(email)) {
+    console.warn(`[AlertNotifications] Skipping invalid email: ${email}`);
+    return { success: true }; // Don't count as failure to avoid noise
+  }
+
   // A/B variant: stable per email
   const abVariant = getAlertAbVariant(email);
   const freeLimit = AB_LIMITS[abVariant];
