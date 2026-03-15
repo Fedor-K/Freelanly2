@@ -67,7 +67,7 @@ interface DashboardData {
     winback: { totalSent: number; resubscribed: number; conversionRate: number };
     abandonedCheckout: { totalSent: number; converted: number; conversionRate: number };
     alerts: { sent30d: number };
-    dashamail: {
+    resend: {
       opened: number;
       clicked: number;
       bounced: number;
@@ -389,15 +389,15 @@ function EmailEffectivenessCard({ emails }: { emails: DashboardData['emails'] })
             <p className="text-xs text-muted-foreground">Sent</p>
           </div>
           <div className="p-2 bg-green-50 rounded-lg text-center">
-            <p className="text-lg font-bold text-green-600">{emails.dashamail.opened.toLocaleString()}</p>
+            <p className="text-lg font-bold text-green-600">{emails.resend.opened.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground">Opened</p>
           </div>
           <div className="p-2 bg-purple-50 rounded-lg text-center">
-            <p className="text-lg font-bold text-purple-600">{emails.dashamail.clicked.toLocaleString()}</p>
+            <p className="text-lg font-bold text-purple-600">{emails.resend.clicked.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground">Clicked</p>
           </div>
           <div className="p-2 bg-red-50 rounded-lg text-center">
-            <p className="text-lg font-bold text-red-600">{emails.dashamail.bounced}</p>
+            <p className="text-lg font-bold text-red-600">{emails.resend.bounced}</p>
             <p className="text-xs text-muted-foreground">Bounced</p>
           </div>
         </div>
@@ -406,14 +406,14 @@ function EmailEffectivenessCard({ emails }: { emails: DashboardData['emails'] })
         <div className="flex gap-4 text-sm border-t pt-3">
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Open rate:</span>
-            <span className={`font-medium ${emails.dashamail.openRate > 20 ? 'text-green-600' : emails.dashamail.openRate > 10 ? 'text-yellow-600' : 'text-red-600'}`}>
-              {emails.dashamail.openRate}%
+            <span className={`font-medium ${emails.resend.openRate > 20 ? 'text-green-600' : emails.resend.openRate > 10 ? 'text-yellow-600' : 'text-red-600'}`}>
+              {emails.resend.openRate}%
             </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Click rate:</span>
-            <span className={`font-medium ${emails.dashamail.clickRate > 5 ? 'text-green-600' : emails.dashamail.clickRate > 2 ? 'text-yellow-600' : 'text-red-600'}`}>
-              {emails.dashamail.clickRate}%
+            <span className={`font-medium ${emails.resend.clickRate > 5 ? 'text-green-600' : emails.resend.clickRate > 2 ? 'text-yellow-600' : 'text-red-600'}`}>
+              {emails.resend.clickRate}%
             </span>
           </div>
         </div>

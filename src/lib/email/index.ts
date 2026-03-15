@@ -1,22 +1,9 @@
-// Email provider abstraction layer
-// Supports switching between DashaMail and Resend via EMAIL_PROVIDER env var
+// Email provider: Resend
+// All transactional emails go through Resend API
 
-import * as dashamail from './dashamail';
-import * as resend from './resend';
+import { sendEmail, isConfigured, getConfig } from './resend';
 
-export type EmailProvider = 'dashamail' | 'resend';
-
-/**
- * Get current email provider from environment
- * Defaults to 'dashamail' for backward compatibility
- */
-export function getEmailProvider(): EmailProvider {
-  const provider = process.env.EMAIL_PROVIDER?.toLowerCase();
-  if (provider === 'resend') {
-    return 'resend';
-  }
-  return 'dashamail';
-}
+export { sendEmail };
 
 interface SendEmailParams {
   to: string;
@@ -32,121 +19,158 @@ interface SendEmailParams {
 }
 
 /**
- * Send email using the configured provider
- * Main entry point for all email sending in the app
+ * Send email via Resend
  */
 export async function sendApplicationEmail(
   params: SendEmailParams
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  const provider = getEmailProvider();
-
-  if (provider === 'resend') {
-    if (!resend.isConfigured()) {
-      console.warn('[Email] Resend not configured, falling back to DashaMail');
-      return dashamail.sendApplicationEmail(params);
-    }
-    return resend.sendApplicationEmail(params);
-  }
-
-  return dashamail.sendApplicationEmail(params);
+  return sendEmail(params);
 }
 
 /**
- * Add subscriber to email list (DashaMail only)
- * No-op for Resend (doesn't have list management in same way)
+ * Subscriber management — no-op (Resend doesn't have built-in list management)
  */
 export async function addSubscriber(
-  email: string,
-  mergeFields?: Record<string, string>
+  _email: string,
+  _mergeFields?: Record<string, string>
 ): Promise<boolean> {
-  const provider = getEmailProvider();
-
-  if (provider === 'resend') {
-    // Resend doesn't have built-in list management like DashaMail
-    // Subscribers are managed via Resend Audiences (separate API)
-    console.log('[Email] Resend: subscriber management not implemented, skipping');
-    return true;
-  }
-
-  return dashamail.addSubscriber(email, mergeFields);
+  return true;
 }
 
 /**
- * Get email marketing stats (DashaMail only)
+ * Email marketing stats — not available via Resend basic API
  */
 export async function getEmailMarketingStats() {
-  const provider = getEmailProvider();
-
-  if (provider === 'resend') {
-    console.log('[Email] Resend: marketing stats not available via this API');
-    return {
-      subscribers: null,
-      lastCampaigns: [],
-      avgOpenRate: 0,
-      avgClickRate: 0,
-    };
-  }
-
-  return dashamail.getEmailMarketingStats();
-}
-
-/**
- * Get transactional email stats
- */
-export async function getTransactionalStats(days: number = 30) {
-  const provider = getEmailProvider();
-
-  if (provider === 'resend') {
-    // Would need to implement Resend analytics API
-    console.log('[Email] Resend: transactional stats require separate API call');
-    return {
-      sent: 0,
-      opened: 0,
-      clicked: 0,
-      bounced: 0,
-      unsubscribed: 0,
-      complained: 0,
-      openRate: 0,
-      clickRate: 0,
-      bounceRate: 0,
-    };
-  }
-
-  return dashamail.getTransactionalStats(days);
-}
-
-/**
- * Test email provider connection
- */
-export async function testConnection(): Promise<boolean> {
-  const provider = getEmailProvider();
-
-  if (provider === 'resend') {
-    return resend.isConfigured();
-  }
-
-  return dashamail.testDashaMailConnection();
-}
-
-/**
- * Get current provider info for debugging
- */
-export function getProviderInfo() {
-  const provider = getEmailProvider();
-
   return {
-    provider,
-    dashamail: {
-      fromEmail: dashamail.dashamailConfig.fromEmail,
-      isConfigured: !!dashamail.dashamailConfig.apiKey,
-    },
-    resend: resend.getConfig(),
+    subscribers: null as SubscriberStats | null,
+    lastCampaigns: [] as EmailCampaignStats[],
+    avgOpenRate: 0,
+    avgClickRate: 0,
   };
 }
 
-// Re-export specific provider modules for direct access if needed
-export { dashamail, resend };
+/**
+ * Transactional email stats — not available via Resend basic API
+ */
+export async function getTransactionalStats(_days: number = 30): Promise<TransactionalStats> {
+  return {
+    sent: 0,
+    opened: 0,
+    clicked: 0,
+    bounced: 0,
+    unsubscribed: 0,
+    complained: 0,
+    openRate: 0,
+    clickRate: 0,
+    bounceRate: 0,
+  };
+}
 
-// Re-export commonly used functions from DashaMail for backward compatibility
-export { generateApplicationEmailHtml } from './dashamail';
-export type { EmailCampaignStats, SubscriberStats, TransactionalStats } from './dashamail';
+/**
+ * Check if email provider is configured
+ */
+export async function testConnection(): Promise<boolean> {
+  return isConfigured();
+}
+
+/**
+ * Get provider info for debugging
+ */
+export function getProviderInfo() {
+  return { provider: 'resend', resend: getConfig() };
+}
+
+// ============================================
+// HTML GENERATOR
+// ============================================
+
+/**
+ * Generate HTML for job application emails
+ */
+export function generateApplicationEmailHtml(params: {
+  candidateName: string;
+  candidateEmail: string;
+  jobTitle: string;
+  companyName: string;
+  coverLetter: string;
+  resumeUrl?: string;
+}): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 20px; }
+    .footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 20px; font-size: 12px; color: #666; }
+    h1 { font-size: 24px; margin: 0; }
+    .meta { color: #666; font-size: 14px; }
+    .cover-letter { white-space: pre-wrap; }
+    .button { display: inline-block; background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Application: ${params.jobTitle}</h1>
+      <p class="meta">From: ${params.candidateName} (${params.candidateEmail})</p>
+    </div>
+
+    <div class="cover-letter">
+${params.coverLetter}
+    </div>
+
+    ${params.resumeUrl ? `
+    <p>
+      <a href="${params.resumeUrl}" class="button">View Resume</a>
+    </p>
+    ` : ''}
+
+    <div class="footer">
+      <p>This application was sent via <a href="https://freelanly.com">Freelanly</a></p>
+      <p>Reply directly to this email to contact the candidate.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
+// ============================================
+// TYPES (kept for backward compatibility)
+// ============================================
+
+export interface EmailCampaignStats {
+  campaignId: string;
+  name: string;
+  sentAt: string;
+  totalSent: number;
+  delivered: number;
+  opened: number;
+  clicked: number;
+  unsubscribed: number;
+  bounced: number;
+  openRate: number;
+  clickRate: number;
+}
+
+export interface SubscriberStats {
+  total: number;
+  active: number;
+  unsubscribed: number;
+  bounced: number;
+}
+
+export interface TransactionalStats {
+  sent: number;
+  opened: number;
+  clicked: number;
+  bounced: number;
+  unsubscribed: number;
+  complained: number;
+  openRate: number;
+  clickRate: number;
+  bounceRate: number;
+}

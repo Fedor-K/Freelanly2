@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
   const token = process.env.YANDEX_METRIKA_TOKEN;
   const counterId = process.env.YANDEX_METRIKA_COUNTER_ID;
-  const dashamailKey = process.env.DASHAMAIL_API_KEY;
+  const resendKey = process.env.RESEND_API_KEY;
 
   // Test Yandex.Metrika - Statistics API (not Management API)
   try {
@@ -40,29 +40,15 @@ export async function GET(request: NextRequest) {
     (results.rawResponses as Record<string, unknown>).yandexMetrikaError = error instanceof Error ? error.message : 'Unknown error';
   }
 
-  // Test DashaMail - raw request
-  try {
-    const dashamailUrl = `https://api.dashamail.com/?method=lists.get&api_key=${dashamailKey}`;
-    const response = await fetch(dashamailUrl);
-    const responseText = await response.text();
-
-    (results.connections as Record<string, unknown>).dashaMail = response.ok;
-    (results.rawResponses as Record<string, unknown>).dashaMail = {
-      status: response.status,
-      statusText: response.statusText,
-      body: responseText.substring(0, 500),
-    };
-  } catch (error) {
-    (results.connections as Record<string, unknown>).dashaMail = false;
-    (results.rawResponses as Record<string, unknown>).dashaMailError = error instanceof Error ? error.message : 'Unknown error';
-  }
+  // Test Resend - check API key is configured
+  (results.connections as Record<string, unknown>).resend = !!resendKey;
 
   // Environment check (без показа полных секретов)
   (results as Record<string, unknown>).envCheck = {
     YANDEX_METRIKA_TOKEN: token ? `${token.substring(0, 10)}...` : 'not set',
     YANDEX_METRIKA_COUNTER_ID: counterId || 'not set',
-    DASHAMAIL_API_KEY: dashamailKey ? `${dashamailKey.substring(0, 10)}...` : 'not set',
-    DASHAMAIL_LIST_ID: process.env.DASHAMAIL_LIST_ID || 'not set',
+    RESEND_API_KEY: resendKey ? `${resendKey.substring(0, 10)}...` : 'not set',
+    RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL || 'not set (defaults to info@freelanly.com)',
     NEXT_PUBLIC_YANDEX_METRIKA_ID: process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID || 'not set',
     NEXT_PUBLIC_GA_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || 'not set',
   };

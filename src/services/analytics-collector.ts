@@ -3,7 +3,7 @@
  *
  * Единый центр сбора данных из всех источников:
  * - Яндекс.Метрика (трафик, поведение)
- * - DashaMail (email статистика)
+ * - Email (Resend — статистика недоступна через базовый API)
  * - Google Sheets (ручные данные)
  * - Internal DB (продуктовые метрики)
  */
@@ -23,7 +23,7 @@ export interface FullAnalyticsReport {
   // Connection status
   connections: {
     yandexMetrika: boolean;
-    dashaMail: boolean;
+    email: boolean;
     googleSheets: boolean;
     database: boolean;
   };
@@ -31,7 +31,7 @@ export interface FullAnalyticsReport {
   // Traffic (from Yandex.Metrika)
   traffic: MetrikaStats | null;
 
-  // Email (from DashaMail)
+  // Email stats
   email: {
     subscribers: SubscriberStats | null;
     lastCampaigns: EmailCampaignStats[];
@@ -87,7 +87,7 @@ async function collectMetrikaData(): Promise<MetrikaStats | null> {
 }
 
 /**
- * Собирает данные из DashaMail
+ * Собирает данные email провайдера
  */
 async function collectEmailData() {
   try {
@@ -282,7 +282,7 @@ export async function collectFullAnalytics(): Promise<FullAnalyticsReport> {
   // Check connections
   const connections = {
     yandexMetrika: traffic !== null,
-    dashaMail: email !== null,
+    email: email !== null,
     googleSheets: manualData !== null,
     database: true, // If we got here, DB is working
   };

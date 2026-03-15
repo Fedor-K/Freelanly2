@@ -18,7 +18,7 @@ async function main() {
           This is a test email from Freelanly to verify email delivery.
         </p>
         <p style="color: #666; line-height: 1.6;">
-          <strong>Provider:</strong> ${process.env.EMAIL_PROVIDER || 'dashamail (default)'}<br>
+          <strong>Provider:</strong> Resend<br>
           <strong>Sent at:</strong> ${new Date().toISOString()}
         </p>
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #999; font-size: 12px;">

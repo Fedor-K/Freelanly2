@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { addSubscriber } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, category, keywords, frequency, source } = body;
+    const { email, category, keywords, frequency, source: _source } = body;
 
     if (!email || !email.includes('@')) {
       return NextResponse.json(
@@ -52,19 +51,6 @@ export async function POST(request: NextRequest) {
           frequency: alertFrequency,
         },
       });
-    }
-
-    // Also add to DashaMail for email delivery
-    try {
-      await addSubscriber(email, {
-        category: category || 'all',
-        keywords: keywords || '',
-        source: source || 'job_alert',
-        frequency: alertFrequency,
-      });
-    } catch (error) {
-      console.error('Failed to add to DashaMail:', error);
-      // Continue anyway - we have it in our database
     }
 
     return NextResponse.json({

@@ -11,7 +11,7 @@ interface ResendConfig {
 
 const config: ResendConfig = {
   apiKey: process.env.RESEND_API_KEY || '',
-  fromEmail: process.env.RESEND_FROM_EMAIL || process.env.DASHAMAIL_FROM_EMAIL || 'info@freelanly.com',
+  fromEmail: process.env.RESEND_FROM_EMAIL || 'info@freelanly.com',
   fromName: 'Freelanly',
 };
 

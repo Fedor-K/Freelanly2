@@ -423,7 +423,7 @@ export async function sendFreeNurtureEmail(
     const subject = getEmailSubject(type, jobs.length + opportunities.length, user.id);
     const html = generateFreeNurtureEmailHtml(type, jobs, opportunities, user.name, user.email, user.id);
 
-    // Send via DashaMail
+    // Send via Resend
     await sendApplicationEmail({
       to: user.email,
       subject,

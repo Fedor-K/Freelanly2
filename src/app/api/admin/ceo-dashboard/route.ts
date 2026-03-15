@@ -6,7 +6,6 @@ import { getMetrikaLastNDays, testMetrikaConnection } from '@/lib/yandex-metrika
 import { getTrialEmailStats } from '@/services/trial-emails';
 import { getWinbackEmailStats } from '@/services/winback-emails';
 import { getGSCStats } from '@/lib/google-search-console';
-import { getTransactionalStats } from '@/lib/email';
 import Stripe from 'stripe';
 
 // Target: €10K MRR by May 2026
@@ -424,12 +423,11 @@ async function getChurnAnalysis(thirtyDaysAgo: Date, sixtyDaysAgo: Date) {
 // ============================================
 async function getEmailEffectiveness(thirtyDaysAgo: Date) {
   try {
-    const [trialStats, winbackStats, abandonedStats, alertStats, dashamailStats] = await Promise.all([
+    const [trialStats, winbackStats, abandonedStats, alertStats] = await Promise.all([
       getTrialEmailStats(),
       getWinbackEmailStats(),
       getAbandonedCheckoutStats(thirtyDaysAgo),
       getAlertEmailStats(thirtyDaysAgo),
-      getTransactionalStats(30),
     ]);
 
     return {
@@ -437,20 +435,6 @@ async function getEmailEffectiveness(thirtyDaysAgo: Date) {
       winback: winbackStats,
       abandonedCheckout: abandonedStats,
       alerts: alertStats,
-      // DashaMail transactional stats (opens, clicks from email provider)
-      dashamail: {
-        opened: dashamailStats.opened,
-        clicked: dashamailStats.clicked,
-        bounced: dashamailStats.bounced,
-        unsubscribed: dashamailStats.unsubscribed,
-        // Calculate rates using DB sent count since DashaMail sent=0 bug
-        openRate: alertStats.sent30d > 0
-          ? parseFloat(((dashamailStats.opened / alertStats.sent30d) * 100).toFixed(1))
-          : 0,
-        clickRate: alertStats.sent30d > 0
-          ? parseFloat(((dashamailStats.clicked / alertStats.sent30d) * 100).toFixed(1))
-          : 0,
-      },
     };
   } catch (error) {
     console.error('[CEODashboard] Email error:', error);
@@ -459,7 +443,6 @@ async function getEmailEffectiveness(thirtyDaysAgo: Date) {
       winback: { totalSent: 0, byType: {}, resubscribed: 0, conversionRate: 0 },
       abandonedCheckout: { totalSent: 0, converted: 0, conversionRate: 0 },
       alerts: { sent30d: 0 },
-      dashamail: { opened: 0, clicked: 0, bounced: 0, unsubscribed: 0, openRate: 0, clickRate: 0 },
     };
   }
 }

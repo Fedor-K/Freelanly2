@@ -19,8 +19,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
     // Magic Link via Email (using custom send function)
     Resend({
-      from: process.env.DASHAMAIL_FROM_EMAIL || 'noreply@freelanly.com',
-      // We override sendVerificationRequest to use DashaMail
+      from: process.env.RESEND_FROM_EMAIL || 'noreply@freelanly.com',
       sendVerificationRequest: async ({ identifier: email, url }) => {
         await sendMagicLinkEmail(email, url);
       },

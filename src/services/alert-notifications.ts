@@ -588,7 +588,7 @@ export async function processInstantAlertQueue(): Promise<{
       console.error(`[InstantAlerts] Failed to send to ${email}: ${result.error}`);
     }
 
-    // Rate limit: 200ms between emails (Resend/DashaMail limits)
+    // Rate limit: 200ms between emails (Resend limits)
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
 

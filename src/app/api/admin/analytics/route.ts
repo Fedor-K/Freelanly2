@@ -12,7 +12,7 @@ import Stripe from 'stripe';
  * Returns all key metrics in one call:
  * - Stripe MRR, subscriptions, churn
  * - Cancellation feedback stats
- * - Email marketing stats (DashaMail)
+ * - Email marketing stats (Resend)
  * - User funnel (signups → alerts → apply attempts → upgrades)
  * - Job stats
  */
