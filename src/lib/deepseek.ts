@@ -139,9 +139,6 @@ export interface ExtractedJobData {
   targetLanguages: string[];  // ISO 639-1 codes: ["RU", "FR"]
   // AI-generated clean description (for SEO and UX)
   cleanDescription: string | null; // Structured readable text with sections
-  summaryBullets: string[];      // 5-7 key responsibilities (legacy)
-  requirementBullets: string[];  // 5-7 requirements (legacy)
-  benefitBullets: string[];      // benefits if mentioned (legacy)
 }
 
 // Common languages for translation job title detection (75 languages, synced with site.ts)
@@ -186,6 +183,65 @@ const TRANSLATION_ROLES = [
   'language coordinator', 'language lead', 'language manager',
   'translation manager', 'translation specialist', 'translation coordinator'
 ];
+
+// Language name → ISO 639-1 code mapping for fallback extraction from titles
+const LANGUAGE_TO_CODE: Record<string, string> = {
+  'english': 'EN', 'spanish': 'ES', 'french': 'FR', 'german': 'DE', 'chinese': 'ZH',
+  'japanese': 'JA', 'arabic': 'AR', 'portuguese': 'PT', 'russian': 'RU', 'korean': 'KO',
+  'italian': 'IT', 'dutch': 'NL', 'greek': 'EL', 'swedish': 'SV', 'danish': 'DA',
+  'norwegian': 'NO', 'finnish': 'FI', 'polish': 'PL', 'czech': 'CS', 'slovak': 'SK',
+  'hungarian': 'HU', 'romanian': 'RO', 'bulgarian': 'BG', 'serbian': 'SR', 'croatian': 'HR',
+  'slovenian': 'SL', 'albanian': 'SQ', 'estonian': 'ET', 'latvian': 'LV', 'lithuanian': 'LT',
+  'ukrainian': 'UK', 'georgian': 'KA', 'armenian': 'HY', 'azerbaijani': 'AZ',
+  'catalan': 'CA', 'hebrew': 'HE', 'persian': 'FA', 'turkish': 'TR', 'kurdish': 'KU',
+  'kazakh': 'KK', 'uzbek': 'UZ', 'hindi': 'HI', 'bengali': 'BN', 'urdu': 'UR',
+  'punjabi': 'PA', 'tamil': 'TA', 'telugu': 'TE', 'marathi': 'MR', 'gujarati': 'GU',
+  'vietnamese': 'VI', 'thai': 'TH', 'indonesian': 'ID', 'malay': 'MS', 'tagalog': 'TL',
+  'khmer': 'KM', 'burmese': 'MY', 'mongolian': 'MN', 'cantonese': 'YUE',
+  'swahili': 'SW', 'amharic': 'AM', 'afrikaans': 'AF', 'somali': 'SO',
+  'nepali': 'NE', 'sinhala': 'SI', 'kannada': 'KN', 'malayalam': 'ML', 'odia': 'OR',
+  'maltese': 'MT', 'icelandic': 'IS', 'welsh': 'CY', 'irish': 'GA',
+  'basque': 'EU', 'galician': 'GL', 'bosnian': 'BS', 'macedonian': 'MK',
+  'pashto': 'PS', 'kyrgyz': 'KY', 'tajik': 'TG', 'turkmen': 'TK',
+  'hausa': 'HA', 'yoruba': 'YO', 'zulu': 'ZU',
+};
+
+/**
+ * Fallback: extract languages from title when AI returns empty arrays.
+ * "Korean Interpreter" → EN↔KO, "Spanish-French Translator" → ES↔FR
+ */
+function extractLanguagesFromTitle(title: string): { sourceLanguages: string[]; targetLanguages: string[] } | null {
+  const titleLower = title.toLowerCase();
+
+  // Only for translation-related jobs
+  const isTranslationJob = TRANSLATION_ROLES.some(role => titleLower.includes(role));
+  if (!isTranslationJob) return null;
+
+  // Find all languages mentioned in the title
+  const foundCodes: string[] = [];
+  for (const [langName, code] of Object.entries(LANGUAGE_TO_CODE)) {
+    if (langName === 'english') continue; // Skip English, handle separately
+    if (titleLower.includes(langName)) {
+      foundCodes.push(code);
+    }
+  }
+
+  if (foundCodes.length === 0) return null;
+
+  // If only one language found (e.g., "Korean Interpreter"), assume EN↔that language
+  if (foundCodes.length === 1) {
+    return {
+      sourceLanguages: ['EN', foundCodes[0]],
+      targetLanguages: [foundCodes[0], 'EN'],
+    };
+  }
+
+  // Multiple languages found (e.g., "Spanish-French Translator") — use them bidirectionally
+  return {
+    sourceLanguages: foundCodes,
+    targetLanguages: foundCodes,
+  };
+}
 
 /**
  * Normalizes translation job titles to consistent format.
@@ -289,6 +345,8 @@ KK (Kazakh), UZ (Uzbek), HI (Hindi), BN (Bengali), UR (Urdu), PA (Punjabi), TA (
 VI (Vietnamese), TH (Thai), ID (Indonesian), MS (Malay), TL (Tagalog), KM (Khmer), MY (Burmese), MN (Mongolian),
 SW (Swahili), AM (Amharic), AF (Afrikaans), SO (Somali)
 
+IMPORTANT: If a language is mentioned in the title (e.g., "Korean Interpreter", "Spanish Translator") but the translation direction is unclear, assume bidirectional with English. Example: "Korean Interpreter" → sourceLanguages: ["EN", "KO"], targetLanguages: ["KO", "EN"]. NEVER return empty arrays for translation/interpreter jobs that mention a language.
+
 For non-translation jobs, set translationTypes, sourceLanguages, targetLanguages to empty arrays [].
 
 CLEAN DESCRIPTION (for SEO and better UX):
@@ -330,11 +388,6 @@ Benefits
 • Competitive salary and equity
 • Remote-first culture
 • Health insurance and 401k"
-
-Also include legacy bullet fields for backwards compatibility:
-- summaryBullets: array of 5-7 key job responsibilities (max 15 words each)
-- requirementBullets: array of 5-7 requirements (max 15 words each)
-- benefitBullets: array of benefits mentioned (empty array if none)
 
 Be conservative - only extract what is explicitly stated. Don't infer or guess.
 Return ONLY valid JSON, no markdown or explanation.`;
@@ -421,17 +474,26 @@ export async function extractJobData(postText: string): Promise<ExtractedJobData
 
     const data = JSON.parse(content) as ExtractedJobData;
     // Ensure translation fields have defaults, normalize title and currency
+    let sourceLanguages = data.sourceLanguages || [];
+    let targetLanguages = data.targetLanguages || [];
+
+    // Fallback: if AI returned empty languages but title mentions a language, assume EN↔that language
+    if (sourceLanguages.length === 0 && targetLanguages.length === 0 && data.title) {
+      const fallbackLangs = extractLanguagesFromTitle(data.title);
+      if (fallbackLangs) {
+        sourceLanguages = fallbackLangs.sourceLanguages;
+        targetLanguages = fallbackLangs.targetLanguages;
+      }
+    }
+
     return {
       ...data,
       title: data.title ? normalizeTranslationTitle(data.title) : null,
       salaryCurrency: normalizeCurrencyCode(data.salaryCurrency),
       translationTypes: filterValidTranslationTypes(data.translationTypes),
-      sourceLanguages: data.sourceLanguages || [],
-      targetLanguages: data.targetLanguages || [],
+      sourceLanguages,
+      targetLanguages,
       cleanDescription: data.cleanDescription || null,
-      summaryBullets: data.summaryBullets || [],
-      requirementBullets: data.requirementBullets || [],
-      benefitBullets: data.benefitBullets || [],
     };
   } catch (error) {
     const provider = getAIProvider();

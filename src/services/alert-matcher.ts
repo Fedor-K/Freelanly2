@@ -194,9 +194,9 @@ async function findMatchingJobs(
     // This is a translation job - apply stricter language matching
 
     // If job has no specific languages, it's a general translation job
-    // Anyone subscribed to translation category can receive it
+    // Only send to users WITHOUT specific language pairs (users with pairs want exact matches)
     if (jobNonEnLanguages.size === 0) {
-      return true;
+      return userLanguages.size === 0;
     }
 
     // Both job and user have specific languages - match them

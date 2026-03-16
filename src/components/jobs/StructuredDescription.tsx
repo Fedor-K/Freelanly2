@@ -9,10 +9,6 @@ interface StructuredDescriptionProps {
   cleanDescription: string | null;
   originalContent: string | null;
   showOriginalByDefault?: boolean;
-  // Legacy bullet props (for backwards compatibility)
-  summaryBullets?: string[];
-  requirementBullets?: string[];
-  benefitBullets?: string[];
 }
 
 // Check if content is a placeholder (should be hidden)
@@ -131,17 +127,13 @@ export function StructuredDescription({
   cleanDescription,
   originalContent,
   showOriginalByDefault = false,
-  summaryBullets = [],
-  requirementBullets = [],
-  benefitBullets = [],
 }: StructuredDescriptionProps) {
   const [showOriginal, setShowOriginal] = useState(showOriginalByDefault);
 
   const hasCleanDescription = cleanDescription && cleanDescription.trim().length > 0;
-  const hasLegacyBullets = summaryBullets.length > 0 || requirementBullets.length > 0 || benefitBullets.length > 0;
 
-  // If no structured content at all, show original directly
-  if (!hasCleanDescription && !hasLegacyBullets) {
+  // If no structured content, show original directly
+  if (!hasCleanDescription) {
     return (
       <Card>
         <CardContent className="pt-6">
@@ -201,58 +193,7 @@ export function StructuredDescription({
               );
             })}
           </>
-        ) : (
-          /* Legacy bullet format fallback */
-          <>
-            {summaryBullets.length > 0 && (
-              <div className="border-l-4 border-blue-500 bg-blue-50/50 p-4">
-                <h3 className="font-semibold text-blue-900 mb-2">
-                  Key Responsibilities
-                </h3>
-                <ul className="space-y-1.5">
-                  {summaryBullets.map((bullet, index) => (
-                    <li key={index} className="text-sm text-gray-700 flex gap-2">
-                      <span className="text-blue-500 flex-shrink-0">→</span>
-                      <span>{bullet}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {requirementBullets.length > 0 && (
-              <div className="border-l-4 border-green-500 bg-green-50/50 p-4">
-                <h3 className="font-semibold text-green-900 mb-2">
-                  Requirements
-                </h3>
-                <ul className="space-y-1.5">
-                  {requirementBullets.map((bullet, index) => (
-                    <li key={index} className="text-sm text-gray-700 flex gap-2">
-                      <span className="text-green-500 flex-shrink-0">✓</span>
-                      <span>{bullet}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {benefitBullets.length > 0 && (
-              <div className="border-l-4 border-purple-500 bg-purple-50/50 p-4">
-                <h3 className="font-semibold text-purple-900 mb-2">
-                  Benefits
-                </h3>
-                <ul className="space-y-1.5">
-                  {benefitBullets.map((bullet, index) => (
-                    <li key={index} className="text-sm text-gray-700 flex gap-2">
-                      <span className="text-purple-500 flex-shrink-0">★</span>
-                      <span>{bullet}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </>
-        )}
+        ) : null}
 
         {/* Show/Hide Original Description */}
         {originalContent && (

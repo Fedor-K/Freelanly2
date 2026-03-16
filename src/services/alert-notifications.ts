@@ -365,8 +365,9 @@ function checkOpportunityMatchesAlert(
   // Translation opportunity - apply stricter language matching
 
   // If opportunity has no specific languages, it's a general translation opportunity
+  // Only send to users WITHOUT specific language pairs (users with pairs want exact matches)
   if (oppNonEnLanguages.size === 0) {
-    return true;
+    return userLanguages.size === 0;
   }
 
   // Both opportunity and user have specific languages - match them

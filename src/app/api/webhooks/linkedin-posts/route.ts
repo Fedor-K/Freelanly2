@@ -396,8 +396,6 @@ export async function POST(request: NextRequest) {
       cleanDescription: extracted.cleanDescription,
       salaryMin: salaryData.salaryMin,
       skills: extracted.skills,
-      requirementBullets: extracted.requirementBullets,
-      benefitBullets: extracted.benefitBullets,
       applyEmail: validatedEmail,
       applyUrl: extracted.applyUrl,
       isFreeEmail: hasFreeEmail,

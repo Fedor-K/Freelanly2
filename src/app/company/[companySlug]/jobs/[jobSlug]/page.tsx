@@ -500,9 +500,6 @@ export default async function JobPage({ params }: JobPageProps) {
                   {/* Structured Description (AI-generated clean text) or Original Post */}
                   <StructuredDescription
                     cleanDescription={job.cleanDescription}
-                    summaryBullets={job.summaryBullets}
-                    requirementBullets={job.requirementBullets}
-                    benefitBullets={job.benefitBullets}
                     originalContent={maskLinksForFreeUsers(job.originalContent, userPlan)}
                   />
                 </>
@@ -510,9 +507,6 @@ export default async function JobPage({ params }: JobPageProps) {
                 /* Standard Job Description for ATS jobs - with structured clean description if available */
                 <StructuredDescription
                   cleanDescription={job.cleanDescription}
-                  summaryBullets={job.summaryBullets}
-                  requirementBullets={job.requirementBullets}
-                  benefitBullets={job.benefitBullets}
                   originalContent={maskLinksForFreeUsers(job.description, userPlan)}
                 />
               )}

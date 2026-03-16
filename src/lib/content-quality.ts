@@ -13,8 +13,6 @@ interface ContentQualityInput {
   cleanDescription?: string | null;
   salaryMin?: number | null;
   skills?: string[];
-  requirementBullets?: string[];
-  benefitBullets?: string[];
   applyEmail?: string | null;
   applyUrl?: string | null;
   // Penalty signals
@@ -130,20 +128,6 @@ export function assessContentQuality(input: ContentQualityInput): ContentQuality
   if (skillCount >= 5) {
     score += 5;
     reasons.push('Has 5+ skills: +5');
-  }
-
-  // Bonus: Has requirement bullets
-  const reqCount = input.requirementBullets?.length || 0;
-  if (reqCount >= 3) {
-    score += 7;
-    reasons.push(`Has ${reqCount} requirements: +7`);
-  }
-
-  // Bonus: Has benefit bullets
-  const benefitCount = input.benefitBullets?.length || 0;
-  if (benefitCount >= 2) {
-    score += 5;
-    reasons.push(`Has ${benefitCount} benefits: +5`);
   }
 
   // Bonus: Has clean description
