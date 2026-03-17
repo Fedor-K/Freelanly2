@@ -220,6 +220,7 @@ export default function UsersPage() {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
+      timeZone: 'Europe/Moscow',
     });
   };
 
@@ -229,6 +230,7 @@ export default function UsersPage() {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: 'Europe/Moscow',
     });
   };
 

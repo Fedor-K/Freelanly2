@@ -48,10 +48,13 @@ export async function GET(request: NextRequest) {
       where.stripeId = null;
     }
 
-    // Get date ranges for stats
+    // Get date ranges for stats — aligned to Moscow timezone (UTC+3)
     const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const moscowStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Moscow' }); // YYYY-MM-DD
+    const [mY, mM, mD] = moscowStr.split('-').map(Number);
+    const moscowToday = new Date(Date.UTC(mY, mM - 1, mD, -3)); // midnight Moscow = 21:00 UTC prev day
+    const sevenDaysAgo = new Date(moscowToday.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(moscowToday.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     // Get total count for pagination
     const totalUsers = await prisma.user.count({ where });

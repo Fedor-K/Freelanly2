@@ -16,16 +16,28 @@ export async function GET(request: NextRequest) {
     const range = parseInt(url.searchParams.get('range') || String(defaultRange), 10);
 
     const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    // Period window for funnel — use calendar boundaries, not rolling hours
+    // Helper: get start of day in Moscow timezone (UTC+3)
+    function moscowStartOfDay(date: Date = new Date()): Date {
+      const moscowStr = date.toLocaleDateString('en-CA', { timeZone: 'Europe/Moscow' }); // YYYY-MM-DD
+      const [y, m, d] = moscowStr.split('-').map(Number);
+      return new Date(Date.UTC(y, m - 1, d, -3)); // midnight Moscow = 21:00 UTC previous day
+    }
+
+    const moscowToday = moscowStartOfDay(now);
+    const thirtyDaysAgo = new Date(moscowToday.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Period window for funnel — use calendar boundaries in Moscow timezone
     let periodStart: Date;
     if (period === 'day') {
-      periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // start of today
+      periodStart = moscowToday; // start of today in Moscow
     } else if (period === 'week') {
-      periodStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      periodStart = new Date(moscowToday.getTime() - 7 * 24 * 60 * 60 * 1000);
     } else {
-      periodStart = new Date(now.getFullYear(), now.getMonth(), 1); // start of this month
+      // Start of this month in Moscow
+      const moscowStr = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Moscow' });
+      const [y, m] = moscowStr.split('-').map(Number);
+      periodStart = new Date(Date.UTC(y, m - 1, 1, -3)); // 1st of month midnight Moscow
     }
 
     const [hotLeads, trafficBySource, buyerProfile, quick, goal, trafficChart] = await Promise.all([
