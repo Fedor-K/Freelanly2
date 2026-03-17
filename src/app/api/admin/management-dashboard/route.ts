@@ -118,7 +118,7 @@ async function getChannels(periodStart: Date) {
   }>>`
     SELECT source, COUNT(*) as registered
     FROM "User"
-    WHERE "createdAt" >= ${periodStart}
+    WHERE "createdAt" >= ${periodStart} AND "emailVerified" IS NOT NULL
     GROUP BY source
   `;
 
@@ -130,7 +130,7 @@ async function getChannels(periodStart: Date) {
     SELECT u.source, COUNT(DISTINCT u.id) as "hitPaywall"
     FROM "User" u
     JOIN "ApplyAttempt" a ON a."userId" = u.id
-    WHERE u."createdAt" >= ${periodStart}
+    WHERE u."createdAt" >= ${periodStart} AND u."emailVerified" IS NOT NULL
     GROUP BY u.source
   `;
 
@@ -141,7 +141,7 @@ async function getChannels(periodStart: Date) {
   }>>`
     SELECT source, COUNT(*) as converted
     FROM "User"
-    WHERE plan = 'PRO' AND "createdAt" >= ${periodStart}
+    WHERE plan = 'PRO' AND "createdAt" >= ${periodStart} AND "emailVerified" IS NOT NULL
     GROUP BY source
   `;
 
@@ -302,13 +302,13 @@ async function getGoalMetrics(thirtyDaysAgo: Date, periodStart?: Date, period?: 
 
   // Funnel metrics — scoped to selected period
   const [periodRegistrations, periodNewPro, metrikaVisitors] = await Promise.all([
-    prisma.user.count({ where: { createdAt: { gte: funnelFrom } } }),
-    prisma.user.count({ where: { plan: 'PRO', proStartedAt: { gte: funnelFrom } } }),
+    prisma.user.count({ where: { createdAt: { gte: funnelFrom }, emailVerified: { not: null } } }),
+    prisma.user.count({ where: { plan: 'PRO', proStartedAt: { gte: funnelFrom }, emailVerified: { not: null } } }),
     getMetrikaForDateRange(funnelFrom, new Date()).catch(() => 0),
   ]);
 
   // Monthly equivalents for "need +X PRO/mo" calc (always 30d)
-  const monthlyNewPro = await prisma.user.count({ where: { plan: 'PRO', proStartedAt: { gte: thirtyDaysAgo } } });
+  const monthlyNewPro = await prisma.user.count({ where: { plan: 'PRO', proStartedAt: { gte: thirtyDaysAgo }, emailVerified: { not: null } } });
 
   const periodVisitors = metrikaVisitors || 0;
   const regToProRate = periodRegistrations > 0
@@ -471,7 +471,7 @@ async function getTrafficChart(period: 'day' | 'week' | 'month', range: number) 
     prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
       SELECT TO_CHAR("createdAt", 'YYYY-MM-DD') as date, COUNT(*) as count
       FROM "User"
-      WHERE "createdAt" >= ${fromDate}
+      WHERE "createdAt" >= ${fromDate} AND "emailVerified" IS NOT NULL
       GROUP BY TO_CHAR("createdAt", 'YYYY-MM-DD')
       ORDER BY date
     `,
@@ -479,7 +479,7 @@ async function getTrafficChart(period: 'day' | 'week' | 'month', range: number) 
     prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
       SELECT TO_CHAR("proStartedAt", 'YYYY-MM-DD') as date, COUNT(*) as count
       FROM "User"
-      WHERE plan = 'PRO' AND "proStartedAt" >= ${fromDate}
+      WHERE plan = 'PRO' AND "proStartedAt" >= ${fromDate} AND "emailVerified" IS NOT NULL
       GROUP BY TO_CHAR("proStartedAt", 'YYYY-MM-DD')
       ORDER BY date
     `,
