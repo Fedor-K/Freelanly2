@@ -82,16 +82,6 @@ export function initScheduler() {
     callCron('/api/cron/send-winback-emails', 'send-winback-emails');
   });
 
-  // Nurture emails - Daily at 9:00 UTC
-  cron.schedule('0 9 * * *', () => {
-    callCron('/api/cron/send-nurture', 'send-nurture');
-  });
-
-  // Re-engagement emails - Daily at 11:00 UTC
-  cron.schedule('0 11 * * *', () => {
-    callCron('/api/cron/send-reengagement-emails', 'send-reengagement-emails');
-  });
-
   // ============================================
   // SEO & SOCIAL
   // ============================================
@@ -111,8 +101,6 @@ export function initScheduler() {
   console.log('  - send-trial-emails: Hourly :00');
   console.log('  - send-abandoned-checkout-emails: Hourly :30');
   console.log('  - send-winback-emails: Daily 10:00 UTC');
-  console.log('  - send-nurture: Daily 9:00 UTC');
-  console.log('  - send-reengagement-emails: Daily 11:00 UTC');
   console.log('  - submit-to-index: Daily 8:00 UTC');
   console.log('  - post-to-social: Every 15 min');
 }

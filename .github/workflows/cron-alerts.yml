@@ -14,13 +14,10 @@ on:
     # Every 15 minutes - post to social
     - cron: '*/15 * * * *'
 
-    # Daily at 7:00 UTC - nurture emails
-    - cron: '0 7 * * *'
-
     # Daily at 10:00 UTC - winback emails
     - cron: '0 10 * * *'
 
-    # Daily at 8:00 UTC - reengagement, abandoned checkout
+    # Daily at 8:00 UTC - abandoned checkout
     - cron: '0 8 * * *'
 
     # Weekly Sunday 3:00 UTC - discover new companies
@@ -85,22 +82,6 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --fail --silent --show-error || true
 
-  # Daily at 7:00 - nurture
-  daily-nurture:
-    runs-on: ubuntu-latest
-    if: github.event.schedule == '0 7 * * *'
-    steps:
-      - name: Send nurture emails
-        run: |
-          curl -X POST "https://freelanly.com/api/cron/send-nurture" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            --fail --silent --show-error || true
-      - name: Send free nurture emails
-        run: |
-          curl -X POST "https://freelanly.com/api/cron/send-free-nurture" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            --fail --silent --show-error || true
-
   # Daily at 10:00 - winback
   daily-winback:
     runs-on: ubuntu-latest
@@ -112,16 +93,11 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --fail --silent --show-error || true
 
-  # Daily at 8:00 - reengagement & abandoned checkout
-  daily-reengagement:
+  # Daily at 8:00 - abandoned checkout
+  daily-abandoned-checkout:
     runs-on: ubuntu-latest
     if: github.event.schedule == '0 8 * * *'
     steps:
-      - name: Send reengagement emails
-        run: |
-          curl -X POST "https://freelanly.com/api/cron/send-reengagement-emails" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            --fail --silent --show-error || true
       - name: Send abandoned checkout emails
         run: |
           curl -X POST "https://freelanly.com/api/cron/send-abandoned-checkout-emails" \

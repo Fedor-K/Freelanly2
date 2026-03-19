@@ -354,7 +354,7 @@ async function getGoalMetrics(thirtyDaysAgo: Date, periodStart?: Date, period?: 
     totalPro,
 
     roadmap: [
-      { month: 'Апрель', action: 'Исправить nurture/reengagement письма, fix paywall UX', targetPro: 90, targetMRR: 1350 },
+      { month: 'Апрель', action: 'Fix paywall UX, optimize conversion funnel', targetPro: 90, targetMRR: 1350 },
       { month: 'Май', action: 'A/B тест оффера, email после пейволл-хита', targetPro: 150, targetMRR: 2250 },
       { month: 'Июнь', action: 'SEO рост (контент по категориям), LinkedIn органика', targetPro: 230, targetMRR: 3450 },
       { month: 'Июль-Авг', action: 'Scale Google Ads если CAC окупается', targetPro: 350, targetMRR: 5250 },

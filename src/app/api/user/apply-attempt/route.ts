@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { sendNurtureEmailForAttempt } from '@/services/nurture-emails';
 import { logActivity, ActivityAction } from '@/lib/activity-log';
 
-// POST - Track when a FREE user tries to apply and send nurture email
+// POST - Track when a FREE user tries to apply
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -59,13 +58,6 @@ export async function POST(request: NextRequest) {
         type: jobId ? 'job' : 'opportunity',
       },
     });
-
-    // Send nurture email only for FREE users (non-blocking)
-    if (user?.plan === 'FREE') {
-      sendNurtureEmailForAttempt(attempt.id).catch((err) => {
-        console.error('[ApplyAttempt] Nurture email failed:', err);
-      });
-    }
 
     return NextResponse.json({ ok: true, tracked: true });
   } catch (error) {

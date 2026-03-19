@@ -671,7 +671,6 @@ export default function AdminDashboard() {
             { href: '/admin/jobs', label: 'Jobs', color: 'bg-secondary text-secondary-foreground hover:bg-secondary/90' },
             { href: '/admin/logs', label: 'Logs', color: 'bg-secondary text-secondary-foreground hover:bg-secondary/90' },
             { href: '/admin/activation', label: 'Activation', color: 'bg-secondary text-secondary-foreground hover:bg-secondary/90' },
-            { href: '/admin/free-nurture', label: 'Free Nurture', color: 'bg-secondary text-secondary-foreground hover:bg-secondary/90' },
             { href: '/admin/clarity', label: 'UX (Clarity)', color: 'bg-secondary text-secondary-foreground hover:bg-secondary/90' },
             { href: '/admin/keywords', label: 'Keywords', color: 'bg-secondary text-secondary-foreground hover:bg-secondary/90' },
             { href: '/admin/parsing', label: 'Parsing', color: 'bg-secondary text-secondary-foreground hover:bg-secondary/90' },
