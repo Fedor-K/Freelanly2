@@ -96,13 +96,7 @@ export async function GET(request: NextRequest) {
                 targetLanguage: true,
               },
             },
-            _count: {
-              select: {
-                notifications: {
-                  where: { status: 'SENT' },
-                },
-              },
-            },
+            emailsSent: true,
           },
           orderBy: { createdAt: 'desc' },
         },
@@ -132,7 +126,7 @@ export async function GET(request: NextRequest) {
       }
 
       const totalNotificationsSent = user.jobAlerts.reduce(
-        (sum, alert) => sum + alert._count.notifications,
+        (sum, alert) => sum + alert.emailsSent,
         0
       );
       const activeAlerts = user.jobAlerts.filter(a => a.isActive).length;
