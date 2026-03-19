@@ -408,8 +408,9 @@ async function getMetrikaForDateRange(from: Date, to: Date): Promise<number> {
   const token = process.env.YANDEX_METRIKA_TOKEN;
   const counterId = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
   if (!token || !counterId) return 0;
-  const date1 = from.toISOString().slice(0, 10);
-  const date2 = to.toISOString().slice(0, 10);
+  // Use Moscow timezone dates to match Metrika's internal timezone
+  const date1 = from.toLocaleDateString('en-CA', { timeZone: 'Europe/Moscow' });
+  const date2 = to.toLocaleDateString('en-CA', { timeZone: 'Europe/Moscow' });
   const url = `https://api-metrika.yandex.net/stat/v1/data?ids=${counterId}&metrics=ym:s:users&date1=${date1}&date2=${date2}`;
   const res = await fetch(url, { headers: { Authorization: `OAuth ${token}` }, cache: 'no-store' });
   if (!res.ok) return 0;
@@ -421,8 +422,8 @@ async function getMetrikaTrafficBySource(from: Date, to: Date): Promise<Record<s
   const token = process.env.YANDEX_METRIKA_TOKEN;
   const counterId = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
   if (!token || !counterId) return {};
-  const date1 = from.toISOString().slice(0, 10);
-  const date2 = to.toISOString().slice(0, 10);
+  const date1 = from.toLocaleDateString('en-CA', { timeZone: 'Europe/Moscow' });
+  const date2 = to.toLocaleDateString('en-CA', { timeZone: 'Europe/Moscow' });
   const url = `https://api-metrika.yandex.net/stat/v1/data?ids=${counterId}&metrics=ym:s:users&dimensions=ym:s:trafficSource&date1=${date1}&date2=${date2}`;
   const res = await fetch(url, { headers: { Authorization: `OAuth ${token}` }, cache: 'no-store' });
   if (!res.ok) return {};
