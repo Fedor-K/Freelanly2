@@ -31,12 +31,18 @@ export async function sendMagicLinkEmail(
     });
 
     if (token) {
-      // Use raw query to update since VerificationToken has composite key
-      await prisma.$executeRaw`
-        UPDATE "VerificationToken"
-        SET code = ${code}
-        WHERE identifier = ${token.identifier} AND token = ${token.token}
-      `;
+      await prisma.verificationToken.update({
+        where: {
+          identifier_token: {
+            identifier: token.identifier,
+            token: token.token,
+          },
+        },
+        data: { code },
+      });
+      console.log(`[Auth Email] OTP code stored for ${email}`);
+    } else {
+      console.warn(`[Auth Email] No verification token found for ${email}`);
     }
   } catch (e) {
     console.error('[Auth Email] Failed to store OTP code:', e);
