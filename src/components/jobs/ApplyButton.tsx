@@ -101,7 +101,6 @@ export function ApplyButton({
             onClick={() => {
               trackUpgradeClick({ source: 'paywall', jobId });
               trackDb('PAYWALL_HIT', { jobId, jobTitle, company: companyName, type: 'apply' });
-              trackDb('UPGRADE_CLICK', { jobId, source: 'paywall' });
               setShowUpgrade(true);
             }}
           >

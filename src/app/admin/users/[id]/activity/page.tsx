@@ -499,7 +499,7 @@ export default function UserActivityPage() {
                                   {formatDetails(activity.action, activity.details)}
                                 </span>
                               )}
-                              {activity.pageUrl && (
+                              {activity.pageUrl && activity.action === 'PAGE_VIEW' && (
                                 <span className="text-xs text-blue-500 break-words block">
                                   {activity.pageUrl}
                                 </span>

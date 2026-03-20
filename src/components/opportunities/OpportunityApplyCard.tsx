@@ -46,13 +46,11 @@ export function OpportunityApplyCard({
     // If not logged in, show registration modal first
     if (!session?.user) {
       trackSignupStart('opportunity_apply_card');
-      trackDb('REGISTRATION_MODAL_OPEN', { opportunityId, source: 'opportunity_apply_card' });
       setShowRegistration(true);
       return;
     }
 
     // User is logged in — show upgrade modal
-    trackDb('UPGRADE_CLICK', { opportunityId, source: 'paywall' });
     setShowUpgrade(true);
   };
 
