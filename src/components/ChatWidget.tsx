@@ -110,7 +110,7 @@ export function ChatWidget() {
     <>
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-20 right-4 sm:right-6 w-[calc(100%-2rem)] sm:w-96 max-h-[70vh] bg-white rounded-2xl shadow-2xl border flex flex-col z-[9999] overflow-hidden">
+        <div className="fixed inset-0 sm:inset-auto sm:bottom-20 sm:right-6 sm:w-96 sm:max-h-[70vh] sm:rounded-2xl bg-white shadow-2xl border flex flex-col z-[9999] overflow-hidden">
           {/* Header */}
           <div className="bg-black text-white px-4 py-3 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
@@ -126,7 +126,7 @@ export function ChatWidget() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[200px] max-h-[50vh]">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
             {messages.map((msg, i) => (
               <div
                 key={i}
@@ -154,7 +154,7 @@ export function ChatWidget() {
           </div>
 
           {/* Input */}
-          <div className="border-t p-3 shrink-0">
+          <div className="border-t p-3 pb-safe shrink-0">
             <div className="flex items-center gap-2">
               <input
                 ref={inputRef}
@@ -164,7 +164,7 @@ export function ChatWidget() {
                 onKeyDown={handleKeyDown}
                 placeholder="Type a message..."
                 disabled={loading}
-                className="flex-1 px-3 py-2 text-sm border rounded-full focus:outline-none focus:border-black disabled:opacity-50"
+                className="flex-1 min-w-0 px-3 py-2 text-sm border rounded-full focus:outline-none focus:border-black disabled:opacity-50"
               />
               <button
                 onClick={sendMessage}
@@ -204,14 +204,14 @@ export function ChatWidget() {
         </div>
       )}
 
-      {/* Toggle Button */}
+      {/* Toggle Button — hidden on mobile when chat is open (fullscreen) */}
       <button
         onClick={() => {
           setIsOpen(!isOpen);
           setShowBubble(false);
           setBubbleDismissed(true);
         }}
-        className="fixed bottom-4 right-4 sm:right-6 w-14 h-14 bg-black text-white rounded-full shadow-lg hover:bg-gray-800 transition-all hover:scale-105 flex items-center justify-center z-[9999]"
+        className={`fixed bottom-4 right-4 sm:right-6 w-14 h-14 bg-black text-white rounded-full shadow-lg hover:bg-gray-800 transition-all hover:scale-105 flex items-center justify-center z-[9999] ${isOpen ? 'hidden sm:flex' : ''}`}
         aria-label="Chat with us"
       >
         {isOpen ? (
