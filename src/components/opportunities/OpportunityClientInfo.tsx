@@ -5,7 +5,8 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { RegistrationModal } from '@/components/auth/RegistrationModal';
-import { trackCheckoutStart, trackSignupStart } from '@/lib/analytics';
+import { UpgradeModal } from '@/components/jobs/UpgradeModal';
+import { trackSignupStart } from '@/lib/analytics';
 import { useTracker } from '@/hooks/useTracker';
 
 interface OpportunityClientInfoProps {
@@ -16,6 +17,7 @@ interface OpportunityClientInfoProps {
   clientAvatar?: string | null;
   clientLinkedIn: string;
   applyEmail?: string | null;
+  title?: string;
 }
 
 export function OpportunityClientInfo({
@@ -25,45 +27,22 @@ export function OpportunityClientInfo({
   clientHeadline,
   clientAvatar,
   clientLinkedIn,
+  title,
 }: OpportunityClientInfoProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const { track: trackDb } = useTracker();
   const [showRegistration, setShowRegistration] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
-  const handleUpgradeClick = async () => {
-    // If not logged in, show registration modal first
+  const handleUpgradeClick = () => {
     if (!session?.user) {
       trackSignupStart('opportunity_contact');
       setShowRegistration(true);
       return;
     }
-
-    // User is logged in — redirect directly to Stripe checkout
-    trackCheckoutStart({ plan: 'monthly', source: 'opportunity_contact' });
-    setIsRedirecting(true);
-
-    try {
-      const response = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          priceKey: 'monthly',
-          source: 'opportunity_page',
-          opportunityId,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (err) {
-      console.error('Checkout error:', err);
-      setIsRedirecting(false);
-    }
+    trackDb('PAYWALL_HIT', { opportunityId, title, type: 'contact' });
+    setShowUpgrade(true);
   };
 
   return (
@@ -112,23 +91,27 @@ export function OpportunityClientInfo({
           ) : (
             <button
               onClick={handleUpgradeClick}
-              disabled={isRedirecting}
-              className="text-sm text-orange-600 hover:underline mt-1 inline-flex items-center gap-1 disabled:opacity-50"
+              className="text-sm text-orange-600 hover:underline mt-1 inline-flex items-center gap-1"
             >
               <span className="blur-[3px] select-none">linkedin.com/in/•••••</span>
-              <span className="no-blur">
-                {isRedirecting ? 'Redirecting...' : session?.user ? 'Upgrade to see →' : 'Log In to see →'}
-              </span>
+              <span>{session?.user ? 'Upgrade to see →' : 'Log In to see →'}</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Registration Modal for non-authenticated users */}
       <RegistrationModal
         open={showRegistration}
         onClose={() => setShowRegistration(false)}
         callbackUrl={pathname}
+      />
+
+      <UpgradeModal
+        open={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        opportunityId={opportunityId}
+        jobTitle={title}
+        companyName={clientName}
       />
     </>
   );

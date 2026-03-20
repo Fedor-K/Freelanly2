@@ -4,53 +4,37 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { RegistrationModal } from '@/components/auth/RegistrationModal';
-import { trackCheckoutStart, trackSignupStart } from '@/lib/analytics';
+import { UpgradeModal } from '@/components/jobs/UpgradeModal';
+import { trackSignupStart } from '@/lib/analytics';
 
 interface OpportunityOriginalPostFooterProps {
   opportunityId: string;
   isPro: boolean;
   sourceUrl: string;
   applyEmail?: string | null;
+  title?: string;
+  clientName?: string;
 }
 
 export function OpportunityOriginalPostFooter({
   opportunityId,
   isPro,
   sourceUrl,
+  title,
+  clientName,
 }: OpportunityOriginalPostFooterProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [showRegistration, setShowRegistration] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
-  const handleUpgradeClick = async () => {
+  const handleUpgradeClick = () => {
     if (!session?.user) {
       trackSignupStart('opportunity_footer');
       setShowRegistration(true);
       return;
     }
-
-    trackCheckoutStart({ plan: 'monthly', source: 'opportunity_footer' });
-    setIsRedirecting(true);
-
-    try {
-      const response = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          priceKey: 'monthly',
-          source: 'opportunity_page',
-          opportunityId,
-        }),
-      });
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (err) {
-      console.error('Checkout error:', err);
-      setIsRedirecting(false);
-    }
+    setShowUpgrade(true);
   };
 
   return (
@@ -68,10 +52,9 @@ export function OpportunityOriginalPostFooter({
         ) : (
           <button
             onClick={handleUpgradeClick}
-            disabled={isRedirecting}
-            className="text-sm text-orange-600 hover:underline disabled:opacity-50"
+            className="text-sm text-orange-600 hover:underline"
           >
-            {isRedirecting ? 'Redirecting...' : session?.user ? 'Upgrade to view on LinkedIn →' : 'Log In to view on LinkedIn →'}
+            {session?.user ? 'Upgrade to view on LinkedIn →' : 'Log In to view on LinkedIn →'}
           </button>
         )}
         {!isPro && (
@@ -85,6 +68,14 @@ export function OpportunityOriginalPostFooter({
         open={showRegistration}
         onClose={() => setShowRegistration(false)}
         callbackUrl={pathname}
+      />
+
+      <UpgradeModal
+        open={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        opportunityId={opportunityId}
+        jobTitle={title}
+        companyName={clientName}
       />
     </>
   );

@@ -8,9 +8,10 @@ import { useSession } from 'next-auth/react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { RegistrationModal } from '@/components/auth/RegistrationModal';
+import { UpgradeModal } from '@/components/jobs/UpgradeModal';
 import type { OpportunityCardData } from '@/types';
 import { formatDistanceToNow } from '@/lib/utils';
-import { trackCheckoutStart, trackSignupStart } from '@/lib/analytics';
+import { trackSignupStart } from '@/lib/analytics';
 
 interface OpportunityCardProps {
   opportunity: OpportunityCardData;
@@ -21,7 +22,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
   const pathname = usePathname();
   const { data: session } = useSession();
   const [showRegistration, setShowRegistration] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const salaryDisplay = formatSalary(
     opportunity.salaryMin,
@@ -30,7 +31,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
     opportunity.salaryPeriod
   );
 
-  const handleUpgradeClick = async (e: React.MouseEvent) => {
+  const handleUpgradeClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -40,27 +41,7 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
       return;
     }
 
-    trackCheckoutStart({ plan: 'monthly', source: 'opportunity_card' });
-    setIsRedirecting(true);
-
-    try {
-      const response = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          priceKey: 'monthly',
-          source: 'opportunity_card',
-          opportunityId: opportunity.id,
-        }),
-      });
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (err) {
-      console.error('Checkout error:', err);
-      setIsRedirecting(false);
-    }
+    setShowUpgrade(true);
   };
 
   return (
@@ -193,10 +174,9 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
                   <span className="text-xs text-muted-foreground blur-[3px] select-none">linkedin.com/in/•••</span>
                   <button
                     onClick={handleUpgradeClick}
-                    disabled={isRedirecting}
                     className="text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-md transition-colors inline-flex items-center gap-1 disabled:opacity-50"
                   >
-                    {isRedirecting ? 'Redirecting...' : session?.user ? '🔓 Upgrade to see contact details' : '🔓 Log In to see contact details'}
+                    {session?.user ? '🔓 Upgrade to see contact details' : '🔓 Log In to see contact details'}
                   </button>
                 </>
               )}
@@ -205,11 +185,17 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
         </div>
       </CardContent>
 
-      {/* Registration Modal for non-authenticated users */}
       <RegistrationModal
         open={showRegistration}
         onClose={() => setShowRegistration(false)}
         callbackUrl={pathname}
+      />
+      <UpgradeModal
+        open={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        opportunityId={opportunity.id}
+        jobTitle={opportunity.title}
+        companyName={opportunity.clientName}
       />
     </Card>
   );

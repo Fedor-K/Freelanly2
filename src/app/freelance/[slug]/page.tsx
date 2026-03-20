@@ -400,6 +400,7 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
                     clientAvatar={opportunity.clientAvatar}
                     clientLinkedIn={opportunity.clientLinkedIn}
                     applyEmail={opportunity.applyEmail}
+                    title={opportunity.title}
                   />
 
                   {/* Title */}
@@ -462,6 +463,8 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
                     isPro={isPro}
                     sourceUrl={opportunity.sourceUrl}
                     applyEmail={opportunity.applyEmail}
+                    title={opportunity.title}
+                    clientName={opportunity.clientName || undefined}
                   />
                 </CardContent>
               </Card>
