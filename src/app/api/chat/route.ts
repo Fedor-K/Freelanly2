@@ -126,9 +126,14 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error('[Chat API] Error:', errMsg);
+    // In development, show the actual error for debugging
+    const debugInfo = process.env.NODE_ENV !== 'production'
+      ? ` (Debug: ${errMsg})`
+      : '';
     return NextResponse.json({
-      reply: 'Sorry, something went wrong. Please try again or email us at info@freelanly.com.',
+      reply: `Sorry, something went wrong.${debugInfo} Please try again or email us at info@freelanly.com.`,
       escalate: false,
-    }, { status: 200 }); // Return 200 even on error so the widget shows the message
+      debug: { error: errMsg, hasZaiKey: !!process.env.ZAI_API_KEY, hasDeepseekKey: !!process.env.DEEPSEEK_API_KEY },
+    }, { status: 200 });
   }
 }
