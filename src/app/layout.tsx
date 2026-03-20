@@ -9,7 +9,7 @@ import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { GclidCapture } from "@/components/analytics/GclidCapture";
 import { TrackPageView } from "@/components/analytics/TrackPageView";
 import { ConversionUTMTracker } from "@/components/ConversionUTMTracker";
-import { TidioChat } from "@/components/TidioChat";
+import { ChatWidget } from "@/components/ChatWidget";
 import { Suspense } from "react";
 import Script from "next/script";
 
@@ -160,7 +160,7 @@ export default function RootLayout({
           <CookieConsentBanner />
         </SessionProvider>
         <AnalyticsScripts />
-        <TidioChat />
+        <ChatWidget />
         {/* JSON-LD Structured Data - placed in body per Google recommendations */}
         <script
           type="application/ld+json"
