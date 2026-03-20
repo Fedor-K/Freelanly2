@@ -113,7 +113,7 @@ export default function FunnelPage() {
               {data.funnel.map((step, index) => {
                 const barWidth = Math.max((step.count / maxCount) * 100, 2);
                 const prevCount = index > 0 ? data.funnel[index - 1].count : step.count;
-                const dropoff = prevCount > 0 && step.count < prevCount
+                const dropoff = prevCount > 0 && step.count < prevCount && step.count > 0
                   ? Math.round((1 - step.count / prevCount) * 100)
                   : 0;
 

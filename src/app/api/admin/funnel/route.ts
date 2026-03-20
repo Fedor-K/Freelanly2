@@ -30,10 +30,7 @@ export async function GET(request: NextRequest) {
           'CHECKOUT_START',
           'CHECKOUT_COMPLETE',
           'SIGNUP_START',
-          'SIGNUP_COMPLETE',
-          'LOGIN',
-          'SEARCH',
-          'ALERT_CREATED'
+          'SIGNUP_COMPLETE'
         )
       GROUP BY action
       ORDER BY unique_users DESC
@@ -78,7 +75,7 @@ export async function GET(request: NextRequest) {
         step: 4,
         action: 'SIGNUP_COMPLETE',
         label: 'Завершили регистрацию',
-        count: stepsMap['SIGNUP_COMPLETE'] || stepsMap['LOGIN'] || 0,
+        count: stepsMap['SIGNUP_COMPLETE'] || 0,
       },
       {
         step: 5,
