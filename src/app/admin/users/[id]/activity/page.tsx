@@ -143,12 +143,78 @@ function formatDateTime(date: string): string {
   });
 }
 
-function formatDetails(details: Record<string, unknown> | null): string {
+function formatDetails(action: string, details: Record<string, unknown> | null): string {
   if (!details) return '';
-  return Object.entries(details)
-    .filter(([, v]) => v !== null && v !== undefined)
-    .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
-    .join(' | ');
+  const d = details;
+
+  switch (action) {
+    case 'PAGE_VIEW':
+      return [d.url, d.referrer ? `← ${d.referrer}` : ''].filter(Boolean).join(' ');
+    case 'JOB_VIEW':
+      return `«${d.title}» в ${d.company}`;
+    case 'JOB_APPLY':
+      return `«${d.jobTitle}» в ${d.company} (кнопка: ${d.method === 'url' ? 'Apply Now (ссылка)' : d.method === 'email' ? 'Quick Apply (email)' : 'Apply Now (LinkedIn)'})`;
+    case 'JOB_SOURCE_CLICK':
+      return `«${d.jobTitle}» в ${d.company} → ${d.url}`;
+    case 'JOB_SHARE':
+      return `Платформа: ${d.platform}`;
+    case 'OPPORTUNITY_VIEW':
+      return `«${d.title}» от ${d.client} (${d.category})`;
+    case 'OPPORTUNITY_APPLY_CLICK':
+      return `«${d.title}» (${d.method === 'linkedin' ? 'кнопка LinkedIn' : d.method === 'email' ? 'кнопка Email' : 'кнопка Apply'})`;
+    case 'PAYWALL_HIT':
+      return `${d.jobTitle || d.title || ''} — тип: ${d.type === 'apply' ? 'кнопка Apply' : d.type === 'contact' ? 'кнопка Контакт' : d.type}`;
+    case 'PAYWALL_CLOSE':
+      return '';
+    case 'UPGRADE_CLICK':
+      return `Источник: ${d.source === 'paywall' ? 'paywall на вакансии' : d.source === 'upgrade_modal' ? 'окно апгрейда' : d.source}`;
+    case 'UPGRADE_MODAL_OPEN':
+      return `«${d.jobTitle}» в ${d.company}`;
+    case 'PRICING_VIEW':
+      return d.source ? `Источник: ${d.source}` : '';
+    case 'PRICING_PLAN_CLICK':
+      return `Тариф: ${d.plan}`;
+    case 'CHECKOUT_START':
+      return `Тариф: ${d.plan}, источник: ${d.source}`;
+    case 'CHECKOUT_COMPLETE':
+      return `${d.amount}${d.currency ? ' ' + String(d.currency).toUpperCase() : ''}`;
+    case 'SEARCH':
+      return `Запрос: «${d.query}»`;
+    case 'FILTER_CHANGE':
+      return `${d.filter}: ${d.value || 'сброшен'}`;
+    case 'SIGNUP_START':
+      return d.source ? `Источник: ${d.source}` : '';
+    case 'SIGNUP_COMPLETE':
+      return d.categories ? `Категории: ${Array.isArray(d.categories) ? (d.categories as string[]).join(', ') : d.categories}` : '';
+    case 'REGISTRATION_MODAL_OPEN':
+      return d.jobTitle ? `На вакансии «${d.jobTitle}»` : d.source ? `Источник: ${d.source}` : '';
+    case 'LOGIN':
+      return `${d.email} (${d.provider})`;
+    case 'ALERT_CREATED':
+      return [d.category, d.keywords ? `запрос: ${d.keywords}` : ''].filter(Boolean).join(', ');
+    case 'ALERT_DELETED':
+      return d.category ? `Категория: ${d.category}` : '';
+    case 'ALERT_EMAIL_OPEN':
+      return '';
+    case 'ALERT_EMAIL_CLICK':
+      return d.url ? `→ ${d.url}` : '';
+    case 'CONTACT_VIEW':
+      return d.clientName ? `Контакт: ${d.clientName}` : '';
+    case 'UNSUBSCRIBE':
+      return `${d.email} (${d.source})`;
+    case 'SUBSCRIPTION_STARTED':
+      return `${(d.amount as number) / 100} ${String(d.currency || '').toUpperCase()}`;
+    case 'SUBSCRIPTION_CANCELLED':
+      return d.reason ? `Причина: ${d.reason}` : '';
+    case 'PAYMENT_FAILED':
+      return '';
+    default:
+      // Fallback: show raw key-value pairs
+      return Object.entries(details)
+        .filter(([, v]) => v !== null && v !== undefined)
+        .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+        .join(' | ');
+  }
 }
 
 export default function UserActivityPage() {
@@ -333,9 +399,9 @@ export default function UserActivityPage() {
 
                 {/* Details */}
                 <div className="flex-1 min-w-0">
-                  {activity.details && (
+                  {activity.details && formatDetails(activity.action, activity.details) && (
                     <span className="text-muted-foreground text-xs break-words block">
-                      {formatDetails(activity.details)}
+                      {formatDetails(activity.action, activity.details)}
                     </span>
                   )}
                   {activity.pageUrl && (
