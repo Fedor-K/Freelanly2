@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useCallback, useEffect } from 'react';
 
 type TrackAction =
   // Navigation
@@ -121,9 +120,6 @@ function enqueueEvent(event: TrackEvent) {
  *   track('JOB_VIEW', { jobId: '123', title: 'Developer' });
  */
 export function useTracker() {
-  const { status } = useSession();
-  const isReady = status !== 'loading';
-
   // Flush on unmount / page leave
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -147,8 +143,6 @@ export function useTracker() {
 
   const track = useCallback(
     (action: TrackAction, details?: Record<string, unknown>) => {
-      if (!isReady) return;
-
       const event: TrackEvent = {
         action,
         details: details || undefined,
@@ -158,7 +152,7 @@ export function useTracker() {
 
       enqueueEvent(event);
     },
-    [isReady]
+    []
   );
 
   return { track };

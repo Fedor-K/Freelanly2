@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { ActivityAction, Prisma } from '@prisma/client';
-import { getClientIP, getUserAgent, getCountry, getCity } from '@/lib/activity-log';
 
 /**
  * Client-side event tracking endpoint.
@@ -32,11 +31,12 @@ export async function POST(request: NextRequest) {
     const session = await auth();
     const userId = session?.user?.id || null;
 
-    // Get request metadata
-    const ipAddress = getClientIP();
-    const userAgent = getUserAgent();
-    const country = getCountry();
-    const city = getCity();
+    // Get request metadata directly from NextRequest headers (avoid async headers() issue)
+    const forwardedFor = request.headers.get('x-forwarded-for');
+    const ipAddress = forwardedFor ? forwardedFor.split(',')[0].trim() : (request.headers.get('x-real-ip') || request.headers.get('cf-connecting-ip') || null);
+    const userAgent = request.headers.get('user-agent') || null;
+    const country = request.headers.get('x-vercel-ip-country') || request.headers.get('cf-ipcountry') || null;
+    const city = request.headers.get('x-vercel-ip-city') ? decodeURIComponent(request.headers.get('x-vercel-ip-city')!) : (request.headers.get('cf-ipcity') || null);
 
     // Validate and prepare events
     const validEvents: Prisma.ActivityLogCreateManyInput[] = events
