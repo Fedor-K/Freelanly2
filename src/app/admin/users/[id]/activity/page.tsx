@@ -143,6 +143,48 @@ function formatDateTime(date: string): string {
   });
 }
 
+function formatTime(date: string): string {
+  return new Date(date).toLocaleString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
+function formatDayLabel(dateKey: string): string {
+  const date = new Date(dateKey);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return 'Сегодня';
+  if (date.toDateString() === yesterday.toDateString()) return 'Вчера';
+
+  return date.toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    weekday: 'short',
+  });
+}
+
+function getDayKey(date: string): string {
+  return new Date(date).toISOString().split('T')[0];
+}
+
+function groupByDay(activities: ActivityLog[]): Map<string, ActivityLog[]> {
+  const groups = new Map<string, ActivityLog[]>();
+  // Reverse to get chronological order (oldest first)
+  const sorted = [...activities].reverse();
+  for (const activity of sorted) {
+    const day = getDayKey(activity.createdAt);
+    if (!groups.has(day)) groups.set(day, []);
+    groups.get(day)!.push(activity);
+  }
+  // Return with newest days first
+  return new Map([...groups.entries()].reverse());
+}
+
 function formatDetails(action: string, details: Record<string, unknown> | null): string {
   if (!details) return '';
   const d = details;
@@ -225,8 +267,9 @@ export default function UserActivityPage() {
   const [loading, setLoading] = useState(true);
   const [actionFilter, setActionFilter] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [offset, setOffset] = useState(0);
-  const limit = 50;
+  const limit = 200;
 
   const fetchActivity = useCallback(async () => {
     setLoading(true);
@@ -251,6 +294,14 @@ export default function UserActivityPage() {
   useEffect(() => {
     fetchActivity();
   }, [fetchActivity]);
+
+  // Auto-expand today on first load
+  useEffect(() => {
+    if (data && expandedDays.size === 0) {
+      const today = new Date().toISOString().split('T')[0];
+      setExpandedDays(new Set([today]));
+    }
+  }, [data, expandedDays.size]);
 
   if (loading && !data) {
     return (
@@ -369,87 +420,118 @@ export default function UserActivityPage() {
         </CardContent>
       </Card>
 
-      {/* Timeline */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">
-            Timeline ({pagination.total} events)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-1">
-            {activities.map((activity) => (
-              <div
-                key={activity.id}
-                className="flex items-start gap-3 py-2 px-3 rounded hover:bg-muted/50 text-sm border-l-2 border-transparent hover:border-primary"
-              >
-                {/* Time */}
-                <div className="text-xs text-muted-foreground whitespace-nowrap w-36 shrink-0 pt-0.5">
-                  {formatDateTime(activity.createdAt)}
-                </div>
+      {/* Timeline grouped by day */}
+      <div className="space-y-2">
+        {activities.length === 0 ? (
+          <Card>
+            <CardContent className="py-8">
+              <p className="text-center text-muted-foreground">Нет активности</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {[...groupByDay(activities)].map(([dayKey, dayActivities]) => {
+              const isExpanded = expandedDays.has(dayKey);
+              const toggleDay = () => {
+                const next = new Set(expandedDays);
+                if (next.has(dayKey)) next.delete(dayKey);
+                else next.add(dayKey);
+                setExpandedDays(next);
+              };
 
-                {/* Action Badge */}
-                <Badge
-                  variant="secondary"
-                  className={`shrink-0 text-xs ${ACTION_COLORS[activity.action] || 'bg-gray-100 text-gray-700'}`}
-                  title={activity.action}
+              return (
+                <Card key={dayKey}>
+                  <button
+                    onClick={toggleDay}
+                    className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
+                      <span className="font-medium">{formatDayLabel(dayKey)}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {dayActivities.length} {dayActivities.length === 1 ? 'событие' : dayActivities.length < 5 ? 'события' : 'событий'}
+                      </Badge>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{dayKey}</span>
+                  </button>
+
+                  {isExpanded && (
+                    <CardContent className="pt-0 pb-3">
+                      <div className="space-y-0.5 border-l-2 border-muted ml-2">
+                        {dayActivities.map((activity) => (
+                          <div
+                            key={activity.id}
+                            className="flex items-start gap-3 py-1.5 px-3 rounded hover:bg-muted/50 text-sm ml-2"
+                          >
+                            {/* Time */}
+                            <div className="text-xs text-muted-foreground whitespace-nowrap w-16 shrink-0 pt-0.5">
+                              {formatTime(activity.createdAt)}
+                            </div>
+
+                            {/* Action Badge */}
+                            <Badge
+                              variant="secondary"
+                              className={`shrink-0 text-xs ${ACTION_COLORS[activity.action] || 'bg-gray-100 text-gray-700'}`}
+                              title={activity.action}
+                            >
+                              {ACTION_LABELS[activity.action] || activity.action}
+                            </Badge>
+
+                            {/* Details */}
+                            <div className="flex-1 min-w-0">
+                              {activity.details && formatDetails(activity.action, activity.details) && (
+                                <span className="text-muted-foreground text-xs break-words block">
+                                  {formatDetails(activity.action, activity.details)}
+                                </span>
+                              )}
+                              {activity.pageUrl && (
+                                <span className="text-xs text-blue-500 break-words block">
+                                  {activity.pageUrl}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Meta */}
+                            <div className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
+                              {activity.country && <span>{activity.country}</span>}
+                              {activity.city && <span> {activity.city}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              );
+            })}
+
+            {/* Pagination */}
+            {pagination.total > limit && (
+              <div className="flex items-center justify-between pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={offset === 0}
+                  onClick={() => setOffset(Math.max(0, offset - limit))}
                 >
-                  {ACTION_LABELS[activity.action] || activity.action}
-                </Badge>
-
-                {/* Details */}
-                <div className="flex-1 min-w-0">
-                  {activity.details && formatDetails(activity.action, activity.details) && (
-                    <span className="text-muted-foreground text-xs break-words block">
-                      {formatDetails(activity.action, activity.details)}
-                    </span>
-                  )}
-                  {activity.pageUrl && (
-                    <span className="text-xs text-blue-500 break-words block">
-                      {activity.pageUrl}
-                    </span>
-                  )}
-                </div>
-
-                {/* Meta */}
-                <div className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-                  {activity.country && <span>{activity.country}</span>}
-                  {activity.city && <span> {activity.city}</span>}
-                </div>
+                  Назад
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  {offset + 1} — {Math.min(offset + limit, pagination.total)} из {pagination.total}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!pagination.hasMore}
+                  onClick={() => setOffset(offset + limit)}
+                >
+                  Далее
+                </Button>
               </div>
-            ))}
-
-            {activities.length === 0 && (
-              <p className="text-center text-muted-foreground py-8">No activity found</p>
             )}
-          </div>
-
-          {/* Pagination */}
-          {pagination.total > limit && (
-            <div className="flex items-center justify-between pt-4 border-t mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={offset === 0}
-                onClick={() => setOffset(Math.max(0, offset - limit))}
-              >
-                Previous
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                {offset + 1} - {Math.min(offset + limit, pagination.total)} of {pagination.total}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!pagination.hasMore}
-                onClick={() => setOffset(offset + limit)}
-              >
-                Next
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </>
+        )}
+      </div>
     </div>
   );
 }
