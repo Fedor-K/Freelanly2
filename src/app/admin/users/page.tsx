@@ -40,9 +40,7 @@ interface JobAlert {
   isActive: boolean;
   createdAt: string;
   languagePairs: LanguagePair[];
-  _count: {
-    notifications: number;
-  };
+  emailsSent: number;
 }
 
 interface UserStats {
@@ -636,7 +634,7 @@ export default function UsersPage() {
                                   )}
                                   <div className="flex items-center gap-2 mt-1 text-muted-foreground">
                                     <Mail className="h-3 w-3" />
-                                    <span>{alert._count.notifications} sent</span>
+                                    <span>{alert.emailsSent} sent</span>
                                   </div>
                                 </div>
                               ))}
