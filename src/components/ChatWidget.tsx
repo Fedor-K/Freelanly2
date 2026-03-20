@@ -36,6 +36,8 @@ interface Message {
 
 export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showBubble, setShowBubble] = useState(false);
+  const [bubbleDismissed, setBubbleDismissed] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: 'Hey! 👋 How can I help you today? Ask me anything about Freelanly or finding remote jobs.' },
   ]);
@@ -43,6 +45,16 @@ export function ChatWidget() {
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-show bubble after 12 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!isOpen && !bubbleDismissed) {
+        setShowBubble(true);
+      }
+    }, 12000);
+    return () => clearTimeout(timer);
+  }, [isOpen, bubbleDismissed]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -169,9 +181,36 @@ export function ChatWidget() {
         </div>
       )}
 
+      {/* Auto-popup bubble */}
+      {showBubble && !isOpen && (
+        <div className="fixed bottom-20 right-4 sm:right-6 z-[9999] animate-in slide-in-from-bottom-2 fade-in duration-300">
+          <div className="relative bg-white rounded-2xl shadow-lg border px-4 py-3 max-w-[260px]">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowBubble(false); setBubbleDismissed(true); }}
+              className="absolute -top-2 -right-2 w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-300 text-xs"
+            >
+              x
+            </button>
+            <button
+              onClick={() => { setShowBubble(false); setBubbleDismissed(true); setIsOpen(true); }}
+              className="text-left"
+            >
+              <p className="text-sm font-medium text-gray-800">Looking for a remote job? 👋</p>
+              <p className="text-xs text-gray-500 mt-1">I can help you find the right one. Ask me anything!</p>
+            </button>
+            {/* Arrow pointing to button */}
+            <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white border-b border-r transform rotate-45" />
+          </div>
+        </div>
+      )}
+
       {/* Toggle Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          setIsOpen(!isOpen);
+          setShowBubble(false);
+          setBubbleDismissed(true);
+        }}
         className="fixed bottom-4 right-4 sm:right-6 w-14 h-14 bg-black text-white rounded-full shadow-lg hover:bg-gray-800 transition-all hover:scale-105 flex items-center justify-center z-[9999]"
         aria-label="Chat with us"
       >
