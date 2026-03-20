@@ -110,9 +110,9 @@ export function ChatWidget() {
     <>
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed inset-0 sm:inset-auto sm:bottom-20 sm:right-6 sm:w-96 sm:max-h-[70vh] sm:rounded-2xl bg-white shadow-2xl border flex flex-col z-[9999] overflow-hidden">
+        <div className="fixed top-0 left-0 right-0 bottom-0 h-[100dvh] sm:inset-auto sm:bottom-20 sm:right-6 sm:w-96 sm:h-auto sm:max-h-[70vh] sm:rounded-2xl bg-white shadow-2xl border flex flex-col z-[9999] overflow-hidden">
           {/* Header */}
-          <div className="bg-black text-white px-4 py-3 flex items-center justify-between shrink-0">
+          <div className="bg-black text-white px-4 py-3 pt-safe flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-400 rounded-full" />
               <span className="font-semibold text-sm">Freelanly Support</span>
