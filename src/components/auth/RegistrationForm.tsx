@@ -429,24 +429,113 @@ export function RegistrationForm({
     }
   };
 
-  // Step: Email Sent
+  // OTP code state
+  const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
+  const [otpError, setOtpError] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleOtpChange = (index: number, value: string) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const newCode = [...otpCode];
+    newCode[index] = digit;
+    setOtpCode(newCode);
+    setOtpError('');
+    if (digit && index < 5) otpRefs.current[index + 1]?.focus();
+    if (digit && index === 5) {
+      const fullCode = newCode.join('');
+      if (fullCode.length === 6) submitOtp(fullCode);
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otpCode[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (pasted.length === 6) {
+      setOtpCode(pasted.split(''));
+      otpRefs.current[5]?.focus();
+      submitOtp(pasted);
+    }
+  };
+
+  const submitOtp = async (fullCode: string) => {
+    setOtpLoading(true);
+    setOtpError('');
+    try {
+      const res = await fetch('/api/auth/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: fullCode }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        window.location.href = callbackUrl || data.callbackUrl || '/';
+      } else {
+        setOtpError(data.error || 'Invalid code');
+        setOtpCode(['', '', '', '', '', '']);
+        otpRefs.current[0]?.focus();
+      }
+    } catch {
+      setOtpError('Something went wrong. Please try again.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  // Step: Email Sent — show code input
   if (step === 'sent') {
     return (
-      <div className="text-center py-6">
+      <div className="text-center py-4">
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <Mail className="w-8 h-8 text-green-600" />
         </div>
-        <h2 className="text-xl font-semibold mb-2">Check your email</h2>
-        <p className="text-muted-foreground mb-4">
-          We sent a sign in link to
+        <h2 className="text-xl font-semibold mb-2">Enter the code</h2>
+        <p className="text-muted-foreground mb-6">
+          We sent a 6-digit code to
           <br />
           <span className="font-medium text-foreground">{email}</span>
         </p>
+
+        {/* Code input */}
+        <div className="flex justify-center gap-2 mb-4" onPaste={handleOtpPaste}>
+          {otpCode.map((digit, index) => (
+            <input
+              key={index}
+              ref={(el) => { otpRefs.current[index] = el; }}
+              type="text"
+              inputMode="numeric"
+              maxLength={1}
+              value={digit}
+              onChange={(e) => handleOtpChange(index, e.target.value)}
+              onKeyDown={(e) => handleOtpKeyDown(index, e)}
+              disabled={otpLoading}
+              autoFocus={index === 0}
+              className={`w-11 h-13 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:border-primary transition-colors ${
+                otpError ? 'border-destructive' : 'border-input'
+              } ${otpLoading ? 'opacity-50' : ''}`}
+            />
+          ))}
+        </div>
+        {otpError && <p className="text-sm text-destructive mb-3">{otpError}</p>}
+        {otpLoading && <p className="text-sm text-muted-foreground mb-3">Verifying...</p>}
+
+        <p className="text-xs text-muted-foreground mb-4">
+          or click the link in the email
+        </p>
+
         <button
           onClick={() => {
             setStep('email');
             setEmail('');
             setUserInfo(null);
+            setOtpCode(['', '', '', '', '', '']);
+            setOtpError('');
           }}
           className="text-sm text-muted-foreground hover:text-foreground underline"
         >

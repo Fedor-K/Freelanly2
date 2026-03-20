@@ -1,18 +1,55 @@
-// Magic Link email sender using email provider abstraction
+// Magic Link + OTP code email sender
 
 import { sendApplicationEmail } from '@/lib/email';
+import { prisma } from '@/lib/db';
+import { randomInt } from 'crypto';
+
+/**
+ * Generate a 6-digit OTP code
+ */
+function generateOTPCode(): string {
+  return randomInt(100000, 999999).toString();
+}
 
 export async function sendMagicLinkEmail(
   email: string,
   url: string
 ): Promise<void> {
-  const html = generateMagicLinkHtml(url);
-  const text = generateMagicLinkText(url);
+  // Generate OTP code
+  const code = generateOTPCode();
+
+  // Store code in the VerificationToken that NextAuth just created
+  // NextAuth creates the token before calling sendVerificationRequest,
+  // so we update the most recent token for this email with the code
+  try {
+    const token = await prisma.verificationToken.findFirst({
+      where: {
+        identifier: email.toLowerCase(),
+        expires: { gt: new Date() },
+      },
+      orderBy: { expires: 'desc' },
+    });
+
+    if (token) {
+      // Use raw query to update since VerificationToken has composite key
+      await prisma.$executeRaw`
+        UPDATE "VerificationToken"
+        SET code = ${code}
+        WHERE identifier = ${token.identifier} AND token = ${token.token}
+      `;
+    }
+  } catch (e) {
+    console.error('[Auth Email] Failed to store OTP code:', e);
+    // Continue — magic link still works even without code
+  }
+
+  const html = generateMagicLinkHtml(url, code);
+  const text = generateMagicLinkText(url, code);
 
   try {
     const result = await sendApplicationEmail({
       to: email,
-      subject: 'Sign in to Freelanly',
+      subject: `${code} — your Freelanly sign-in code`,
       html,
       text,
     });
@@ -22,14 +59,14 @@ export async function sendMagicLinkEmail(
       throw new Error(`Failed to send email: ${result.error}`);
     }
 
-    console.log(`[Auth Email] Magic link sent to ${email}, messageId: ${result.messageId}`);
+    console.log(`[Auth Email] Magic link + code sent to ${email}, messageId: ${result.messageId}`);
   } catch (error) {
     console.error('[Auth Email] Error sending magic link:', error);
     throw error;
   }
 }
 
-function generateMagicLinkHtml(url: string): string {
+function generateMagicLinkHtml(url: string, code: string): string {
   return `
 <!DOCTYPE html>
 <html>
@@ -68,6 +105,32 @@ function generateMagicLinkHtml(url: string): string {
       color: #4a4a4a;
       margin: 0 0 24px 0;
     }
+    .code-box {
+      text-align: center;
+      margin: 24px 0;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+    }
+    .code {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 6px;
+      color: #000;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    }
+    .code-label {
+      font-size: 13px;
+      color: #888;
+      margin-top: 8px;
+    }
+    .divider {
+      text-align: center;
+      margin: 24px 0;
+      color: #888;
+      font-size: 13px;
+    }
     .button {
       display: inline-block;
       background: #000;
@@ -101,7 +164,14 @@ function generateMagicLinkHtml(url: string): string {
 
     <h1>Sign in to your account</h1>
 
-    <p>Click the button below to sign in to your account. This link is valid for 24 hours.</p>
+    <p>Enter this code on the sign-in page:</p>
+
+    <div class="code-box">
+      <div class="code">${code}</div>
+      <div class="code-label">This code expires in 24 hours</div>
+    </div>
+
+    <div class="divider">— or click the button below —</div>
 
     <a href="${url}" class="button">Sign in to Freelanly</a>
 
@@ -116,15 +186,17 @@ function generateMagicLinkHtml(url: string): string {
   `.trim();
 }
 
-function generateMagicLinkText(url: string): string {
+function generateMagicLinkText(url: string, code: string): string {
   return `
 Sign in to Freelanly
 
-Click the link below to sign in to your account:
+Your sign-in code: ${code}
+
+Enter this code on the sign-in page, or click the link below:
 
 ${url}
 
-This link is valid for 24 hours.
+This code is valid for 24 hours.
 
 If you didn't request this, you can safely ignore this email.
 

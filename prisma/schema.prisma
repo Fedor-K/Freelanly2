@@ -158,13 +158,15 @@ model Session {
   @@index([userId])
 }
 
-// NextAuth Verification Token (for magic link)
+// NextAuth Verification Token (for magic link + OTP code)
 model VerificationToken {
   identifier String
   token      String   @unique
+  code       String?  // 6-digit OTP code (alternative to magic link)
   expires    DateTime
 
   @@unique([identifier, token])
+  @@index([identifier, code])
 }
 
 enum Plan {
