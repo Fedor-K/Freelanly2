@@ -137,6 +137,8 @@ export async function GET(request: NextRequest) {
     const proJourneys = await prisma.$queryRaw<Array<{
       email: string;
       pro_started: Date;
+      source: string | null;
+      utm_medium: string | null;
       type: string;
       subject: string | null;
       link: string | null;
@@ -145,6 +147,8 @@ export async function GET(request: NextRequest) {
       SELECT
         u."email",
         u."proStartedAt" as pro_started,
+        u."source",
+        u."utmMedium" as utm_medium,
         ee."type",
         ee."subject",
         ee."metadata"->>'link' as link,
@@ -264,12 +268,14 @@ export async function GET(request: NextRequest) {
     const journeyMap = new Map<string, {
       email: string;
       proStarted: Date;
+      source: string | null;
       events: Array<{ type: string; subject: string | null; link: string | null; timestamp: Date }>;
     }>();
     for (const row of proJourneys) {
       const masked = row.email.replace(/(.{2}).*(@.*)/, '$1***$2');
       if (!journeyMap.has(row.email)) {
-        journeyMap.set(row.email, { email: masked, proStarted: row.pro_started, events: [] });
+        const src = row.source || row.utm_medium || null;
+        journeyMap.set(row.email, { email: masked, proStarted: row.pro_started, source: src, events: [] });
       }
       let link = row.link || null;
       if (link) {
