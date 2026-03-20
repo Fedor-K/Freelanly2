@@ -105,36 +105,44 @@ export default function FunnelPage() {
           {loading && !data ? (
             <div className="animate-pulse h-80 bg-muted rounded" />
           ) : data ? (
-            <div className="overflow-x-auto">
-              <div className="flex items-end gap-1 min-w-[800px]" style={{ height: 320 }}>
-                {data.funnel.map((step) => {
-                  const barHeight = Math.max((step.count / maxCount) * 100, 3);
+            <div className="overflow-x-auto pb-2">
+              {/* Chart area with gray background */}
+              <div className="bg-gray-50 rounded-lg p-4 min-w-[700px]">
+                {/* Bars */}
+                <div className="flex items-end gap-2" style={{ height: 280 }}>
+                  {data.funnel.map((step) => {
+                    const barHeight = maxCount > 0 ? Math.max((step.count / maxCount) * 100, 2) : 2;
 
-                  return (
-                    <div key={step.step} className="flex-1 flex flex-col items-center">
-                      {/* Percent + count label above bar */}
-                      <div className="text-center mb-2">
-                        <div className="text-sm font-bold">
-                          {step.percent}%
+                    return (
+                      <div key={step.step} className="flex-1 flex flex-col items-center h-full justify-end">
+                        {/* Percent + count label above bar */}
+                        <div className="text-center mb-1 shrink-0">
+                          <div className="text-xs sm:text-sm font-bold whitespace-nowrap">
+                            {step.percent}%
+                          </div>
+                          <div className="text-[10px] sm:text-xs text-muted-foreground">
+                            {step.count.toLocaleString('ru-RU')}
+                          </div>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {step.count.toLocaleString('ru-RU')}
-                        </div>
+                        {/* Bar */}
+                        <div
+                          className="w-full bg-black rounded-t transition-all duration-500 min-h-[4px]"
+                          style={{ height: `${barHeight}%` }}
+                        />
                       </div>
-                      {/* Bar */}
-                      <div
-                        className="w-full bg-black rounded-t-md transition-all duration-500"
-                        style={{ height: `${barHeight}%` }}
-                      />
-                      {/* Step label below */}
-                      <div className="mt-2 text-center">
-                        <div className="text-[10px] leading-tight text-muted-foreground h-8 flex items-start justify-center">
-                          <span>{step.step} {step.label.toLowerCase()}</span>
-                        </div>
+                    );
+                  })}
+                </div>
+                {/* Labels below bars */}
+                <div className="flex gap-2 mt-2 border-t pt-2">
+                  {data.funnel.map((step) => (
+                    <div key={step.step} className="flex-1 text-center">
+                      <div className="text-[9px] sm:text-[10px] leading-tight text-muted-foreground">
+                        {step.step} {step.label.toLowerCase()}
                       </div>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
