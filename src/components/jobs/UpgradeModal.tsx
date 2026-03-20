@@ -111,7 +111,7 @@ export function UpgradeModal({
           {jobTitle && (
             <p>Get contact details for <strong>{jobTitle}</strong></p>
           )}
-          <p>Unlimited access to all contacts, apply to any job, salary insights — for the entire subscription period.</p>
+          <p>Unlimited access to all contacts, apply to any job, get email alerts — for the entire subscription period.</p>
         </div>
 
         {/* Error */}
