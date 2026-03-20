@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTracker } from '@/hooks/useTracker';
 import { Button } from '@/components/ui/button';
-import { Zap, Check, Calendar, DollarSign, Eye } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Zap, Check, Loader2 } from 'lucide-react';
+import { PRICE_INFO, type PriceKey } from '@/lib/stripe';
 
 interface UpgradeModalProps {
   open: boolean;
@@ -19,20 +20,11 @@ interface UpgradeModalProps {
   opportunityId?: string;
 }
 
-function formatTimeAgo(date: Date | string): string {
-  const now = new Date();
-  const posted = new Date(date);
-  const diffMs = now.getTime() - posted.getTime();
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffMinutes < 60) return `${diffMinutes} мин. назад`;
-  if (diffHours < 24) return `${diffHours} ч. назад`;
-  if (diffDays === 1) return 'вчера';
-  if (diffDays < 7) return `${diffDays} дн. назад`;
-  return posted.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-}
+const plans: Array<{ key: PriceKey; badge?: string }> = [
+  { key: 'monthly', badge: 'Most Popular' },
+  { key: 'quarterly' },
+  { key: 'annual', badge: 'Best Value' },
+];
 
 export function UpgradeModal({
   open,
@@ -47,6 +39,8 @@ export function UpgradeModal({
 }: UpgradeModalProps) {
   const { track: trackDb } = useTracker();
   const trackedRef = useRef(false);
+  const [loading, setLoading] = useState<PriceKey | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Track apply attempt when modal opens
   useEffect(() => {
@@ -60,7 +54,6 @@ export function UpgradeModal({
       }).catch(() => {});
     }
     if (!open) {
-      // Track close without action
       if (trackedRef.current) {
         trackDb('PAYWALL_CLOSE', { jobId, opportunityId, jobTitle, company: companyName, result: 'closed' });
       }
@@ -68,97 +61,124 @@ export function UpgradeModal({
     }
   }, [open, jobId, opportunityId, jobTitle, companyName, trackDb]);
 
-  const pricingUrl = jobId
-    ? `/pricing?utm_source=upgrade_modal&utm_medium=paywall&utm_campaign=project_now&jobId=${jobId}`
-    : opportunityId
-      ? `/pricing?utm_source=upgrade_modal&utm_medium=paywall&utm_campaign=project_now&opportunityId=${opportunityId}`
-      : '/pricing?utm_source=upgrade_modal&utm_medium=paywall&utm_campaign=project_now';
+  const handleSubscribe = async (priceKey: PriceKey) => {
+    setError(null);
+    setLoading(priceKey);
+
+    trackDb('PRICING_PLAN_CLICK', { plan: priceKey, source: 'upgrade_modal' });
+    trackDb('CHECKOUT_START', { plan: priceKey, source: 'upgrade_modal' });
+    trackedRef.current = false; // Don't fire PAYWALL_CLOSE
+
+    try {
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          priceKey,
+          source: 'upgrade_modal',
+          ...(jobId && { jobId }),
+          ...(opportunityId && { opportunityId }),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setLoading(null);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Zap className="h-5 w-5 text-orange-500" />
-            Проект доступен прямо сейчас
+            Unlock PRO Access
           </DialogTitle>
         </DialogHeader>
 
-        {/* Project info */}
-        {(jobTitle || companyName) && (
-          <div className="rounded-lg bg-muted/50 p-4">
-            {jobTitle && (
-              <p className="font-semibold text-base">{jobTitle}</p>
-            )}
-            {companyName && (
-              <p className="text-sm text-muted-foreground mt-0.5">{companyName}</p>
-            )}
-
-            {(postedAt || budget || (viewCount != null && viewCount > 0)) && (
-              <div className="mt-3 space-y-1.5">
-                {postedAt && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4 shrink-0" />
-                    <span>Опубликован: {formatTimeAgo(postedAt)}</span>
-                  </div>
-                )}
-                {budget && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <DollarSign className="h-4 w-4 shrink-0" />
-                    <span>Бюджет: {budget}</span>
-                  </div>
-                )}
-                {viewCount != null && viewCount > 0 && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Eye className="h-4 w-4 shrink-0" />
-                    <span>Уже просмотрели: {viewCount} чел.</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+        {/* Job context */}
+        {jobTitle && (
+          <p className="text-sm text-muted-foreground -mt-2">
+            Get contact details for <strong>{jobTitle}</strong>{companyName ? ` at ${companyName}` : ''}
+          </p>
         )}
 
-        {/* Separator + explanation */}
-        <p className="text-sm text-muted-foreground">
-          Чтобы увидеть контакт и откликнуться напрямую — нужен PRO доступ.
-        </p>
+        {/* Error */}
+        {error && (
+          <p className="text-sm text-destructive bg-destructive/10 p-2 rounded">{error}</p>
+        )}
+
+        {/* Pricing cards */}
+        <div className="space-y-2">
+          {plans.map(({ key, badge }) => {
+            const info = PRICE_INFO[key];
+            const isLoading = loading === key;
+            const isPopular = info.popular;
+
+            return (
+              <button
+                key={key}
+                onClick={() => handleSubscribe(key)}
+                disabled={loading !== null}
+                className={`w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all text-left ${
+                  isPopular
+                    ? 'border-primary bg-primary/5 shadow-sm'
+                    : 'border-border hover:border-primary/50'
+                } ${loading !== null && !isLoading ? 'opacity-50' : ''}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{info.name}</span>
+                      {badge && (
+                        <Badge variant={isPopular ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                          {badge}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {info.pricePerDay}/day · Cancel anytime
+                      {info.savings && <span className="text-green-600 ml-1">({info.savings})</span>}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  {isLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      {info.originalPrice && (
+                        <span className="text-sm text-muted-foreground line-through mr-1">{info.originalPrice}</span>
+                      )}
+                      <span className="text-lg font-bold">{info.price}</span>
+                    </>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
 
         {/* Benefits */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm">
-            <Check className="h-4 w-4 text-green-600 shrink-0" />
-            <span>Прямой контакт без посредников</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Check className="h-4 w-4 text-green-600 shrink-0" />
-            <span>Подай заявку раньше других</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Check className="h-4 w-4 text-green-600 shrink-0" />
-            <span>Алёрты о новых проектах</span>
-          </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground pt-1">
+          <span className="flex items-center gap-1"><Check className="h-3 w-3 text-green-600" /> Direct contacts</span>
+          <span className="flex items-center gap-1"><Check className="h-3 w-3 text-green-600" /> Apply first</span>
+          <span className="flex items-center gap-1"><Check className="h-3 w-3 text-green-600" /> Salary insights</span>
         </div>
 
-        {/* CTA */}
-        <div className="space-y-2 pt-2">
-          <Button className="w-full" size="lg" asChild>
-            <Link
-              href={pricingUrl}
-              onClick={() => {
-                trackDb('UPGRADE_CLICK', { jobId, opportunityId, jobTitle, company: companyName, source: 'upgrade_modal' });
-                trackedRef.current = false; // Don't fire PAYWALL_CLOSE after clicking upgrade
-              }}
-            >
-              Открыть контакт и откликнуться
-            </Link>
-          </Button>
-          <Button variant="ghost" className="w-full text-sm" size="sm" asChild>
-            <Link href="/pricing">
-              Посмотреть все тарифы
-            </Link>
-          </Button>
-        </div>
+        <p className="text-center text-xs text-muted-foreground">
+          Secure payment by Stripe
+        </p>
       </DialogContent>
     </Dialog>
   );
