@@ -42,10 +42,28 @@ Rules:
 - Keep responses short (2-3 sentences max unless explaining something complex)
 - Don't make up information about specific jobs or companies`;
 
-const zai = new OpenAI({
-  apiKey: process.env.ZAI_API_KEY || '',
-  baseURL: 'https://api.z.ai/api/paas/v4',
-});
+function getAIClient() {
+  // Try Z.ai first, fallback to DeepSeek
+  if (process.env.ZAI_API_KEY) {
+    return {
+      client: new OpenAI({
+        apiKey: process.env.ZAI_API_KEY,
+        baseURL: 'https://api.z.ai/api/paas/v4',
+        timeout: 15000,
+        maxRetries: 1,
+      }),
+      model: 'glm-4-32b',
+    };
+  }
+  return {
+    client: new OpenAI({
+      apiKey: process.env.DEEPSEEK_API_KEY || '',
+      baseURL: 'https://api.deepseek.com/v1',
+      timeout: 15000,
+    }),
+    model: 'deepseek-chat',
+  };
+}
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -84,8 +102,10 @@ export async function POST(request: NextRequest) {
 
     messages.push({ role: 'user', content: message });
 
-    const completion = await zai.chat.completions.create({
-      model: 'glm-4-32b',
+    const { client, model } = getAIClient();
+
+    const completion = await client.chat.completions.create({
+      model,
       messages,
       max_tokens: 300,
       temperature: 0.7,
@@ -103,8 +123,9 @@ export async function POST(request: NextRequest) {
       reply,
       escalate: shouldEscalate,
     });
-  } catch (error) {
-    console.error('[Chat API] Error:', error);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[Chat API] Error:', errMsg);
     return NextResponse.json({
       reply: 'Sorry, something went wrong. Please try again or email us at info@freelanly.com.',
       escalate: false,
