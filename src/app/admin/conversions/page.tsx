@@ -347,7 +347,7 @@ export default function ConversionsDashboard() {
                       <span>{event.type.replace('SUBSCRIPTION_', '')}</span>
                     </div>
                     <span className="text-muted-foreground">
-                      {new Date(event.date).toLocaleDateString()}
+                      {new Date(event.date).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                 ))
@@ -380,7 +380,7 @@ export default function ConversionsDashboard() {
                 {stats.recentSessions.map((session) => (
                   <tr key={session.id} className="border-b last:border-0">
                     <td className="py-2 px-2 text-muted-foreground">
-                      {new Date(session.date).toLocaleDateString()}
+                      {new Date(session.date).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </td>
                     <td className="py-2 px-2 truncate max-w-[200px]">{session.email}</td>
                     <td className="py-2 px-2">
