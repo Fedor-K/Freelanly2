@@ -109,7 +109,7 @@ export function UpgradeModal({
         {/* Job context */}
         {jobTitle && (
           <p className="text-sm text-muted-foreground -mt-2">
-            Get contact details for <strong>{jobTitle}</strong>{companyName ? ` at ${companyName}` : ''}
+            Get contact details for <strong>{jobTitle}</strong>
           </p>
         )}
 
