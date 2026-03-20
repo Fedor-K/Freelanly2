@@ -94,7 +94,7 @@ export default function FunnelPage() {
         ))}
       </div>
 
-      {/* Funnel chart */}
+      {/* Funnel chart — horizontal bars side by side */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
@@ -103,60 +103,39 @@ export default function FunnelPage() {
         </CardHeader>
         <CardContent>
           {loading && !data ? (
-            <div className="animate-pulse space-y-4">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="h-12 bg-muted rounded" />
-              ))}
-            </div>
+            <div className="animate-pulse h-80 bg-muted rounded" />
           ) : data ? (
-            <div className="space-y-3">
-              {data.funnel.map((step, index) => {
-                const barWidth = Math.max((step.count / maxCount) * 100, 2);
-                const prevCount = index > 0 ? data.funnel[index - 1].count : step.count;
-                const dropoff = prevCount > 0 && step.count < prevCount && step.count > 0
-                  ? Math.round((1 - step.count / prevCount) * 100)
-                  : 0;
+            <div className="overflow-x-auto">
+              <div className="flex items-end gap-1 min-w-[800px]" style={{ height: 320 }}>
+                {data.funnel.map((step) => {
+                  const barHeight = Math.max((step.count / maxCount) * 100, 3);
 
-                return (
-                  <div key={step.step} className="group">
-                    {/* Step label row */}
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono text-muted-foreground w-5">
-                          {step.step}
-                        </span>
-                        <span className="text-sm font-medium">{step.label}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {dropoff > 0 && (
-                          <span className="text-xs text-red-500">
-                            -{dropoff}%
-                          </span>
-                        )}
-                        <Badge variant="secondary" className="font-mono text-xs">
+                  return (
+                    <div key={step.step} className="flex-1 flex flex-col items-center">
+                      {/* Percent + count label above bar */}
+                      <div className="text-center mb-2">
+                        <div className="text-sm font-bold">
                           {step.percent}%
-                        </Badge>
-                        <span className="text-sm font-bold w-16 text-right">
+                        </div>
+                        <div className="text-xs text-muted-foreground">
                           {step.count.toLocaleString('ru-RU')}
-                        </span>
+                        </div>
                       </div>
-                    </div>
-                    {/* Bar */}
-                    <div className="h-8 bg-muted rounded-md overflow-hidden">
+                      {/* Bar */}
                       <div
-                        className="h-full bg-black rounded-md transition-all duration-500 flex items-center justify-end pr-2"
-                        style={{ width: `${barWidth}%` }}
-                      >
-                        {barWidth > 15 && (
-                          <span className="text-white text-xs font-bold">
-                            {step.count.toLocaleString('ru-RU')}
-                          </span>
-                        )}
+                        className="w-full bg-black rounded-t-md transition-all duration-500"
+                        style={{ height: `${barHeight}%` }}
+                      />
+                      {/* Step label below */}
+                      <div className="mt-2 text-center">
+                        <div className="text-[10px] leading-tight text-muted-foreground h-8 flex items-start justify-center">
+                          <span>{step.step} {step.label.toLowerCase()}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           ) : (
             <p className="text-center text-muted-foreground py-8">Нет данных</p>
