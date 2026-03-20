@@ -3,6 +3,32 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
 
+function renderMessageContent(content: string) {
+  // Split by URLs and render them as clickable links
+  const urlRegex = /(https?:\/\/[^\s)]+)/g;
+  const parts = content.split(urlRegex);
+
+  return parts.map((part, i) => {
+    if (urlRegex.test(part)) {
+      // Reset regex lastIndex
+      urlRegex.lastIndex = 0;
+      const displayUrl = part.replace('https://freelanly.com', 'freelanly.com').replace('https://', '');
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline font-medium hover:opacity-80"
+        >
+          {displayUrl}
+        </a>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -101,7 +127,7 @@ export function ChatWidget() {
                       : 'bg-gray-100 text-gray-800 rounded-bl-md'
                   }`}
                 >
-                  {msg.content}
+                  {renderMessageContent(msg.content)}
                 </div>
               </div>
             ))}
