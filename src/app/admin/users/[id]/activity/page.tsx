@@ -165,9 +165,9 @@ function formatDetails(action: string, details: Record<string, unknown> | null):
     case 'PAYWALL_HIT':
       return `${d.jobTitle || d.title || ''} — тип: ${d.type === 'apply' ? 'кнопка Apply' : d.type === 'contact' ? 'кнопка Контакт' : d.type}`;
     case 'PAYWALL_CLOSE':
-      return '';
+      return `Закрыл без оплаты${d.jobTitle ? ` — «${d.jobTitle}» в ${d.company}` : ''}`;
     case 'UPGRADE_CLICK':
-      return `Источник: ${d.source === 'paywall' ? 'paywall на вакансии' : d.source === 'upgrade_modal' ? 'окно апгрейда' : d.source}`;
+      return `${d.jobTitle ? `«${d.jobTitle}»` : ''}${d.company ? ` в ${d.company}` : ''} → перешёл на оплату (${d.source === 'paywall' ? 'paywall' : d.source === 'upgrade_modal' ? 'окно апгрейда' : d.source})`;
     case 'UPGRADE_MODAL_OPEN':
       return `«${d.jobTitle}» в ${d.company}`;
     case 'PRICING_VIEW':

@@ -62,7 +62,7 @@ export function UpgradeModal({
     if (!open) {
       // Track close without action
       if (trackedRef.current) {
-        trackDb('PAYWALL_CLOSE', { jobId, opportunityId });
+        trackDb('PAYWALL_CLOSE', { jobId, opportunityId, jobTitle, company: companyName, result: 'closed' });
       }
       trackedRef.current = false;
     }
@@ -145,7 +145,10 @@ export function UpgradeModal({
           <Button className="w-full" size="lg" asChild>
             <Link
               href={pricingUrl}
-              onClick={() => trackDb('UPGRADE_CLICK', { jobId, opportunityId, source: 'upgrade_modal' })}
+              onClick={() => {
+                trackDb('UPGRADE_CLICK', { jobId, opportunityId, jobTitle, company: companyName, source: 'upgrade_modal' });
+                trackedRef.current = false; // Don't fire PAYWALL_CLOSE after clicking upgrade
+              }}
             >
               Открыть контакт и откликнуться
             </Link>
