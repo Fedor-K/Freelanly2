@@ -46,49 +46,87 @@ interface ActivityResponse {
   };
 }
 
-const ACTION_COLORS: Record<string, string> = {
+const ACTION_LABELS: Record<string, string> = {
   // Auth
+  LOGIN: 'Вошёл в аккаунт',
+  LOGOUT: 'Вышел из аккаунта',
+  SIGNUP: 'Зарегистрировался',
+  SIGNUP_START: 'Начал регистрацию',
+  SIGNUP_COMPLETE: 'Завершил регистрацию',
+  EMAIL_VERIFIED: 'Подтвердил email',
+  // Navigation
+  PAGE_VIEW: 'Открыл страницу',
+  // Jobs
+  JOB_VIEW: 'Посмотрел вакансию',
+  JOB_APPLY: 'Нажал "Откликнуться"',
+  JOB_SOURCE_CLICK: 'Перешёл на источник вакансии',
+  JOB_SAVE: 'Сохранил вакансию',
+  JOB_SHARE: 'Поделился вакансией',
+  // Opportunities
+  OPPORTUNITY_VIEW: 'Посмотрел проект',
+  OPPORTUNITY_APPLY_CLICK: 'Нажал "Откликнуться" на проект',
+  // Paywall
+  PAYWALL_HIT: 'Увидел paywall',
+  PAYWALL_CLOSE: 'Закрыл paywall',
+  UPGRADE_CLICK: 'Нажал "Upgrade"',
+  UPGRADE_MODAL_OPEN: 'Открыл окно апгрейда',
+  // Pricing
+  PRICING_VIEW: 'Зашёл на /pricing',
+  PRICING_PLAN_CLICK: 'Выбрал тариф',
+  CHECKOUT_START: 'Начал оплату',
+  CHECKOUT_COMPLETE: 'Оплатил подписку',
+  // Search
+  SEARCH: 'Поиск',
+  FILTER_CHANGE: 'Изменил фильтр',
+  // Alerts
+  ALERT_CREATED: 'Создал алерт',
+  ALERT_DELETED: 'Удалил алерт',
+  ALERT_EMAIL_OPEN: 'Открыл email алерта',
+  ALERT_EMAIL_CLICK: 'Кликнул ссылку в алерте',
+  // Subscription
+  SUBSCRIPTION_STARTED: 'Оформил подписку',
+  SUBSCRIPTION_CANCELLED: 'Отменил подписку',
+  PAYMENT_SUCCESS: 'Платёж прошёл',
+  PAYMENT_FAILED: 'Платёж не прошёл',
+  // Other
+  UNSUBSCRIBE: 'Отписался от рассылки',
+  CONTACT_VIEW: 'Посмотрел контакты',
+  REGISTRATION_MODAL_OPEN: 'Открыл форму регистрации',
+};
+
+const ACTION_COLORS: Record<string, string> = {
   LOGIN: 'bg-blue-100 text-blue-700',
   LOGOUT: 'bg-gray-100 text-gray-700',
   SIGNUP: 'bg-green-100 text-green-700',
   SIGNUP_START: 'bg-green-50 text-green-600',
   SIGNUP_COMPLETE: 'bg-green-200 text-green-800',
   EMAIL_VERIFIED: 'bg-emerald-100 text-emerald-700',
-  // Navigation
   PAGE_VIEW: 'bg-slate-100 text-slate-600',
-  // Jobs
   JOB_VIEW: 'bg-indigo-100 text-indigo-700',
   JOB_APPLY: 'bg-purple-200 text-purple-800',
   JOB_SOURCE_CLICK: 'bg-purple-100 text-purple-700',
   JOB_SAVE: 'bg-yellow-100 text-yellow-700',
   JOB_SHARE: 'bg-cyan-100 text-cyan-700',
-  // Opportunities
   OPPORTUNITY_VIEW: 'bg-indigo-50 text-indigo-600',
   OPPORTUNITY_APPLY_CLICK: 'bg-purple-100 text-purple-700',
-  // Paywall
   PAYWALL_HIT: 'bg-orange-200 text-orange-800',
   PAYWALL_CLOSE: 'bg-orange-100 text-orange-600',
   UPGRADE_CLICK: 'bg-amber-200 text-amber-800',
   UPGRADE_MODAL_OPEN: 'bg-amber-100 text-amber-700',
-  // Pricing
   PRICING_VIEW: 'bg-violet-100 text-violet-700',
   PRICING_PLAN_CLICK: 'bg-violet-200 text-violet-800',
   CHECKOUT_START: 'bg-emerald-100 text-emerald-700',
   CHECKOUT_COMPLETE: 'bg-emerald-200 text-emerald-800',
-  // Search
   SEARCH: 'bg-sky-100 text-sky-700',
   FILTER_CHANGE: 'bg-sky-50 text-sky-600',
-  // Alerts
   ALERT_CREATED: 'bg-teal-100 text-teal-700',
   ALERT_DELETED: 'bg-red-100 text-red-700',
   ALERT_EMAIL_OPEN: 'bg-pink-100 text-pink-700',
   ALERT_EMAIL_CLICK: 'bg-pink-200 text-pink-800',
-  // Subscription
   SUBSCRIPTION_STARTED: 'bg-green-200 text-green-800',
   SUBSCRIPTION_CANCELLED: 'bg-red-200 text-red-800',
   PAYMENT_SUCCESS: 'bg-green-100 text-green-700',
   PAYMENT_FAILED: 'bg-red-100 text-red-700',
-  // Other
   UNSUBSCRIBE: 'bg-red-100 text-red-600',
   CONTACT_VIEW: 'bg-blue-100 text-blue-700',
   REGISTRATION_MODAL_OPEN: 'bg-green-50 text-green-600',
@@ -245,7 +283,7 @@ export default function UserActivityPage() {
                 className="cursor-pointer"
                 onClick={() => { setActionFilter(''); setOffset(0); }}
               >
-                {actionFilter} x
+                {ACTION_LABELS[actionFilter] || actionFilter} x
               </Badge>
             )}
             {showFilters && Object.entries(summary.byAction)
@@ -256,8 +294,9 @@ export default function UserActivityPage() {
                   variant={actionFilter === action ? 'default' : 'outline'}
                   className={`cursor-pointer ${ACTION_COLORS[action] || 'bg-gray-100 text-gray-700'}`}
                   onClick={() => { setActionFilter(actionFilter === action ? '' : action); setOffset(0); }}
+                  title={action}
                 >
-                  {action} ({count})
+                  {ACTION_LABELS[action] || action} ({count})
                 </Badge>
               ))}
           </div>
@@ -287,8 +326,9 @@ export default function UserActivityPage() {
                 <Badge
                   variant="secondary"
                   className={`shrink-0 text-xs ${ACTION_COLORS[activity.action] || 'bg-gray-100 text-gray-700'}`}
+                  title={activity.action}
                 >
-                  {activity.action}
+                  {ACTION_LABELS[activity.action] || activity.action}
                 </Badge>
 
                 {/* Details */}
