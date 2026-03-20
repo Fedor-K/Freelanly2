@@ -106,12 +106,13 @@ export function UpgradeModal({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Job context */}
-        {jobTitle && (
-          <p className="text-sm text-muted-foreground -mt-2">
-            Get contact details for <strong>{jobTitle}</strong>
-          </p>
-        )}
+        {/* Job context + value prop */}
+        <div className="text-sm text-muted-foreground -mt-2 space-y-1">
+          {jobTitle && (
+            <p>Get contact details for <strong>{jobTitle}</strong></p>
+          )}
+          <p>Unlimited access to all contacts, apply to any job, salary insights — for the entire subscription period.</p>
+        </div>
 
         {/* Error */}
         {error && (
