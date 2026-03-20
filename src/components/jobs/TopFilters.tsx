@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { categories, levels, jobTypes, countries, techStacks, salaryRanges, languages, translationTypes } from '@/config/site';
 import { ChevronDown, X, Search, SlidersHorizontal } from 'lucide-react';
+import { useTracker } from '@/hooks/useTracker';
 
 interface TopFiltersProps {
   currentFilters: {
@@ -28,6 +29,7 @@ export function TopFilters({ currentFilters, totalCount }: TopFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { track: trackDb } = useTracker();
 
   const [showAllFilters, setShowAllFilters] = useState(false);
   const [searchValue, setSearchValue] = useState(currentFilters.search || '');
@@ -56,11 +58,18 @@ export function TopFilters({ currentFilters, totalCount }: TopFiltersProps) {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    if (searchValue.trim()) {
+      trackDb('SEARCH', { query: searchValue.trim(), filters: currentFilters });
+    }
     router.push(buildUrl({ q: searchValue || undefined }));
   };
 
   const toggleDropdown = (name: string) => {
     setOpenDropdown(openDropdown === name ? null : name);
+  };
+
+  const trackFilterChange = (filter: string, value: string | undefined) => {
+    trackDb('FILTER_CHANGE', { filter, value });
   };
 
   const activeFilterCount =
@@ -114,7 +123,7 @@ export function TopFilters({ currentFilters, totalCount }: TopFiltersProps) {
             <div className="absolute z-50 mt-1 w-56 bg-background border rounded-lg shadow-lg p-2 max-h-64 overflow-y-auto">
               <Link
                 href={buildUrl({ category: undefined, sourceLang: undefined, targetLang: undefined })}
-                onClick={() => setOpenDropdown(null)}
+                onClick={() => { setOpenDropdown(null); trackFilterChange('category', undefined); }}
                 className={`block px-3 py-2 text-sm rounded hover:bg-muted ${!currentFilters.category ? 'bg-primary/10 text-primary' : ''}`}
               >
                 All Categories
@@ -123,7 +132,7 @@ export function TopFilters({ currentFilters, totalCount }: TopFiltersProps) {
                 <Link
                   key={cat.slug}
                   href={buildUrl({ category: cat.slug })}
-                  onClick={() => setOpenDropdown(null)}
+                  onClick={() => { setOpenDropdown(null); trackFilterChange('category', cat.slug); }}
                   className={`block px-3 py-2 text-sm rounded hover:bg-muted ${currentFilters.category === cat.slug ? 'bg-primary/10 text-primary' : ''}`}
                 >
                   {cat.icon} {cat.name}

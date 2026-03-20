@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { RegistrationModal } from '@/components/auth/RegistrationModal';
 import { UpgradeModal } from '@/components/jobs/UpgradeModal';
 import { trackSignupStart, trackUpgradeClick } from '@/lib/analytics';
+import { useTracker } from '@/hooks/useTracker';
 
 interface OpportunityApplyCardProps {
   opportunityId: string;
@@ -34,20 +35,24 @@ export function OpportunityApplyCard({
 }: OpportunityApplyCardProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { track: trackDb } = useTracker();
   const [showRegistration, setShowRegistration] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
   const handleUpgradeClick = () => {
     trackUpgradeClick({ source: 'paywall', jobId: opportunityId });
+    trackDb('PAYWALL_HIT', { opportunityId, title, type: 'contact' });
 
     // If not logged in, show registration modal first
     if (!session?.user) {
       trackSignupStart('opportunity_apply_card');
+      trackDb('REGISTRATION_MODAL_OPEN', { opportunityId, source: 'opportunity_apply_card' });
       setShowRegistration(true);
       return;
     }
 
     // User is logged in — show upgrade modal
+    trackDb('UPGRADE_CLICK', { opportunityId, source: 'paywall' });
     setShowUpgrade(true);
   };
 
@@ -72,6 +77,7 @@ export function OpportunityApplyCard({
               target="_blank"
               rel="noopener noreferrer"
               className="block"
+              onClick={() => trackDb('OPPORTUNITY_APPLY_CLICK', { opportunityId, title, method: 'linkedin' })}
             >
               <Button className="w-full bg-blue-600 hover:bg-blue-700">
                 Message on LinkedIn

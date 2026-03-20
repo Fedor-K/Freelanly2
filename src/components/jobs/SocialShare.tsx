@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { track } from '@/lib/analytics';
+import { useTracker } from '@/hooks/useTracker';
 
 interface SocialShareProps {
   jobId: string;
@@ -26,6 +27,7 @@ function safeEncode(str: string): string {
 }
 
 export function SocialShare({ jobId, url, title, description }: SocialShareProps) {
+  const { track: trackDb } = useTracker();
   const encodedUrl = safeEncode(url);
   const encodedTitle = safeEncode(title);
   const encodedDesc = safeEncode(description || '');
@@ -41,6 +43,7 @@ export function SocialShare({ jobId, url, title, description }: SocialShareProps
 
   const handleShareClick = (platform: 'twitter' | 'linkedin' | 'telegram' | 'whatsapp' | 'copy') => {
     track({ name: 'job_share', params: { job_id: jobId, platform } });
+    trackDb('JOB_SHARE', { jobId, platform });
   };
 
   const handleCopyLink = async () => {

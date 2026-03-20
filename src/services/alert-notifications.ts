@@ -1,6 +1,7 @@
 import { sendApplicationEmail } from '@/lib/email';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
+import { addEmailTracking } from '@/lib/email-tracking';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url;
 // A/B variant limits per variant
@@ -228,8 +229,11 @@ async function sendOpportunityAlertNotification(params: {
       : `🎯 ${opportunities.length} new freelance projects for you`;
   }
 
-  const html = generateOpportunityAlertEmailHtml(visibleOpps, category, unsubscribeUrl, hiddenCount);
+  const rawHtml = generateOpportunityAlertEmailHtml(visibleOpps, category, unsubscribeUrl, hiddenCount);
   const text = generateOpportunityAlertEmailText(visibleOpps, category);
+
+  // Add email tracking (open pixel + link click tracking)
+  const html = addEmailTracking(rawHtml, alertId, undefined, 'opportunity');
 
   try {
     const result = await sendApplicationEmail({

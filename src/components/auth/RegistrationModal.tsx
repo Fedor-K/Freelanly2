@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -8,6 +9,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { RegistrationForm } from './RegistrationForm';
+import { useTracker } from '@/hooks/useTracker';
 
 interface RegistrationModalProps {
   open: boolean;
@@ -26,6 +28,19 @@ export function RegistrationModal({
   companyName,
   callbackUrl,
 }: RegistrationModalProps) {
+  const { track: trackDb } = useTracker();
+  const trackedRef = useRef(false);
+
+  useEffect(() => {
+    if (open && !trackedRef.current) {
+      trackedRef.current = true;
+      trackDb('REGISTRATION_MODAL_OPEN', { jobId, jobTitle, company: companyName });
+    }
+    if (!open) {
+      trackedRef.current = false;
+    }
+  }, [open, jobId, jobTitle, companyName, trackDb]);
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="w-[calc(100%-2rem)] sm:max-w-md max-h-[90vh] overflow-y-auto">

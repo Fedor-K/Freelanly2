@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { RegistrationModal } from '@/components/auth/RegistrationModal';
 import { trackCheckoutStart, trackSignupStart } from '@/lib/analytics';
+import { useTracker } from '@/hooks/useTracker';
 
 interface OpportunityClientInfoProps {
   opportunityId: string;
@@ -27,6 +28,7 @@ export function OpportunityClientInfo({
 }: OpportunityClientInfoProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { track: trackDb } = useTracker();
   const [showRegistration, setShowRegistration] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
@@ -103,6 +105,7 @@ export function OpportunityClientInfo({
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-blue-600 hover:underline mt-1 inline-block"
+              onClick={() => trackDb('CONTACT_VIEW', { opportunityId, clientName })}
             >
               View LinkedIn Profile →
             </a>

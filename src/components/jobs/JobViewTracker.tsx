@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { track } from '@/lib/analytics';
+import { useTracker } from '@/hooks/useTracker';
 
 interface JobViewTrackerProps {
   jobId: string;
@@ -11,7 +12,10 @@ interface JobViewTrackerProps {
 }
 
 export function JobViewTracker({ jobId, jobTitle, companyName, category }: JobViewTrackerProps) {
+  const { track: trackDb } = useTracker();
+
   useEffect(() => {
+    // External analytics (Yandex, GA, Vercel)
     track({
       name: 'job_view',
       params: {
@@ -21,7 +25,10 @@ export function JobViewTracker({ jobId, jobTitle, companyName, category }: JobVi
         category,
       },
     });
-  }, [jobId, jobTitle, companyName, category]);
+
+    // Internal DB tracking
+    trackDb('JOB_VIEW', { jobId, title: jobTitle, company: companyName, category });
+  }, [jobId, jobTitle, companyName, category, trackDb]);
 
   return null;
 }

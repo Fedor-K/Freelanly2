@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { createHmac } from 'crypto';
+import { ActivityAction } from '@prisma/client';
 
 const SECRET = process.env.AUTH_SECRET || 'fallback-secret';
 
@@ -66,6 +67,15 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Unsubscribe] User ${email} unsubscribed from marketing emails`);
 
+    // Track unsubscribe
+    await prisma.activityLog.create({
+      data: {
+        userId: user.id,
+        action: ActivityAction.UNSUBSCRIBE,
+        details: { email, source: 'api' },
+      },
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       message: 'You have been unsubscribed from marketing emails.',
@@ -120,6 +130,15 @@ export async function GET(request: NextRequest) {
       });
 
       console.log(`[Unsubscribe] User ${email} unsubscribed via link`);
+
+      // Track unsubscribe
+      await prisma.activityLog.create({
+        data: {
+          userId: user.id,
+          action: ActivityAction.UNSUBSCRIBE,
+          details: { email, source: 'email_link' },
+        },
+      }).catch(() => {});
     }
 
     // Redirect to success page

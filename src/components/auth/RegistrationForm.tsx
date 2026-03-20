@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { categories, countries, languages } from '@/config/site';
 import { Mail, ChevronDown, Check, X, Zap, ArrowLeft, Loader2, AlertTriangle, TrendingUp } from 'lucide-react';
 import { getStoredClickId, getStoredUtmSource, getStoredUtmParams } from '@/components/analytics/GclidCapture';
+import { useTracker } from '@/hooks/useTracker';
 
 interface JobCountPreview {
   count: number;
@@ -39,6 +40,8 @@ export function RegistrationForm({
   onEmailSent,
   showJobContext = false,
 }: RegistrationFormProps) {
+  const { track: trackDb } = useTracker();
+
   // Form step
   const [step, setStep] = useState<FormStep>('email');
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
@@ -143,6 +146,15 @@ export function RegistrationForm({
     return () => clearTimeout(timer);
   }, [selectedCategories, selectedLanguages, step, isExistingUser, fetchJobCount]);
 
+  // Track signup start when user begins entering email
+  const signupStartTracked = useRef(false);
+  useEffect(() => {
+    if (email && email.includes('@') && !signupStartTracked.current) {
+      signupStartTracked.current = true;
+      trackDb('SIGNUP_START', { source: jobId ? 'job_page' : 'direct', jobId });
+    }
+  }, [email, jobId, trackDb]);
+
   // Debounced email check on typing
   useEffect(() => {
     if (!email || !email.includes('@') || !email.includes('.')) {
@@ -234,6 +246,10 @@ export function RegistrationForm({
       if (result?.ok) {
         setStep('sent');
         onEmailSent?.(email);
+        // Track signup complete for new users
+        if (isExistingUser === false) {
+          trackDb('SIGNUP_COMPLETE', { source: jobId ? 'job_page' : 'direct', categories: selectedCategories });
+        }
         // Track signup conversion in Google Ads (new users only)
         if (isExistingUser === false && typeof window !== 'undefined' && (window as any).gtag) {
           (window as any).gtag('event', 'conversion', {
@@ -402,6 +418,7 @@ export function RegistrationForm({
       if (result?.ok) {
         setStep('sent');
         onEmailSent?.(email);
+        trackDb('SIGNUP_COMPLETE', { source: 'registration_form', categories: selectedCategories });
       } else {
         throw new Error('Failed to send magic link');
       }

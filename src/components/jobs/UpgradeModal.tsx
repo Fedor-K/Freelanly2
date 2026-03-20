@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useTracker } from '@/hooks/useTracker';
 import { Button } from '@/components/ui/button';
 import { Zap, Check, Calendar, DollarSign, Eye } from 'lucide-react';
 
@@ -44,12 +45,14 @@ export function UpgradeModal({
   viewCount,
   opportunityId,
 }: UpgradeModalProps) {
+  const { track: trackDb } = useTracker();
   const trackedRef = useRef(false);
 
   // Track apply attempt when modal opens
   useEffect(() => {
     if (open && (jobId || opportunityId) && !trackedRef.current) {
       trackedRef.current = true;
+      trackDb('UPGRADE_MODAL_OPEN', { jobId, opportunityId, jobTitle, company: companyName });
       fetch('/api/user/apply-attempt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -57,9 +60,13 @@ export function UpgradeModal({
       }).catch(() => {});
     }
     if (!open) {
+      // Track close without action
+      if (trackedRef.current) {
+        trackDb('PAYWALL_CLOSE', { jobId, opportunityId });
+      }
       trackedRef.current = false;
     }
-  }, [open, jobId, opportunityId]);
+  }, [open, jobId, opportunityId, jobTitle, companyName, trackDb]);
 
   const pricingUrl = jobId
     ? `/pricing?utm_source=upgrade_modal&utm_medium=paywall&utm_campaign=project_now&jobId=${jobId}`
@@ -136,7 +143,10 @@ export function UpgradeModal({
         {/* CTA */}
         <div className="space-y-2 pt-2">
           <Button className="w-full" size="lg" asChild>
-            <Link href={pricingUrl}>
+            <Link
+              href={pricingUrl}
+              onClick={() => trackDb('UPGRADE_CLICK', { jobId, opportunityId, source: 'upgrade_modal' })}
+            >
               Открыть контакт и откликнуться
             </Link>
           </Button>

@@ -7,6 +7,7 @@ import { QuickApplyModal } from './QuickApplyModal';
 import { UpgradeModal } from './UpgradeModal';
 import { RegistrationModal } from '@/components/auth/RegistrationModal';
 import { track, trackApplyClick, trackSignupStart, trackUpgradeClick } from '@/lib/analytics';
+import { useTracker } from '@/hooks/useTracker';
 
 export type UserPlan = 'FREE' | 'PRO' | 'ENTERPRISE';
 
@@ -38,6 +39,7 @@ export function ApplyButton({
   budget,
 }: ApplyButtonProps) {
   const pathname = usePathname();
+  const { track: trackDb } = useTracker();
   const [showQuickApply, setShowQuickApply] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -47,6 +49,8 @@ export function ApplyButton({
     track({ name: 'job_apply_click', params: { job_id: jobId, method } });
     // Also track for Vercel Drains
     trackApplyClick({ jobId, jobTitle, company: companyName, userPlan });
+    // DB tracking
+    trackDb('JOB_APPLY', { jobId, jobTitle, company: companyName, method });
     // Track in DB for all users (non-blocking)
     fetch('/api/user/apply-attempt', {
       method: 'POST',
@@ -65,6 +69,7 @@ export function ApplyButton({
             onClick={() => {
               track({ name: 'registration_modal_open', params: { job_id: jobId } });
               trackSignupStart('job_page');
+              trackDb('REGISTRATION_MODAL_OPEN', { jobId, jobTitle, company: companyName, source: 'job_page' });
               setShowRegistration(true);
             }}
           >
@@ -95,6 +100,8 @@ export function ApplyButton({
             className="w-full py-3.5 px-6 rounded-xl font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/25 transition-all hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 active:translate-y-0"
             onClick={() => {
               trackUpgradeClick({ source: 'paywall', jobId });
+              trackDb('PAYWALL_HIT', { jobId, jobTitle, company: companyName, type: 'apply' });
+              trackDb('UPGRADE_CLICK', { jobId, source: 'paywall' });
               setShowUpgrade(true);
             }}
           >
@@ -125,7 +132,10 @@ export function ApplyButton({
           href={applyUrl}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={() => handleApplyClick('url')}
+          onClick={() => {
+            handleApplyClick('url');
+            trackDb('JOB_SOURCE_CLICK', { jobId, jobTitle, company: companyName, url: applyUrl });
+          }}
         >
           Apply Now
         </a>

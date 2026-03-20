@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { CrossSellExitPopup } from '@/components/CrossSellExitPopup';
 import { OpportunityClientInfo } from '@/components/opportunities/OpportunityClientInfo';
 import { OpportunityApplyCard } from '@/components/opportunities/OpportunityApplyCard';
+import { OpportunityViewTracker } from '@/components/opportunities/OpportunityViewTracker';
 import { OpportunityOriginalPostFooter } from '@/components/opportunities/OpportunityOriginalPostFooter';
 
 type UserPlan = 'FREE' | 'PRO' | 'ENTERPRISE';
@@ -366,6 +367,13 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
               <li className="text-foreground line-clamp-1">{opportunity.title}</li>
             </ol>
           </nav>
+
+          <OpportunityViewTracker
+            opportunityId={opportunity.id}
+            title={opportunity.title}
+            clientName={opportunity.clientName || undefined}
+            category={opportunity.category || undefined}
+          />
 
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Main Content */}

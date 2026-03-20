@@ -133,6 +133,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             where: { id: user.id },
             data: { emailVerified: new Date() },
           });
+          // Track email verification
+          await prisma.activityLog.create({
+            data: {
+              userId: user.id,
+              action: ActivityAction.EMAIL_VERIFIED,
+              details: { provider: 'google', email: user.email },
+            },
+          }).catch(() => {});
           console.log(`[Auth Event] Verified email for Google user ${user.email}`);
         }
       }

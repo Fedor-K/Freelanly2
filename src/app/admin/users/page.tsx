@@ -543,6 +543,14 @@ export default function UsersPage() {
                           <h4 className="font-medium mb-3 flex items-center gap-2">
                             <Activity className="h-4 w-4" />
                             Activity Stats
+                            <a
+                              href={`/admin/users/${user.id}/activity`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline ml-auto"
+                            >
+                              Full Timeline →
+                            </a>
                           </h4>
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">

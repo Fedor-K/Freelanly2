@@ -1673,6 +1673,9 @@ model ActivityLog {
   // Session tracking
   sessionId   String?
 
+  // Page URL where the action happened
+  pageUrl     String?
+
   createdAt DateTime @default(now())
 
   @@index([userId])
@@ -1680,6 +1683,8 @@ model ActivityLog {
   @@index([ipAddress])
   @@index([createdAt])
   @@index([userId, createdAt])
+  @@index([sessionId])
+  @@index([userId, action])
 }
 
 enum ActivityAction {
@@ -1687,7 +1692,46 @@ enum ActivityAction {
   LOGIN
   LOGOUT
   SIGNUP
+  SIGNUP_START
+  SIGNUP_COMPLETE
+  EMAIL_VERIFIED
   PASSWORD_RESET
+
+  // Navigation
+  PAGE_VIEW
+
+  // Jobs
+  JOB_VIEW
+  JOB_APPLY
+  JOB_SOURCE_CLICK
+  JOB_SAVE
+  JOB_SHARE
+
+  // Opportunities (Freelance)
+  OPPORTUNITY_VIEW
+  OPPORTUNITY_APPLY_CLICK
+
+  // Paywall
+  PAYWALL_HIT
+  PAYWALL_CLOSE
+  UPGRADE_CLICK
+  UPGRADE_MODAL_OPEN
+
+  // Pricing & Checkout
+  PRICING_VIEW
+  PRICING_PLAN_CLICK
+  CHECKOUT_START
+  CHECKOUT_COMPLETE
+
+  // Search & Filters
+  SEARCH
+  FILTER_CHANGE
+
+  // Alerts
+  ALERT_CREATED
+  ALERT_DELETED
+  ALERT_EMAIL_OPEN
+  ALERT_EMAIL_CLICK
 
   // Subscription
   SUBSCRIPTION_STARTED
@@ -1695,12 +1739,12 @@ enum ActivityAction {
   PAYMENT_SUCCESS
   PAYMENT_FAILED
 
-  // Core actions
-  JOB_VIEW
-  JOB_APPLY
-  ALERT_CREATED
+  // Other
   PROFILE_UPDATED
   RESUME_UPLOADED
+  UNSUBSCRIBE
+  CONTACT_VIEW
+  REGISTRATION_MODAL_OPEN
 }
 
 // ============================================

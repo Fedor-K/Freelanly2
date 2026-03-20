@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { RegistrationModal } from '@/components/auth/RegistrationModal';
 import { PRICE_INFO, type PriceKey } from '@/lib/stripe';
 import { trackCheckoutStart, trackSignupStart, trackPricingView } from '@/lib/analytics';
+import { useTracker } from '@/hooks/useTracker';
 
 const plans: Array<{
   key: PriceKey;
@@ -22,10 +23,17 @@ const plans: Array<{
 export function PricingCards() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
+  const { track: trackDb } = useTracker();
   const [loading, setLoading] = useState<PriceKey | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showRegistration, setShowRegistration] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PriceKey | null>(null);
+
+  // Track pricing page view
+  useEffect(() => {
+    trackDb('PRICING_VIEW', { source: searchParams.get('utm_source') || 'direct' });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Get source tracking from URL params (passed from job/opportunity pages)
   const sourceFromUrl = searchParams.get('source') || 'pricing_page';
@@ -36,16 +44,21 @@ export function PricingCards() {
   const handleSubscribe = async (priceKey: PriceKey) => {
     setError(null);
 
+    // Track plan click in DB
+    trackDb('PRICING_PLAN_CLICK', { plan: priceKey, source: sourceFromUrl });
+
     // If not logged in, show registration modal
     if (!session?.user) {
       setSelectedPlan(priceKey);
       trackSignupStart('pricing');
+      trackDb('SIGNUP_START', { source: 'pricing', plan: priceKey });
       setShowRegistration(true);
       return;
     }
 
     // Track checkout start
     trackCheckoutStart({ plan: priceKey, source: sourceFromUrl });
+    trackDb('CHECKOUT_START', { plan: priceKey, source: sourceFromUrl });
     setLoading(priceKey);
 
     try {

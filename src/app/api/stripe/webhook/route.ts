@@ -145,6 +145,20 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   console.log(`[Stripe Webhook] User ${userId} upgraded to PRO`);
 
+  // Track checkout complete in activity log
+  await prisma.activityLog.create({
+    data: {
+      userId,
+      action: ActivityAction.CHECKOUT_COMPLETE,
+      details: {
+        subscriptionId,
+        source: session.metadata?.source || 'unknown',
+        amount: session.amount_total ? session.amount_total / 100 : undefined,
+        currency: session.currency,
+      },
+    },
+  }).catch((e) => console.error('[Stripe Webhook] Failed to log CHECKOUT_COMPLETE:', e));
+
   // Mark all ApplyAttempts as converted (for conversion analytics)
   try {
     const updated = await prisma.applyAttempt.updateMany({

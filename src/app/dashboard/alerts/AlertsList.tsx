@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTracker } from '@/hooks/useTracker';
 
 interface JobCountPreview {
   count: number;
@@ -81,6 +82,7 @@ const LANGUAGES = [
 ];
 
 export function AlertsList({ initialAlerts, categories, countries, levels }: AlertsListProps) {
+  const { track: trackDb } = useTracker();
   const [alerts, setAlerts] = useState<JobAlert[]>(initialAlerts);
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -174,6 +176,7 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
         const newAlert = await res.json();
         setAlerts([newAlert, ...alerts]);
         setIsCreating(false);
+        trackDb('ALERT_CREATED', { category, keywords, country, level, languages: selectedLanguages });
         // Reset form
         setCategory('');
         setKeywords('');
@@ -214,6 +217,8 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
       const res = await fetch(`/api/user/alerts/${id}`, { method: 'DELETE' });
 
       if (res.ok) {
+        const deletedAlert = alerts.find((a) => a.id === id);
+        trackDb('ALERT_DELETED', { alertId: id, category: deletedAlert?.category });
         setAlerts(alerts.filter((a) => a.id !== id));
       }
     } catch (error) {

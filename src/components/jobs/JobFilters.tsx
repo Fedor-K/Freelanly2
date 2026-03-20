@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { track } from '@/lib/analytics';
+import { useTracker } from '@/hooks/useTracker';
 
 interface JobFiltersProps {
   currentSearch?: string;
@@ -11,6 +12,7 @@ interface JobFiltersProps {
 
 export function JobFilters({ currentSearch }: JobFiltersProps) {
   const router = useRouter();
+  const { track: trackDb } = useTracker();
   const [search, setSearch] = useState(currentSearch || '');
 
   const handleSearch = (e: React.FormEvent) => {
@@ -20,6 +22,7 @@ export function JobFilters({ currentSearch }: JobFiltersProps) {
     if (search.trim()) {
       params.set('q', search.trim());
       track({ name: 'job_search', params: { query: search.trim() } });
+      trackDb('SEARCH', { query: search.trim() });
     } else {
       params.delete('q');
     }
