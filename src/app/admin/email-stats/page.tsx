@@ -744,11 +744,9 @@ export default function EmailStatsPage() {
                           <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">
                             PRO {new Date(journey.proStarted).toLocaleDateString()}
                           </span>
-                          {journey.source && (
-                            <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                              {journey.source}
-                            </span>
-                          )}
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${journey.source ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {journey.source || 'direct'}
+                          </span>
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                           <span>{journey.totalEmails} писем получил</span>
