@@ -372,7 +372,7 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
             opportunityId={opportunity.id}
             title={opportunity.title}
             clientName={opportunity.clientName || undefined}
-            category={opportunity.category || undefined}
+            category={opportunity.category?.slug || undefined}
           />
 
           <div className="grid lg:grid-cols-3 gap-8">

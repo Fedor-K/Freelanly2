@@ -294,12 +294,12 @@ export default function UserActivityPage() {
                 {/* Details */}
                 <div className="flex-1 min-w-0">
                   {activity.details && (
-                    <span className="text-muted-foreground text-xs truncate block">
+                    <span className="text-muted-foreground text-xs break-words block">
                       {formatDetails(activity.details)}
                     </span>
                   )}
                   {activity.pageUrl && (
-                    <span className="text-xs text-blue-500 truncate block">
+                    <span className="text-xs text-blue-500 break-words block">
                       {activity.pageUrl}
                     </span>
                   )}
