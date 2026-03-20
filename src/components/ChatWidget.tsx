@@ -112,7 +112,7 @@ export function ChatWidget() {
       {isOpen && (
         <div className="fixed top-0 left-0 right-0 bottom-0 h-[100dvh] sm:inset-auto sm:bottom-20 sm:right-6 sm:w-96 sm:h-auto sm:max-h-[70vh] sm:rounded-2xl bg-white shadow-2xl border flex flex-col z-[9999] overflow-hidden">
           {/* Header */}
-          <div className="bg-black text-white px-4 py-3 pt-safe flex items-center justify-between shrink-0">
+          <div className="bg-black text-white px-4 py-3 flex items-center justify-between shrink-0" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-400 rounded-full" />
               <span className="font-semibold text-sm">Freelanly Support</span>
@@ -154,7 +154,7 @@ export function ChatWidget() {
           </div>
 
           {/* Input */}
-          <div className="border-t p-3 pb-safe shrink-0">
+          <div className="border-t p-3 shrink-0" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
             <div className="flex items-center gap-2">
               <input
                 ref={inputRef}
@@ -169,7 +169,7 @@ export function ChatWidget() {
               <button
                 onClick={sendMessage}
                 disabled={loading || !input.trim()}
-                className="p-2 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-30 transition-colors shrink-0"
+                className="w-9 h-9 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-30 transition-colors shrink-0 flex items-center justify-center"
               >
                 <Send className="h-4 w-4" />
               </button>
