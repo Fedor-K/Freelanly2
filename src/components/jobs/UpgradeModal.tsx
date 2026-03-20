@@ -98,29 +98,30 @@ export function UpgradeModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <Zap className="h-5 w-5 text-orange-500" />
-            Unlock PRO Access
-          </DialogTitle>
-        </DialogHeader>
-
-        {/* Job context + value prop */}
-        <div className="text-sm text-muted-foreground -mt-2 space-y-1">
-          {jobTitle && (
-            <p>Get contact details for <strong>{jobTitle}</strong></p>
-          )}
-          <p>Unlimited access to all contacts, apply to any job, get email alerts — for the entire subscription period.</p>
+      <DialogContent className="sm:max-w-lg p-0 overflow-hidden">
+        {/* Gradient header */}
+        <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-5 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl text-white">
+              <Zap className="h-6 w-6" fill="white" />
+              Unlock PRO Access
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-2 text-sm text-white/90 space-y-0.5">
+            {jobTitle && (
+              <p>Get contact details for <strong className="text-white">{jobTitle}</strong></p>
+            )}
+            <p>Unlimited contacts · Apply to any job · Email alerts</p>
+          </div>
         </div>
 
-        {/* Error */}
-        {error && (
-          <p className="text-sm text-destructive bg-destructive/10 p-2 rounded">{error}</p>
-        )}
+        <div className="px-6 py-4 space-y-3">
+          {/* Error */}
+          {error && (
+            <p className="text-sm text-destructive bg-destructive/10 p-2 rounded">{error}</p>
+          )}
 
-        {/* Pricing cards */}
-        <div className="space-y-2">
+          {/* Pricing cards */}
           {plans.map(({ key, badge }) => {
             const info = PRICE_INFO[key];
             const isLoading = loading === key;
@@ -131,55 +132,53 @@ export function UpgradeModal({
                 key={key}
                 onClick={() => handleSubscribe(key)}
                 disabled={loading !== null}
-                className={`w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all text-left ${
+                className={`w-full flex items-center justify-between p-4 rounded-xl transition-all text-left ${
                   isPopular
-                    ? 'border-primary bg-primary/5 shadow-sm'
-                    : 'border-border hover:border-primary/50'
-                } ${loading !== null && !isLoading ? 'opacity-50' : ''}`}
+                    ? 'bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-400 shadow-md shadow-orange-100'
+                    : 'bg-gray-50 border-2 border-gray-200 hover:border-orange-300 hover:bg-orange-50/30'
+                } ${loading !== null && !isLoading ? 'opacity-40' : ''}`}
               >
-                <div className="flex items-center gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold">{info.name}</span>
-                      {badge && (
-                        <Badge variant={isPopular ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
-                          {badge}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {info.pricePerDay}/day · Cancel anytime
-                      {info.savings && <span className="text-green-600 ml-1">({info.savings})</span>}
-                    </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-bold ${isPopular ? 'text-orange-700' : ''}`}>{info.name}</span>
+                    {badge && (
+                      <Badge className={`text-[10px] px-1.5 py-0 ${isPopular ? 'bg-orange-500 hover:bg-orange-500' : 'bg-gray-500 hover:bg-gray-500'}`}>
+                        {badge}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {info.pricePerDay}/day · Cancel anytime
+                    {info.savings && <span className="text-green-600 font-medium ml-1">{info.savings}</span>}
                   </div>
                 </div>
-                <div className="text-right shrink-0">
+                <div className="text-right shrink-0 ml-2">
                   {isLoading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <Loader2 className="h-5 w-5 animate-spin text-orange-500" />
                   ) : (
-                    <>
+                    <div>
                       {info.originalPrice && (
-                        <span className="text-sm text-muted-foreground line-through mr-1">{info.originalPrice}</span>
+                        <span className="text-xs text-muted-foreground line-through block">{info.originalPrice}</span>
                       )}
-                      <span className="text-lg font-bold">{info.price}</span>
-                    </>
+                      <span className={`text-xl font-bold ${isPopular ? 'text-orange-600' : ''}`}>{info.price}</span>
+                    </div>
                   )}
                 </div>
               </button>
             );
           })}
-        </div>
 
-        {/* Benefits */}
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground pt-1">
-          <span className="flex items-center gap-1"><Check className="h-3 w-3 text-green-600" /> Direct contacts</span>
-          <span className="flex items-center gap-1"><Check className="h-3 w-3 text-green-600" /> Apply first</span>
-          <span className="flex items-center gap-1"><Check className="h-3 w-3 text-green-600" /> Salary insights</span>
-        </div>
+          {/* Benefits */}
+          <div className="flex justify-center gap-4 text-xs text-muted-foreground pt-1">
+            <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5 text-green-500" /> Direct contacts</span>
+            <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5 text-green-500" /> Apply first</span>
+            <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5 text-green-500" /> Alerts</span>
+          </div>
 
-        <p className="text-center text-xs text-muted-foreground">
-          Secure payment by Stripe
-        </p>
+          <p className="text-center text-[10px] text-muted-foreground pb-1">
+            Secure payment by Stripe · Cancel anytime
+          </p>
+        </div>
       </DialogContent>
     </Dialog>
   );
