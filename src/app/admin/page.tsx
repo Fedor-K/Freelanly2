@@ -662,6 +662,7 @@ export default function AdminDashboard() {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
           {[
+            { href: '/admin/funnel', label: 'Воронка', color: 'bg-orange-600 text-white hover:bg-orange-700' },
             { href: '/admin/users', label: 'Users', color: 'bg-primary text-primary-foreground hover:bg-primary/90' },
             { href: '/admin/conversions', label: 'Conversions', color: 'bg-green-600 text-white hover:bg-green-700' },
             { href: '/admin/email-stats', label: 'Email Stats', color: 'bg-blue-600 text-white hover:bg-blue-700' },
