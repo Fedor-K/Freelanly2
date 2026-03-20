@@ -2,6 +2,8 @@
 // All transactional emails go through Resend API
 
 import { sendEmail, isConfigured, getConfig } from './resend';
+import { prisma } from '@/lib/db';
+import { ActivityAction } from '@prisma/client';
 
 export { sendEmail };
 
@@ -19,12 +21,52 @@ interface SendEmailParams {
 }
 
 /**
- * Send email via Resend
+ * Send email via Resend — with activity logging
  */
 export async function sendApplicationEmail(
-  params: SendEmailParams
+  params: SendEmailParams & { emailType?: string; userId?: string }
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  return sendEmail(params);
+  const result = await sendEmail(params);
+
+  // Log EMAIL_SENT to ActivityLog (non-blocking)
+  if (result.success) {
+    // Try to find userId by email if not provided
+    const userId = params.userId || await prisma.user.findUnique({
+      where: { email: params.to.toLowerCase() },
+      select: { id: true },
+    }).then(u => u?.id || null).catch(() => null);
+
+    if (userId) {
+      prisma.activityLog.create({
+        data: {
+          userId,
+          action: ActivityAction.EMAIL_SENT,
+          details: {
+            type: params.emailType || detectEmailType(params.subject),
+            subject: params.subject,
+            to: params.to,
+          },
+        },
+      }).catch(() => {});
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Detect email type from subject line
+ */
+function detectEmailType(subject: string): string {
+  const s = subject.toLowerCase();
+  if (s.includes('new freelance') || s.includes('project') || s.includes('matched')) return 'alert';
+  if (s.includes('magic link') || s.includes('sign in')) return 'magic_link';
+  if (s.includes('welcome') || s.includes('getting started')) return 'activation';
+  if (s.includes('trial')) return 'trial';
+  if (s.includes('miss you') || s.includes('come back') || s.includes('win-back')) return 'winback';
+  if (s.includes('checkout') || s.includes('cart') || s.includes('payment')) return 'abandoned_checkout';
+  if (s.includes('application')) return 'application';
+  return 'other';
 }
 
 /**

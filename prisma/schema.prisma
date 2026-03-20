@@ -1739,6 +1739,9 @@ enum ActivityAction {
   PAYMENT_SUCCESS
   PAYMENT_FAILED
 
+  // Email
+  EMAIL_SENT
+
   // Other
   PROFILE_UPDATED
   RESUME_UPLOADED
