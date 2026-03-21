@@ -91,6 +91,8 @@ export function UpgradeModal({
       }
 
       if (data.url) {
+        // Save current page so we can return after payment
+        localStorage.setItem('paymentReturnUrl', window.location.href);
         window.location.href = data.url;
       }
     } catch (err) {

@@ -85,6 +85,7 @@ export function PricingCards() {
 
       // Redirect to Stripe Checkout
       if (data.url) {
+        localStorage.setItem('paymentReturnUrl', window.location.href);
         window.location.href = data.url;
       }
     } catch (err) {

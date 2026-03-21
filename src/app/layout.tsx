@@ -8,6 +8,7 @@ import { ExitIntentPopup } from "@/components/ExitIntentPopup";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { GclidCapture } from "@/components/analytics/GclidCapture";
 import { TrackPageView } from "@/components/analytics/TrackPageView";
+import { PaymentReturnHandler } from "@/components/PaymentReturnHandler";
 import { ConversionUTMTracker } from "@/components/ConversionUTMTracker";
 import { ChatWidget } from "@/components/ChatWidget";
 import { Suspense } from "react";
@@ -152,6 +153,7 @@ export default function RootLayout({
           <Suspense fallback={null}>
             <GclidCapture />
             <TrackPageView />
+            <PaymentReturnHandler />
             <ConversionUTMTracker />
           </Suspense>
           {children}
