@@ -124,9 +124,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message too long' }, { status: 400 });
     }
 
-    // Build messages array with user-status-aware system prompt
+    // Get user country from IP
+    const userCountry = request.headers.get('x-vercel-ip-country') || null;
+    const userCity = request.headers.get('x-vercel-ip-city') ? decodeURIComponent(request.headers.get('x-vercel-ip-city')!) : null;
+
+    // Build messages array with user-status-aware system prompt + country
+    let systemPrompt = getSystemPromptWithUserStatus(userStatus);
+    if (userCountry) {
+      systemPrompt += `\n\nUser's location: ${userCountry}${userCity ? `, ${userCity}` : ''}. Personalize responses for their country — mention relevant local opportunities, use their context. Link to country-specific pages like https://freelanly.com/jobs/country/${userCountry.toLowerCase()} when relevant.`;
+    }
+
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-      { role: 'system', content: getSystemPromptWithUserStatus(userStatus) },
+      { role: 'system', content: systemPrompt },
     ];
 
     // Add conversation history (last 10 messages max)

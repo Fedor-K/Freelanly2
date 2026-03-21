@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { OpportunityCard } from '@/components/opportunities/OpportunityCard';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
-import { siteConfig, categories } from '@/config/site';
+import { siteConfig, categories, countries } from '@/config/site';
 import { truncateTitle } from '@/lib/seo';
 import { formatDistanceToNow, getMaxJobAgeDate } from '@/lib/utils';
 import { maskLinksForFreeUsers } from '@/lib/content-mask';
@@ -29,7 +29,7 @@ export const dynamic = 'force-dynamic';
 
 interface FreelancePageProps {
   params: Promise<{ slug: string }>;
-  searchParams?: Promise<{ page?: string }>;
+  searchParams?: Promise<{ page?: string; country?: string }>;
 }
 
 async function getOpportunity(slug: string) {
@@ -153,8 +153,9 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
   // === Category listing page ===
   if (categorySlugs.has(slug)) {
     const category = categories.find(c => c.slug === slug)!;
-    const resolvedSearchParams = await (searchParams || Promise.resolve({}));
+    const resolvedSearchParams = await (searchParams || Promise.resolve({} as { page?: string; country?: string }));
     const currentPage = Math.max(1, parseInt(resolvedSearchParams.page || '1', 10) || 1);
+    const countryFilter = resolvedSearchParams.country || null;
     const perPage = 20;
 
     const session = await auth();
@@ -169,11 +170,15 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
     const isPro = userPlan === 'PRO' || userPlan === 'ENTERPRISE';
 
     const maxAgeDate = getMaxJobAgeDate();
-    const where = {
+    const where: Record<string, unknown> = {
       isActive: true,
       postedAt: { gte: maxAgeDate },
       category: { slug },
     };
+
+    if (countryFilter) {
+      where.country = countryFilter.toUpperCase();
+    }
 
     let categoryOpps: any[] = [];
     let totalCount = 0;
@@ -216,12 +221,32 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
             <div className="mb-6">
               <h1 className="text-2xl sm:text-3xl font-bold mb-1">
                 Freelance {category.name} Projects
+                {countryFilter && ` in ${countries.find(c => c.code === countryFilter.toUpperCase())?.name || countryFilter}`}
               </h1>
               <p className="text-muted-foreground text-sm">
                 {totalCount > 0
                   ? `${totalCount} ${category.name.toLowerCase()} projects available`
                   : `Browse ${category.name.toLowerCase()} freelance opportunities`}
               </p>
+            </div>
+
+            {/* Country filter */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              <Link
+                href={`/freelance/${slug}`}
+                className={`text-xs px-3 py-1.5 rounded-full border ${!countryFilter ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border hover:bg-muted'}`}
+              >
+                All Countries
+              </Link>
+              {countries.filter(c => c.code).slice(0, 15).map((c) => (
+                <Link
+                  key={c.slug}
+                  href={`/freelance/${slug}?country=${c.code}`}
+                  className={`text-xs px-3 py-1.5 rounded-full border ${countryFilter?.toUpperCase() === c.code ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border hover:bg-muted'}`}
+                >
+                  {c.name}
+                </Link>
+              ))}
             </div>
 
             {categoryOpps.length > 0 ? (
