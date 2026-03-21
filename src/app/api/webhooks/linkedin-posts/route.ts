@@ -430,7 +430,7 @@ export async function POST(request: NextRequest) {
           title: extracted.title,
           description: extracted.cleanDescription || postContent,
           categoryId: category.id,
-          location: extracted.isRemote ? (extracted.location || 'Remote') : extracted.location,
+          location: countryCode ? countryCodeToName(countryCode) : (extracted.isRemote ? (extracted.location || 'Remote') : extracted.location),
           locationType,
           country: countryCode,
           level: validateLevel(extracted.level) || 'MID',
@@ -596,6 +596,24 @@ function mapLocationType(isRemote: boolean, location: string | null): 'REMOTE' |
 }
 
 // Extract country code
+function countryCodeToName(code: string): string {
+  const names: Record<string, string> = {
+    US: 'United States', GB: 'United Kingdom', CA: 'Canada', DE: 'Germany',
+    FR: 'France', NL: 'Netherlands', ES: 'Spain', IT: 'Italy', AU: 'Australia',
+    IN: 'India', BR: 'Brazil', MX: 'Mexico', PL: 'Poland', PT: 'Portugal',
+    IE: 'Ireland', SE: 'Sweden', CH: 'Switzerland', JP: 'Japan', KR: 'South Korea',
+    SG: 'Singapore', AE: 'UAE', SA: 'Saudi Arabia', NG: 'Nigeria', KE: 'Kenya',
+    ZA: 'South Africa', PK: 'Pakistan', BD: 'Bangladesh', PH: 'Philippines',
+    VN: 'Vietnam', TH: 'Thailand', ID: 'Indonesia', MY: 'Malaysia', EG: 'Egypt',
+    AR: 'Argentina', CO: 'Colombia', CL: 'Chile', PE: 'Peru', RO: 'Romania',
+    CZ: 'Czech Republic', HU: 'Hungary', BE: 'Belgium', AT: 'Austria',
+    DK: 'Denmark', FI: 'Finland', NO: 'Norway', IL: 'Israel', TR: 'Turkey',
+    UA: 'Ukraine', RU: 'Russia', CN: 'China', TW: 'Taiwan', HK: 'Hong Kong',
+    NZ: 'New Zealand', GH: 'Ghana', CM: 'Cameroon', CI: 'Ivory Coast',
+  };
+  return names[code] || code;
+}
+
 function extractCountryCode(location: string | null): string | null {
   if (!location) return null;
 
