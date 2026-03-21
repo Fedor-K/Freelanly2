@@ -28,11 +28,13 @@ function getUtmFromUrl(): { source?: string; utmMedium?: string; utmCampaign?: s
   if (!result.source && document.referrer) {
     try {
       const ref = new URL(document.referrer);
-      if (ref.hostname.includes('google')) result.source = 'google_organic';
+      if (ref.hostname.includes('mail.google') || ref.hostname.includes('outlook.live') || ref.hostname.includes('outlook.office') || ref.hostname.includes('mail.yahoo') || ref.hostname.includes('mail.aol') || ref.hostname.includes('protonmail')) result.source = 'email';
+      else if (ref.hostname.includes('google')) result.source = 'google_organic';
       else if (ref.hostname.includes('linkedin')) result.source = 'linkedin';
       else if (ref.hostname.includes('facebook') || ref.hostname.includes('fb.')) result.source = 'facebook';
       else if (ref.hostname.includes('twitter') || ref.hostname.includes('x.com')) result.source = 'twitter';
       else if (ref.hostname.includes('t.me') || ref.hostname.includes('telegram')) result.source = 'telegram';
+      else if (ref.hostname.includes('chatgpt') || ref.hostname.includes('openai')) result.source = 'chatgpt';
       else if (!ref.hostname.includes('freelanly')) result.source = ref.hostname;
     } catch {}
   }
