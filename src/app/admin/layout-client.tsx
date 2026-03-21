@@ -27,20 +27,29 @@ import {
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
-const navigation = [
+// Main navigation — always visible
+const mainNavigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { name: 'Funnel', href: '/admin/funnel', icon: TrendingDown },
+  { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Chat', href: '/admin/chat', icon: MessageCircle },
   { name: 'Conversions', href: '/admin/conversions', icon: CreditCard },
+];
+
+// More — hidden behind expandable section
+const moreNavigation = [
   { name: 'Activation', href: '/admin/activation', icon: Zap },
   { name: 'Free Activity', href: '/admin/free-users-activity', icon: Activity },
-  { name: 'Parsing', href: '/admin/parsing', icon: RefreshCw },
-  { name: 'Jobs', href: '/admin/jobs', icon: Briefcase },
-  { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Analytics', href: '/admin/analytics', icon: TrendingUp },
   { name: 'Email Stats', href: '/admin/email-stats', icon: Mail },
-  { name: 'Clarity', href: '/admin/clarity', icon: BarChart3 },
   { name: 'Cancellations', href: '/admin/cancellations', icon: XCircle },
+  { name: 'Google Ads', href: '/admin/google-ads', icon: Megaphone },
+  { name: 'Channels', href: '/admin/channels', icon: Share2 },
+  { name: 'Clarity', href: '/admin/clarity', icon: BarChart3 },
+  { name: 'Jobs', href: '/admin/jobs', icon: Briefcase },
+  { name: 'Parsing', href: '/admin/parsing', icon: RefreshCw },
+  { name: 'Keywords', href: '/admin/keywords', icon: Hash },
+  { name: 'Import Logs', href: '/admin/logs', icon: FileText },
   {
     name: 'Sources',
     icon: Database,
@@ -49,17 +58,16 @@ const navigation = [
       { name: 'Apify LinkedIn', href: '/admin/sources/apify' },
     ],
   },
-  { name: 'Channels', href: '/admin/channels', icon: Share2 },
-  { name: 'Google Ads', href: '/admin/google-ads', icon: Megaphone },
-  { name: 'Keywords', href: '/admin/keywords', icon: Hash },
-  { name: 'Import Logs', href: '/admin/logs', icon: FileText },
 ];
+
+// Combined for backwards compatibility
+const navigation = [...mainNavigation, ...moreNavigation];
 
 function NavItem({
   item,
   pathname,
 }: {
-  item: (typeof navigation)[0];
+  item: { name: string; href?: string; icon: typeof LayoutDashboard; children?: Array<{ name: string; href: string }> };
   pathname: string;
 }) {
   const [isOpen, setIsOpen] = useState(
@@ -135,6 +143,7 @@ export default function AdminLayoutClient({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [showMore, setShowMore] = useState(false);
 
   return (
     <div className="flex min-h-screen">
@@ -151,9 +160,27 @@ export default function AdminLayoutClient({
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-            {navigation.map((item) => (
+            {mainNavigation.map((item) => (
               <NavItem key={item.name} item={item} pathname={pathname} />
             ))}
+
+            {/* More section */}
+            <div className="pt-2 mt-2 border-t">
+              <button
+                onClick={() => setShowMore(!showMore)}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
+                More
+              </button>
+              {showMore && (
+                <div className="space-y-1 mt-1">
+                  {moreNavigation.map((item) => (
+                    <NavItem key={item.name} item={item} pathname={pathname} />
+                  ))}
+                </div>
+              )}
+            </div>
           </nav>
 
           {/* Footer */}
