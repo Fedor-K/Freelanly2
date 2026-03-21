@@ -18,12 +18,41 @@ interface ChatMessage {
   country: string | null;
   city: string | null;
   ipAddress: string | null;
+  sessionId: string | null;
   createdAt: string;
+}
+
+interface ChatSession {
+  sessionId: string;
+  messages: ChatMessage[];
+  country: string | null;
+  city: string | null;
+  startedAt: string;
+}
+
+function groupBySessions(messages: ChatMessage[]): ChatSession[] {
+  const groups = new Map<string, ChatMessage[]>();
+
+  for (const msg of messages) {
+    // Group by sessionId, or by IP+country as fallback
+    const key = msg.sessionId || `${msg.ipAddress}_${msg.country}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(msg);
+  }
+
+  return Array.from(groups.entries()).map(([sessionId, msgs]) => ({
+    sessionId,
+    messages: msgs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    country: msgs[0].country,
+    city: msgs[0].city,
+    startedAt: msgs[msgs.length - 1].createdAt, // newest first (msgs sorted asc, but sessions sorted desc)
+  })).sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
 }
 
 export default function ChatAdminPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const sessions = groupBySessions(messages);
 
   const fetchMessages = useCallback(async () => {
     setLoading(true);
@@ -75,6 +104,12 @@ export default function ChatAdminPage() {
       <div className="flex gap-4">
         <Card>
           <CardContent className="p-4">
+            <div className="text-2xl font-bold">{sessions.length}</div>
+            <div className="text-sm text-muted-foreground">Чатов</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
             <div className="text-2xl font-bold">{messages.length}</div>
             <div className="text-sm text-muted-foreground">Сообщений</div>
           </CardContent>
@@ -87,61 +122,70 @@ export default function ChatAdminPage() {
         </Card>
       </div>
 
-      {/* Messages */}
-      <div className="space-y-3">
+      {/* Sessions */}
+      <div className="space-y-4">
         {loading && messages.length === 0 ? (
           <div className="animate-pulse space-y-3">
             {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted rounded-lg" />)}
           </div>
-        ) : messages.length === 0 ? (
+        ) : sessions.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
               Пока никто не написал в чат
             </CardContent>
           </Card>
         ) : (
-          messages.map((msg) => (
-            <Card key={msg.id} className={msg.details?.escalated ? 'border-red-200 bg-red-50/30' : ''}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          sessions.map((session) => {
+            const hasEscalation = session.messages.some(m => m.details?.escalated);
+            return (
+              <Card key={session.sessionId} className={hasEscalation ? 'border-red-200 bg-red-50/30' : ''}>
+                <CardContent className="p-4">
+                  {/* Session header */}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3 pb-2 border-b">
                     <span>
-                      {new Date(msg.createdAt).toLocaleString('ru-RU', {
+                      {new Date(session.startedAt).toLocaleString('ru-RU', {
                         day: '2-digit', month: '2-digit', year: 'numeric',
                         hour: '2-digit', minute: '2-digit',
                       })}
                     </span>
-                    {msg.country && (
+                    {session.country && (
                       <Badge variant="outline" className="text-[10px]">
-                        {msg.country} {msg.city}
+                        {session.country} {session.city}
                       </Badge>
                     )}
-                    {msg.details?.escalated && (
+                    <Badge variant="secondary" className="text-[10px]">
+                      {session.messages.length} {session.messages.length === 1 ? 'сообщение' : session.messages.length < 5 ? 'сообщения' : 'сообщений'}
+                    </Badge>
+                    {hasEscalation && (
                       <Badge variant="destructive" className="text-[10px]">
                         Эскалация
                       </Badge>
                     )}
                   </div>
-                </div>
 
-                {/* User message */}
-                <div className="flex gap-2 mb-2">
-                  <span className="text-xs font-medium text-blue-600 shrink-0 pt-0.5">Юзер:</span>
-                  <p className="text-sm bg-blue-50 rounded-lg px-3 py-2 flex-1">
-                    {msg.details?.userMessage}
-                  </p>
-                </div>
-
-                {/* Bot reply */}
-                <div className="flex gap-2">
-                  <span className="text-xs font-medium text-gray-500 shrink-0 pt-0.5">Бот:</span>
-                  <p className="text-sm bg-gray-50 rounded-lg px-3 py-2 flex-1">
-                    {msg.details?.botReply}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                  {/* Messages in session */}
+                  <div className="space-y-2">
+                    {session.messages.map((msg) => (
+                      <div key={msg.id}>
+                        <div className="flex gap-2 mb-1">
+                          <span className="text-xs font-medium text-blue-600 shrink-0 pt-0.5 w-10">Юзер:</span>
+                          <p className="text-sm bg-blue-50 rounded-lg px-3 py-1.5 flex-1">
+                            {msg.details?.userMessage}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="text-xs font-medium text-gray-500 shrink-0 pt-0.5 w-10">Бот:</span>
+                          <p className="text-sm bg-gray-50 rounded-lg px-3 py-1.5 flex-1">
+                            {msg.details?.botReply}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </div>

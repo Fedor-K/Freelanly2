@@ -34,6 +34,11 @@ interface Message {
   content: string;
 }
 
+// Stable chat session ID per browser tab
+const chatSessionId = typeof window !== 'undefined'
+  ? `chat_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
+  : '';
+
 export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [showBubble, setShowBubble] = useState(false);
@@ -84,6 +89,7 @@ export function ChatWidget() {
         body: JSON.stringify({
           message: text,
           history: messages.slice(-8),
+          sessionId: chatSessionId,
         }),
       });
 

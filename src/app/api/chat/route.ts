@@ -89,9 +89,10 @@ interface ChatMessage {
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, history } = await request.json() as {
+    const { message, history, sessionId } = await request.json() as {
       message: string;
       history?: ChatMessage[];
+      sessionId?: string;
     };
 
     if (!message || typeof message !== 'string') {
@@ -143,6 +144,7 @@ export async function POST(request: NextRequest) {
     prisma.activityLog.create({
       data: {
         action: 'CHAT_MESSAGE',
+        sessionId: sessionId || null,
         details: {
           type: 'chat_message',
           userMessage: message.substring(0, 500),
