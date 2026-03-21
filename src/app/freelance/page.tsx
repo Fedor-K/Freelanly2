@@ -5,6 +5,7 @@ import { Footer } from '@/components/layout/Footer';
 import { OpportunityCard } from '@/components/opportunities/OpportunityCard';
 import { Button } from '@/components/ui/button';
 import { siteConfig, categories, countries } from '@/config/site';
+import { FreelanceFilters } from '@/components/opportunities/FreelanceFilters';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { getMaxJobAgeDate } from '@/lib/utils';
@@ -115,45 +116,10 @@ export default async function FreelancePage({ searchParams }: FreelancePageProps
           </div>
 
           {/* Filters */}
-          <div className="space-y-3 mb-6">
-            {/* Category filter */}
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href={`/freelance${countryFilter ? `?country=${countryFilter}` : ''}`}
-                className={`text-xs px-3 py-1.5 rounded-full border ${!categoryFilter ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border hover:bg-muted'}`}
-              >
-                All
-              </Link>
-              {categories.map((cat) => (
-                <Link
-                  key={cat.slug}
-                  href={`/freelance?category=${cat.slug}${countryFilter ? `&country=${countryFilter}` : ''}`}
-                  className={`text-xs px-3 py-1.5 rounded-full border ${categoryFilter === cat.slug ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border hover:bg-muted'}`}
-                >
-                  {cat.icon} {cat.name}
-                </Link>
-              ))}
-            </div>
-
-            {/* Country filter */}
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href={`/freelance${categoryFilter ? `?category=${categoryFilter}` : ''}`}
-                className={`text-xs px-3 py-1.5 rounded-full border ${!countryFilter ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border hover:bg-muted'}`}
-              >
-                🌍 All Countries
-              </Link>
-              {countries.filter(c => c.code).map((c) => (
-                <Link
-                  key={c.slug}
-                  href={`/freelance?${categoryFilter ? `category=${categoryFilter}&` : ''}country=${c.code}`}
-                  className={`text-xs px-3 py-1.5 rounded-full border ${countryFilter?.toUpperCase() === c.code ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border hover:bg-muted'}`}
-                >
-                  {c.name}
-                </Link>
-              ))}
-            </div>
-          </div>
+          <FreelanceFilters
+            categoryFilter={categoryFilter}
+            countryFilter={countryFilter}
+          />
 
           {/* Listings */}
           {(opportunities as unknown[]).length > 0 ? (
