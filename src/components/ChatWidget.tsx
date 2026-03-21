@@ -39,20 +39,33 @@ const chatSessionId = typeof window !== 'undefined'
   ? `chat_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
   : '';
 
-// Notification sound (short beep via Web Audio API)
+// Persistent AudioContext — must be created on user gesture (click)
+let audioCtx: AudioContext | null = null;
+
+function ensureAudioContext() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
 function playNotificationSound() {
   try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const ctx = audioCtx;
+    if (!ctx || ctx.state !== 'running') return;
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
     oscillator.connect(gain);
     gain.connect(ctx.destination);
-    oscillator.frequency.value = 800;
+    oscillator.frequency.value = 880;
     oscillator.type = 'sine';
-    gain.gain.value = 0.15;
-    oscillator.start();
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-    oscillator.stop(ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.2);
   } catch {}
 }
 
@@ -106,6 +119,9 @@ export function ChatWidget() {
   const sendMessage = async () => {
     const text = input.trim();
     if (!text || loading) return;
+
+    // Init audio on user gesture (required for iOS)
+    ensureAudioContext();
 
     const userMsg: Message = { role: 'user', content: text };
     setMessages((prev) => [...prev, userMsg]);
