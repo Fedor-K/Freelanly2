@@ -21,9 +21,12 @@ model User {
   // Auth (password for migrated users, null for magic link only)
   password      String?   // bcrypt hash from old system
 
-  // Stripe integration
+  // Payment integration
+  paymentProvider     String?   // 'stripe' or 'paypro'
   stripeId            String?   @unique
-  stripeSubscriptionId String?  // Active subscription ID
+  stripeSubscriptionId String?  // Active Stripe subscription ID
+  payproOrderId       String?   // PayPro order ID
+  payproSubscriptionId String?  // PayPro subscription ID
   plan                Plan      @default(FREE)
   subscriptionEndsAt  DateTime? // When current period ends
 

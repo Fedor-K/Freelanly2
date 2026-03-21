@@ -132,7 +132,12 @@ export async function POST(request: NextRequest) {
         if (dbUserId) {
           await prisma.user.update({
             where: { id: dbUserId },
-            data: { plan: 'PRO' },
+            data: {
+              plan: 'PRO',
+              paymentProvider: 'paypro',
+              payproOrderId: orderId,
+              payproSubscriptionId: subscriptionId || null,
+            },
           });
 
           await prisma.activityLog.create({
