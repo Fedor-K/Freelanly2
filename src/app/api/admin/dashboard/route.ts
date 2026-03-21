@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { PRICE_INFO } from '@/lib/stripe';
+import { getAccountReport } from '@/lib/google-ads';
 
 /**
  * GET /api/admin/dashboard
@@ -97,9 +98,6 @@ export async function GET() {
       },
       orderBy: { createdAt: 'desc' },
       take: 15,
-      include: {
-        // No user relation in ActivityLog, we'll get details from the details field
-      },
     });
 
     // Daily signups for chart (last 14 days)
@@ -144,6 +142,42 @@ export async function GET() {
     const chatToday = await prisma.activityLog.count({
       where: { action: 'CHAT_MESSAGE', createdAt: { gte: todayStart } },
     });
+
+    // === GOOGLE ADS ROI ===
+    let adsData = { spend: 0, clicks: 0, impressions: 0, regsFromAds: 0, prosFromAds: 0, cpr: 0, cac: 0, revenue: 0, roi: 0 };
+    try {
+      const thirtyDaysAgoStr = new Date(monthAgo).toISOString().split('T')[0];
+      const todayStr = now.toISOString().split('T')[0];
+
+      const report = await getAccountReport({ from: thirtyDaysAgoStr, to: todayStr });
+      const totalSpend = report.reduce((sum, r) => sum + r.cost, 0);
+      const totalClicks = report.reduce((sum, r) => sum + r.clicks, 0);
+      const totalImpressions = report.reduce((sum, r) => sum + r.impressions, 0);
+
+      const regsFromAds = await prisma.user.count({
+        where: { source: 'adwords', createdAt: { gte: monthAgo } },
+      });
+
+      const prosFromAds = await prisma.user.count({
+        where: { source: 'adwords', plan: 'PRO' },
+      });
+
+      const adsRevenue = prosFromAds * 15;
+
+      adsData = {
+        spend: Math.round(totalSpend * 100) / 100,
+        clicks: totalClicks,
+        impressions: totalImpressions,
+        regsFromAds,
+        prosFromAds,
+        cpr: regsFromAds > 0 ? Math.round((totalSpend / regsFromAds) * 100) / 100 : 0,
+        cac: prosFromAds > 0 ? Math.round((totalSpend / prosFromAds) * 100) / 100 : 0,
+        revenue: adsRevenue,
+        roi: totalSpend > 0 ? Math.round((adsRevenue / totalSpend) * 100) : 0,
+      };
+    } catch (e) {
+      console.error('[Dashboard] Google Ads error:', e);
+    }
 
     return NextResponse.json({
       // Tier 1
@@ -193,6 +227,9 @@ export async function GET() {
         createdAt: e.createdAt,
         country: e.country,
       })),
+
+      // Google Ads
+      ads: adsData,
     });
   } catch (error) {
     console.error('[Dashboard API] Error:', error);

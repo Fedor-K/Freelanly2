@@ -24,6 +24,18 @@ interface CohortData {
   }>;
 }
 
+interface AdsData {
+  spend: number;
+  clicks: number;
+  impressions: number;
+  regsFromAds: number;
+  prosFromAds: number;
+  cpr: number;
+  cac: number;
+  revenue: number;
+  roi: number;
+}
+
 interface DashboardData {
   mrr: number;
   proCount: number;
@@ -51,6 +63,7 @@ interface DashboardData {
     createdAt: string;
     country: string | null;
   }>;
+  ads: AdsData;
 }
 
 const EVENT_LABELS: Record<string, { label: string; color: string }> = {
@@ -271,6 +284,45 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* GOOGLE ADS ROI */}
+      {data.ads.spend > 0 && (
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Google Ads ROI (30 days)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <div className="text-xs text-muted-foreground">Spend</div>
+                <div className="text-xl font-bold text-blue-900">€{data.ads.spend}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Registrations</div>
+                <div className="text-xl font-bold">{data.ads.regsFromAds}</div>
+                <div className="text-[10px] text-muted-foreground">€{data.ads.cpr}/reg</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">PRO conversions</div>
+                <div className="text-xl font-bold text-green-600">{data.ads.prosFromAds}</div>
+                <div className="text-[10px] text-muted-foreground">CAC: €{data.ads.cac}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">ROI</div>
+                <div className={`text-xl font-bold ${data.ads.roi >= 100 ? 'text-green-600' : 'text-red-600'}`}>
+                  {data.ads.roi}%
+                </div>
+                <div className="text-[10px] text-muted-foreground">Revenue: €{data.ads.revenue}</div>
+              </div>
+            </div>
+            <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
+              <span>{data.ads.impressions.toLocaleString()} impressions</span>
+              <span>{data.ads.clicks.toLocaleString()} clicks</span>
+              <span>CTR: {data.ads.impressions > 0 ? Math.round(data.ads.clicks / data.ads.impressions * 1000) / 10 : 0}%</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid md:grid-cols-3 gap-4">
         {/* Today's Funnel */}
