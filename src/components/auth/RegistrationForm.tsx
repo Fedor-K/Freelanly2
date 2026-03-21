@@ -751,8 +751,8 @@ export function RegistrationForm({
                 </div>
 
                 {showCountryDropdown && (
-                  <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {countries.slice(0, 20).map((c) => (
+                  <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                    {countries.filter(c => c.code).map((c) => (
                       <button
                         key={c.slug}
                         type="button"
