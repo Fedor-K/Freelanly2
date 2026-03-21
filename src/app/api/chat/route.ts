@@ -167,9 +167,8 @@ export async function POST(request: NextRequest) {
       (match, path: string) => {
         // Strip trailing punctuation (. , ; : !)
         const cleanPath = path.replace(/[.,;:!]+$/, '');
-        const trailingPunct = path.slice(cleanPath.length);
         const separator = cleanPath.includes('?') ? '&' : '?';
-        return `https://freelanly.com${cleanPath}${separator}utm_source=chatbot${trailingPunct}`;
+        return `https://freelanly.com${cleanPath}${separator}utm_source=chatbot`;
       }
     );
 
