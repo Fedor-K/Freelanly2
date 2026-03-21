@@ -37,12 +37,14 @@ export function CancelSubscriptionSection({ subscriptionEndsAt, paymentProvider 
   const [error, setError] = useState('');
   const [offerType, setOfferType] = useState<'discount' | 'pause' | null>(null);
 
+  const retentionUrl = paymentProvider === 'paypro' ? '/api/paypro/retention' : '/api/user/apply-retention-offer';
+
   const handleApplyDiscount = async () => {
     setLoading(true);
     setError('');
 
     try {
-      const res = await fetch('/api/user/apply-retention-offer', {
+      const res = await fetch(retentionUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ offerType: 'discount' }),
@@ -67,7 +69,7 @@ export function CancelSubscriptionSection({ subscriptionEndsAt, paymentProvider 
     setError('');
 
     try {
-      const res = await fetch('/api/user/apply-retention-offer', {
+      const res = await fetch(retentionUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ offerType: 'pause' }),
