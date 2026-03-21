@@ -30,7 +30,7 @@ export async function GET() {
       activity AS (
         SELECT DISTINCT
           "userId",
-          DATE_TRUNC('month', "createdAt") AS activity_month
+          DATE_TRUNC('month', expires - INTERVAL '30 days') AS activity_month
         FROM "Session"
         WHERE expires > NOW() - INTERVAL '13 months'
         UNION
