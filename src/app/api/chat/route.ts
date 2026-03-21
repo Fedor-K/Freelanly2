@@ -165,8 +165,11 @@ export async function POST(request: NextRequest) {
     reply = reply.replace(
       /https:\/\/freelanly\.com(\/[^\s)]*)/g,
       (match, path: string) => {
-        const separator = path.includes('?') ? '&' : '?';
-        return `https://freelanly.com${path}${separator}utm_source=chatbot`;
+        // Strip trailing punctuation (. , ; : !)
+        const cleanPath = path.replace(/[.,;:!]+$/, '');
+        const trailingPunct = path.slice(cleanPath.length);
+        const separator = cleanPath.includes('?') ? '&' : '?';
+        return `https://freelanly.com${cleanPath}${separator}utm_source=chatbot${trailingPunct}`;
       }
     );
 
