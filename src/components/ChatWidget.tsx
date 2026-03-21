@@ -34,10 +34,15 @@ interface Message {
   content: string;
 }
 
-// Stable chat session ID per browser tab
+// Stable chat session ID per browser tab — also stored in localStorage for registration linking
 const chatSessionId = typeof window !== 'undefined'
   ? `chat_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
   : '';
+
+// Store chat session for registration linking
+if (typeof window !== 'undefined' && chatSessionId) {
+  window.localStorage.setItem('_chatSessionId', chatSessionId);
+}
 
 // Persistent AudioContext — must be created on user gesture (click)
 let audioCtx: AudioContext | null = null;
@@ -122,6 +127,16 @@ export function ChatWidget() {
 
     // Init audio on user gesture (required for iOS)
     ensureAudioContext();
+
+    // Mark that user interacted with chatbot — for conversion tracking
+    if (!localStorage.getItem('_chatbot_interacted')) {
+      localStorage.setItem('_chatbot_interacted', '1');
+      // If no utm_source set yet, attribute to chatbot
+      if (!localStorage.getItem('_utm_source')) {
+        const expiry = Date.now() + 90 * 24 * 60 * 60 * 1000;
+        localStorage.setItem('_utm_source', JSON.stringify({ value: 'chatbot', expires: expiry }));
+      }
+    }
 
     const userMsg: Message = { role: 'user', content: text };
     setMessages((prev) => [...prev, userMsg]);

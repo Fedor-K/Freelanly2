@@ -150,7 +150,16 @@ export async function POST(request: NextRequest) {
       temperature: 0.7,
     });
 
-    const reply = completion.choices[0]?.message?.content || 'Sorry, I could not process your request. Please try again.';
+    let reply = completion.choices[0]?.message?.content || 'Sorry, I could not process your request. Please try again.';
+
+    // Add utm_source=chatbot to all freelanly.com links in reply
+    reply = reply.replace(
+      /https:\/\/freelanly\.com(\/[^\s)]*)/g,
+      (match, path: string) => {
+        const separator = path.includes('?') ? '&' : '?';
+        return `https://freelanly.com${path}${separator}utm_source=chatbot`;
+      }
+    );
 
     // Check if bot wants to escalate
     const shouldEscalate = reply.toLowerCase().includes('connect you with') ||
