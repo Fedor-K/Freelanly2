@@ -390,8 +390,8 @@ function checkOpportunityMatchesAlert(
   }
 }
 
-// Minimum time between alert emails for the same user (max 1 per day)
-const MIN_ALERT_INTERVAL_MINUTES = 24 * 60; // 24 hours
+// Minimum time between alert emails for the same user (prevents spam)
+const MIN_ALERT_INTERVAL_MINUTES = 30;
 
 // Settings key for tracking last cron run
 const LAST_CRON_RUN_KEY = 'lastAlertCronRun';
