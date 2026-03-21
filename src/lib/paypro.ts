@@ -92,6 +92,7 @@ export function buildCheckoutUrl(params: {
   url.searchParams.set('billing-email', params.email);
   url.searchParams.set('currency', params.currency || 'EUR');
   url.searchParams.set('x-userId', params.userId);
+  url.searchParams.set('thank-you-url', 'https://freelanly.com/dashboard?payment=success&provider=paypro');
 
   if (params.testMode) {
     url.searchParams.set('use-test-mode', 'true');
