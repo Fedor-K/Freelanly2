@@ -41,6 +41,7 @@ export function UpgradeModal({
   const trackedRef = useRef(false);
   const [loading, setLoading] = useState<PriceKey | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [paymentProvider, setPaymentProvider] = useState<'stripe' | 'paypro'>('stripe');
 
   // Track apply attempt when modal opens
   useEffect(() => {
@@ -61,15 +62,15 @@ export function UpgradeModal({
     }
   }, [open, jobId, opportunityId, jobTitle, companyName, trackDb]);
 
-  const handleSubscribe = async (priceKey: PriceKey, provider: 'stripe' | 'paypro' = 'stripe') => {
+  const handleSubscribe = async (priceKey: PriceKey) => {
     setError(null);
     setLoading(priceKey);
 
-    trackDb('PRICING_PLAN_CLICK', { plan: priceKey, source: 'upgrade_modal', provider });
-    trackDb('CHECKOUT_START', { plan: priceKey, source: 'upgrade_modal', provider });
+    trackDb('PRICING_PLAN_CLICK', { plan: priceKey, source: 'upgrade_modal', provider: paymentProvider });
+    trackDb('CHECKOUT_START', { plan: priceKey, source: 'upgrade_modal', provider: paymentProvider });
     trackedRef.current = false; // Don't fire PAYWALL_CLOSE
 
-    const endpoint = provider === 'paypro' ? '/api/paypro/checkout' : '/api/stripe/checkout';
+    const endpoint = paymentProvider === 'paypro' ? '/api/paypro/checkout' : '/api/stripe/checkout';
 
     try {
       const response = await fetch(endpoint, {
@@ -177,8 +178,23 @@ export function UpgradeModal({
             <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5 text-green-500" /> Alerts</span>
           </div>
 
+          {/* Payment provider toggle */}
+          <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground">
+            <button
+              onClick={() => setPaymentProvider('stripe')}
+              className={`px-2 py-1 rounded ${paymentProvider === 'stripe' ? 'bg-gray-200 font-medium text-gray-800' : 'hover:bg-gray-100'}`}
+            >
+              💳 Card (Stripe)
+            </button>
+            <button
+              onClick={() => setPaymentProvider('paypro')}
+              className={`px-2 py-1 rounded ${paymentProvider === 'paypro' ? 'bg-gray-200 font-medium text-gray-800' : 'hover:bg-gray-100'}`}
+            >
+              🌍 More methods (PayPro)
+            </button>
+          </div>
           <p className="text-center text-[10px] text-muted-foreground pb-1">
-            Secure payment by Stripe · Cancel anytime
+            Secure payment · Cancel anytime
           </p>
         </div>
       </DialogContent>

@@ -12,11 +12,11 @@ export const PAYPRO_CONFIG = {
   storeUrl: 'https://store.payproglobal.com/checkout',
 };
 
-// Product IDs — will be set after creating products in PayPro panel
+// Product IDs from PayPro panel
 export const PAYPRO_PRODUCTS = {
-  monthly: process.env.PAYPRO_PRODUCT_MONTHLY || '',
-  quarterly: process.env.PAYPRO_PRODUCT_QUARTERLY || '',
-  annual: process.env.PAYPRO_PRODUCT_ANNUAL || '',
+  monthly: process.env.PAYPRO_PRODUCT_MONTHLY || '129483',
+  quarterly: process.env.PAYPRO_PRODUCT_QUARTERLY || '129484',
+  annual: process.env.PAYPRO_PRODUCT_ANNUAL || '129485',
 } as const;
 
 export type PayProPriceKey = keyof typeof PAYPRO_PRODUCTS;
