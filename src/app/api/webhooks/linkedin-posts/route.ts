@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
     ];
 
     if (
-      clientName?.toLowerCase() === 'freelanly' ||
+      clientName?.toLowerCase().startsWith('freelanly') ||
       FREELANLY_LINKEDIN_PATTERNS.some(pattern => clientLinkedIn?.includes(pattern))
     ) {
       console.log(`[LinkedInPosts] Skipping Freelanly own post: ${postUrl}`);
