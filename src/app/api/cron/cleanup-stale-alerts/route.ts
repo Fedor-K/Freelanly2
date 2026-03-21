@@ -15,16 +15,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const twentyDaysAgo = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000);
 
-    // Find users inactive for 30+ days who still have active alerts
+    // Find users inactive for 20+ days who still have active alerts
     const staleUsers = await prisma.user.findMany({
       where: {
         emailVerified: { not: null },
         unsubscribedFromMarketing: false,
         OR: [
           { lastActiveAt: null },
-          { lastActiveAt: { lt: thirtyDaysAgo } },
+          { lastActiveAt: { lt: twentyDaysAgo } },
         ],
         jobAlerts: { some: { isActive: true } },
       },
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       data: { isActive: false },
     });
 
-    console.log(`[CleanupAlerts] Deactivated ${result.count} alerts for ${staleUsers.length} stale users (30+ days inactive)`);
+    console.log(`[CleanupAlerts] Deactivated ${result.count} alerts for ${staleUsers.length} stale users (20+ days inactive)`);
 
     return NextResponse.json({
       deactivated: result.count,

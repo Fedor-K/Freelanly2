@@ -62,9 +62,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               data: { lastActiveAt: now },
             }).catch(() => {});
 
-            // Reactivate alerts if user was inactive 30+ days (alerts were auto-deactivated)
-            const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            if (!fullUser.lastActiveAt || fullUser.lastActiveAt < thirtyDaysAgo) {
+            // Reactivate alerts if user was inactive 20+ days (alerts were auto-deactivated)
+            const twentyDaysAgo = new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000);
+            if (!fullUser.lastActiveAt || fullUser.lastActiveAt < twentyDaysAgo) {
               prisma.jobAlert.updateMany({
                 where: { userId: user.id, isActive: false },
                 data: { isActive: true },
