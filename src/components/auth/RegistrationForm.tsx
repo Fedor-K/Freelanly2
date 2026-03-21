@@ -8,6 +8,36 @@ import { Label } from '@/components/ui/label';
 import { categories, countries, languages } from '@/config/site';
 import { Mail, ChevronDown, Check, X, Zap, ArrowLeft, Loader2, AlertTriangle, TrendingUp } from 'lucide-react';
 import { getStoredClickId, getStoredUtmSource, getStoredUtmParams } from '@/components/analytics/GclidCapture';
+
+/** Read UTM params from current page URL as fallback when localStorage is empty */
+function getUtmFromUrl(): { source?: string; utmMedium?: string; utmCampaign?: string; utmContent?: string; gclid?: string } {
+  if (typeof window === 'undefined') return {};
+  const params = new URLSearchParams(window.location.search);
+  const result: Record<string, string> = {};
+  const source = params.get('utm_source');
+  if (source) result.source = source;
+  const medium = params.get('utm_medium');
+  if (medium) result.utmMedium = medium;
+  const campaign = params.get('utm_campaign');
+  if (campaign) result.utmCampaign = campaign;
+  const content = params.get('utm_content');
+  if (content) result.utmContent = content;
+  const gclid = params.get('gclid');
+  if (gclid) result.gclid = gclid;
+  // Also check referrer for source hints
+  if (!result.source && document.referrer) {
+    try {
+      const ref = new URL(document.referrer);
+      if (ref.hostname.includes('google')) result.source = 'google_organic';
+      else if (ref.hostname.includes('linkedin')) result.source = 'linkedin';
+      else if (ref.hostname.includes('facebook') || ref.hostname.includes('fb.')) result.source = 'facebook';
+      else if (ref.hostname.includes('twitter') || ref.hostname.includes('x.com')) result.source = 'twitter';
+      else if (ref.hostname.includes('t.me') || ref.hostname.includes('telegram')) result.source = 'telegram';
+      else if (!ref.hostname.includes('freelanly')) result.source = ref.hostname;
+    } catch {}
+  }
+  return result;
+}
 import { useTracker } from '@/hooks/useTracker';
 
 interface JobCountPreview {
@@ -225,9 +255,9 @@ export function RegistrationForm({
             languages: showTranslationFields ? selectedLanguages : undefined,
             jobId,
             agreedToTerms: true,
-            gclid: getStoredClickId()?.value,
-            source: getStoredUtmSource() || undefined,
-            ...getStoredUtmParams(),
+            gclid: getStoredClickId()?.value || getUtmFromUrl().gclid,
+            source: getStoredUtmSource() || getUtmFromUrl().source || undefined,
+            ...{ ...getUtmFromUrl(), ...getStoredUtmParams() },
           }),
         });
         if (!regRes.ok) {
@@ -397,9 +427,9 @@ export function RegistrationForm({
           languages: showTranslationFields ? selectedLanguages : undefined,
           jobId,
           agreedToTerms: true, // User explicitly agreed via checkbox
-          gclid: getStoredClickId()?.value,
-          source: getStoredUtmSource() || undefined,
-          ...getStoredUtmParams(),
+          gclid: getStoredClickId()?.value || getUtmFromUrl().gclid,
+          source: getStoredUtmSource() || getUtmFromUrl().source || undefined,
+          ...{ ...getUtmFromUrl(), ...getStoredUtmParams() },
         }),
       });
 
