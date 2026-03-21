@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
 
 function renderMessageContent(content: string) {
@@ -58,8 +57,20 @@ function playNotificationSound() {
 }
 
 export function ChatWidget() {
-  const { data: session } = useSession();
+  const [userStatus, setUserStatus] = useState<'anonymous' | 'FREE' | 'PRO'>('anonymous');
   const [isOpen, setIsOpen] = useState(false);
+
+  // Fetch user status without useSession (avoids SSG issues)
+  useEffect(() => {
+    fetch('/api/auth/session')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.user) {
+          setUserStatus((data.user as { plan?: string }).plan === 'PRO' ? 'PRO' : 'FREE');
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [showBubble, setShowBubble] = useState(false);
   const [bubbleDismissed, setBubbleDismissed] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -109,7 +120,7 @@ export function ChatWidget() {
           message: text,
           history: messages.slice(-8),
           sessionId: chatSessionId,
-          userStatus: session?.user ? ((session.user as { plan?: string }).plan || 'FREE') : 'anonymous',
+          userStatus,
         }),
       });
 
