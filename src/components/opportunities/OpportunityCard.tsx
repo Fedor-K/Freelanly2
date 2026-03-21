@@ -108,15 +108,6 @@ export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardP
             {/* Meta info */}
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               {opportunity.location && <span>{opportunity.location}</span>}
-              {salaryDisplay && (
-                <>
-                  <span>·</span>
-                  <span className={opportunity.salaryIsEstimate ? 'italic' : ''}>
-                    {salaryDisplay}
-                    {opportunity.salaryIsEstimate && ' (est.)'}
-                  </span>
-                </>
-              )}
             </div>
 
             {/* Tags */}

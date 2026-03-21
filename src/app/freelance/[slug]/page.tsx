@@ -415,12 +415,6 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
                         📍 {opportunity.location}
                       </span>
                     )}
-                    {salaryDisplay && (
-                      <span className="flex items-center gap-1 text-green-600 font-medium">
-                        💰 {salaryDisplay}
-                        {opportunity.salaryIsEstimate && ' (est.)'}
-                      </span>
-                    )}
                     <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300 font-medium">
                       💼 Freelance Project
                     </Badge>
@@ -482,7 +476,7 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
                 title={opportunity.title}
                 clientName={opportunity.clientName}
                 postedAt={opportunity.createdAt.toISOString()}
-                budget={salaryDisplay}
+                budget={null}
               />
 
               {/* Category Link */}
@@ -529,14 +523,6 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
                           <div className="flex items-center gap-2 mt-1">
                             {project.location && (
                               <span className="text-xs text-muted-foreground">{project.location}</span>
-                            )}
-                            {project.salaryMin && (
-                              <>
-                                {project.location && <span className="text-xs text-muted-foreground">·</span>}
-                                <span className="text-xs font-medium text-green-600">
-                                  {formatSalary(project.salaryMin, project.salaryMax, project.salaryCurrency, project.salaryPeriod)}
-                                </span>
-                              </>
                             )}
                           </div>
                         </div>
