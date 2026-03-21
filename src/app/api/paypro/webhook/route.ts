@@ -11,12 +11,18 @@ import { verifyHash, verifySignature, PAYPRO_IPS, IPN_TYPES } from '@/lib/paypro
  */
 export async function POST(request: NextRequest) {
   try {
-    // IP whitelist check
+    // Log all incoming requests for debugging
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '';
-    if (process.env.NODE_ENV === 'production' && !PAYPRO_IPS.includes(ip)) {
-      console.warn(`[PayPro Webhook] Rejected from IP: ${ip}`);
-      return new NextResponse('Forbidden', { status: 403 });
-    }
+    console.log(`[PayPro Webhook] Incoming from IP: ${ip}`);
+
+    // IP whitelist check - disabled temporarily for debugging
+    // PayPro IPs: 198.199.123.239, 157.230.8.40
+    // On Vercel, x-forwarded-for may contain edge IP, not PayPro IP
+    // TODO: re-enable after confirming correct IP header
+    // if (process.env.NODE_ENV === 'production' && !PAYPRO_IPS.includes(ip)) {
+    //   console.warn(`[PayPro Webhook] Rejected from IP: ${ip}`);
+    //   return new NextResponse('Forbidden', { status: 403 });
+    // }
 
     // Parse form-urlencoded body
     const formData = await request.formData();
@@ -40,6 +46,24 @@ export async function POST(request: NextRequest) {
     const userId = params['x-userId'] || ''; // Custom field passed through checkout
 
     console.log(`[PayPro Webhook] ${ipnTypeName} (${ipnTypeId}) | order: ${orderId} | email: ${customerEmail} | userId: ${userId} | test: ${testMode}`);
+    console.log(`[PayPro Webhook] All params:`, JSON.stringify(params).substring(0, 500));
+
+    // Always log webhook receipt (even if processing fails)
+    await prisma.activityLog.create({
+      data: {
+        action: 'PAYMENT_SUCCESS' as ActivityAction,
+        details: {
+          provider: 'paypro_webhook',
+          ipnType: ipnTypeName,
+          orderId,
+          customerEmail,
+          testMode,
+          totalAmount,
+          productId,
+        },
+        ipAddress: ip,
+      },
+    }).catch(e => console.error('[PayPro Webhook] Failed to log receipt:', e));
 
     // Verify HASH
     if (hash && !verifyHash(orderId, hash, testMode)) {
