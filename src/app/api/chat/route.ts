@@ -36,14 +36,14 @@ Common questions:
 - "Can I get a refund?" → Contact us within 7 days of purchase for a full refund.
 
 Key links (ALWAYS include relevant links in your responses):
-- Browse all jobs: https://freelanly.com/jobs
-- Translation jobs: https://freelanly.com/jobs/translation
-- Engineering jobs: https://freelanly.com/jobs/engineering
-- Design jobs: https://freelanly.com/jobs/design
-- Marketing jobs: https://freelanly.com/jobs/marketing
-- Writing jobs: https://freelanly.com/jobs/writing
-- Data jobs: https://freelanly.com/jobs/data
-- Freelance projects: https://freelanly.com/freelance
+- Browse all projects: https://freelanly.com/freelance
+- Translation projects: https://freelanly.com/freelance?category=translation
+- Engineering projects: https://freelanly.com/freelance?category=engineering
+- Design projects: https://freelanly.com/freelance?category=design
+- Marketing projects: https://freelanly.com/freelance?category=marketing
+- Writing projects: https://freelanly.com/freelance?category=writing
+- Data projects: https://freelanly.com/freelance?category=data
+- All jobs (ATS): https://freelanly.com/jobs
 - Pricing / Upgrade to PRO: https://freelanly.com/pricing
 - Sign up free: https://freelanly.com/auth/signin
 - Dashboard / Manage alerts: https://freelanly.com/dashboard/alerts
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     // Build messages array with user-status-aware system prompt + country
     let systemPrompt = getSystemPromptWithUserStatus(userStatus);
     if (userCountry) {
-      systemPrompt += `\n\nUser's location: ${userCountry}${userCity ? `, ${userCity}` : ''}. Personalize responses for their country — mention relevant local opportunities, use their context. Link to country-specific pages like https://freelanly.com/jobs/country/${userCountry.toLowerCase()} when relevant.`;
+      systemPrompt += `\n\nUser's location: ${userCountry}${userCity ? `, ${userCity}` : ''}. Personalize responses for their country — mention relevant local opportunities, use their context. Link to country-specific pages like https://freelanly.com/freelance?country=${userCountry} when relevant.`;
     }
 
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
