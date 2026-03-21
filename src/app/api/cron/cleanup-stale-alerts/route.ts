@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     // Also delete unverified users older than 2 days
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
     const unverified = await prisma.user.findMany({
-      where: { emailVerified: null, createdAt: { lt: twoDaysAgo } },
+      where: { emailVerified: null, createdAt: { lt: twoDaysAgo }, plan: 'FREE' },
       select: { id: true },
     });
 
