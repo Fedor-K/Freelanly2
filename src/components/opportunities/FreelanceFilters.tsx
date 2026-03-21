@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Search } from 'lucide-react';
 import { categories, countries } from '@/config/site';
 
 const TOP_CATEGORIES = ['translation', 'engineering', 'design', 'data', 'writing', 'marketing', 'product', 'creative', 'support'];
@@ -10,12 +12,26 @@ const TOP_COUNTRIES_COUNT = 12;
 export function FreelanceFilters({
   categoryFilter,
   countryFilter,
+  searchQuery,
 }: {
   categoryFilter: string | null;
   countryFilter: string | null;
+  searchQuery?: string | null;
 }) {
+  const router = useRouter();
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [showAllCountries, setShowAllCountries] = useState(false);
+  const [search, setSearch] = useState(searchQuery || '');
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (categoryFilter) params.set('category', categoryFilter);
+    if (countryFilter) params.set('country', countryFilter);
+    if (search.trim()) params.set('q', search.trim());
+    const qs = params.toString();
+    router.push(qs ? `/freelance?${qs}` : '/freelance');
+  };
 
   const visibleCategories = showAllCategories
     ? categories
@@ -28,6 +44,18 @@ export function FreelanceFilters({
 
   return (
     <div className="space-y-3 mb-6">
+      {/* Search */}
+      <form onSubmit={handleSearch} className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search projects..."
+          className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+        />
+      </form>
+
       {/* Category filter */}
       <div className="flex flex-wrap gap-2">
         <Link

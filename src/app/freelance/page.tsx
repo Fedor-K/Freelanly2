@@ -119,6 +119,7 @@ export default async function FreelancePage({ searchParams }: FreelancePageProps
           <FreelanceFilters
             categoryFilter={categoryFilter}
             countryFilter={countryFilter}
+            searchQuery={searchQuery}
           />
 
           {/* Listings */}
