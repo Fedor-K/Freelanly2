@@ -22,6 +22,7 @@ import {
   Activity,
   Share2,
   TrendingDown,
+  MessageCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -29,6 +30,7 @@ import { cn } from '@/lib/utils';
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { name: 'Funnel', href: '/admin/funnel', icon: TrendingDown },
+  { name: 'Chat', href: '/admin/chat', icon: MessageCircle },
   { name: 'Conversions', href: '/admin/conversions', icon: CreditCard },
   { name: 'Activation', href: '/admin/activation', icon: Zap },
   { name: 'Free Activity', href: '/admin/free-users-activity', icon: Activity },
