@@ -29,6 +29,8 @@ export default async function SettingsPage() {
       subscriptionEndsAt: true,
       stripeSubscriptionId: true,
       stripeId: true,
+      paymentProvider: true,
+      payproSubscriptionId: true,
     },
   });
 
@@ -86,6 +88,10 @@ export default async function SettingsPage() {
                 </p>
                 <ManageSubscriptionButton />
               </>
+            ) : user.paymentProvider === 'paypro' && user.plan === 'PRO' ? (
+              <p className="text-sm text-gray-600">
+                Your subscription is managed through PayPro Global.
+              </p>
             ) : (
               <>
                 <p className="text-sm text-gray-600 mb-3">
@@ -104,9 +110,9 @@ export default async function SettingsPage() {
           </div>
         </div>
 
-        {/* Cancel subscription (only for PRO users with active subscription) */}
-        {user.plan === 'PRO' && user.stripeSubscriptionId && (
-          <CancelSubscriptionSection subscriptionEndsAt={user.subscriptionEndsAt} />
+        {/* Cancel subscription (for PRO users with Stripe or PayPro) */}
+        {user.plan === 'PRO' && (user.stripeSubscriptionId || user.paymentProvider === 'paypro') && (
+          <CancelSubscriptionSection subscriptionEndsAt={user.subscriptionEndsAt} paymentProvider={user.paymentProvider || 'stripe'} />
         )}
 
         {/* Delete account */}

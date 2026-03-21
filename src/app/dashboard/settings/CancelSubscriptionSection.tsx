@@ -24,9 +24,10 @@ type ModalStep = 'save-offers' | 'survey' | 'success' | 'offer-applied';
 
 interface Props {
   subscriptionEndsAt: Date | null;
+  paymentProvider?: string;
 }
 
-export function CancelSubscriptionSection({ subscriptionEndsAt }: Props) {
+export function CancelSubscriptionSection({ subscriptionEndsAt, paymentProvider = 'stripe' }: Props) {
   const [showModal, setShowModal] = useState(false);
   const [step, setStep] = useState<ModalStep>('save-offers');
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
@@ -106,7 +107,8 @@ export function CancelSubscriptionSection({ subscriptionEndsAt }: Props) {
     setError('');
 
     try {
-      const res = await fetch('/api/user/cancel-subscription', {
+      const cancelUrl = paymentProvider === 'paypro' ? '/api/paypro/cancel' : '/api/user/cancel-subscription';
+      const res = await fetch(cancelUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
