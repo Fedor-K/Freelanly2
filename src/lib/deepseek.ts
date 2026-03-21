@@ -537,6 +537,62 @@ Examples:
 - "Software Engineer" → engineering
 - "Full Stack Developer" → engineering`;
 
+/**
+ * Detect country from job posting using AI.
+ * Returns ISO 3166-1 alpha-2 country code or null if remote/worldwide.
+ */
+export async function detectCountry(
+  title: string,
+  description: string,
+  location?: string | null
+): Promise<string | null> {
+  const { client, model } = getAIClient();
+
+  try {
+    const completion = await client.chat.completions.create({
+      model,
+      messages: [
+        {
+          role: 'system',
+          content: `You determine which country a job/project is for based on the posting text.
+
+Rules:
+- Return ONLY the ISO 3166-1 alpha-2 country code (e.g., US, GB, IN, DE, BR)
+- If the job is remote/worldwide with no specific country requirement, return "REMOTE"
+- Look for clues: mentioned cities, countries, time zones, languages, currencies, companies
+- If a city is mentioned (e.g., "London"), return the country (GB)
+- If the client/company location suggests a country, use it
+- If truly ambiguous with no country clues, return "REMOTE"
+
+Return ONLY the 2-letter code or "REMOTE". Nothing else.`,
+        },
+        {
+          role: 'user',
+          content: `Title: ${title}\nLocation: ${location || 'not specified'}\nDescription: ${description.substring(0, 500)}`,
+        },
+      ],
+      max_tokens: 10,
+      temperature: 0,
+    });
+
+    const result = (completion.choices[0]?.message?.content || '').trim().toUpperCase();
+
+    if (result === 'REMOTE' || result === 'NULL' || result === 'WORLDWIDE' || result === 'GLOBAL') {
+      return null;
+    }
+
+    // Validate it looks like a country code (2 uppercase letters)
+    if (/^[A-Z]{2}$/.test(result)) {
+      return result;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[AI] Country detection failed:', error);
+    return null;
+  }
+}
+
 export async function classifyJobCategory(
   title: string,
   skills: string[]

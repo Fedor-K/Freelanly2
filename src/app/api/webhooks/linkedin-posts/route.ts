@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { extractJobData, classifyJobCategory, isJobPosting, type ExtractedJobData } from '@/lib/deepseek';
+import { extractJobData, classifyJobCategory, isJobPosting, detectCountry, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify, extractDomainFromEmail, cleanEmail } from '@/lib/utils';
 import { ensureSalaryData } from '@/lib/salary-estimation';
 import { notifySearchEngines } from '@/lib/indexing';
@@ -378,8 +378,12 @@ export async function POST(request: NextRequest) {
     const baseSlug = slugify(slugParts.join('-'));
     const slug = await generateUniqueOpportunitySlug(baseSlug);
 
-    // Get country code for salary estimation
-    const countryCode = extractCountryCode(extracted.location);
+    // Detect country using AI
+    const countryCode = await detectCountry(
+      extracted.title,
+      extracted.cleanDescription || postContent,
+      extracted.location
+    ) || extractCountryCode(extracted.location); // fallback to dictionary
 
     // Get actual or estimated salary data (default to HOUR for freelance)
     const salaryData = extracted.salaryMin ? {
