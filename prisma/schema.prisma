@@ -1744,6 +1744,9 @@ enum ActivityAction {
   // Email
   EMAIL_SENT
 
+  // Chat
+  CHAT_MESSAGE
+
   // Other
   PROFILE_UPDATED
   RESUME_UPLOADED

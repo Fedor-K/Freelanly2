@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { prisma } from '@/lib/db';
 
 const SYSTEM_PROMPT = `You are Freelanly's friendly support assistant. You help users find remote jobs and understand how Freelanly works.
 
@@ -134,6 +135,25 @@ export async function POST(request: NextRequest) {
       reply.toLowerCase().includes('team will') ||
       reply.toLowerCase().includes('переведу') ||
       reply.toLowerCase().includes('свяжу с');
+
+    // Log chat message to DB (non-blocking)
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null;
+    const country = request.headers.get('x-vercel-ip-country') || null;
+    const city = request.headers.get('x-vercel-ip-city') ? decodeURIComponent(request.headers.get('x-vercel-ip-city')!) : null;
+    prisma.activityLog.create({
+      data: {
+        action: 'CHAT_MESSAGE',
+        details: {
+          type: 'chat_message',
+          userMessage: message.substring(0, 500),
+          botReply: reply.substring(0, 500),
+          escalated: shouldEscalate,
+        },
+        ipAddress: ip,
+        country,
+        city,
+      },
+    }).catch(() => {});
 
     return NextResponse.json({
       reply,

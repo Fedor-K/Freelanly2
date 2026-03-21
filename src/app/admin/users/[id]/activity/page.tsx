@@ -84,6 +84,7 @@ const ACTION_LABELS: Record<string, string> = {
   ALERT_EMAIL_OPEN: 'Открыл email алерта',
   ALERT_EMAIL_CLICK: 'Кликнул ссылку в алерте',
   EMAIL_SENT: 'Получил письмо',
+  CHAT_MESSAGE: 'Написал в чат',
   // Subscription
   SUBSCRIPTION_STARTED: 'Оформил подписку',
   SUBSCRIPTION_CANCELLED: 'Отменил подписку',
@@ -125,6 +126,7 @@ const ACTION_COLORS: Record<string, string> = {
   ALERT_EMAIL_OPEN: 'bg-pink-100 text-pink-700',
   ALERT_EMAIL_CLICK: 'bg-pink-200 text-pink-800',
   EMAIL_SENT: 'bg-blue-50 text-blue-600',
+  CHAT_MESSAGE: 'bg-violet-100 text-violet-700',
   SUBSCRIPTION_STARTED: 'bg-green-200 text-green-800',
   SUBSCRIPTION_CANCELLED: 'bg-red-200 text-red-800',
   PAYMENT_SUCCESS: 'bg-green-100 text-green-700',
@@ -255,6 +257,8 @@ function formatDetails(action: string, details: Record<string, unknown> | null):
       };
       return `${typeLabels[d.type as string] || d.type}: «${d.subject}»`;
     }
+    case 'CHAT_MESSAGE':
+      return `Юзер: «${d.userMessage}»\nБот: «${d.botReply}»`;
     case 'CONTACT_VIEW':
       return d.clientName ? `Контакт: ${d.clientName}` : '';
     case 'UNSUBSCRIBE':
