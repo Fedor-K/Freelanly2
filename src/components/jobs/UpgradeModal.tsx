@@ -61,16 +61,18 @@ export function UpgradeModal({
     }
   }, [open, jobId, opportunityId, jobTitle, companyName, trackDb]);
 
-  const handleSubscribe = async (priceKey: PriceKey) => {
+  const handleSubscribe = async (priceKey: PriceKey, provider: 'stripe' | 'paypro' = 'stripe') => {
     setError(null);
     setLoading(priceKey);
 
-    trackDb('PRICING_PLAN_CLICK', { plan: priceKey, source: 'upgrade_modal' });
-    trackDb('CHECKOUT_START', { plan: priceKey, source: 'upgrade_modal' });
+    trackDb('PRICING_PLAN_CLICK', { plan: priceKey, source: 'upgrade_modal', provider });
+    trackDb('CHECKOUT_START', { plan: priceKey, source: 'upgrade_modal', provider });
     trackedRef.current = false; // Don't fire PAYWALL_CLOSE
 
+    const endpoint = provider === 'paypro' ? '/api/paypro/checkout' : '/api/stripe/checkout';
+
     try {
-      const response = await fetch('/api/stripe/checkout', {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
