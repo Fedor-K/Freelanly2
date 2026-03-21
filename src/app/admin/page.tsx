@@ -10,6 +10,20 @@ import {
   MessageCircle, Eye,
 } from 'lucide-react';
 
+interface CohortData {
+  cohorts: Array<{
+    month: string;
+    total: number;
+    retention: Record<number, number>;
+  }>;
+  activationFunnel: Array<{
+    step: string;
+    label: string;
+    count: number;
+    percent: number;
+  }>;
+}
+
 interface DashboardData {
   mrr: number;
   proCount: number;
@@ -54,13 +68,18 @@ function TrendArrow({ current, previous }: { current: number; previous: number }
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [cohortData, setCohortData] = useState<CohortData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchDashboard = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/dashboard');
-      if (res.ok) setData(await res.json());
+      const [dashRes, cohortRes] = await Promise.all([
+        fetch('/api/admin/dashboard'),
+        fetch('/api/admin/cohorts'),
+      ]);
+      if (dashRes.ok) setData(await dashRes.json());
+      if (cohortRes.ok) setCohortData(await cohortRes.json());
     } catch (e) {
       console.error('Dashboard fetch error:', e);
     } finally {
@@ -338,6 +357,84 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      {/* ACTIVATION FUNNEL */}
+      {cohortData?.activationFunnel && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Activation Funnel</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-2" style={{ height: 200 }}>
+              {cohortData.activationFunnel.map((step) => {
+                const maxCount = cohortData.activationFunnel[0]?.count || 1;
+                const barHeight = Math.max((step.count / maxCount) * 100, 3);
+                return (
+                  <div key={step.step} className="flex-1 flex flex-col items-center h-full justify-end">
+                    <div className="text-center mb-1">
+                      <div className="text-xs font-bold">{step.percent}%</div>
+                      <div className="text-[10px] text-muted-foreground">{step.count.toLocaleString()}</div>
+                    </div>
+                    <div
+                      className="w-full bg-black rounded-t min-h-[3px]"
+                      style={{ height: `${barHeight}%` }}
+                    />
+                    <div className="text-[9px] text-muted-foreground mt-1 text-center leading-tight h-8">
+                      {step.label}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* COHORT RETENTION TABLE */}
+      {cohortData?.cohorts && cohortData.cohorts.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Cohort Retention (Monthly)</CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr>
+                  <th className="text-left py-1 px-2 font-medium">Cohort</th>
+                  <th className="text-right py-1 px-2 font-medium">Users</th>
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <th key={i} className="text-center py-1 px-1 font-medium">M{i}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {cohortData.cohorts.map((cohort) => (
+                  <tr key={cohort.month} className="border-t">
+                    <td className="py-1 px-2 font-medium whitespace-nowrap">
+                      {new Date(cohort.month + '-01').toLocaleDateString('ru-RU', { month: 'short', year: 'numeric' })}
+                    </td>
+                    <td className="py-1 px-2 text-right text-muted-foreground">
+                      {cohort.total.toLocaleString()}
+                    </td>
+                    {Array.from({ length: 12 }, (_, i) => {
+                      const pct = cohort.retention[i];
+                      if (pct === undefined) return <td key={i} className="py-1 px-1 text-center text-muted-foreground/30">—</td>;
+                      const bg = pct >= 50 ? 'bg-green-200 text-green-900 font-bold'
+                        : pct >= 40 ? 'bg-green-100 text-green-800'
+                        : pct >= 30 ? 'bg-gray-200 text-gray-800'
+                        : 'bg-gray-100 text-gray-600';
+                      return (
+                        <td key={i} className={`py-1 px-1 text-center rounded ${bg}`}>
+                          {pct}%
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
