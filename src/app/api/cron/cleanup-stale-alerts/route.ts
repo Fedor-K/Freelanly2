@@ -49,9 +49,31 @@ export async function POST(request: NextRequest) {
 
     console.log(`[CleanupAlerts] Deactivated ${result.count} alerts for ${staleUsers.length} stale users (20+ days inactive)`);
 
+    // Also delete unverified users older than 2 days
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const unverified = await prisma.user.findMany({
+      where: { emailVerified: null, createdAt: { lt: twoDaysAgo } },
+      select: { id: true },
+    });
+
+    let deletedUsers = 0;
+    if (unverified.length > 0) {
+      const ids = unverified.map(u => u.id);
+      await prisma.alertLanguagePair.deleteMany({ where: { jobAlert: { userId: { in: ids } } } });
+      await prisma.jobAlert.deleteMany({ where: { userId: { in: ids } } });
+      await prisma.session.deleteMany({ where: { userId: { in: ids } } });
+      await prisma.account.deleteMany({ where: { userId: { in: ids } } });
+      await prisma.applyAttempt.deleteMany({ where: { userId: { in: ids } } });
+      await prisma.activityLog.deleteMany({ where: { userId: { in: ids } } });
+      const deleted = await prisma.user.deleteMany({ where: { id: { in: ids } } });
+      deletedUsers = deleted.count;
+      console.log(`[CleanupAlerts] Deleted ${deletedUsers} unverified users (2+ days old)`);
+    }
+
     return NextResponse.json({
       deactivated: result.count,
       users: staleUsers.length,
+      deletedUnverified: deletedUsers,
     });
   } catch (error) {
     console.error('[CleanupAlerts] Error:', error);
