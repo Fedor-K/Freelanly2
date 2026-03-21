@@ -233,7 +233,7 @@ export function ChatWidget() {
               onClick={() => { setShowBubble(false); setBubbleDismissed(true); setIsOpen(true); }}
               className="text-left"
             >
-              <p className="text-sm font-medium text-gray-800">Looking for a remote job? 👋</p>
+              <p className="text-sm font-medium text-gray-800">Looking for a remote project or job? 👋</p>
               <p className="text-xs text-gray-500 mt-1">I can help you find the right one. Ask me anything!</p>
             </button>
             {/* Arrow pointing to button */}
