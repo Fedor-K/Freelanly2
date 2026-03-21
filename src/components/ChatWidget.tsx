@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
 
 function renderMessageContent(content: string) {
@@ -39,7 +40,25 @@ const chatSessionId = typeof window !== 'undefined'
   ? `chat_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
   : '';
 
+// Notification sound (short beep via Web Audio API)
+function playNotificationSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+    gain.gain.value = 0.15;
+    oscillator.start();
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    oscillator.stop(ctx.currentTime + 0.15);
+  } catch {}
+}
+
 export function ChatWidget() {
+  const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [showBubble, setShowBubble] = useState(false);
   const [bubbleDismissed, setBubbleDismissed] = useState(false);
@@ -90,11 +109,13 @@ export function ChatWidget() {
           message: text,
           history: messages.slice(-8),
           sessionId: chatSessionId,
+          userStatus: session?.user ? ((session.user as { plan?: string }).plan || 'FREE') : 'anonymous',
         }),
       });
 
       const data = await res.json();
       setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }]);
+      playNotificationSound();
     } catch {
       setMessages((prev) => [
         ...prev,

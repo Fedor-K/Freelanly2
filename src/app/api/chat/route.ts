@@ -53,11 +53,31 @@ Rules:
 - Be helpful, friendly, and concise
 - ALWAYS include a relevant link in your response (browse jobs, pricing, signup, etc.)
 - When user asks about specific job categories, link to that category page
-- When relevant, mention PRO benefits and link to https://freelanly.com/pricing
 - If user asks something you can't answer, say you'll connect them with the team
 - Reply in the same language the user writes in
 - Keep responses short (2-3 sentences max unless explaining something complex)
-- Don't make up information about specific jobs or companies`;
+- Don't make up information about specific jobs or companies
+
+SALES RULES (important!):
+- Your main goal is to CONVERT users — get them to sign up or upgrade to PRO
+- After answering their question, ALWAYS add a call-to-action:
+  - For anonymous users: push to sign up ("Sign up free to get instant alerts: https://freelanly.com/auth/signin")
+  - For FREE users: push to PRO ("Upgrade to PRO to see contacts and apply directly — from €0.39/day: https://freelanly.com/pricing")
+  - For PRO users: be helpful, no upselling needed
+- Ask engaging follow-up questions: "What category are you looking for?", "Which country do you prefer?"
+- Create urgency: "Jobs get filled fast — PRO members apply first"
+- Mention specific numbers: "We have 13,000+ active remote jobs right now"
+- Never be pushy or annoying — be naturally helpful while guiding to conversion`;
+
+// Add user status context to the system prompt
+function getSystemPromptWithUserStatus(status?: string): string {
+  const statusContext = status === 'PRO'
+    ? '\n\nCurrent user: PRO subscriber. Be helpful, no need to upsell. Help them find and apply to jobs.'
+    : status === 'FREE'
+    ? '\n\nCurrent user: FREE plan (logged in). They can browse but cannot see contacts or apply. Your goal: convince them to upgrade to PRO. Mention specific benefits they are missing.'
+    : '\n\nCurrent user: NOT logged in (anonymous visitor). Your goal: get them to sign up for free first. Mention it takes 30 seconds and they get instant job alerts.';
+  return SYSTEM_PROMPT + statusContext;
+}
 
 function getAIClient() {
   // Try Z.ai first, fallback to DeepSeek
@@ -89,10 +109,11 @@ interface ChatMessage {
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, history, sessionId } = await request.json() as {
+    const { message, history, sessionId, userStatus } = await request.json() as {
       message: string;
       history?: ChatMessage[];
       sessionId?: string;
+      userStatus?: 'anonymous' | 'FREE' | 'PRO';
     };
 
     if (!message || typeof message !== 'string') {
@@ -103,9 +124,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message too long' }, { status: 400 });
     }
 
-    // Build messages array
+    // Build messages array with user-status-aware system prompt
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: getSystemPromptWithUserStatus(userStatus) },
     ];
 
     // Add conversation history (last 10 messages max)
