@@ -29,6 +29,15 @@ interface UserInfo {
   plan: string;
   createdAt: string;
   lastActiveAt: string | null;
+  source: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmContent: string | null;
+  gclid: string | null;
+  conversionSource: string | null;
+  conversionMedium: string | null;
+  conversionCampaign: string | null;
+  conversionAt: string | null;
 }
 
 interface ActivityResponse {
@@ -362,6 +371,13 @@ export default function UserActivityPage() {
             <p className="text-muted-foreground">
               {user.email} ({user.name || 'No name'}) —{' '}
               <Badge variant={user.plan === 'PRO' ? 'default' : 'secondary'}>{user.plan}</Badge>
+              {user.source && (
+                <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700">
+                  {user.source === 'adwords' ? 'Google Ads' : user.source}
+                  {user.utmMedium ? ` / ${user.utmMedium}` : ''}
+                  {user.utmCampaign ? ` / ${user.utmCampaign}` : ''}
+                </Badge>
+              )}
             </p>
           </div>
         </div>
@@ -370,6 +386,29 @@ export default function UserActivityPage() {
           Refresh
         </Button>
       </div>
+
+      {/* Traffic Source */}
+      {user.source && (
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <CardContent className="p-4">
+            <div className="text-sm font-medium text-blue-800 mb-1">Источник трафика</div>
+            <div className="text-lg font-bold text-blue-900">
+              {user.source === 'adwords' ? 'Google Ads' : user.source === 'organic' ? 'Органический поиск' : user.source}
+            </div>
+            <div className="text-xs text-blue-600 mt-1 space-x-3">
+              {user.utmMedium && <span>Medium: {user.utmMedium}</span>}
+              {user.utmCampaign && <span>Campaign: {user.utmCampaign}</span>}
+              {user.utmContent && <span>Content: {user.utmContent}</span>}
+              {user.gclid && <span>GCLID: {user.gclid.substring(0, 20)}...</span>}
+            </div>
+            {user.conversionAt && (
+              <div className="text-xs text-green-700 mt-2 font-medium">
+                Конверсия: {new Date(user.conversionAt).toLocaleDateString('ru-RU')} ({user.conversionSource} / {user.conversionMedium})
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

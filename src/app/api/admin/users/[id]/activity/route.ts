@@ -38,6 +38,15 @@ export async function GET(request: NextRequest, context: RouteContext) {
         plan: true,
         createdAt: true,
         lastActiveAt: true,
+        source: true,
+        utmMedium: true,
+        utmCampaign: true,
+        utmContent: true,
+        gclid: true,
+        conversionSource: true,
+        conversionMedium: true,
+        conversionCampaign: true,
+        conversionAt: true,
       },
     });
 
