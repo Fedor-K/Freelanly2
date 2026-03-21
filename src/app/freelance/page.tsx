@@ -124,7 +124,7 @@ export default async function FreelancePage({ searchParams }: FreelancePageProps
               >
                 All
               </Link>
-              {categories.filter(c => ['translation', 'engineering', 'design', 'writing', 'data', 'marketing', 'creative', 'support', 'product'].includes(c.slug)).map((cat) => (
+              {categories.map((cat) => (
                 <Link
                   key={cat.slug}
                   href={`/freelance?category=${cat.slug}${countryFilter ? `&country=${countryFilter}` : ''}`}
@@ -143,7 +143,7 @@ export default async function FreelancePage({ searchParams }: FreelancePageProps
               >
                 🌍 All Countries
               </Link>
-              {countries.filter(c => c.code).slice(0, 12).map((c) => (
+              {countries.filter(c => c.code).map((c) => (
                 <Link
                   key={c.slug}
                   href={`/freelance?${categoryFilter ? `category=${categoryFilter}&` : ''}country=${c.code}`}
