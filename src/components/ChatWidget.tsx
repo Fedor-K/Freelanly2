@@ -76,6 +76,8 @@ function playNotificationSound() {
 
 export function ChatWidget() {
   const [userStatus, setUserStatus] = useState<'anonymous' | 'FREE' | 'PRO'>('anonymous');
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   // Fetch user status without useSession (avoids SSG issues)
@@ -84,7 +86,10 @@ export function ChatWidget() {
       .then(res => res.json())
       .then(data => {
         if (data?.user) {
-          setUserStatus((data.user as { plan?: string }).plan === 'PRO' ? 'PRO' : 'FREE');
+          const u = data.user as { plan?: string; email?: string; id?: string };
+          setUserStatus(u.plan === 'PRO' ? 'PRO' : 'FREE');
+          setUserEmail(u.email || null);
+          setUserId(u.id || null);
         }
       })
       .catch(() => {});
@@ -152,6 +157,8 @@ export function ChatWidget() {
           history: messages.slice(-8),
           sessionId: chatSessionId,
           userStatus,
+          userEmail: userEmail || undefined,
+          userId: userId || undefined,
         }),
       });
 

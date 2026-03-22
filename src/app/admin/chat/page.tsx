@@ -141,7 +141,7 @@ export default function ChatAdminPage() {
               <Card key={session.sessionId} className={hasEscalation ? 'border-red-200 bg-red-50/30' : ''}>
                 <CardContent className="p-4">
                   {/* Session header */}
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3 pb-2 border-b">
+                  <div className="flex items-center flex-wrap gap-2 text-xs text-muted-foreground mb-3 pb-2 border-b">
                     <span>
                       {new Date(session.startedAt).toLocaleString('ru-RU', {
                         day: '2-digit', month: '2-digit', year: 'numeric',
@@ -153,6 +153,30 @@ export default function ChatAdminPage() {
                         {session.country} {session.city}
                       </Badge>
                     )}
+                    {(() => {
+                      const firstMsg = session.messages[0];
+                      const email = (firstMsg?.details as Record<string, unknown>)?.userEmail as string | undefined;
+                      const status = (firstMsg?.details as Record<string, unknown>)?.userStatus as string | undefined;
+                      return (
+                        <>
+                          {email && (
+                            <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700">
+                              {email}
+                            </Badge>
+                          )}
+                          {status && status !== 'anonymous' && (
+                            <Badge className={`text-[10px] ${status === 'PRO' ? 'bg-purple-500' : 'bg-gray-500'}`}>
+                              {status}
+                            </Badge>
+                          )}
+                          {(!email && (!status || status === 'anonymous')) && (
+                            <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                              Anonymous
+                            </Badge>
+                          )}
+                        </>
+                      );
+                    })()}
                     <Badge variant="secondary" className="text-[10px]">
                       {session.messages.length} {session.messages.length === 1 ? 'сообщение' : session.messages.length < 5 ? 'сообщения' : 'сообщений'}
                     </Badge>

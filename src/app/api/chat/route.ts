@@ -109,11 +109,13 @@ interface ChatMessage {
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, history, sessionId, userStatus } = await request.json() as {
+    const { message, history, sessionId, userStatus, userEmail, userId } = await request.json() as {
       message: string;
       history?: ChatMessage[];
       sessionId?: string;
       userStatus?: 'anonymous' | 'FREE' | 'PRO';
+      userEmail?: string;
+      userId?: string;
     };
 
     if (!message || typeof message !== 'string') {
@@ -184,6 +186,7 @@ export async function POST(request: NextRequest) {
     const city = request.headers.get('x-vercel-ip-city') ? decodeURIComponent(request.headers.get('x-vercel-ip-city')!) : null;
     prisma.activityLog.create({
       data: {
+        userId: userId || null,
         action: 'CHAT_MESSAGE',
         sessionId: sessionId || null,
         details: {
@@ -191,6 +194,8 @@ export async function POST(request: NextRequest) {
           userMessage: message.substring(0, 500),
           botReply: reply.substring(0, 500),
           escalated: shouldEscalate,
+          userEmail: userEmail || undefined,
+          userStatus: userStatus || 'anonymous',
         },
         ipAddress: ip,
         country,
