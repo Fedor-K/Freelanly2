@@ -15,6 +15,7 @@ interface ChatMessage {
     botReply: string;
     escalated: boolean;
   };
+  userId: string | null;
   country: string | null;
   city: string | null;
   ipAddress: string | null;
@@ -34,8 +35,10 @@ function groupBySessions(messages: ChatMessage[]): ChatSession[] {
   const groups = new Map<string, ChatMessage[]>();
 
   for (const msg of messages) {
-    // Group by sessionId, or by IP+country as fallback
-    const key = msg.sessionId || `${msg.ipAddress}_${msg.country}`;
+    // Group by userId first (all chats from same user together), then by sessionId/IP
+    const userEmail = (msg.details as Record<string, unknown>)?.userEmail as string | undefined;
+    const userId = msg.userId;
+    const key = userId || userEmail || msg.sessionId || `${msg.ipAddress}_${msg.country}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(msg);
   }
