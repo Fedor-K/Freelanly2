@@ -434,16 +434,17 @@ export async function processInstantAlertQueue(): Promise<{
     : new Date(Date.now() - DEFAULT_LOOKBACK_HOURS * 60 * 60 * 1000);
   const now = new Date();
 
-  // Step 2: Find new opportunities since last run
+  // Step 2: Find new opportunities since last run (use createdAt, not postedAt —
+  // postedAt is when the LinkedIn post was published, createdAt is when we imported it)
   const newOpportunities = await prisma.opportunity.findMany({
     where: {
       isActive: true,
-      postedAt: { gte: lastRun },
+      createdAt: { gte: lastRun },
     },
     include: {
       category: { select: { slug: true } },
     },
-    orderBy: { postedAt: 'desc' },
+    orderBy: { createdAt: 'desc' },
   });
 
   // Save current timestamp immediately (even if no opportunities — prevents re-scanning)
