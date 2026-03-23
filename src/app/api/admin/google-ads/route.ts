@@ -139,6 +139,69 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true, ...result });
       }
 
+      case 'create-translation-campaign': {
+        // Спец. экшн: создание кампании Translation Jobs целиком
+        const existingBudget = 'customers/9737618327/campaignBudgets/15446510528';
+
+        // 1. Кампания
+        const campaignResult = await createCampaign(
+          'Freelanly Translation Jobs', 3, 'SEARCH',
+          {
+            biddingStrategy: 'manual_cpc',
+            existingBudgetResourceName: existingBudget,
+            networkSettings: { targetGoogleSearch: true, targetSearchNetwork: true, targetContentNetwork: false },
+          }
+        );
+        const campaignId = campaignResult.campaignResourceName.split('/').pop()!;
+
+        // 2. Ad Group (CPC €0.30)
+        const adGroupResource = await createAdGroup(campaignId, 'Translation Keywords', 300000);
+        const adGroupId = adGroupResource.split('/').pop()!;
+
+        // 3. Keywords
+        const keywords = [
+          { text: 'remote translation jobs', matchType: 'PHRASE' as const },
+          { text: 'freelance translation work', matchType: 'PHRASE' as const },
+          { text: 'online translation jobs', matchType: 'PHRASE' as const },
+          { text: 'translation jobs from home', matchType: 'PHRASE' as const },
+          { text: 'remote translator jobs', matchType: 'PHRASE' as const },
+          { text: 'freelance translator work', matchType: 'PHRASE' as const },
+          { text: 'remote localization jobs', matchType: 'PHRASE' as const },
+          { text: 'translation work online', matchType: 'PHRASE' as const },
+          { text: 'remote interpreter jobs', matchType: 'PHRASE' as const },
+          { text: 'work from home translation', matchType: 'PHRASE' as const },
+          { text: 'remote subtitling jobs', matchType: 'PHRASE' as const },
+        ];
+        const kwResults = await addKeywords(adGroupId, keywords);
+
+        // 4. Responsive Search Ad
+        const headlines = [
+          'Remote Translation Jobs', 'Freelance Translator Work', '13,000+ Remote Jobs',
+          'Apply Direct to Companies', 'Translation Jobs Online', 'Work From Home Today',
+          'No Middlemen — Direct', 'New Jobs Every Day', 'Start Translating Now',
+          'Remote Localization Jobs', 'Freelanly.com', 'Get Hired as Translator',
+          'Join 5000+ Translators', 'Translation & Subtitling', 'Instant Job Alerts',
+        ];
+        const descriptions = [
+          'Find remote translation, localization & subtitling jobs. Apply directly to companies — no agencies.',
+          'Browse 13,000+ remote jobs. Get instant alerts for new translation opportunities. Free to sign up.',
+          'Direct contact with hiring managers. Apply before others see the job. From €0.39/day.',
+          'Remote translation jobs updated daily. Set up alerts and never miss an opportunity.',
+        ];
+        const adResource = await createResponsiveSearchAd(
+          adGroupId, headlines, descriptions,
+          'https://freelanly.com/freelance?category=translation&utm_source=google&utm_medium=cpc&utm_campaign=translation_jobs'
+        );
+
+        return NextResponse.json({
+          success: true,
+          campaign: campaignResult.campaignResourceName,
+          adGroup: adGroupResource,
+          keywords: kwResults.length,
+          ad: adResource,
+        });
+      }
+
       case 'create-ad-group': {
         const { campaignId, name, cpcBidMicros } = body;
         if (!campaignId || !name) return errorResponse('campaignId and name required', 400);

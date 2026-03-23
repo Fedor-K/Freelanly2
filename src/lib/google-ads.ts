@@ -58,6 +58,8 @@ export interface CreateCampaignSettings {
   startDate?: string;
   /** Дата окончания в формате YYYY-MM-DD */
   endDate?: string;
+  /** Существующий бюджет (resource name) — если указан, новый бюджет не создаётся */
+  existingBudgetResourceName?: string;
 }
 
 /** Данные кампании из API */
@@ -373,49 +375,58 @@ export async function createCampaign(
       VIDEO: enums.AdvertisingChannelType.VIDEO,
     };
 
-    const mutations: MutateOperation<any>[] = [
-      // Создание бюджета
-      {
+    const mutations: MutateOperation<any>[] = [];
+
+    // Если существующий бюджет не передан — создаём новый
+    const budgetResourceName = settings.existingBudgetResourceName
+      || `customers/${CUSTOMER_ID}/campaignBudgets/${tempBudgetId}`;
+
+    if (!settings.existingBudgetResourceName) {
+      mutations.push({
         entity: "campaign_budget",
         operation: "create",
         resource: {
-          resource_name: `customers/${CUSTOMER_ID}/campaignBudgets/${tempBudgetId}`,
+          resource_name: budgetResourceName,
           name: `${name} — бюджет`,
           amount_micros: toMicros(dailyBudgetAmount),
           delivery_method: enums.BudgetDeliveryMethod.STANDARD,
           explicitly_shared: false,
         },
-      },
-      // Создание кампании
-      {
-        entity: "campaign",
-        operation: "create",
-        resource: {
-          resource_name: `customers/${CUSTOMER_ID}/campaigns/${-2}`,
-          name,
-          status: enums.CampaignStatus.PAUSED,
-          advertising_channel_type: channelTypeMap[channelType],
-          campaign_budget: `customers/${CUSTOMER_ID}/campaignBudgets/${tempBudgetId}`,
-          network_settings: {
-            target_google_search: settings.networkSettings?.targetGoogleSearch ?? true,
-            target_search_network: settings.networkSettings?.targetSearchNetwork ?? true,
-            target_content_network: settings.networkSettings?.targetContentNetwork ?? false,
-          },
-          start_date: settings.startDate,
-          end_date: settings.endDate,
-          ...biddingStrategyConfig,
+      });
+    }
+
+    // Создание кампании
+    mutations.push({
+      entity: "campaign",
+      operation: "create",
+      resource: {
+        resource_name: `customers/${CUSTOMER_ID}/campaigns/${-2}`,
+        name,
+        status: enums.CampaignStatus.PAUSED,
+        advertising_channel_type: channelTypeMap[channelType],
+        campaign_budget: budgetResourceName,
+        contains_eu_political_advertising:
+          enums.EuPoliticalAdvertisingStatus.DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING,
+        network_settings: {
+          target_google_search: settings.networkSettings?.targetGoogleSearch ?? true,
+          target_search_network: settings.networkSettings?.targetSearchNetwork ?? true,
+          target_content_network: settings.networkSettings?.targetContentNetwork ?? false,
         },
+        start_date: settings.startDate,
+        end_date: settings.endDate,
+        ...biddingStrategyConfig,
       },
-    ];
+    });
 
     const response = await customer.mutateResources(mutations);
 
     const results = response.mutate_operation_responses ?? [];
+    const campaignIdx = settings.existingBudgetResourceName ? 0 : 1;
     return {
-      budgetResourceName:
-        results[0]?.campaign_budget_result?.resource_name ?? "",
+      budgetResourceName: settings.existingBudgetResourceName
+        || results[0]?.campaign_budget_result?.resource_name || "",
       campaignResourceName:
-        results[1]?.campaign_result?.resource_name ?? "",
+        results[campaignIdx]?.campaign_result?.resource_name ?? "",
     };
   } catch (error) {
     console.error("[Google Ads] Ошибка создания кампании:", error);
