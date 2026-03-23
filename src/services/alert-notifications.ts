@@ -2,6 +2,7 @@ import { sendApplicationEmail } from '@/lib/email';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 import { addEmailTracking } from '@/lib/email-tracking';
+import { getUnlockPriceLabel } from '@/lib/geo-pricing';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url;
 // A/B variant limits per variant
@@ -17,20 +18,21 @@ function addUtmParams(url: string, contentId: string): string {
   return `${url}${separator}utm_source=job_alert&utm_medium=email&utm_content=${encodeURIComponent(contentId)}`;
 }
 
-function generateFreeUpsellBlock(hiddenCount: number): string {
+function generateFreeUpsellBlock(hiddenCount: number, userCountry: string | null = null): string {
   if (hiddenCount <= 0) return '';
+  const price = getUnlockPriceLabel(userCountry);
   return `
         <tr>
           <td style="padding: 20px; text-align: center; background: linear-gradient(180deg, #fff 0%, #f0f9ff 100%);">
             <p style="font-size: 16px; font-weight: 600; color: #1e40af; margin: 0 0 8px;">
-              +${hiddenCount} more — upgrade to see contacts & apply
+              +${hiddenCount} more — unlock contacts from ${price} each
             </p>
             <p style="color: #666; font-size: 14px; margin: 0 0 16px;">
               You found the projects. Get direct contacts to apply first.
             </p>
             <a href="https://freelanly.com/pricing?source=email_alert_upsell&utm_source=job_alert&utm_medium=email"
                style="display: inline-block; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-              Unlock Contact Details →
+              Unlock Contact Details from ${price} →
             </a>
           </td>
         </tr>`;
@@ -64,7 +66,9 @@ function generateOpportunityAlertEmailHtml(
   opportunities: MatchedOpportunity[],
   alertCategory: string | null,
   unsubscribeUrl: string,
-  hiddenCount = 0
+  hiddenCount = 0,
+  userCountry: string | null = null,
+  userPlan: string = 'FREE'
 ): string {
   const categoryName = alertCategory
     ? alertCategory.charAt(0).toUpperCase() + alertCategory.slice(1)
@@ -94,6 +98,9 @@ function generateOpportunityAlertEmailHtml(
                     <a href="${oppUrl}" style="display: inline-block; background: #000; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
                       View Project
                     </a>
+                    ${userPlan !== 'PRO' ? `<a href="${addUtmParams(`${APP_URL}/freelance/${opp.slug}`, `apply_${opp.id}`)}" style="display: inline-block; background: #16a34a; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px; margin-left: 8px;">
+                      🔓 Apply for ${getUnlockPriceLabel(userCountry)}
+                    </a>` : ''}
                   </div>
                 </td>
               </tr>
@@ -131,7 +138,7 @@ function generateOpportunityAlertEmailHtml(
           <!-- Opportunity Cards -->
           ${opportunityCards}
 
-          ${generateFreeUpsellBlock(hiddenCount)}
+          ${generateFreeUpsellBlock(hiddenCount, userCountry)}
 
           <!-- Footer -->
           <tr>
@@ -191,10 +198,11 @@ async function sendOpportunityAlertNotification(params: {
   alertId: string;
   email: string;
   userPlan?: string;
+  userCountry?: string | null;
   category: string | null;
   opportunities: MatchedOpportunity[];
 }): Promise<{ success: boolean; error?: string; messageId?: string }> {
-  const { alertId, email, userPlan, category, opportunities } = params;
+  const { alertId, email, userPlan, userCountry, category, opportunities } = params;
 
   if (opportunities.length === 0) {
     return { success: true };
@@ -229,7 +237,7 @@ async function sendOpportunityAlertNotification(params: {
       : `🎯 ${opportunities.length} new freelance projects for you`;
   }
 
-  const rawHtml = generateOpportunityAlertEmailHtml(visibleOpps, category, unsubscribeUrl, hiddenCount);
+  const rawHtml = generateOpportunityAlertEmailHtml(visibleOpps, category, unsubscribeUrl, hiddenCount, userCountry || null, userPlan || 'FREE');
   const text = generateOpportunityAlertEmailText(visibleOpps, category);
 
   // Add email tracking (open pixel + link click tracking)
@@ -470,7 +478,16 @@ export async function processInstantAlertQueue(): Promise<{
     include: {
       languagePairs: true,
       user: {
-        select: { email: true, plan: true },
+        select: {
+          email: true,
+          plan: true,
+          activityLogs: {
+            where: { country: { not: null } },
+            select: { country: true },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
       },
     },
   });
@@ -574,12 +591,14 @@ export async function processInstantAlertQueue(): Promise<{
 
     processed += opportunities.size;
     const userPlan = alerts[0].user?.plan || 'FREE';
+    const userCountry = alerts[0].user?.activityLogs?.[0]?.country || null;
     const primaryCategory = alerts.find((a) => a.category)?.category || null;
 
     const result = await sendOpportunityAlertNotification({
       alertId: alerts[0].id,
       email,
       userPlan,
+      userCountry,
       category: primaryCategory,
       opportunities: Array.from(opportunities.values()),
     });

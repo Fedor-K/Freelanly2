@@ -2,40 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getStripe } from '@/lib/stripe';
 import { siteConfig } from '@/config/site';
-
-/**
- * A/B pricing by country GDP tier.
- * Low-GDP countries: €1, Mid: €2, High: €3
- */
-
-// Low GDP — €1 (100 cents)
-const LOW_GDP_COUNTRIES = new Set([
-  'IN', 'PK', 'BD', 'LK', 'NP', 'MM', 'KH', 'LA', 'VN',
-  'PH', 'ID', 'NG', 'KE', 'GH', 'TZ', 'UG', 'ET', 'EG',
-  'MA', 'TN', 'DZ', 'UA', 'UZ', 'KG', 'TJ',
-]);
-
-// Mid GDP — €2 (200 cents)
-const MID_GDP_COUNTRIES = new Set([
-  'BR', 'MX', 'AR', 'CO', 'CL', 'PE', 'EC', 'CR',
-  'TR', 'ZA', 'TH', 'MY', 'CN', 'RU', 'BY', 'KZ',
-  'RO', 'BG', 'RS', 'HR', 'HU', 'PL', 'CZ', 'SK',
-  'GR', 'PT',
-]);
-
-// Everything else (US, EU, UK, AU, CA, etc.) — €3 (300 cents)
-
-function getPriceCents(countryCode: string | null): number {
-  if (!countryCode) return 300;
-  const cc = countryCode.toUpperCase();
-  if (LOW_GDP_COUNTRIES.has(cc)) return 100;
-  if (MID_GDP_COUNTRIES.has(cc)) return 200;
-  return 300;
-}
-
-function formatPrice(cents: number): string {
-  return `€${(cents / 100).toFixed(0)}`;
-}
+import { getPriceCents, formatPrice } from '@/lib/geo-pricing';
 
 /**
  * POST /api/stripe/unlock-contact
