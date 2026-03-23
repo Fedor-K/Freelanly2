@@ -42,6 +42,17 @@ export function UpgradeModal({
   const [loading, setLoading] = useState<PriceKey | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [paymentProvider, setPaymentProvider] = useState<'stripe' | 'paypro'>('stripe');
+  const [unlockPrice, setUnlockPrice] = useState('€3');
+
+  // Fetch country-based unlock price
+  useEffect(() => {
+    if (open && (jobId || opportunityId)) {
+      fetch('/api/stripe/unlock-contact')
+        .then(r => r.json())
+        .then(data => { if (data.price) setUnlockPrice(data.price); })
+        .catch(() => {});
+    }
+  }, [open, jobId, opportunityId]);
 
   // Track apply attempt when modal opens
   useEffect(() => {
@@ -161,7 +172,7 @@ export function UpgradeModal({
                   </div>
                   <div className="text-xs text-green-600 mt-1">See contact for this project only</div>
                 </div>
-                <span className="text-xl font-bold text-green-700">€3</span>
+                <span className="text-xl font-bold text-green-700">{unlockPrice}</span>
               </div>
             </button>
           )}
