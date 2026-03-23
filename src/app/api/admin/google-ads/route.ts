@@ -178,13 +178,13 @@ export async function POST(req: NextRequest) {
         const headlines = [
           'Remote Translation Jobs', 'Freelance Translator Work', '13,000+ Remote Jobs',
           'Apply Direct to Companies', 'Translation Jobs Online', 'Work From Home Today',
-          'No Middlemen — Direct', 'New Jobs Every Day', 'Start Translating Now',
+          'No Middlemen, Direct', 'New Jobs Every Day', 'Start Translating Now',
           'Remote Localization Jobs', 'Freelanly.com', 'Get Hired as Translator',
           'Join 5000+ Translators', 'Translation & Subtitling', 'Instant Job Alerts',
         ];
         const descriptions = [
-          'Find remote translation, localization & subtitling jobs. Apply directly to companies — no agencies.',
-          'Browse 13,000+ remote jobs. Get instant alerts for new translation opportunities. Free to sign up.',
+          'Find remote translation & localization jobs. Apply directly to companies, no agencies.',
+          'Browse 13,000+ remote jobs. Get instant alerts for new translation opportunities.',
           'Direct contact with hiring managers. Apply before others see the job. From €0.39/day.',
           'Remote translation jobs updated daily. Set up alerts and never miss an opportunity.',
         ];
