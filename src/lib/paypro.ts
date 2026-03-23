@@ -17,6 +17,7 @@ export const PAYPRO_PRODUCTS = {
   monthly: process.env.PAYPRO_PRODUCT_MONTHLY || '129483',
   quarterly: process.env.PAYPRO_PRODUCT_QUARTERLY || '129484',
   annual: process.env.PAYPRO_PRODUCT_ANNUAL || '129485',
+  singleContact: '129688',
 } as const;
 
 export type PayProPriceKey = keyof typeof PAYPRO_PRODUCTS;
@@ -86,12 +87,16 @@ export function buildCheckoutUrl(params: {
   email: string;
   currency?: string;
   testMode?: boolean;
+  itemId?: string;
+  itemType?: string;
 }): string {
   const url = new URL(PAYPRO_CONFIG.storeUrl);
   url.searchParams.set('products[1][id]', params.productId);
   url.searchParams.set('billing-email', params.email);
   url.searchParams.set('currency', params.currency || 'EUR');
   url.searchParams.set('x-userId', params.userId);
+  if (params.itemId) url.searchParams.set('x-itemId', params.itemId);
+  if (params.itemType) url.searchParams.set('x-itemType', params.itemType);
   url.searchParams.set('thank-you-url', 'https://freelanly.com/dashboard?payment=success&provider=paypro');
 
   if (params.testMode) {

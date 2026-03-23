@@ -129,6 +129,34 @@ export async function POST(request: NextRequest) {
     // Handle events
     switch (ipnTypeId) {
       case IPN_TYPES.OrderCharged: {
+        // Check if this is a single contact unlock (product 129688)
+        if (productId === '129688' && dbUserId) {
+          const itemId = params['x-itemId'] || '';
+          const itemType = params['x-itemType'] || 'opportunity';
+
+          const unlockData: Record<string, unknown> = {
+            userId: dbUserId,
+            payproOrderId: orderId,
+            amount: Math.round(parseFloat(totalAmount) * 100),
+            currency: params.ORDER_ITEM_CURRENCY_CODE || 'EUR',
+          };
+          if (itemType === 'job') unlockData.jobId = itemId;
+          else unlockData.opportunityId = itemId;
+
+          await prisma.unlockedContact.create({ data: unlockData as Parameters<typeof prisma.unlockedContact.create>[0]['data'] });
+
+          await prisma.activityLog.create({
+            data: {
+              userId: dbUserId,
+              action: ActivityAction.CHECKOUT_COMPLETE,
+              details: { type: 'unlock_contact', provider: 'paypro', itemType, itemId, orderId, amount: parseFloat(totalAmount) },
+            },
+          }).catch(() => {});
+
+          console.log(`[PayPro Webhook] Contact unlocked for user ${dbUserId}: ${itemType} ${itemId}`);
+          break;
+        }
+
         if (dbUserId) {
           await prisma.user.update({
             where: { id: dbUserId },
