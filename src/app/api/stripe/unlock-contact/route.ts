@@ -41,6 +41,8 @@ export async function POST(request: NextRequest) {
         itemId,
         itemType,
         type: 'unlock_contact',
+        source: 'upgrade_modal',
+        priceKey: 'single_contact',
       },
       success_url: `${siteConfig.url}/dashboard?payment=success&unlock=${itemType}`,
       cancel_url: `${siteConfig.url}/${itemType === 'job' ? 'jobs' : 'freelance'}`,
