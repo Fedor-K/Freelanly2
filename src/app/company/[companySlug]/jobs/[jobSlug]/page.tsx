@@ -291,6 +291,13 @@ export default async function JobPage({ params }: JobPageProps) {
     if (user?.plan) {
       userPlan = user.plan as UserPlan;
     }
+    // Check if contact is unlocked via pay-per-contact
+    if (userPlan === 'FREE') {
+      const unlocked = await prisma.unlockedContact.findFirst({
+        where: { userId: session.user.id, jobId: job.id },
+      });
+      if (unlocked) userPlan = 'PRO'; // treat as PRO for this page
+    }
   }
 
   // Prepare description - mask contacts for FREE users

@@ -351,6 +351,13 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
     if (user?.plan) {
       userPlan = user.plan as UserPlan;
     }
+    // Check if contact is unlocked via pay-per-contact
+    if (userPlan === 'FREE') {
+      const unlocked = await prisma.unlockedContact.findFirst({
+        where: { userId: session.user.id, opportunityId: opportunity.id },
+      });
+      if (unlocked) userPlan = 'PRO';
+    }
   }
 
   const isPro = userPlan === 'PRO' || userPlan === 'ENTERPRISE';
