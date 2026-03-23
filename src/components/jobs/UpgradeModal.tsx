@@ -126,6 +126,48 @@ export function UpgradeModal({
             <p className="text-sm text-destructive bg-destructive/10 p-2 rounded">{error}</p>
           )}
 
+          {/* Single contact unlock */}
+          {(jobId || opportunityId) && (
+            <button
+              onClick={async () => {
+                setError(null);
+                setLoading('monthly' as PriceKey); // reuse loading state
+                trackedRef.current = false;
+                trackDb('CHECKOUT_START', { type: 'unlock_contact', jobId, opportunityId, source: 'upgrade_modal' });
+                try {
+                  localStorage.setItem('paymentReturnUrl', window.location.href);
+                  const res = await fetch('/api/stripe/unlock-contact', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jobId, opportunityId }),
+                  });
+                  const data = await res.json();
+                  if (data.url) window.location.href = data.url;
+                  else setError(data.error || 'Failed to create checkout');
+                } catch {
+                  setError('Something went wrong');
+                } finally {
+                  setLoading(null);
+                }
+              }}
+              disabled={loading !== null}
+              className="w-full p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 shadow-md shadow-green-100 text-left transition-all hover:shadow-lg"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-green-700">🔓 Unlock this contact</span>
+                    <Badge className="bg-green-500 hover:bg-green-500 text-[10px]">One-time</Badge>
+                  </div>
+                  <div className="text-xs text-green-600 mt-1">See contact for this project only</div>
+                </div>
+                <span className="text-xl font-bold text-green-700">€3</span>
+              </div>
+            </button>
+          )}
+
+          <div className="text-center text-xs text-muted-foreground">or get unlimited access</div>
+
           {/* Pricing cards */}
           {plans.map(({ key, badge }) => {
             const info = PRICE_INFO[key];

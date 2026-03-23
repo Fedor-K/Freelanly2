@@ -1656,6 +1656,29 @@ enum ReengagementEmailType {
 }
 
 // ============================================
+// UNLOCKED CONTACTS (pay-per-contact)
+// ============================================
+
+model UnlockedContact {
+  id        String   @id @default(cuid())
+  userId    String
+  // Either a job or an opportunity
+  jobId           String?
+  opportunityId   String?
+  // Payment info
+  stripeSessionId String?
+  payproOrderId   String?
+  amount          Int      @default(300) // cents
+  currency        String   @default("EUR")
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, jobId])
+  @@unique([userId, opportunityId])
+  @@index([userId])
+}
+
+// ============================================
 // ACTIVITY LOG (for dispute evidence)
 // ============================================
 

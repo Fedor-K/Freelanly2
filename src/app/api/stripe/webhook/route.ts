@@ -96,6 +96,34 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
+  // Handle single contact unlock (one-time payment)
+  if (session.metadata?.type === 'unlock_contact') {
+    const itemId = session.metadata.itemId;
+    const itemType = session.metadata.itemType;
+
+    const data: Record<string, unknown> = {
+      userId,
+      stripeSessionId: session.id,
+      amount: session.amount_total || 300,
+      currency: session.currency?.toUpperCase() || 'EUR',
+    };
+    if (itemType === 'job') data.jobId = itemId;
+    else data.opportunityId = itemId;
+
+    await prisma.unlockedContact.create({ data: data as Parameters<typeof prisma.unlockedContact.create>[0]['data'] });
+
+    await prisma.activityLog.create({
+      data: {
+        userId,
+        action: ActivityAction.CHECKOUT_COMPLETE,
+        details: { type: 'unlock_contact', itemType, itemId, amount: (session.amount_total || 0) / 100 },
+      },
+    }).catch(() => {});
+
+    console.log(`[Stripe Webhook] Contact unlocked for user ${userId}: ${itemType} ${itemId}`);
+    return;
+  }
+
   console.log(`[Stripe Webhook] Checkout completed for user ${userId}, subscription ${subscriptionId}`);
 
   // Fetch subscription to get period end date
