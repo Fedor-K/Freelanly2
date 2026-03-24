@@ -480,14 +480,9 @@ export async function processInstantAlertQueue(): Promise<{
       languagePairs: true,
       user: {
         select: {
+          id: true,
           email: true,
           plan: true,
-          activityLogs: {
-            where: { country: { not: null } },
-            select: { country: true },
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-          },
         },
       },
     },
@@ -592,7 +587,17 @@ export async function processInstantAlertQueue(): Promise<{
 
     processed += opportunities.size;
     const userPlan = alerts[0].user?.plan || 'FREE';
-    const userCountry = alerts[0].user?.activityLogs?.[0]?.country || null;
+    // Look up user country from ActivityLog (no Prisma relation on User)
+    let userCountry: string | null = null;
+    const userId = alerts[0].user?.id;
+    if (userId) {
+      const latestLog = await prisma.activityLog.findFirst({
+        where: { userId, country: { not: null } },
+        select: { country: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      userCountry = latestLog?.country || null;
+    }
     const primaryCategory = alerts.find((a) => a.category)?.category || null;
 
     const result = await sendOpportunityAlertNotification({
