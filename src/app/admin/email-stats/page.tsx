@@ -749,6 +749,11 @@ export default function EmailStatsPage() {
                               {journey.source}
                             </span>
                           )}
+                          {journey.channel && (
+                            <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">
+                              {journey.channel}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                           <span>{journey.totalEmails} писем получил</span>

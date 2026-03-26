@@ -289,15 +289,36 @@ export async function GET(request: NextRequest) {
       });
     }
     const proJourneyList = Array.from(journeyMap.values())
-      .map((j) => ({
-        ...j,
-        totalEmails: j.events.filter(e => e.type === 'SENT').length,
-        totalClicks: j.events.filter(e => e.type === 'CLICKED').length,
-        firstEmail: j.events.find(e => e.type === 'SENT')?.timestamp || null,
-        daysFromFirstEmail: j.events.find(e => e.type === 'SENT')
-          ? Math.round((j.proStarted.getTime() - new Date(j.events.find(e => e.type === 'SENT')!.timestamp).getTime()) / (1000 * 60 * 60 * 24))
-          : null,
-      }))
+      .map((j) => {
+        // Detect conversion channel from last click before purchase
+        const lastClick = [...j.events].reverse().find(e => e.type === 'CLICKED');
+        const lastClickLink = lastClick?.link || '';
+        const alertSubjects = j.events.filter(e =>
+          e.type === 'SENT' && e.subject && (
+            e.subject.includes('freelance project') ||
+            e.subject.includes('Freelance Project') ||
+            e.subject.includes('matched you') ||
+            e.subject.includes('client contact inside')
+          )
+        );
+        let channel: string | null = null;
+        if (lastClickLink.includes('track/click') || lastClickLink.includes('utm_source=job_alert')) {
+          channel = 'job_alert';
+        } else if (alertSubjects.length > 0 && alertSubjects.length >= j.events.filter(e => e.type === 'SENT').length * 0.5) {
+          channel = 'job_alert';
+        }
+
+        return {
+          ...j,
+          channel,
+          totalEmails: j.events.filter(e => e.type === 'SENT').length,
+          totalClicks: j.events.filter(e => e.type === 'CLICKED').length,
+          firstEmail: j.events.find(e => e.type === 'SENT')?.timestamp || null,
+          daysFromFirstEmail: j.events.find(e => e.type === 'SENT')
+            ? Math.round((j.proStarted.getTime() - new Date(j.events.find(e => e.type === 'SENT')!.timestamp).getTime()) / (1000 * 60 * 60 * 24))
+            : null,
+        };
+      })
       .sort((a, b) => new Date(b.proStarted).getTime() - new Date(a.proStarted).getTime());
 
     // Process daily trend
