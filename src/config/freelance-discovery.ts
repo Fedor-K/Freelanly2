@@ -1,27 +1,19 @@
 /**
  * Freelance LinkedIn Posts Discovery Configuration
  *
- * 126 search queries for finding freelance/contract opportunities.
+ * 150 search queries for finding freelance/contract opportunities.
  * Used by n8n workflow via /api/linkedin/next-keyword endpoint.
  *
  * Rotation: every 10 minutes, next keyword in list (sequential, not random)
- * Full cycle: 126 × 10 min = ~21 hours
+ * Full cycle: 150 × 10 min = ~25 hours
  *
- * Updated 2026-03-28:
- * - Standardized translator/interpreter lists to top-20 languages
- * - Added keywords for engineering, design, data, devops, marketing, HR, sales, security
- * - Removed low-performing general keywords ("short term project", "quick project", "need contractor")
+ * Principle: specific skill + role (like "french translator", not "freelance translator")
  *
- * Previously removed (low conversion):
- * - "localization project", "contract marketing", "freelance SEO"
- * - "freelance photographer", "freelance illustrator", "LQA", "localization QA"
- * - "freelance bookkeeper", "freelance accountant", "freelance marketing"
- * - "freelancer needed" (1%), "transcreation" (3%) — removed 2026-02-05
- * - Dead/near-dead language keywords — removed 2026-03-28
+ * Updated 2026-03-28: full overhaul — skill-based keywords for all categories
  */
 
 // ============================================
-// All 126 Freelance Search Queries
+// All Freelance Search Queries
 // ============================================
 
 export const FREELANCE_SEARCH_QUERIES = [
@@ -39,30 +31,6 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"hourly rate"',
   '"per project"',
 
-  // === Engineering (12) — 25 paid users ===
-  '"freelance developer"',
-  '"freelance engineer"',
-  '"contract developer"',
-  '"freelance react"',
-  '"freelance fullstack"',
-  '"freelance backend"',
-  '"freelance frontend"',
-  '"freelance python"',
-  '"freelance java"',
-  '"freelance mobile developer"',
-  '"freelance DevOps"',
-  '"freelance cloud engineer"',
-
-  // === Design (8) — 17 paid users ===
-  '"freelance designer"',
-  '"freelance UX"',
-  '"freelance UI designer"',
-  '"freelance product designer"',
-  '"contract designer"',
-  '"freelance graphic designer"',
-  '"freelance brand designer"',
-  '"freelance Figma"',
-
   // === Translation & Language - General (12) ===
   '"freelance translator"',
   '"freelance translation"',
@@ -77,7 +45,7 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"voice over" freelance',
   '"dubbing" freelance',
 
-  // === Translators - Top 20 Languages ===
+  // === Translators - Top 20 Languages (20) ===
   '"french translator"',
   '"chinese translator"',
   '"spanish translator"',
@@ -99,7 +67,7 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"swedish translator"',
   '"greek translator"',
 
-  // === Interpreters - Top 20 Languages ===
+  // === Interpreters - Top 20 Languages (20) ===
   '"french interpreter"',
   '"chinese interpreter"',
   '"spanish interpreter"',
@@ -134,64 +102,112 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"subtitle" project',
   '"linguist" needed',
 
-  // === Writing (6) — 8 paid users ===
-  '"freelance writer"',
-  '"freelance copywriter"',
-  '"freelance content writer"',
-  '"contract writer"',
+  // === Engineering - By Skill (15) ===
+  '"react developer"',
+  '"python developer"',
+  '"node developer"',
+  '"java developer"',
+  '"golang developer"',
+  '"ruby developer"',
+  '"PHP developer"',
+  '"flutter developer"',
+  '"iOS developer"',
+  '"android developer"',
+  '"fullstack developer"',
+  '"backend developer"',
+  '"frontend developer"',
+  '"DevOps engineer"',
+  '"cloud engineer"',
+
+  // === Design - By Skill (8) ===
+  '"UX designer"',
+  '"UI designer"',
+  '"Figma designer"',
+  '"brand designer"',
+  '"graphic designer" freelance',
+  '"product designer"',
+  '"web designer" freelance',
+  '"motion designer"',
+
+  // === Writing - By Skill (8) ===
+  '"copywriter" freelance',
+  '"content writer" freelance',
+  '"technical writer"',
+  '"blog writer" freelance',
+  '"ghostwriter"',
+  '"UX writer"',
+  '"grant writer"',
   '"freelance editor"',
-  '"freelance technical writer"',
 
-  // === Marketing (4) — 8 paid users ===
-  '"freelance growth"',
-  '"freelance social media"',
-  '"freelance PPC"',
-  '"freelance email marketing"',
+  // === Marketing - By Skill (8) ===
+  '"Google Ads" specialist',
+  '"Facebook Ads" specialist',
+  '"SEO specialist"',
+  '"email marketing" freelance',
+  '"social media manager" freelance',
+  '"content marketing" freelance',
+  '"PPC specialist"',
+  '"growth marketer"',
 
-  // === Creative (4) — 7 paid users ===
-  '"freelance video editor"',
-  '"freelance motion"',
-  '"freelance animator"',
-  '"contract creative"',
+  // === Data - By Skill (8) ===
+  '"data analyst" freelance',
+  '"data engineer" freelance',
+  '"data scientist" freelance',
+  '"Power BI" freelance',
+  '"Tableau" freelance',
+  '"SQL analyst"',
+  '"machine learning" freelance',
+  '"business analyst" freelance',
 
-  // === Data (4) — 10 paid users ===
-  '"freelance data analyst"',
-  '"freelance data engineer"',
-  '"freelance data scientist"',
-  '"freelance BI"',
+  // === Creative - By Skill (6) ===
+  '"video editor" freelance',
+  '"motion graphics" freelance',
+  '"3D artist" freelance',
+  '"animator" freelance',
+  '"sound designer" freelance',
+  '"illustrator" freelance',
 
-  // === QA & Testing (3) — 9 paid users ===
-  '"freelance QA"',
-  '"freelance tester"',
+  // === QA - By Skill (4) ===
+  '"QA engineer"',
   '"QA tester" remote',
+  '"automation tester"',
+  '"manual tester" freelance',
 
-  // === DevOps (2) — 7 paid users ===
-  '"contract DevOps"',
-  '"freelance SRE"',
+  // === DevOps - By Skill (4) ===
+  '"AWS engineer"',
+  '"Azure engineer"',
+  '"Kubernetes engineer"',
+  '"SRE engineer"',
 
-  // === HR (2) — 5 paid users ===
-  '"freelance HR"',
-  '"freelance talent acquisition"',
+  // === Security - By Skill (3) ===
+  '"cybersecurity" freelance',
+  '"penetration tester"',
+  '"security engineer" freelance',
 
-  // === Project Management (2) — 5 paid users ===
-  '"freelance project manager"',
-  '"contract project manager"',
-
-  // === Security (1) — 3 paid users ===
-  '"freelance cybersecurity"',
-
-  // === Sales (1) — 4 paid users ===
-  '"freelance sales"',
-
-  // === Other (4) ===
-  '"freelance consultant"',
+  // === HR & Recruiting - By Skill (3) ===
   '"freelance recruiter"',
+  '"talent acquisition" freelance',
+  '"HR consultant"',
+
+  // === Project Management (3) ===
+  '"project manager" freelance',
+  '"scrum master" freelance',
+  '"product manager" freelance',
+
+  // === Sales (2) ===
+  '"sales consultant" freelance',
+  '"business development" freelance',
+
+  // === Other (5) ===
+  '"freelance consultant"',
   '"freelance research"',
-  '"freelance customer support"',
+  '"customer support" remote',
+  '"virtual assistant" freelance',
+  '"bookkeeper" freelance',
 ];
 
 // Total count
-export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 126
+export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length;
 
 // ============================================
 // Rotation Logic (Sequential, time-based)
