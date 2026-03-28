@@ -612,13 +612,34 @@ export async function processInstantAlertQueue(): Promise<{
     if (result.success) {
       sent++;
       const alertIds = alerts.map((a) => a.id);
-      await prisma.jobAlert.updateMany({
-        where: { id: { in: alertIds } },
-        data: {
-          lastSentAt: new Date(),
-          emailsSent: { increment: 1 },
-        },
-      });
+      const opportunityIds = Array.from(opportunities.keys());
+
+      await Promise.all([
+        // Update alert stats
+        prisma.jobAlert.updateMany({
+          where: { id: { in: alertIds } },
+          data: {
+            lastSentAt: new Date(),
+            emailsSent: { increment: 1 },
+          },
+        }),
+        // Create AlertNotification records for tracking (keyword → user funnel)
+        ...alertIds.flatMap((alertId) =>
+          opportunityIds.map((oppId) =>
+            prisma.alertNotification.create({
+              data: {
+                jobAlertId: alertId,
+                opportunityId: oppId,
+                status: 'SENT',
+                sentAt: new Date(),
+                messageId: result.messageId || undefined,
+              },
+            }).catch(() => {
+              // Skip duplicates silently
+            })
+          )
+        ),
+      ]);
     } else {
       failed++;
       console.error(`[InstantAlerts] Failed to send to ${email}: ${result.error}`);
