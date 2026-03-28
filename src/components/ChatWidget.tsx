@@ -32,6 +32,7 @@ function renderMessageContent(content: string) {
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  buttons?: Array<{ label: string; value: string }>;
 }
 
 // Stable chat session ID per browser tab — also stored in localStorage for registration linking
@@ -74,6 +75,17 @@ function playNotificationSound() {
   } catch {}
 }
 
+// Category buttons for initial greeting and "Different category" flow
+const CATEGORY_BUTTONS: Array<{ label: string; value: string }> = [
+  { label: 'Development', value: 'Development' },
+  { label: 'Design', value: 'Design' },
+  { label: 'Translation', value: 'Translation' },
+  { label: 'Marketing', value: 'Marketing' },
+  { label: 'Writing', value: 'Writing' },
+  { label: 'Data & Analytics', value: 'Data & Analytics' },
+  { label: 'Other', value: 'Other' },
+];
+
 export function ChatWidget() {
   const [userStatus, setUserStatus] = useState<'anonymous' | 'FREE' | 'PRO'>('anonymous');
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -97,20 +109,24 @@ export function ChatWidget() {
   const [showBubble, setShowBubble] = useState(false);
   const [bubbleDismissed, setBubbleDismissed] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Hey! 👋 How can I help you today? Ask me anything about Freelanly or finding remote jobs.' },
+    {
+      role: 'assistant',
+      content: 'Hey! \u{1F44B} What kind of remote work are you looking for?',
+      buttons: CATEGORY_BUTTONS,
+    },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-show bubble after 12 seconds
+  // Auto-show bubble after 15 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!isOpen && !bubbleDismissed) {
         setShowBubble(true);
       }
-    }, 12000);
+    }, 15000);
     return () => clearTimeout(timer);
   }, [isOpen, bubbleDismissed]);
 
@@ -126,9 +142,9 @@ export function ChatWidget() {
     if (isOpen) inputRef.current?.focus();
   }, [isOpen]);
 
-  const sendMessage = async () => {
-    const text = input.trim();
-    if (!text || loading) return;
+  const sendMessage = async (text?: string, isQuickReply?: boolean) => {
+    const messageText = text || input.trim();
+    if (!messageText || loading) return;
 
     // Init audio on user gesture (required for iOS)
     ensureAudioContext();
@@ -143,9 +159,9 @@ export function ChatWidget() {
       }
     }
 
-    const userMsg: Message = { role: 'user', content: text };
+    const userMsg: Message = { role: 'user', content: messageText };
     setMessages((prev) => [...prev, userMsg]);
-    setInput('');
+    if (!text) setInput('');
     setLoading(true);
 
     try {
@@ -153,17 +169,25 @@ export function ChatWidget() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: text,
-          history: messages.slice(-8),
+          message: messageText,
+          history: messages.slice(-8).map(m => ({ role: m.role, content: m.content })),
           sessionId: chatSessionId,
           userStatus,
           userEmail: userEmail || undefined,
           userId: userId || undefined,
+          quickReply: isQuickReply || false,
         }),
       });
 
       const data = await res.json();
-      setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }]);
+      const assistantMsg: Message = {
+        role: 'assistant',
+        content: data.reply,
+      };
+      if (data.buttons && Array.isArray(data.buttons) && data.buttons.length > 0) {
+        assistantMsg.buttons = data.buttons;
+      }
+      setMessages((prev) => [...prev, assistantMsg]);
       playNotificationSound();
     } catch {
       setMessages((prev) => [
@@ -173,6 +197,11 @@ export function ChatWidget() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleButtonClick = (value: string) => {
+    if (loading) return;
+    sendMessage(value, true);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -204,19 +233,35 @@ export function ChatWidget() {
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
             {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
+              <div key={i}>
                 <div
-                  className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-black text-white rounded-br-md'
-                      : 'bg-gray-100 text-gray-800 rounded-bl-md'
-                  }`}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  {renderMessageContent(msg.content)}
+                  <div
+                    className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-black text-white rounded-br-md'
+                        : 'bg-gray-100 text-gray-800 rounded-bl-md'
+                    }`}
+                  >
+                    {renderMessageContent(msg.content)}
+                  </div>
                 </div>
+                {/* Quick reply buttons */}
+                {msg.buttons && msg.buttons.length > 0 && msg.role === 'assistant' && (
+                  <div className="flex flex-wrap gap-1.5 mt-2 ml-1">
+                    {msg.buttons.map((btn, j) => (
+                      <button
+                        key={j}
+                        onClick={() => handleButtonClick(btn.value)}
+                        disabled={loading}
+                        className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-300 rounded-full hover:bg-gray-50 hover:border-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             {loading && (
@@ -243,7 +288,7 @@ export function ChatWidget() {
                 className="flex-1 min-w-0 px-3 py-2 text-sm border rounded-full focus:outline-none focus:border-black disabled:opacity-50"
               />
               <button
-                onClick={sendMessage}
+                onClick={() => sendMessage()}
                 disabled={loading || !input.trim()}
                 className="w-9 h-9 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-30 transition-colors shrink-0 flex items-center justify-center"
               >
@@ -271,8 +316,8 @@ export function ChatWidget() {
               onClick={() => { setShowBubble(false); setBubbleDismissed(true); setIsOpen(true); }}
               className="text-left"
             >
-              <p className="text-sm font-medium text-gray-800">Looking for a remote project or job? 👋</p>
-              <p className="text-xs text-gray-500 mt-1">I can help you find the right one. Ask me anything!</p>
+              <p className="text-sm font-medium text-gray-800">{'\u{1F44B}'} Hey! Looking for remote work?</p>
+              <p className="text-xs text-gray-500 mt-1">I can find matching projects for you in 30 seconds</p>
             </button>
             {/* Arrow pointing to button */}
             <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white border-b border-r transform rotate-45" />

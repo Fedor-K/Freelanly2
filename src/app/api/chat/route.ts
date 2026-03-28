@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { prisma } from '@/lib/db';
+import { getPriceCents, formatPrice } from '@/lib/geo-pricing';
 
 const SYSTEM_PROMPT = `You are Freelanly's friendly support assistant. You help users find remote jobs and understand how Freelanly works.
 
@@ -107,15 +108,144 @@ interface ChatMessage {
   content: string;
 }
 
+// Map category button labels to database slugs
+const CATEGORY_SLUG_MAP: Record<string, string | null> = {
+  'Development': 'engineering',
+  'Design': 'design',
+  'Translation': 'translation',
+  'Marketing': 'marketing',
+  'Writing': 'writing',
+  'Data & Analytics': 'data',
+  'Other': null,
+};
+
+const CATEGORY_LABELS = Object.keys(CATEGORY_SLUG_MAP);
+
+const CATEGORY_BUTTONS = CATEGORY_LABELS.map(label => ({ label, value: label }));
+
+// Quick reply values that trigger flow steps
+const FLOW_TRIGGERS: Record<string, string> = {
+  'See more projects': 'see_more',
+  'Different category': 'different_category',
+  'How to apply?': 'how_to_apply',
+  'Sign up free': 'signup',
+  'Tell me about PRO': 'pro_info',
+  'See PRO pricing': 'pro_info',
+  'Upgrade now': 'upgrade',
+  'Maybe later': 'maybe_later',
+  'Show me projects': 'show_projects',
+  'Browse projects': 'browse_projects',
+};
+
+// Add utm_source=chatbot to freelanly.com URLs
+function addUtmSource(url: string): string {
+  if (url.includes('utm_source=')) return url;
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}utm_source=chatbot`;
+}
+
+// Add utm_source to all freelanly.com links in a string
+function addUtmSourceToContent(content: string): string {
+  return content.replace(
+    /https:\/\/freelanly\.com(\/[^\s)]*)/g,
+    (match, path: string) => {
+      const cleanPath = path.replace(/[.,;:!]+$/, '');
+      if (cleanPath.includes('utm_source=')) return `https://freelanly.com${cleanPath}`;
+      const separator = cleanPath.includes('?') ? '&' : '?';
+      return `https://freelanly.com${cleanPath}${separator}utm_source=chatbot`;
+    }
+  );
+}
+
+// Try to detect the last selected category from conversation history
+function detectCategoryFromHistory(history: ChatMessage[]): string | null {
+  // Walk backwards through history to find the last category selection
+  for (let i = history.length - 1; i >= 0; i--) {
+    const msg = history[i];
+    if (msg.role === 'user' && CATEGORY_LABELS.includes(msg.content)) {
+      return msg.content;
+    }
+  }
+  return null;
+}
+
+// Count how many times "See more projects" was clicked (to calculate offset)
+function countSeeMore(history: ChatMessage[]): number {
+  let count = 0;
+  for (const msg of history) {
+    if (msg.role === 'user' && msg.content === 'See more projects') {
+      count++;
+    }
+  }
+  return count;
+}
+
+async function queryOpportunities(categorySlug: string | null, offset: number = 0) {
+  const where: Record<string, unknown> = { isActive: true };
+  if (categorySlug) {
+    where.category = { slug: categorySlug };
+  }
+
+  const opportunities = await prisma.opportunity.findMany({
+    where,
+    select: {
+      title: true,
+      slug: true,
+      clientName: true,
+      country: true,
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 3,
+    skip: offset,
+  });
+
+  return opportunities;
+}
+
+function formatOpportunitiesList(
+  opportunities: Array<{ title: string; slug: string; clientName: string; country: string | null }>,
+  categoryLabel: string
+): string {
+  if (opportunities.length === 0) {
+    return `No active ${categoryLabel.toLowerCase()} projects found right now. New projects are added multiple times per day — sign up for instant alerts to be the first to know!\n\n${addUtmSource('https://freelanly.com/auth/signin')}`;
+  }
+
+  const lines = opportunities.map((opp, i) => {
+    const country = opp.country ? ` (${opp.country})` : '';
+    return `${i + 1}. **${opp.title}** — ${opp.clientName}${country}`;
+  });
+
+  return `Here are the latest ${categoryLabel.toLowerCase()} projects:\n\n${lines.join('\n')}\n\nThese are the latest projects. Want to see more or refine your search?`;
+}
+
+function getProPricingMessage(countryCode: string | null): string {
+  const priceCents = getPriceCents(countryCode);
+  const pricePerContact = formatPrice(priceCents);
+
+  return `\u{1F680} **PRO gives you the unfair advantage:**\n\n` +
+    `\u2705 Direct contact details for every job\n` +
+    `\u2705 Apply before others see the job\n` +
+    `\u2705 Salary insights (full range + percentiles)\n` +
+    `\u2705 Instant alerts for new matching jobs\n` +
+    `\u2705 Single contact unlock for just ${pricePerContact}\n\n` +
+    `**Pricing:**\n` +
+    `\u2022 Monthly: \u20AC15/month (\u20AC0.50/day)\n` +
+    `\u2022 Quarterly: \u20AC35/3 months (\u20AC0.39/day — save 22%)\n` +
+    `\u2022 Annual: \u20AC150/year (\u20AC0.41/day — save 17%)\n\n` +
+    `Cancel anytime. Jobs get filled fast \u2014 PRO members apply first!\n\n` +
+    `${addUtmSource('https://freelanly.com/pricing')}`;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { message, history, sessionId, userStatus, userEmail, userId } = await request.json() as {
+    const { message, history, sessionId, userStatus, userEmail, userId, quickReply } = await request.json() as {
       message: string;
       history?: ChatMessage[];
       sessionId?: string;
       userStatus?: 'anonymous' | 'FREE' | 'PRO';
       userEmail?: string;
       userId?: string;
+      quickReply?: boolean;
     };
 
     if (!message || typeof message !== 'string') {
@@ -130,6 +260,345 @@ export async function POST(request: NextRequest) {
     const userCountry = request.headers.get('x-vercel-ip-country') || null;
     const userCity = request.headers.get('x-vercel-ip-city') ? decodeURIComponent(request.headers.get('x-vercel-ip-city')!) : null;
 
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null;
+    const country = request.headers.get('x-vercel-ip-country') || null;
+    const city = request.headers.get('x-vercel-ip-city') ? decodeURIComponent(request.headers.get('x-vercel-ip-city')!) : null;
+
+    const conversationHistory = (history && Array.isArray(history)) ? history : [];
+
+    // ==========================================
+    // FLOW DETECTION — handle quick reply buttons
+    // ==========================================
+
+    if (quickReply) {
+      const flowStep = FLOW_TRIGGERS[message];
+      const isCategory = CATEGORY_LABELS.includes(message);
+
+      // ----- Step 1: Category selected -----
+      if (isCategory) {
+        const categorySlug = CATEGORY_SLUG_MAP[message];
+        try {
+          const opportunities = await queryOpportunities(categorySlug, 0);
+          const reply = formatOpportunitiesList(opportunities, message);
+          const buttons = opportunities.length > 0
+            ? [
+                { label: 'See more projects', value: 'See more projects' },
+                { label: 'Different category', value: 'Different category' },
+                { label: 'How to apply?', value: 'How to apply?' },
+              ]
+            : [
+                { label: 'Different category', value: 'Different category' },
+                { label: 'Sign up free', value: 'Sign up free' },
+              ];
+
+          // Log
+          prisma.activityLog.create({
+            data: {
+              userId: userId || null,
+              action: 'CHAT_MESSAGE',
+              sessionId: sessionId || null,
+              details: {
+                type: 'chat_message',
+                flowStep: 'category_selected',
+                category: message,
+                userMessage: message,
+                botReply: reply.substring(0, 500),
+                userEmail: userEmail || undefined,
+                userStatus: userStatus || 'anonymous',
+              },
+              ipAddress: ip,
+              country,
+              city,
+            },
+          }).catch(() => {});
+
+          return NextResponse.json({ reply, escalate: false, buttons });
+        } catch (err) {
+          console.error('[Chat API] DB query error:', err);
+          // Fall through to AI if DB fails
+        }
+      }
+
+      // ----- Step: See more projects -----
+      if (flowStep === 'see_more') {
+        const lastCategory = detectCategoryFromHistory(conversationHistory);
+        const categorySlug = lastCategory ? (CATEGORY_SLUG_MAP[lastCategory] ?? null) : null;
+        const seeMoreCount = countSeeMore(conversationHistory) + 1; // +1 for current click
+        const offset = seeMoreCount * 3;
+
+        try {
+          const opportunities = await queryOpportunities(categorySlug, offset);
+          const categoryLabel = lastCategory || 'all';
+          const reply = opportunities.length > 0
+            ? formatOpportunitiesList(opportunities, categoryLabel)
+            : `That's all the ${categoryLabel.toLowerCase()} projects we have right now. New projects are added multiple times per day!\n\nSign up for instant alerts to never miss a new one: ${addUtmSource('https://freelanly.com/auth/signin')}`;
+
+          const buttons = opportunities.length > 0
+            ? [
+                { label: 'See more projects', value: 'See more projects' },
+                { label: 'Different category', value: 'Different category' },
+                { label: 'How to apply?', value: 'How to apply?' },
+              ]
+            : [
+                { label: 'Different category', value: 'Different category' },
+                { label: 'How to apply?', value: 'How to apply?' },
+              ];
+
+          prisma.activityLog.create({
+            data: {
+              userId: userId || null,
+              action: 'CHAT_MESSAGE',
+              sessionId: sessionId || null,
+              details: {
+                type: 'chat_message',
+                flowStep: 'show_jobs',
+                category: lastCategory || 'all',
+                offset,
+                userMessage: message,
+                botReply: reply.substring(0, 500),
+                userEmail: userEmail || undefined,
+                userStatus: userStatus || 'anonymous',
+              },
+              ipAddress: ip,
+              country,
+              city,
+            },
+          }).catch(() => {});
+
+          return NextResponse.json({ reply, escalate: false, buttons });
+        } catch (err) {
+          console.error('[Chat API] DB query error:', err);
+        }
+      }
+
+      // ----- Step: Different category -----
+      if (flowStep === 'different_category') {
+        const reply = 'What kind of remote work are you looking for?';
+
+        prisma.activityLog.create({
+          data: {
+            userId: userId || null,
+            action: 'CHAT_MESSAGE',
+            sessionId: sessionId || null,
+            details: {
+              type: 'chat_message',
+              flowStep: 'category_selected',
+              userMessage: message,
+              botReply: reply,
+              userEmail: userEmail || undefined,
+              userStatus: userStatus || 'anonymous',
+            },
+            ipAddress: ip,
+            country,
+            city,
+          },
+        }).catch(() => {});
+
+        return NextResponse.json({ reply, escalate: false, buttons: CATEGORY_BUTTONS });
+      }
+
+      // ----- Step: How to apply? -----
+      if (flowStep === 'how_to_apply') {
+        const lastCategory = detectCategoryFromHistory(conversationHistory);
+        const categoryText = lastCategory ? lastCategory.toLowerCase() : 'matching';
+        let reply: string;
+        let buttons: Array<{ label: string; value: string }>;
+
+        if (userStatus === 'PRO') {
+          reply = `You can apply directly! Click on any project above to see the contact details and apply.\n\nBrowse all projects: ${addUtmSource('https://freelanly.com/freelance')}`;
+          buttons = [
+            { label: 'Browse projects', value: 'Browse projects' },
+            { label: 'Different category', value: 'Different category' },
+          ];
+        } else if (userStatus === 'FREE') {
+          const priceCents = getPriceCents(userCountry);
+          const pricePerContact = formatPrice(priceCents);
+          reply = `You need PRO to see contact details and apply directly. PRO members apply before others see the job!\n\nUnlock contacts from just ${pricePerContact} per job, or get unlimited access with a PRO subscription.\n\n${addUtmSource('https://freelanly.com/pricing')}`;
+          buttons = [
+            { label: 'See PRO pricing', value: 'See PRO pricing' },
+            { label: 'Maybe later', value: 'Maybe later' },
+          ];
+        } else {
+          // anonymous
+          reply = `To apply, you need a free account. It takes 30 seconds and you'll get instant alerts for new ${categoryText} projects! \u{1F680}\n\nSign up here: ${addUtmSource('https://freelanly.com/auth/signin')}`;
+          buttons = [
+            { label: 'Sign up free', value: 'Sign up free' },
+            { label: 'Tell me about PRO', value: 'Tell me about PRO' },
+          ];
+        }
+
+        prisma.activityLog.create({
+          data: {
+            userId: userId || null,
+            action: 'CHAT_MESSAGE',
+            sessionId: sessionId || null,
+            details: {
+              type: 'chat_message',
+              flowStep: 'how_to_apply',
+              userMessage: message,
+              botReply: reply.substring(0, 500),
+              userEmail: userEmail || undefined,
+              userStatus: userStatus || 'anonymous',
+            },
+            ipAddress: ip,
+            country,
+            city,
+          },
+        }).catch(() => {});
+
+        return NextResponse.json({ reply, escalate: false, buttons });
+      }
+
+      // ----- Step: Tell me about PRO / See PRO pricing -----
+      if (flowStep === 'pro_info') {
+        const reply = getProPricingMessage(userCountry);
+        const buttons = [
+          { label: 'Upgrade now', value: 'Upgrade now' },
+          { label: 'Maybe later', value: 'Maybe later' },
+        ];
+
+        prisma.activityLog.create({
+          data: {
+            userId: userId || null,
+            action: 'CHAT_MESSAGE',
+            sessionId: sessionId || null,
+            details: {
+              type: 'chat_message',
+              flowStep: 'pro_info',
+              userMessage: message,
+              botReply: reply.substring(0, 500),
+              userEmail: userEmail || undefined,
+              userStatus: userStatus || 'anonymous',
+            },
+            ipAddress: ip,
+            country,
+            city,
+          },
+        }).catch(() => {});
+
+        return NextResponse.json({ reply, escalate: false, buttons });
+      }
+
+      // ----- Step: Upgrade now -----
+      if (flowStep === 'upgrade') {
+        const reply = `Great choice! \u{1F389} Head to our pricing page to pick your plan:\n\n${addUtmSource('https://freelanly.com/pricing')}\n\nYou'll get instant access to contact details, apply to jobs, and salary insights.`;
+        const buttons = [
+          { label: 'Browse projects', value: 'Browse projects' },
+        ];
+
+        prisma.activityLog.create({
+          data: {
+            userId: userId || null,
+            action: 'CHAT_MESSAGE',
+            sessionId: sessionId || null,
+            details: {
+              type: 'chat_message',
+              flowStep: 'pro_info',
+              userMessage: message,
+              botReply: reply.substring(0, 500),
+              userEmail: userEmail || undefined,
+              userStatus: userStatus || 'anonymous',
+            },
+            ipAddress: ip,
+            country,
+            city,
+          },
+        }).catch(() => {});
+
+        return NextResponse.json({ reply, escalate: false, buttons });
+      }
+
+      // ----- Step: Sign up free -----
+      if (flowStep === 'signup') {
+        const reply = `Awesome! Create your free account in 30 seconds:\n\n${addUtmSource('https://freelanly.com/auth/signin')}\n\nYou'll get instant email alerts when new matching projects appear. \u{1F4E9}`;
+        const buttons = [
+          { label: 'Tell me about PRO', value: 'Tell me about PRO' },
+          { label: 'Browse projects', value: 'Browse projects' },
+        ];
+
+        prisma.activityLog.create({
+          data: {
+            userId: userId || null,
+            action: 'CHAT_MESSAGE',
+            sessionId: sessionId || null,
+            details: {
+              type: 'chat_message',
+              flowStep: 'how_to_apply',
+              userMessage: message,
+              botReply: reply.substring(0, 500),
+              userEmail: userEmail || undefined,
+              userStatus: userStatus || 'anonymous',
+            },
+            ipAddress: ip,
+            country,
+            city,
+          },
+        }).catch(() => {});
+
+        return NextResponse.json({ reply, escalate: false, buttons });
+      }
+
+      // ----- Step: Maybe later -----
+      if (flowStep === 'maybe_later') {
+        const reply = `No worries! You can always browse projects for free. New ones are added daily.\n\n${addUtmSource('https://freelanly.com/freelance')}`;
+        const buttons = [
+          { label: 'Browse projects', value: 'Browse projects' },
+          { label: 'Different category', value: 'Different category' },
+        ];
+
+        prisma.activityLog.create({
+          data: {
+            userId: userId || null,
+            action: 'CHAT_MESSAGE',
+            sessionId: sessionId || null,
+            details: {
+              type: 'chat_message',
+              flowStep: 'free_text',
+              userMessage: message,
+              botReply: reply.substring(0, 500),
+              userEmail: userEmail || undefined,
+              userStatus: userStatus || 'anonymous',
+            },
+            ipAddress: ip,
+            country,
+            city,
+          },
+        }).catch(() => {});
+
+        return NextResponse.json({ reply, escalate: false, buttons });
+      }
+
+      // ----- Step: Show me projects / Browse projects -----
+      if (flowStep === 'show_projects' || flowStep === 'browse_projects') {
+        const reply = 'What kind of remote work are you looking for?';
+
+        prisma.activityLog.create({
+          data: {
+            userId: userId || null,
+            action: 'CHAT_MESSAGE',
+            sessionId: sessionId || null,
+            details: {
+              type: 'chat_message',
+              flowStep: 'category_selected',
+              userMessage: message,
+              botReply: reply,
+              userEmail: userEmail || undefined,
+              userStatus: userStatus || 'anonymous',
+            },
+            ipAddress: ip,
+            country,
+            city,
+          },
+        }).catch(() => {});
+
+        return NextResponse.json({ reply, escalate: false, buttons: CATEGORY_BUTTONS });
+      }
+    }
+
+    // ==========================================
+    // FREE TEXT — AI fallback (existing logic)
+    // ==========================================
+
     // Build messages array with user-status-aware system prompt + country
     let systemPrompt = getSystemPromptWithUserStatus(userStatus);
     if (userCountry) {
@@ -141,8 +610,8 @@ export async function POST(request: NextRequest) {
     ];
 
     // Add conversation history (last 10 messages max)
-    if (history && Array.isArray(history)) {
-      const recentHistory = history.slice(-10);
+    if (conversationHistory.length > 0) {
+      const recentHistory = conversationHistory.slice(-10);
       for (const msg of recentHistory) {
         if (msg.role === 'user' || msg.role === 'assistant') {
           messages.push({ role: msg.role, content: msg.content.substring(0, 500) });
@@ -164,17 +633,7 @@ export async function POST(request: NextRequest) {
     let reply = completion.choices[0]?.message?.content || 'Sorry, I could not process your request. Please try again.';
 
     // Add utm_source=chatbot to all freelanly.com links in reply
-    reply = reply.replace(
-      /https:\/\/freelanly\.com(\/[^\s)]*)/g,
-      (match, path: string) => {
-        // Strip trailing punctuation (. , ; : !)
-        const cleanPath = path.replace(/[.,;:!]+$/, '');
-        // Don't add if already has utm_source
-        if (cleanPath.includes('utm_source=')) return `https://freelanly.com${cleanPath}`;
-        const separator = cleanPath.includes('?') ? '&' : '?';
-        return `https://freelanly.com${cleanPath}${separator}utm_source=chatbot`;
-      }
-    );
+    reply = addUtmSourceToContent(reply);
 
     // Check if bot wants to escalate
     const shouldEscalate = reply.toLowerCase().includes('connect you with') ||
@@ -182,10 +641,27 @@ export async function POST(request: NextRequest) {
       reply.toLowerCase().includes('переведу') ||
       reply.toLowerCase().includes('свяжу с');
 
+    // Determine contextual buttons for AI responses
+    let buttons: Array<{ label: string; value: string }>;
+    const replyLower = reply.toLowerCase();
+    if (replyLower.includes('pricing') || replyLower.includes('pro ') || replyLower.includes('upgrade')) {
+      buttons = [
+        { label: 'See PRO pricing', value: 'See PRO pricing' },
+        { label: 'Browse projects', value: 'Browse projects' },
+      ];
+    } else if (replyLower.includes('job') || replyLower.includes('project') || replyLower.includes('opportunit')) {
+      buttons = [
+        { label: 'Show me projects', value: 'Show me projects' },
+        { label: 'How to apply?', value: 'How to apply?' },
+      ];
+    } else {
+      buttons = [
+        { label: 'Browse projects', value: 'Browse projects' },
+        { label: 'How to apply?', value: 'How to apply?' },
+      ];
+    }
+
     // Log chat message to DB (non-blocking)
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null;
-    const country = request.headers.get('x-vercel-ip-country') || null;
-    const city = request.headers.get('x-vercel-ip-city') ? decodeURIComponent(request.headers.get('x-vercel-ip-city')!) : null;
     prisma.activityLog.create({
       data: {
         userId: userId || null,
@@ -193,6 +669,7 @@ export async function POST(request: NextRequest) {
         sessionId: sessionId || null,
         details: {
           type: 'chat_message',
+          flowStep: 'free_text',
           userMessage: message.substring(0, 500),
           botReply: reply.substring(0, 500),
           escalated: shouldEscalate,
@@ -208,6 +685,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       reply,
       escalate: shouldEscalate,
+      buttons,
     });
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
