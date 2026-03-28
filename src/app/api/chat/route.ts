@@ -207,7 +207,7 @@ async function queryOpportunities(categorySlug: string | null, offset: number = 
 function formatOpportunitiesList(
   opportunities: Array<{ title: string; slug: string; clientName: string; country: string | null }>,
   categoryLabel: string,
-  isPro: boolean = false
+  _isPro: boolean = false
 ): string {
   if (opportunities.length === 0) {
     return `No active ${categoryLabel.toLowerCase()} projects found right now. New projects are added multiple times per day — sign up for instant alerts to be the first to know!\n\n${addUtmSource('https://freelanly.com/auth/signin')}`;
@@ -216,8 +216,7 @@ function formatOpportunitiesList(
   const lines = opportunities.map((opp, i) => {
     const country = opp.country ? ` (${opp.country})` : '';
     const url = addUtmSource(`https://freelanly.com/freelance/${opp.slug}`);
-    const client = isPro ? opp.clientName : 'Hidden — upgrade to PRO';
-    return `${i + 1}. **${opp.title}** — ${client}${country}\n${url}`;
+    return `${i + 1}. **${opp.title}**${country}\n${url}`;
   });
 
   return `Here are the latest ${categoryLabel.toLowerCase()} projects:\n\n${lines.join('\n\n')}\n\nWant to see more or refine your search?`;
