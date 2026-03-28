@@ -203,7 +203,6 @@ export function ChatWidget() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: messageText,
-          history: messages.slice(-8).map(m => ({ role: m.role, content: m.content })),
           sessionId: chatSessionId,
           userStatus,
           userEmail: userEmail || undefined,
@@ -328,6 +327,7 @@ export function ChatWidget() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Type a message..."
+                maxLength={1000}
                 disabled={loading}
                 className="flex-1 min-w-0 px-3 py-2 text-sm border rounded-full focus:outline-none focus:border-black disabled:opacity-50"
               />

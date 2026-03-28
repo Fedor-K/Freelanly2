@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
-import { rateLimit, getClientIp } from '@/lib/rate-limit';
+import { rateLimit, getClientIp, sanitizeEmail } from '@/lib/rate-limit';
 
 /**
  * POST /api/auth/verify-code
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = sanitizeEmail(email);
     const normalizedCode = code.trim();
 
     // Validate code format

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { rateLimit, getClientIp } from '@/lib/rate-limit';
+import { rateLimit, getClientIp, sanitizeEmail } from '@/lib/rate-limit';
 
 /**
  * POST /api/auth/check-email
@@ -8,8 +8,7 @@ import { rateLimit, getClientIp } from '@/lib/rate-limit';
  * Checks if a user with the given email already exists.
  * Used to determine whether to show login or registration form.
  *
- * Rate limited to 5 requests/min per IP to prevent enumeration.
- * Response timing is constant to avoid timing-based enumeration.
+ * Security: rate limited + constant timing delay to prevent enumeration.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -28,23 +27,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400 });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = sanitizeEmail(email);
+
+    // Add constant delay to prevent timing-based enumeration
+    const start = Date.now();
 
     const existingUser = await prisma.user.findUnique({
       where: { email: normalizedEmail },
       select: {
         id: true,
-        name: true,
         emailVerified: true,
       },
     });
 
-    // Constant-shape response — but don't expose exists/name for unknown emails
-    // For legitimate UI flow: the frontend needs to know if user exists to show
-    // login vs register. We rely on rate limiting to prevent mass enumeration.
+    // Pad response time to constant ~200ms to prevent timing attacks
+    const elapsed = Date.now() - start;
+    if (elapsed < 200) {
+      await new Promise(r => setTimeout(r, 200 - elapsed));
+    }
+
+    // Return minimal info — no name, no details. Just exists + verified.
     return NextResponse.json({
       exists: !!existingUser,
-      name: existingUser?.name ?? null,
       isVerified: !!existingUser?.emailVerified,
     });
   } catch (error) {

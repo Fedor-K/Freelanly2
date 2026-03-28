@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { AlertFrequency } from '@prisma/client';
-import { rateLimit, getClientIp } from '@/lib/rate-limit';
+import { rateLimit, getClientIp, sanitizeEmail, sanitizeString } from '@/lib/rate-limit';
 
 interface RegisterRequest {
   email: string;
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     const { email, name, categories, country, countries, languages, jobId, agreedToTerms, gclid, source, utmMedium, utmCampaign, utmContent } = body;
 
     // Rate limit by email: 1 request per 10 minutes (prevent email bombing)
-    const normalizedEmailForLimit = (email || '').toLowerCase().trim();
+    const normalizedEmailForLimit = sanitizeEmail(email || '');
     if (normalizedEmailForLimit) {
       const emailLimit = rateLimit('register_email', normalizedEmailForLimit, 1, 600_000);
       if (emailLimit.limited) {
@@ -96,7 +96,10 @@ export async function POST(request: NextRequest) {
     // Convert languages to pairs with English
     const languagePairs = languages ? languagesToPairs(languages) : [];
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = sanitizeEmail(email);
+
+    // Sanitize name: strip HTML tags and control characters (XSS prevention)
+    const sanitizedName = name ? sanitizeString(name).substring(0, 100) : null;
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -137,7 +140,7 @@ export async function POST(request: NextRequest) {
       update: {},
       create: {
         email: normalizedEmail,
-        name: name || null,
+        name: sanitizedName,
         // Not verified yet - will be set when magic link is clicked
         emailVerified: null,
         // Record ToS agreement for dispute evidence

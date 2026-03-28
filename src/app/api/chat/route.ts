@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { prisma } from '@/lib/db';
 import { getPriceCents, formatPrice } from '@/lib/geo-pricing';
-import { rateLimit, getClientIp } from '@/lib/rate-limit';
+import { rateLimitByDb, getClientIp } from '@/lib/rate-limit';
 
 const SYSTEM_PROMPT = `You are Freelanly's friendly support assistant. You help users find remote jobs and understand how Freelanly works.
 
@@ -257,14 +257,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message too long' }, { status: 400 });
     }
 
-    // Rate limit: 20 requests per minute per IP (prevents cost abuse)
+    // Rate limit: 20 requests per minute per IP (DB-backed, works across Vercel instances)
     const clientIp = getClientIp(request.headers);
-    const chatLimit = rateLimit('chat_ip', clientIp, 20, 60_000);
+    const chatLimit = await rateLimitByDb('CHAT_MESSAGE', clientIp, 20, 60_000);
     if (chatLimit.limited) {
       return NextResponse.json({
         reply: 'You\'re sending messages too fast. Please wait a moment and try again.',
         escalate: false,
-      }, { status: 429, headers: { 'Retry-After': String(chatLimit.retryAfter) } });
+      }, { status: 429 });
     }
 
     // Get user country from IP
@@ -275,20 +275,31 @@ export async function POST(request: NextRequest) {
     const country = request.headers.get('x-vercel-ip-country') || null;
     const city = request.headers.get('x-vercel-ip-city') ? decodeURIComponent(request.headers.get('x-vercel-ip-city')!) : null;
 
-    // Sanitize conversation history — prevent injection of arbitrary content
-    const conversationHistory: ChatMessage[] = (history && Array.isArray(history))
-      ? history
-          .filter((m): m is ChatMessage =>
-            m && typeof m === 'object' &&
-            (m.role === 'user' || m.role === 'assistant') &&
-            typeof m.content === 'string'
-          )
-          .slice(-10)
-          .map(m => ({
-            role: m.role,
-            content: m.content.substring(0, 500),
-          }))
-      : [];
+    // Server-side history: read from DB by sessionId (ignores client-provided history)
+    let conversationHistory: ChatMessage[] = [];
+    if (sessionId) {
+      const recentLogs = await prisma.activityLog.findMany({
+        where: {
+          action: 'CHAT_MESSAGE',
+          sessionId,
+          createdAt: { gte: new Date(Date.now() - 30 * 60_000) }, // last 30 min
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { details: true },
+      });
+
+      // Reconstruct history from ActivityLog entries (newest first → reverse)
+      for (const log of recentLogs.reverse()) {
+        const d = log.details as Record<string, unknown> | null;
+        if (d?.userMessage && typeof d.userMessage === 'string') {
+          conversationHistory.push({ role: 'user', content: d.userMessage });
+        }
+        if (d?.botReply && typeof d.botReply === 'string') {
+          conversationHistory.push({ role: 'assistant', content: d.botReply });
+        }
+      }
+    }
 
     // ==========================================
     // FLOW DETECTION — handle quick reply buttons

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { rateLimit, getClientIp } from '@/lib/rate-limit';
+import { rateLimit, getClientIp, sanitizeEmail } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,8 +24,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Sanitize email — prevent header injection
+    const cleanEmail = sanitizeEmail(email);
+
     // Rate limit by email: prevent subscribing someone else's email repeatedly
-    const emailLimit = rateLimit('alerts_email', email.toLowerCase().trim(), 1, 600_000);
+    const emailLimit = rateLimit('alerts_email', cleanEmail, 1, 600_000);
     if (emailLimit.limited) {
       return NextResponse.json(
         { error: 'Alert already created for this email. Check your inbox.' },
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest) {
     // Check if subscriber already exists with same email and filters
     const existing = await prisma.jobAlert.findFirst({
       where: {
-        email,
+        email: cleanEmail,
         category: category || null,
         keywords: keywords || null,
       },
@@ -65,7 +68,7 @@ export async function POST(request: NextRequest) {
       // Create new subscription
       await prisma.jobAlert.create({
         data: {
-          email,
+          email: cleanEmail,
           category: category || null,
           keywords: keywords || null,
           frequency: alertFrequency,
