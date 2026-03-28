@@ -15,7 +15,7 @@
 
 export const FREELANCE_SEARCH_QUERIES = [
   // === General Freelance Phrases ===
-  '"looking for freelance"',
+  '"looking for freelancer"',
   '"hiring freelancer"',
   '"need a freelancer"',
   '"seeking freelancer"',
@@ -23,10 +23,6 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"looking for contractor"',
   '"hiring contractor"',
   '"contract opportunity"',
-  '"project based"',
-  '"immediate project"',
-  '"hourly rate"',
-  '"per project"',
 
   // === Translation & Language - General ===
   '"freelance translation"',
@@ -136,11 +132,9 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"PPC specialist"',
 
   // === Data ===
-  '"data analyst" freelance',
-  '"data engineer" freelance',
-  '"data scientist" freelance',
-  '"Power BI" freelance',
-  '"Tableau" freelance',
+  '"data analyst"',
+  '"data engineer"',
+  '"data scientist"',
   '"SQL analyst"',
   '"machine learning"',
   '"business analyst"',
@@ -166,27 +160,18 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"SRE engineer"',
 
   // === Security ===
-  '"cybersecurity" freelance',
-  '"penetration tester"',
-  '"security engineer" freelance',
+  '"cybersecurity"',
+  '"security engineer"',
 
   // === HR ===
   '"freelance recruiter"',
-  '"talent acquisition" freelance',
+  '"talent acquisition"',
   '"HR consultant"',
 
   // === Project Management ===
-  '"project manager" freelance',
-  '"scrum master" freelance',
-  '"product manager" freelance',
-
-  // === Sales ===
-  '"sales consultant" freelance',
-  '"business development" freelance',
+  '"project manager"',
 
   // === Other ===
-  '"freelance consultant"',
-  '"freelance research"',
   '"customer support"',
   '"virtual assistant"',
 ];
