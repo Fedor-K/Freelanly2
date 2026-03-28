@@ -137,6 +137,20 @@ export function ChatWidget() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Sync input from external JS (e.g. browser extensions, automation)
+  // React ignores programmatic input.value = 'x'. External code should use:
+  //   const nativeSet = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+  //   nativeSet.call(input, 'text');
+  //   input.dispatchEvent(new Event('input', { bubbles: true }));
+  // This listener catches that dispatched event.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const handler = () => setInput(el.value);
+    el.addEventListener('input', handler);
+    return () => el.removeEventListener('input', handler);
+  }, []);
+
   // Auto-show bubble after 15 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
