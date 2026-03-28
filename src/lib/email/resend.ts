@@ -45,10 +45,17 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
     return { success: false, error: 'Resend API key not configured' };
   }
 
+  // Sanitize recipient email — strip CRLF/control chars (defense in depth)
+  const sanitizedTo = params.to.toLowerCase().trim().replace(/[\r\n\x00-\x1F]/g, '');
+  if (!sanitizedTo.includes('@') || sanitizedTo !== params.to.toLowerCase().trim()) {
+    console.error(`[Resend] Rejected suspicious email: ${params.to}`);
+    return { success: false, error: 'Invalid recipient email' };
+  }
+
   try {
     const body: Record<string, unknown> = {
       from: `${config.fromName} <${config.fromEmail}>`,
-      to: [params.to],
+      to: [sanitizedTo],
       subject: params.subject,
       html: params.html,
       text: params.text || params.html.replace(/<[^>]*>/g, ''),

@@ -3,6 +3,7 @@
 import { sendApplicationEmail } from '@/lib/email';
 import { prisma } from '@/lib/db';
 import { randomInt } from 'crypto';
+import { sanitizeEmail } from '@/lib/rate-limit';
 
 /**
  * Generate a 6-digit OTP code
@@ -12,9 +13,12 @@ function generateOTPCode(): string {
 }
 
 export async function sendMagicLinkEmail(
-  email: string,
+  rawEmail: string,
   url: string
 ): Promise<void> {
+  // Sanitize email before any use (prevents header injection)
+  const email = sanitizeEmail(rawEmail);
+
   // Generate OTP code
   const code = generateOTPCode();
 
