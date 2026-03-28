@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { AlertFrequency } from '@prisma/client';
+import { rateLimit, getClientIp } from '@/lib/rate-limit';
 
 interface RegisterRequest {
   email: string;
@@ -43,8 +44,30 @@ function languagesToPairs(languages: string[]) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit by IP: 5 requests per minute
+    const ip = getClientIp(request.headers);
+    const ipLimit = rateLimit('register_ip', ip, 5, 60_000);
+    if (ipLimit.limited) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(ipLimit.retryAfter) } }
+      );
+    }
+
     const body: RegisterRequest = await request.json();
     const { email, name, categories, country, countries, languages, jobId, agreedToTerms, gclid, source, utmMedium, utmCampaign, utmContent } = body;
+
+    // Rate limit by email: 1 request per 10 minutes (prevent email bombing)
+    const normalizedEmailForLimit = (email || '').toLowerCase().trim();
+    if (normalizedEmailForLimit) {
+      const emailLimit = rateLimit('register_email', normalizedEmailForLimit, 1, 600_000);
+      if (emailLimit.limited) {
+        return NextResponse.json(
+          { error: 'A login link was already sent. Please check your email or try again in a few minutes.' },
+          { status: 429, headers: { 'Retry-After': String(emailLimit.retryAfter) } }
+        );
+      }
+    }
 
     // Normalize countries: support both old `country` and new `countries` field
     const selectedCountries = countries && countries.length > 0

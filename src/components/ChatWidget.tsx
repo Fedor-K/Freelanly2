@@ -174,8 +174,10 @@ export function ChatWidget() {
   }, [isOpen]);
 
   const sendMessage = async (text?: string, isQuickReply?: boolean) => {
-    const messageText = text || input.trim();
-    if (!messageText || loading) return;
+    const rawText = text || input.trim();
+    if (!rawText || loading) return;
+    // Truncate to prevent crashes with extremely long messages
+    const messageText = rawText.substring(0, 1000);
 
     // Init audio on user gesture (required for iOS)
     ensureAudioContext();
@@ -273,7 +275,7 @@ export function ChatWidget() {
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${
+                    className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed break-words overflow-hidden ${
                       msg.role === 'user'
                         ? 'bg-black text-white rounded-br-md'
                         : 'bg-gray-100 text-gray-800 rounded-bl-md'

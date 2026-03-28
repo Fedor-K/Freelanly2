@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { prisma } from '@/lib/db';
 import { getPriceCents, formatPrice } from '@/lib/geo-pricing';
+import { rateLimit, getClientIp } from '@/lib/rate-limit';
 
 const SYSTEM_PROMPT = `You are Freelanly's friendly support assistant. You help users find remote jobs and understand how Freelanly works.
 
@@ -256,6 +257,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message too long' }, { status: 400 });
     }
 
+    // Rate limit: 20 requests per minute per IP (prevents cost abuse)
+    const clientIp = getClientIp(request.headers);
+    const chatLimit = rateLimit('chat_ip', clientIp, 20, 60_000);
+    if (chatLimit.limited) {
+      return NextResponse.json({
+        reply: 'You\'re sending messages too fast. Please wait a moment and try again.',
+        escalate: false,
+      }, { status: 429, headers: { 'Retry-After': String(chatLimit.retryAfter) } });
+    }
+
     // Get user country from IP
     const userCountry = request.headers.get('x-vercel-ip-country') || null;
     const userCity = request.headers.get('x-vercel-ip-city') ? decodeURIComponent(request.headers.get('x-vercel-ip-city')!) : null;
@@ -264,7 +275,20 @@ export async function POST(request: NextRequest) {
     const country = request.headers.get('x-vercel-ip-country') || null;
     const city = request.headers.get('x-vercel-ip-city') ? decodeURIComponent(request.headers.get('x-vercel-ip-city')!) : null;
 
-    const conversationHistory = (history && Array.isArray(history)) ? history : [];
+    // Sanitize conversation history — prevent injection of arbitrary content
+    const conversationHistory: ChatMessage[] = (history && Array.isArray(history))
+      ? history
+          .filter((m): m is ChatMessage =>
+            m && typeof m === 'object' &&
+            (m.role === 'user' || m.role === 'assistant') &&
+            typeof m.content === 'string'
+          )
+          .slice(-10)
+          .map(m => ({
+            role: m.role,
+            content: m.content.substring(0, 500),
+          }))
+      : [];
 
     // ==========================================
     // FLOW DETECTION — handle quick reply buttons

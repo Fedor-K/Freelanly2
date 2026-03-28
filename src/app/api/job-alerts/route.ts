@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { rateLimit, getClientIp } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 3 per minute per IP, 1 per 10 min per email
+    const ip = getClientIp(request.headers);
+    const ipLimit = rateLimit('alerts_ip', ip, 3, 60_000);
+    if (ipLimit.limited) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(ipLimit.retryAfter) } }
+      );
+    }
+
     const body = await request.json();
     const { email, category, keywords, frequency, source: _source } = body;
 
@@ -10,6 +21,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Valid email is required' },
         { status: 400 }
+      );
+    }
+
+    // Rate limit by email: prevent subscribing someone else's email repeatedly
+    const emailLimit = rateLimit('alerts_email', email.toLowerCase().trim(), 1, 600_000);
+    if (emailLimit.limited) {
+      return NextResponse.json(
+        { error: 'Alert already created for this email. Check your inbox.' },
+        { status: 429, headers: { 'Retry-After': String(emailLimit.retryAfter) } }
       );
     }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
+import { rateLimit, getClientIp } from '@/lib/rate-limit';
 
 /**
  * POST /api/auth/verify-code
@@ -11,12 +12,31 @@ import { randomUUID } from 'crypto';
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 5 attempts per 15 minutes per IP (prevents brute force)
+    const ip = getClientIp(request.headers);
+    const ipLimit = rateLimit('verify_ip', ip, 5, 15 * 60_000);
+    if (ipLimit.limited) {
+      return NextResponse.json(
+        { error: 'Too many attempts. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(ipLimit.retryAfter) } }
+      );
+    }
+
     const { email, code } = await request.json();
 
     if (!email || !code) {
       return NextResponse.json(
         { error: 'Email and code are required' },
         { status: 400 }
+      );
+    }
+
+    // Rate limit by email too: 5 attempts per 15 minutes
+    const emailLimit = rateLimit('verify_email', email.toLowerCase().trim(), 5, 15 * 60_000);
+    if (emailLimit.limited) {
+      return NextResponse.json(
+        { error: 'Too many attempts for this email. Please request a new code.' },
+        { status: 429, headers: { 'Retry-After': String(emailLimit.retryAfter) } }
       );
     }
 

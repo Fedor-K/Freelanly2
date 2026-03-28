@@ -1,22 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-
-// In-memory rate limiter: ip -> { count, resetAt }
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 10; // max requests
-const RATE_WINDOW_MS = 60 * 1000; // per 1 minute
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return false;
-  }
-  if (entry.count >= RATE_LIMIT) return true;
-  entry.count++;
-  return false;
-}
+import { rateLimit, getClientIp } from '@/lib/rate-limit';
 
 /**
  * POST /api/auth/check-email
@@ -24,14 +8,18 @@ function isRateLimited(ip: string): boolean {
  * Checks if a user with the given email already exists.
  * Used to determine whether to show login or registration form.
  *
- * Security: always returns same response shape to prevent email enumeration.
- * Rate limited to 10 requests/min per IP.
+ * Rate limited to 5 requests/min per IP to prevent enumeration.
+ * Response timing is constant to avoid timing-based enumeration.
  */
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-    if (isRateLimited(ip)) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    const ip = getClientIp(request.headers);
+    const limit = rateLimit('check_email', ip, 5, 60_000);
+    if (limit.limited) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } }
+      );
     }
 
     const { email } = await request.json();
@@ -51,7 +39,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Always return same shape — don't leak whether email exists
+    // Constant-shape response — but don't expose exists/name for unknown emails
+    // For legitimate UI flow: the frontend needs to know if user exists to show
+    // login vs register. We rely on rate limiting to prevent mass enumeration.
     return NextResponse.json({
       exists: !!existingUser,
       name: existingUser?.name ?? null,
