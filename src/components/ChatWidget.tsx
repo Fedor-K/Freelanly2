@@ -151,15 +151,7 @@ export function ChatWidget() {
     return () => el.removeEventListener('input', handler);
   }, []);
 
-  // Auto-show bubble after 15 seconds
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!isOpen && !bubbleDismissed) {
-        setShowBubble(true);
-      }
-    }, 15000);
-    return () => clearTimeout(timer);
-  }, [isOpen, bubbleDismissed]);
+  // Bubble is only shown via explicit user action (click on chat button), not auto-popup
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

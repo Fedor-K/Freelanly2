@@ -95,15 +95,22 @@ export function TopFilters({ currentFilters, totalCount }: TopFiltersProps) {
       {/* Main Filter Row */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Search */}
-        <form onSubmit={handleSearch} className="relative flex-1 min-w-[200px] max-w-md">
+        <form onSubmit={handleSearch} className="relative flex-1 min-w-[200px] max-w-md flex">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            placeholder="Search jobs..."
-            className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+            placeholder="Search jobs... (press Enter)"
+            className="w-full pl-9 pr-10 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
+          <button
+            type="submit"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted transition-colors"
+            aria-label="Search"
+          >
+            <Search className="h-4 w-4 text-muted-foreground" />
+          </button>
         </form>
 
         {/* Category Dropdown */}

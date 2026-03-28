@@ -138,12 +138,7 @@ const nextConfig: NextConfig = {
       permanent: true,
     });
 
-    // Legacy blog pages → general freelance
-    redirects.push({
-      source: '/blog/:slug',
-      destination: '/freelance',
-      permanent: true,
-    });
+    // Blog pages are now served by /app/blog/[slug]/page.tsx — no redirect
 
     // Static legacy pages
     const legacyRedirects: Record<string, string> = {

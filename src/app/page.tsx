@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { CompanyLogo } from '@/components/ui/CompanyLogo';
 import { SenjaWidget } from '@/components/ui/SenjaWidget';
+import { HeroSearch } from '@/components/HeroSearch';
 import { categories, siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
@@ -162,6 +163,7 @@ export default async function Home() {
           <p className="text-sm text-muted-foreground mb-8">
             ✓ Direct contact info &nbsp; ✓ No recruiter spam &nbsp; ✓ Apply in seconds
           </p>
+          <HeroSearch />
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" asChild>
               <Link href="/jobs">Browse {jobCount.toLocaleString()}+ Jobs</Link>

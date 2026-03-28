@@ -72,7 +72,7 @@ export default function PricingPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-2xl">🔒</span>
-              <span><strong>Secure payment</strong> via Stripe</span>
+              <span><strong>Secure payment</strong> · Cancel anytime</span>
             </div>
           </div>
 
