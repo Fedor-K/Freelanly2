@@ -135,6 +135,7 @@ export async function GET(request: NextRequest) {
 
     // Full journey for each PRO user: all email events before conversion
     const proJourneys = await prisma.$queryRaw<Array<{
+      user_id: string;
       email: string;
       pro_started: Date;
       source: string | null;
@@ -145,6 +146,7 @@ export async function GET(request: NextRequest) {
       timestamp: Date;
     }>>`
       SELECT
+        u."id" as user_id,
         u."email",
         u."proStartedAt" as pro_started,
         u."source",
@@ -264,9 +266,43 @@ export async function GET(request: NextRequest) {
       };
     }).sort((a, b) => new Date(b.clickTime).getTime() - new Date(a.clickTime).getTime()); // newest first
 
+    // Lookup first viewed opportunity for each PRO user (from ActivityLog)
+    const firstViews = await prisma.$queryRaw<Array<{
+      user_id: string;
+      page_url: string | null;
+      opp_title: string | null;
+      opp_client: string | null;
+      source_url: string | null;
+      source_keyword: string | null;
+      view_time: Date;
+    }>>`
+      SELECT DISTINCT ON (al."userId")
+        al."userId" as user_id,
+        al."pageUrl" as page_url,
+        o."title" as opp_title,
+        o."clientName" as opp_client,
+        o."sourceUrl" as source_url,
+        o."sourceKeyword" as source_keyword,
+        al."createdAt" as view_time
+      FROM "ActivityLog" al
+      JOIN "User" u ON u.id = al."userId"
+      LEFT JOIN "Opportunity" o ON al."details"->>'opportunityId' = o.id
+      WHERE u."plan" = 'PRO'
+        AND u."proStartedAt" IS NOT NULL
+        AND al."action" = 'OPPORTUNITY_VIEW'
+        AND al."createdAt" <= u."proStartedAt"
+      ORDER BY al."userId", al."createdAt" ASC
+    `;
+    const firstViewMap = new Map<string, typeof firstViews[0]>();
+    for (const fv of firstViews) {
+      firstViewMap.set(fv.user_id, fv);
+    }
+
     // Process PRO journeys — group events by user
     const journeyMap = new Map<string, {
       email: string;
+      rawEmail: string;
+      userId: string;
       proStarted: Date;
       source: string | null;
       events: Array<{ type: string; subject: string | null; link: string | null; timestamp: Date }>;
@@ -275,7 +311,7 @@ export async function GET(request: NextRequest) {
       const masked = row.email.replace(/(.{2}).*(@.*)/, '$1***$2');
       if (!journeyMap.has(row.email)) {
         const src = row.source || row.utm_medium || null;
-        journeyMap.set(row.email, { email: masked, proStarted: row.pro_started, source: src, events: [] });
+        journeyMap.set(row.email, { email: masked, rawEmail: row.email, userId: row.user_id, proStarted: row.pro_started, source: src, events: [] });
       }
       let link = row.link || null;
       if (link) {
@@ -322,11 +358,24 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        // Lookup first viewed opportunity from ActivityLog
+        const fv = firstViewMap.get(j.userId);
+        const firstViewedOpp = fv ? {
+          title: fv.opp_title,
+          client: fv.opp_client,
+          pageUrl: fv.page_url,
+          linkedinPost: fv.source_url,
+          keyword: fv.source_keyword,
+          viewTime: fv.view_time,
+        } : null;
+
+        const { rawEmail: _re, userId: _uid, ...journeyData } = j;
         return {
-          ...j,
+          ...journeyData,
           channel,
           entryLink,
           entryType,
+          firstViewedOpp,
           totalEmails: j.events.filter(e => e.type === 'SENT').length,
           totalClicks: j.events.filter(e => e.type === 'CLICKED').length,
           firstEmail: j.events.find(e => e.type === 'SENT')?.timestamp || null,

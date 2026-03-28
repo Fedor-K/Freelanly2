@@ -110,6 +110,14 @@ interface AnalyticsData {
     channel: string | null;
     entryLink: string | null;
     entryType: string | null;
+    firstViewedOpp: {
+      title: string | null;
+      client: string | null;
+      pageUrl: string | null;
+      linkedinPost: string | null;
+      keyword: string | null;
+      viewTime: string;
+    } | null;
     totalEmails: number;
     totalClicks: number;
     firstEmail: string | null;
@@ -758,16 +766,30 @@ export default function EmailStatsPage() {
                             </span>
                           )}
                         </div>
-                        {journey.entryLink && (
+                        {journey.firstViewedOpp ? (
+                          <div className="mt-1 text-xs truncate max-w-xl">
+                            <span className="font-medium text-purple-600">Пришёл на: </span>
+                            <span className="text-foreground">{journey.firstViewedOpp.title}</span>
+                            <span className="text-muted-foreground"> от {journey.firstViewedOpp.client}</span>
+                            {journey.firstViewedOpp.keyword && (
+                              <span className="ml-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px]">
+                                {journey.firstViewedOpp.keyword}
+                              </span>
+                            )}
+                            {journey.firstViewedOpp.linkedinPost && (
+                              <a href={journey.firstViewedOpp.linkedinPost} target="_blank" rel="noopener noreferrer" className="ml-1 text-blue-500 hover:underline">
+                                LinkedIn ↗
+                              </a>
+                            )}
+                          </div>
+                        ) : journey.entryLink ? (
                           <div className="mt-1 text-xs text-muted-foreground truncate max-w-xl">
-                            <span className="font-medium text-purple-600">
-                              {journey.entryType === 'opportunity' ? 'Вход через проект: ' : journey.entryType === 'job' ? 'Вход через вакансию: ' : 'Первый клик: '}
-                            </span>
+                            <span className="font-medium text-purple-600">Первый клик: </span>
                             <a href={journey.entryLink} target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-800">
                               {journey.entryLink.replace(/https?:\/\/[^/]+/, '').split('?')[0]}
                             </a>
                           </div>
-                        )}
+                        ) : null}
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                           <span>{journey.totalEmails} писем получил</span>
                           <span>·</span>
