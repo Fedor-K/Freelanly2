@@ -4,19 +4,29 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
 
 function renderMessageContent(content: string) {
-  // Split by URLs and render them as clickable links
-  const urlRegex = /(https?:\/\/[^\s)]+)/g;
-  const parts = content.split(urlRegex);
+  // Split by URLs and bold markdown, render appropriately
+  // Combined regex: URLs or **bold** markdown
+  const tokenRegex = /(https?:\/\/[^\s)]+|\*\*(.+?)\*\*)/g;
+  const result: React.ReactNode[] = [];
+  let lastIndex = 0;
 
-  return parts.map((part, i) => {
-    if (urlRegex.test(part)) {
-      // Reset regex lastIndex
-      urlRegex.lastIndex = 0;
-      const displayUrl = part.replace('https://freelanly.com', 'freelanly.com').replace('https://', '');
-      return (
+  let match;
+  while ((match = tokenRegex.exec(content)) !== null) {
+    // Add text before the match
+    if (match.index > lastIndex) {
+      result.push(<span key={`t${lastIndex}`}>{content.slice(lastIndex, match.index)}</span>);
+    }
+
+    if (match[2] !== undefined) {
+      // Bold markdown: **text**
+      result.push(<strong key={`b${match.index}`}>{match[2]}</strong>);
+    } else {
+      // URL
+      const displayUrl = match[0].replace('https://freelanly.com', 'freelanly.com').replace('https://', '');
+      result.push(
         <a
-          key={i}
-          href={part}
+          key={`u${match.index}`}
+          href={match[0]}
           target="_blank"
           rel="noopener noreferrer"
           className="underline font-medium hover:opacity-80"
@@ -25,8 +35,15 @@ function renderMessageContent(content: string) {
         </a>
       );
     }
-    return <span key={i}>{part}</span>;
-  });
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < content.length) {
+    result.push(<span key={`t${lastIndex}`}>{content.slice(lastIndex)}</span>);
+  }
+
+  return result.length > 0 ? result : [<span key="empty">{content}</span>];
 }
 
 interface Message {
@@ -204,6 +221,10 @@ export function ChatWidget() {
     sendMessage(value, true);
   };
 
+  // Find last assistant message with buttons — only that one should be active
+  const lastButtonMsgIndex = messages.reduce((acc, msg, idx) =>
+    msg.role === 'assistant' && msg.buttons && msg.buttons.length > 0 ? idx : acc, -1);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -247,19 +268,26 @@ export function ChatWidget() {
                     {renderMessageContent(msg.content)}
                   </div>
                 </div>
-                {/* Quick reply buttons */}
+                {/* Quick reply buttons — only active on the last assistant message */}
                 {msg.buttons && msg.buttons.length > 0 && msg.role === 'assistant' && (
                   <div className="flex flex-wrap gap-1.5 mt-2 ml-1">
-                    {msg.buttons.map((btn, j) => (
-                      <button
-                        key={j}
-                        onClick={() => handleButtonClick(btn.value)}
-                        disabled={loading}
-                        className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-300 rounded-full hover:bg-gray-50 hover:border-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        {btn.label}
-                      </button>
-                    ))}
+                    {msg.buttons.map((btn, j) => {
+                      const isActive = i === lastButtonMsgIndex;
+                      return (
+                        <button
+                          key={j}
+                          onClick={() => isActive ? handleButtonClick(btn.value) : undefined}
+                          disabled={loading || !isActive}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                            isActive
+                              ? 'bg-white border border-gray-300 hover:bg-gray-50 hover:border-black'
+                              : 'bg-gray-50 border border-gray-200 text-gray-400'
+                          }`}
+                        >
+                          {btn.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -332,7 +360,7 @@ export function ChatWidget() {
           setShowBubble(false);
           setBubbleDismissed(true);
         }}
-        className={`fixed bottom-4 right-4 sm:right-6 w-14 h-14 bg-black text-white rounded-full shadow-lg hover:bg-gray-800 transition-all hover:scale-105 flex items-center justify-center z-[9999] ${isOpen ? 'hidden sm:flex' : ''}`}
+        className={`fixed bottom-4 right-4 sm:right-6 w-14 h-14 bg-black text-white rounded-full shadow-lg hover:bg-gray-800 transition-all hover:scale-105 flex items-center justify-center z-[10000] ${isOpen ? 'sm:flex' : ''}`}
         aria-label="Chat with us"
       >
         {isOpen ? (
