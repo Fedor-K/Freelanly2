@@ -1,25 +1,32 @@
 /**
  * Freelance LinkedIn Posts Discovery Configuration
  *
- * 129 search queries for finding freelance/contract opportunities.
+ * 112 search queries for finding freelance/contract opportunities.
  * Used by n8n workflow via /api/linkedin/next-keyword endpoint.
  *
  * Rotation: every 10 minutes, next keyword in list (sequential, not random)
- * Full cycle: 129 × 10 min = ~21.5 hours
+ * Full cycle: 112 × 10 min = ~18.7 hours
  *
  * Removed (low conversion <5%):
  * - "localization project", "contract marketing", "freelance SEO"
  * - "freelance photographer", "freelance illustrator", "LQA", "localization QA"
  * - "freelance bookkeeper", "freelance accountant", "freelance marketing"
  * - "freelancer needed" (1%), "transcreation" (3%) — removed 2026-02-05
+ *
+ * Removed (0-2 opportunities total) — 2026-03-28:
+ * - Dead (0 opps): "hungarian translator", "czech translator", "freelance customer support",
+ *   "norwegian interpreter", "swedish interpreter", "hungarian interpreter"
+ * - Near-dead (1-2 opps): "danish translator", "italian translator", "turkish translator",
+ *   "italian interpreter", "malay interpreter", "hebrew translator", "hebrew interpreter",
+ *   "polish translator", "romanian translator", "freelance illustrator"
  */
 
 // ============================================
-// All 129 Freelance Search Queries
+// All 112 Freelance Search Queries
 // ============================================
 
 export const FREELANCE_SEARCH_QUERIES = [
-  // === General Freelance Phrases (16) ===
+  // === General Freelance Phrases (15) ===
   '"looking for freelance"',
   '"hiring freelancer"',
   '"need a freelancer"',
@@ -36,7 +43,7 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"hourly rate"',
   '"per project"',
 
-  // === Engineering (7) ===
+  // === Engineering (6) ===
   '"freelance developer"',
   '"freelance engineer"',
   '"contract developer"',
@@ -52,7 +59,7 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"freelance web designer"',
   '"freelance graphic designer"',
 
-  // === Translation & Language - General (16) ===
+  // === Translation & Language - General (12) ===
   '"freelance translator"',
   '"freelance translation"',
   '"translation project"',
@@ -66,46 +73,37 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"voice over" freelance',
   '"dubbing" freelance',
 
-  // === Translators - By Language (30) ===
+  // === Translators - By Language (20) ===
   '"french translator"',
   '"chinese translator"',
   '"spanish translator"',
   '"japanese translator"',
   '"arabic translator"',
   '"portuguese translator"',
-  '"italian translator"',
   '"german translator"',
   '"russian translator"',
   '"korean translator"',
-  '"turkish translator"',
   '"hindi translator"',
-  '"polish translator"',
   '"dutch translator"',
   '"swedish translator"',
   '"ukrainian translator"',
-  '"czech translator"',
   '"greek translator"',
   '"vietnamese translator"',
   '"thai translator"',
   '"indonesian translator"',
   '"malay translator"',
-  '"hebrew translator"',
-  '"romanian translator"',
-  '"hungarian translator"',
   '"norwegian translator"',
-  '"danish translator"',
   '"finnish translator"',
   '"bengali translator"',
   '"persian translator"',
 
-  // === Interpreters - By Language (30) ===
+  // === Interpreters - By Language (20) ===
   '"french interpreter"',
   '"chinese interpreter"',
   '"spanish interpreter"',
   '"japanese interpreter"',
   '"arabic interpreter"',
   '"portuguese interpreter"',
-  '"italian interpreter"',
   '"german interpreter"',
   '"russian interpreter"',
   '"korean interpreter"',
@@ -113,37 +111,30 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"hindi interpreter"',
   '"polish interpreter"',
   '"dutch interpreter"',
-  '"swedish interpreter"',
   '"ukrainian interpreter"',
-  '"czech interpreter"',
   '"greek interpreter"',
   '"vietnamese interpreter"',
   '"thai interpreter"',
   '"indonesian interpreter"',
-  '"malay interpreter"',
-  '"hebrew interpreter"',
-  '"romanian interpreter"',
-  '"hungarian interpreter"',
-  '"norwegian interpreter"',
-  '"danish interpreter"',
-  '"finnish interpreter"',
   '"bengali interpreter"',
   '"persian interpreter"',
+  '"romanian interpreter"',
+  '"finnish interpreter"',
 
-  // === Interpreters - General (6) ===
+  // === Interpreters - General (5) ===
   '"hiring interpreter"',
   '"need interpreter"',
   '"looking for interpreter"',
   '"medical interpreter"',
   '"simultaneous interpreter"',
 
-  // === Specialized Translation (5) ===
+  // === Specialized Translation (4) ===
   '"MTPE"',
   '"post-editing"',
   '"subtitle" project',
   '"linguist" needed',
 
-  // === Writing (8) ===
+  // === Writing (6) ===
   '"freelance writer"',
   '"freelance copywriter"',
   '"freelance content writer"',
@@ -166,17 +157,16 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"freelance tester"',
   '"QA tester" remote',
 
-  // === Other (6) ===
+  // === Other (5) ===
   '"freelance consultant"',
   '"freelance project manager"',
   '"freelance data analyst"',
   '"freelance recruiter"',
-  '"freelance customer support"',
   '"freelance research"',
 ];
 
 // Total count
-export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 129
+export const TOTAL_KEYWORDS = FREELANCE_SEARCH_QUERIES.length; // 112
 
 // ============================================
 // Rotation Logic (Sequential, time-based)
