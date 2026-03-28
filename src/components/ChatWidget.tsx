@@ -4,9 +4,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
 
 function renderMessageContent(content: string) {
-  // Split by URLs and bold markdown, render appropriately
-  // Combined regex: URLs or **bold** markdown
-  const tokenRegex = /(https?:\/\/[^\s)]+|\*\*(.+?)\*\*)/g;
+  // Split by markdown links [text](url), raw URLs, and **bold**
+  const tokenRegex = /(\[([^\]]+)\]\((https?:\/\/[^)]+)\)|https?:\/\/[^\s)]+|\*\*(.+?)\*\*)/g;
   const result: React.ReactNode[] = [];
   let lastIndex = 0;
 
@@ -17,11 +16,24 @@ function renderMessageContent(content: string) {
       result.push(<span key={`t${lastIndex}`}>{content.slice(lastIndex, match.index)}</span>);
     }
 
-    if (match[2] !== undefined) {
+    if (match[2] !== undefined && match[3] !== undefined) {
+      // Markdown link: [text](url)
+      result.push(
+        <a
+          key={`l${match.index}`}
+          href={match[3]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline font-medium hover:opacity-80"
+        >
+          {match[2]}
+        </a>
+      );
+    } else if (match[4] !== undefined) {
       // Bold markdown: **text**
-      result.push(<strong key={`b${match.index}`}>{match[2]}</strong>);
+      result.push(<strong key={`b${match.index}`}>{match[4]}</strong>);
     } else {
-      // URL
+      // Raw URL
       const displayUrl = match[0].replace('https://freelanly.com', 'freelanly.com').replace('https://', '');
       result.push(
         <a

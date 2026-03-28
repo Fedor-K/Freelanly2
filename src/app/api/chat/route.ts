@@ -210,7 +210,7 @@ function formatOpportunitiesList(
   _isPro: boolean = false
 ): string {
   if (opportunities.length === 0) {
-    return `No active ${categoryLabel.toLowerCase()} projects found right now. New projects are added multiple times per day — sign up for instant alerts to be the first to know!\n\n${addUtmSource('https://freelanly.com/auth/signin')}`;
+    return `No active ${categoryLabel.toLowerCase()} projects found right now. New projects are added multiple times per day — [sign up for instant alerts](${addUtmSource('https://freelanly.com/auth/signin')}) to be the first to know!`;
   }
 
   const lines = opportunities.map((opp, i) => {
@@ -373,7 +373,7 @@ export async function POST(request: NextRequest) {
           const categoryLabel = lastCategory || 'all';
           const reply = opportunities.length > 0
             ? formatOpportunitiesList(opportunities, categoryLabel, userStatus === 'PRO')
-            : `That's all the ${categoryLabel.toLowerCase()} projects we have right now. New projects are added multiple times per day!\n\nSign up for instant alerts to never miss a new one: ${addUtmSource('https://freelanly.com/auth/signin')}`;
+            : `That's all the ${categoryLabel.toLowerCase()} projects we have right now. New projects are added multiple times per day!\n\n[Sign up for instant alerts](${addUtmSource('https://freelanly.com/auth/signin')}) to never miss a new one!`;
 
           const buttons = opportunities.length > 0
             ? [
@@ -552,7 +552,7 @@ export async function POST(request: NextRequest) {
 
       // ----- Step: Sign up free -----
       if (flowStep === 'signup') {
-        const reply = `Awesome! Create your free account in 30 seconds:\n\n${addUtmSource('https://freelanly.com/auth/signin')}\n\nYou'll get instant email alerts when new matching projects appear. \u{1F4E9}`;
+        const reply = `Awesome! Create your free account in 30 seconds:\n\n[Sign up free](${addUtmSource('https://freelanly.com/auth/signin')})\n\nYou'll get instant email alerts when new matching projects appear. \u{1F4E9}`;
         const buttons = [
           { label: 'Tell me about PRO', value: 'Tell me about PRO' },
           { label: 'Browse projects', value: 'Browse projects' },
