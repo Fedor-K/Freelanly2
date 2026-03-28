@@ -308,9 +308,25 @@ export async function GET(request: NextRequest) {
           channel = 'job_alert';
         }
 
+        // Extract entry point: first clicked link (the post/job that brought them)
+        const firstClick = j.events.find(e => e.type === 'CLICKED');
+        let entryLink = firstClick?.link || null;
+        let entryType: string | null = null;
+        if (entryLink) {
+          if (entryLink.includes('/freelance/')) {
+            entryType = 'opportunity';
+          } else if (entryLink.includes('/company/') && entryLink.includes('/jobs/')) {
+            entryType = 'job';
+          } else if (entryLink.includes('/pricing')) {
+            entryType = 'pricing';
+          }
+        }
+
         return {
           ...j,
           channel,
+          entryLink,
+          entryType,
           totalEmails: j.events.filter(e => e.type === 'SENT').length,
           totalClicks: j.events.filter(e => e.type === 'CLICKED').length,
           firstEmail: j.events.find(e => e.type === 'SENT')?.timestamp || null,

@@ -107,6 +107,9 @@ interface AnalyticsData {
     email: string;
     proStarted: string;
     source: string | null;
+    channel: string | null;
+    entryLink: string | null;
+    entryType: string | null;
     totalEmails: number;
     totalClicks: number;
     firstEmail: string | null;
@@ -755,6 +758,16 @@ export default function EmailStatsPage() {
                             </span>
                           )}
                         </div>
+                        {journey.entryLink && (
+                          <div className="mt-1 text-xs text-muted-foreground truncate max-w-xl">
+                            <span className="font-medium text-purple-600">
+                              {journey.entryType === 'opportunity' ? 'Вход через проект: ' : journey.entryType === 'job' ? 'Вход через вакансию: ' : 'Первый клик: '}
+                            </span>
+                            <a href={journey.entryLink} target="_blank" rel="noopener noreferrer" className="underline hover:text-purple-800">
+                              {journey.entryLink.replace(/https?:\/\/[^/]+/, '').split('?')[0]}
+                            </a>
+                          </div>
+                        )}
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                           <span>{journey.totalEmails} писем получил</span>
                           <span>·</span>
