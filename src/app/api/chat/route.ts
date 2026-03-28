@@ -206,7 +206,8 @@ async function queryOpportunities(categorySlug: string | null, offset: number = 
 
 function formatOpportunitiesList(
   opportunities: Array<{ title: string; slug: string; clientName: string; country: string | null }>,
-  categoryLabel: string
+  categoryLabel: string,
+  isPro: boolean = false
 ): string {
   if (opportunities.length === 0) {
     return `No active ${categoryLabel.toLowerCase()} projects found right now. New projects are added multiple times per day — sign up for instant alerts to be the first to know!\n\n${addUtmSource('https://freelanly.com/auth/signin')}`;
@@ -215,7 +216,8 @@ function formatOpportunitiesList(
   const lines = opportunities.map((opp, i) => {
     const country = opp.country ? ` (${opp.country})` : '';
     const url = addUtmSource(`https://freelanly.com/freelance/${opp.slug}`);
-    return `${i + 1}. **${opp.title}** — ${opp.clientName}${country}\n${url}`;
+    const client = isPro ? opp.clientName : 'Hidden — upgrade to PRO';
+    return `${i + 1}. **${opp.title}** — ${client}${country}\n${url}`;
   });
 
   return `Here are the latest ${categoryLabel.toLowerCase()} projects:\n\n${lines.join('\n\n')}\n\nWant to see more or refine your search?`;
@@ -321,7 +323,7 @@ export async function POST(request: NextRequest) {
         const categorySlug = CATEGORY_SLUG_MAP[message];
         try {
           const opportunities = await queryOpportunities(categorySlug, 0);
-          const reply = formatOpportunitiesList(opportunities, message);
+          const reply = formatOpportunitiesList(opportunities, message, userStatus === 'PRO');
           const buttons = opportunities.length > 0
             ? [
                 { label: 'See more projects', value: 'See more projects' },
@@ -372,7 +374,7 @@ export async function POST(request: NextRequest) {
           const opportunities = await queryOpportunities(categorySlug, offset);
           const categoryLabel = lastCategory || 'all';
           const reply = opportunities.length > 0
-            ? formatOpportunitiesList(opportunities, categoryLabel)
+            ? formatOpportunitiesList(opportunities, categoryLabel, userStatus === 'PRO')
             : `That's all the ${categoryLabel.toLowerCase()} projects we have right now. New projects are added multiple times per day!\n\nSign up for instant alerts to never miss a new one: ${addUtmSource('https://freelanly.com/auth/signin')}`;
 
           const buttons = opportunities.length > 0
