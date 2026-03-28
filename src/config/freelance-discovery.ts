@@ -31,7 +31,7 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"hourly rate"',
   '"per project"',
 
-  // === Translation & Language - General (12) ===
+  // === Translation & Language - General (10) ===
   '"freelance translator"',
   '"freelance translation"',
   '"translation project"',
@@ -42,8 +42,6 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"app localization"',
   '"freelance interpreter"',
   '"freelance subtitling"',
-  '"voice over" freelance',
-  '"dubbing" freelance',
 
   // === Translators - Top 20 Languages (20) ===
   '"french translator"',
@@ -96,13 +94,12 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"medical interpreter"',
   '"simultaneous interpreter"',
 
-  // === Specialized Translation (4) ===
+  // === Specialized Translation (3) ===
   '"MTPE"',
   '"post-editing"',
-  '"subtitle" project',
   '"linguist" needed',
 
-  // === Engineering - By Skill (15) ===
+  // === Engineering (15) ===
   '"react developer"',
   '"python developer"',
   '"node developer"',
@@ -119,7 +116,7 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"DevOps engineer"',
   '"cloud engineer"',
 
-  // === Design - By Skill (8) ===
+  // === Design (8) ===
   '"UX designer"',
   '"UI designer"',
   '"Figma designer"',
@@ -129,17 +126,17 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"web designer" freelance',
   '"motion designer"',
 
-  // === Writing - By Skill (8) ===
-  '"copywriter" freelance',
-  '"content writer" freelance',
+  // === Writing (8) ===
+  '"copywriter"',
+  '"content writer"',
   '"technical writer"',
-  '"blog writer" freelance',
+  '"blog writer"',
   '"ghostwriter"',
   '"UX writer"',
   '"grant writer"',
   '"freelance editor"',
 
-  // === Marketing - By Skill (8) ===
+  // === Marketing (8) ===
   '"Google Ads" specialist',
   '"Facebook Ads" specialist',
   '"SEO specialist"',
@@ -149,42 +146,42 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"PPC specialist"',
   '"growth marketer"',
 
-  // === Data - By Skill (8) ===
+  // === Data (8) ===
   '"data analyst" freelance',
   '"data engineer" freelance',
   '"data scientist" freelance',
   '"Power BI" freelance',
   '"Tableau" freelance',
   '"SQL analyst"',
-  '"machine learning" freelance',
-  '"business analyst" freelance',
+  '"machine learning"',
+  '"business analyst"',
 
-  // === Creative - By Skill (6) ===
-  '"video editor" freelance',
-  '"motion graphics" freelance',
-  '"3D artist" freelance',
+  // === Creative (6) ===
+  '"video editor"',
+  '"motion graphics"',
+  '"3D artist"',
   '"animator" freelance',
-  '"sound designer" freelance',
-  '"illustrator" freelance',
+  '"sound designer"',
+  '"illustrator"',
 
-  // === QA - By Skill (4) ===
+  // === QA & Testing (4) ===
   '"QA engineer"',
   '"QA tester" remote',
   '"automation tester"',
   '"manual tester" freelance',
 
-  // === DevOps - By Skill (4) ===
+  // === DevOps (4) ===
   '"AWS engineer"',
   '"Azure engineer"',
   '"Kubernetes engineer"',
   '"SRE engineer"',
 
-  // === Security - By Skill (3) ===
+  // === Security (3) ===
   '"cybersecurity" freelance',
   '"penetration tester"',
   '"security engineer" freelance',
 
-  // === HR & Recruiting - By Skill (3) ===
+  // === HR (3) ===
   '"freelance recruiter"',
   '"talent acquisition" freelance',
   '"HR consultant"',
@@ -198,12 +195,11 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"sales consultant" freelance',
   '"business development" freelance',
 
-  // === Other (5) ===
+  // === Other (4) ===
   '"freelance consultant"',
   '"freelance research"',
-  '"customer support" remote',
+  '"customer support"',
   '"virtual assistant" freelance',
-  '"bookkeeper" freelance',
 ];
 
 // Total count
