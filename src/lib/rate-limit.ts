@@ -21,7 +21,7 @@ export async function rateLimitByDb(
 
   const count = await prisma.activityLog.count({
     where: {
-      action,
+      action: action as never, // ActivityAction enum — Prisma accepts string values
       ipAddress: ip,
       createdAt: { gte: since },
     },

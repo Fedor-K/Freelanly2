@@ -1,21 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { rateLimit, getClientIp, sanitizeEmail } from '@/lib/rate-limit';
+import { rateLimitByDb, getClientIp, sanitizeEmail } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limit: 3 per minute per IP, 1 per 10 min per email
     const ip = getClientIp(request.headers);
-    const ipLimit = rateLimit('alerts_ip', ip, 3, 60_000);
+
+    // DB-backed rate limit: 3 alert creations per hour per IP
+    // Uses ActivityLog so it works across Vercel instances
+    const ipLimit = await rateLimitByDb('ALERT_CREATED', ip, 3, 3600_000);
     if (ipLimit.limited) {
       return NextResponse.json(
         { error: 'Too many requests. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': String(ipLimit.retryAfter) } }
+        { status: 429 }
       );
     }
 
     const body = await request.json();
-    const { email, category, keywords, frequency, source: _source } = body;
+    const { email, category, keywords } = body;
 
     if (!email || !email.includes('@')) {
       return NextResponse.json(
@@ -26,15 +28,6 @@ export async function POST(request: NextRequest) {
 
     // Sanitize email — prevent header injection
     const cleanEmail = sanitizeEmail(email);
-
-    // Rate limit by email: prevent subscribing someone else's email repeatedly
-    const emailLimit = rateLimit('alerts_email', cleanEmail, 1, 600_000);
-    if (emailLimit.limited) {
-      return NextResponse.json(
-        { error: 'Alert already created for this email. Check your inbox.' },
-        { status: 429, headers: { 'Retry-After': String(emailLimit.retryAfter) } }
-      );
-    }
 
     // Translation category requires registration with language selection
     if (category === 'translation') {
@@ -75,6 +68,15 @@ export async function POST(request: NextRequest) {
         },
       });
     }
+
+    // Log for DB-backed rate limiting
+    prisma.activityLog.create({
+      data: {
+        action: 'ALERT_CREATED',
+        ipAddress: ip,
+        details: { email: cleanEmail, category: category || null },
+      },
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,
