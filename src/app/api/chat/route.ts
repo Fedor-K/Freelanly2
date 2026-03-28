@@ -214,9 +214,8 @@ function formatOpportunitiesList(
   }
 
   const lines = opportunities.map((opp, i) => {
-    const country = opp.country ? ` (${opp.country})` : '';
     const url = addUtmSource(`https://freelanly.com/freelance/${opp.slug}`);
-    return `${i + 1}. **${opp.title}**${country}\n${url}`;
+    return `${i + 1}. [${opp.title}](${url})`;
   });
 
   return `Here are the latest ${categoryLabel.toLowerCase()} projects:\n\n${lines.join('\n\n')}\n\nWant to see more or refine your search?`;
