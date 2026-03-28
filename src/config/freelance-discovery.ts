@@ -1,13 +1,10 @@
 /**
  * Freelance LinkedIn Posts Discovery Configuration
  *
- * 150 search queries for finding freelance/contract opportunities.
+ * Search queries for finding freelance/contract opportunities.
  * Used by n8n workflow via /api/linkedin/next-keyword endpoint.
  *
  * Rotation: every 10 minutes, next keyword in list (sequential, not random)
- * Full cycle: 150 × 10 min = ~25 hours
- *
- * Principle: specific skill + role (like "french translator", not "freelance translator")
  *
  * Updated 2026-03-28: full overhaul — skill-based keywords for all categories
  */
@@ -17,7 +14,7 @@
 // ============================================
 
 export const FREELANCE_SEARCH_QUERIES = [
-  // === General Freelance Phrases (12) ===
+  // === General Freelance Phrases ===
   '"looking for freelance"',
   '"hiring freelancer"',
   '"need a freelancer"',
@@ -31,19 +28,17 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"hourly rate"',
   '"per project"',
 
-  // === Translation & Language - General (10) ===
-  '"freelance translator"',
+  // === Translation & Language - General ===
   '"freelance translation"',
   '"translation project"',
   '"need translator"',
   '"looking for translator"',
   '"hiring translator"',
   '"freelance localization"',
-  '"app localization"',
   '"freelance interpreter"',
-  '"freelance subtitling"',
+  '"freelance subtitler"',
 
-  // === Translators - Top 20 Languages (20) ===
+  // === Translators - Top 20 Languages ===
   '"french translator"',
   '"chinese translator"',
   '"spanish translator"',
@@ -65,7 +60,7 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"swedish translator"',
   '"greek translator"',
 
-  // === Interpreters - Top 20 Languages (20) ===
+  // === Interpreters - Top 20 Languages ===
   '"french interpreter"',
   '"chinese interpreter"',
   '"spanish interpreter"',
@@ -87,19 +82,14 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"swedish interpreter"',
   '"greek interpreter"',
 
-  // === Interpreters - General (5) ===
+  // === Interpreters - General ===
   '"hiring interpreter"',
   '"need interpreter"',
   '"looking for interpreter"',
   '"medical interpreter"',
   '"simultaneous interpreter"',
 
-  // === Specialized Translation (3) ===
-  '"MTPE"',
-  '"post-editing"',
-  '"linguist" needed',
-
-  // === Engineering (15) ===
+  // === Engineering ===
   '"react developer"',
   '"python developer"',
   '"node developer"',
@@ -116,17 +106,17 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"DevOps engineer"',
   '"cloud engineer"',
 
-  // === Design (8) ===
+  // === Design ===
   '"UX designer"',
   '"UI designer"',
   '"Figma designer"',
   '"brand designer"',
-  '"graphic designer" freelance',
+  '"graphic designer"',
   '"product designer"',
-  '"web designer" freelance',
+  '"web designer"',
   '"motion designer"',
 
-  // === Writing (8) ===
+  // === Writing ===
   '"copywriter"',
   '"content writer"',
   '"technical writer"',
@@ -136,17 +126,16 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"grant writer"',
   '"freelance editor"',
 
-  // === Marketing (8) ===
+  // === Marketing ===
   '"Google Ads" specialist',
   '"Facebook Ads" specialist',
   '"SEO specialist"',
-  '"email marketing" freelance',
+  '"email marketing"',
   '"social media manager" freelance',
-  '"content marketing" freelance',
+  '"content marketing"',
   '"PPC specialist"',
-  '"growth marketer"',
 
-  // === Data (8) ===
+  // === Data ===
   '"data analyst" freelance',
   '"data engineer" freelance',
   '"data scientist" freelance',
@@ -156,7 +145,7 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"machine learning"',
   '"business analyst"',
 
-  // === Creative (6) ===
+  // === Creative ===
   '"video editor"',
   '"motion graphics"',
   '"3D artist"',
@@ -164,42 +153,42 @@ export const FREELANCE_SEARCH_QUERIES = [
   '"sound designer"',
   '"illustrator"',
 
-  // === QA & Testing (4) ===
+  // === QA & Testing ===
   '"QA engineer"',
   '"QA tester" remote',
   '"automation tester"',
-  '"manual tester" freelance',
+  '"manual tester"',
 
-  // === DevOps (4) ===
+  // === DevOps ===
   '"AWS engineer"',
   '"Azure engineer"',
   '"Kubernetes engineer"',
   '"SRE engineer"',
 
-  // === Security (3) ===
+  // === Security ===
   '"cybersecurity" freelance',
   '"penetration tester"',
   '"security engineer" freelance',
 
-  // === HR (3) ===
+  // === HR ===
   '"freelance recruiter"',
   '"talent acquisition" freelance',
   '"HR consultant"',
 
-  // === Project Management (3) ===
+  // === Project Management ===
   '"project manager" freelance',
   '"scrum master" freelance',
   '"product manager" freelance',
 
-  // === Sales (2) ===
+  // === Sales ===
   '"sales consultant" freelance',
   '"business development" freelance',
 
-  // === Other (4) ===
+  // === Other ===
   '"freelance consultant"',
   '"freelance research"',
   '"customer support"',
-  '"virtual assistant" freelance',
+  '"virtual assistant"',
 ];
 
 // Total count
