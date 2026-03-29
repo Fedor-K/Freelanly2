@@ -289,7 +289,8 @@ function checkOpportunityMatchesAlert(
       sourceLanguage: string;
       targetLanguage: string;
     }>;
-  }
+  },
+  allUserLanguagePairs?: Array<{ sourceLanguage: string; targetLanguage: string }>
 ): boolean {
   // Skip alerts with ALL null filters - too broad, would match ALL opportunities
   const hasAnyFilter = !!(
@@ -335,10 +336,15 @@ function checkOpportunityMatchesAlert(
   }
 
   // Language filtering for ALL opportunities (not just translation)
-  // Extract user's languages from alert pairs (excluding EN)
+  // Extract user's languages from alert pairs AND all user's language pairs (excluding EN)
   const userLanguages = new Set<string>();
-  if (alert.languagePairs.length > 0) {
-    for (const pair of alert.languagePairs) {
+  for (const pair of alert.languagePairs) {
+    if (pair.sourceLanguage !== 'EN') userLanguages.add(pair.sourceLanguage);
+    if (pair.targetLanguage !== 'EN') userLanguages.add(pair.targetLanguage);
+  }
+  // Also include languages from user's other alerts (cross-alert language awareness)
+  if (allUserLanguagePairs) {
+    for (const pair of allUserLanguagePairs) {
       if (pair.sourceLanguage !== 'EN') userLanguages.add(pair.sourceLanguage);
       if (pair.targetLanguage !== 'EN') userLanguages.add(pair.targetLanguage);
     }
@@ -360,14 +366,24 @@ function checkOpportunityMatchesAlert(
     return false;
   }
 
-  // For non-translation opportunities with no specific languages, send to everyone
+  // For non-translation opportunities, check language relevance from title
   if (opp.category.slug !== 'translation') {
     // If user specified language pairs, they only want translation opportunities
     if (alert.languagePairs.length > 0) {
       return false;
     }
-    // Opportunity has no specific languages OR user has matching languages
+
+    // Check if title mentions a specific language (e.g. "Tamil Content Writer")
+    // If it does, skip for users who have language preferences on other alerts
     if (oppNonEnLanguages.size === 0) {
+      const titleLanguageMatch = detectLanguageInTitle(opp.title);
+      if (titleLanguageMatch) {
+        // Title mentions a specific language — only send if user has no language prefs
+        // (users with language prefs on other alerts are language-specific)
+        if (userLanguages.size > 0 && !userLanguages.has(titleLanguageMatch)) {
+          return false;
+        }
+      }
       return true;
     }
     // Opportunity has specific languages - check if user has ANY of them
@@ -396,6 +412,34 @@ function checkOpportunityMatchesAlert(
       userLanguages.has(lang)
     );
   }
+}
+
+/**
+ * Detect if a job title mentions a specific non-English language.
+ * Returns ISO 639-1 code if found, null otherwise.
+ */
+const LANGUAGE_PATTERNS: Array<[RegExp, string]> = [
+  [/\btamil\b/i, 'TA'], [/\bhindi\b/i, 'HI'], [/\burdu\b/i, 'UR'],
+  [/\bbengali\b/i, 'BN'], [/\btelugu\b/i, 'TE'], [/\bmarathi\b/i, 'MR'],
+  [/\bgujarati\b/i, 'GU'], [/\bkannada\b/i, 'KN'], [/\bmalayalam\b/i, 'ML'],
+  [/\bpunjabi\b/i, 'PA'], [/\barabic\b/i, 'AR'], [/\bturkish\b/i, 'TR'],
+  [/\bfrench\b/i, 'FR'], [/\bspanish\b/i, 'ES'], [/\bgerman\b/i, 'DE'],
+  [/\bitalian\b/i, 'IT'], [/\bportuguese\b/i, 'PT'], [/\brussian\b/i, 'RU'],
+  [/\bjapanese\b/i, 'JA'], [/\bchinese\b/i, 'ZH'], [/\bmandarin\b/i, 'ZH'],
+  [/\bkorean\b/i, 'KO'], [/\bdutch\b/i, 'NL'], [/\bpolish\b/i, 'PL'],
+  [/\bswedish\b/i, 'SV'], [/\bgreek\b/i, 'EL'], [/\bvietnamese\b/i, 'VI'],
+  [/\bthai\b/i, 'TH'], [/\bindonesian\b/i, 'ID'], [/\bukrainian\b/i, 'UK'],
+  [/\bhebrew\b/i, 'HE'], [/\bpersian\b/i, 'FA'], [/\bfarsi\b/i, 'FA'],
+  [/\bczech\b/i, 'CS'], [/\bromanian\b/i, 'RO'], [/\bhungarian\b/i, 'HU'],
+  [/\bkhmer\b/i, 'KM'], [/\bmalay\b/i, 'MS'], [/\bfilipino\b/i, 'TL'],
+  [/\btagalog\b/i, 'TL'], [/\bswahili\b/i, 'SW'], [/\bamharic\b/i, 'AM'],
+];
+
+function detectLanguageInTitle(title: string): string | null {
+  for (const [pattern, code] of LANGUAGE_PATTERNS) {
+    if (pattern.test(title)) return code;
+  }
+  return null;
 }
 
 // Minimum time between alert emails for the same user (prevents spam)
@@ -528,6 +572,14 @@ export async function processInstantAlertQueue(): Promise<{
     };
 
     for (const alert of instantAlerts) {
+      // Collect ALL language pairs from all alerts of the same user
+      const userId = alert.user?.id || alert.email;
+      const allUserLangPairs = userId
+        ? instantAlerts
+            .filter((a) => (a.user?.id || a.email) === userId)
+            .flatMap((a) => a.languagePairs.map((lp) => ({ sourceLanguage: lp.sourceLanguage, targetLanguage: lp.targetLanguage })))
+        : [];
+
       const matches = checkOpportunityMatchesAlert(oppData, {
         category: alert.category,
         keywords: alert.keywords,
@@ -538,7 +590,7 @@ export async function processInstantAlertQueue(): Promise<{
           sourceLanguage: lp.sourceLanguage,
           targetLanguage: lp.targetLanguage,
         })),
-      });
+      }, allUserLangPairs);
 
       if (!matches) continue;
 
