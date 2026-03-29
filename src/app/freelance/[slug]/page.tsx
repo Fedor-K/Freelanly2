@@ -139,7 +139,7 @@ export async function generateMetadata({ params }: FreelancePageProps): Promise<
       description,
       url: `${siteConfig.url}/freelance/${slug}`,
       siteName: siteConfig.name,
-      type: 'article',
+      type: 'website',
     },
     alternates: {
       canonical: `${siteConfig.url}/freelance/${slug}`,
@@ -375,6 +375,43 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
     opportunity.salaryPeriod
   );
 
+  // JobPosting schema for Google Jobs
+  const validThrough = new Date(opportunity.createdAt.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  const schemaUnitText: Record<string, string> = {
+    HOUR: 'HOUR', DAY: 'DAY', WEEK: 'WEEK', MONTH: 'MONTH', YEAR: 'YEAR',
+  };
+  const jobPostingSchema: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'JobPosting',
+    title: opportunity.title,
+    description: opportunity.description || opportunity.originalContent || opportunity.title,
+    datePosted: opportunity.createdAt.toISOString(),
+    validThrough,
+    employmentType: 'CONTRACTOR',
+    jobLocationType: 'TELECOMMUTE',
+    applicantLocationRequirements: {
+      '@type': 'Country',
+      name: 'Worldwide',
+    },
+    hiringOrganization: {
+      '@type': 'Organization',
+      name: opportunity.company?.name || opportunity.clientName || 'Freelance Client',
+      ...(opportunity.company?.website && { sameAs: opportunity.company.website }),
+    },
+  };
+  if (opportunity.salaryMin) {
+    jobPostingSchema.baseSalary = {
+      '@type': 'MonetaryAmount',
+      currency: opportunity.salaryCurrency || 'USD',
+      value: {
+        '@type': 'QuantitativeValue',
+        minValue: opportunity.salaryMin,
+        ...(opportunity.salaryMax && { maxValue: opportunity.salaryMax }),
+        unitText: (opportunity.salaryPeriod && schemaUnitText[opportunity.salaryPeriod]) || 'YEAR',
+      },
+    };
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -584,7 +621,7 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
         categoryName={opportunity.category.name}
       />
 
-      {/* Breadcrumb Schema (NO JobPosting schema for opportunities) */}
+      {/* Breadcrumb Schema */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -602,7 +639,7 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
                 '@type': 'ListItem',
                 position: 2,
                 name: 'Freelance Projects',
-                item: `${siteConfig.url}/jobs`,
+                item: `${siteConfig.url}/freelance`,
               },
               {
                 '@type': 'ListItem',
@@ -613,6 +650,11 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
             ],
           }),
         }}
+      />
+      {/* JobPosting Schema for Google Jobs */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPostingSchema) }}
       />
     </div>
   );

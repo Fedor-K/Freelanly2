@@ -210,7 +210,13 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
   const salaryText = job.salaryMin && job.salaryMax
     ? ` $${(job.salaryMin/1000).toFixed(0)}K-$${(job.salaryMax/1000).toFixed(0)}K.`
     : '';
-  const description = `${job.title} at ${job.company.name}. ${job.location}.${salaryText} Apply now and join a top remote team!`;
+  const typeLabels: Record<string, string> = {
+    FULL_TIME: 'full-time', PART_TIME: 'part-time', CONTRACT: 'contract',
+    FREELANCE: 'freelance', INTERNSHIP: 'internship', TEMPORARY: 'temporary',
+  };
+  const typeText = (job.type && typeLabels[job.type as string]) || 'remote';
+  const skillsText = (job.skills as string[]).slice(0, 3).join(', ');
+  const description = `${job.title} at ${job.company.name} — ${typeText} remote position.${skillsText ? ` ${skillsText}.` : ''}${salaryText} Apply today!`;
 
   // Use SEO utility for consistent title truncation (max 60 chars)
   const seoTitle = truncateTitle(`${job.title} at ${job.company.name} - Remote ${job.category.name} Job`);

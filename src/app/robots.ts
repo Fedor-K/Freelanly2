@@ -61,6 +61,9 @@ export default function robots(): MetadataRoute.Robots {
           // Blog
           '/blog/',
           '/blog/category/',
+          // Freelance
+          '/freelance',
+          '/freelance/',
           // Countries
           '/country/',
           // Static pages
