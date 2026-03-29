@@ -27,10 +27,19 @@ export async function generateMetadata({ searchParams }: FreelancePageProps): Pr
   const params = await searchParams;
   const cat = params.category ? categories.find(c => c.slug === params.category) : null;
   const title = cat ? `Freelance ${cat.name} Projects` : 'Freelance Projects';
+
+  // Noindex: pagination pages or multi-filter combos to avoid thin/duplicate content
+  const currentPage = Math.max(1, parseInt(params.page || '1', 10) || 1);
+  const filterCount = [params.category, params.country, params.q].filter(Boolean).length;
+  const shouldNoindex = currentPage > 1 || filterCount >= 2;
+
   return {
     title: `${title} - Direct Client Projects from LinkedIn`,
     description: 'Find freelance projects sourced directly from LinkedIn and top company posts. Browse contract opportunities in engineering, design, marketing, translation and more. Updated daily.',
     alternates: { canonical: `${siteConfig.url}/freelance` },
+    ...(shouldNoindex && {
+      robots: { index: false, follow: true },
+    }),
   };
 }
 

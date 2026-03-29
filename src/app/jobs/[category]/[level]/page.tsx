@@ -12,6 +12,9 @@ import { prisma } from '@/lib/db';
 import { getMaxJobAgeDate } from '@/lib/utils';
 import { LanguagePairFilter } from '@/components/jobs/LanguagePairFilter';
 
+// ISR: Revalidate every 60 seconds for fresh job listings and noindex status
+export const revalidate = 60;
+
 interface CategoryLevelPageProps {
   params: Promise<{ category: string; level: string }>;
   searchParams: Promise<{ page?: string; sourceLang?: string; targetLang?: string }>;
@@ -33,8 +36,9 @@ export async function generateStaticParams() {
   return params;
 }
 
-export async function generateMetadata({ params }: CategoryLevelPageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: CategoryLevelPageProps): Promise<Metadata> {
   const { category: categorySlug, level: levelSlug } = await params;
+  const { page } = await searchParams;
 
   const category = categories.find((c) => c.slug === categorySlug);
   const level = levels.find((l) => l.value.toLowerCase() === levelSlug.toLowerCase());
@@ -42,6 +46,19 @@ export async function generateMetadata({ params }: CategoryLevelPageProps): Prom
   if (!category || !level) {
     return { title: 'Not Found' };
   }
+
+  // Noindex: pagination pages or pages with no results (soft 404 prevention)
+  const pageNum = parseInt(page || '1', 10) || 1;
+  const maxAgeDate = getMaxJobAgeDate();
+  const jobCount = await prisma.job.count({
+    where: {
+      isActive: true,
+      postedAt: { gte: maxAgeDate },
+      category: { slug: categorySlug },
+      level: level.value,
+    },
+  });
+  const shouldNoIndex = pageNum > 1 || jobCount === 0;
 
   // Use SEO utility for consistent title truncation (max 60 chars)
   const seoTitle = truncateTitle(`${level.label} Remote ${category.name} Jobs - ${level.label} ${category.name} Positions`);
@@ -65,6 +82,9 @@ export async function generateMetadata({ params }: CategoryLevelPageProps): Prom
     alternates: {
       canonical: `${siteConfig.url}/jobs/${category.slug}/${levelSlug}`,
     },
+    ...(shouldNoIndex && {
+      robots: { index: false, follow: true },
+    }),
   };
 }
 
