@@ -137,7 +137,18 @@ const FLOW_TRIGGERS: Record<string, string> = {
   'Maybe later': 'maybe_later',
   'Show me projects': 'show_projects',
   'Browse projects': 'browse_projects',
+  'All languages': 'translation_all',
 };
+
+// Translation language options
+const TRANSLATION_LANGUAGES = [
+  'French', 'Spanish', 'German', 'Chinese', 'Japanese',
+  'Korean', 'Arabic', 'Portuguese', 'Russian', 'Italian',
+];
+const TRANSLATION_LANGUAGE_BUTTONS = [
+  ...TRANSLATION_LANGUAGES.map(lang => ({ label: lang, value: `lang:${lang}` })),
+  { label: 'All languages', value: 'All languages' },
+];
 
 // Add utm_source=chatbot to freelanly.com URLs
 function addUtmSource(url: string): string {
@@ -182,10 +193,13 @@ function countSeeMore(history: ChatMessage[]): number {
   return count;
 }
 
-async function queryOpportunities(categorySlug: string | null, offset: number = 0) {
+async function queryOpportunities(categorySlug: string | null, offset: number = 0, language?: string) {
   const where: Record<string, unknown> = { isActive: true };
   if (categorySlug) {
     where.category = { slug: categorySlug };
+  }
+  if (language) {
+    where.title = { contains: language, mode: 'insensitive' };
   }
 
   const opportunities = await prisma.opportunity.findMany({
@@ -319,6 +333,20 @@ export async function POST(request: NextRequest) {
       // ----- Step 1: Category selected -----
       if (isCategory) {
         const categorySlug = CATEGORY_SLUG_MAP[message];
+
+        // For Translation, ask which language first
+        if (message === 'Translation') {
+          const reply = 'Which language pair are you looking for?';
+          prisma.activityLog.create({
+            data: {
+              userId: userId || null, action: 'CHAT_MESSAGE', sessionId: cleanSessionId,
+              details: { type: 'chat_message', flowStep: 'translation_language_picker', userMessage: message, botReply: reply, userStatus: userStatus || 'anonymous' },
+              ipAddress: ip, country, city,
+            },
+          }).catch(() => {});
+          return NextResponse.json({ reply, escalate: false, buttons: TRANSLATION_LANGUAGE_BUTTONS });
+        }
+
         try {
           const opportunities = await queryOpportunities(categorySlug, 0);
           const reply = formatOpportunitiesList(opportunities, message, userStatus === 'PRO');
@@ -358,6 +386,38 @@ export async function POST(request: NextRequest) {
         } catch (err) {
           console.error('[Chat API] DB query error:', err);
           // Fall through to AI if DB fails
+        }
+      }
+
+      // ----- Step: Translation language selected -----
+      if (message.startsWith('lang:') || flowStep === 'translation_all') {
+        const language = message.startsWith('lang:') ? message.replace('lang:', '') : undefined;
+        const label = language ? `${language} translation` : 'translation';
+        try {
+          const opportunities = await queryOpportunities('translation', 0, language);
+          const reply = formatOpportunitiesList(opportunities, label, userStatus === 'PRO');
+          const buttons = opportunities.length > 0
+            ? [
+                { label: 'See more projects', value: 'See more projects' },
+                { label: 'Different language', value: 'Translation' },
+                { label: 'Different category', value: 'Different category' },
+              ]
+            : [
+                { label: 'Different language', value: 'Translation' },
+                { label: 'Different category', value: 'Different category' },
+              ];
+
+          prisma.activityLog.create({
+            data: {
+              userId: userId || null, action: 'CHAT_MESSAGE', sessionId: cleanSessionId,
+              details: { type: 'chat_message', flowStep: 'translation_language_selected', language: language || 'all', userMessage: message, botReply: reply.substring(0, 500), userStatus: userStatus || 'anonymous' },
+              ipAddress: ip, country, city,
+            },
+          }).catch(() => {});
+
+          return NextResponse.json({ reply, escalate: false, buttons });
+        } catch (err) {
+          console.error('[Chat API] Translation query error:', err);
         }
       }
 
