@@ -4,15 +4,28 @@ import "./globals.css";
 import { siteConfig } from "@/config/site";
 import { AnalyticsScripts } from "@/components/analytics/AnalyticsScripts";
 import { SessionProvider } from "@/components/providers/SessionProvider";
-import { ExitIntentPopup } from "@/components/ExitIntentPopup";
-import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { GclidCapture } from "@/components/analytics/GclidCapture";
 import { TrackPageView } from "@/components/analytics/TrackPageView";
 import { PaymentReturnHandler } from "@/components/PaymentReturnHandler";
 import { ConversionUTMTracker } from "@/components/ConversionUTMTracker";
-import { ChatWidget } from "@/components/ChatWidget";
 import { Suspense } from "react";
 import Script from "next/script";
+import dynamic from "next/dynamic";
+
+const ExitIntentPopup = dynamic(
+  () => import("@/components/ExitIntentPopup").then((m) => ({ default: m.ExitIntentPopup })),
+  { ssr: false }
+);
+
+const CookieConsentBanner = dynamic(
+  () => import("@/components/CookieConsentBanner").then((m) => ({ default: m.CookieConsentBanner })),
+  { ssr: false }
+);
+
+const ChatWidget = dynamic(
+  () => import("@/components/ChatWidget").then((m) => ({ default: m.ChatWidget })),
+  { ssr: false }
+);
 
 export const viewport: Viewport = {
   width: 'device-width',
