@@ -570,6 +570,17 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
                     </div>
                   </div>
                 </div>
+
+                {/* Freelance cross-link */}
+                <div className="mt-6">
+                  <h3 className="font-semibold mb-3">Freelance {category.name} Projects</h3>
+                  <Link
+                    href={`/freelance/${category.slug}`}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    View Freelance {category.name} Projects →
+                  </Link>
+                </div>
               </section>
             );
           })()}

@@ -306,6 +306,47 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
                   ))}
               </div>
             </div>
+
+            {/* Full-time jobs cross-link */}
+            <div className="mt-8 bg-muted/50 rounded p-4">
+              <p className="text-sm text-muted-foreground">
+                Looking for full-time remote {category.name.toLowerCase()} jobs?{' '}
+                <Link href={`/jobs/${category.slug}`} className="text-primary hover:underline font-medium">
+                  Browse {category.name} positions →
+                </Link>
+              </p>
+            </div>
+
+            {/* FAQ Section */}
+            <section className="mt-12">
+              <h2 className="text-2xl font-bold mb-4">Frequently Asked Questions</h2>
+              <div className="space-y-4">
+                <details className="border rounded-lg p-4">
+                  <summary className="font-medium cursor-pointer">
+                    What freelance {category.name.toLowerCase()} projects are available?
+                  </summary>
+                  <p className="mt-2 text-muted-foreground">
+                    Browse our listings for current freelance {category.name.toLowerCase()} opportunities posted directly by clients on LinkedIn and top company career pages. New projects are added daily.
+                  </p>
+                </details>
+                <details className="border rounded-lg p-4">
+                  <summary className="font-medium cursor-pointer">
+                    How do I apply for freelance {category.name.toLowerCase()} projects?
+                  </summary>
+                  <p className="mt-2 text-muted-foreground">
+                    Each project listing includes direct client contact info — email or LinkedIn profile. No middlemen or agencies. PRO members get full access to contact details and apply directly.
+                  </p>
+                </details>
+                <details className="border rounded-lg p-4">
+                  <summary className="font-medium cursor-pointer">
+                    Are these legitimate freelance projects?
+                  </summary>
+                  <p className="mt-2 text-muted-foreground">
+                    All projects are sourced directly from LinkedIn and verified client posts. We filter out spam and irrelevant content to show only genuine {category.name.toLowerCase()} freelance opportunities.
+                  </p>
+                </details>
+              </div>
+            </section>
           </div>
         </main>
         <Footer />
@@ -319,6 +360,41 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
                 { '@type': 'ListItem', position: 1, name: 'Home', item: siteConfig.url },
                 { '@type': 'ListItem', position: 2, name: 'Freelance', item: `${siteConfig.url}/freelance` },
                 { '@type': 'ListItem', position: 3, name: category.name, item: `${siteConfig.url}/freelance/${slug}` },
+              ],
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'FAQPage',
+              mainEntity: [
+                {
+                  '@type': 'Question',
+                  name: `What freelance ${category.name} projects are available?`,
+                  acceptedAnswer: {
+                    '@type': 'Answer',
+                    text: `Browse our listings for current freelance ${category.name} opportunities posted directly by clients on LinkedIn and top company career pages. New projects are added daily.`,
+                  },
+                },
+                {
+                  '@type': 'Question',
+                  name: `How do I apply for freelance ${category.name} projects?`,
+                  acceptedAnswer: {
+                    '@type': 'Answer',
+                    text: `Each project listing includes direct client contact info — email or LinkedIn profile. No middlemen or agencies. PRO members get full access to contact details and apply directly.`,
+                  },
+                },
+                {
+                  '@type': 'Question',
+                  name: 'Are these legitimate freelance projects?',
+                  acceptedAnswer: {
+                    '@type': 'Answer',
+                    text: `All projects are sourced directly from LinkedIn and verified client posts. We filter out spam and irrelevant content to show only genuine ${category.name} freelance opportunities.`,
+                  },
+                },
               ],
             }),
           }}
@@ -609,6 +685,16 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
               </div>
             </div>
           )}
+
+          {/* Looking for full-time work? */}
+          <div className="mt-8 bg-muted/50 rounded p-4">
+            <p className="text-sm text-muted-foreground">
+              Looking for full-time remote {opportunity.category.name.toLowerCase()} jobs?{' '}
+              <Link href={`/jobs/${opportunity.category.slug}`} className="text-primary hover:underline font-medium">
+                Browse {opportunity.category.name} positions →
+              </Link>
+            </p>
+          </div>
         </div>
       </main>
 

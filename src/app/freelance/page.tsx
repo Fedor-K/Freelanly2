@@ -29,7 +29,7 @@ export async function generateMetadata({ searchParams }: FreelancePageProps): Pr
   const title = cat ? `Freelance ${cat.name} Projects` : 'Freelance Projects';
   return {
     title: `${title} - Direct Client Projects from LinkedIn`,
-    description: 'Browse freelance projects sourced directly from LinkedIn. Find direct client opportunities in translation, engineering, design, and more.',
+    description: 'Find freelance projects sourced directly from LinkedIn and top company posts. Browse contract opportunities in engineering, design, marketing, translation and more. Updated daily.',
     alternates: { canonical: `${siteConfig.url}/freelance` },
   };
 }
