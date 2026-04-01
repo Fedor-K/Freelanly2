@@ -98,9 +98,7 @@ function generateOpportunityAlertEmailHtml(
                     <a href="${oppUrl}" style="display: inline-block; background: #000; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
                       View Project
                     </a>
-                    ${userPlan !== 'PRO' ? `<a href="${addUtmParams(`${APP_URL}/freelance/${opp.slug}`, `apply_${opp.id}`)}" style="display: inline-block; background: #16a34a; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px; margin-left: 8px;">
-                      🔓 Apply for ${getUnlockPriceLabel(userCountry)}
-                    </a>` : ''}
+                    ${'' /* Apply button removed */}
                   </div>
                 </td>
               </tr>
