@@ -33,10 +33,14 @@ export async function GET(req: NextRequest) {
       subs.push(s);
     }
 
-    // Subscriptions canceled this month
+    // Subscriptions canceled this month — filter from all canceled subs
     const canceled: Stripe.Subscription[] = [];
-    for await (const s of stripe.subscriptions.list({ canceled_at: { gte: from, lt: to }, limit: 100, status: 'canceled' } as any)) {
-      canceled.push(s);
+    for await (const s of stripe.subscriptions.list({ limit: 100, status: 'canceled' })) {
+      if (s.canceled_at && s.canceled_at >= from && s.canceled_at < to) {
+        canceled.push(s);
+      }
+      // Stop paginating if we're past the month
+      if (s.created < from - 365 * 24 * 3600) break;
     }
 
     // Also check for subscriptions that are currently active
