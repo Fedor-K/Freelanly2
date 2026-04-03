@@ -66,6 +66,34 @@ function yesterday(): string {
   return d.toISOString().split('T')[0];
 }
 
+export async function POST(req: NextRequest) {
+  const authHeader = req.headers.get('authorization');
+  const cronSecret = authHeader?.replace('Bearer ', '');
+  if (CRON_SECRET && cronSecret !== CRON_SECRET) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    if (body.action === 'pause-all') {
+      const campaigns = await listCampaigns();
+      const results = [];
+      for (const c of campaigns) {
+        if (c.status === 'ENABLED') {
+          await updateCampaignStatus(c.id, 'PAUSED');
+          results.push({ name: c.name, id: c.id, action: 'PAUSED' });
+        } else {
+          results.push({ name: c.name, id: c.id, action: `already ${c.status}` });
+        }
+      }
+      return NextResponse.json({ ok: true, results });
+    }
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
 export async function GET(req: NextRequest) {
   // Auth
   const authHeader = req.headers.get('authorization');
