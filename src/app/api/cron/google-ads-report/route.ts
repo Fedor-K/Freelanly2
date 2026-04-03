@@ -102,6 +102,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Pause all campaigns
+  const { searchParams } = new URL(req.url);
+  if (searchParams.get('action') === 'pause-all') {
+    const campaigns = await listCampaigns();
+    const results = [];
+    for (const c of campaigns) {
+      if (c.status === 'ENABLED') {
+        await updateCampaignStatus(c.id, 'PAUSED');
+        results.push({ name: c.name, id: c.id, action: 'PAUSED' });
+      } else {
+        results.push({ name: c.name, id: c.id, action: `already ${c.status}` });
+      }
+    }
+    return NextResponse.json({ ok: true, results });
+  }
+
   try {
     const date = yesterday();
     const campaigns = await listCampaigns({ from: date, to: date });
