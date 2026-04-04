@@ -122,8 +122,8 @@ export async function generateMetadata({ params }: FreelancePageProps): Promise<
   const description = opportunity.description?.slice(0, 155) ||
     `Freelance ${opportunity.title} opportunity from ${opportunity.clientName}. Apply directly to the client.`;
 
-  // Noindex for THIN content
-  const shouldNoindex = opportunity.contentQuality === 'THIN';
+  // Noindex for non-RICH content (THIN + LIGHT)
+  const shouldNoindex = opportunity.contentQuality !== 'RICH';
 
   return {
     title: seoTitle,

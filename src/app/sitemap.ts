@@ -206,7 +206,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const jobs = await prisma.job.findMany({
       where: {
         isActive: true,
-        contentQuality: { not: 'THIN' }, // Exclude THIN content from sitemap
+        contentQuality: 'RICH', // Only RICH content in sitemap — THIN and LIGHT excluded
       },
       select: {
         slug: true,
@@ -217,7 +217,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: 50000, // Include all active jobs (was 10000 - missing ~18K pages from sitemap)
+      take: 50000,
     });
 
     // Job pages: /company/[companySlug]/jobs/[jobSlug]
@@ -234,7 +234,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const opportunities = await prisma.opportunity.findMany({
       where: {
         isActive: true,
-        contentQuality: { not: 'THIN' },
+        contentQuality: 'RICH', // Only RICH content in sitemap
       },
       select: {
         slug: true,
