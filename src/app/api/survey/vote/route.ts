@@ -60,6 +60,15 @@ export async function GET(req: NextRequest) {
 
   const choiceLabel = featureLabels[choice] || choice;
 
+  // Build remaining feature buttons (exclude the one just voted)
+  const remainingButtons = Object.entries(featureLabels)
+    .filter(([id]) => id !== choice)
+    .map(([id, label]) => {
+      const url = `${process.env.NEXT_PUBLIC_APP_URL || 'https://freelanly.com'}/api/survey/vote?email=${encodeURIComponent(email)}&token=${token}&choice=${id}`;
+      return `<a href="${url}" style="display:block; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 16px; text-decoration:none; color:#1a1a1a; font-size:15px; margin:6px 0; text-align:left;">${label}</a>`;
+    })
+    .join('');
+
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Thanks! — Freelanly</title>
@@ -69,15 +78,22 @@ export async function GET(req: NextRequest) {
   h1 { font-size: 28px; margin: 0 0 16px; }
   p { color: #666; font-size: 16px; line-height: 1.6; }
   .choice { background: #f0f9ff; border: 2px solid #3b82f6; border-radius: 8px; padding: 12px 20px; margin: 20px 0; font-size: 18px; }
-  a { color: #3b82f6; text-decoration: none; font-weight: 600; }
+  .more { text-align: left; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+  .more h3 { font-size: 16px; color: #333; margin: 0 0 12px; text-align: center; }
+  a.browse { color: #3b82f6; text-decoration: none; font-weight: 600; }
 </style></head>
 <body>
 <div class="card">
   <h1>Thank you! 🙏</h1>
   <p>Your vote has been recorded:</p>
   <div class="choice">${choiceLabel}</div>
-  <p>We're building this based on your feedback.<br>Stay tuned!</p>
-  <p style="margin-top: 30px;"><a href="https://freelanly.com/freelance">Browse latest projects →</a></p>
+
+  <div class="more">
+    <h3>Want to vote for more? Tap another:</h3>
+    ${remainingButtons}
+  </div>
+
+  <p style="margin-top: 30px;"><a href="https://freelanly.com/freelance" class="browse">Browse latest projects →</a></p>
 </div>
 </body></html>`;
 
