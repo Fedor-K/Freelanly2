@@ -125,32 +125,46 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Find users who clicked email links (most engaged FREE users)
+    const { searchParams } = new URL(req.url);
+    const mode = searchParams.get('mode') || 'clickers'; // 'clickers' or 'pro'
+
     const alreadySurveyed = await prisma.activityLog.findMany({
       where: { action: 'SURVEY_SENT', details: { string_contains: SURVEY_ID } },
       select: { userId: true },
     });
     const surveyedIds = new Set(alreadySurveyed.map(a => a.userId));
 
-    // Get clickers: users who clicked at least 1 email link (via alertId → JobAlert → userId)
-    type ClickerRow = { userId: string; email: string; name: string | null; clicks: number };
-    const clickers = await prisma.$queryRaw<ClickerRow[]>`
-      SELECT ja."userId", u.email, u.name, CAST(COUNT(*) AS INTEGER) as clicks
-      FROM "ActivityLog" a
-      JOIN "JobAlert" ja ON ja.id = (a.details::json->>'alertId')
-      JOIN "User" u ON u.id = ja."userId"
-      WHERE a.action = 'ALERT_EMAIL_CLICK'
-        AND u.plan = 'FREE'
-        AND u."unsubscribedFromMarketing" IS NOT TRUE
-      GROUP BY ja."userId", u.email, u.name
-      ORDER BY clicks DESC
-    `;
+    let eligible: { id: string; email: string; name: string | null }[];
 
-    // Filter out already surveyed
-    const eligible = clickers
-      .filter(c => !surveyedIds.has(c.userId))
-      .slice(0, BATCH_SIZE)
-      .map(c => ({ id: c.userId, email: c.email, name: c.name }));
+    if (mode === 'pro') {
+      // Send to all PRO users
+      type ProRow = { id: string; email: string; name: string | null };
+      const proUsers = await prisma.$queryRaw<ProRow[]>`
+        SELECT id, email, name FROM "User"
+        WHERE plan = 'PRO' AND "unsubscribedFromMarketing" IS NOT TRUE
+      `;
+      eligible = proUsers
+        .filter(u => !surveyedIds.has(u.id))
+        .slice(0, BATCH_SIZE);
+    } else {
+      // Default: send to email clickers (FREE users)
+      type ClickerRow = { userId: string; email: string; name: string | null; clicks: number };
+      const clickers = await prisma.$queryRaw<ClickerRow[]>`
+        SELECT ja."userId", u.email, u.name, CAST(COUNT(*) AS INTEGER) as clicks
+        FROM "ActivityLog" a
+        JOIN "JobAlert" ja ON ja.id = (a.details::json->>'alertId')
+        JOIN "User" u ON u.id = ja."userId"
+        WHERE a.action = 'ALERT_EMAIL_CLICK'
+          AND u.plan = 'FREE'
+          AND u."unsubscribedFromMarketing" IS NOT TRUE
+        GROUP BY ja."userId", u.email, u.name
+        ORDER BY clicks DESC
+      `;
+      eligible = clickers
+        .filter(c => !surveyedIds.has(c.userId))
+        .slice(0, BATCH_SIZE)
+        .map(c => ({ id: c.userId, email: c.email, name: c.name }));
+    }
 
     let sent = 0;
     let errors = 0;
