@@ -1773,6 +1773,10 @@ enum ActivityAction {
   // Chat
   CHAT_MESSAGE
 
+  // Survey
+  SURVEY_SENT
+  SURVEY_VOTE
+
   // Other
   PROFILE_UPDATED
   RESUME_UPLOADED
