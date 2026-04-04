@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
       const emailCount = await prisma.activityLog.count({
         where: { userId: user.id, action: 'EMAIL_SENT' },
       });
-      if (emailCount >= 10) {
+      if (emailCount >= 5) {
         eligible.push(user);
       }
       if (eligible.length >= BATCH_SIZE) break;

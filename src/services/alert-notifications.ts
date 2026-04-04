@@ -194,13 +194,14 @@ function generateOpportunityAlertEmailText(
  */
 async function sendOpportunityAlertNotification(params: {
   alertId: string;
+  userId?: string;
   email: string;
   userPlan?: string;
   userCountry?: string | null;
   category: string | null;
   opportunities: MatchedOpportunity[];
 }): Promise<{ success: boolean; error?: string; messageId?: string }> {
-  const { alertId, email, userPlan, userCountry, category, opportunities } = params;
+  const { alertId, userId, email, userPlan, userCountry, category, opportunities } = params;
 
   if (opportunities.length === 0) {
     return { success: true };
@@ -239,7 +240,7 @@ async function sendOpportunityAlertNotification(params: {
   const text = generateOpportunityAlertEmailText(visibleOpps, category);
 
   // Add email tracking (open pixel + link click tracking)
-  const html = addEmailTracking(rawHtml, alertId, undefined, 'opportunity');
+  const html = addEmailTracking(rawHtml, alertId, userId, 'opportunity');
 
   try {
     const result = await sendApplicationEmail({
@@ -652,6 +653,7 @@ export async function processInstantAlertQueue(): Promise<{
 
     const result = await sendOpportunityAlertNotification({
       alertId: alerts[0].id,
+      userId,
       email,
       userPlan,
       userCountry,
