@@ -1,7 +1,11 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Claude Code settings (may contain permissions history)
-.claude/
+# Claude Code — ignore session data but keep config
+.claude/*
+!.claude/commands/
+!.claude/agents/
+!.claude/skills/
+!.claude/settings.json
 
 # dependencies
 /node_modules
