@@ -5,7 +5,7 @@ import { isCronAuthorized } from '@/lib/cron-auth';
 import crypto from 'crypto';
 
 const SURVEY_ID = 'feature_request_apr2026';
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 100;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://freelanly.com';
 
 function surveyToken(email: string): string {
@@ -125,36 +125,32 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Find engaged FREE users: received 10+ emails, not unsubscribed, haven't been surveyed
+    // Find users who clicked email links (most engaged FREE users)
     const alreadySurveyed = await prisma.activityLog.findMany({
       where: { action: 'SURVEY_SENT', details: { string_contains: SURVEY_ID } },
       select: { userId: true },
     });
     const surveyedIds = new Set(alreadySurveyed.map(a => a.userId));
 
-    // Get engaged free users
-    const candidates = await prisma.user.findMany({
-      where: {
-        plan: 'FREE',
-        unsubscribedFromMarketing: { not: true },
-        email: { not: { contains: '@test' } },
-      },
-      select: { id: true, email: true, name: true },
-    });
+    // Get clickers: users who clicked at least 1 email link (via alertId → JobAlert → userId)
+    type ClickerRow = { userId: string; email: string; name: string | null; clicks: number };
+    const clickers = await prisma.$queryRaw<ClickerRow[]>`
+      SELECT ja."userId", u.email, u.name, CAST(COUNT(*) AS INTEGER) as clicks
+      FROM "ActivityLog" a
+      JOIN "JobAlert" ja ON ja.id = (a.details::json->>'alertId')
+      JOIN "User" u ON u.id = ja."userId"
+      WHERE a.action = 'ALERT_EMAIL_CLICK'
+        AND u.plan = 'FREE'
+        AND u."unsubscribedFromMarketing" IS NOT TRUE
+      GROUP BY ja."userId", u.email, u.name
+      ORDER BY clicks DESC
+    `;
 
-    // Filter: not already surveyed, and has 10+ emails received
-    const eligible = [];
-    for (const user of candidates) {
-      if (surveyedIds.has(user.id)) continue;
-
-      const emailCount = await prisma.activityLog.count({
-        where: { userId: user.id, action: 'EMAIL_SENT' },
-      });
-      if (emailCount >= 5) {
-        eligible.push(user);
-      }
-      if (eligible.length >= BATCH_SIZE) break;
-    }
+    // Filter out already surveyed
+    const eligible = clickers
+      .filter(c => !surveyedIds.has(c.userId))
+      .slice(0, BATCH_SIZE)
+      .map(c => ({ id: c.userId, email: c.email, name: c.name }));
 
     let sent = 0;
     let errors = 0;
