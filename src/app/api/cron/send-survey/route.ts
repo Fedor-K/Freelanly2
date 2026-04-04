@@ -204,7 +204,7 @@ export async function POST(req: NextRequest) {
       eligible: eligible.length,
       sent,
       errors,
-      totalCandidates: clickers.length,
+      totalCandidates: eligible.length,
       alreadySurveyed: surveyedIds.size,
     });
   } catch (error) {
