@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
   try {
     // Find engaged FREE users: received 10+ emails, not unsubscribed, haven't been surveyed
     const alreadySurveyed = await prisma.activityLog.findMany({
-      where: { action: 'SURVEY_SENT', details: { contains: SURVEY_ID } },
+      where: { action: 'SURVEY_SENT', details: { string_contains: SURVEY_ID } },
       select: { userId: true },
     });
     const surveyedIds = new Set(alreadySurveyed.map(a => a.userId));
