@@ -754,24 +754,26 @@ export function getActiveAIProvider() {
  * Filters out: events, announcements, articles, personal updates, promotions
  * Returns: { isJob: boolean, reason: string }
  */
-const IS_JOB_POSTING_PROMPT = `You are a content classifier. Determine if this LinkedIn post is a JOB POSTING (someone HIRING for a role).
+const IS_JOB_POSTING_PROMPT = `You are a content classifier. Determine if this LinkedIn post is a REAL JOB POSTING — a specific client looking for a specific person to do a specific job.
 
-A JOB POSTING must have:
-- A specific job role/position being offered BY A COMPANY/CLIENT
-- Someone is HIRING (an employer looking to fill a position)
-- Clear intent to HIRE someone else (not promote themselves)
+A REAL JOB POSTING (ACCEPT):
+- A specific role/position (e.g., "French-English translator", "React developer")
+- A real client/company that needs THIS person for THEIR project
+- Clear scope: what needs to be done, requirements, or how to apply
+- Examples: "Looking for a freelance graphic designer for LinkedIn posts and campaign visuals", "We need 2 Russian interpreters for on-site work in Gujarat"
 
-NOT a job posting (REJECT these):
-- EVENT INVITATIONS: webinars, conferences, workshops, previews, meetups ("Join us on...", "Register for...")
-- ANNOUNCEMENTS: company news, product launches, achievements, milestones
-- JOB SEEKERS: "I'm looking for work", "Open to opportunities", career transitions
-- FREELANCER SELF-PROMOTION: "I am a [profession]", "I'm a copywriter/designer/developer", "Hire me", "I offer services", "I'm available for projects", "My services include", "Looking for clients", freelancers advertising THEMSELVES
+NOT a real job posting (REJECT):
+- RESUME COLLECTORS: recruiters/staffing agencies collecting CVs into their database without a specific client or project. Signs: "across ALL technologies", "multiple roles", "W2 contractors", "H1B transfer", "Get Placed FAST", listing 10+ different roles in one post, no specific client mentioned
+- STAFFING AGENCY ADS: agencies advertising their own services, not a specific job. Signs: "We support companies", "We connect professionals with opportunities", "exciting opportunities across multiple roles"
+- EVENT INVITATIONS: webinars, conferences, workshops, meetups
+- ANNOUNCEMENTS: company news, product launches, achievements
+- JOB SEEKERS: "I'm looking for work", "Open to opportunities"
+- FREELANCER SELF-PROMOTION: "I am a [profession]", "I offer services", "Hire me", freelancers advertising THEMSELVES
 - ARTICLES/THOUGHTS: industry insights, tips, advice, opinions
 - PROMOTIONS: sales, discounts, special offers
-- CALL FOR PARTNERS: looking for collaborators, partners, investors
-- NETWORKING: "Connect with me", "Let's chat", community building
+- NETWORKING: "Connect with me", "Let's chat"
 
-CRITICAL: If the post author is describing THEIR OWN skills/services (e.g., "I'm a copywriter", "I do translations"), this is SELF-PROMOTION, not a job posting. A job posting is when someone needs to HIRE another person.
+KEY DISTINCTION: A real job post = "We need a translator for our legal documents." A resume collector = "We are hiring translators, developers, analysts, PMs across all industries — send your CV!"
 
 Respond ONLY with JSON: {"isJob": true/false, "reason": "brief reason"}`;
 
