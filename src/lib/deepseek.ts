@@ -775,7 +775,9 @@ CRITICAL: If the post author is describing THEIR OWN skills/services (e.g., "I'm
 
 Respond ONLY with JSON: {"isJob": true/false, "reason": "brief reason"}`;
 
-export async function isJobPosting(postContent: string): Promise<{ isJob: boolean; reason: string }> {
+export async function isJobPosting(postContent: string, retryCount = 0): Promise<{ isJob: boolean; reason: string }> {
+  const MAX_RETRIES = 2;
+
   try {
     const { client, model, provider } = getAIClient();
 
@@ -808,8 +810,17 @@ export async function isJobPosting(postContent: string): Promise<{ isJob: boolea
     return result;
   } catch (error) {
     const provider = getAIProvider();
-    console.error(`[${provider}] isJobPosting error:`, error);
-    // On error, reject — better to skip a real job than let spam through
+    console.error(`[${provider}] isJobPosting error (attempt ${retryCount + 1}/${MAX_RETRIES + 1}):`, error);
+
+    // Retry on transient errors (rate limit, timeout, server error)
+    if (retryCount < MAX_RETRIES) {
+      const delayMs = (retryCount + 1) * 2000; // 2s, 4s
+      console.log(`[${provider}] Retrying isJobPosting in ${delayMs}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+      return isJobPosting(postContent, retryCount + 1);
+    }
+
+    // All retries exhausted — reject to be safe
     return { isJob: false, reason: 'Error during validation, rejecting to be safe' };
   }
 }
