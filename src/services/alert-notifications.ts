@@ -38,10 +38,20 @@ function generateFreeUpsellBlock(hiddenCount: number, userCountry: string | null
         </tr>`;
 }
 
-function truncateDescription(description: string, maxLength = 150): string {
-  const text = description.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').replace(/^About the Role\s*/i, '').trim();
+function truncateDescription(description: string, maxLength = 300): string {
+  // Strip HTML, collapse whitespace, remove AI-generated headers
+  const text = description
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^About the Role\s*/i, '')
+    .replace(/Key Responsibilities.*$/s, '') // Remove AI boilerplate
+    .trim();
   if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength).trim() + '...';
+  // Cut at last sentence boundary within maxLength
+  const truncated = text.slice(0, maxLength);
+  const lastSentence = truncated.lastIndexOf('. ');
+  if (lastSentence > maxLength * 0.5) return truncated.slice(0, lastSentence + 1);
+  return truncated.trim() + '...';
 }
 
 interface MatchedOpportunity {
@@ -49,6 +59,7 @@ interface MatchedOpportunity {
   title: string;
   slug: string;
   description: string;
+  originalContent: string | null;
   clientName: string;
   clientAvatar: string | null;
   country: string | null;
@@ -92,7 +103,7 @@ function generateOpportunityAlertEmailHtml(
                   <div style="color: #666; font-size: 14px; margin-top: 4px;">
                     ${opp.country ? `${opp.country}` : ''}
                   </div>
-                  ${opp.description ? `<div style="color: #555; font-size: 13px; margin-top: 6px; line-height: 1.4;">${truncateDescription(opp.description)}</div>` : ''}
+                  ${(opp.originalContent || opp.description) ? `<div style="color: #555; font-size: 13px; margin-top: 6px; line-height: 1.4;">${truncateDescription(opp.originalContent || opp.description)}</div>` : ''}
                   ${salary ? `<div style="color: #22c55e; font-size: 14px; margin-top: 4px;">${salary}</div>` : ''}
                   <div style="margin-top: 10px;">
                     <a href="${oppUrl}" style="display: inline-block; background: #000; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
@@ -179,7 +190,7 @@ function generateOpportunityAlertEmailText(
       const oppUrl = addUtmParams(`${APP_URL}/freelance/${opp.slug}`, `opp_${opp.id}`);
       const salary =
         false ? '' : '';
-      const desc = opp.description ? truncateDescription(opp.description) : '';
+      const desc = (opp.originalContent || opp.description) ? truncateDescription(opp.originalContent || opp.description) : '';
       return `${opp.title}\n${opp.country ? `${opp.country}` : ''}${desc ? `\n${desc}` : ''}\n${oppUrl}\n`;
     })
     .join('\n');
@@ -560,6 +571,7 @@ export async function processInstantAlertQueue(): Promise<{
       title: opp.title,
       slug: opp.slug,
       description: opp.description,
+      originalContent: opp.originalContent,
       clientName: opp.clientName,
       clientAvatar: opp.clientAvatar,
       country: opp.country,
