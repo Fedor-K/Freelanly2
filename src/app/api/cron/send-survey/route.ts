@@ -136,7 +136,27 @@ export async function POST(req: NextRequest) {
 
     let eligible: { id: string; email: string; name: string | null }[];
 
-    if (mode === 'pro') {
+    if (mode === 'engaged') {
+      // Send to FREE users with 5+ emails received (broader audience)
+      type EngagedRow = { userId: string; email: string; name: string | null };
+      const engaged = await prisma.$queryRaw<EngagedRow[]>`
+        SELECT u.id as "userId", u.email, u.name
+        FROM "User" u
+        WHERE u.plan = 'FREE'
+          AND u."unsubscribedFromMarketing" IS NOT TRUE
+          AND u.id IN (
+            SELECT "userId" FROM "ActivityLog"
+            WHERE action = 'EMAIL_SENT'
+            GROUP BY "userId"
+            HAVING COUNT(*) >= 5
+          )
+        ORDER BY u."createdAt" DESC
+      `;
+      eligible = engaged
+        .filter(u => !surveyedIds.has(u.userId))
+        .slice(0, BATCH_SIZE)
+        .map(u => ({ id: u.userId, email: u.email, name: u.name }));
+    } else if (mode === 'pro') {
       // Send to all PRO users
       type ProRow = { id: string; email: string; name: string | null };
       const proUsers = await prisma.$queryRaw<ProRow[]>`
