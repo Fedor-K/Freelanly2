@@ -51,10 +51,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find the verification token with this code
+    // Find the verification token with this code (case-insensitive to handle
+    // normalization differences between NextAuth and our sanitizeEmail())
     const token = await prisma.verificationToken.findFirst({
       where: {
-        identifier: normalizedEmail,
+        identifier: { equals: normalizedEmail, mode: 'insensitive' },
         code: normalizedCode,
         expires: { gt: new Date() },
       },

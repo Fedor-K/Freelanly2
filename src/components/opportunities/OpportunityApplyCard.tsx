@@ -132,13 +132,52 @@ export function OpportunityApplyCard({
               </Button>
             ))}
 
-          {!isPro && (
-            <Button
-              className="w-full bg-orange-600 hover:bg-orange-700"
-              onClick={handleUpgradeClick}
-            >
-              {session?.user ? '🔓 Открыть контакт' : '🔓 Log In to see contact details'}
-            </Button>
+          {!isPro && !session?.user && (
+            <div className="space-y-2">
+              <Button
+                className="w-full bg-orange-600 hover:bg-orange-700 font-semibold"
+                onClick={() => {
+                  trackSignupStart('opportunity_apply_card');
+                  setShowRegistration(true);
+                }}
+              >
+                Sign Up Free
+              </Button>
+              <Button
+                className="w-full bg-green-600 hover:bg-green-700 font-semibold"
+                onClick={() => {
+                  trackSignupStart('opportunity_apply_card_payment');
+                  setShowRegistration(true);
+                }}
+              >
+                Subscribe — from €0.50/day
+              </Button>
+            </div>
+          )}
+
+          {!isPro && session?.user && (
+            <div className="space-y-2">
+              <Button
+                className="w-full bg-orange-600 hover:bg-orange-700 font-semibold"
+                onClick={() => {
+                  trackUpgradeClick({ source: 'paywall', jobId: opportunityId });
+                  trackDb('PAYWALL_HIT', { opportunityId, title, type: 'upgrade' });
+                  setShowUpgrade(true);
+                }}
+              >
+                Unlock Contact Details
+              </Button>
+              <Button
+                className="w-full bg-green-600 hover:bg-green-700 font-semibold"
+                onClick={() => {
+                  trackUpgradeClick({ source: 'paywall_subscribe', jobId: opportunityId });
+                  trackDb('PAYWALL_HIT', { opportunityId, title, type: 'subscribe' });
+                  setShowUpgrade(true);
+                }}
+              >
+                Subscribe — from €0.50/day
+              </Button>
+            </div>
           )}
 
           <div className="pt-4 border-t">

@@ -229,6 +229,9 @@ export function RegistrationForm({
       return;
     }
 
+    // Normalize email to prevent case mismatch with OTP token lookup
+    setEmail(prev => prev.toLowerCase().trim());
+
     // New user — validate categories
     if (isExistingUser === false) {
       if (selectedCategories.length === 0) {

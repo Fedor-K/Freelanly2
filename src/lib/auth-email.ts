@@ -24,15 +24,30 @@ export async function sendMagicLinkEmail(
 
   // Store code in the VerificationToken that NextAuth just created
   // NextAuth creates the token before calling sendVerificationRequest,
-  // so we update the most recent token for this email with the code
+  // so we update the most recent token for this email with the code.
+  // Use case-insensitive search + retry to handle email normalization
+  // differences between NextAuth and our sanitizeEmail(), and to handle
+  // potential read-replica lag on Neon PostgreSQL.
   try {
-    const token = await prisma.verificationToken.findFirst({
+    let token = await prisma.verificationToken.findFirst({
       where: {
-        identifier: email.toLowerCase(),
+        identifier: { equals: email, mode: 'insensitive' },
         expires: { gt: new Date() },
       },
       orderBy: { expires: 'desc' },
     });
+
+    // Retry once after short delay if not found (Neon read-replica lag)
+    if (!token) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      token = await prisma.verificationToken.findFirst({
+        where: {
+          identifier: { equals: email, mode: 'insensitive' },
+          expires: { gt: new Date() },
+        },
+        orderBy: { expires: 'desc' },
+      });
+    }
 
     if (token) {
       await prisma.verificationToken.update({
