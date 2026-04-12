@@ -13,10 +13,10 @@ interface SESConfig {
 }
 
 const config: SESConfig = {
-  accessKeyId: process.env.AWS_SES_ACCESS_KEY_ID || '',
-  secretAccessKey: process.env.AWS_SES_SECRET_ACCESS_KEY || '',
-  region: process.env.AWS_SES_REGION || 'us-east-1',
-  fromEmail: process.env.SES_FROM_EMAIL || process.env.RESEND_FROM_EMAIL || 'info@freelanly.com',
+  accessKeyId: (process.env.AWS_SES_ACCESS_KEY_ID || '').trim(),
+  secretAccessKey: (process.env.AWS_SES_SECRET_ACCESS_KEY || '').trim(),
+  region: (process.env.AWS_SES_REGION || 'us-east-1').trim(),
+  fromEmail: (process.env.SES_FROM_EMAIL || process.env.RESEND_FROM_EMAIL || 'info@freelanly.com').trim(),
   fromName: 'Freelanly',
 };
 
@@ -122,7 +122,7 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
     const signingKey = getSignatureKey(config.secretAccessKey, dateStamp, config.region, 'ses');
     const signature = createHmac('sha256', signingKey).update(stringToSign).digest('hex');
 
-    const authHeader = `AWS4-HMAC-SHA256 Credential=${config.accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+    const authHeader = `AWS4-HMAC-SHA256 Credential=${config.accessKeyId.trim()}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
     const response = await fetch(endpoint, {
       method: 'POST',
