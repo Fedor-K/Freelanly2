@@ -1,11 +1,21 @@
-// Email provider: Resend
-// All transactional emails go through Resend API
+// Email provider: switchable via EMAIL_PROVIDER env var
+// Supported: 'resend' (default), 'ses' (Amazon SES)
 
-import { sendEmail, isConfigured, getConfig } from './resend';
+import * as resend from './resend';
+import * as ses from './ses';
 import { prisma } from '@/lib/db';
 import { ActivityAction } from '@prisma/client';
 
-export { sendEmail };
+const provider = process.env.EMAIL_PROVIDER || 'resend';
+
+function getProvider() {
+  if (provider === 'ses') return ses;
+  return resend;
+}
+
+export async function sendEmail(params: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  return getProvider().sendEmail(params);
+}
 
 interface SendEmailParams {
   to: string;
@@ -21,7 +31,7 @@ interface SendEmailParams {
 }
 
 /**
- * Send email via Resend — with activity logging
+ * Send email via configured provider — with activity logging
  */
 export async function sendApplicationEmail(
   params: SendEmailParams & { emailType?: string; userId?: string }
@@ -112,14 +122,15 @@ export async function getTransactionalStats(_days: number = 30): Promise<Transac
  * Check if email provider is configured
  */
 export async function testConnection(): Promise<boolean> {
-  return isConfigured();
+  return getProvider().isConfigured();
 }
 
 /**
  * Get provider info for debugging
  */
 export function getProviderInfo() {
-  return { provider: 'resend', resend: getConfig() };
+  const p = getProvider();
+  return { provider, config: p.getConfig() };
 }
 
 // ============================================
