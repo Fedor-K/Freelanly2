@@ -1,8 +1,10 @@
 // Email provider: switchable via EMAIL_PROVIDER env var
-// Supported: 'resend' (default), 'ses' (Amazon SES)
+// Supported: 'resend' (default), 'ses' (Amazon SES), 'smtp2go'
+// Fallback: if primary fails and SMTP2GO_API_KEY is set, retries via SMTP2GO
 
 import * as resend from './resend';
 import * as ses from './ses';
+import * as smtp2go from './smtp2go';
 import { prisma } from '@/lib/db';
 import { ActivityAction } from '@prisma/client';
 
@@ -10,11 +12,20 @@ const provider = process.env.EMAIL_PROVIDER || 'resend';
 
 function getProvider() {
   if (provider === 'ses') return ses;
+  if (provider === 'smtp2go') return smtp2go;
   return resend;
 }
 
 export async function sendEmail(params: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  return getProvider().sendEmail(params);
+  const result = await getProvider().sendEmail(params);
+
+  // Fallback to SMTP2GO if primary provider fails and SMTP2GO is configured
+  if (!result.success && smtp2go.isConfigured() && provider !== 'smtp2go') {
+    console.warn(`[Email] Primary provider (${provider}) failed: ${result.error}. Falling back to SMTP2GO.`);
+    return smtp2go.sendEmail(params);
+  }
+
+  return result;
 }
 
 interface SendEmailParams {
@@ -130,7 +141,7 @@ export async function testConnection(): Promise<boolean> {
  */
 export function getProviderInfo() {
   const p = getProvider();
-  return { provider, config: p.getConfig() };
+  return { provider, config: p.getConfig(), fallback: smtp2go.isConfigured() ? 'smtp2go' : 'none' };
 }
 
 // ============================================
