@@ -19,15 +19,8 @@ function getProvider() {
 export async function sendEmail(params: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const result = await getProvider().sendEmail(params);
 
-  // Fallback to SMTP2GO if primary provider fails and SMTP2GO is configured
   if (!result.success) {
-    const hasFallback = smtp2go.isConfigured();
-    console.warn(`[Email] Primary provider (${provider}) failed: ${result.error}. SMTP2GO fallback available: ${hasFallback}`);
-    if (hasFallback && provider !== 'smtp2go') {
-      const fallbackResult = await smtp2go.sendEmail(params);
-      console.log(`[Email] SMTP2GO fallback result: success=${fallbackResult.success}, messageId=${fallbackResult.messageId}, error=${fallbackResult.error}`);
-      return fallbackResult;
-    }
+    console.warn(`[Email] Provider (${provider}) failed: ${result.error}`);
   }
 
   return result;
