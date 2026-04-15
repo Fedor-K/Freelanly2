@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
       testMode: process.env.PAYPRO_TEST_MODE === 'true',
     });
 
+    console.log(`[PayPro Checkout] priceKey=${priceKey}, productId=${productId}, url=${url}`);
     return NextResponse.json({ url });
   } catch (error) {
     console.error('[PayPro Checkout] Error:', error);

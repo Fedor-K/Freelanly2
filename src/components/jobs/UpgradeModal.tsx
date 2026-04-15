@@ -82,6 +82,7 @@ export function UpgradeModal({
     trackedRef.current = false; // Don't fire PAYWALL_CLOSE
 
     const endpoint = paymentProvider === 'paypro' ? '/api/paypro/checkout' : '/api/stripe/checkout';
+    console.log(`[UpgradeModal] paymentProvider=${paymentProvider}, endpoint=${endpoint}, priceKey=${priceKey}`);
 
     try {
       const response = await fetch(endpoint, {
