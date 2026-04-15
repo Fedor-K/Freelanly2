@@ -145,15 +145,26 @@ export function UpgradeModal({
                 setError(null);
                 setLoading('monthly' as PriceKey); // reuse loading state
                 trackedRef.current = false;
-                trackDb('CHECKOUT_START', { type: 'unlock_contact', jobId, opportunityId, source: 'upgrade_modal' });
+                trackDb('CHECKOUT_START', { type: 'unlock_contact', jobId, opportunityId, source: 'upgrade_modal', provider: paymentProvider });
                 try {
                   localStorage.setItem('paymentReturnUrl', window.location.href);
-                  const res = await fetch('/api/stripe/unlock-contact', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ jobId, opportunityId }),
-                  });
-                  const data = await res.json();
+
+                  let data;
+                  if (paymentProvider === 'paypro') {
+                    const res = await fetch('/api/paypro/checkout', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ priceKey: 'singleContact', jobId, opportunityId }),
+                    });
+                    data = await res.json();
+                  } else {
+                    const res = await fetch('/api/stripe/unlock-contact', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ jobId, opportunityId }),
+                    });
+                    data = await res.json();
+                  }
                   if (data.url) window.location.href = data.url;
                   else setError(data.error || 'Failed to create checkout');
                 } catch {
