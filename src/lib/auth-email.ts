@@ -1,9 +1,6 @@
 // Magic Link + OTP code email sender
-// Auth emails are critical — use SMTP2GO directly as priority sender
-// to avoid SES sandbox limitations for auth codes
 
 import { sendApplicationEmail } from '@/lib/email';
-import { sendEmail as sendViaSMTP2GO, isConfigured as smtp2goConfigured } from '@/lib/email/smtp2go';
 import { prisma } from '@/lib/db';
 import { randomInt } from 'crypto';
 import { sanitizeEmail } from '@/lib/rate-limit';
@@ -75,36 +72,19 @@ export async function sendMagicLinkEmail(
   const text = generateMagicLinkText(url, code);
 
   try {
-    const emailParams = {
+    const result = await sendApplicationEmail({
       to: email,
       subject: `${code} — your Freelanly sign-in code`,
       html,
       text,
-    };
-
-    // Auth emails are critical — try SMTP2GO first (avoids SES sandbox),
-    // fall back to default provider if SMTP2GO not configured
-    let result;
-    if (smtp2goConfigured()) {
-      result = await sendViaSMTP2GO(emailParams);
-      if (result.success) {
-        console.log(`[Auth Email] Magic link + code sent via SMTP2GO to ${email}, messageId: ${result.messageId}`);
-      } else {
-        console.warn(`[Auth Email] SMTP2GO failed: ${result.error}, trying default provider`);
-        result = await sendApplicationEmail(emailParams);
-      }
-    } else {
-      result = await sendApplicationEmail(emailParams);
-    }
+    });
 
     if (!result.success) {
       console.error('[Auth Email] Failed to send magic link:', result.error);
       throw new Error(`Failed to send email: ${result.error}`);
     }
 
-    if (!smtp2goConfigured() || !result.messageId?.includes('smtp')) {
-      console.log(`[Auth Email] Magic link + code sent to ${email}, messageId: ${result.messageId}`);
-    }
+    console.log(`[Auth Email] Magic link + code sent to ${email}, messageId: ${result.messageId}`);
   } catch (error) {
     console.error('[Auth Email] Error sending magic link:', error);
     throw error;

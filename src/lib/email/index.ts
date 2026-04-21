@@ -1,16 +1,17 @@
 // Email provider: switchable via EMAIL_PROVIDER env var
-// Supported: 'resend' (default), 'ses' (Amazon SES), 'smtp2go'
-// Fallback: if primary fails and SMTP2GO_API_KEY is set, retries via SMTP2GO
+// Supported: 'resend' (default), 'ses' (Amazon SES), 'smtp2go', 'postal'
 
 import * as resend from './resend';
 import * as ses from './ses';
 import * as smtp2go from './smtp2go';
+import * as postal from './postal';
 import { prisma } from '@/lib/db';
 import { ActivityAction } from '@prisma/client';
 
 const provider = process.env.EMAIL_PROVIDER || 'resend';
 
 function getProvider() {
+  if (provider === 'postal') return postal;
   if (provider === 'ses') return ses;
   if (provider === 'smtp2go') return smtp2go;
   return resend;
