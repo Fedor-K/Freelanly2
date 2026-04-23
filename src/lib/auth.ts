@@ -1,7 +1,7 @@
 import NextAuth from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import Google from 'next-auth/providers/google';
-import Resend from 'next-auth/providers/resend';
+import Nodemailer from 'next-auth/providers/nodemailer';
 import { prisma } from '@/lib/db';
 import { sendMagicLinkEmail } from '@/lib/auth-email';
 import { ActivityAction } from '@prisma/client';
@@ -17,8 +17,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       allowDangerousEmailAccountLinking: true,
     }),
 
-    // Magic Link via Email (using custom send function)
-    Resend({
+    // Magic Link via Email (provider-agnostic, sends via our email system)
+    Nodemailer({
+      id: 'resend',  // keep ID as 'resend' so frontend signIn('resend') still works
+      name: 'Email',
+      server: 'smtp://localhost',  // not used — sendVerificationRequest overrides
       from: process.env.RESEND_FROM_EMAIL || 'noreply@freelanly.com',
       sendVerificationRequest: async ({ identifier: email, url }) => {
         await sendMagicLinkEmail(email, url);
