@@ -19,10 +19,8 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   const session = await auth();
   const params = await searchParams;
 
-  // Already logged in - redirect to dashboard or callback URL
-  if (session?.user) {
-    redirect(params.callbackUrl || '/dashboard');
-  }
+  // Allow re-authentication — session cookie may be stale/expired
+  // Don't redirect, let users request a new magic link
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">

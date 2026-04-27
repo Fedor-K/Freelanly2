@@ -69,10 +69,8 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(signInUrl);
   }
 
-  // Redirect to dashboard if accessing auth routes while logged in
-  if (isAuthRoute && isLoggedIn) {
-    return NextResponse.redirect(new URL('/dashboard', req.url));
-  }
+  // Allow re-authentication even if session cookie exists (it may be expired/invalid).
+  // Users must be able to request a new magic link at any time.
 
   return NextResponse.next();
 }
