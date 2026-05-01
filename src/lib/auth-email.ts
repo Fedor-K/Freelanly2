@@ -1,6 +1,8 @@
 // Magic Link + OTP code email sender
+// Auth emails go through Postal (self-hosted) for IP warming
 
 import { sendApplicationEmail } from '@/lib/email';
+import { sendEmail as sendViaPostal, isConfigured as postalConfigured } from '@/lib/email/postal';
 import { prisma } from '@/lib/db';
 import { randomInt } from 'crypto';
 import { sanitizeEmail } from '@/lib/rate-limit';
@@ -72,19 +74,36 @@ export async function sendMagicLinkEmail(
   const text = generateMagicLinkText(url, code);
 
   try {
-    const result = await sendApplicationEmail({
+    const emailParams = {
       to: email,
       subject: `${code} — your Freelanly sign-in code`,
       html,
       text,
-    });
+    };
+
+    // Send auth emails via Postal (self-hosted) for IP warming.
+    // Fallback to default provider if Postal fails.
+    let result;
+    if (postalConfigured()) {
+      result = await sendViaPostal(emailParams);
+      if (result.success) {
+        console.log(`[Auth Email] Sent via Postal to ${email}, messageId: ${result.messageId}`);
+      } else {
+        console.warn(`[Auth Email] Postal failed: ${result.error}, falling back to default provider`);
+        result = await sendApplicationEmail(emailParams);
+      }
+    } else {
+      result = await sendApplicationEmail(emailParams);
+    }
 
     if (!result.success) {
       console.error('[Auth Email] Failed to send magic link:', result.error);
       throw new Error(`Failed to send email: ${result.error}`);
     }
 
-    console.log(`[Auth Email] Magic link + code sent to ${email}, messageId: ${result.messageId}`);
+    if (!postalConfigured()) {
+      console.log(`[Auth Email] Magic link + code sent to ${email}, messageId: ${result.messageId}`);
+    }
   } catch (error) {
     console.error('[Auth Email] Error sending magic link:', error);
     throw error;
