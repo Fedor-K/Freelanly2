@@ -88,6 +88,12 @@ model User {
   cookieConsents CookieConsent[]
   reengagementEmails ReengagementEmail[]
 
+  // Auto-Apply
+  userSmtp              UserSmtp?
+  autoApplyLoops        AutoApplyLoop[]
+  autoApplications      AutoApplication[]
+  coverLetterTemplates  CoverLetterTemplate[]
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -1783,6 +1789,10 @@ enum ActivityAction {
   UNSUBSCRIBE
   CONTACT_VIEW
   REGISTRATION_MODAL_OPEN
+
+  // Auto-Apply
+  AUTO_APPLY
+  AUTO_APPLY_FOLLOWUP
 }
 
 // ============================================
@@ -1831,4 +1841,149 @@ model AlertEmailFeedback {
   @@index([userId])
   @@index([alertId])
   @@index([createdAt])
+}
+
+// ============================================
+// AUTO-APPLY
+// ============================================
+
+// User's SMTP connection for sending applications
+model UserSmtp {
+  id          String   @id @default(cuid())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String   @unique
+
+  host        String   // smtp.gmail.com, smtp-mail.outlook.com
+  port        Int      @default(587)
+  email       String   // user's email address
+  password    String   // app password (encrypted at application level)
+  verified    Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Auto-apply "Loop" — a set of filters + settings
+model AutoApplyLoop {
+  id              String   @id @default(cuid())
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+
+  name            String   // "Frontend Remote EU"
+  jobTitles       String[] // ["React Developer", "Frontend Engineer"]
+  keywords        String?  // comma-separated additional keywords
+  country         String?  // ISO country code
+  level           String?  // JUNIOR, MID, SENIOR
+  salaryMin       Int?
+  salaryMax       Int?
+  blacklistCompanies String[] // companies to skip
+
+  // Which resume and template to use
+  resumeUrl       String?  // URL to PDF resume
+  templateId      String?  // CoverLetterTemplate ID
+
+  // Automation settings
+  mode            AutoApplyMode @default(AUTO)
+  dailyLimit      Int      @default(10)
+  sentToday       Int      @default(0)
+  lastResetAt     DateTime @default(now())
+  isActive        Boolean  @default(true)
+
+  // Relations
+  applications    AutoApplication[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, isActive])
+}
+
+enum AutoApplyMode {
+  AUTO    // Send automatically without confirmation
+  SEMI    // Queue for user review before sending
+  MANUAL  // Only show matches, don't send
+}
+
+// Cover letter template with variables
+model CoverLetterTemplate {
+  id        String   @id @default(cuid())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  name      String   // "Professional", "Casual"
+  subject   String   // Email subject: "Application: {{ job_title }} — {{ your_name }}"
+  body      String   // Template body with {{ variables }}
+  type      TemplateType @default(APPLICATION)
+  isDefault Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+enum TemplateType {
+  APPLICATION  // Initial application
+  FOLLOWUP    // Follow-up after no response
+}
+
+// Individual auto-apply attempt (tracks each application sent)
+model AutoApplication {
+  id              String   @id @default(cuid())
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+
+  loop            AutoApplyLoop @relation(fields: [loopId], references: [id], onDelete: Cascade)
+  loopId          String
+
+  // Applied to (either job or opportunity)
+  jobId           String?
+  opportunityId   String?
+
+  // What was sent
+  companyName     String
+  jobTitle        String
+  appliedToEmail  String   // recruiter/company email
+  coverLetter     String   // generated cover letter text
+  subject         String   // email subject line
+  resumeUrl       String?  // resume that was attached
+
+  // Status tracking
+  status          AutoApplyStatus @default(PENDING)
+  sentVia         String?  // "smtp" or "platform"
+  errorMessage    String?
+
+  // Follow-up
+  followUpSentAt  DateTime?
+  followUpCount   Int      @default(0)
+
+  // Timestamps
+  sentAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, jobId])
+  @@unique([userId, opportunityId])
+  @@index([userId, status])
+  @@index([loopId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum AutoApplyStatus {
+  PENDING     // Queued, waiting to send
+  REVIEW      // Semi-auto mode, waiting for user approval
+  SENDING     // Currently being processed
+  SENT        // Successfully sent
+  DELIVERED   // Confirmed delivered
+  OPENED      // Recruiter opened email
+  REPLIED     // Recruiter replied
+  INTERVIEW   // Got interview
+  REJECTED    // Rejected
+  FAILED      // Send failed (SMTP error)
 }
