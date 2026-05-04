@@ -407,14 +407,33 @@ export async function testSmtpConnection(config: SmtpConfig): Promise<SmtpResult
   return sendEmailViaSMTP(config, {
     from: `${config.email}`,
     to: config.email,
-    subject: 'Freelanly Auto-Apply — SMTP Test',
+    subject: '✅ Freelanly Auto-Apply — Email Connected!',
     html: `
-      <div style="font-family: sans-serif; padding: 20px;">
-        <h2>SMTP Connection Successful</h2>
-        <p>Your SMTP settings are configured correctly. Freelanly Auto-Apply can now send applications on your behalf.</p>
-        <p style="color: #666; font-size: 12px;">This is an automated test email from Freelanly.</p>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="display: inline-block; background: #22c55e; color: white; width: 48px; height: 48px; border-radius: 50%; line-height: 48px; font-size: 24px;">✓</div>
+        </div>
+        <h2 style="text-align: center; color: #111; margin: 0 0 8px;">Email Connected Successfully!</h2>
+        <p style="text-align: center; color: #666; margin: 0 0 24px;">Your email is ready for Auto-Apply.</p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+          <table style="width: 100%; font-size: 14px; color: #475569;">
+            <tr><td style="padding: 4px 0; color: #94a3b8; width: 80px;">Email</td><td style="padding: 4px 0; font-weight: 500;">${config.email}</td></tr>
+            <tr><td style="padding: 4px 0; color: #94a3b8;">Server</td><td style="padding: 4px 0;">${config.host}:${config.port}</td></tr>
+            <tr><td style="padding: 4px 0; color: #94a3b8;">Status</td><td style="padding: 4px 0; color: #22c55e; font-weight: 600;">Verified ✅</td></tr>
+          </table>
+        </div>
+        <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+          <p style="margin: 0 0 8px; font-size: 14px; font-weight: 600; color: #92400e;">Next steps:</p>
+          <ol style="margin: 0; padding-left: 20px; font-size: 13px; color: #78350f; line-height: 1.8;">
+            <li>Create a cover letter template</li>
+            <li>Set up your first auto-apply loop</li>
+            <li>Freelanly applies to matching jobs from your email</li>
+          </ol>
+        </div>
+        <p style="text-align: center;"><a href="https://freelanly.com/dashboard/auto-apply" style="display: inline-block; background: #000; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500;">Continue Setup →</a></p>
+        <p style="color: #94a3b8; font-size: 11px; text-align: center; margin-top: 20px;">This is a test email from Freelanly Auto-Apply.</p>
       </div>
     `,
-    text: 'SMTP Connection Successful. Your SMTP settings are configured correctly. Freelanly Auto-Apply can now send applications on your behalf.',
+    text: 'Email Connected Successfully! Your email is ready for Auto-Apply.\n\nEmail: ' + config.email + '\nServer: ' + config.host + ':' + config.port + '\nStatus: Verified\n\nNext steps:\n1. Create a cover letter template\n2. Set up your first auto-apply loop\n3. Freelanly applies to matching jobs from your email\n\nhttps://freelanly.com/dashboard/auto-apply',
   });
 }
