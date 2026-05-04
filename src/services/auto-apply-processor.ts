@@ -1,0 +1,462 @@
+import { prisma } from '@/lib/db';
+import { sendEmailViaSMTP } from '@/lib/smtp-sender';
+import { generateCoverLetter, generateSubjectLine } from '@/services/cover-letter-generator';
+import { AutoApplyStatus } from '@prisma/client';
+
+/**
+ * Process the auto-apply queue:
+ * 1. Find PENDING AutoApplications
+ * 2. Generate cover letters via AI
+ * 3. Send via user's SMTP
+ * 4. Update status
+ */
+export async function processAutoApplyQueue(): Promise<{
+  processed: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+}> {
+  let processed = 0;
+  let sent = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  // Find pending applications grouped by user
+  const pendingApps = await prisma.autoApplication.findMany({
+    where: {
+      status: AutoApplyStatus.PENDING,
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          plan: true,
+          userSmtp: true,
+        },
+      },
+      loop: {
+        select: {
+          id: true,
+          dailyLimit: true,
+          sentToday: true,
+          lastResetAt: true,
+          isActive: true,
+          resumeUrl: true,
+          mode: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'asc' },
+    take: 50, // Process in batches
+  });
+
+  if (pendingApps.length === 0) {
+    console.log('[AutoApply] No pending applications in queue');
+    return { processed: 0, sent: 0, failed: 0, skipped: 0 };
+  }
+
+  console.log(`[AutoApply] Processing ${pendingApps.length} pending applications`);
+
+  for (const app of pendingApps) {
+    processed++;
+
+    // Validate user eligibility
+    if (app.user.plan !== 'PRO') {
+      await markFailed(app.id, 'User plan is not PRO');
+      skipped++;
+      continue;
+    }
+
+    if (!app.user.userSmtp?.verified) {
+      await markFailed(app.id, 'SMTP not configured or not verified');
+      skipped++;
+      continue;
+    }
+
+    if (!app.loop.isActive) {
+      await markFailed(app.id, 'Auto-apply loop is paused');
+      skipped++;
+      continue;
+    }
+
+    // Reset daily counter if needed
+    const now = new Date();
+    const lastReset = new Date(app.loop.lastResetAt);
+    const isNewDay =
+      now.getUTCFullYear() !== lastReset.getUTCFullYear() ||
+      now.getUTCMonth() !== lastReset.getUTCMonth() ||
+      now.getUTCDate() !== lastReset.getUTCDate();
+
+    if (isNewDay) {
+      await prisma.autoApplyLoop.update({
+        where: { id: app.loop.id },
+        data: { sentToday: 0, lastResetAt: now },
+      });
+      app.loop.sentToday = 0;
+    }
+
+    // Check daily limit
+    if (app.loop.sentToday >= app.loop.dailyLimit) {
+      skipped++;
+      continue; // Leave as PENDING, will be sent tomorrow
+    }
+
+    // SEMI mode: mark for review instead of sending
+    if (app.loop.mode === 'SEMI') {
+      await prisma.autoApplication.update({
+        where: { id: app.id },
+        data: { status: AutoApplyStatus.REVIEW },
+      });
+      skipped++;
+      continue;
+    }
+
+    // Mark as SENDING to prevent double-processing
+    await prisma.autoApplication.update({
+      where: { id: app.id },
+      data: { status: AutoApplyStatus.SENDING },
+    });
+
+    try {
+      // Generate cover letter if not already set
+      let coverLetter = app.coverLetter;
+      let subject = app.subject;
+
+      if (!coverLetter || coverLetter === '') {
+        coverLetter = await generateCoverLetter({
+          jobTitle: app.jobTitle,
+          jobDescription: '', // Description already used at queue time
+          companyName: app.companyName,
+          userProfile: {
+            name: app.user.name || 'Applicant',
+            skills: [],
+            experience: '',
+          },
+        });
+      }
+
+      if (!subject || subject === '') {
+        subject = await generateSubjectLine({
+          jobTitle: app.jobTitle,
+          userName: app.user.name || 'Applicant',
+        });
+      }
+
+      // Build email HTML
+      const html = buildApplicationEmailHtml({
+        coverLetter,
+        userName: app.user.name || 'Applicant',
+        jobTitle: app.jobTitle,
+        companyName: app.companyName,
+      });
+
+      const text = `${coverLetter}\n\nBest regards,\n${app.user.name || 'Applicant'}`;
+
+      // Send via SMTP
+      const smtpConfig = app.user.userSmtp!;
+      const result = await sendEmailViaSMTP(
+        {
+          host: smtpConfig.host,
+          port: smtpConfig.port,
+          email: smtpConfig.email,
+          password: smtpConfig.password,
+        },
+        {
+          from: `${app.user.name || 'Applicant'} <${smtpConfig.email}>`,
+          to: app.appliedToEmail,
+          replyTo: smtpConfig.email,
+          subject,
+          html,
+          text,
+          resumeUrl: app.resumeUrl || app.loop.resumeUrl || undefined,
+        }
+      );
+
+      if (result.success) {
+        await prisma.$transaction([
+          prisma.autoApplication.update({
+            where: { id: app.id },
+            data: {
+              status: AutoApplyStatus.SENT,
+              sentVia: 'smtp',
+              coverLetter,
+              subject,
+              sentAt: now,
+            },
+          }),
+          prisma.autoApplyLoop.update({
+            where: { id: app.loop.id },
+            data: {
+              sentToday: { increment: 1 },
+            },
+          }),
+        ]);
+        sent++;
+        console.log(`[AutoApply] Sent application ${app.id} to ${app.appliedToEmail}`);
+      } else {
+        await markFailed(app.id, result.error || 'SMTP send failed');
+        failed++;
+        console.error(`[AutoApply] Failed to send ${app.id}: ${result.error}`);
+      }
+    } catch (error) {
+      await markFailed(app.id, String(error));
+      failed++;
+      console.error(`[AutoApply] Error processing ${app.id}:`, error);
+    }
+
+    // Rate limit: 500ms between sends to avoid SMTP throttling
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  console.log(`[AutoApply] Done: ${sent} sent, ${failed} failed, ${skipped} skipped out of ${processed}`);
+
+  return { processed, sent, failed, skipped };
+}
+
+/**
+ * When a new Opportunity is created, match it against all active auto-apply loops
+ * and create PENDING AutoApplication records.
+ */
+export async function queueAutoApplyForOpportunity(opportunityId: string): Promise<number> {
+  const opportunity = await prisma.opportunity.findUnique({
+    where: { id: opportunityId },
+    include: {
+      category: { select: { slug: true } },
+      company: { select: { name: true } },
+    },
+  });
+
+  if (!opportunity || !opportunity.isActive || !opportunity.applyEmail) {
+    return 0;
+  }
+
+  return queueAutoApplyForListing({
+    type: 'opportunity',
+    id: opportunity.id,
+    title: opportunity.title,
+    description: opportunity.description,
+    companyName: opportunity.company?.name || opportunity.clientName,
+    applyEmail: opportunity.applyEmail,
+    categorySlug: opportunity.category.slug,
+    country: opportunity.country,
+    level: opportunity.level,
+    skills: opportunity.skills,
+  });
+}
+
+/**
+ * When a new Job is created, match it against all active auto-apply loops
+ * and create PENDING AutoApplication records.
+ */
+export async function queueAutoApplyForJob(jobId: string): Promise<number> {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: {
+      category: { select: { slug: true } },
+      company: { select: { name: true } },
+    },
+  });
+
+  if (!job || !job.isActive || !job.applyEmail) {
+    return 0;
+  }
+
+  return queueAutoApplyForListing({
+    type: 'job',
+    id: job.id,
+    title: job.title,
+    description: job.description,
+    companyName: job.company.name,
+    applyEmail: job.applyEmail,
+    categorySlug: job.category.slug,
+    country: job.country,
+    level: job.level,
+    skills: job.skills,
+  });
+}
+
+interface ListingData {
+  type: 'job' | 'opportunity';
+  id: string;
+  title: string;
+  description: string;
+  companyName: string;
+  applyEmail: string;
+  categorySlug: string;
+  country: string | null;
+  level: string;
+  skills: string[];
+}
+
+/**
+ * Internal: match a listing (job or opportunity) against active loops and queue applications.
+ */
+async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
+  // Find all active loops from PRO users with verified SMTP
+  const activeLoops = await prisma.autoApplyLoop.findMany({
+    where: {
+      isActive: true,
+      user: {
+        plan: 'PRO',
+        userSmtp: {
+          verified: true,
+        },
+      },
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  });
+
+  if (activeLoops.length === 0) {
+    return 0;
+  }
+
+  let queued = 0;
+  const titleLower = listing.title.toLowerCase();
+  const descLower = listing.description.toLowerCase();
+
+  for (const loop of activeLoops) {
+    // Check if already applied to this listing by this user
+    const existingWhere =
+      listing.type === 'job'
+        ? { userId_jobId: { userId: loop.userId, jobId: listing.id } }
+        : { userId_opportunityId: { userId: loop.userId, opportunityId: listing.id } };
+
+    const existing = await prisma.autoApplication.findUnique({
+      where: existingWhere,
+      select: { id: true },
+    });
+
+    if (existing) continue; // Deduplication: already applied
+
+    // Match job titles
+    const titleMatch = loop.jobTitles.some((t) =>
+      titleLower.includes(t.toLowerCase())
+    );
+    if (loop.jobTitles.length > 0 && !titleMatch) continue;
+
+    // Match keywords
+    if (loop.keywords) {
+      const keywords = loop.keywords
+        .toLowerCase()
+        .split(',')
+        .map((k) => k.trim())
+        .filter((k) => k);
+      const searchText = `${titleLower} ${descLower}`;
+      const keywordMatch = keywords.some((kw) => searchText.includes(kw));
+      if (!keywordMatch) continue;
+    }
+
+    // Match country
+    if (loop.country && listing.country && loop.country !== listing.country) {
+      continue;
+    }
+
+    // Match level
+    if (loop.level && loop.level !== listing.level) {
+      continue;
+    }
+
+    // Check blacklisted companies
+    if (
+      loop.blacklistCompanies.some(
+        (bc) => bc.toLowerCase() === listing.companyName.toLowerCase()
+      )
+    ) {
+      continue;
+    }
+
+    // Determine status based on loop mode
+    const status =
+      loop.mode === 'SEMI'
+        ? AutoApplyStatus.REVIEW
+        : loop.mode === 'MANUAL'
+          ? AutoApplyStatus.REVIEW
+          : AutoApplyStatus.PENDING;
+
+    // Create PENDING AutoApplication
+    try {
+      await prisma.autoApplication.create({
+        data: {
+          userId: loop.userId,
+          loopId: loop.id,
+          jobId: listing.type === 'job' ? listing.id : null,
+          opportunityId: listing.type === 'opportunity' ? listing.id : null,
+          companyName: listing.companyName,
+          jobTitle: listing.title,
+          appliedToEmail: listing.applyEmail,
+          coverLetter: '', // Will be generated during processing
+          subject: '', // Will be generated during processing
+          resumeUrl: loop.resumeUrl,
+          status,
+        },
+      });
+      queued++;
+    } catch (error) {
+      // Unique constraint violation = already applied, skip silently
+      const errorStr = String(error);
+      if (!errorStr.includes('Unique constraint')) {
+        console.error(`[AutoApply] Error queuing for loop ${loop.id}:`, error);
+      }
+    }
+  }
+
+  if (queued > 0) {
+    console.log(
+      `[AutoApply] Queued ${queued} applications for ${listing.type} "${listing.title}"`
+    );
+  }
+
+  return queued;
+}
+
+/**
+ * Mark an application as FAILED with an error message
+ */
+async function markFailed(id: string, errorMessage: string): Promise<void> {
+  await prisma.autoApplication.update({
+    where: { id },
+    data: {
+      status: AutoApplyStatus.FAILED,
+      errorMessage: errorMessage.slice(0, 500),
+    },
+  });
+}
+
+/**
+ * Build a clean HTML email for the application
+ */
+function buildApplicationEmailHtml(params: {
+  coverLetter: string;
+  userName: string;
+  jobTitle: string;
+  companyName: string;
+}): string {
+  const { coverLetter, userName } = params;
+
+  // Convert newlines to paragraphs
+  const paragraphs = coverLetter
+    .split('\n')
+    .filter((p) => p.trim())
+    .map((p) => `<p style="margin: 0 0 12px; line-height: 1.6;">${p}</p>`)
+    .join('');
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6;">
+  ${paragraphs}
+  <p style="margin: 24px 0 0;">Best regards,<br>${userName}</p>
+</body>
+</html>
+  `.trim();
+}
