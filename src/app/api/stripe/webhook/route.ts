@@ -375,6 +375,12 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     },
   });
 
+  // Pause all auto-apply loops (PRO-only feature)
+  await prisma.autoApplyLoop.updateMany({
+    where: { userId: user.id, isActive: true },
+    data: { isActive: false },
+  }).catch(() => {});
+
   // Record churn event
   await prisma.revenueEvent.create({
     data: {
