@@ -113,6 +113,17 @@ export function UserMenu() {
             </Link>
           </div>
 
+          {/* Auto-Apply */}
+          <div className="py-1">
+            <Link
+              href="/dashboard/auto-apply"
+              onClick={() => setIsOpen(false)}
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              Auto-Apply
+            </Link>
+          </div>
+
           {/* Settings & Logout */}
           <div className="border-t py-1">
             <Link
