@@ -214,6 +214,22 @@ export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
             </p>
           </div>
 
+          {/* Gmail App Password Instructions — before buttons */}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-amber-900 mb-2">How to Get a Gmail App Password</h3>
+            <ol className="space-y-1 text-xs text-amber-800 list-decimal list-inside">
+              <li>
+                Go to{' '}
+                <a href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                  myaccount.google.com/security
+                </a>
+              </li>
+              <li>Enable 2-Step Verification if not already enabled</li>
+              <li>Search for &ldquo;App passwords&rdquo; in security settings</li>
+              <li>Create a new app password for &ldquo;Freelanly&rdquo; and paste it above</li>
+            </ol>
+          </div>
+
           <div className="flex gap-3">
             <button
               type="submit"
@@ -233,51 +249,6 @@ export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
           </div>
         </div>
       </form>
-
-      {/* Gmail App Password Instructions */}
-      <div className="bg-white rounded-xl border p-6">
-        <h2 className="text-lg font-semibold mb-4">How to Get a Gmail App Password</h2>
-        <div className="space-y-3 text-sm text-gray-600">
-          <div className="flex gap-3">
-            <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-700 shrink-0">
-              1
-            </span>
-            <p>
-              Go to your Google Account at{' '}
-              <a
-                href="https://myaccount.google.com/security"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                myaccount.google.com/security
-              </a>
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-700 shrink-0">
-              2
-            </span>
-            <p>Enable 2-Step Verification if not already enabled</p>
-          </div>
-          <div className="flex gap-3">
-            <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-700 shrink-0">
-              3
-            </span>
-            <p>
-              Search for &ldquo;App passwords&rdquo; in the security settings
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-700 shrink-0">
-              4
-            </span>
-            <p>
-              Create a new app password for &ldquo;Freelanly&rdquo; and paste it above
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
