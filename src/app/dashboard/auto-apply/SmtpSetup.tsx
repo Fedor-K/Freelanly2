@@ -17,238 +17,267 @@ interface SmtpSetupProps {
 }
 
 const SMTP_PRESETS = [
-  { label: 'Gmail', host: 'smtp.gmail.com', port: 587 },
-  { label: 'Outlook / Hotmail', host: 'smtp-mail.outlook.com', port: 587 },
-  { label: 'Yahoo', host: 'smtp.mail.yahoo.com', port: 587 },
-  { label: 'Custom', host: '', port: 587 },
+  { label: 'Gmail', host: 'smtp.gmail.com', port: 587, instructions: 'https://myaccount.google.com/apppasswords' },
+  { label: 'Outlook / Hotmail', host: 'smtp-mail.outlook.com', port: 587, instructions: 'https://account.live.com/proofs/AppPassword' },
+  { label: 'Yahoo', host: 'smtp.mail.yahoo.com', port: 587, instructions: 'https://login.yahoo.com/account/security/app-passwords' },
 ];
 
 export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3>(initialSmtp?.verified ? 3 : 1);
 
   // Form state
-  const [preset, setPreset] = useState(() => {
-    if (!initialSmtp) return 'Gmail';
-    const found = SMTP_PRESETS.find((p) => p.host === initialSmtp.host);
-    return found?.label || 'Custom';
+  const [selectedPreset, setSelectedPreset] = useState(() => {
+    if (!initialSmtp) return SMTP_PRESETS[0];
+    return SMTP_PRESETS.find((p) => p.host === initialSmtp.host) || SMTP_PRESETS[0];
   });
-  const [host, setHost] = useState(initialSmtp?.host || 'smtp.gmail.com');
-  const [port, setPort] = useState(String(initialSmtp?.port || 587));
   const [email, setEmail] = useState(initialSmtp?.email || '');
   const [password, setPassword] = useState(initialSmtp?.password || '');
   const [verified, setVerified] = useState(initialSmtp?.verified || false);
 
-  const handlePresetChange = (label: string) => {
-    setPreset(label);
-    const found = SMTP_PRESETS.find((p) => p.label === label);
-    if (found && found.host) {
-      setHost(found.host);
-      setPort(String(found.port));
-    }
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveAndTest = async () => {
     setLoading(true);
     setMessage(null);
 
     try {
-      const res = await fetch('/api/user/smtp', {
+      // Save first
+      const saveRes = await fetch('/api/user/smtp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          host,
-          port: parseInt(port),
+          host: selectedPreset.host,
+          port: selectedPreset.port,
           email,
           password,
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        onSmtpUpdated(data);
-        setMessage({ type: 'success', text: 'SMTP settings saved successfully!' });
-      } else {
-        const data = await res.json();
-        setMessage({ type: 'error', text: data.error || 'Failed to save SMTP settings' });
+      if (!saveRes.ok) {
+        const data = await saveRes.json();
+        setMessage({ type: 'error', text: data.error || 'Failed to save settings' });
+        return;
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to save SMTP settings' });
+
+      // Then test
+      setTesting(true);
+      const testRes = await fetch('/api/user/smtp/test', { method: 'POST' });
+
+      if (testRes.ok) {
+        setVerified(true);
+        const saveData = await saveRes.json();
+        onSmtpUpdated({ ...saveData, verified: true });
+        setMessage({ type: 'success', text: '✅ Connected! Test email sent to your inbox.' });
+      } else {
+        const data = await testRes.json();
+        setMessage({ type: 'error', text: data.error || 'Connection failed. Check your app password.' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Something went wrong. Please try again.' });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleTest = async () => {
-    setTesting(true);
-    setMessage(null);
-
-    try {
-      const res = await fetch('/api/user/smtp/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (res.ok) {
-        setVerified(true);
-        setMessage({ type: 'success', text: 'Connection successful! Your SMTP is verified.' });
-        if (initialSmtp) {
-          onSmtpUpdated({ ...initialSmtp, verified: true });
-        }
-      } else {
-        const data = await res.json();
-        setVerified(false);
-        setMessage({ type: 'error', text: data.error || 'Connection test failed. Check your credentials.' });
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Connection test failed' });
-    } finally {
       setTesting(false);
     }
   };
 
-  return (
-    <div>
-      <form onSubmit={handleSave} className="bg-white rounded-xl border p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">SMTP Configuration</h2>
-          {verified && (
-            <span className="px-2 py-0.5 text-xs rounded bg-green-100 text-green-700">
-              Verified
-            </span>
-          )}
+  // Already verified — show status
+  if (verified && step === 3) {
+    return (
+      <div className="bg-white rounded-xl border p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-lg">✓</div>
+          <div>
+            <h2 className="text-lg font-semibold">Email Connected</h2>
+            <p className="text-sm text-gray-500">{email} via {selectedPreset.label}</p>
+          </div>
+          <span className="ml-auto px-3 py-1 text-xs rounded-full bg-green-100 text-green-700 font-medium">
+            Verified
+          </span>
         </div>
+        <button
+          onClick={() => { setStep(1); setVerified(false); }}
+          className="text-sm text-gray-500 hover:text-gray-700 underline"
+        >
+          Change email settings
+        </button>
+      </div>
+    );
+  }
 
-        {message && (
-          <div
-            className={`mb-4 p-3 rounded-lg text-sm ${
-              message.type === 'success'
-                ? 'bg-green-50 text-green-700 border border-green-200'
-                : 'bg-red-50 text-red-700 border border-red-200'
-            }`}
-          >
-            {message.text}
-          </div>
-        )}
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Provider
-            </label>
-            <select
-              value={preset}
-              onChange={(e) => handlePresetChange(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            >
-              {SMTP_PRESETS.map((p) => (
-                <option key={p.label} value={p.label}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {preset === 'Custom' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  SMTP Host
-                </label>
-                <input
-                  type="text"
-                  value={host}
-                  onChange={(e) => setHost(e.target.value)}
-                  placeholder="smtp.example.com"
-                  required
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Port
-                </label>
-                <input
-                  type="number"
-                  value={port}
-                  onChange={(e) => setPort(e.target.value)}
-                  placeholder="587"
-                  required
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-              </div>
+  return (
+    <div className="bg-white rounded-xl border p-6">
+      {/* Progress */}
+      <div className="flex items-center gap-2 mb-6">
+        {[1, 2, 3].map((s) => (
+          <div key={s} className="flex items-center gap-2">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+              step === s ? 'bg-black text-white' : step > s ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
+            }`}>
+              {step > s ? '✓' : s}
             </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="your.email@gmail.com"
-              required
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            />
+            {s < 3 && <div className={`w-8 h-0.5 ${step > s ? 'bg-green-300' : 'bg-gray-200'}`} />}
           </div>
+        ))}
+        <span className="text-sm text-gray-500 ml-2">
+          {step === 1 && 'Choose provider'}
+          {step === 2 && 'Create app password'}
+          {step === 3 && 'Connect'}
+        </span>
+      </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              App Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Your app password"
-              required
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Use an app password, not your regular password
-            </p>
+      {message && (
+        <div className={`mb-4 p-3 rounded-lg text-sm ${
+          message.type === 'success'
+            ? 'bg-green-50 text-green-700 border border-green-200'
+            : 'bg-red-50 text-red-700 border border-red-200'
+        }`}>
+          {message.text}
+        </div>
+      )}
+
+      {/* Step 1: Choose provider */}
+      {step === 1 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-2">Which email do you use?</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Applications will be sent from your personal email. Recruiters reply directly to your inbox.
+          </p>
+          <div className="space-y-2">
+            {SMTP_PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                onClick={() => { setSelectedPreset(preset); setStep(2); }}
+                className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all hover:border-gray-400 ${
+                  selectedPreset.label === preset.label ? 'border-black bg-gray-50' : 'border-gray-200'
+                }`}
+              >
+                <span className="text-2xl">
+                  {preset.label === 'Gmail' && '📧'}
+                  {preset.label === 'Outlook / Hotmail' && '📬'}
+                  {preset.label === 'Yahoo' && '📨'}
+                </span>
+                <span className="font-medium">{preset.label}</span>
+                <span className="ml-auto text-gray-400">→</span>
+              </button>
+            ))}
           </div>
+        </div>
+      )}
 
-          {/* Gmail App Password Instructions — before buttons */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-amber-900 mb-2">How to Get a Gmail App Password</h3>
-            <ol className="space-y-1 text-xs text-amber-800 list-decimal list-inside">
-              <li>Enable 2-Step Verification in your Google Account if not already enabled</li>
-              <li>
-                Open{' '}
-                <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
-                  myaccount.google.com/apppasswords
-                </a>
+      {/* Step 2: Create app password */}
+      {step === 2 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-2">Create an App Password</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            For security, {selectedPreset.label} requires a special &ldquo;App Password&rdquo; instead of your regular password.
+          </p>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
+            <ol className="space-y-3 text-sm text-amber-900">
+              <li className="flex gap-3">
+                <span className="w-6 h-6 rounded-full bg-amber-200 flex items-center justify-center text-xs font-bold shrink-0">1</span>
+                <span>Make sure 2-Step Verification is enabled in your {selectedPreset.label} account</span>
               </li>
-              <li>Create a new app password with name &ldquo;Freelanly&rdquo;</li>
-              <li>Copy the 16-character code and paste it in the App Password field above</li>
+              <li className="flex gap-3">
+                <span className="w-6 h-6 rounded-full bg-amber-200 flex items-center justify-center text-xs font-bold shrink-0">2</span>
+                <span>Click the button below to open App Passwords page</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="w-6 h-6 rounded-full bg-amber-200 flex items-center justify-center text-xs font-bold shrink-0">3</span>
+                <span>Create a new password with name <strong>&ldquo;Freelanly&rdquo;</strong></span>
+              </li>
+              <li className="flex gap-3">
+                <span className="w-6 h-6 rounded-full bg-amber-200 flex items-center justify-center text-xs font-bold shrink-0">4</span>
+                <span>Copy the 16-character code — you&apos;ll paste it in the next step</span>
+              </li>
             </ol>
           </div>
 
+          <a
+            href={selectedPreset.instructions}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block w-full text-center px-4 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium mb-3"
+          >
+            Open {selectedPreset.label} App Passwords →
+          </a>
+
           <div className="flex gap-3">
             <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+              onClick={() => setStep(1)}
+              className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors text-sm"
             >
-              {loading ? 'Saving...' : 'Save Settings'}
+              ← Back
             </button>
             <button
-              type="button"
-              onClick={handleTest}
-              disabled={testing || !email || !password}
-              className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              onClick={() => setStep(3)}
+              className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm ml-auto"
             >
-              {testing ? 'Testing...' : 'Test Connection'}
+              I have the password → Next
             </button>
           </div>
         </div>
-      </form>
+      )}
+
+      {/* Step 3: Enter credentials */}
+      {step === 3 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-2">Enter Your Credentials</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Enter your {selectedPreset.label} email and the app password you just created.
+          </p>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={`your.email@${selectedPreset.label === 'Gmail' ? 'gmail.com' : selectedPreset.label === 'Yahoo' ? 'yahoo.com' : 'outlook.com'}`}
+                required
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                App Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Paste 16-character app password"
+                required
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                The special password from Step 2, not your regular {selectedPreset.label} password
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep(2)}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors text-sm"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={handleSaveAndTest}
+                disabled={loading || !email || !password}
+                className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-sm ml-auto disabled:opacity-50"
+              >
+                {loading ? (testing ? 'Testing...' : 'Saving...') : 'Save & Test Connection'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
