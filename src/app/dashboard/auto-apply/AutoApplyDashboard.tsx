@@ -200,135 +200,152 @@ export function AutoApplyDashboard({
       {/* Overview Tab */}
       {activeTab === 'overview' && (
         <div>
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-white rounded-xl border p-6">
-              <p className="text-sm text-gray-500">Total Sent</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            </div>
-            <div className="bg-white rounded-xl border p-6">
-              <p className="text-sm text-gray-500">Pending</p>
-              <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
-            </div>
-            <div className="bg-white rounded-xl border p-6">
-              <p className="text-sm text-gray-500">Sent</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.sent}</p>
-            </div>
-            <div className="bg-white rounded-xl border p-6">
-              <p className="text-sm text-gray-500">Replied</p>
-              <p className="text-2xl font-bold text-green-600">{stats.replied}</p>
-            </div>
-            <div className="bg-white rounded-xl border p-6">
-              <p className="text-sm text-gray-500">Interviews</p>
-              <p className="text-2xl font-bold text-purple-600">{stats.interview}</p>
-            </div>
-            <div className="bg-white rounded-xl border p-6">
-              <p className="text-sm text-gray-500">Failed</p>
-              <p className="text-2xl font-bold text-red-600">{stats.failed}</p>
-            </div>
-          </div>
+          {/* Onboarding wizard for new users (no data yet) */}
+          {stats.total === 0 && (!smtp?.verified || templates.length === 0 || loops.length === 0) ? (
+            <div>
+              {/* Hero */}
+              <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl p-8 mb-8 text-white">
+                <h2 className="text-2xl font-bold mb-2">🚀 Start Auto-Applying in 3 Steps</h2>
+                <p className="text-orange-100">
+                  Set up once — Freelanly will automatically apply to matching jobs for you every day.
+                  Applications are sent from your own email, so recruiters see a real person, not a bot.
+                </p>
+              </div>
 
-          {/* Quick Status */}
-          <div className="bg-white rounded-xl border p-6 mb-6">
-            <h2 className="text-lg font-semibold mb-4">Quick Status</h2>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">SMTP Connection</span>
-                <span
-                  className={`px-2 py-0.5 text-xs rounded ${
-                    smtp?.verified
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-500'
-                  }`}
-                >
-                  {smtp?.verified ? 'Connected' : 'Not Connected'}
-                </span>
+              {/* Step 1: SMTP */}
+              <div className={`bg-white rounded-xl border-2 p-6 mb-4 ${!smtp?.verified ? 'border-orange-400 shadow-md' : 'border-green-200'}`}>
+                <div className="flex items-start gap-4">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold shrink-0 ${smtp?.verified ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                    {smtp?.verified ? '✓' : '1'}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold mb-1">
+                      {smtp?.verified ? 'Email Connected ✓' : 'Connect Your Email'}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-3">
+                      {smtp?.verified
+                        ? `Connected via ${smtp.email}`
+                        : 'Connect your Gmail or Outlook so applications are sent from your real email address. Recruiters reply directly to your inbox.'}
+                    </p>
+                    {!smtp?.verified && (
+                      <button
+                        onClick={() => setActiveTab('smtp')}
+                        className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-sm"
+                      >
+                        Connect Email →
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Active Loops</span>
-                <span className="text-sm font-medium text-gray-900">
-                  {loops.filter((l) => l.isActive).length} / {loops.length}
-                </span>
+
+              {/* Step 2: Template */}
+              <div className={`bg-white rounded-xl border-2 p-6 mb-4 ${smtp?.verified && templates.length === 0 ? 'border-orange-400 shadow-md' : templates.length > 0 ? 'border-green-200' : 'border-gray-200'}`}>
+                <div className="flex items-start gap-4">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold shrink-0 ${templates.length > 0 ? 'bg-green-100 text-green-700' : smtp?.verified ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-400'}`}>
+                    {templates.length > 0 ? '✓' : '2'}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold mb-1">
+                      {templates.length > 0 ? 'Cover Letter Template Ready ✓' : 'Create a Cover Letter Template'}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-3">
+                      {templates.length > 0
+                        ? `${templates.length} template(s) created`
+                        : 'Write a template with variables like {{ job_title }} and {{ company_name }}. AI will personalize it for each job.'}
+                    </p>
+                    {templates.length === 0 && (
+                      <button
+                        onClick={() => setActiveTab('templates')}
+                        className={`px-4 py-2 rounded-lg text-sm transition-colors ${smtp?.verified ? 'bg-black text-white hover:bg-gray-800' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                        disabled={!smtp?.verified}
+                      >
+                        Create Template →
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Templates</span>
-                <span className="text-sm font-medium text-gray-900">
-                  {templates.length}
-                </span>
+
+              {/* Step 3: Loop */}
+              <div className={`bg-white rounded-xl border-2 p-6 mb-4 ${smtp?.verified && templates.length > 0 && loops.length === 0 ? 'border-orange-400 shadow-md' : loops.length > 0 ? 'border-green-200' : 'border-gray-200'}`}>
+                <div className="flex items-start gap-4">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold shrink-0 ${loops.length > 0 ? 'bg-green-100 text-green-700' : smtp?.verified && templates.length > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-400'}`}>
+                    {loops.length > 0 ? '✓' : '3'}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold mb-1">
+                      {loops.length > 0 ? 'Auto-Apply Loop Active ✓' : 'Create Your First Auto-Apply Loop'}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-3">
+                      {loops.length > 0
+                        ? `${loops.filter(l => l.isActive).length} active loop(s)`
+                        : 'Set job titles, filters, and daily limits. Freelanly will find matching jobs and apply automatically.'}
+                    </p>
+                    {loops.length === 0 && (
+                      <button
+                        onClick={() => setActiveTab('loops')}
+                        className={`px-4 py-2 rounded-lg text-sm transition-colors ${smtp?.verified && templates.length > 0 ? 'bg-black text-white hover:bg-gray-800' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                        disabled={!smtp?.verified || templates.length === 0}
+                      >
+                        Create Loop →
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            /* Stats dashboard for users with data */
+            <div>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-white rounded-xl border p-6">
+                  <p className="text-sm text-gray-500">Total Sent</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                </div>
+                <div className="bg-white rounded-xl border p-6">
+                  <p className="text-sm text-gray-500">Pending</p>
+                  <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+                </div>
+                <div className="bg-white rounded-xl border p-6">
+                  <p className="text-sm text-gray-500">Sent</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.sent}</p>
+                </div>
+                <div className="bg-white rounded-xl border p-6">
+                  <p className="text-sm text-gray-500">Replied</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.replied}</p>
+                </div>
+                <div className="bg-white rounded-xl border p-6">
+                  <p className="text-sm text-gray-500">Interviews</p>
+                  <p className="text-2xl font-bold text-purple-600">{stats.interview}</p>
+                </div>
+                <div className="bg-white rounded-xl border p-6">
+                  <p className="text-sm text-gray-500">Failed</p>
+                  <p className="text-2xl font-bold text-red-600">{stats.failed}</p>
+                </div>
+              </div>
 
-          {/* Setup checklist if incomplete */}
-          {(!smtp?.verified || templates.length === 0 || loops.length === 0) && (
-            <div className="bg-white rounded-xl border p-6">
-              <h2 className="text-lg font-semibold mb-4">Setup Checklist</h2>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                      smtp?.verified
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-400'
-                    }`}
-                  >
-                    {smtp?.verified ? '1' : '1'}
-                  </span>
-                  <span className={`text-sm ${smtp?.verified ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
-                    Connect your email (SMTP)
-                  </span>
-                  {!smtp?.verified && (
-                    <button
-                      onClick={() => setActiveTab('smtp')}
-                      className="text-xs text-blue-600 hover:underline ml-auto"
-                    >
-                      Set up
-                    </button>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                      templates.length > 0
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-400'
-                    }`}
-                  >
-                    2
-                  </span>
-                  <span className={`text-sm ${templates.length > 0 ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
-                    Create a cover letter template
-                  </span>
-                  {templates.length === 0 && (
-                    <button
-                      onClick={() => setActiveTab('templates')}
-                      className="text-xs text-blue-600 hover:underline ml-auto"
-                    >
-                      Create
-                    </button>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                      loops.length > 0
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-400'
-                    }`}
-                  >
-                    3
-                  </span>
-                  <span className={`text-sm ${loops.length > 0 ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
-                    Create your first auto-apply loop
-                  </span>
-                  {loops.length === 0 && (
-                    <button
-                      onClick={() => setActiveTab('loops')}
-                      className="text-xs text-blue-600 hover:underline ml-auto"
-                    >
-                      Create
-                    </button>
-                  )}
+              {/* Quick Status */}
+              <div className="bg-white rounded-xl border p-6">
+                <h2 className="text-lg font-semibold mb-4">Quick Status</h2>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">SMTP Connection</span>
+                    <span className={`px-2 py-0.5 text-xs rounded ${smtp?.verified ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                      {smtp?.verified ? '✓ Connected' : '✗ Not Connected'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Active Loops</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {loops.filter((l) => l.isActive).length} / {loops.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Templates</span>
+                    <span className="text-sm font-medium text-gray-900">{templates.length}</span>
+                  </div>
                 </div>
               </div>
             </div>
