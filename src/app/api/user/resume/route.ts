@@ -1,49 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { extractText } from 'unpdf';
 import OpenAI from 'openai';
-
-// Simple PDF text extractor — works without native dependencies
-// Extracts readable text from PDF binary by finding text between BT/ET markers
-// and decoding parenthesized strings. Not perfect but works for most resumes.
-function extractTextFromPDF(buffer: Buffer): string {
-  const text = buffer.toString('latin1');
-  const textParts: string[] = [];
-
-  // Method 1: Extract text from stream objects
-  const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
-  let match;
-  while ((match = streamRegex.exec(text)) !== null) {
-    const stream = match[1];
-    // Extract parenthesized strings (PDF text objects)
-    const parenRegex = /\(([^)]*)\)/g;
-    let pMatch;
-    while ((pMatch = parenRegex.exec(stream)) !== null) {
-      const decoded = pMatch[1]
-        .replace(/\\n/g, '\n')
-        .replace(/\\r/g, '')
-        .replace(/\\t/g, ' ')
-        .replace(/\\\\/g, '\\')
-        .replace(/\\([()])/g, '$1');
-      if (decoded.trim().length > 1) {
-        textParts.push(decoded);
-      }
-    }
-  }
-
-  // Method 2: Try to find raw text content
-  const rawTextRegex = /\/Type\s*\/Page[\s\S]*?BT\s*([\s\S]*?)\s*ET/g;
-  while ((match = rawTextRegex.exec(text)) !== null) {
-    const btContent = match[1];
-    const tjRegex = /\(([^)]+)\)\s*Tj/g;
-    let tjMatch;
-    while ((tjMatch = tjRegex.exec(btContent)) !== null) {
-      textParts.push(tjMatch[1]);
-    }
-  }
-
-  return textParts.join(' ').replace(/\s+/g, ' ').trim();
-}
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'deepseek';
 
@@ -66,7 +25,7 @@ function getModel() {
 
 /**
  * POST /api/user/resume
- * Upload PDF resume, extract text, parse with AI
+ * Upload PDF resume, extract text with unpdf, parse with AI
  */
 export async function POST(request: NextRequest) {
   try {
@@ -90,12 +49,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Only PDF files are supported' }, { status: 400 });
     }
 
-    // Extract text from PDF
-    const buffer = Buffer.from(await file.arrayBuffer());
+    // Extract text from PDF using unpdf (pure JS, no native deps)
+    const buffer = new Uint8Array(await file.arrayBuffer());
     let pdfText: string;
     try {
-      pdfText = extractTextFromPDF(buffer);
-    } catch {
+      const { text } = await extractText(buffer, { mergePages: true });
+      pdfText = typeof text === 'string' ? text : (text as string[]).join('\n');
+    } catch (e) {
+      console.error('[Resume] PDF extraction failed:', e);
       return NextResponse.json({ error: 'Could not read PDF. Make sure it contains text (not scanned images).' }, { status: 400 });
     }
 
@@ -103,8 +64,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'PDF appears empty or contains only images. Please upload a text-based PDF.' }, { status: 400 });
     }
 
+    console.log(`[Resume] Extracted ${pdfText.length} chars from ${file.name}`);
+
     // Parse with AI
-    let parsedProfile;
+    let parsedProfile = null;
     try {
       const client = getAIClient();
       const response = await client.chat.completions.create({
@@ -112,31 +75,29 @@ export async function POST(request: NextRequest) {
         messages: [
           {
             role: 'system',
-            content: `You extract structured data from resumes. Return ONLY valid JSON, no markdown.
-Format: {"name":"string","email":"string","skills":["skill1","skill2"],"experience_years":number,"current_title":"string","field":"string","summary":"1-2 sentence professional summary"}
-If a field is not found, use null.`,
+            content: `You extract structured data from resumes. Return ONLY valid JSON, no markdown, no explanation.
+Format: {"name":"string","email":"string or null","phone":"string or null","skills":["skill1","skill2","skill3"],"experience_years":number,"current_title":"string","field":"string","summary":"1-2 sentence professional summary","languages":["English","Spanish"]}
+Extract as many skills as you can find (up to 15). If a field is not found, use null.`,
           },
           {
             role: 'user',
-            content: `Extract profile data from this resume:\n\n${pdfText.substring(0, 4000)}`,
+            content: `Extract profile data from this resume:\n\n${pdfText.substring(0, 5000)}`,
           },
         ],
         temperature: 0.1,
-        max_tokens: 500,
+        max_tokens: 600,
       });
 
       const content = response.choices[0]?.message?.content?.trim() || '';
-      // Extract JSON from response (handle markdown code blocks)
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         parsedProfile = JSON.parse(jsonMatch[0]);
       }
     } catch (aiError) {
       console.error('[Resume] AI parsing failed:', aiError);
-      // Continue without AI parsing — at least save the text
     }
 
-    // Store resume text and parsed profile on user
+    // Store resume data on user
     await prisma.user.update({
       where: { id: session.user.id },
       data: {
@@ -145,13 +106,13 @@ If a field is not found, use null.`,
       },
     });
 
-    console.log(`[Resume] Parsed resume for user ${session.user.id}: ${parsedProfile?.name || 'no name'}, ${parsedProfile?.skills?.length || 0} skills`);
+    console.log(`[Resume] Parsed for user ${session.user.id}: ${parsedProfile?.name || 'unknown'}, ${parsedProfile?.skills?.length || 0} skills, ${parsedProfile?.experience_years || '?'} years`);
 
     return NextResponse.json({
       success: true,
       fileName: file.name,
       textLength: pdfText.length,
-      profile: parsedProfile || null,
+      profile: parsedProfile,
       resumeText: pdfText.substring(0, 500) + (pdfText.length > 500 ? '...' : ''),
     });
   } catch (error) {
