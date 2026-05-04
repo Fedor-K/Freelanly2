@@ -1,8 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import pdf from 'pdf-parse';
 import OpenAI from 'openai';
+
+// Simple PDF text extractor — works without native dependencies
+// Extracts readable text from PDF binary by finding text between BT/ET markers
+// and decoding parenthesized strings. Not perfect but works for most resumes.
+function extractTextFromPDF(buffer: Buffer): string {
+  const text = buffer.toString('latin1');
+  const textParts: string[] = [];
+
+  // Method 1: Extract text from stream objects
+  const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  let match;
+  while ((match = streamRegex.exec(text)) !== null) {
+    const stream = match[1];
+    // Extract parenthesized strings (PDF text objects)
+    const parenRegex = /\(([^)]*)\)/g;
+    let pMatch;
+    while ((pMatch = parenRegex.exec(stream)) !== null) {
+      const decoded = pMatch[1]
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '')
+        .replace(/\\t/g, ' ')
+        .replace(/\\\\/g, '\\')
+        .replace(/\\([()])/g, '$1');
+      if (decoded.trim().length > 1) {
+        textParts.push(decoded);
+      }
+    }
+  }
+
+  // Method 2: Try to find raw text content
+  const rawTextRegex = /\/Type\s*\/Page[\s\S]*?BT\s*([\s\S]*?)\s*ET/g;
+  while ((match = rawTextRegex.exec(text)) !== null) {
+    const btContent = match[1];
+    const tjRegex = /\(([^)]+)\)\s*Tj/g;
+    let tjMatch;
+    while ((tjMatch = tjRegex.exec(btContent)) !== null) {
+      textParts.push(tjMatch[1]);
+    }
+  }
+
+  return textParts.join(' ').replace(/\s+/g, ' ').trim();
+}
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'deepseek';
 
@@ -53,8 +94,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
     let pdfText: string;
     try {
-      const pdfData = await pdf(buffer);
-      pdfText = pdfData.text;
+      pdfText = extractTextFromPDF(buffer);
     } catch {
       return NextResponse.json({ error: 'Could not read PDF. Make sure it contains text (not scanned images).' }, { status: 400 });
     }
