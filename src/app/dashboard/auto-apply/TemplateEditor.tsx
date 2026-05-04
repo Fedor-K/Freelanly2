@@ -18,11 +18,51 @@ interface TemplateEditorProps {
   onTemplateDeleted: (id: string) => void;
 }
 
+const STARTER_TEMPLATES = [
+  {
+    name: 'Professional',
+    subject: 'Application: {{ job_title }} — {{ your_name }}',
+    body: `Dear Hiring Manager,
+
+I am writing to express my interest in the {{ job_title }} position at {{ company_name }}.
+
+With my background in {{ your_field }}, I believe I can bring strong value to your team. I am particularly drawn to this role because it aligns with my experience and career goals.
+
+I would welcome the opportunity to discuss how my skills can contribute to {{ company_name }}'s success. My resume is attached for your review.
+
+Best regards,
+{{ your_name }}`,
+  },
+  {
+    name: 'Concise & Direct',
+    subject: '{{ job_title }} — {{ your_name }}',
+    body: `Hi,
+
+I saw your {{ job_title }} opening at {{ company_name }} and I'm interested. I have relevant experience in {{ your_field }} and believe I'd be a great fit.
+
+Resume attached. Happy to chat anytime.
+
+{{ your_name }}`,
+  },
+  {
+    name: 'Freelancer',
+    subject: 'Re: {{ job_title }} — Available Immediately',
+    body: `Hi,
+
+I'm a {{ your_field }} professional, available immediately for your {{ job_title }} project at {{ company_name }}.
+
+I've worked on similar projects and can start right away. Let me know if you'd like to discuss details — my resume is attached.
+
+Best,
+{{ your_name }}`,
+  },
+];
+
 const AVAILABLE_VARIABLES = [
-  { key: '{{ job_title }}', description: 'The job title' },
-  { key: '{{ company_name }}', description: 'Company name' },
-  { key: '{{ your_name }}', description: 'Your full name' },
-  { key: '{{ your_field }}', description: 'Your professional field' },
+  { key: '{{ job_title }}', label: 'Job Title', example: 'Senior React Developer' },
+  { key: '{{ company_name }}', label: 'Company', example: 'Acme Corp' },
+  { key: '{{ your_name }}', label: 'Your Name', example: 'John Doe' },
+  { key: '{{ your_field }}', label: 'Your Field', example: 'Frontend Development' },
 ];
 
 export function TemplateEditor({
@@ -31,22 +71,33 @@ export function TemplateEditor({
   onTemplateDeleted,
 }: TemplateEditorProps) {
   const [templates, setTemplates] = useState<CoverLetterTemplate[]>(initialTemplates);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreating, setIsCreating] = useState(templates.length === 0);
   const [loading, setLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
+  // Resume state
+  const [resumeUrl, setResumeUrl] = useState('');
+  const [resumeSaved, setResumeSaved] = useState(false);
+
   // Form state
   const [name, setName] = useState('');
-  const [subject, setSubject] = useState('Application: {{ job_title }} - {{ your_name }}');
+  const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
-  const [isDefault, setIsDefault] = useState(false);
+  const [isDefault, setIsDefault] = useState(true);
 
   const resetForm = () => {
     setName('');
-    setSubject('Application: {{ job_title }} - {{ your_name }}');
+    setSubject('');
     setBody('');
-    setIsDefault(false);
+    setIsDefault(true);
     setShowPreview(false);
+  };
+
+  const useStarterTemplate = (template: typeof STARTER_TEMPLATES[0]) => {
+    setName(template.name);
+    setSubject(template.subject);
+    setBody(template.body);
+    setIsCreating(true);
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -57,12 +108,7 @@ export function TemplateEditor({
       const res = await fetch('/api/user/templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          subject,
-          body,
-          isDefault,
-        }),
+        body: JSON.stringify({ name, subject, body, isDefault }),
       });
 
       if (res.ok) {
@@ -80,11 +126,9 @@ export function TemplateEditor({
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this template?')) return;
-
+    if (!confirm('Delete this template?')) return;
     try {
       const res = await fetch(`/api/user/templates/${id}`, { method: 'DELETE' });
-
       if (res.ok) {
         setTemplates(templates.filter((t) => t.id !== id));
         onTemplateDeleted(id);
@@ -94,25 +138,15 @@ export function TemplateEditor({
     }
   };
 
-  const handleSetDefault = async (id: string) => {
+  const handleSaveResume = async () => {
     try {
-      const res = await fetch(`/api/user/templates/${id}`, {
+      const res = await fetch('/api/user/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isDefault: true }),
+        body: JSON.stringify({ resumeUrl }),
       });
-
-      if (res.ok) {
-        setTemplates(
-          templates.map((t) => ({
-            ...t,
-            isDefault: t.id === id,
-          }))
-        );
-      }
-    } catch (error) {
-      console.error('Error setting default template:', error);
-    }
+      if (res.ok) setResumeSaved(true);
+    } catch {}
   };
 
   const renderPreview = (text: string) => {
@@ -125,45 +159,94 @@ export function TemplateEditor({
 
   return (
     <div>
-      {/* Create button */}
-      {!isCreating && (
-        <button
-          onClick={() => setIsCreating(true)}
-          className="mb-6 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
-        >
-          Create New Template
-        </button>
+      {/* Resume Upload Section */}
+      <div className="bg-white rounded-xl border p-6 mb-6">
+        <h2 className="text-lg font-semibold mb-2">Your Resume</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Add a link to your resume. It will be included in every application.
+        </p>
+        <div className="flex gap-3">
+          <input
+            type="url"
+            value={resumeUrl}
+            onChange={(e) => { setResumeUrl(e.target.value); setResumeSaved(false); }}
+            placeholder="https://drive.google.com/... or https://yoursite.com/resume.pdf"
+            className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+          />
+          <button
+            onClick={handleSaveResume}
+            disabled={!resumeUrl}
+            className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 shrink-0"
+          >
+            {resumeSaved ? '✓ Saved' : 'Save'}
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-gray-400">
+          Tip: Upload your resume to Google Drive, set sharing to &ldquo;Anyone with the link&rdquo;, and paste the link here.
+        </p>
+      </div>
+
+      {/* Starter Templates — show when no templates exist */}
+      {templates.length === 0 && !isCreating && (
+        <div className="bg-white rounded-xl border p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-2">Choose a Starter Template</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Pick a template and customize it, or start from scratch.
+          </p>
+          <div className="space-y-3">
+            {STARTER_TEMPLATES.map((tmpl) => (
+              <button
+                key={tmpl.name}
+                onClick={() => useStarterTemplate(tmpl)}
+                className="w-full text-left p-4 rounded-xl border-2 border-gray-200 hover:border-gray-400 transition-all"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-semibold text-gray-900">{tmpl.name}</span>
+                  <span className="text-xs text-gray-400">Click to use →</span>
+                </div>
+                <p className="text-sm text-gray-500 line-clamp-2">{tmpl.body.substring(0, 120)}...</p>
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setIsCreating(true)}
+            className="mt-3 text-sm text-gray-500 hover:text-gray-700 underline"
+          >
+            Or start from scratch
+          </button>
+        </div>
       )}
 
-      {/* Create form */}
+      {/* Create/Edit form */}
       {isCreating && (
         <div className="bg-white rounded-xl border p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4">Create Cover Letter Template</h2>
+          <h2 className="text-lg font-semibold mb-4">
+            {name ? `Edit: ${name}` : 'Create Cover Letter Template'}
+          </h2>
 
-          {/* Available variables */}
-          <div className="p-3 bg-gray-50 rounded-lg mb-4">
-            <p className="text-xs font-medium text-gray-500 mb-2">Available Variables:</p>
+          {/* Variables info */}
+          <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg mb-4">
+            <p className="text-xs font-medium text-blue-700 mb-2">
+              Click variables to insert them. AI will replace them with real data for each job:
+            </p>
             <div className="flex flex-wrap gap-2">
               {AVAILABLE_VARIABLES.map((v) => (
-                <span
+                <button
                   key={v.key}
-                  className="px-2 py-1 bg-white border text-xs rounded text-gray-700 cursor-pointer hover:bg-gray-100"
-                  onClick={() => {
-                    setBody((prev) => prev + v.key);
-                  }}
-                  title={v.description}
+                  type="button"
+                  className="px-2 py-1 bg-white border border-blue-200 text-xs rounded text-blue-700 hover:bg-blue-100 transition-colors"
+                  onClick={() => setBody((prev) => prev + ' ' + v.key)}
+                  title={`${v.label} — e.g. "${v.example}"`}
                 >
-                  {v.key}
-                </span>
+                  {v.key} <span className="text-blue-400">= {v.example}</span>
+                </button>
               ))}
             </div>
           </div>
 
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Template Name
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Template Name</label>
               <input
                 type="text"
                 value={name}
@@ -175,30 +258,26 @@ export function TemplateEditor({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Subject
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email Subject</label>
               <input
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="Application: {{ job_title }} - {{ your_name }}"
+                placeholder="Application: {{ job_title }} — {{ your_name }}"
                 required
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Cover Letter Body
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cover Letter Body</label>
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                placeholder="Dear Hiring Manager,&#10;&#10;I am writing to express my interest in the {{ job_title }} position at {{ company_name }}..."
+                placeholder="Write your cover letter template here..."
                 required
-                rows={10}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
+                rows={12}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y font-mono text-sm"
               />
             </div>
 
@@ -210,12 +289,10 @@ export function TemplateEditor({
                 onChange={(e) => setIsDefault(e.target.checked)}
                 className="rounded border-gray-300"
               />
-              <label htmlFor="isDefault" className="text-sm text-gray-700">
-                Set as default template
-              </label>
+              <label htmlFor="isDefault" className="text-sm text-gray-700">Set as default template</label>
             </div>
 
-            {/* Preview toggle */}
+            {/* Preview */}
             <button
               type="button"
               onClick={() => setShowPreview(!showPreview)}
@@ -226,11 +303,11 @@ export function TemplateEditor({
 
             {showPreview && body && (
               <div className="p-4 bg-gray-50 rounded-lg border">
-                <p className="text-xs font-medium text-gray-500 mb-2">Preview:</p>
-                <p className="text-sm font-medium text-gray-900 mb-1">
+                <p className="text-xs font-medium text-gray-400 mb-2">Preview (with example data):</p>
+                <p className="text-sm font-medium text-gray-900 mb-2">
                   Subject: {renderPreview(subject)}
                 </p>
-                <div className="text-sm text-gray-700 whitespace-pre-wrap mt-2">
+                <div className="text-sm text-gray-700 whitespace-pre-wrap border-t pt-2">
                   {renderPreview(body)}
                 </div>
               </div>
@@ -239,17 +316,14 @@ export function TemplateEditor({
             <div className="flex gap-3">
               <button
                 type="submit"
-                disabled={loading || !name || !body}
+                disabled={loading || !name || !body || !subject}
                 className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
               >
                 {loading ? 'Creating...' : 'Create Template'}
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setIsCreating(false);
-                  resetForm();
-                }}
+                onClick={() => { setIsCreating(false); resetForm(); }}
                 className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
@@ -259,80 +333,44 @@ export function TemplateEditor({
         </div>
       )}
 
-      {/* Templates list */}
-      {templates.length === 0 ? (
-        <div className="bg-white rounded-xl border p-12 text-center">
-          <svg
-            className="w-16 h-16 mx-auto text-gray-300 mb-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            No templates yet
-          </h2>
-          <p className="text-gray-600 mb-6">
-            Create a cover letter template to use with your auto-apply loops
-          </p>
-          {!isCreating && (
-            <button
-              onClick={() => setIsCreating(true)}
-              className="inline-block px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              Create Your First Template
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {templates.map((template) => (
-            <div key={template.id} className="bg-white rounded-xl border p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-gray-900">{template.name}</h3>
-                    {template.isDefault && (
-                      <span className="px-2 py-0.5 text-xs rounded bg-green-100 text-green-700">
-                        Default
-                      </span>
-                    )}
-                    <span className="px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-500">
-                      {template.type.toLowerCase()}
-                    </span>
+      {/* Existing templates */}
+      {templates.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Your Templates</h2>
+            {!isCreating && (
+              <button
+                onClick={() => setIsCreating(true)}
+                className="px-3 py-1.5 text-sm bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                + New Template
+              </button>
+            )}
+          </div>
+          <div className="space-y-4">
+            {templates.map((template) => (
+              <div key={template.id} className="bg-white rounded-xl border p-5">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-gray-900">{template.name}</h3>
+                      {template.isDefault && (
+                        <span className="px-2 py-0.5 text-xs rounded bg-green-100 text-green-700">Default</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 mb-1">Subject: {template.subject}</p>
+                    <p className="text-sm text-gray-500 line-clamp-2">{template.body}</p>
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Subject: {template.subject}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                    {template.body}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {!template.isDefault && (
-                    <button
-                      onClick={() => handleSetDefault(template.id)}
-                      className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                      Set Default
-                    </button>
-                  )}
                   <button
                     onClick={() => handleDelete(template.id)}
-                    className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="px-3 py-1 text-sm text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0 ml-4"
                   >
                     Delete
                   </button>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
