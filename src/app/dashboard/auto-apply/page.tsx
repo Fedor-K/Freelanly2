@@ -61,38 +61,48 @@ export default async function AutoApplyPage() {
     );
   }
 
-  // Fetch all auto-apply data
-  const [loops, templates, smtpConfig, applications, stats] = await Promise.all([
-    prisma.autoApplyLoop.findMany({
-      where: { userId: session.user.id },
-      include: { applications: { select: { id: true, status: true } } },
-      orderBy: { createdAt: 'desc' },
-    }),
-    prisma.coverLetterTemplate.findMany({
-      where: { userId: session.user.id },
-      orderBy: { createdAt: 'desc' },
-    }),
-    prisma.userSmtp.findFirst({
-      where: { userId: session.user.id },
-    }),
-    prisma.autoApplication.findMany({
-      where: { userId: session.user.id },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    }),
-    prisma.autoApplication.groupBy({
+  // Fetch all auto-apply data (gracefully handle missing tables before migration)
+  let loops: any[] = [];
+  let templates: any[] = [];
+  let smtpConfig: any = null;
+  let applications: any[] = [];
+  const statsMap: Record<string, number> = {};
+  let totalSent = 0;
+
+  try {
+    [loops, templates, smtpConfig, applications] = await Promise.all([
+      prisma.autoApplyLoop.findMany({
+        where: { userId: session.user.id },
+        include: { applications: { select: { id: true, status: true } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.coverLetterTemplate.findMany({
+        where: { userId: session.user.id },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.userSmtp.findFirst({
+        where: { userId: session.user.id },
+      }),
+      prisma.autoApplication.findMany({
+        where: { userId: session.user.id },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+    ]);
+
+    const stats = await prisma.autoApplication.groupBy({
       by: ['status'],
       where: { userId: session.user.id },
       _count: { status: true },
-    }),
-  ]);
+    });
 
-  // Build stats object
-  const statsMap: Record<string, number> = {};
-  let totalSent = 0;
-  for (const s of stats) {
-    statsMap[s.status] = s._count.status;
-    totalSent += s._count.status;
+    for (const s of stats) {
+      statsMap[s.status] = s._count.status;
+      totalSent += s._count.status;
+    }
+  } catch (e) {
+    // Tables may not exist yet (before prisma db push)
+    console.warn('[AutoApply] Tables not ready:', (e as Error).message?.substring(0, 100));
   }
 
   return (
