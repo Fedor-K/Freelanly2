@@ -218,15 +218,15 @@ export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <h3 className="text-sm font-semibold text-amber-900 mb-2">How to Get a Gmail App Password</h3>
             <ol className="space-y-1 text-xs text-amber-800 list-decimal list-inside">
+              <li>Enable 2-Step Verification in your Google Account if not already enabled</li>
               <li>
-                Go to{' '}
-                <a href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                  myaccount.google.com/security
+                Open{' '}
+                <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
+                  myaccount.google.com/apppasswords
                 </a>
               </li>
-              <li>Enable 2-Step Verification if not already enabled</li>
-              <li>Search for &ldquo;App passwords&rdquo; in security settings</li>
-              <li>Create a new app password for &ldquo;Freelanly&rdquo; and paste it above</li>
+              <li>Create a new app password with name &ldquo;Freelanly&rdquo;</li>
+              <li>Copy the 16-character code and paste it in the App Password field above</li>
             </ol>
           </div>
 
