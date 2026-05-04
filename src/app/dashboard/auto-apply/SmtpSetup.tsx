@@ -26,7 +26,7 @@ export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [step, setStep] = useState<1 | 2 | 3>(initialSmtp?.verified ? 3 : 1);
+  const [step, setStep] = useState<1 | 2>(initialSmtp?.verified ? 2 : 1);
 
   // Form state
   const [selectedPreset, setSelectedPreset] = useState(() => {
@@ -82,7 +82,7 @@ export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
   };
 
   // Already verified — show status
-  if (verified && step === 3) {
+  if (verified && step === 2) {
     return (
       <div className="bg-white rounded-xl border p-6">
         <div className="flex items-center gap-3 mb-4">
@@ -109,20 +109,19 @@ export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
     <div className="bg-white rounded-xl border p-6">
       {/* Progress */}
       <div className="flex items-center gap-2 mb-6">
-        {[1, 2, 3].map((s) => (
+        {[1, 2].map((s) => (
           <div key={s} className="flex items-center gap-2">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
               step === s ? 'bg-black text-white' : step > s ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
             }`}>
               {step > s ? '✓' : s}
             </div>
-            {s < 3 && <div className={`w-8 h-0.5 ${step > s ? 'bg-green-300' : 'bg-gray-200'}`} />}
+            {s < 2 && <div className={`w-8 h-0.5 ${step > s ? 'bg-green-300' : 'bg-gray-200'}`} />}
           </div>
         ))}
         <span className="text-sm text-gray-500 ml-2">
           {step === 1 && 'Choose provider'}
-          {step === 2 && 'Create app password'}
-          {step === 3 && 'Connect'}
+          {step === 2 && 'Connect'}
         </span>
       </div>
 
@@ -165,69 +164,34 @@ export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
         </div>
       )}
 
-      {/* Step 2: Create app password */}
+      {/* Step 2: Create app password + Enter credentials (combined) */}
       {step === 2 && (
         <div>
-          <h2 className="text-lg font-semibold mb-2">Create an App Password</h2>
+          <h2 className="text-lg font-semibold mb-2">Connect {selectedPreset.label}</h2>
           <p className="text-sm text-gray-500 mb-4">
-            For security, {selectedPreset.label} requires a special &ldquo;App Password&rdquo; instead of your regular password.
+            Create an App Password and enter your credentials below.
           </p>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
-            <ol className="space-y-3 text-sm text-amber-900">
-              <li className="flex gap-3">
-                <span className="w-6 h-6 rounded-full bg-amber-200 flex items-center justify-center text-xs font-bold shrink-0">1</span>
-                <span>Make sure 2-Step Verification is enabled in your {selectedPreset.label} account</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="w-6 h-6 rounded-full bg-amber-200 flex items-center justify-center text-xs font-bold shrink-0">2</span>
-                <span>Click the button below to open App Passwords page</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="w-6 h-6 rounded-full bg-amber-200 flex items-center justify-center text-xs font-bold shrink-0">3</span>
-                <span>Create a new password with name <strong>&ldquo;Freelanly&rdquo;</strong></span>
-              </li>
-              <li className="flex gap-3">
-                <span className="w-6 h-6 rounded-full bg-amber-200 flex items-center justify-center text-xs font-bold shrink-0">4</span>
-                <span>Copy the 16-character code — you&apos;ll paste it in the next step</span>
-              </li>
+          {/* Instructions */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+            <h3 className="text-sm font-semibold text-amber-900 mb-2">First, create an App Password:</h3>
+            <ol className="space-y-1.5 text-sm text-amber-800 list-decimal list-inside mb-3">
+              <li>Enable 2-Step Verification in your {selectedPreset.label} account</li>
+              <li>Click below to open App Passwords page</li>
+              <li>Create a password named <strong>&ldquo;Freelanly&rdquo;</strong></li>
+              <li>Copy the 16-character code</li>
             </ol>
+            <a
+              href={selectedPreset.instructions}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block px-4 py-2 bg-amber-800 text-white rounded-lg hover:bg-amber-900 transition-colors text-sm font-medium"
+            >
+              Open {selectedPreset.label} App Passwords →
+            </a>
           </div>
 
-          <a
-            href={selectedPreset.instructions}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block w-full text-center px-4 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium mb-3"
-          >
-            Open {selectedPreset.label} App Passwords →
-          </a>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setStep(1)}
-              className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors text-sm"
-            >
-              ← Back
-            </button>
-            <button
-              onClick={() => setStep(3)}
-              className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm ml-auto"
-            >
-              I have the password → Next
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: Enter credentials */}
-      {step === 3 && (
-        <div>
-          <h2 className="text-lg font-semibold mb-2">Enter Your Credentials</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Enter your {selectedPreset.label} email and the app password you just created.
-          </p>
-
+          {/* Credentials form */}
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -251,18 +215,18 @@ export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Paste 16-character app password"
+                placeholder="Paste the 16-character code here"
                 required
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
               <p className="mt-1 text-xs text-gray-400">
-                The special password from Step 2, not your regular {selectedPreset.label} password
+                Not your regular password — the special code from the step above
               </p>
             </div>
 
             <div className="flex gap-3">
               <button
-                onClick={() => setStep(2)}
+                onClick={() => setStep(1)}
                 className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors text-sm"
               >
                 ← Back
@@ -272,7 +236,7 @@ export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
                 disabled={loading || !email || !password}
                 className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-sm ml-auto disabled:opacity-50"
               >
-                {loading ? (testing ? 'Testing...' : 'Saving...') : 'Save & Test Connection'}
+                {loading ? (testing ? 'Testing connection...' : 'Saving...') : 'Save & Test Connection'}
               </button>
             </div>
           </div>
