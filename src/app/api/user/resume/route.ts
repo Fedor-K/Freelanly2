@@ -97,12 +97,14 @@ Extract as many skills as you can find (up to 15). If a field is not found, use 
       console.error('[Resume] AI parsing failed:', aiError);
     }
 
-    // Store resume data + parsed profile on user
+    // Store resume data + PDF + parsed profile on user
     await prisma.user.update({
       where: { id: session.user.id },
       data: {
         resumeUrl: `uploaded:${file.name}`,
         resumeText: pdfText.substring(0, 10000),
+        resumeBase64: Buffer.from(buffer).toString('base64'),
+        resumeFileName: file.name,
         parsedProfile: parsedProfile || undefined,
         name: parsedProfile?.name || undefined,
       },

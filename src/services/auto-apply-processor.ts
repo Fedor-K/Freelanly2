@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { generateCoverLetter, generateSubjectLine } from '@/services/cover-letter-generator';
+import { generateTailoredResume } from '@/services/resume-pdf-generator';
 import { AutoApplyStatus } from '@prisma/client';
 
 /**
@@ -34,6 +35,10 @@ export async function processAutoApplyQueue(): Promise<{
           email: true,
           plan: true,
           userSmtp: true,
+          resumeText: true,
+          parsedProfile: true,
+          resumeBase64: true,
+          resumeFileName: true,
         },
       },
       loop: {
@@ -120,6 +125,29 @@ export async function processAutoApplyQueue(): Promise<{
     });
 
     try {
+      // Fetch job description for tailoring
+      let jobDescription = '';
+      if (app.jobId) {
+        const job = await prisma.job.findUnique({
+          where: { id: app.jobId },
+          select: { description: true },
+        });
+        jobDescription = job?.description || '';
+      } else if (app.opportunityId) {
+        const opp = await prisma.opportunity.findUnique({
+          where: { id: app.opportunityId },
+          select: { description: true },
+        });
+        jobDescription = opp?.description || '';
+      }
+
+      const userProfile = {
+        name: app.user.name || 'Applicant',
+        skills: (app.user.parsedProfile as Record<string, unknown>)?.skills as string[] || [],
+        experience: (app.user.resumeText || '').slice(0, 300),
+        resumeText: app.user.resumeText || undefined,
+      };
+
       // Generate cover letter if not already set
       let coverLetter = app.coverLetter;
       let subject = app.subject;
@@ -127,13 +155,9 @@ export async function processAutoApplyQueue(): Promise<{
       if (!coverLetter || coverLetter === '') {
         coverLetter = await generateCoverLetter({
           jobTitle: app.jobTitle,
-          jobDescription: '', // Description already used at queue time
+          jobDescription: jobDescription.slice(0, 800),
           companyName: app.companyName,
-          userProfile: {
-            name: app.user.name || 'Applicant',
-            skills: [],
-            experience: '',
-          },
+          userProfile,
         });
       }
 
@@ -142,6 +166,21 @@ export async function processAutoApplyQueue(): Promise<{
           jobTitle: app.jobTitle,
           userName: app.user.name || 'Applicant',
         });
+      }
+
+      // Generate tailored resume PDF
+      let resumeAttachment: { base64: string; filename: string } | null = null;
+      if (app.user.resumeText) {
+        try {
+          resumeAttachment = await generateTailoredResume({
+            resumeText: app.user.resumeText,
+            parsedProfile: app.user.parsedProfile as Record<string, unknown> | null,
+            jobTitle: app.jobTitle,
+            jobDescription,
+          });
+        } catch (e) {
+          console.warn(`[AutoApply] Resume PDF generation failed for ${app.id}, sending without:`, e);
+        }
       }
 
       // Build email HTML
@@ -172,6 +211,8 @@ export async function processAutoApplyQueue(): Promise<{
           html,
           text,
           resumeUrl: app.resumeUrl || app.loop.resumeUrl || undefined,
+          attachmentBase64: resumeAttachment?.base64,
+          attachmentFilename: resumeAttachment?.filename,
         }
       );
 

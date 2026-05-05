@@ -18,6 +18,9 @@ const skillRedirects = [
 ];
 
 const nextConfig: NextConfig = {
+  // @react-pdf/renderer needs to be external for server-side rendering
+  serverExternalPackages: ['@react-pdf/renderer'],
+
   // Enforce no trailing slashes — prevents duplicate URLs
   // /company/x/jobs/y/ → 301 → /company/x/jobs/y
   trailingSlash: false,

@@ -16,6 +16,8 @@ interface SendEmailOptions {
   html: string;
   text: string;
   resumeUrl?: string; // URL to PDF attachment
+  attachmentBase64?: string; // Base64-encoded PDF data (direct)
+  attachmentFilename?: string; // Filename for base64 attachment
 }
 
 interface SmtpResult {
@@ -229,9 +231,14 @@ export async function sendEmailViaSMTP(
   const domain = email.split('@')[1] || 'localhost';
   const messageId = generateMessageId(domain);
 
-  // Download attachment if provided
+  // Resolve attachment: prefer direct base64, fallback to URL download
   let attachment: { data: string; filename: string } | null = null;
-  if (options.resumeUrl) {
+  if (options.attachmentBase64) {
+    attachment = {
+      data: options.attachmentBase64,
+      filename: options.attachmentFilename || 'resume.pdf',
+    };
+  } else if (options.resumeUrl) {
     attachment = await downloadAsBase64(options.resumeUrl);
     if (!attachment) {
       console.warn('[SMTP] Could not download resume, sending without attachment');
