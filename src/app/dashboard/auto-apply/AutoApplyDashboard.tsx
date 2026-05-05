@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SmtpSetup } from './SmtpSetup';
 import { TemplateEditor } from './TemplateEditor';
 import { ApplicationsList } from './ApplicationsList';
@@ -152,6 +152,20 @@ export function AutoApplyDashboard({
   const hasLoop = loops.length > 0;
   const isRunning = hasLoop && loops.some(l => l.isActive);
 
+  useEffect(() => {
+    if (!isRunning) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/user/auto-apply');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.loops) setLoops(data.loops);
+        }
+      } catch {}
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [isRunning]);
+
   const inferredTitles = profile ? inferJobTitles(profile) : ['Developer'];
   const inferredLevel = profile ? inferLevel(profile.experience_years) : 'MID';
   const levelLabel = levels.find(l => l.value === inferredLevel)?.label || inferredLevel;
@@ -211,9 +225,15 @@ export function AutoApplyDashboard({
         <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl p-6 mb-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold">🚀 Auto-Apply is Running</h2>
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 bg-white rounded-full animate-pulse" />
+                <h2 className="text-xl font-bold">Auto-Apply is Running</h2>
+              </div>
               <p className="text-green-100 mt-1">
                 Applying to {inferredTitles.join(', ')} • {levelLabel} • {loops[0]?.dailyLimit || 10}/day
+              </p>
+              <p className="text-green-200 text-sm mt-1">
+                Scanning every 15 min • Next scan in ~{15 - (new Date().getMinutes() % 15)} min
               </p>
             </div>
             <button
@@ -223,6 +243,12 @@ export function AutoApplyDashboard({
               ⏸ Pause
             </button>
           </div>
+        </div>
+
+        {/* Scanning indicator */}
+        <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          <span>Actively scanning for matching jobs • Every 15 minutes</span>
         </div>
 
         {/* Stats */}
