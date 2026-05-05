@@ -69,16 +69,16 @@ export function ApplicationsList({ initialApplications, statusFilter }: Applicat
   };
 
   const getFollowUpLabel = (app: AutoApplication): string | null => {
-    if (app.followUpSentAt) return 'FU sent';
+    if (app.followUpSentAt) return 'Follow-up sent';
     if ((app.status === 'SENT' || app.status === 'OPENED') && app.sentAt) {
       const sentDate = new Date(app.sentAt);
       const followUpDate = new Date(sentDate.getTime() + 3 * 24 * 60 * 60 * 1000);
       const now = new Date();
       if (followUpDate > now) {
         const daysLeft = Math.ceil((followUpDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
-        return `FU ${daysLeft}d`;
+        return `Follow-up in ${daysLeft}d`;
       }
-      return 'FU soon';
+      return 'Follow-up soon';
     }
     return null;
   };
@@ -151,24 +151,22 @@ export function ApplicationsList({ initialApplications, statusFilter }: Applicat
                   </p>
                 </div>
                 <div className="col-span-2">
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={`px-2 py-0.5 text-xs rounded whitespace-nowrap ${
-                        STATUS_STYLES[app.status] || 'bg-gray-100 text-gray-500'
-                      }`}
-                    >
-                      {STATUS_LABELS[app.status] || app.status}
-                    </span>
-                    {(() => {
-                      const fuLabel = getFollowUpLabel(app);
-                      if (!fuLabel) return null;
-                      return (
-                        <span className={`text-[10px] whitespace-nowrap ${app.followUpSentAt ? 'text-green-600' : 'text-gray-400'}`}>
-                          {fuLabel}
-                        </span>
-                      );
-                    })()}
-                  </div>
+                  <span
+                    className={`px-2 py-0.5 text-xs rounded ${
+                      STATUS_STYLES[app.status] || 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    {STATUS_LABELS[app.status] || app.status}
+                  </span>
+                  {(() => {
+                    const fuLabel = getFollowUpLabel(app);
+                    if (!fuLabel) return null;
+                    return (
+                      <p className={`text-[10px] mt-1 ${app.followUpSentAt ? 'text-green-600' : 'text-gray-400'}`}>
+                        {fuLabel}
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="col-span-2">
                   <p className="text-sm text-gray-500 truncate">{app.subject}</p>
