@@ -357,7 +357,6 @@ export function AutoApplyDashboard({
       {activeTab === 'loops' && (
         <div>
           <LoopForm
-            templates={templates}
             countries={countries}
             levels={levels}
             onLoopCreated={handleLoopCreated}
