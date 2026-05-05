@@ -57,7 +57,7 @@ export function ApplicationsList({ initialApplications, statusFilter }: Applicat
   const [showAll, setShowAll] = useState(false);
 
   const filtered = statusFilter
-    ? applications.filter(a => a.status === statusFilter || (statusFilter === 'SENT' && (a.status === 'SENT' || a.status === 'OPENED' || a.status === 'DELIVERED')))
+    ? applications.filter(a => a.status === statusFilter)
     : applications;
   const visibleApps = showAll ? filtered : filtered.slice(0, PAGE_SIZE);
   const hasMore = filtered.length > PAGE_SIZE;

@@ -73,6 +73,7 @@ interface Stats {
   total: number;
   pending: number;
   sent: number;
+  opened: number;
   replied: number;
   interview: number;
   failed: number;
@@ -271,13 +272,12 @@ export function AutoApplyDashboard({
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-6">
           {[
             { label: 'Total', value: stats.total, color: 'text-gray-900', filter: null },
-            { label: 'Pending', value: stats.pending, color: 'text-yellow-600', filter: 'PENDING' },
             { label: 'Sent', value: stats.sent, color: 'text-blue-600', filter: 'SENT' },
+            { label: 'Opened', value: stats.opened || 0, color: 'text-teal-600', filter: 'OPENED' },
             { label: 'Replied', value: stats.replied, color: 'text-green-600', filter: 'REPLIED' },
-            { label: 'Interview', value: stats.interview, color: 'text-purple-600', filter: 'INTERVIEW' },
             { label: 'Failed', value: stats.failed, color: 'text-red-600', filter: 'FAILED' },
           ].map(s => (
             <button

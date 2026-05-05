@@ -124,6 +124,7 @@ export default async function AutoApplyPage() {
             total: totalSent,
             pending: statsMap['PENDING'] || 0,
             sent: statsMap['SENT'] || 0,
+            opened: statsMap['OPENED'] || 0,
             replied: statsMap['REPLIED'] || 0,
             interview: statsMap['INTERVIEW'] || 0,
             failed: statsMap['FAILED'] || 0,
