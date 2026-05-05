@@ -35,6 +35,19 @@ const STATUS_STYLES: Record<string, string> = {
   REJECTED: 'bg-red-100 text-red-700',
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Queued',
+  SENDING: 'Sending...',
+  SENT: 'Sent',
+  DELIVERED: 'Delivered',
+  OPENED: 'Opened',
+  REPLIED: 'Replied! 🎉',
+  INTERVIEW: 'Interview! 🎉',
+  FAILED: 'Failed',
+  REJECTED: 'Rejected',
+  REVIEW: 'In Review',
+};
+
 export function ApplicationsList({ initialApplications }: ApplicationsListProps) {
   const [applications] = useState<AutoApplication[]>(initialApplications);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -116,7 +129,7 @@ export function ApplicationsList({ initialApplications }: ApplicationsListProps)
                       STATUS_STYLES[app.status] || 'bg-gray-100 text-gray-500'
                     }`}
                   >
-                    {app.status}
+                    {STATUS_LABELS[app.status] || app.status}
                   </span>
                 </div>
                 <div className="col-span-2">
@@ -134,7 +147,7 @@ export function ApplicationsList({ initialApplications }: ApplicationsListProps)
                     STATUS_STYLES[app.status] || 'bg-gray-100 text-gray-500'
                   }`}
                 >
-                  {app.status}
+                  {STATUS_LABELS[app.status] || app.status}
                 </span>
               </div>
             </div>

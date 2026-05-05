@@ -245,11 +245,29 @@ export function AutoApplyDashboard({
           </div>
         </div>
 
-        {/* Scanning indicator */}
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          <span>Auto-applying to new jobs as they appear • {loops[0]?.sentToday || 0} sent today</span>
-        </div>
+        {/* Status indicator */}
+        {loops[0] && (
+          <div className={`flex items-center gap-2 text-sm mb-4 p-3 rounded-lg ${
+            (loops[0].sentToday || 0) >= (loops[0].dailyLimit || 10)
+              ? 'bg-amber-50 text-amber-700'
+              : 'bg-green-50 text-green-700'
+          }`}>
+            <div className={`w-2 h-2 rounded-full ${
+              (loops[0].sentToday || 0) >= (loops[0].dailyLimit || 10)
+                ? 'bg-amber-500'
+                : 'bg-green-500 animate-pulse'
+            }`} />
+            {(loops[0].sentToday || 0) >= (loops[0].dailyLimit || 10) ? (
+              <span>
+                Daily limit reached ({loops[0].sentToday}/{loops[0].dailyLimit}) • {stats.pending > 0 ? `${stats.pending} queued for tomorrow` : 'Resumes tomorrow'}
+              </span>
+            ) : (
+              <span>
+                Auto-applying to new jobs as they appear • {loops[0].sentToday || 0}/{loops[0].dailyLimit || 10} sent today
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
