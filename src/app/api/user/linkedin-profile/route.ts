@@ -49,10 +49,9 @@ export async function POST(request: NextRequest) {
 
     let raw: Record<string, unknown>;
     try {
-      const run = await apify.actor('dev_fusion/linkedin-profile-scraper').call(
+      const run = await apify.actor('harvestapi/linkedin-profile-scraper').call(
         {
-          profileUrls: [normalizeLinkedInUrl(profileUrl)],
-          proxyConfiguration: { useApifyProxy: true },
+          urls: [normalizeLinkedInUrl(profileUrl)],
         },
         { waitSecs: 120 }
       );
@@ -73,15 +72,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'LinkedIn scraping timed out. Please try again.' }, { status: 504 });
     }
 
+    const fullName = (raw.fullName as string) ||
+      (((raw.firstName as string) || '') + ' ' + ((raw.lastName as string) || '')).trim() ||
+      'Unknown';
+
+    // harvestapi uses 'topSkills' array of strings and different field names
+    const topSkills = Array.isArray(raw.topSkills)
+      ? (raw.topSkills as string[]).slice(0, 15)
+      : Array.isArray(raw.skills)
+        ? (raw.skills as Array<Record<string, unknown>>).map(s => (s.name as string) || String(s)).slice(0, 15)
+        : [];
+
     const profile: LinkedInProfile = {
-      name: (raw.fullName as string) ||
-        (((raw.firstName as string) || '') + ' ' + ((raw.lastName as string) || '')).trim() ||
-        'Unknown',
+      name: fullName,
       headline: (raw.headline as string) || (raw.title as string) || '',
       about: (raw.about as string) || (raw.summary as string) || '',
-      skills: Array.isArray(raw.skills)
-        ? (raw.skills as Array<Record<string, unknown>>).map(s => (s.name as string) || String(s)).slice(0, 15)
-        : [],
+      skills: topSkills,
       experience: Array.isArray(raw.experience)
         ? (raw.experience as Array<Record<string, unknown>>).slice(0, 5).map(e => ({
             title: (e.title as string) || '',
