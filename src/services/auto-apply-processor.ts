@@ -460,3 +460,37 @@ function buildApplicationEmailHtml(params: {
 </html>
   `.trim();
 }
+
+/**
+ * Pull-model: find recent opportunities/jobs with applyEmail
+ * and match them against active auto-apply loops.
+ * Creates PENDING AutoApplications for matches.
+ * Called by cron every 15 min.
+ */
+export async function matchAndQueueAutoApplies(): Promise<number> {
+  let totalQueued = 0;
+
+  // Find recent opportunities with applyEmail (last 3 days, not already processed)
+  const recentOpportunities = await prisma.opportunity.findMany({
+    where: {
+      isActive: true,
+      applyEmail: { not: null },
+      createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
+    },
+    select: { id: true },
+    take: 100,
+    orderBy: { createdAt: 'desc' },
+  });
+
+  for (const opp of recentOpportunities) {
+    try {
+      const queued = await queueAutoApplyForOpportunity(opp.id);
+      totalQueued += queued;
+    } catch (e) {
+      console.error(`[AutoApply] Error queuing opportunity ${opp.id}:`, e);
+    }
+  }
+
+  console.log(`[AutoApply] Matched ${recentOpportunities.length} opportunities, queued ${totalQueued} applications`);
+  return totalQueued;
+}

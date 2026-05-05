@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { processAutoApplyQueue } from '@/services/auto-apply-processor';
+import { processAutoApplyQueue, matchAndQueueAutoApplies } from '@/services/auto-apply-processor';
 import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 import { sendTelegramAlert } from '@/lib/telegram-alerts';
 
@@ -21,8 +21,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    console.log('[Cron] Processing auto-apply queue...');
+    console.log('[Cron] Matching new jobs to auto-apply loops...');
+    const queued = await matchAndQueueAutoApplies();
+    console.log(`[Cron] Queued ${queued} new auto-applications`);
 
+    console.log('[Cron] Processing auto-apply queue...');
     const result = await processAutoApplyQueue();
 
     console.log(
