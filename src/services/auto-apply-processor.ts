@@ -337,10 +337,14 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
 
     if (existing) continue; // Deduplication: already applied
 
-    // Match job titles
-    const titleMatch = loop.jobTitles.some((t) =>
-      titleLower.includes(t.toLowerCase())
-    );
+    // Match job titles — flexible: match if any significant word from loop title appears in listing title
+    const titleMatch = loop.jobTitles.some((t) => {
+      const loopWords = t.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !['the','and','for','with'].includes(w));
+      // Match if at least half the words match OR the full title is contained
+      if (titleLower.includes(t.toLowerCase())) return true;
+      const matchCount = loopWords.filter(w => titleLower.includes(w)).length;
+      return loopWords.length > 0 && matchCount >= Math.ceil(loopWords.length * 0.5);
+    });
     if (loop.jobTitles.length > 0 && !titleMatch) continue;
 
     // Match keywords
@@ -360,9 +364,14 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
       continue;
     }
 
-    // Match level
-    if (loop.level && loop.level !== listing.level) {
-      continue;
+    // Match level — flexible: allow one level up or down
+    if (loop.level && listing.level) {
+      const levelOrder = ['INTERN','ENTRY','JUNIOR','MID','SENIOR','LEAD','MANAGER','DIRECTOR','EXECUTIVE'];
+      const loopIdx = levelOrder.indexOf(loop.level);
+      const listIdx = levelOrder.indexOf(listing.level);
+      if (loopIdx >= 0 && listIdx >= 0 && Math.abs(loopIdx - listIdx) > 1) {
+        continue; // Skip if more than 1 level apart
+      }
     }
 
     // Check blacklisted companies
