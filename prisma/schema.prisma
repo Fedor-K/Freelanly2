@@ -34,8 +34,10 @@ model User {
   jobViewsToday Int       @default(0)
   lastViewReset DateTime  @default(now())
 
-  // Resume URL (user's resume link)
+  // Resume
   resumeUrl     String?
+  resumeText    String?   // Extracted text from PDF
+  parsedProfile Json?     // AI-extracted: {name, skills, current_title, field, experience_years, summary}
 
   // Activity tracking
   lastActiveAt  DateTime?  // For re-engagement emails

@@ -88,6 +88,7 @@ interface AutoApplyDashboardProps {
   stats: Stats;
   countries: readonly Country[];
   levels: readonly Level[];
+  parsedProfile?: Record<string, unknown> | null;
 }
 
 const TABS = [
@@ -108,6 +109,7 @@ export function AutoApplyDashboard({
   stats,
   countries,
   levels,
+  parsedProfile,
 }: AutoApplyDashboardProps) {
   const { track: trackDb } = useTracker();
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
@@ -361,6 +363,7 @@ export function AutoApplyDashboard({
               countries={countries}
               levels={levels}
               onLoopCreated={handleLoopCreated}
+              parsedProfile={parsedProfile as Record<string, unknown> | null | undefined}
             />
           )}
 

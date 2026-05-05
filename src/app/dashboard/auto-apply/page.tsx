@@ -18,10 +18,10 @@ export default async function AutoApplyPage() {
     redirect('/auth/signin');
   }
 
-  // Check plan
+  // Check plan + resume profile
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { plan: true },
+    select: { plan: true, parsedProfile: true },
   });
 
   if (!user || user.plan === 'FREE') {
@@ -130,6 +130,7 @@ export default async function AutoApplyPage() {
           }}
           countries={countries}
           levels={levels}
+          parsedProfile={user?.parsedProfile as Record<string, unknown> | null}
         />
       </div>
     </div>
