@@ -14,6 +14,8 @@ interface AutoApplication {
   sentAt: string | null;
   createdAt: string;
   errorMessage: string | null;
+  opportunityId?: string | null;
+  jobId?: string | null;
 }
 
 interface ApplicationsListProps {
@@ -155,12 +157,14 @@ export function ApplicationsList({ initialApplications }: ApplicationsListProps)
                       {app.coverLetter}
                     </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 mb-1">Original Job Posting</p>
-                    <a href={`https://freelanly.com/freelance/${app.jobTitle.toLowerCase().replace(/\s+/g, '-')}`} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
-                      View original posting →
-                    </a>
-                  </div>
+                  {(app.opportunityId || app.jobId) && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">Original Job Posting</p>
+                      <a href={`/api/user/auto-apply/redirect?appId=${app.id}`} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                        View original posting →
+                      </a>
+                    </div>
+                  )}
                   {app.errorMessage && (
                     <div>
                       <p className="text-xs font-medium text-red-500 mb-1">Error</p>
