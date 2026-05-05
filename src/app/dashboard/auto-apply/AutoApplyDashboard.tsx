@@ -233,7 +233,7 @@ export function AutoApplyDashboard({
                 Applying to {inferredTitles.join(', ')} • {levelLabel} • {loops[0]?.dailyLimit || 10}/day
               </p>
               <p className="text-green-200 text-sm mt-1">
-                Scanning every 15 min • Next scan in ~{15 - (new Date().getMinutes() % 15)} min
+                Applying to new matching jobs as they appear
               </p>
             </div>
             <button
@@ -248,7 +248,7 @@ export function AutoApplyDashboard({
         {/* Scanning indicator */}
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          <span>Actively scanning for matching jobs • Every 15 minutes</span>
+          <span>Auto-applying to new jobs as they appear • {loops[0]?.sentToday || 0} sent today</span>
         </div>
 
         {/* Stats */}

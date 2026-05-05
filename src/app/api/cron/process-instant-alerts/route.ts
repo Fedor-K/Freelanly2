@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processInstantAlertQueue } from '@/services/alert-notifications';
+import { matchAndQueueAutoApplies, processAutoApplyQueue } from '@/services/auto-apply-processor';
 import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 import { prisma } from '@/lib/db';
 import { sendTelegramAlert } from '@/lib/telegram-alerts';
@@ -29,6 +30,17 @@ export async function POST(request: NextRequest) {
     const result = await processInstantAlertQueue();
 
     console.log(`[Cron] INSTANT alerts: ${result.newOpportunities} new opps, ${result.sent} emails sent, ${result.failed} failed, ${result.processed} matched, ${result.skippedDebounce} debounced`);
+
+    // Auto-apply: match new opportunities to active loops + process queue
+    try {
+      const queued = await matchAndQueueAutoApplies();
+      const autoResult = await processAutoApplyQueue();
+      if (queued > 0 || autoResult.sent > 0) {
+        console.log(`[Cron] Auto-Apply: queued ${queued}, sent ${autoResult.sent}, failed ${autoResult.failed}`);
+      }
+    } catch (autoError) {
+      console.error('[Cron] Auto-Apply error:', autoError);
+    }
 
     // Monitor: alert if no emails sent for over 1 hour
     if (result.sent === 0) {
