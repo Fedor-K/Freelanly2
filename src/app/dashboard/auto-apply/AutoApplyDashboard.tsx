@@ -125,10 +125,10 @@ export function AutoApplyDashboard({
 
   const handleLoopToggle = async (id: string, isActive: boolean) => {
     try {
-      const res = await fetch(`/api/user/auto-apply/${id}`, {
+      const res = await fetch('/api/user/auto-apply', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: !isActive }),
+        body: JSON.stringify({ id, isActive: !isActive }),
       });
 
       if (res.ok) {
@@ -145,7 +145,7 @@ export function AutoApplyDashboard({
     if (!confirm('Are you sure you want to delete this loop?')) return;
 
     try {
-      const res = await fetch(`/api/user/auto-apply/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/user/auto-apply?id=${id}`, { method: 'DELETE' });
 
       if (res.ok) {
         trackDb('AUTO_APPLY_LOOP_DELETED', { loopId: id });
