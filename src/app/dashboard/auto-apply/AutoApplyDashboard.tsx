@@ -356,11 +356,13 @@ export function AutoApplyDashboard({
       {/* Loops Tab */}
       {activeTab === 'loops' && (
         <div>
-          <LoopForm
-            countries={countries}
-            levels={levels}
-            onLoopCreated={handleLoopCreated}
-          />
+          {loops.length === 0 && (
+            <LoopForm
+              countries={countries}
+              levels={levels}
+              onLoopCreated={handleLoopCreated}
+            />
+          )}
 
           {loops.length === 0 ? (
             <div className="bg-white rounded-xl border p-12 text-center">
