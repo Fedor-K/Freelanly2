@@ -48,9 +48,15 @@ const STATUS_LABELS: Record<string, string> = {
   REVIEW: 'In Review',
 };
 
+const PAGE_SIZE = 10;
+
 export function ApplicationsList({ initialApplications }: ApplicationsListProps) {
   const [applications] = useState<AutoApplication[]>(initialApplications);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+
+  const visibleApps = showAll ? applications : applications.slice(0, PAGE_SIZE);
+  const hasMore = applications.length > PAGE_SIZE;
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
@@ -105,7 +111,7 @@ export function ApplicationsList({ initialApplications }: ApplicationsListProps)
 
       {/* Application rows */}
       <div className="space-y-2">
-        {applications.map((app) => (
+        {visibleApps.map((app) => (
           <div key={app.id}>
             <div
               onClick={() => toggleExpand(app.id)}
@@ -190,6 +196,18 @@ export function ApplicationsList({ initialApplications }: ApplicationsListProps)
           </div>
         ))}
       </div>
+
+      {/* Show more / Show less */}
+      {hasMore && (
+        <div className="text-center mt-4">
+          <button
+            onClick={() => setShowAll(!showAll)}
+            className="text-sm text-gray-500 hover:text-gray-700 underline"
+          >
+            {showAll ? 'Show less' : `Show all ${applications.length} applications`}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
