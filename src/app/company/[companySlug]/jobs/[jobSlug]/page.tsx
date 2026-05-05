@@ -716,12 +716,7 @@ export default async function JobPage({ params }: JobPageProps) {
 
       <Footer />
 
-      {/* Cross-sell exit popup - show freelance opportunities */}
-      <CrossSellExitPopup
-        currentType="job"
-        categorySlug={job.category.slug}
-        categoryName={job.category.name}
-      />
+      {/* CrossSellExitPopup removed — annoying UX */}
 
       {/* JSON-LD JobPosting Structured Data - Google Compliant */}
       <script

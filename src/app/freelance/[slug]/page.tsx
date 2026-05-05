@@ -700,12 +700,7 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
 
       <Footer />
 
-      {/* Cross-sell exit popup - show full-time jobs */}
-      <CrossSellExitPopup
-        currentType="opportunity"
-        categorySlug={opportunity.category.slug}
-        categoryName={opportunity.category.name}
-      />
+      {/* CrossSellExitPopup removed — annoying UX */}
 
       {/* Breadcrumb Schema */}
       <script
