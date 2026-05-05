@@ -20,6 +20,7 @@ interface AutoApplication {
 
 interface ApplicationsListProps {
   initialApplications: AutoApplication[];
+  statusFilter?: string | null;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -50,13 +51,16 @@ const STATUS_LABELS: Record<string, string> = {
 
 const PAGE_SIZE = 10;
 
-export function ApplicationsList({ initialApplications }: ApplicationsListProps) {
+export function ApplicationsList({ initialApplications, statusFilter }: ApplicationsListProps) {
   const [applications] = useState<AutoApplication[]>(initialApplications);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
 
-  const visibleApps = showAll ? applications : applications.slice(0, PAGE_SIZE);
-  const hasMore = applications.length > PAGE_SIZE;
+  const filtered = statusFilter
+    ? applications.filter(a => a.status === statusFilter || (statusFilter === 'SENT' && (a.status === 'SENT' || a.status === 'OPENED' || a.status === 'DELIVERED')))
+    : applications;
+  const visibleApps = showAll ? filtered : filtered.slice(0, PAGE_SIZE);
+  const hasMore = filtered.length > PAGE_SIZE;
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
@@ -204,7 +208,7 @@ export function ApplicationsList({ initialApplications }: ApplicationsListProps)
             onClick={() => setShowAll(!showAll)}
             className="text-sm text-gray-500 hover:text-gray-700 underline"
           >
-            {showAll ? 'Show less' : `Show all ${applications.length} applications`}
+            {showAll ? 'Show less' : `Show all ${filtered.length} applications`}
           </button>
         </div>
       )}

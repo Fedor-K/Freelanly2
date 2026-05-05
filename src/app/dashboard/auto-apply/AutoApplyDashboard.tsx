@@ -143,6 +143,7 @@ export function AutoApplyDashboard({
   const [smtp, setSmtp] = useState<UserSmtp | null>(initialSmtp);
   const [applications] = useState<AutoApplication[]>(initialApplications);
   const [startingLoop, setStartingLoop] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
   const profile = rawProfile as ParsedProfile | null;
   const [resumeUploaded, setResumeUploaded] = useState(!!profile?.name || !!profile?.skills);
@@ -272,23 +273,29 @@ export function AutoApplyDashboard({
         {/* Stats */}
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
           {[
-            { label: 'Total', value: stats.total, color: 'text-gray-900' },
-            { label: 'Pending', value: stats.pending, color: 'text-yellow-600' },
-            { label: 'Sent', value: stats.sent, color: 'text-blue-600' },
-            { label: 'Replied', value: stats.replied, color: 'text-green-600' },
-            { label: 'Interview', value: stats.interview, color: 'text-purple-600' },
-            { label: 'Failed', value: stats.failed, color: 'text-red-600' },
+            { label: 'Total', value: stats.total, color: 'text-gray-900', filter: null },
+            { label: 'Pending', value: stats.pending, color: 'text-yellow-600', filter: 'PENDING' },
+            { label: 'Sent', value: stats.sent, color: 'text-blue-600', filter: 'SENT' },
+            { label: 'Replied', value: stats.replied, color: 'text-green-600', filter: 'REPLIED' },
+            { label: 'Interview', value: stats.interview, color: 'text-purple-600', filter: 'INTERVIEW' },
+            { label: 'Failed', value: stats.failed, color: 'text-red-600', filter: 'FAILED' },
           ].map(s => (
-            <div key={s.label} className="bg-white rounded-xl border p-4 text-center">
+            <button
+              key={s.label}
+              onClick={() => setStatusFilter(statusFilter === s.filter ? null : s.filter)}
+              className={`bg-white rounded-xl border p-4 text-center transition-all cursor-pointer ${
+                statusFilter === s.filter ? 'ring-2 ring-black border-black' : 'hover:border-gray-300'
+              }`}
+            >
               <p className="text-xs text-gray-500">{s.label}</p>
               <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-            </div>
+            </button>
           ))}
         </div>
 
         {/* Applications */}
         {applications.length > 0 && (
-          <ApplicationsList initialApplications={applications} />
+          <ApplicationsList initialApplications={applications} statusFilter={statusFilter} />
         )}
 
         {/* Settings (collapsed) */}
