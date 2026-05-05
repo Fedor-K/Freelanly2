@@ -47,18 +47,31 @@ export async function POST(request: NextRequest) {
 
     const apify = new ApifyClient({ token });
 
-    const run = await apify.actor('dev_fusion/linkedin-profile-scraper').call({
-      profileUrls: [normalizeLinkedInUrl(profileUrl)],
-      proxyConfiguration: { useApifyProxy: true },
-    });
+    let raw: Record<string, unknown>;
+    try {
+      const run = await apify.actor('dev_fusion/linkedin-profile-scraper').call(
+        {
+          profileUrls: [normalizeLinkedInUrl(profileUrl)],
+          proxyConfiguration: { useApifyProxy: true },
+        },
+        { waitSecs: 120 }
+      );
 
-    const { items } = await apify.dataset(run.defaultDatasetId).listItems();
+      console.log(`[LinkedIn] Apify run finished: ${run.id}, status: ${run.status}`);
 
-    if (!items || items.length === 0) {
-      return NextResponse.json({ error: 'Could not fetch LinkedIn profile. Check the URL and try again.' }, { status: 400 });
+      const { items } = await apify.dataset(run.defaultDatasetId).listItems();
+
+      if (!items || items.length === 0) {
+        console.error(`[LinkedIn] No items returned from Apify. Run: ${run.id}`);
+        return NextResponse.json({ error: 'Could not fetch LinkedIn profile. The profile might be private or the URL is incorrect.' }, { status: 400 });
+      }
+
+      raw = items[0] as Record<string, unknown>;
+      console.log(`[LinkedIn] Got profile data, keys: ${Object.keys(raw).join(', ')}`);
+    } catch (apifyError) {
+      console.error(`[LinkedIn] Apify error:`, apifyError);
+      return NextResponse.json({ error: 'LinkedIn scraping timed out. Please try again.' }, { status: 504 });
     }
-
-    const raw = items[0] as Record<string, unknown>;
 
     const profile: LinkedInProfile = {
       name: (raw.fullName as string) ||
