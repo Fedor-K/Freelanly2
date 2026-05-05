@@ -258,6 +258,12 @@ export async function POST(request: NextRequest) {
             },
           }).catch(() => {});
 
+          // Pause auto-apply loops (PRO-only feature)
+          await prisma.autoApplyLoop.updateMany({
+            where: { userId: dbUserId, isActive: true },
+            data: { isActive: false },
+          }).catch(() => {});
+
           console.log(`[PayPro Webhook] User ${dbUserId} downgraded to FREE (${ipnTypeName})`);
         }
         break;

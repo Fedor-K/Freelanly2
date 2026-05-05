@@ -158,7 +158,7 @@ export default function RootLayout({
           </Suspense>
           {children}
           <Analytics />
-          <ExitIntentPopup />
+          {/* ExitIntentPopup removed — annoying UX */}
           <CookieConsentBanner />
         </SessionProvider>
         <AnalyticsScripts />
