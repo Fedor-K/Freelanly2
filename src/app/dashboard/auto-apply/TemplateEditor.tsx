@@ -26,6 +26,7 @@ interface TemplateEditorProps {
   initialTemplates: CoverLetterTemplate[];
   onTemplateCreated: (template: CoverLetterTemplate) => void;
   onTemplateDeleted: (id: string) => void;
+  onResumeUploaded?: () => void;
 }
 
 const STYLES = [
@@ -53,6 +54,7 @@ export function TemplateEditor({
   initialTemplates,
   onTemplateCreated,
   onTemplateDeleted,
+  onResumeUploaded,
 }: TemplateEditorProps) {
   const [templates, setTemplates] = useState<CoverLetterTemplate[]>(initialTemplates);
   const [loading, setLoading] = useState(false);
@@ -111,6 +113,7 @@ export function TemplateEditor({
         if (data.profile) {
           setParsedProfile(data.profile);
         }
+        onResumeUploaded?.();
       } else {
         const data = await res.json();
         alert(data.error || 'Failed to upload resume');

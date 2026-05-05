@@ -145,7 +145,8 @@ export function AutoApplyDashboard({
   const [startingLoop, setStartingLoop] = useState(false);
 
   const profile = rawProfile as ParsedProfile | null;
-  const hasResume = !!profile?.name || !!profile?.skills;
+  const [resumeUploaded, setResumeUploaded] = useState(!!profile?.name || !!profile?.skills);
+  const hasResume = resumeUploaded;
   const hasSmtp = !!smtp?.verified;
   const hasStyle = templates.length > 0;
   const hasLoop = loops.length > 0;
@@ -333,6 +334,7 @@ export function AutoApplyDashboard({
         initialTemplates={templates}
         onTemplateCreated={(t) => setTemplates([t, ...templates])}
         onTemplateDeleted={(id) => setTemplates(templates.filter(t => t.id !== id))}
+        onResumeUploaded={() => setResumeUploaded(true)}
       />
 
       {/* Step 2: Connect Email */}
