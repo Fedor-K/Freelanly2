@@ -71,7 +71,7 @@ export function TemplateEditor({
   onTemplateDeleted,
 }: TemplateEditorProps) {
   const [templates, setTemplates] = useState<CoverLetterTemplate[]>(initialTemplates);
-  const [isCreating, setIsCreating] = useState(templates.length === 0);
+  const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
