@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db';
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
-import { generateCoverLetter, generateSubjectLine } from '@/services/cover-letter-generator';
+import { generateCoverLetter, generateSubjectLine, generateFollowUp } from '@/services/cover-letter-generator';
 import { generateTailoredResume } from '@/services/resume-pdf-generator';
 import { AutoApplyStatus } from '@prisma/client';
 
@@ -550,4 +550,119 @@ export async function matchAndQueueAutoApplies(): Promise<number> {
 
   console.log(`[AutoApply] Matched ${recentOpportunities.length} opportunities, queued ${totalQueued} applications`);
   return totalQueued;
+}
+
+/**
+ * Send follow-up emails for applications that were sent 3+ days ago
+ * with no reply. Maximum 1 follow-up per application.
+ */
+export async function processFollowUps(): Promise<{ sent: number; failed: number }> {
+  let sent = 0;
+  let failed = 0;
+
+  const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+
+  // Find sent/opened applications older than 3 days, no follow-up yet
+  const candidates = await prisma.autoApplication.findMany({
+    where: {
+      status: { in: [AutoApplyStatus.SENT, AutoApplyStatus.OPENED] },
+      sentAt: { lt: threeDaysAgo, not: null },
+      followUpSentAt: null,
+      followUpCount: 0,
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          plan: true,
+          userSmtp: true,
+        },
+      },
+      loop: {
+        select: {
+          isActive: true,
+        },
+      },
+    },
+    take: 20,
+    orderBy: { sentAt: 'asc' },
+  });
+
+  if (candidates.length === 0) return { sent: 0, failed: 0 };
+
+  console.log(`[AutoApply] Processing ${candidates.length} follow-ups`);
+
+  for (const app of candidates) {
+    if (app.user.plan !== 'PRO' || !app.user.userSmtp?.verified || !app.loop.isActive) {
+      continue;
+    }
+
+    const daysSinceSent = Math.round(
+      (Date.now() - new Date(app.sentAt!).getTime()) / (24 * 60 * 60 * 1000)
+    );
+
+    try {
+      const followUpBody = await generateFollowUp({
+        jobTitle: app.jobTitle,
+        companyName: app.companyName,
+        userName: app.user.name || 'Applicant',
+        daysSinceSent,
+      });
+
+      const subject = `Re: ${app.subject}`;
+      const html = buildApplicationEmailHtml({
+        coverLetter: followUpBody,
+        userName: app.user.name || 'Applicant',
+        jobTitle: app.jobTitle,
+        companyName: app.companyName,
+      });
+      const text = `${followUpBody}\n\nBest regards,\n${app.user.name || 'Applicant'}`;
+
+      const smtpConfig = app.user.userSmtp!;
+      const result = await sendEmailViaSMTP(
+        {
+          host: smtpConfig.host,
+          port: smtpConfig.port,
+          email: smtpConfig.email,
+          password: smtpConfig.password,
+        },
+        {
+          from: `${app.user.name || 'Applicant'} <${smtpConfig.email}>`,
+          to: app.appliedToEmail,
+          replyTo: smtpConfig.email,
+          subject,
+          html,
+          text,
+        }
+      );
+
+      if (result.success) {
+        await prisma.autoApplication.update({
+          where: { id: app.id },
+          data: {
+            followUpSentAt: new Date(),
+            followUpCount: 1,
+          },
+        });
+        sent++;
+        console.log(`[AutoApply] Follow-up sent for ${app.id} to ${app.appliedToEmail}`);
+      } else {
+        failed++;
+        console.error(`[AutoApply] Follow-up failed for ${app.id}: ${result.error}`);
+      }
+    } catch (error) {
+      failed++;
+      console.error(`[AutoApply] Follow-up error for ${app.id}:`, error);
+    }
+
+    // Rate limit
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  if (sent > 0 || failed > 0) {
+    console.log(`[AutoApply] Follow-ups done: ${sent} sent, ${failed} failed`);
+  }
+
+  return { sent, failed };
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processInstantAlertQueue } from '@/services/alert-notifications';
-import { matchAndQueueAutoApplies, processAutoApplyQueue } from '@/services/auto-apply-processor';
+import { matchAndQueueAutoApplies, processAutoApplyQueue, processFollowUps } from '@/services/auto-apply-processor';
 import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 import { prisma } from '@/lib/db';
 import { sendTelegramAlert } from '@/lib/telegram-alerts';
@@ -40,6 +40,16 @@ export async function POST(request: NextRequest) {
       }
     } catch (autoError) {
       console.error('[Cron] Auto-Apply error:', autoError);
+    }
+
+    // Send follow-ups for applications without reply after 3 days
+    try {
+      const followUps = await processFollowUps();
+      if (followUps.sent > 0) {
+        console.log(`[Cron] Follow-ups: ${followUps.sent} sent, ${followUps.failed} failed`);
+      }
+    } catch (e) {
+      console.error('[Cron] Follow-up error:', e);
     }
 
     // Check for replies to sent applications

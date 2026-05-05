@@ -157,6 +157,46 @@ export async function generateSubjectLine(params: {
 }
 
 /**
+ * Generate a follow-up email body.
+ * Short, polite nudge referencing the original application.
+ */
+export async function generateFollowUp(params: {
+  jobTitle: string;
+  companyName: string;
+  userName: string;
+  daysSinceSent: number;
+}): Promise<string> {
+  const { jobTitle, companyName, userName, daysSinceSent } = params;
+  const { client, model } = getAIClient();
+
+  try {
+    const response = await client.chat.completions.create({
+      model,
+      temperature: 0.6,
+      max_tokens: 200,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Write a 2-3 sentence follow-up email body for a job application sent a few days ago. Be polite, brief, and express continued interest. No greeting or signature — just the body. Keep it under 80 words.',
+        },
+        {
+          role: 'user',
+          content: `Role: ${jobTitle} at ${companyName}, Applicant: ${userName}, Sent ${daysSinceSent} days ago`,
+        },
+      ],
+    });
+
+    const content = response.choices[0]?.message?.content?.trim();
+    if (content) return content;
+  } catch (error) {
+    console.error('[CoverLetterGenerator] Follow-up generation failed:', error);
+  }
+
+  return `I wanted to follow up on my application for the ${jobTitle} position at ${companyName}. I remain very interested in this opportunity and would welcome the chance to discuss how I can contribute to your team.`;
+}
+
+/**
  * Fallback cover letter when AI is unavailable
  */
 function generateFallbackCoverLetter(input: CoverLetterInput): string {
