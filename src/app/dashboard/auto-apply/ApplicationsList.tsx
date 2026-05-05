@@ -16,6 +16,8 @@ interface AutoApplication {
   errorMessage: string | null;
   opportunityId?: string | null;
   jobId?: string | null;
+  followUpSentAt?: string | null;
+  followUpCount?: number;
 }
 
 interface ApplicationsListProps {
@@ -64,6 +66,21 @@ export function ApplicationsList({ initialApplications, statusFilter }: Applicat
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
+  };
+
+  const getFollowUpLabel = (app: AutoApplication): string | null => {
+    if (app.followUpSentAt) return 'Follow-up sent';
+    if ((app.status === 'SENT' || app.status === 'OPENED') && app.sentAt) {
+      const sentDate = new Date(app.sentAt);
+      const followUpDate = new Date(sentDate.getTime() + 3 * 24 * 60 * 60 * 1000);
+      const now = new Date();
+      if (followUpDate > now) {
+        const daysLeft = Math.ceil((followUpDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+        return `Follow-up in ${daysLeft}d`;
+      }
+      return 'Follow-up soon';
+    }
+    return null;
   };
 
   const formatDate = (dateStr: string | null) => {
@@ -141,6 +158,15 @@ export function ApplicationsList({ initialApplications, statusFilter }: Applicat
                   >
                     {STATUS_LABELS[app.status] || app.status}
                   </span>
+                  {(() => {
+                    const fuLabel = getFollowUpLabel(app);
+                    if (!fuLabel) return null;
+                    return (
+                      <span className={`ml-1 text-xs ${app.followUpSentAt ? 'text-green-600' : 'text-gray-400'}`}>
+                        {fuLabel}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="col-span-2">
                   <p className="text-sm text-gray-500 truncate">{app.subject}</p>
