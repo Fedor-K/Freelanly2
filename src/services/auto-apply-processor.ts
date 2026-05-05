@@ -150,6 +150,7 @@ export async function processAutoApplyQueue(): Promise<{
         userName: app.user.name || 'Applicant',
         jobTitle: app.jobTitle,
         companyName: app.companyName,
+        applicationId: app.id,
       });
 
       const text = `${coverLetter}\n\nBest regards,\n${app.user.name || 'Applicant'}`;
@@ -448,8 +449,9 @@ function buildApplicationEmailHtml(params: {
   userName: string;
   jobTitle: string;
   companyName: string;
+  applicationId?: string;
 }): string {
-  const { coverLetter, userName } = params;
+  const { coverLetter, userName, applicationId } = params;
 
   // Convert newlines to paragraphs
   const paragraphs = coverLetter
@@ -458,6 +460,10 @@ function buildApplicationEmailHtml(params: {
     .map((p) => `<p style="margin: 0 0 12px; line-height: 1.6;">${p}</p>`)
     .join('');
 
+  const trackingPixel = applicationId
+    ? `<img src="https://freelanly.com/api/track/auto-apply-open?id=${applicationId}" width="1" height="1" style="display:block;width:1px;height:1px;border:0;" alt="" />`
+    : '';
+
   return `
 <!DOCTYPE html>
 <html>
@@ -465,6 +471,7 @@ function buildApplicationEmailHtml(params: {
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6;">
   ${paragraphs}
   <p style="margin: 24px 0 0;">Best regards,<br>${userName}</p>
+  ${trackingPixel}
 </body>
 </html>
   `.trim();

@@ -42,6 +42,15 @@ export async function POST(request: NextRequest) {
       console.error('[Cron] Auto-Apply error:', autoError);
     }
 
+    // Check for replies to sent applications
+    try {
+      const { checkAllReplies } = await import('@/services/reply-checker');
+      const replies = await checkAllReplies();
+      if (replies > 0) console.log(`[Cron] Found ${replies} new replies to auto-applications`);
+    } catch (e) {
+      console.error('[Cron] Reply check error:', e);
+    }
+
     // Monitor: alert if no emails sent for over 1 hour
     if (result.sent === 0) {
       const lastSentAlert = await prisma.jobAlert.findFirst({
