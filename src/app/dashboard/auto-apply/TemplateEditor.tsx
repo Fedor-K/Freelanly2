@@ -62,6 +62,18 @@ export function TemplateEditor({
   const [resumeFile, setResumeFile] = useState<string | null>(null);
   const [parsedProfile, setParsedProfile] = useState<ParsedProfile | null>(null);
 
+  // LinkedIn state
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [linkedinLoading, setLinkedinLoading] = useState(false);
+  const [linkedinProfile, setLinkedinProfile] = useState<{
+    name?: string;
+    headline?: string;
+    about?: string;
+    skills?: string[];
+    experience?: { title: string; company: string; duration: string }[];
+    location?: string;
+  } | null>(null);
+
   // Style state
   const [selectedStyle, setSelectedStyle] = useState<string>(
     templates.length > 0 ? templates[0].name.toLowerCase() : ''
@@ -107,6 +119,42 @@ export function TemplateEditor({
       alert('Failed to upload resume');
     } finally {
       setResumeUploading(false);
+    }
+  };
+
+  const handleLinkedinScrape = async () => {
+    if (!linkedinUrl.includes('linkedin.com')) {
+      alert('Please enter a valid LinkedIn profile URL');
+      return;
+    }
+    setLinkedinLoading(true);
+    try {
+      const res = await fetch('/api/user/linkedin-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileUrl: linkedinUrl }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLinkedinProfile(data.profile);
+        // Merge with parsed profile
+        if (data.profile) {
+          setParsedProfile(prev => ({
+            ...prev,
+            name: prev?.name || data.profile.name,
+            current_title: prev?.current_title || data.profile.headline,
+            summary: prev?.summary || data.profile.about,
+            skills: [...new Set([...(prev?.skills || []), ...(data.profile.skills || [])])].slice(0, 15),
+          }));
+        }
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to fetch LinkedIn profile');
+      }
+    } catch {
+      alert('Failed to fetch LinkedIn profile');
+    } finally {
+      setLinkedinLoading(false);
     }
   };
 
@@ -244,6 +292,50 @@ export function TemplateEditor({
           </div>
         </div>
       </div>
+
+      {/* LinkedIn (optional enrichment) */}
+      {resumeFile && (
+        <div className="bg-white rounded-xl border p-6 mb-4">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-lg shrink-0">in</div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold mb-1">
+                {linkedinProfile ? 'LinkedIn Connected ✓' : 'Add LinkedIn (optional)'}
+              </h2>
+              <p className="text-sm text-gray-500 mb-3">
+                {linkedinProfile
+                  ? `${linkedinProfile.headline || linkedinProfile.name} — ${linkedinProfile.skills?.length || 0} extra skills added`
+                  : 'Enrich your profile with LinkedIn data — more skills, experience, and headline for better cover letters.'}
+              </p>
+
+              {!linkedinProfile ? (
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={linkedinUrl}
+                    onChange={(e) => setLinkedinUrl(e.target.value)}
+                    placeholder="https://linkedin.com/in/your-profile"
+                    className="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <button
+                    onClick={handleLinkedinScrape}
+                    disabled={linkedinLoading || !linkedinUrl}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 shrink-0"
+                  >
+                    {linkedinLoading ? 'Fetching...' : 'Import'}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {linkedinProfile.skills?.slice(0, 8).map((s, i) => (
+                    <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded">{s}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Step 2: Choose Style */}
       <div className={`bg-white rounded-xl border-2 p-6 mb-4 ${resumeFile && !templates.length ? 'border-orange-400 shadow-md' : templates.length > 0 ? 'border-green-200' : 'border-gray-200'}`}>
