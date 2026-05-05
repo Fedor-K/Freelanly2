@@ -238,12 +238,21 @@ export function AutoApplyDashboard({
                 Applying to new matching jobs as they appear
               </p>
             </div>
-            <button
-              onClick={() => handlePauseResume(loops[0].id, true)}
-              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
-            >
-              ⏸ Pause
-            </button>
+            <div className="flex gap-2">
+              <a
+                href="/api/user/resume/preview"
+                target="_blank"
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
+              >
+                View Resume
+              </a>
+              <button
+                onClick={() => handlePauseResume(loops[0].id, true)}
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
+              >
+                ⏸ Pause
+              </button>
+            </div>
           </div>
         </div>
 
