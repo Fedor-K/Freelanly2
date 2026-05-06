@@ -18,11 +18,14 @@ interface OpportunityCardProps {
   isPro?: boolean;
 }
 
-export function OpportunityCard({ opportunity, isPro = false }: OpportunityCardProps) {
+export function OpportunityCard({ opportunity, isPro: _isPro = false }: OpportunityCardProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [showRegistration, setShowRegistration] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+
+  // All logged-in users can see contact details (FREE gets 5 applies/day)
+  const isPro = !!session?.user || _isPro;
 
   const salaryDisplay = formatSalary(
     opportunity.salaryMin,
