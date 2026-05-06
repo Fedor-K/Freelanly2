@@ -97,6 +97,9 @@ interface AutoApplyDashboardProps {
   countries: readonly Country[];
   levels: readonly Level[];
   parsedProfile?: Record<string, unknown> | null;
+  userPlan?: string;
+  freeAppliesRemaining?: number;
+  freeDailyLimit?: number;
 }
 
 function inferLevel(years?: number): string {
@@ -138,6 +141,9 @@ export function AutoApplyDashboard({
   countries,
   levels,
   parsedProfile: rawProfile,
+  userPlan = 'FREE',
+  freeAppliesRemaining = 5,
+  freeDailyLimit = 5,
 }: AutoApplyDashboardProps) {
   const [loops, setLoops] = useState<AutoApplyLoop[]>(initialLoops);
   const [templates, setTemplates] = useState<CoverLetterTemplate[]>(initialTemplates);

@@ -97,6 +97,8 @@ model User {
   autoApplyLoops        AutoApplyLoop[]
   autoApplications      AutoApplication[]
   coverLetterTemplates  CoverLetterTemplate[]
+  freeAppliesUsedToday  Int       @default(0)
+  lastFreeApplyReset    DateTime  @default(now())
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

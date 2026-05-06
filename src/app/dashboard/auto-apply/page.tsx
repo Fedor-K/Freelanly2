@@ -21,44 +21,31 @@ export default async function AutoApplyPage() {
   // Check plan + resume profile
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { plan: true, parsedProfile: true },
+    select: { plan: true, parsedProfile: true, freeAppliesUsedToday: true, lastFreeApplyReset: true },
   });
 
-  if (!user || user.plan === 'FREE') {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className="bg-white rounded-xl border p-12 text-center">
-            <svg
-              className="w-16 h-16 mx-auto text-gray-300 mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
-            </svg>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              Auto-Apply is a PRO Feature
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Upgrade to PRO to automatically apply to jobs matching your criteria.
-              Set up loops, templates, and let Freelanly send applications for you.
-            </p>
-            <Link
-              href="/pricing"
-              className="inline-block px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              Upgrade to PRO
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
+  if (!user) {
+    redirect('/auth/signin');
+  }
+
+  // Reset daily free applies counter if new day
+  const FREE_DAILY_LIMIT = 5;
+  let freeAppliesRemaining = FREE_DAILY_LIMIT;
+  if (user.plan === 'FREE') {
+    const now = new Date();
+    const lastReset = new Date(user.lastFreeApplyReset);
+    const isNewDay = now.getUTCDate() !== lastReset.getUTCDate() ||
+      now.getUTCMonth() !== lastReset.getUTCMonth() ||
+      now.getUTCFullYear() !== lastReset.getUTCFullYear();
+    if (isNewDay) {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { freeAppliesUsedToday: 0, lastFreeApplyReset: now },
+      });
+      freeAppliesRemaining = FREE_DAILY_LIMIT;
+    } else {
+      freeAppliesRemaining = Math.max(0, FREE_DAILY_LIMIT - (user.freeAppliesUsedToday || 0));
+    }
   }
 
   // Fetch all auto-apply data (gracefully handle missing tables before migration)
@@ -132,6 +119,9 @@ export default async function AutoApplyPage() {
           countries={countries}
           levels={levels}
           parsedProfile={user?.parsedProfile as Record<string, unknown> | null}
+          userPlan={user.plan}
+          freeAppliesRemaining={freeAppliesRemaining}
+          freeDailyLimit={FREE_DAILY_LIMIT}
         />
       </div>
     </div>

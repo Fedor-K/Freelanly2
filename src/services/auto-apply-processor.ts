@@ -39,6 +39,8 @@ export async function processAutoApplyQueue(): Promise<{
           parsedProfile: true,
           resumeBase64: true,
           resumeFileName: true,
+          freeAppliesUsedToday: true,
+          lastFreeApplyReset: true,
         },
       },
       loop: {
@@ -67,11 +69,20 @@ export async function processAutoApplyQueue(): Promise<{
   for (const app of pendingApps) {
     processed++;
 
-    // Validate user eligibility
-    if (app.user.plan !== 'PRO') {
-      await markFailed(app.id, 'User plan is not PRO');
-      skipped++;
-      continue;
+    // Validate user eligibility — FREE users get 5/day, PRO unlimited
+    if (app.user.plan === 'FREE') {
+      const FREE_DAILY_LIMIT = 5;
+      const now = new Date();
+      const lastReset = new Date(app.user.lastFreeApplyReset || 0);
+      const isNewDay = now.getUTCDate() !== lastReset.getUTCDate() ||
+        now.getUTCMonth() !== lastReset.getUTCMonth() ||
+        now.getUTCFullYear() !== lastReset.getUTCFullYear();
+
+      const usedToday = isNewDay ? 0 : (app.user.freeAppliesUsedToday || 0);
+      if (usedToday >= FREE_DAILY_LIMIT) {
+        skipped++;
+        continue; // Leave as PENDING for tomorrow
+      }
     }
 
     if (!app.user.userSmtp?.verified) {
@@ -217,7 +228,7 @@ export async function processAutoApplyQueue(): Promise<{
       );
 
       if (result.success) {
-        await prisma.$transaction([
+        const txOps = [
           prisma.autoApplication.update({
             where: { id: app.id },
             data: {
@@ -234,7 +245,17 @@ export async function processAutoApplyQueue(): Promise<{
               sentToday: { increment: 1 },
             },
           }),
-        ]);
+        ];
+        // Increment free applies counter for FREE users
+        if (app.user.plan === 'FREE') {
+          txOps.push(
+            prisma.user.update({
+              where: { id: app.user.id },
+              data: { freeAppliesUsedToday: { increment: 1 } },
+            })
+          );
+        }
+        await prisma.$transaction(txOps);
         sent++;
         console.log(`[AutoApply] Sent application ${app.id} to ${app.appliedToEmail}`);
       } else {
@@ -336,12 +357,11 @@ interface ListingData {
  * Internal: match a listing (job or opportunity) against active loops and queue applications.
  */
 async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
-  // Find all active loops from PRO users with verified SMTP
+  // Find all active loops from users with verified SMTP
   const activeLoops = await prisma.autoApplyLoop.findMany({
     where: {
       isActive: true,
       user: {
-        plan: 'PRO',
         userSmtp: {
           verified: true,
         },
