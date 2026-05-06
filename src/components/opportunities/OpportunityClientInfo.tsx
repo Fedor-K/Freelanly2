@@ -35,6 +35,9 @@ export function OpportunityClientInfo({
   const [showRegistration, setShowRegistration] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
+  // All logged-in users see contacts (FREE gets 5 applies/day)
+  const canSeeContacts = isPro || !!session?.user;
+
   const handleUpgradeClick = () => {
     if (!session?.user) {
       trackSignupStart('opportunity_contact');
@@ -55,11 +58,11 @@ export function OpportunityClientInfo({
               alt={clientName}
               width={64}
               height={64}
-              className={`rounded-full object-cover ${!isPro ? 'blur-[3px]' : ''}`}
+              className={`rounded-full object-cover ${!canSeeContacts ? 'blur-[3px]' : ''}`}
             />
           ) : (
             <div
-              className={`w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-2xl ${!isPro ? 'blur-[3px]' : ''}`}
+              className={`w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-2xl ${!canSeeContacts ? 'blur-[3px]' : ''}`}
             >
               {clientName.charAt(0).toUpperCase()}
             </div>
@@ -67,18 +70,18 @@ export function OpportunityClientInfo({
         </div>
         <div className="flex-1">
           <h2
-            className={`text-lg font-semibold ${!isPro ? 'blur-[3px] select-none' : ''}`}
+            className={`text-lg font-semibold ${!canSeeContacts ? 'blur-[3px] select-none' : ''}`}
           >
             {clientName}
           </h2>
           {clientHeadline && (
             <p
-              className={`text-sm text-muted-foreground ${!isPro ? 'blur-[3px] select-none' : ''}`}
+              className={`text-sm text-muted-foreground ${!canSeeContacts ? 'blur-[3px] select-none' : ''}`}
             >
               {clientHeadline}
             </p>
           )}
-          {isPro ? (
+          {canSeeContacts ? (
             <a
               href={clientLinkedIn}
               target="_blank"

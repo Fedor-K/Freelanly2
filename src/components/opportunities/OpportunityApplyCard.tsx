@@ -39,20 +39,8 @@ export function OpportunityApplyCard({
   const [showRegistration, setShowRegistration] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  const handleUpgradeClick = () => {
-    trackUpgradeClick({ source: 'paywall', jobId: opportunityId });
-    trackDb('PAYWALL_HIT', { opportunityId, title, type: 'contact' });
-
-    // If not logged in, show registration modal first
-    if (!session?.user) {
-      trackSignupStart('opportunity_apply_card');
-      setShowRegistration(true);
-      return;
-    }
-
-    // User is logged in — show upgrade modal
-    setShowUpgrade(true);
-  };
+  // All logged-in users see contacts
+  const canSeeContacts = isPro || !!session?.user;
 
   return (
     <>
@@ -63,77 +51,68 @@ export function OpportunityApplyCard({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            {isPro
-              ? 'Direct contact with the client. No agencies, no middlemen. Respond quickly — freelance projects get filled fast.'
-              : 'Client\'s email and LinkedIn are on this page. Upgrade to see them and apply before others.'}
-          </p>
+          {canSeeContacts ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Direct contact with the client. No agencies, no middlemen. Respond quickly — freelance projects get filled fast.
+              </p>
 
-          {isPro ? (
-            <a
-              href={clientLinkedIn}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block"
-              onClick={() => trackDb('OPPORTUNITY_APPLY_CLICK', { opportunityId, title, method: 'linkedin' })}
-            >
-              <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                Message on LinkedIn
-              </Button>
-            </a>
-          ) : (
-            <Button
-              className="w-full bg-blue-600 hover:bg-blue-700 blur-[2px]"
-              onClick={handleUpgradeClick}
-            >
-              Message on LinkedIn
-            </Button>
-          )}
-
-          {applyEmail &&
-            (isPro ? (
               <a
-                href={`mailto:${applyEmail}?subject=Re: ${encodeURIComponent(title)}`}
-                className="block"
-              >
-                <Button variant="outline" className="w-full">
-                  Email: {applyEmail}
-                </Button>
-              </a>
-            ) : (
-              <Button
-                variant="outline"
-                className="w-full blur-[2px]"
-                onClick={handleUpgradeClick}
-              >
-                Email: •••••@••••.com
-              </Button>
-            ))}
-
-          {applyUrl &&
-            (isPro ? (
-              <a
-                href={applyUrl}
+                href={clientLinkedIn}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block"
+                onClick={() => trackDb('OPPORTUNITY_APPLY_CLICK', { opportunityId, title, method: 'linkedin' })}
               >
-                <Button variant="outline" className="w-full">
-                  Apply via Link
+                <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                  Message on LinkedIn
                 </Button>
               </a>
-            ) : (
-              <Button
-                variant="outline"
-                className="w-full blur-[2px]"
-                onClick={handleUpgradeClick}
-              >
-                Apply via Link
-              </Button>
-            ))}
 
-          {!isPro && !session?.user && (
-            <div className="space-y-2">
+              {applyEmail && (
+                <a
+                  href={`mailto:${applyEmail}?subject=Re: ${encodeURIComponent(title)}`}
+                  className="block"
+                >
+                  <Button variant="outline" className="w-full">
+                    Email: {applyEmail}
+                  </Button>
+                </a>
+              )}
+
+              {applyUrl && (
+                <a
+                  href={applyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                >
+                  <Button variant="outline" className="w-full">
+                    Apply via Link
+                  </Button>
+                </a>
+              )}
+
+              {!isPro && (
+                <a href="/dashboard/auto-apply" className="block">
+                  <Button className="w-full bg-orange-600 hover:bg-orange-700 font-semibold">
+                    Auto-Apply to similar projects
+                  </Button>
+                </a>
+              )}
+
+              <div className="pt-4 border-t">
+                <p className="text-xs text-muted-foreground">
+                  ⚡ This project was posted recently. Clients often hire within 48 hours — act now.
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Client&apos;s email and LinkedIn are on this page. Sign up to see them and apply.
+              </p>
+
               <Button
                 className="w-full bg-orange-600 hover:bg-orange-700 font-semibold"
                 onClick={() => {
@@ -141,52 +120,16 @@ export function OpportunityApplyCard({
                   setShowRegistration(true);
                 }}
               >
-                Sign Up Free
+                Sign Up Free to Apply
               </Button>
-              <Button
-                className="w-full bg-green-600 hover:bg-green-700 font-semibold"
-                onClick={() => {
-                  trackSignupStart('opportunity_apply_card_payment');
-                  setShowRegistration(true);
-                }}
-              >
-                Subscribe — from €0.50/day
-              </Button>
-            </div>
-          )}
 
-          {!isPro && session?.user && (
-            <div className="space-y-2">
-              <Button
-                className="w-full bg-orange-600 hover:bg-orange-700 font-semibold"
-                onClick={() => {
-                  trackUpgradeClick({ source: 'paywall', jobId: opportunityId });
-                  trackDb('PAYWALL_HIT', { opportunityId, title, type: 'upgrade' });
-                  setShowUpgrade(true);
-                }}
-              >
-                Unlock Contact Details
-              </Button>
-              <Button
-                className="w-full bg-green-600 hover:bg-green-700 font-semibold"
-                onClick={() => {
-                  trackUpgradeClick({ source: 'paywall_subscribe', jobId: opportunityId });
-                  trackDb('PAYWALL_HIT', { opportunityId, title, type: 'subscribe' });
-                  setShowUpgrade(true);
-                }}
-              >
-                Subscribe — from €0.50/day
-              </Button>
-            </div>
+              <div className="pt-4 border-t">
+                <p className="text-xs text-muted-foreground">
+                  Free account: see all contacts + 5 AI-powered applies per day.
+                </p>
+              </div>
+            </>
           )}
-
-          <div className="pt-4 border-t">
-            <p className="text-xs text-muted-foreground">
-              {isPro
-                ? '⚡ This project was posted recently. Clients often hire within 48 hours — act now.'
-                : '🔒 Contact info is hidden on FREE plan. PRO members apply directly and get hired faster.'}
-            </p>
-          </div>
         </CardContent>
       </Card>
 
