@@ -52,7 +52,7 @@ async function searchForReplies(
   imapHost: string,
   email: string,
   password: string,
-  subjects: { applicationId: string; subject: string }[]
+  subjects: { applicationId: string; subject: string; email: string }[]
 ): Promise<{ applicationId: string; replied: boolean }[]> {
   const results: { applicationId: string; replied: boolean }[] = [];
 
@@ -103,31 +103,27 @@ async function searchForReplies(
           throw new Error(`IMAP SELECT failed: ${selectResp.slice(0, 200)}`);
         }
 
-        // Search for each subject (look for "Re: <subject>")
-        for (const { applicationId, subject } of subjects) {
+        // Search for replies: look for emails FROM each recipient
+        // Group by email to minimize IMAP searches
+        const emailToApps = new Map<string, { applicationId: string; subject: string }[]>();
+        for (const s of subjects) {
+          const existing = emailToApps.get(s.email) || [];
+          existing.push(s);
+          emailToApps.set(s.email, existing);
+        }
+
+        const sinceDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+        const imapDate = `${sinceDate.getDate()}-${sinceDate.toLocaleString('en-US', { month: 'short' })}-${sinceDate.getFullYear()}`;
+
+        for (const [fromEmail, apps] of emailToApps) {
           try {
-            // Clean subject for IMAP search (remove special chars, limit length)
-            const cleanSubject = subject
-              .replace(/["\\\r\n]/g, '')
-              .slice(0, 60);
-
             const searchTag = nextTag();
-            const sinceDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-            const dateStr = sinceDate.toLocaleDateString('en-US', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-            }).replace(',', '');
-            // Format: DD-Mon-YYYY for IMAP
-            const imapDate = `${sinceDate.getDate()}-${sinceDate.toLocaleString('en-US', { month: 'short' })}-${sinceDate.getFullYear()}`;
-
             const searchResp = await sendImapCommand(
               socket,
               searchTag,
-              `SEARCH SUBJECT "Re: ${cleanSubject}" SINCE ${imapDate}`
+              `SEARCH FROM "${fromEmail}" SINCE ${imapDate}`
             );
 
-            // Parse SEARCH response: "* SEARCH 1 2 3" means messages found
             const searchLine = searchResp
               .split('\r\n')
               .find((l) => l.startsWith('* SEARCH'));
@@ -136,9 +132,13 @@ async function searchForReplies(
               searchLine.trim() !== '* SEARCH' &&
               searchLine.replace('* SEARCH', '').trim().length > 0;
 
-            results.push({ applicationId, replied: hasResults });
+            for (const app of apps) {
+              results.push({ applicationId: app.applicationId, replied: hasResults });
+            }
           } catch {
-            results.push({ applicationId, replied: false });
+            for (const app of apps) {
+              results.push({ applicationId: app.applicationId, replied: false });
+            }
           }
         }
 
@@ -176,10 +176,9 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
       userId,
       status: { in: [AutoApplyStatus.SENT, AutoApplyStatus.DELIVERED, AutoApplyStatus.OPENED] },
       sentAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
-      subject: { not: '' },
     },
-    select: { id: true, subject: true },
-    take: 20, // Limit to avoid long IMAP sessions
+    select: { id: true, subject: true, appliedToEmail: true },
+    take: 30,
   });
 
   if (recentApps.length === 0) return 0;
@@ -188,6 +187,7 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
   const subjects = recentApps.map((app) => ({
     applicationId: app.id,
     subject: app.subject || '',
+    email: app.appliedToEmail,
   }));
 
   try {
