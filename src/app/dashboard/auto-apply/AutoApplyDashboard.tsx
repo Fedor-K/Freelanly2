@@ -238,10 +238,12 @@ export function AutoApplyDashboard({
                 <h2 className="text-xl font-bold">Auto-Apply is Running</h2>
               </div>
               <p className="text-green-100 mt-1">
-                Applying to {inferredTitles.join(', ')} • {levelLabel} • {loops[0]?.dailyLimit || 10}/day
+                Applying to {inferredTitles.join(', ')} • {levelLabel} • {userPlan === 'FREE' ? `${freeDailyLimit}/day free` : `${loops[0]?.dailyLimit || 10}/day`}
               </p>
               <p className="text-green-200 text-sm mt-1">
-                Applying to new matching jobs as they appear
+                {userPlan === 'FREE'
+                  ? `${freeAppliesRemaining} free applies remaining today`
+                  : 'Applying to new matching jobs as they appear'}
               </p>
             </div>
             <div className="flex gap-2">
@@ -307,6 +309,28 @@ export function AutoApplyDashboard({
             </button>
           ))}
         </div>
+
+        {/* Upgrade banner for FREE users */}
+        {userPlan === 'FREE' && freeAppliesRemaining === 0 && (
+          <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl p-5 mb-4 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold">Daily free limit reached</p>
+                <p className="text-orange-100 text-sm">Upgrade to PRO for unlimited applies + auto follow-ups + interview prep</p>
+              </div>
+              <a href="/pricing" className="px-5 py-2 bg-white text-orange-600 rounded-lg font-medium text-sm hover:bg-orange-50 transition-colors">
+                Upgrade — $25/mo
+              </a>
+            </div>
+          </div>
+        )}
+
+        {userPlan === 'FREE' && freeAppliesRemaining > 0 && (
+          <div className="flex items-center gap-2 text-sm mb-4 p-3 rounded-lg bg-blue-50 text-blue-700">
+            <span>{freeAppliesRemaining} of {freeDailyLimit} free applies remaining today.</span>
+            <a href="/pricing" className="underline hover:no-underline">Go unlimited →</a>
+          </div>
+        )}
 
         {/* Applications */}
         {applications.length > 0 && (
@@ -388,10 +412,10 @@ export function AutoApplyDashboard({
     <div>
       {/* Hero */}
       <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl p-8 mb-8 text-white">
-        <h2 className="text-2xl font-bold mb-2">🚀 Auto-Apply</h2>
+        <h2 className="text-2xl font-bold mb-2">AI applies to projects for you</h2>
         <p className="text-orange-100">
-          Upload your resume, connect your email, and Freelanly will apply to matching jobs automatically.
-          AI writes a unique cover letter for each application.
+          Upload your resume, connect your email. AI writes a unique cover letter and applies to matching projects.
+          {userPlan === 'FREE' && ` Free: ${freeDailyLimit} applies/day.`}
         </p>
       </div>
 
