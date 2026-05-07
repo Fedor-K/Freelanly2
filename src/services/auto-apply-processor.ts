@@ -205,9 +205,9 @@ export async function processAutoApplyQueue(): Promise<{
 
       const text = `${coverLetter}\n\nBest regards,\n${app.user.name || 'Applicant'}`;
 
-      // Send via SMTP
+      // Send via SMTP (with retry on connection errors)
       const smtpConfig = app.user.userSmtp!;
-      const result = await sendEmailViaSMTP(
+      const smtpArgs = [
         {
           host: smtpConfig.host,
           port: smtpConfig.port,
@@ -224,8 +224,14 @@ export async function processAutoApplyQueue(): Promise<{
           resumeUrl: app.resumeUrl || app.loop.resumeUrl || undefined,
           attachmentBase64: resumeAttachment?.base64,
           attachmentFilename: resumeAttachment?.filename,
-        }
-      );
+        },
+      ] as const;
+
+      let result = await sendEmailViaSMTP(smtpArgs[0], smtpArgs[1]);
+      if (!result.success && result.error?.includes('EBUSY')) {
+        await new Promise((r) => setTimeout(r, 2000));
+        result = await sendEmailViaSMTP(smtpArgs[0], smtpArgs[1]);
+      }
 
       if (result.success) {
         const txOps = [
