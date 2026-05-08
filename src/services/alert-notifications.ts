@@ -664,7 +664,6 @@ export async function processInstantAlertQueue(): Promise<{
     const userPlan = alerts[0].user?.plan || 'FREE';
     // Look up user country from ActivityLog (no Prisma relation on User)
     let userCountry: string | null = null;
-    const userId = alerts[0].user?.id;
     if (userId) {
       const latestLog = await prisma.activityLog.findFirst({
         where: { userId, country: { not: null } },
