@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { AlertFrequency } from '@prisma/client';
 import { rateLimit, getClientIp, sanitizeEmail, sanitizeString } from '@/lib/rate-limit';
+import { validateEmail } from '@/lib/email-validator';
 
 interface RegisterRequest {
   email: string;
@@ -97,6 +98,15 @@ export async function POST(request: NextRequest) {
     const languagePairs = languages ? languagesToPairs(languages) : [];
 
     const normalizedEmail = sanitizeEmail(email);
+
+    // Validate email domain (MX records)
+    const emailCheck = await validateEmail(normalizedEmail);
+    if (!emailCheck.valid) {
+      return NextResponse.json(
+        { error: emailCheck.reason || 'Invalid email address' },
+        { status: 400 }
+      );
+    }
 
     // Sanitize name: strip HTML tags and control characters (XSS prevention)
     const sanitizedName = name ? sanitizeString(name).substring(0, 100) : null;

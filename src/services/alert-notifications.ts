@@ -648,6 +648,18 @@ export async function processInstantAlertQueue(): Promise<{
       continue;
     }
 
+    // Skip users with too many bounces
+    const userId = alerts[0].user?.id;
+    if (userId) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { emailBounceCount: true },
+      });
+      if (user && user.emailBounceCount >= 3) {
+        continue;
+      }
+    }
+
     processed += opportunities.size;
     const userPlan = alerts[0].user?.plan || 'FREE';
     // Look up user country from ActivityLog (no Prisma relation on User)
