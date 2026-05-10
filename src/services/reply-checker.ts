@@ -28,7 +28,7 @@ function sendImapCommand(
     let response = '';
     const timeout = setTimeout(() => {
       reject(new Error(`IMAP timeout for command: ${tag} ${command}`));
-    }, 15000);
+    }, 8000);
 
     const onData = (data: Buffer) => {
       response += data.toString();
@@ -62,7 +62,7 @@ async function searchForReplies(
     const timeout = setTimeout(() => {
       socket.destroy();
       reject(new Error('IMAP connection timeout'));
-    }, 30000);
+    }, 10000);
 
     const socket = tls.connect(993, imapHost, { rejectUnauthorized: false });
 
@@ -229,16 +229,26 @@ export async function checkAllReplies(): Promise<number> {
 
   let totalReplies = 0;
 
-  for (const { userId } of usersWithSentApps) {
+  // Limit to 3 users per run to stay within Vercel function timeout
+  // Rotate by using current minute to offset — different users checked each run
+  const offset = Math.floor(Date.now() / (15 * 60 * 1000)) % Math.max(usersWithSentApps.length, 1);
+  const rotated = [...usersWithSentApps.slice(offset), ...usersWithSentApps.slice(0, offset)];
+  const usersToCheck = rotated.slice(0, 3);
+  console.log(`[ReplyChecker] Checking ${usersToCheck.length} of ${usersWithSentApps.length} users`);
+
+  for (const { userId } of usersToCheck) {
     try {
       const replies = await checkRepliesForUser(userId);
       totalReplies += replies;
+      if (replies > 0) {
+        console.log(`[ReplyChecker] Found ${replies} replies for user ${userId}`);
+      }
     } catch (error) {
-      console.error(`[ReplyChecker] Failed for user ${userId}:`, error);
+      console.error(`[ReplyChecker] Failed for user ${userId}:`, String(error).slice(0, 200));
     }
 
     // Rate limit between users
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
   return totalReplies;
