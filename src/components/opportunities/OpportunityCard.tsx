@@ -154,16 +154,7 @@ export function OpportunityCard({ opportunity, isPro: _isPro = false }: Opportun
 
             {/* LinkedIn link / Upgrade CTA */}
             <div className="mt-3 flex items-center gap-2">
-              {isPro ? (
-                <a
-                  href={opportunity.clientLinkedIn}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:underline"
-                >
-                  View client on LinkedIn →
-                </a>
-              ) : (
+              {isPro ? null : (
                 <>
                   <span className="text-xs text-muted-foreground blur-[3px] select-none">linkedin.com/in/•••</span>
                   <button
