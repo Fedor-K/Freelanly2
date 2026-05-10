@@ -69,22 +69,6 @@ export async function processAutoApplyQueue(): Promise<{
   for (const app of pendingApps) {
     processed++;
 
-    // Validate user eligibility — FREE users get 5/day, PRO unlimited
-    if (app.user.plan === 'FREE') {
-      const FREE_DAILY_LIMIT = 5;
-      const now = new Date();
-      const lastReset = new Date(app.user.lastFreeApplyReset || 0);
-      const isNewDay = now.getUTCDate() !== lastReset.getUTCDate() ||
-        now.getUTCMonth() !== lastReset.getUTCMonth() ||
-        now.getUTCFullYear() !== lastReset.getUTCFullYear();
-
-      const usedToday = isNewDay ? 0 : (app.user.freeAppliesUsedToday || 0);
-      if (usedToday >= FREE_DAILY_LIMIT) {
-        skipped++;
-        continue; // Leave as PENDING for tomorrow
-      }
-    }
-
     if (!app.user.userSmtp?.verified) {
       await markFailed(app.id, 'SMTP not configured or not verified');
       skipped++;
