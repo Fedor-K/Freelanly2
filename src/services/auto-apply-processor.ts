@@ -378,6 +378,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
         select: {
           id: true,
           name: true,
+          parsedProfile: true,
         },
       },
     },
@@ -449,6 +450,25 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
       )
     ) {
       continue;
+    }
+
+    // Skills matching — skip if user profile has skills and overlap is too low
+    const userProfile = loop.user.parsedProfile as Record<string, unknown> | null;
+    const userSkills = (userProfile?.skills as string[]) || [];
+    if (userSkills.length > 0 && listing.skills.length > 0) {
+      const userSkillsLower = userSkills.map(s => s.toLowerCase());
+      const listingSkillsLower = listing.skills.map(s => s.toLowerCase());
+
+      // Check if any user skill appears in listing skills or listing title/description
+      const skillOverlap = userSkillsLower.filter(us =>
+        listingSkillsLower.some(ls => ls.includes(us) || us.includes(ls)) ||
+        titleLower.includes(us) || descLower.includes(us)
+      ).length;
+
+      // Require at least 1 matching skill
+      if (skillOverlap === 0) {
+        continue;
+      }
     }
 
     // Determine status based on loop mode
