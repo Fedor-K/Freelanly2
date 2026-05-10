@@ -130,28 +130,7 @@ export function OpportunityApplyCard({
                     </div>
                   )}
 
-                  <a
-                    href={clientLinkedIn}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block"
-                    onClick={() => trackDb('OPPORTUNITY_APPLY_CLICK', { opportunityId, title, method: 'linkedin' })}
-                  >
-                    <Button variant="outline" className="w-full">
-                      Message on LinkedIn
-                    </Button>
-                  </a>
-
-                  {applyEmail && (
-                    <a
-                      href={`mailto:${applyEmail}?subject=Re: ${encodeURIComponent(title)}`}
-                      className="block"
-                    >
-                      <Button variant="outline" className="w-full text-xs">
-                        Or email manually: {applyEmail}
-                      </Button>
-                    </a>
-                  )}
+                  {/* LinkedIn and manual email buttons removed — AI apply is the primary action */}
 
                   {applyUrl && (
                     <a href={applyUrl} target="_blank" rel="noopener noreferrer" className="block">
