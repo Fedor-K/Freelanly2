@@ -117,18 +117,24 @@ export async function POST(request: NextRequest) {
       userName: user.name || 'Applicant',
     });
 
+    // Build full letter with greeting and signature
+    const greeting = 'Dear Hiring Manager,';
+    const signature = `Best regards,\n${user.name || 'Applicant'}\n${user.email}`;
+    const fullLetter = `${greeting}\n\n${coverLetter}\n\n${signature}`;
+
     // Build HTML
     const html = `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6;">
+  <p style="margin: 0 0 12px;">Dear Hiring Manager,</p>
   ${coverLetter.split('\n').filter(p => p.trim()).map(p => `<p style="margin: 0 0 12px; line-height: 1.6;">${p}</p>`).join('')}
-  <p style="margin: 24px 0 0;">Best regards,<br>${user.name || 'Applicant'}</p>
+  <p style="margin: 24px 0 0;">Best regards,<br>${user.name || 'Applicant'}<br><span style="color: #666; font-size: 14px;">${user.email}</span></p>
 </body>
 </html>`.trim();
 
-    const text = `${coverLetter}\n\nBest regards,\n${user.name || 'Applicant'}`;
+    const text = fullLetter;
 
     // Send via user's SMTP or Postal
     let result: { success: boolean; messageId?: string; error?: string };
@@ -215,7 +221,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      coverLetter,
+      coverLetter: fullLetter,
       subject,
       sentTo: opportunity.applyEmail,
     });
