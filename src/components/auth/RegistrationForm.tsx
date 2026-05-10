@@ -471,7 +471,22 @@ export function RegistrationForm({
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const handleOtpChange = (index: number, value: string) => {
-    const digit = value.replace(/\D/g, '').slice(-1);
+    const digits = value.replace(/\D/g, '');
+
+    // iOS AutoFill pastes full code into one field
+    if (digits.length > 1) {
+      const newCode = digits.slice(0, 6).split('');
+      while (newCode.length < 6) newCode.push('');
+      setOtpCode(newCode);
+      setOtpError('');
+      if (newCode.length === 6 && newCode.every(d => d)) {
+        otpRefs.current[5]?.focus();
+        submitOtp(newCode.join(''));
+      }
+      return;
+    }
+
+    const digit = digits.slice(-1);
     const newCode = [...otpCode];
     newCode[index] = digit;
     setOtpCode(newCode);
@@ -546,7 +561,7 @@ export function RegistrationForm({
               type="text"
               inputMode="numeric"
               autoComplete={index === 0 ? 'one-time-code' : 'off'}
-              maxLength={1}
+              maxLength={index === 0 ? 6 : 1}
               value={digit}
               onChange={(e) => handleOtpChange(index, e.target.value)}
               onKeyDown={(e) => handleOtpKeyDown(index, e)}
