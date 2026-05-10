@@ -86,6 +86,7 @@ export function RegistrationForm({
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [agreedToTerms, setAgreedToTerms] = useState(true);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [linkedinUrl, setLinkedinUrl] = useState('');
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -271,13 +272,21 @@ export function RegistrationForm({
           throw new Error(data.error || 'Registration failed');
         }
 
-        // Upload resume if provided (non-blocking, pre-auth)
+        // Upload resume or LinkedIn profile (non-blocking, pre-auth)
         if (resumeFile) {
           try {
             const formData = new FormData();
             formData.append('file', resumeFile);
             formData.append('email', email);
+            if (linkedinUrl) formData.append('linkedinUrl', linkedinUrl);
             await fetch('/api/user/resume-preauth', { method: 'POST', body: formData }).catch(() => {});
+          } catch {}
+        } else if (linkedinUrl) {
+          try {
+            await fetch('/api/user/resume-preauth', {
+              method: 'POST',
+              body: (() => { const fd = new FormData(); fd.append('email', email); fd.append('linkedinUrl', linkedinUrl); return fd; })(),
+            }).catch(() => {});
           } catch {}
         }
       }
@@ -454,13 +463,14 @@ export function RegistrationForm({
         throw new Error(data.error || 'Registration failed');
       }
 
-      // Upload resume if provided (non-blocking, pre-auth)
-      if (resumeFile) {
+      // Upload resume/LinkedIn if provided (non-blocking, pre-auth)
+      if (resumeFile || linkedinUrl) {
         try {
-          const formData = new FormData();
-          formData.append('file', resumeFile);
-          formData.append('email', email);
-          await fetch('/api/user/resume-preauth', { method: 'POST', body: formData }).catch(() => {});
+          const fd = new FormData();
+          if (resumeFile) fd.append('file', resumeFile);
+          fd.append('email', email);
+          if (linkedinUrl) fd.append('linkedinUrl', linkedinUrl);
+          await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }).catch(() => {});
         } catch {}
       }
 
@@ -852,6 +862,14 @@ export function RegistrationForm({
               {resumeFile && (
                 <p className="text-xs text-green-600 mt-1">{resumeFile.name} ready</p>
               )}
+              <p className="text-xs text-muted-foreground mt-1">or paste your LinkedIn profile URL:</p>
+              <input
+                type="url"
+                placeholder="https://linkedin.com/in/your-profile"
+                value={linkedinUrl}
+                onChange={(e) => setLinkedinUrl(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg text-sm"
+              />
             </div>
 
             {/* Terms of Service Agreement */}
