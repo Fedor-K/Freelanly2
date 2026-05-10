@@ -85,6 +85,7 @@ export function RegistrationForm({
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -441,6 +442,16 @@ export function RegistrationForm({
       if (!regResponse.ok) {
         const data = await regResponse.json();
         throw new Error(data.error || 'Registration failed');
+      }
+
+      // Upload resume if provided (non-blocking, pre-auth)
+      if (resumeFile) {
+        try {
+          const formData = new FormData();
+          formData.append('file', resumeFile);
+          formData.append('email', email);
+          await fetch('/api/user/resume-preauth', { method: 'POST', body: formData }).catch(() => {});
+        } catch {}
       }
 
       // Send magic link
@@ -1186,6 +1197,22 @@ export function RegistrationForm({
           <span>You&apos;ll get instant alerts for matching jobs</span>
         </div>
 
+        {/* Resume Upload (optional) */}
+        <div>
+          <label className="block text-sm font-medium mb-1.5">
+            Resume (PDF) — <span className="text-muted-foreground font-normal">optional, enables auto-apply</span>
+          </label>
+          <input
+            type="file"
+            accept=".pdf"
+            onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+            className="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-primary/10 file:text-primary file:font-medium file:cursor-pointer hover:file:bg-primary/20"
+          />
+          {resumeFile && (
+            <p className="text-xs text-green-600 mt-1">{resumeFile.name} ready</p>
+          )}
+        </div>
+
         {/* Terms of Service Agreement */}
         <div className="flex items-start gap-3">
           <input
@@ -1204,7 +1231,7 @@ export function RegistrationForm({
             <a href="/privacy" target="_blank" className="text-primary underline hover:no-underline">
               Privacy Policy
             </a>
-            , including the subscription and refund policies.
+            . {resumeFile && 'Freelanly will apply to matching projects on my behalf.'}
           </label>
         </div>
 

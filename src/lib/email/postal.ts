@@ -90,6 +90,58 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
 }
 
 /**
+ * Send auto-apply email via Postal on behalf of a user.
+ * From: "UserName via Freelanly" <apply@freelanly.com>
+ * Reply-To: user's personal email
+ */
+export async function sendAutoApplyViaPostal(params: {
+  userName: string;
+  userEmail: string;
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  if (!config.apiKey) {
+    return { success: false, error: 'Postal not configured' };
+  }
+
+  const fromEmail = 'apply@freelanly.com';
+  const fromName = `${params.userName} via Freelanly`;
+
+  try {
+    const body = {
+      to: [params.to.toLowerCase().trim()],
+      from: `${fromName} <${fromEmail}>`,
+      reply_to: params.userEmail,
+      subject: params.subject,
+      html_body: params.html,
+      plain_body: params.text,
+    };
+
+    const response = await fetch(`${config.apiUrl}/api/v1/send/message`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Server-API-Key': config.apiKey,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+
+    if (data.status === 'success') {
+      const msgData = data.data?.messages?.[params.to.toLowerCase().trim()];
+      return { success: true, messageId: data.data?.message_id || msgData?.token };
+    } else {
+      return { success: false, error: data.data?.message || data.status };
+    }
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+}
+
+/**
  * Check if Postal is configured
  */
 export function isConfigured(): boolean {

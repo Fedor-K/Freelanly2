@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
+import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { generateCoverLetter, generateSubjectLine, generateFollowUp } from '@/services/cover-letter-generator';
 import { generateTailoredResume } from '@/services/resume-pdf-generator';
 import { AutoApplyStatus } from '@prisma/client';
@@ -69,11 +70,7 @@ export async function processAutoApplyQueue(): Promise<{
   for (const app of pendingApps) {
     processed++;
 
-    if (!app.user.userSmtp?.verified) {
-      await markFailed(app.id, 'SMTP not configured or not verified');
-      skipped++;
-      continue;
-    }
+    const hasSmtp = !!app.user.userSmtp?.verified;
 
     if (!app.loop.isActive) {
       await markFailed(app.id, 'Auto-apply loop is paused');
@@ -189,32 +186,47 @@ export async function processAutoApplyQueue(): Promise<{
 
       const text = `${coverLetter}\n\nBest regards,\n${app.user.name || 'Applicant'}`;
 
-      // Send via SMTP (with retry on connection errors)
-      const smtpConfig = app.user.userSmtp!;
-      const smtpArgs = [
-        {
-          host: smtpConfig.host,
-          port: smtpConfig.port,
-          email: smtpConfig.email,
-          password: smtpConfig.password,
-        },
-        {
-          from: `${app.user.name || 'Applicant'} <${smtpConfig.email}>`,
+      // Send via user's SMTP or Postal (Freelanly domain)
+      let result: { success: boolean; messageId?: string; error?: string };
+
+      if (hasSmtp) {
+        // User has SMTP configured — send from their Gmail
+        const smtpConfig = app.user.userSmtp!;
+        const smtpArgs = [
+          {
+            host: smtpConfig.host,
+            port: smtpConfig.port,
+            email: smtpConfig.email,
+            password: smtpConfig.password,
+          },
+          {
+            from: `${app.user.name || 'Applicant'} <${smtpConfig.email}>`,
+            to: app.appliedToEmail,
+            replyTo: smtpConfig.email,
+            subject,
+            html,
+            text,
+            resumeUrl: app.resumeUrl || app.loop.resumeUrl || undefined,
+            attachmentBase64: resumeAttachment?.base64,
+            attachmentFilename: resumeAttachment?.filename,
+          },
+        ] as const;
+
+        result = await sendEmailViaSMTP(smtpArgs[0], smtpArgs[1]);
+        if (!result.success && result.error?.includes('EBUSY')) {
+          await new Promise((r) => setTimeout(r, 2000));
+          result = await sendEmailViaSMTP(smtpArgs[0], smtpArgs[1]);
+        }
+      } else {
+        // No SMTP — send via Postal (Freelanly domain)
+        result = await sendAutoApplyViaPostal({
+          userName: app.user.name || 'Applicant',
+          userEmail: app.user.email,
           to: app.appliedToEmail,
-          replyTo: smtpConfig.email,
           subject,
           html,
           text,
-          resumeUrl: app.resumeUrl || app.loop.resumeUrl || undefined,
-          attachmentBase64: resumeAttachment?.base64,
-          attachmentFilename: resumeAttachment?.filename,
-        },
-      ] as const;
-
-      let result = await sendEmailViaSMTP(smtpArgs[0], smtpArgs[1]);
-      if (!result.success && result.error?.includes('EBUSY')) {
-        await new Promise((r) => setTimeout(r, 2000));
-        result = await sendEmailViaSMTP(smtpArgs[0], smtpArgs[1]);
+        });
       }
 
       if (result.success) {
@@ -223,7 +235,7 @@ export async function processAutoApplyQueue(): Promise<{
             where: { id: app.id },
             data: {
               status: AutoApplyStatus.SENT,
-              sentVia: 'smtp',
+              sentVia: hasSmtp ? 'smtp' : 'postal',
               coverLetter,
               subject,
               sentAt: now,
@@ -351,17 +363,13 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
   const activeLoops = await prisma.autoApplyLoop.findMany({
     where: {
       isActive: true,
-      user: {
-        userSmtp: {
-          verified: true,
-        },
-      },
     },
     include: {
       user: {
         select: {
           id: true,
           name: true,
+          email: true,
           parsedProfile: true,
         },
       },
