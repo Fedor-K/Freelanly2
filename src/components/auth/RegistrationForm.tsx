@@ -896,7 +896,7 @@ export function RegistrationForm({
             {/* Resume Upload */}
             <div>
               <label className="block text-sm font-medium mb-1.5">
-                Resume (PDF) — <span className="text-muted-foreground font-normal">optional, enables auto-apply</span>
+                Resume (PDF) — <span className="text-muted-foreground font-normal">we&apos;ll auto-apply to matching projects for you</span>
               </label>
               <input
                 type="file"
