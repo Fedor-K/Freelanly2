@@ -552,26 +552,41 @@ export function RegistrationForm({
           <span className="font-medium text-foreground">{email}</span>
         </p>
 
-        {/* Code input */}
-        <div className="flex justify-center gap-2 mb-4" onPaste={handleOtpPaste}>
-          {otpCode.map((digit, index) => (
-            <input
-              key={index}
-              ref={(el) => { otpRefs.current[index] = el; }}
-              type="text"
-              inputMode="numeric"
-              autoComplete={index === 0 ? 'one-time-code' : 'off'}
-              maxLength={index === 0 ? 6 : 1}
-              value={digit}
-              onChange={(e) => handleOtpChange(index, e.target.value)}
-              onKeyDown={(e) => handleOtpKeyDown(index, e)}
-              disabled={otpLoading}
-              autoFocus={index === 0}
-              className={`w-11 h-13 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:border-primary transition-colors ${
-                otpError ? 'border-destructive' : 'border-input'
-              } ${otpLoading ? 'opacity-50' : ''}`}
-            />
-          ))}
+        {/* Code input — single input styled as 6 boxes for iOS AutoFill */}
+        <div className="relative flex justify-center mb-4">
+          <input
+            ref={(el) => { otpRefs.current[0] = el; }}
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            value={otpCode.join('')}
+            onChange={(e) => {
+              const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+              const newCode = digits.split('');
+              while (newCode.length < 6) newCode.push('');
+              setOtpCode(newCode);
+              setOtpError('');
+              if (digits.length === 6) submitOtp(digits);
+            }}
+            onPaste={handleOtpPaste}
+            disabled={otpLoading}
+            autoFocus
+            className="absolute inset-0 w-full opacity-0 z-10 cursor-pointer"
+            style={{ caretColor: 'transparent' }}
+          />
+          <div className="flex gap-2 pointer-events-none">
+            {otpCode.map((digit, index) => (
+              <div
+                key={index}
+                className={`w-11 h-13 flex items-center justify-center text-2xl font-bold border-2 rounded-lg transition-colors ${
+                  otpError ? 'border-destructive' : digit ? 'border-primary' : 'border-input'
+                } ${otpLoading ? 'opacity-50' : ''}`}
+              >
+                {digit}
+              </div>
+            ))}
+          </div>
         </div>
         {otpError && <p className="text-sm text-destructive mb-3">{otpError}</p>}
         {otpLoading && <p className="text-sm text-muted-foreground mb-3">Verifying...</p>}
