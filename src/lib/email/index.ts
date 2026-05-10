@@ -19,7 +19,26 @@ function getProvider() {
   return resend;
 }
 
+// IP warming: route a percentage of emails through Postal
+// Increase POSTAL_WARMING_PERCENT in Vercel env to ramp up (0-100)
+const postalWarmingPercent = parseInt(process.env.POSTAL_WARMING_PERCENT || '5', 10);
+
 export async function sendEmail(params: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  // IP warming split: route some emails through Postal
+  const usePostal = postalWarmingPercent > 0
+    && postal.isConfigured()
+    && provider !== 'postal' // don't double-send if already Postal
+    && Math.random() * 100 < postalWarmingPercent;
+
+  if (usePostal) {
+    const result = await postal.sendEmail(params);
+    if (result.success) {
+      return result;
+    }
+    // Postal failed — fall through to main provider
+    console.warn(`[Email] Postal warming failed, falling back: ${result.error}`);
+  }
+
   const result = await getProvider().sendEmail(params);
 
   if (!result.success) {
