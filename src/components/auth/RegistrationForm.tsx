@@ -545,6 +545,7 @@ export function RegistrationForm({
               ref={(el) => { otpRefs.current[index] = el; }}
               type="text"
               inputMode="numeric"
+              autoComplete={index === 0 ? 'one-time-code' : 'off'}
               maxLength={1}
               value={digit}
               onChange={(e) => handleOtpChange(index, e.target.value)}
