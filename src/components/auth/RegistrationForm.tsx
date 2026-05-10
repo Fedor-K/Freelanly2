@@ -769,62 +769,7 @@ export function RegistrationForm({
               </div>
             )}
 
-            {/* Country Preferences */}
-            <div>
-              <Label>Where do you want to work?</Label>
-              <div className="relative mt-1" ref={countryDropdownRef}>
-                <div
-                  onClick={() => setShowCountryDropdown(!showCountryDropdown)}
-                  className="min-h-[42px] px-3 py-2 border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center"
-                >
-                  {selectedCountries.length === 0 ? (
-                    <span className="text-muted-foreground">Worldwide (all countries)</span>
-                  ) : (
-                    selectedCountries.map((code) => {
-                      const c = countries.find((ct) => ct.code === code || ct.slug === code);
-                      return (
-                        <span
-                          key={code}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-sm"
-                        >
-                          {c?.name || code}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeCountry(code);
-                            }}
-                            className="hover:text-primary/70"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </span>
-                      );
-                    })
-                  )}
-                  <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
-                </div>
-
-                {showCountryDropdown && (
-                  <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-52 overflow-y-auto">
-                    {countries.filter(c => c.code).map((c) => (
-                      <button
-                        key={c.slug}
-                        type="button"
-                        onClick={() => toggleCountry(c.code || c.slug)}
-                        className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between text-sm"
-                      >
-                        <span>{c.name}</span>
-                        {selectedCountries.includes(c.code || c.slug) && (
-                          <Check className="h-4 w-4 text-primary" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Leave empty for worldwide/remote jobs</p>
-            </div>
+            {/* Country removed — worldwide by default for remote/freelance */}
 
             {/* Translation Languages */}
             {showTranslationFields && (
