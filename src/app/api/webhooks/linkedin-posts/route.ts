@@ -410,8 +410,13 @@ export async function POST(request: NextRequest) {
     console.log(`[LinkedInPosts] Content quality: ${qualityResult.quality} (score: ${qualityResult.score})`);
 
     // =========================================================================
-    // CREATE OPPORTUNITY
+    // CREATE OPPORTUNITY — only if applyEmail exists
     // =========================================================================
+
+    if (!validatedEmail) {
+      console.log(`[LinkedInPosts] Skipping — no applyEmail found in post`);
+      return NextResponse.json({ status: 'skipped', reason: 'no_email' });
+    }
 
     let opportunity;
     try {
