@@ -680,6 +680,20 @@ export function RegistrationForm({
         {/* Registration fields — only for NEW users */}
         {isExistingUser === false && (
           <>
+            {/* Name */}
+            <div>
+              <Label htmlFor="name-modal">Your name *</Label>
+              <Input
+                id="name-modal"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Full name"
+                className="mt-1"
+                required
+              />
+            </div>
+
             {/* Categories Multi-select */}
             <div>
               <Label>What roles interest you? *</Label>
@@ -900,7 +914,7 @@ export function RegistrationForm({
 
         <Button
           onClick={handleSendMagicLink}
-          disabled={isLoading || isExistingUser === null || (isExistingUser === false && (selectedCategories.length === 0 || !agreedToTerms))}
+          disabled={isLoading || isExistingUser === null || (isExistingUser === false && (selectedCategories.length === 0 || !agreedToTerms || !name.trim()))}
           className="w-full"
           size="lg"
         >
