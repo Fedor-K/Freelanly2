@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { generateCoverLetter, generateSubjectLine } from '@/services/cover-letter-generator';
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
+import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 
 const FREE_DAILY_LIMIT = 5;
 
@@ -44,10 +45,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Check SMTP
-    if (!user.userSmtp?.verified) {
-      return NextResponse.json({ error: 'smtp_required', message: 'Connect your email first to send applications.' }, { status: 400 });
-    }
+    const hasSmtp = !!user.userSmtp?.verified;
 
     // Check resume
     if (!user.resumeText && !user.parsedProfile) {
@@ -132,19 +130,32 @@ export async function POST(request: NextRequest) {
 
     const text = `${coverLetter}\n\nBest regards,\n${user.name || 'Applicant'}`;
 
-    // Send via SMTP
-    const smtp = user.userSmtp!;
-    const result = await sendEmailViaSMTP(
-      { host: smtp.host, port: smtp.port, email: smtp.email, password: smtp.password },
-      {
-        from: `${user.name || 'Applicant'} <${smtp.email}>`,
+    // Send via user's SMTP or Postal
+    let result: { success: boolean; messageId?: string; error?: string };
+
+    if (hasSmtp) {
+      const smtp = user.userSmtp!;
+      result = await sendEmailViaSMTP(
+        { host: smtp.host, port: smtp.port, email: smtp.email, password: smtp.password },
+        {
+          from: `${user.name || 'Applicant'} <${smtp.email}>`,
+          to: opportunity.applyEmail,
+          replyTo: smtp.email,
+          subject,
+          html,
+          text,
+        }
+      );
+    } else {
+      result = await sendAutoApplyViaPostal({
+        userName: user.name || 'Applicant',
+        userEmail: user.email,
         to: opportunity.applyEmail,
-        replyTo: smtp.email,
         subject,
         html,
         text,
-      }
-    );
+      });
+    }
 
     if (!result.success) {
       return NextResponse.json({ error: 'send_failed', message: result.error }, { status: 500 });
