@@ -118,8 +118,10 @@ export async function POST(request: NextRequest) {
     });
 
     // Build full letter with greeting and signature
-    const greeting = 'Dear Hiring Manager,';
-    const signature = `Best regards,\n${user.name || 'Applicant'}\n${user.email}`;
+    const recruiterFirstName = opportunity.clientName.split(' ')[0];
+    const greeting = `Dear ${recruiterFirstName},`;
+    const replyEmail = user.userSmtp?.email || user.email;
+    const signature = `Best regards,\n${user.name || 'Applicant'}\n${replyEmail}`;
     const fullLetter = `${greeting}\n\n${coverLetter}\n\n${signature}`;
 
     // Build HTML
@@ -128,9 +130,9 @@ export async function POST(request: NextRequest) {
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6;">
-  <p style="margin: 0 0 12px;">Dear Hiring Manager,</p>
+  <p style="margin: 0 0 12px;">${greeting}</p>
   ${coverLetter.split('\n').filter(p => p.trim()).map(p => `<p style="margin: 0 0 12px; line-height: 1.6;">${p}</p>`).join('')}
-  <p style="margin: 24px 0 0;">Best regards,<br>${user.name || 'Applicant'}<br><span style="color: #666; font-size: 14px;">${user.email}</span></p>
+  <p style="margin: 24px 0 0;">Best regards,<br>${user.name || 'Applicant'}<br><span style="color: #666; font-size: 14px;">${replyEmail}</span></p>
 </body>
 </html>`.trim();
 

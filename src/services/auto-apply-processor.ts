@@ -530,7 +530,8 @@ function buildApplicationEmailHtml(params: {
   companyName: string;
   applicationId?: string;
 }): string {
-  const { coverLetter, userName, applicationId } = params;
+  const { coverLetter, userName, companyName, applicationId } = params;
+  const recruiterFirstName = companyName.split(' ')[0];
 
   // Convert newlines to paragraphs
   const paragraphs = coverLetter
@@ -548,7 +549,7 @@ function buildApplicationEmailHtml(params: {
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6;">
-  <p style="margin: 0 0 12px;">Dear Hiring Manager,</p>
+  <p style="margin: 0 0 12px;">Dear ${recruiterFirstName},</p>
   ${paragraphs}
   <p style="margin: 24px 0 0;">Best regards,<br>${userName}</p>
   ${trackingPixel}
