@@ -15,7 +15,7 @@ async function categorizeReply(text: string): Promise<string> {
     const r = await client.chat.completions.create({
       model, temperature: 0.1, max_tokens: 50,
       messages: [
-        { role: 'system', content: 'Categorize this recruiter reply. Return ONE word: INTERESTED, INTERVIEW, REJECTION, INFO_REQUEST, or OTHER.' },
+        { role: 'system', content: 'Categorize this recruiter reply. Return ONE word:\n- INTERESTED = recruiter asks for resume, CV, portfolio, details, or shows any positive interest\n- INTERVIEW = recruiter wants to schedule a call, meeting, or interview\n- REJECTION = explicit rejection ("unfortunately", "not a fit", "position filled")\n- OTHER = automated reply, out of office, or unrelated' },
         { role: 'user', content: text.slice(0, 500) },
       ],
     });

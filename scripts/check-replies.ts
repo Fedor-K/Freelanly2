@@ -29,15 +29,14 @@ async function categorizeReply(replyText: string): Promise<{ category: string; s
       temperature: 0.1,
       max_tokens: 50,
       messages: [
-        { role: 'system', content: 'Categorize this recruiter reply to a job application. Return ONLY one word: INTERESTED, INTERVIEW, REJECTION, INFO_REQUEST, or OTHER.' },
+        { role: 'system', content: 'Categorize this recruiter reply to a job application. Return ONLY one word:\n- INTERESTED = recruiter asks for resume, CV, portfolio, details, or shows any positive interest\n- INTERVIEW = recruiter wants to schedule a call, meeting, or interview\n- REJECTION = explicit rejection ("unfortunately", "not a fit", "position filled")\n- OTHER = automated reply, out of office, or unrelated' },
         { role: 'user', content: replyText.slice(0, 500) },
       ],
     });
     const cat = response.choices[0]?.message?.content?.trim().toUpperCase() || 'OTHER';
     if (cat.includes('INTERVIEW')) return { category: 'interview', status: 'INTERVIEW' };
-    if (cat.includes('INTERESTED')) return { category: 'interested', status: 'REPLIED' };
+    if (cat.includes('INTERESTED') || cat.includes('INFO')) return { category: 'interested', status: 'REPLIED' };
     if (cat.includes('REJECTION') || cat.includes('REJECT')) return { category: 'rejected', status: 'REJECTED' };
-    if (cat.includes('INFO')) return { category: 'info_request', status: 'REPLIED' };
     return { category: 'other', status: 'REPLIED' };
   } catch {
     return { category: 'unknown', status: 'REPLIED' };
