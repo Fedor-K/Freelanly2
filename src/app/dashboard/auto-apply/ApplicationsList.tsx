@@ -35,6 +35,7 @@ const STATUS_STYLES: Record<string, string> = {
   SENDING: 'bg-blue-50 text-blue-600',
   DELIVERED: 'bg-blue-100 text-blue-700',
   OPENED: 'bg-teal-100 text-teal-700',
+  OFFER: 'bg-emerald-100 text-emerald-700',
   REJECTED: 'bg-red-100 text-red-700',
 };
 
@@ -46,6 +47,7 @@ const STATUS_LABELS: Record<string, string> = {
   OPENED: 'Opened',
   REPLIED: 'Replied! 🎉',
   INTERVIEW: 'Interview! 🎉',
+  OFFER: 'Offer! 🎉',
   FAILED: 'Failed',
   REJECTED: 'Rejected',
   REVIEW: 'In Review',

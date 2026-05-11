@@ -1996,6 +1996,7 @@ enum AutoApplyStatus {
   OPENED      // Recruiter opened email
   REPLIED     // Recruiter replied
   INTERVIEW   // Got interview
+  OFFER       // Received offer
   REJECTED    // Rejected
   FAILED      // Send failed (SMTP error)
 }
