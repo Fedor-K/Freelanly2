@@ -1997,6 +1997,7 @@ enum AutoApplyStatus {
   REPLIED     // Recruiter replied
   INTERVIEW   // Got interview
   OFFER       // Received offer
+  SKIPPED     // User manually skipped this project
   REJECTED    // Rejected
   FAILED      // Send failed (SMTP error)
 }
