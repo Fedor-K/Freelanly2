@@ -153,11 +153,18 @@ async function checkRepliesForUser(userId: string, email: string, password: stri
               if (lastMsgId) {
                 try {
                   const fetchTag = nextTag();
-                  const fetchResp = await sendImapCommand(socket, fetchTag, `FETCH ${lastMsgId} (BODY[TEXT])`);
-                  // Extract text between BODY[TEXT] markers
+                  const fetchResp = await sendImapCommand(socket, fetchTag, `FETCH ${lastMsgId} (BODY.PEEK[1.1])`);
+                  // Extract plain text body
                   const bodyMatch = fetchResp.match(/\{(\d+)\}\r\n([\s\S]*?)(?:\r\n\)|\r\nA\d{3})/);
-                  if (bodyMatch) replyText = bodyMatch[2].slice(0, 1000);
-                  else replyText = fetchResp.slice(0, 500);
+                  let rawBody = bodyMatch ? bodyMatch[2] : fetchResp;
+                  // Try base64 decode
+                  const cleaned = rawBody.replace(/\s/g, '');
+                  if (/^[A-Za-z0-9+/=]+$/.test(cleaned) && cleaned.length > 20) {
+                    try { rawBody = Buffer.from(cleaned, 'base64').toString('utf-8'); } catch {}
+                  }
+                  // Strip HTML tags if present
+                  rawBody = rawBody.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+                  replyText = rawBody.slice(0, 1000);
                 } catch {}
               }
 
