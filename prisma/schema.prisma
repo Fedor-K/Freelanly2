@@ -52,6 +52,7 @@ model User {
   // Notification preferences
   notifyOnReply  Boolean   @default(true)
   notifySlackUrl String?   // Slack webhook URL
+  bookingUrl     String?   // Calendly/Cal.com link
 
   // Activity tracking
   lastActiveAt  DateTime?  // For re-engagement emails
