@@ -343,6 +343,53 @@ export async function queueAutoApplyForJob(jobId: string): Promise<number> {
   });
 }
 
+/**
+ * Calculate match score (0-100) between user skills and listing.
+ */
+function calculateMatchScore(
+  userSkills: string[],
+  listing: ListingData,
+  loopTitles: string[],
+  titleLower: string,
+): number {
+  let score = 0;
+
+  // Skill overlap (0-60 points)
+  if (userSkills.length > 0 && listing.skills.length > 0) {
+    const userLower = userSkills.map(s => s.toLowerCase());
+    const listLower = listing.skills.map(s => s.toLowerCase());
+    const overlap = userLower.filter(us =>
+      listLower.some(ls => ls.includes(us) || us.includes(ls))
+    ).length;
+    const skillRatio = overlap / Math.min(userSkills.length, listing.skills.length);
+    score += Math.round(skillRatio * 60);
+  } else {
+    score += 30; // No skills to compare — neutral
+  }
+
+  // Title match (0-25 points)
+  if (loopTitles.length > 0) {
+    const titleMatch = loopTitles.some(t => titleLower.includes(t.toLowerCase()));
+    if (titleMatch) score += 25;
+    else {
+      const partialMatch = loopTitles.some(t => {
+        const words = t.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+        const matched = words.filter(w => titleLower.includes(w)).length;
+        return words.length > 0 && matched >= Math.ceil(words.length * 0.5);
+      });
+      if (partialMatch) score += 15;
+    }
+  } else {
+    score += 15;
+  }
+
+  // Level/country match bonus (0-15 points)
+  score += 10; // Base for getting through all filters
+  if (listing.skills.length >= 3) score += 5; // Rich listing
+
+  return Math.min(100, score);
+}
+
 interface ListingData {
   type: 'job' | 'opportunity';
   id: string;
@@ -476,6 +523,10 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
       if (hasExcluded) continue;
     }
 
+    // Calculate match score
+    const matchScore = calculateMatchScore(userSkills, listing, loop.jobTitles, titleLower);
+    const matchLabel = matchScore >= 80 ? 'Strong' : matchScore >= 50 ? 'Good' : 'Weak';
+
     // Determine status based on loop mode
     const status =
       loop.mode === 'SEMI'
@@ -495,6 +546,8 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           companyName: listing.companyName,
           jobTitle: listing.title,
           appliedToEmail: listing.applyEmail,
+          matchScore,
+          matchLabel,
           coverLetter: '', // Will be generated during processing
           subject: '', // Will be generated during processing
           resumeUrl: loop.resumeUrl,

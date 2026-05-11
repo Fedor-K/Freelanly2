@@ -1961,6 +1961,10 @@ model AutoApplication {
   subject         String   // email subject line
   resumeUrl       String?  // resume that was attached
 
+  // Match quality
+  matchScore      Int?     // 0-100 match score
+  matchLabel      String?  // "Strong", "Good", "Weak"
+
   // Status tracking
   status          AutoApplyStatus @default(PENDING)
   sentVia         String?  // "smtp" or "platform"
