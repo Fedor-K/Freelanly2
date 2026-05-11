@@ -464,6 +464,18 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
       }
     }
 
+    // Exclude keywords — skip if any excluded keyword found in title or description
+    if (loop.excludeKeywords) {
+      const excludes = loop.excludeKeywords
+        .toLowerCase()
+        .split(',')
+        .map((k) => k.trim())
+        .filter((k) => k);
+      const searchText = `${titleLower} ${descLower}`;
+      const hasExcluded = excludes.some((ex) => searchText.includes(ex));
+      if (hasExcluded) continue;
+    }
+
     // Determine status based on loop mode
     const status =
       loop.mode === 'SEMI'

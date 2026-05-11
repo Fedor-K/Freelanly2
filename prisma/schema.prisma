@@ -1886,6 +1886,7 @@ model AutoApplyLoop {
   salaryMin       Int?
   salaryMax       Int?
   blacklistCompanies String[] // companies to skip
+  excludeKeywords    String?  // comma-separated keywords to exclude ("Web3,rockstar,unpaid")
 
   // Which resume and template to use
   resumeUrl       String?  // URL to PDF resume
