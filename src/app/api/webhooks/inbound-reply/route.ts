@@ -1,6 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { sendEmail } from '@/lib/email/postal';
+import OpenAI from 'openai';
+
+function getAIClient() {
+  const p = process.env.AI_PROVIDER?.toLowerCase();
+  if (p === 'zai') return { client: new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' }), model: 'glm-4-32b-0414-128k' };
+  return { client: new OpenAI({ baseURL: 'https://api.deepseek.com/v1', apiKey: process.env.DEEPSEEK_API_KEY || '' }), model: 'deepseek-chat' };
+}
+
+async function categorizeReply(text: string): Promise<string> {
+  try {
+    const { client, model } = getAIClient();
+    const r = await client.chat.completions.create({
+      model, temperature: 0.1, max_tokens: 50,
+      messages: [
+        { role: 'system', content: 'Categorize this recruiter reply. Return ONE word: INTERESTED, INTERVIEW, REJECTION, INFO_REQUEST, or OTHER.' },
+        { role: 'user', content: text.slice(0, 500) },
+      ],
+    });
+    const cat = r.choices[0]?.message?.content?.trim().toUpperCase() || 'OTHER';
+    if (cat.includes('INTERVIEW')) return 'INTERVIEW';
+    if (cat.includes('REJECT')) return 'REJECTED';
+    return 'REPLIED';
+  } catch { return 'REPLIED'; }
+}
 
 /**
  * POST /api/webhooks/inbound-reply
@@ -45,13 +69,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Mark as REPLIED
-    if (app.status !== 'REPLIED') {
+    // Categorize reply with AI and update status
+    const replyText = plainBody || htmlBody?.replace(/<[^>]*>/g, '') || '';
+    const newStatus = replyText.length > 10 ? await categorizeReply(replyText) : 'REPLIED';
+
+    if (app.status !== 'INTERVIEW' && app.status !== 'OFFER') {
       await prisma.autoApplication.update({
         where: { id: appId },
-        data: { status: 'REPLIED' },
+        data: {
+          status: newStatus as any,
+          errorMessage: replyText ? `[reply] ${replyText.slice(0, 300)}` : null,
+        },
       });
-      console.log(`[InboundReply] Marked ${appId} as REPLIED from ${from}`);
+      console.log(`[InboundReply] ${appId} → ${newStatus} from ${from}: ${replyText.slice(0, 80)}`);
     }
 
     // Forward to user's email
