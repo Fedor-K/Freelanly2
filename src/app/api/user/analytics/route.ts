@@ -1,21 +1,29 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 /**
- * GET /api/user/analytics
+ * GET /api/user/analytics?period=30d
  * Returns reply rate by source, by hour, daily breakdown.
+ * period: 7d, 30d, 90d, ytd, all
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const userId = session.user.id;
+    const period = request.nextUrl.searchParams.get('period') || '30d';
 
-    // All sent applications
+    let since: Date | null = null;
+    if (period === '7d') since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    else if (period === '30d') since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    else if (period === '90d') since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    else if (period === 'ytd') { since = new Date(new Date().getFullYear(), 0, 1); }
+
+    // All sent applications (filtered by period)
     const apps = await prisma.autoApplication.findMany({
-      where: { userId, sentAt: { not: null } },
+      where: { userId, sentAt: since ? { gte: since } : { not: null } },
       select: { status: true, sentAt: true, sentVia: true, matchScore: true },
     });
 
