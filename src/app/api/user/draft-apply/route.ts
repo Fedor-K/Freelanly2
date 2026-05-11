@@ -16,7 +16,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { opportunityId } = await request.json();
+    const { opportunityId, style } = await request.json();
+    // style: "professional" (default), "casual", "short"
     if (!opportunityId) {
       return NextResponse.json({ error: 'opportunityId required' }, { status: 400 });
     }
@@ -54,6 +55,13 @@ export async function POST(request: NextRequest) {
     const profile = user.parsedProfile as Record<string, unknown> | null;
     const recruiterFirstName = opportunity.clientName.split(' ')[0];
 
+    // Style-specific prompt override
+    const stylePrompts: Record<string, string> = {
+      professional: 'Write a 3-5 sentence professional cover letter body. Mention relevant skills and experience. No greeting or signature.',
+      casual: 'Write a 2-3 sentence casual, friendly cover letter. Sound like a real person, not a template. Reference the job specifics. No greeting or signature.',
+      short: 'Write a 1-2 sentence ultra-short pitch. Get straight to the point — why you\'re a fit. No greeting or signature. Under 50 words.',
+    };
+
     const coverLetter = await generateCoverLetter({
       jobTitle: opportunity.title,
       jobDescription: opportunity.description.slice(0, 800),
@@ -64,6 +72,7 @@ export async function POST(request: NextRequest) {
         experience: (user.resumeText || '').slice(0, 300),
         resumeText: user.resumeText || undefined,
       },
+      styleOverride: stylePrompts[style || 'professional'],
     });
 
     const subject = await generateSubjectLine({

@@ -64,6 +64,7 @@ interface CoverLetterInput {
   jobDescription: string;
   companyName: string;
   userProfile: UserProfile;
+  styleOverride?: string;
 }
 
 /**
@@ -71,7 +72,7 @@ interface CoverLetterInput {
  * Returns a concise 3-5 sentence cover letter body (no greeting/signature).
  */
 export async function generateCoverLetter(input: CoverLetterInput): Promise<string> {
-  const { jobTitle, jobDescription, companyName, userProfile } = input;
+  const { jobTitle, jobDescription, companyName, userProfile, styleOverride } = input;
   const { client, model } = getAIClient();
 
   // Truncate job description to save tokens
@@ -87,7 +88,7 @@ export async function generateCoverLetter(input: CoverLetterInput): Promise<stri
       messages: [
         {
           role: 'system',
-          content:
+          content: styleOverride ||
             'Write a 3-5 sentence cover letter body for a job application. Be professional, specific to the role, and mention relevant skills. No greeting or signature — just the body text. Keep it under 150 words.',
         },
         {
