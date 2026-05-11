@@ -38,39 +38,67 @@ export function OpportunityApplyCard({
   const [applied, setApplied] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [coverLetterPreview, setCoverLetterPreview] = useState<string | null>(null);
+  const [draftMode, setDraftMode] = useState(false);
+  const [draftText, setDraftText] = useState('');
+  const [draftSubject, setDraftSubject] = useState('');
+  const [sending, setSending] = useState(false);
 
   const canSeeContacts = isPro || !!session?.user;
 
-  const handleQuickApply = async () => {
+  // Step 1: Generate draft
+  const handleGenerateDraft = async () => {
     setApplying(true);
     setApplyError(null);
     try {
-      const res = await fetch('/api/user/quick-apply', {
+      const res = await fetch('/api/user/draft-apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ opportunityId }),
       });
       const data = await res.json();
 
-      if (res.ok && data.success) {
-        setApplied(true);
-        setCoverLetterPreview(data.coverLetter);
-        trackDb('OPPORTUNITY_APPLY_CLICK', { opportunityId, title, method: 'quick_apply' });
-      } else if (data.error === 'smtp_required') {
-        setApplyError('Connect your email first. Go to Auto-Apply settings.');
+      if (res.ok && data.coverLetter) {
+        setDraftText(data.coverLetter);
+        setDraftSubject(data.subject);
+        setDraftMode(true);
       } else if (data.error === 'resume_required') {
         setApplyError('Upload your resume first. Go to Auto-Apply settings.');
-      } else if (data.error === 'limit_reached') {
-        setApplyError(data.message);
       } else if (data.error === 'already_applied') {
         setApplyError('You already applied to this project.');
       } else {
-        setApplyError(data.message || 'Failed to send. Try again.');
+        setApplyError(data.message || 'Failed to generate draft.');
       }
     } catch {
       setApplyError('Network error. Try again.');
     } finally {
       setApplying(false);
+    }
+  };
+
+  // Step 2: Send (with optional edits)
+  const handleSendDraft = async () => {
+    setSending(true);
+    setApplyError(null);
+    try {
+      const res = await fetch('/api/user/quick-apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ opportunityId, editedCoverLetter: draftText, editedSubject: draftSubject }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setApplied(true);
+        setCoverLetterPreview(data.coverLetter);
+        setDraftMode(false);
+        trackDb('OPPORTUNITY_APPLY_CLICK', { opportunityId, title, method: 'quick_apply' });
+      } else {
+        setApplyError(data.message || 'Failed to send.');
+      }
+    } catch {
+      setApplyError('Network error. Try again.');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -104,14 +132,53 @@ export function OpportunityApplyCard({
                     Direct contact with the client. No agencies, no middlemen.
                   </p>
 
-                  {applyEmail && (
+                  {applyEmail && !draftMode && (
                     <Button
                       className="w-full bg-orange-600 hover:bg-orange-700 font-semibold text-base py-5"
-                      onClick={handleQuickApply}
+                      onClick={handleGenerateDraft}
                       disabled={applying}
                     >
-                      {applying ? 'AI is writing & sending...' : 'Apply with AI Cover Letter'}
+                      {applying ? 'AI is writing...' : 'Apply with AI Cover Letter'}
                     </Button>
+                  )}
+
+                  {draftMode && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-medium text-gray-500">Subject</label>
+                        <input
+                          value={draftSubject}
+                          onChange={(e) => setDraftSubject(e.target.value)}
+                          className="w-full px-3 py-2 border rounded-lg text-sm mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-500">Cover Letter</label>
+                        <textarea
+                          value={draftText}
+                          onChange={(e) => setDraftText(e.target.value)}
+                          rows={8}
+                          className="w-full px-3 py-2 border rounded-lg text-sm mt-1 resize-y"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          className="flex-1 bg-orange-600 hover:bg-orange-700 font-semibold"
+                          onClick={handleSendDraft}
+                          disabled={sending}
+                        >
+                          {sending ? 'Sending...' : 'Send Application'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={handleGenerateDraft}
+                          disabled={applying}
+                          className="text-xs"
+                        >
+                          {applying ? '...' : 'Regenerate'}
+                        </Button>
+                      </div>
+                    </div>
                   )}
 
                   {applyError && (

@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { opportunityId } = await request.json();
+    const { opportunityId, editedCoverLetter, editedSubject } = await request.json();
     if (!opportunityId) {
       return NextResponse.json({ error: 'opportunityId required' }, { status: 400 });
     }
@@ -98,21 +98,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'already_applied', message: 'You already applied to this project.' }, { status: 409 });
     }
 
-    // Generate cover letter
-    const profile = user.parsedProfile as Record<string, unknown> | null;
-    const coverLetter = await generateCoverLetter({
-      jobTitle: opportunity.title,
-      jobDescription: opportunity.description.slice(0, 800),
-      companyName: opportunity.clientName,
-      userProfile: {
-        name: user.name || 'Applicant',
-        skills: (profile?.skills as string[]) || [],
-        experience: (user.resumeText || '').slice(0, 300),
+    // Use edited text or generate new
+    let coverLetter: string;
+    if (editedCoverLetter) {
+      coverLetter = editedCoverLetter;
+    } else {
+      const profile = user.parsedProfile as Record<string, unknown> | null;
+      coverLetter = await generateCoverLetter({
+        jobTitle: opportunity.title,
+        jobDescription: opportunity.description.slice(0, 800),
+        companyName: opportunity.clientName,
+        userProfile: {
+          name: user.name || 'Applicant',
+          skills: (profile?.skills as string[]) || [],
+          experience: (user.resumeText || '').slice(0, 300),
         resumeText: user.resumeText || undefined,
       },
     });
+    }
 
-    const subject = await generateSubjectLine({
+    const subject = editedSubject || await generateSubjectLine({
       jobTitle: opportunity.title,
       userName: user.name || 'Applicant',
     });
