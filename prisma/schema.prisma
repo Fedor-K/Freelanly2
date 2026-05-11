@@ -1930,6 +1930,10 @@ model CoverLetterTemplate {
   type      TemplateType @default(APPLICATION)
   isDefault Boolean  @default(false)
 
+  // Performance tracking
+  sentCount   Int @default(0)
+  replyCount  Int @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -3,7 +3,34 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { TemplateType } from '@prisma/client';
 
-// GET /api/user/templates — List user's cover letter templates
+// Template variables available for substitution
+const TEMPLATE_VARIABLES = [
+  { key: '{{company}}', description: 'Company name', source: 'job listing' },
+  { key: '{{role}}', description: 'Job title', source: 'job listing' },
+  { key: '{{recruiter}}', description: 'Recruiter first name', source: 'job listing' },
+  { key: '{{skills}}', description: 'Your matching skills', source: 'profile + job' },
+  { key: '{{name}}', description: 'Your name', source: 'profile' },
+  { key: '{{experience}}', description: 'Your experience summary', source: 'resume' },
+];
+
+/**
+ * Substitute template variables with real values.
+ */
+export function substituteVariables(template: string, vars: {
+  company?: string; role?: string; recruiter?: string;
+  skills?: string[]; name?: string; experience?: string;
+}): string {
+  let result = template;
+  if (vars.company) result = result.replace(/\{\{company\}\}/g, vars.company);
+  if (vars.role) result = result.replace(/\{\{role\}\}/g, vars.role);
+  if (vars.recruiter) result = result.replace(/\{\{recruiter\}\}/g, vars.recruiter);
+  if (vars.skills) result = result.replace(/\{\{skills\}\}/g, vars.skills.slice(0, 5).join(', '));
+  if (vars.name) result = result.replace(/\{\{name\}\}/g, vars.name);
+  if (vars.experience) result = result.replace(/\{\{experience\}\}/g, vars.experience);
+  return result;
+}
+
+// GET /api/user/templates — List user's cover letter templates with performance stats
 export async function GET() {
   try {
     const session = await auth();
@@ -16,7 +43,12 @@ export async function GET() {
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
     });
 
-    return NextResponse.json(templates);
+    const templatesWithStats = templates.map(t => ({
+      ...t,
+      replyRate: t.sentCount > 0 ? ((t.replyCount / t.sentCount) * 100).toFixed(1) + '%' : null,
+    }));
+
+    return NextResponse.json({ templates: templatesWithStats, variables: TEMPLATE_VARIABLES });
   } catch (error) {
     console.error('[API] Error getting templates:', error);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
