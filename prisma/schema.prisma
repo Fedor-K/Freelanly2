@@ -97,6 +97,7 @@ model User {
   autoApplyLoops        AutoApplyLoop[]
   autoApplications      AutoApplication[]
   coverLetterTemplates  CoverLetterTemplate[]
+  savedFeeds            SavedFeed[]
   freeAppliesUsedToday  Int       @default(0)
   lastFreeApplyReset    DateTime  @default(now())
   emailBounceCount      Int       @default(0)   // Hard bounces, disable alerts after 3
@@ -1888,6 +1889,7 @@ model AutoApplyLoop {
   blacklistCompanies String[] // companies to skip
   excludeKeywords    String?  // comma-separated keywords to exclude ("Web3,rockstar,unpaid")
 
+
   // Which resume and template to use
   resumeUrl       String?  // URL to PDF resume
   templateId      String?  // CoverLetterTemplate ID
@@ -2000,4 +2002,26 @@ enum AutoApplyStatus {
   SKIPPED     // User manually skipped this project
   REJECTED    // Rejected
   FAILED      // Send failed (SMTP error)
+}
+
+// Saved discovery feed (named filter set)
+model SavedFeed {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  name      String   // "EU React contracts"
+  skills    String[] // ["React", "TypeScript"]
+  keywords  String?  // comma-separated
+  excludeKeywords String?
+  country   String?
+  level     String?
+  minRate   String?  // "$80/hr"
+
+  color     String?  // dot color in UI
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
