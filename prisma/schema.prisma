@@ -41,6 +41,18 @@ model User {
   resumeFileName String?   // Original filename
   parsedProfile  Json?     // AI-extracted: {name, skills, current_title, field, experience_years, summary}
 
+  // Voice training (3 sample emails for AI to match writing style)
+  voiceSamples   Json?     // ["sample email 1", "sample email 2", "sample email 3"]
+
+  // Timezone & send schedule
+  timezone       String?   // "Europe/Berlin", "America/New_York"
+  sendStartHour  Int?      // 9 (9am)
+  sendEndHour    Int?      // 17 (5pm)
+
+  // Notification preferences
+  notifyOnReply  Boolean   @default(true)
+  notifySlackUrl String?   // Slack webhook URL
+
   // Activity tracking
   lastActiveAt  DateTime?  // For re-engagement emails
 
