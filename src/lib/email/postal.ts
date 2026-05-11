@@ -101,6 +101,7 @@ export async function sendAutoApplyViaPostal(params: {
   subject: string;
   html: string;
   text: string;
+  applicationId?: string;
 }): Promise<{ success: boolean; messageId?: string; error?: string }> {
   if (!config.apiKey) {
     return { success: false, error: 'Postal not configured' };
@@ -108,12 +109,16 @@ export async function sendAutoApplyViaPostal(params: {
 
   const fromEmail = 'apply@freelanly.com';
   const fromName = `${params.userName} via Freelanly`;
+  // Reply routing: replies go to reply+{appId}@reply.freelanly.com → webhook → forward to user
+  const replyTo = params.applicationId
+    ? `reply+${params.applicationId}@reply.freelanly.com`
+    : params.userEmail;
 
   try {
     const body = {
       to: [params.to.toLowerCase().trim()],
       from: `${fromName} <${fromEmail}>`,
-      reply_to: params.userEmail,
+      reply_to: replyTo,
       subject: params.subject,
       html_body: params.html,
       plain_body: params.text,

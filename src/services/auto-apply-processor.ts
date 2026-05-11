@@ -226,6 +226,7 @@ export async function processAutoApplyQueue(): Promise<{
           subject,
           html,
           text,
+          applicationId: app.id,
         });
       }
 

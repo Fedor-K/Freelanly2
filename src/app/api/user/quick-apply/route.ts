@@ -155,6 +155,22 @@ export async function POST(request: NextRequest) {
         }
       );
     } else {
+      // Create application record FIRST to get ID for reply routing
+      let loop = await prisma.autoApplyLoop.findFirst({ where: { userId: user.id } });
+      if (!loop) {
+        loop = await prisma.autoApplyLoop.create({
+          data: { userId: user.id, name: 'Quick Apply', jobTitles: [], dailyLimit: 50, mode: 'MANUAL', isActive: false },
+        });
+      }
+      const appRecord = await prisma.autoApplication.create({
+        data: {
+          userId: user.id, loopId: loop.id, opportunityId: opportunity.id,
+          companyName: opportunity.clientName, jobTitle: opportunity.title,
+          appliedToEmail: opportunity.applyEmail, coverLetter, subject,
+          status: 'SENDING', sentVia: 'postal',
+        },
+      });
+
       result = await sendAutoApplyViaPostal({
         userName: user.name || 'Applicant',
         userEmail: user.email,
@@ -162,15 +178,30 @@ export async function POST(request: NextRequest) {
         subject,
         html,
         text,
+        applicationId: appRecord.id,
       });
+
+      if (result.success) {
+        await prisma.autoApplication.update({
+          where: { id: appRecord.id },
+          data: { status: 'SENT', sentAt: new Date() },
+        });
+      } else {
+        await prisma.autoApplication.update({
+          where: { id: appRecord.id },
+          data: { status: 'FAILED', errorMessage: result.error?.slice(0, 500) },
+        });
+        return NextResponse.json({ error: 'send_failed', message: result.error }, { status: 500 });
+      }
+
+      return NextResponse.json({ success: true, coverLetter: fullLetter, subject, sentTo: opportunity.applyEmail });
     }
 
     if (!result.success) {
       return NextResponse.json({ error: 'send_failed', message: result.error }, { status: 500 });
     }
 
-    // Create AutoApplication record
-    // Find or create a loop for this user
+    // Create AutoApplication record for SMTP users
     let loop = await prisma.autoApplyLoop.findFirst({
       where: { userId: user.id },
     });
@@ -181,7 +212,7 @@ export async function POST(request: NextRequest) {
           userId: user.id,
           name: 'Quick Apply',
           jobTitles: [],
-          dailyLimit: user.plan === 'FREE' ? FREE_DAILY_LIMIT : 30,
+          dailyLimit: 50,
           mode: 'MANUAL',
           isActive: false,
         },
