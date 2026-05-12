@@ -422,7 +422,30 @@ export async function generateTailoredResume(params: {
       params.jobDescription,
     );
 
-    // 3. Render PDF
+    // 3. Render PDF via Hetzner API (Puppeteer + Chrome) or fallback to react-pdf
+    const hetznerUrl = process.env.RESUME_API_URL || 'https://postal.freelanly.com/api/resume';
+    const hetznerKey = process.env.RESUME_API_KEY || 'rk_freelanly_resume_2026';
+
+    try {
+      const resp = await fetch(`${hetznerUrl}/generate-resume`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': hetznerKey },
+        body: JSON.stringify({ profile, tailored }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.base64 && data.filename) {
+          console.log(`[ResumePDF] Generated via Hetzner: ${data.filename} (${Math.round(data.base64.length / 1024)}KB)`);
+          return data;
+        }
+      }
+      console.warn('[ResumePDF] Hetzner API failed, falling back to react-pdf');
+    } catch (e) {
+      console.warn('[ResumePDF] Hetzner API error, falling back to react-pdf:', e);
+    }
+
+    // Fallback: react-pdf (works on Vercel but limited design)
     const buffer = await renderToBuffer(
       <ResumePDF profile={profile} tailored={tailored} />
     );
@@ -431,7 +454,7 @@ export async function generateTailoredResume(params: {
     const safeName = profile.name.replace(/[^a-zA-Z0-9]/g, '_');
     const filename = `${safeName}_Resume.pdf`;
 
-    console.log(`[ResumePDF] Generated ${filename} (${Math.round(base64.length / 1024)}KB)`);
+    console.log(`[ResumePDF] Generated via react-pdf fallback: ${filename} (${Math.round(base64.length / 1024)}KB)`);
 
     return { base64, filename };
   } catch (error) {

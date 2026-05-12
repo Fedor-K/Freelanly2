@@ -102,6 +102,8 @@ export async function sendAutoApplyViaPostal(params: {
   html: string;
   text: string;
   applicationId?: string;
+  attachmentBase64?: string;
+  attachmentFilename?: string;
 }): Promise<{ success: boolean; messageId?: string; error?: string }> {
   if (!config.apiKey) {
     return { success: false, error: 'Postal not configured' };
@@ -115,7 +117,7 @@ export async function sendAutoApplyViaPostal(params: {
     : params.userEmail;
 
   try {
-    const body = {
+    const body: Record<string, unknown> = {
       to: [params.to.toLowerCase().trim()],
       from: `${fromName} <${fromEmail}>`,
       reply_to: replyTo,
@@ -123,6 +125,14 @@ export async function sendAutoApplyViaPostal(params: {
       html_body: params.html,
       plain_body: params.text,
     };
+
+    if (params.attachmentBase64 && params.attachmentFilename) {
+      body.attachments = [{
+        name: params.attachmentFilename,
+        content_type: 'application/pdf',
+        data: params.attachmentBase64,
+      }];
+    }
 
     const response = await fetch(`${config.apiUrl}/api/v1/send/message`, {
       method: 'POST',

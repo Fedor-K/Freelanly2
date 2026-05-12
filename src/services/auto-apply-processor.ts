@@ -227,6 +227,8 @@ export async function processAutoApplyQueue(): Promise<{
           html,
           text,
           applicationId: app.id,
+          attachmentBase64: resumeAttachment?.base64,
+          attachmentFilename: resumeAttachment?.filename,
         });
       }
 
