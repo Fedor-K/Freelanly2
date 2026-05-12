@@ -23,10 +23,25 @@ export async function processAutoApplyQueue(): Promise<{
   let failed = 0;
   let skipped = 0;
 
-  // Find pending applications grouped by user
+  // Find loops that haven't hit their daily limit yet
+  const availableLoops = await prisma.autoApplyLoop.findMany({
+    where: { isActive: true },
+    select: { id: true, sentToday: true, dailyLimit: true },
+  });
+  const availableLoopIds = availableLoops
+    .filter(l => l.sentToday < l.dailyLimit)
+    .map(l => l.id);
+
+  if (availableLoopIds.length === 0) {
+    console.log('[AutoApply] All loops at daily limit');
+    return { processed: 0, sent: 0, failed: 0, skipped: 0 };
+  }
+
+  // Find pending applications only for loops that can still send
   const pendingApps = await prisma.autoApplication.findMany({
     where: {
       status: AutoApplyStatus.PENDING,
+      loopId: { in: availableLoopIds },
     },
     include: {
       user: {
@@ -57,7 +72,7 @@ export async function processAutoApplyQueue(): Promise<{
       },
     },
     orderBy: { createdAt: 'asc' },
-    take: 50, // Process in batches
+    take: 200, // Larger batch — Hetzner has no timeout
   });
 
   if (pendingApps.length === 0) {
