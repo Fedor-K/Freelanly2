@@ -26,7 +26,7 @@ export async function GET() {
         sentVia: true,
         sentAt: true,
         followUpSentAt: true,
-        errorMessage: true,
+        replyText: true,
         createdAt: true,
       },
     });
@@ -44,7 +44,7 @@ export async function GET() {
       a.sentVia || '',
       a.sentAt?.toISOString() || '',
       a.followUpSentAt?.toISOString() || '',
-      `"${((a.errorMessage || '').replace(/\[.*?\]\s*/, '')).replace(/"/g, '""').slice(0, 200)}"`,
+      `"${(a.replyText || '').replace(/"/g, '""').slice(0, 200)}"`,
       a.createdAt.toISOString(),
     ].join(','));
 

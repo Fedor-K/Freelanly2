@@ -1,6 +1,31 @@
 import * as tls from 'tls';
 import { prisma } from '@/lib/db';
 import { AutoApplyStatus } from '@prisma/client';
+import OpenAI from 'openai';
+
+function getAIClient() {
+  const p = process.env.AI_PROVIDER?.toLowerCase();
+  if (p === 'zai') return { client: new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' }), model: 'glm-4-32b-0414-128k' };
+  return { client: new OpenAI({ baseURL: 'https://api.deepseek.com/v1', apiKey: process.env.DEEPSEEK_API_KEY || '' }), model: 'deepseek-chat' };
+}
+
+async function categorizeReply(text: string): Promise<string> {
+  try {
+    const { client, model } = getAIClient();
+    const r = await client.chat.completions.create({
+      model, temperature: 0.1, max_tokens: 50,
+      messages: [
+        { role: 'system', content: 'Categorize this recruiter reply. Return ONE word:\n- INTERESTED = recruiter asks for resume, CV, portfolio, details, or shows any positive interest\n- INTERVIEW = recruiter wants to schedule a call, meeting, or interview\n- REJECTION = explicit rejection ("unfortunately", "not a fit", "position filled")\n- OTHER = automated reply, out of office, or unrelated' },
+        { role: 'user', content: text.slice(0, 500) },
+      ],
+    });
+    const cat = r.choices[0]?.message?.content?.trim().toUpperCase() || 'OTHER';
+    if (cat.includes('INTERVIEW')) return 'INTERVIEW';
+    if (cat.includes('REJECT')) return 'REJECTED';
+    if (cat.includes('INTERESTED')) return 'REPLIED';
+    return 'REPLIED';
+  } catch { return 'REPLIED'; }
+}
 
 /**
  * Map SMTP host to corresponding IMAP host
@@ -48,13 +73,35 @@ function sendImapCommand(
 /**
  * Connect to IMAP and search for replies to given subjects
  */
+/**
+ * Extract plain text body from IMAP FETCH response
+ */
+function extractBodyFromFetch(fetchResp: string): string {
+  // Look for literal size marker {NNN} then grab the content
+  const literalMatch = fetchResp.match(/\{(\d+)\}\r\n/);
+  if (literalMatch) {
+    const size = parseInt(literalMatch[1], 10);
+    const start = fetchResp.indexOf(literalMatch[0]) + literalMatch[0].length;
+    let body = fetchResp.slice(start, start + size);
+    // Decode base64 if needed
+    if (/^[A-Za-z0-9+/=\r\n]+$/.test(body.trim()) && body.length > 50) {
+      try { body = Buffer.from(body.replace(/\r?\n/g, ''), 'base64').toString('utf-8'); } catch {}
+    }
+    // Decode quoted-printable =XX sequences
+    body = body.replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+    body = body.replace(/=\r?\n/g, '');
+    return body.trim();
+  }
+  return '';
+}
+
 async function searchForReplies(
   imapHost: string,
   email: string,
   password: string,
   subjects: { applicationId: string; subject: string; email: string }[]
-): Promise<{ applicationId: string; replied: boolean }[]> {
-  const results: { applicationId: string; replied: boolean }[] = [];
+): Promise<{ applicationId: string; replied: boolean; replyText?: string }[]> {
+  const results: { applicationId: string; replied: boolean; replyText?: string }[] = [];
 
   if (subjects.length === 0) return results;
 
@@ -62,11 +109,10 @@ async function searchForReplies(
     const timeout = setTimeout(() => {
       socket.destroy();
       reject(new Error('IMAP connection timeout'));
-    }, 10000);
+    }, 15000);
 
     const socket = tls.connect(993, imapHost, { rejectUnauthorized: false });
 
-    let greeting = '';
     let tagCounter = 1;
     const nextTag = () => `A${String(tagCounter++).padStart(3, '0')}`;
 
@@ -76,7 +122,7 @@ async function searchForReplies(
     });
 
     socket.once('data', async (data) => {
-      greeting = data.toString();
+      const greeting = data.toString();
       if (!greeting.includes('OK')) {
         clearTimeout(timeout);
         socket.destroy();
@@ -103,7 +149,6 @@ async function searchForReplies(
           throw new Error(`IMAP SELECT failed: ${selectResp.slice(0, 200)}`);
         }
 
-        // Search for replies: look for emails FROM each recipient
         // Group by email to minimize IMAP searches
         const emailToApps = new Map<string, { applicationId: string; subject: string }[]>();
         for (const s of subjects) {
@@ -132,8 +177,34 @@ async function searchForReplies(
               searchLine.trim() !== '* SEARCH' &&
               searchLine.replace('* SEARCH', '').trim().length > 0;
 
-            for (const app of apps) {
-              results.push({ applicationId: app.applicationId, replied: hasResults });
+            if (hasResults && searchLine) {
+              // Get the latest message UID
+              const uids = searchLine.replace('* SEARCH', '').trim().split(/\s+/);
+              const latestUid = uids[uids.length - 1];
+
+              // FETCH body of the latest reply
+              let replyText = '';
+              try {
+                const fetchTag = nextTag();
+                const fetchResp = await sendImapCommand(
+                  socket,
+                  fetchTag,
+                  `FETCH ${latestUid} BODY.PEEK[TEXT]`
+                );
+                if (fetchResp.includes(`${fetchTag} OK`)) {
+                  replyText = extractBodyFromFetch(fetchResp);
+                }
+              } catch {
+                // Fetch failed, still mark as replied but without body
+              }
+
+              for (const app of apps) {
+                results.push({ applicationId: app.applicationId, replied: true, replyText: replyText.slice(0, 2000) });
+              }
+            } else {
+              for (const app of apps) {
+                results.push({ applicationId: app.applicationId, replied: false });
+              }
             }
           } catch {
             for (const app of apps) {
@@ -196,12 +267,20 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
     let repliedCount = 0;
     for (const result of results) {
       if (result.replied) {
+        const replyText = result.replyText || '';
+        const category = replyText.length > 10 ? await categorizeReply(replyText) : 'REPLIED';
+
         await prisma.autoApplication.update({
           where: { id: result.applicationId },
-          data: { status: AutoApplyStatus.REPLIED },
+          data: {
+            status: category as AutoApplyStatus,
+            replyText: replyText || null,
+            replyCategory: category,
+            repliedAt: new Date(),
+          },
         });
         repliedCount++;
-        console.log(`[ReplyChecker] Application ${result.applicationId} marked as REPLIED`);
+        console.log(`[ReplyChecker] ${result.applicationId} → ${category}: ${replyText.slice(0, 80)}`);
       }
     }
 

@@ -1989,6 +1989,11 @@ model AutoApplication {
   sentVia         String?  // "smtp" or "platform"
   errorMessage    String?
 
+  // Reply tracking
+  replyText       String?  // recruiter's reply content
+  replyCategory   String?  // INTERESTED, INTERVIEW, REJECTED, OTHER
+  repliedAt       DateTime?
+
   // Follow-up
   followUpSentAt  DateTime?
   followUpCount   Int      @default(0)

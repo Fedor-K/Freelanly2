@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
       orderBy: { updatedAt: 'desc' },
       take: 5,
       select: {
-        id: true, jobTitle: true, companyName: true, status: true, errorMessage: true, updatedAt: true,
+        id: true, jobTitle: true, companyName: true, status: true, replyText: true, replyCategory: true, repliedAt: true, updatedAt: true,
       },
     });
 
@@ -121,8 +121,7 @@ export async function GET(request: NextRequest) {
       queue,
       replies: replies.map(r => ({
         ...r,
-        replyText: r.errorMessage?.replace(/^\[\w+\]\s*/, '').slice(0, 100) || '',
-        replyCategory: r.errorMessage?.match(/^\[(\w+)\]/)?.[1] || '',
+        replyText: r.replyText?.slice(0, 100) || '',
       })),
       activity,
       funnel,

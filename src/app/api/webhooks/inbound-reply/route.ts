@@ -78,7 +78,9 @@ export async function POST(request: NextRequest) {
         where: { id: appId },
         data: {
           status: newStatus as any,
-          errorMessage: replyText ? `[reply] ${replyText.slice(0, 300)}` : null,
+          replyText: replyText ? replyText.slice(0, 2000) : null,
+          replyCategory: newStatus,
+          repliedAt: new Date(),
         },
       });
       console.log(`[InboundReply] ${appId} → ${newStatus} from ${from}: ${replyText.slice(0, 80)}`);

@@ -46,33 +46,21 @@ export async function GET(request: NextRequest) {
         matchLabel: true,
         sentAt: true,
         followUpSentAt: true,
-        errorMessage: true,
+        replyText: true,
+        replyCategory: true,
+        repliedAt: true,
         updatedAt: true,
       },
     });
 
-    // Parse reply text from errorMessage
-    const enriched = threads.map(t => {
-      let replyText = '';
-      let replyCategory = '';
-      if (t.errorMessage?.startsWith('[')) {
-        const catMatch = t.errorMessage.match(/^\[(\w+)\]\s*/);
-        if (catMatch) {
-          replyCategory = catMatch[1];
-          replyText = t.errorMessage.slice(catMatch[0].length);
-        }
-      }
-      return {
-        ...t,
-        replyText,
-        replyCategory,
-        thread: [
-          { from: 'you', text: t.coverLetter, date: t.sentAt },
-          ...(t.followUpSentAt ? [{ from: 'you', text: '(Follow-up sent)', date: t.followUpSentAt }] : []),
-          ...(replyText ? [{ from: 'recruiter', text: replyText, date: t.updatedAt }] : []),
-        ],
-      };
-    });
+    const enriched = threads.map(t => ({
+      ...t,
+      thread: [
+        { from: 'you', text: t.coverLetter, date: t.sentAt },
+        ...(t.followUpSentAt ? [{ from: 'you', text: '(Follow-up sent)', date: t.followUpSentAt }] : []),
+        ...(t.replyText ? [{ from: 'recruiter', text: t.replyText, date: t.repliedAt || t.updatedAt }] : []),
+      ],
+    }));
 
     return NextResponse.json({ threads: enriched, total: enriched.length });
   } catch (error) {
@@ -103,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     // AI Suggested Reply
     if (action === 'suggest') {
-      const replyText = app.errorMessage?.replace(/^\[\w+\]\s*/, '') || '';
+      const replyText = app.replyText || '';
       const { client, model } = getAIClient();
 
       const response = await client.chat.completions.create({
