@@ -23,6 +23,10 @@ export async function processAutoApplyQueue(): Promise<{
   let failed = 0;
   let skipped = 0;
 
+  const MAX_PER_RECIPIENT_PER_DAY = 5; // Anti-spam: max emails to same recruiter
+  const MAX_PER_HOUR = 250; // Throttle: avoid IP reputation damage
+  const DELAY_BETWEEN_SENDS_MS = 3000; // 3 sec between sends = ~20/min = ~1200/hr max
+
   // Find loops that haven't hit their daily limit yet
   const availableLoops = await prisma.autoApplyLoop.findMany({
     where: { isActive: true },
@@ -37,11 +41,36 @@ export async function processAutoApplyQueue(): Promise<{
     return { processed: 0, sent: 0, failed: 0, skipped: 0 };
   }
 
+  // Hourly throttle: check how many sent in last hour
+  const oneHourAgo = new Date(Date.now() - 3600000);
+  const sentLastHour = await prisma.autoApplication.count({
+    where: { sentAt: { gte: oneHourAgo }, status: { in: ['SENT', 'OPENED', 'REPLIED', 'INTERVIEW'] } },
+  });
+  const hourlyBudget = Math.max(0, MAX_PER_HOUR - sentLastHour);
+  if (hourlyBudget === 0) {
+    console.log(`[AutoApply] Hourly limit reached (${sentLastHour}/${MAX_PER_HOUR}), waiting`);
+    return { processed: 0, sent: 0, failed: 0, skipped: 0 };
+  }
+
+  // Per-recipient limit: find recruiter emails that already got enough today
+  const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+  const hotRecipients = await prisma.$queryRaw<{ appliedToEmail: string }[]>`
+    SELECT "appliedToEmail" FROM "AutoApplication"
+    WHERE "sentAt" >= ${today}
+    GROUP BY "appliedToEmail"
+    HAVING COUNT(*) >= ${MAX_PER_RECIPIENT_PER_DAY}`;
+  const blockedEmails = new Set(hotRecipients.map(r => r.appliedToEmail));
+  if (blockedEmails.size > 0) {
+    console.log(`[AutoApply] ${blockedEmails.size} recruiter emails at daily limit (${MAX_PER_RECIPIENT_PER_DAY}/day)`);
+  }
+
   // Find pending applications only for loops that can still send
+  const batchSize = Math.min(200, hourlyBudget);
   const pendingApps = await prisma.autoApplication.findMany({
     where: {
       status: AutoApplyStatus.PENDING,
       loopId: { in: availableLoopIds },
+      ...(blockedEmails.size > 0 ? { appliedToEmail: { notIn: [...blockedEmails] } } : {}),
     },
     include: {
       user: {
@@ -72,7 +101,7 @@ export async function processAutoApplyQueue(): Promise<{
       },
     },
     orderBy: { createdAt: 'asc' },
-    take: 200, // Larger batch — Hetzner has no timeout
+    take: batchSize,
   });
 
   if (pendingApps.length === 0) {
@@ -80,7 +109,16 @@ export async function processAutoApplyQueue(): Promise<{
     return { processed: 0, sent: 0, failed: 0, skipped: 0 };
   }
 
-  console.log(`[AutoApply] Processing ${pendingApps.length} pending applications`);
+  // Shuffle to spread across different users/recruiters (not all from same user first)
+  for (let i = pendingApps.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pendingApps[i], pendingApps[j]] = [pendingApps[j], pendingApps[i]];
+  }
+
+  console.log(`[AutoApply] Processing ${pendingApps.length} applications (hourly budget: ${hourlyBudget}, blocked recipients: ${blockedEmails.size})`);
+
+  // Track per-recipient sends within this batch
+  const recipientSendsThisBatch = new Map<string, number>();
 
   for (const app of pendingApps) {
     processed++;
@@ -89,6 +127,13 @@ export async function processAutoApplyQueue(): Promise<{
 
     if (!app.loop.isActive) {
       await markFailed(app.id, 'Auto-apply loop is paused');
+      skipped++;
+      continue;
+    }
+
+    // Per-recipient limit within this batch
+    const recipientCount = recipientSendsThisBatch.get(app.appliedToEmail) || 0;
+    if (recipientCount >= MAX_PER_RECIPIENT_PER_DAY) {
       skipped++;
       continue;
     }
@@ -265,6 +310,7 @@ export async function processAutoApplyQueue(): Promise<{
         }
         await prisma.$transaction(txOps);
         sent++;
+        recipientSendsThisBatch.set(app.appliedToEmail, recipientCount + 1);
         console.log(`[AutoApply] Sent application ${app.id} to ${app.appliedToEmail}`);
       } else {
         await markFailed(app.id, result.error || 'SMTP send failed');
@@ -277,8 +323,8 @@ export async function processAutoApplyQueue(): Promise<{
       console.error(`[AutoApply] Error processing ${app.id}:`, error);
     }
 
-    // Rate limit: 500ms between sends to avoid SMTP throttling
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Rate limit: 3s between sends to spread load and avoid spam flags
+    await new Promise((resolve) => setTimeout(resolve, DELAY_BETWEEN_SENDS_MS));
   }
 
   console.log(`[AutoApply] Done: ${sent} sent, ${failed} failed, ${skipped} skipped out of ${processed}`);
