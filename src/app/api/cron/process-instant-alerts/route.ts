@@ -31,35 +31,9 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Cron] INSTANT alerts: ${result.newOpportunities} new opps, ${result.sent} emails sent, ${result.failed} failed, ${result.processed} matched, ${result.skippedDebounce} debounced`);
 
-    // Auto-apply: match new opportunities to active loops + process queue
-    try {
-      const queued = await matchAndQueueAutoApplies();
-      const autoResult = await processAutoApplyQueue();
-      if (queued > 0 || autoResult.sent > 0) {
-        console.log(`[Cron] Auto-Apply: queued ${queued}, sent ${autoResult.sent}, failed ${autoResult.failed}`);
-      }
-    } catch (autoError) {
-      console.error('[Cron] Auto-Apply error:', autoError);
-    }
-
-    // Send follow-ups for applications without reply after 3 days
-    try {
-      const followUps = await processFollowUps();
-      if (followUps.sent > 0) {
-        console.log(`[Cron] Follow-ups: ${followUps.sent} sent, ${followUps.failed} failed`);
-      }
-    } catch (e) {
-      console.error('[Cron] Follow-up error:', e);
-    }
-
-    // Check for replies to sent applications
-    try {
-      const { checkAllReplies } = await import('@/services/reply-checker');
-      const replies = await checkAllReplies();
-      if (replies > 0) console.log(`[Cron] Found ${replies} new replies to auto-applications`);
-    } catch (e) {
-      console.error('[Cron] Reply check error:', e);
-    }
+    // Auto-apply processing moved to Hetzner worker (no Vercel timeout limits)
+    // Hetzner cron runs every 10 min: /opt/worker/run-cron.sh
+    // Handles: matchAndQueueAutoApplies, processAutoApplyQueue, processFollowUps, checkAllReplies
 
     // Monitor: alert if no emails sent for over 1 hour
     if (result.sent === 0) {
