@@ -574,9 +574,33 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
       if (hasExcluded) continue;
     }
 
+    // Language check for interpreter/translator jobs
+    const isLanguageJob = /interpret|translat|linguist/i.test(titleLower);
+    if (isLanguageJob) {
+      const userLangs = ((userProfile?.languages as string[]) || []).map(l => l.toLowerCase());
+      // Extract language from title (e.g. "Uzbek-English" → ["uzbek", "english"])
+      const langPattern = /\b(uzbek|arabic|chinese|mandarin|cantonese|japanese|korean|thai|vietnamese|hindi|urdu|bengali|tamil|turkish|persian|farsi|russian|portuguese|french|spanish|german|italian|dutch|polish|czech|swedish|norwegian|danish|finnish|greek|hebrew|indonesian|malay|tagalog|swahili|amharic|haitian|creole|tongan|somali)\b/gi;
+      const jobLangs = [...titleLower.matchAll(langPattern)].map(m => m[0]);
+      // If job requires specific languages, user must know at least one non-English
+      const nonEnglishJobLangs = jobLangs.filter(l => l !== 'english');
+      if (nonEnglishJobLangs.length > 0) {
+        const userKnowsLang = nonEnglishJobLangs.some(jl =>
+          userLangs.some(ul => ul.includes(jl) || jl.includes(ul))
+        );
+        if (!userKnowsLang) {
+          continue; // User doesn't speak the required language
+        }
+      }
+    }
+
     // Calculate match score
     const matchScore = calculateMatchScore(userSkills, listing, loop.jobTitles, titleLower);
     const matchLabel = matchScore >= 80 ? 'Strong' : matchScore >= 50 ? 'Good' : 'Weak';
+
+    // Skip weak matches — too low quality, wastes sends and hurts reputation
+    if (matchScore < 50) {
+      continue;
+    }
 
     // Determine status based on loop mode
     const status =
