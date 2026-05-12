@@ -17,9 +17,9 @@ interface SmtpSetupProps {
 }
 
 const SMTP_PRESETS = [
-  { label: 'Gmail', host: 'smtp.gmail.com', port: 587, instructions: 'https://myaccount.google.com/apppasswords' },
-  { label: 'Outlook / Hotmail', host: 'smtp-mail.outlook.com', port: 587, instructions: 'https://account.live.com/proofs/AppPassword' },
-  { label: 'Yahoo', host: 'smtp.mail.yahoo.com', port: 587, instructions: 'https://login.yahoo.com/account/security/app-passwords' },
+  { label: 'Gmail', host: 'smtp.gmail.com', port: 587, instructions: 'https://myaccount.google.com/apppasswords', twoFactorUrl: 'https://myaccount.google.com/signinoptions/two-step-verification' },
+  { label: 'Outlook / Hotmail', host: 'smtp-mail.outlook.com', port: 587, instructions: 'https://account.live.com/proofs/AppPassword', twoFactorUrl: 'https://account.live.com/proofs/manage/additional' },
+  { label: 'Yahoo', host: 'smtp.mail.yahoo.com', port: 587, instructions: 'https://login.yahoo.com/account/security/app-passwords', twoFactorUrl: 'https://login.yahoo.com/account/security' },
 ];
 
 export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
@@ -174,11 +174,22 @@ export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
             <ol className="space-y-3 text-sm text-amber-900">
               <li className="flex gap-3">
                 <span className="w-6 h-6 rounded-full bg-amber-200 flex items-center justify-center text-xs font-bold shrink-0">1</span>
-                <span>Make sure 2-Step Verification is enabled in your {selectedPreset.label} account</span>
+                <span>
+                  Enable 2-Step Verification in your {selectedPreset.label} account
+                  {' '}
+                  <a
+                    href={selectedPreset.twoFactorUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline font-semibold hover:text-amber-700"
+                  >
+                    (open settings)
+                  </a>
+                </span>
               </li>
               <li className="flex gap-3">
                 <span className="w-6 h-6 rounded-full bg-amber-200 flex items-center justify-center text-xs font-bold shrink-0">2</span>
-                <span>Click the button below — it opens {selectedPreset.label} in a new tab</span>
+                <span>Click &ldquo;Open App Passwords&rdquo; below</span>
               </li>
               <li className="flex gap-3">
                 <span className="w-6 h-6 rounded-full bg-amber-200 flex items-center justify-center text-xs font-bold shrink-0">3</span>
@@ -189,6 +200,19 @@ export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
                 <span>Copy the 16-character code, then come back here</span>
               </li>
             </ol>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-xs text-blue-800">
+            <strong>Not working?</strong> If the App Passwords page says &ldquo;not available&rdquo;, you need to{' '}
+            <a
+              href={selectedPreset.twoFactorUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-semibold"
+            >
+              enable 2-Step Verification
+            </a>
+            {' '}first. After enabling it, come back and try again.
           </div>
 
           <a
