@@ -160,20 +160,9 @@ export async function processAutoApplyQueue(): Promise<{
         });
       }
 
-      // Generate tailored resume PDF
-      let resumeAttachment: { base64: string; filename: string } | null = null;
-      if (app.user.resumeText) {
-        try {
-          resumeAttachment = await generateTailoredResume({
-            resumeText: app.user.resumeText,
-            parsedProfile: app.user.parsedProfile as Record<string, unknown> | null,
-            jobTitle: app.jobTitle,
-            jobDescription,
-          });
-        } catch (e) {
-          console.warn(`[AutoApply] Resume PDF generation failed for ${app.id}, sending without:`, e);
-        }
-      }
+      // Generate tailored resume PDF — DISABLED until design is ready
+      // TODO: re-enable once designer delivers HTML template
+      const resumeAttachment: { base64: string; filename: string } | null = null;
 
       // Build email HTML
       const html = buildApplicationEmailHtml({
@@ -219,6 +208,7 @@ export async function processAutoApplyQueue(): Promise<{
         }
       } else {
         // No SMTP — send via Postal (Freelanly domain)
+        // TODO: attach tailored resume PDF once design is ready
         result = await sendAutoApplyViaPostal({
           userName: app.user.name || 'Applicant',
           userEmail: app.user.email,
@@ -227,8 +217,6 @@ export async function processAutoApplyQueue(): Promise<{
           html,
           text,
           applicationId: app.id,
-          attachmentBase64: resumeAttachment?.base64,
-          attachmentFilename: resumeAttachment?.filename,
         });
       }
 
