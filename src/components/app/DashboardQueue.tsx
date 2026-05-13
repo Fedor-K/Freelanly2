@@ -56,10 +56,36 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
     }
   }
 
-  function openEdit(item: QueueItem) {
+  async function openEdit(item: QueueItem) {
     setEditingId(item.id);
-    setEditText(item.coverLetter);
-    setEditSubject(item.subject);
+    if (item.coverLetter && item.coverLetter.length > 0) {
+      setEditText(item.coverLetter);
+      setEditSubject(item.subject);
+    } else {
+      // Generate cover letter on the fly
+      setEditText('Generating cover letter...');
+      setEditSubject('Generating...');
+      try {
+        const res = await fetch(`/api/user/auto-apply/${item.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'regenerate' }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setEditText(data.coverLetter || '');
+          setEditSubject(data.subject || '');
+          // Update local state
+          setItems(prev => prev.map(i => i.id === item.id ? { ...i, coverLetter: data.coverLetter, subject: data.subject } : i));
+        } else {
+          setEditText('Failed to generate. Try again.');
+          setEditSubject('');
+        }
+      } catch {
+        setEditText('Failed to generate. Try again.');
+        setEditSubject('');
+      }
+    }
   }
 
   async function saveDraft() {
