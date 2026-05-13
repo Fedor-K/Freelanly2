@@ -40,13 +40,29 @@ export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
     setLoading(true);
     setMessage(null);
 
+    // Auto-detect host from email domain (override preset if mismatch)
+    const emailDomain = email.split('@')[1]?.toLowerCase() || '';
+    const domainToHost: Record<string, { host: string; port: number }> = {
+      'gmail.com': { host: 'smtp.gmail.com', port: 587 },
+      'googlemail.com': { host: 'smtp.gmail.com', port: 587 },
+      'hotmail.com': { host: 'smtp-mail.outlook.com', port: 587 },
+      'outlook.com': { host: 'smtp-mail.outlook.com', port: 587 },
+      'live.com': { host: 'smtp-mail.outlook.com', port: 587 },
+      'msn.com': { host: 'smtp-mail.outlook.com', port: 587 },
+      'yahoo.com': { host: 'smtp.mail.yahoo.com', port: 587 },
+      'yahoo.co.uk': { host: 'smtp.mail.yahoo.com', port: 587 },
+    };
+    const detected = domainToHost[emailDomain];
+    const smtpHost = detected?.host || selectedPreset.host;
+    const smtpPort = detected?.port || selectedPreset.port;
+
     try {
       const saveRes = await fetch('/api/user/smtp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          host: selectedPreset.host,
-          port: selectedPreset.port,
+          host: smtpHost,
+          port: smtpPort,
           email,
           password,
         }),
