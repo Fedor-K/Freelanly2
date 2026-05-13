@@ -372,6 +372,10 @@ model Job {
   originalContent String?   // Original post text
   authorLinkedIn  String?   // Post author's LinkedIn URL
   authorName      String?   // Post author name
+  authorTitle     String?   // "Engineering Manager at Linear"
+  authorCompany   String?   // Company from LinkedIn profile
+  authorFollowers Int?      // LinkedIn follower count
+  authorHeadline  String?   // LinkedIn headline
 
   // AI-structured description (for SEO and UX)
   cleanDescription   String?    // AI-generated clean, readable description text
@@ -559,6 +563,11 @@ model Opportunity {
   clientType      String              // 'profile' or 'company'
   clientHeadline  String?             // e.g., "CTO at TechCorp"
   clientAvatar    String?             // Avatar URL
+
+  // Enriched poster profile (from LinkedIn scrape)
+  posterTitle     String?             // Full title from LinkedIn profile
+  posterCompany   String?             // Company from LinkedIn profile
+  posterFollowers Int?                // LinkedIn follower count
 
   // === ORIGINAL CONTENT ===
   originalContent String   @db.Text   // Raw LinkedIn post text

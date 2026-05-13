@@ -43,6 +43,13 @@ export async function GET(
         salary: true,
         level: true,
         createdAt: true,
+        clientName: true,
+        clientLinkedIn: true,
+        clientHeadline: true,
+        clientAvatar: true,
+        posterTitle: true,
+        posterCompany: true,
+        posterFollowers: true,
       },
     });
 
@@ -136,6 +143,14 @@ export async function GET(
         postedAgo,
         type: project.type,
       },
+      poster: project.type === 'opportunity' && opp ? {
+        name: opp.clientName,
+        headline: opp.posterTitle || opp.clientHeadline,
+        company: opp.posterCompany,
+        avatar: opp.clientAvatar,
+        linkedIn: opp.clientLinkedIn,
+        followers: opp.posterFollowers,
+      } : null,
       signals: {
         applicationCount,
         isEarly: applicationCount < 20,
