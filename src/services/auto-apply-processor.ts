@@ -224,12 +224,22 @@ export async function processAutoApplyQueue(): Promise<{
       }
 
       const parsedProfile = app.user.parsedProfile as Record<string, unknown> | null;
+      const userSkillsList = (parsedProfile?.skills as string[]) || [];
+      const userLangsList = (parsedProfile?.languages as string[]) || [];
+
+      // Skip if profile is too sparse (no skills = likely not a real resume)
+      if (userSkillsList.length === 0 && userLangsList.length === 0) {
+        await markFailed(app.id, 'Profile has no skills or languages — resume may be invalid');
+        skipped++;
+        continue;
+      }
+
       const userProfile = {
         name: app.user.name || 'Applicant',
-        skills: (parsedProfile?.skills as string[]) || [],
+        skills: userSkillsList,
         experience: (app.user.resumeText || '').slice(0, 300),
         resumeText: app.user.resumeText || undefined,
-        languages: (parsedProfile?.languages as string[]) || [],
+        languages: userLangsList,
       };
 
       // Generate cover letter if not already set
@@ -243,6 +253,14 @@ export async function processAutoApplyQueue(): Promise<{
           companyName: app.companyName,
           userProfile,
         });
+      }
+
+      // Reject cover letters that admit unsuitability
+      const rejectPhrases = ['cannot confirm', 'not suitable', 'no explicit', 'does not indicate', 'no relevant', 'unable to confirm', 'lack of'];
+      if (coverLetter && rejectPhrases.some(p => coverLetter!.toLowerCase().includes(p))) {
+        await markFailed(app.id, 'AI generated negative cover letter — profile likely doesn\'t match');
+        skipped++;
+        continue;
       }
 
       if (!subject || subject === '') {
