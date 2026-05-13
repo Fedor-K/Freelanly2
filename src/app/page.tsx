@@ -1,5 +1,4 @@
 import { Metadata } from 'next';
-import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { siteConfig } from '@/config/site';
 import './marketing-styles.css';
@@ -25,21 +24,21 @@ export default async function LandingPage() {
 {/* NAV */}
 <nav className="nav">
   <div className="nav-inner">
-    <Link href="/" className="logo">
+    <a href="/" className="logo">
       <span className="logo-mark">F</span>
       <span>Freelanly</span>
-    </Link>
+    </a>
     <ul className="nav-links">
-      <li><Link href="/how-it-works">How it works</Link></li>
-      <li><Link href="/features">Features</Link></li>
-      <li><Link href="/pricing">Pricing</Link></li>
-      <li><Link href="/about">About</Link></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a href="/features">Features</a></li>
+      <li><a href="/pricing">Pricing</a></li>
+      <li><a href="/about">About</a></li>
     </ul>
     <div className="nav-cta">
-      <Link href="/auth/login" className="btn btn-ghost btn-sm">Sign in</Link>
-      <Link href="/auth/signin" className="btn btn-primary btn-sm">Start free
+      <a href="/auth/login" className="btn btn-ghost btn-sm">Sign in</a>
+      <a href="/auth/signin" className="btn btn-primary btn-sm">Start free
         <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </Link>
+      </a>
     </div>
   </div>
 </nav>
@@ -62,11 +61,11 @@ export default async function LandingPage() {
         Freelanly catches new freelance gigs the moment they&apos;re posted on LinkedIn and <strong>{totalCompanies.toLocaleString()}+</strong> company sites — then sends a personalized AI application for you. <strong>500+ applications</strong> go out daily. <strong>5%</strong> get a reply.
       </p>
       <div className="hero-cta">
-        <Link href="/auth/signin" className="btn btn-primary btn-lg">
+        <a href="/auth/signin" className="btn btn-primary btn-lg">
           Start free — no card needed
           <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-        </Link>
-        <Link href="/how-it-works" className="btn btn-ghost btn-lg">See how it works</Link>
+        </a>
+        <a href="/how-it-works" className="btn btn-ghost btn-lg">See how it works</a>
       </div>
       <div className="hero-meta">
         <span className="hero-meta-item">
@@ -213,10 +212,10 @@ export default async function LandingPage() {
     </div>
 
     <div style={{marginTop:'32px', textAlign:'center'}} className="reveal">
-      <Link href="/how-it-works" className="btn btn-soft">
+      <a href="/how-it-works" className="btn btn-soft">
         Read the full breakdown
         <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </Link>
+      </a>
     </div>
   </div>
 </section>
@@ -229,10 +228,10 @@ export default async function LandingPage() {
         <span className="eyebrow">— What&apos;s inside</span>
         <h2>Built to win replies, not send spam.</h2>
       </div>
-      <Link href="/features" className="link-arrow">
+      <a href="/features" className="link-arrow">
         All features
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </Link>
+      </a>
     </div>
 
     <div className="feature-grid">
@@ -369,11 +368,11 @@ export default async function LandingPage() {
     <h2 style={{marginTop: '16px'}}>Your next client is <span className="accent">already posting.</span><br/>Get there first.</h2>
     <p>Free for your first 25 applications. No credit card. Plug in your inbox, pick your filters, and see what comes back this week.</p>
     <div className="hero-cta">
-      <Link href="/auth/signin" className="btn btn-primary btn-lg">
+      <a href="/auth/signin" className="btn btn-primary btn-lg">
         Start free
         <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </Link>
-      <Link href="/pricing" className="btn btn-ghost btn-lg">See pricing</Link>
+      </a>
+      <a href="/pricing" className="btn btn-ghost btn-lg">See pricing</a>
     </div>
   </div>
 </section>
@@ -383,39 +382,39 @@ export default async function LandingPage() {
   <div className="container">
     <div className="footer-grid">
       <div className="footer-col footer-brand">
-        <Link href="/" className="logo">
+        <a href="/" className="logo">
           <span className="logo-mark">F</span>
           <span>Freelanly</span>
-        </Link>
+        </a>
         <p>AI outreach engine for freelancers. Be first in the inbox. Win the project.</p>
       </div>
       <div className="footer-col">
         <h5>Product</h5>
         <ul>
-          <li><Link href="/how-it-works">How it works</Link></li>
-          <li><Link href="/features">Features</Link></li>
-          <li><Link href="/pricing">Pricing</Link></li>
+          <li><a href="/how-it-works">How it works</a></li>
+          <li><a href="/features">Features</a></li>
+          <li><a href="/pricing">Pricing</a></li>
         </ul>
       </div>
       <div className="footer-col">
         <h5>Company</h5>
         <ul>
-          <li><Link href="/about">About</Link></li>
-          <li><Link href="/blog">Blog</Link></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/blog">Blog</a></li>
         </ul>
       </div>
       <div className="footer-col">
         <h5>Resources</h5>
         <ul>
-          <li><Link href="/freelance">Browse Jobs</Link></li>
-          <li><Link href="/companies">Companies</Link></li>
+          <li><a href="/freelance">Browse Jobs</a></li>
+          <li><a href="/companies">Companies</a></li>
         </ul>
       </div>
       <div className="footer-col">
         <h5>Legal</h5>
         <ul>
-          <li><Link href="/privacy">Privacy</Link></li>
-          <li><Link href="/terms">Terms</Link></li>
+          <li><a href="/privacy">Privacy</a></li>
+          <li><a href="/terms">Terms</a></li>
         </ul>
       </div>
     </div>

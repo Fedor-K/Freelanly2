@@ -1,5 +1,4 @@
 import { Metadata } from 'next';
-import Link from 'next/link';
 import { siteConfig } from '@/config/site';
 import '../marketing-styles.css';
 import './hiw-design.css';
@@ -18,18 +17,18 @@ export default function HowItWorksPage() {
 {/* NAV */}
 <nav className="nav">
   <div className="nav-inner">
-    <Link href="/" className="logo"><span className="logo-mark">F</span><span>Freelanly</span></Link>
+    <a href="/" className="logo"><span className="logo-mark">F</span><span>Freelanly</span></a>
     <ul className="nav-links">
-      <li><Link href="/how-it-works">How it works</Link></li>
-      <li><Link href="/features">Features</Link></li>
-      <li><Link href="/pricing">Pricing</Link></li>
-      <li><Link href="/about">About</Link></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a href="/features">Features</a></li>
+      <li><a href="/pricing">Pricing</a></li>
+      <li><a href="/about">About</a></li>
     </ul>
     <div className="nav-cta">
-      <Link href="/auth/login" className="btn btn-ghost btn-sm">Sign in</Link>
-      <Link href="/auth/signin" className="btn btn-primary btn-sm">Start free
+      <a href="/auth/login" className="btn btn-ghost btn-sm">Sign in</a>
+      <a href="/auth/signin" className="btn btn-primary btn-sm">Start free
         <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </Link>
+      </a>
     </div>
   </div>
 </nav>
@@ -376,10 +375,10 @@ export default function HowItWorksPage() {
     <h2 style={{fontSize: 'clamp(40px, 5.5vw, 68px)', letterSpacing: '-0.035em', marginTop: '16px', marginBottom: '22px'}}>Five steps. <span style={{color:'var(--accent)', fontStyle: 'italic', fontWeight: 500}}>Zero busywork.</span></h2>
     <p style={{fontSize: '18px', color: 'var(--ink-3)', maxWidth: '540px', margin: '0 auto 32px'}}>Plug in your inbox, set your filters, and see what comes back this week.</p>
     <div style={{display:'flex', gap: '12px', justifyContent:'center', flexWrap:'wrap'}}>
-      <Link href="/auth/signin" className="btn btn-primary btn-lg">Start free
+      <a href="/auth/signin" className="btn btn-primary btn-lg">Start free
         <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </Link>
-      <Link href="/features" className="btn btn-ghost btn-lg">Explore features</Link>
+      </a>
+      <a href="/features" className="btn btn-ghost btn-lg">Explore features</a>
     </div>
   </div>
 </section>
@@ -389,37 +388,37 @@ export default function HowItWorksPage() {
   <div className="container">
     <div className="footer-grid">
       <div className="footer-col footer-brand">
-        <Link href="/" className="logo"><span className="logo-mark">F</span><span>Freelanly</span></Link>
+        <a href="/" className="logo"><span className="logo-mark">F</span><span>Freelanly</span></a>
         <p>AI outreach engine for freelancers. Be first in the inbox. Win the project.</p>
       </div>
       <div className="footer-col">
         <h5>Product</h5>
         <ul>
-          <li><Link href="/how-it-works">How it works</Link></li>
-          <li><Link href="/features">Features</Link></li>
-          <li><Link href="/pricing">Pricing</Link></li>
+          <li><a href="/how-it-works">How it works</a></li>
+          <li><a href="/features">Features</a></li>
+          <li><a href="/pricing">Pricing</a></li>
         </ul>
       </div>
       <div className="footer-col">
         <h5>Company</h5>
         <ul>
-          <li><Link href="/about">About</Link></li>
-          <li><Link href="/about#faq">FAQ</Link></li>
-          <li><Link href="/blog">Blog</Link></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/about#faq">FAQ</a></li>
+          <li><a href="/blog">Blog</a></li>
         </ul>
       </div>
       <div className="footer-col">
         <h5>Resources</h5>
         <ul>
-          <li><Link href="/freelance">Browse Jobs</Link></li>
-          <li><Link href="/companies">Companies</Link></li>
+          <li><a href="/freelance">Browse Jobs</a></li>
+          <li><a href="/companies">Companies</a></li>
         </ul>
       </div>
       <div className="footer-col">
         <h5>Legal</h5>
         <ul>
-          <li><Link href="/privacy">Privacy</Link></li>
-          <li><Link href="/terms">Terms</Link></li>
+          <li><a href="/privacy">Privacy</a></li>
+          <li><a href="/terms">Terms</a></li>
         </ul>
       </div>
     </div>
