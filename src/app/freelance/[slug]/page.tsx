@@ -18,6 +18,7 @@ import { OpportunityClientInfo } from '@/components/opportunities/OpportunityCli
 import { OpportunityApplyCard } from '@/components/opportunities/OpportunityApplyCard';
 import { OpportunityViewTracker } from '@/components/opportunities/OpportunityViewTracker';
 import { OpportunityOriginalPostFooter } from '@/components/opportunities/OpportunityOriginalPostFooter';
+import { ProjectDetailNew } from '@/components/opportunities/ProjectDetailNew';
 
 type UserPlan = 'FREE' | 'PRO' | 'ENTERPRISE';
 
@@ -493,279 +494,49 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
     };
   }
 
+  const postedAgo = formatDistanceToNow(opportunity.createdAt);
+
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-
-      <main className="flex-1">
-        <div className="container py-6 sm:py-8">
-          {/* Breadcrumbs */}
-          <nav className="text-sm text-muted-foreground mb-6">
-            <ol className="flex items-center gap-2">
-              <li>
-                <Link href="/" className="hover:text-foreground">
-                  Home
-                </Link>
-              </li>
-              <li>/</li>
-              <li>
-                <Link href="/jobs" className="hover:text-foreground">
-                  Freelance
-                </Link>
-              </li>
-              <li>/</li>
-              <li className="text-foreground line-clamp-1">{opportunity.title}</li>
-            </ol>
-          </nav>
-
-          <OpportunityViewTracker
-            opportunityId={opportunity.id}
-            title={opportunity.title}
-            clientName={opportunity.clientName || undefined}
-            category={opportunity.category?.slug || undefined}
-          />
-
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Header Card */}
-              <Card className="border-orange-200 bg-orange-50/30">
-                <CardContent className="p-6">
-                  {/* Direct Project Banner */}
-                  <div className="mb-4 flex items-center justify-between">
-                    <Badge className="bg-orange-600 text-white">
-                      🔥 Direct to Recruiter · No Middlemen
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      Posted {formatDistanceToNow(opportunity.createdAt)}
-                    </span>
-                  </div>
-
-                  {/* Client Info */}
-                  <OpportunityClientInfo
-                    opportunityId={opportunity.id}
-                    isPro={isPro}
-                    clientName={opportunity.clientName}
-                    clientHeadline={opportunity.clientHeadline}
-                    clientAvatar={opportunity.clientAvatar}
-                    clientLinkedIn={opportunity.clientLinkedIn}
-                    applyEmail={opportunity.applyEmail}
-                    title={opportunity.title}
-                  />
-
-                  {/* Title */}
-                  <h1 className="text-2xl sm:text-3xl font-bold mb-4">
-                    {opportunity.title}
-                  </h1>
-
-                  {/* Meta */}
-                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                    {opportunity.location && (
-                      <span className="flex items-center gap-1">
-                        📍 {opportunity.location}
-                      </span>
-                    )}
-                    <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300 font-medium">
-                      💼 Freelance Project
-                    </Badge>
-                  </div>
-
-                  {/* Tags */}
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Badge variant="outline" className="bg-red-100/80 text-red-700 border-red-300/60 backdrop-blur-sm">
-                      🔥 Urgent
-                    </Badge>
-                    <Badge variant="secondary">
-                      {formatLevel(opportunity.level)}
-                    </Badge>
-                    {opportunity.skills.slice(0, 5).map((skill) => (
-                      <Badge key={skill} variant="outline">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Original Post Content */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                    </svg>
-                    Original Post
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="prose prose-sm max-w-none">
-                    <div className="whitespace-pre-wrap">{displayOriginalContent}</div>
-                  </div>
-
-                  <OpportunityOriginalPostFooter
-                    opportunityId={opportunity.id}
-                    isPro={isPro}
-                    sourceUrl={opportunity.sourceUrl}
-                    applyEmail={opportunity.applyEmail}
-                    title={opportunity.title}
-                    clientName={opportunity.clientName || undefined}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Apply Card */}
-              <OpportunityApplyCard
-                opportunityId={opportunity.id}
-                isPro={isPro}
-                clientLinkedIn={opportunity.clientLinkedIn}
-                applyEmail={opportunity.applyEmail}
-                applyUrl={opportunity.applyUrl}
-                title={opportunity.title}
-                clientName={opportunity.clientName}
-                postedAt={opportunity.createdAt.toISOString()}
-                budget={null}
-              />
-
-              {/* Category Link */}
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-sm text-muted-foreground mb-2">Category</p>
-                  <Link
-                    href={`/jobs/${opportunity.category.slug}`}
-                    className="text-blue-600 hover:underline font-medium"
-                  >
-                    {opportunity.category.name} Jobs
-                  </Link>
-                </CardContent>
-              </Card>
-
-              {/* Removal Request */}
-              <div className="text-center">
-                <a
-                  href={`mailto:removal@freelanly.com?subject=Removal%20Request&body=Please%20remove%20this%20listing:%20${encodeURIComponent(`${siteConfig.url}/freelance/${slug}`)}`}
-                  className="text-xs text-muted-foreground hover:underline"
-                >
-                  Request Removal
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* Similar Projects Section */}
-          {similarProjects.length > 0 && (
-            <div className="mt-12">
-              <h2 className="text-2xl font-bold mb-6">Similar {opportunity.category.name} Projects</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {similarProjects.map((project) => (
-                  <Link
-                    key={project.id}
-                    href={`/freelance/${project.slug}`}
-                    className="block"
-                  >
-                    <Card className="h-full hover:shadow-md transition-shadow">
-                      <CardContent className="pt-4">
-                        <div className="min-w-0">
-                          <h3 className="font-semibold text-sm line-clamp-2">{project.title}</h3>
-                          <p className="text-sm text-muted-foreground truncate">{project.clientName}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            {project.location && (
-                              <span className="text-xs text-muted-foreground">{project.location}</span>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-              <div className="mt-6 text-center">
-                <Link href={`/jobs/${opportunity.category.slug}`}>
-                  <Button variant="outline">
-                    View all {opportunity.category.name} projects →
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {/* Looking for full-time work? */}
-          <div className="mt-8 bg-muted/50 rounded p-4">
-            <p className="text-sm text-muted-foreground">
-              Looking for full-time remote {opportunity.category.name.toLowerCase()} jobs?{' '}
-              <Link href={`/jobs/${opportunity.category.slug}`} className="text-primary hover:underline font-medium">
-                Browse {opportunity.category.name} positions →
-              </Link>
-            </p>
-          </div>
-        </div>
-      </main>
-
-      <Footer />
-
-      {/* CrossSellExitPopup removed — annoying UX */}
-
-      {/* Breadcrumb Schema */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'BreadcrumbList',
-            itemListElement: [
-              {
-                '@type': 'ListItem',
-                position: 1,
-                name: 'Home',
-                item: siteConfig.url,
-              },
-              {
-                '@type': 'ListItem',
-                position: 2,
-                name: 'Freelance Projects',
-                item: `${siteConfig.url}/freelance`,
-              },
-              {
-                '@type': 'ListItem',
-                position: 3,
-                name: opportunity.title,
-                item: `${siteConfig.url}/freelance/${slug}`,
-              },
-            ],
-          }),
+    <>
+      <OpportunityViewTracker
+        opportunityId={opportunity.id}
+        title={opportunity.title}
+        clientName={opportunity.clientName || undefined}
+        category={opportunity.category?.slug || undefined}
+      />
+      <ProjectDetailNew
+        opportunity={{
+          id: opportunity.id,
+          title: opportunity.title,
+          description: opportunity.description || opportunity.originalContent || '',
+          companyName: opportunity.companyName,
+          clientName: opportunity.clientName,
+          clientHeadline: opportunity.clientHeadline,
+          clientAvatar: opportunity.clientAvatar,
+          clientLinkedIn: opportunity.clientLinkedIn,
+          source: opportunity.source,
+          sourceUrl: opportunity.sourceUrl,
+          skills: opportunity.skills || [],
+          locationType: opportunity.locationType,
+          location: opportunity.location,
+          level: opportunity.level,
+          salary: null,
+          createdAt: opportunity.createdAt,
+          category: opportunity.category,
         }}
-      />
-      {/* JobPosting Schema for Google Jobs */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPostingSchema) }}
+        totalProjectCount={totalProjectCount}
+        isLoggedIn={!!session}
+        postedAgo={postedAgo}
       />
 
-      {/* Sticky CTA banner for unauthenticated users */}
-      {!session && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t" style={{ background: '#0A0B0F', borderColor: 'rgba(255,255,255,0.08)' }}>
-          <div className="container flex items-center justify-between gap-4 py-3.5 flex-wrap">
-            <div className="flex items-center gap-3">
-              <span className="font-mono text-[11px] tracking-wider uppercase px-2.5 py-1 rounded-full" style={{ background: 'rgba(199,249,74,0.15)', color: '#C7F94A', border: '1px solid rgba(199,249,74,0.3)' }}>
-                1 of {totalProjectCount.toLocaleString()}
-              </span>
-              <span className="text-[14px] text-[#E8E8E3]">
-                open projects. <span className="text-[#9C9EA2]">Sign up — AI applies to all of them for you.</span>
-              </span>
-            </div>
-            <a
-              href="/auth/signin"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-[14px] whitespace-nowrap hover:-translate-y-px transition-transform"
-              style={{ background: '#C7F94A', color: '#000' }}
-            >
-              Start free →
-            </a>
-          </div>
-        </div>
+      {/* JobPosting Schema for Google Jobs */}
+      {jobPostingSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPostingSchema) }}
+        />
       )}
-    </div>
+    </>
   );
 }
 
