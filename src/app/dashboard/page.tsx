@@ -200,7 +200,7 @@ export default async function DashboardOverviewPage() {
                 </div>
               ) : pending.map((app, i) => (
                 <div key={app.id} className="queue-row">
-                  <span className="indicator" style={{background: app.status === 'PENDING' ? 'var(--good)' : app.status === 'SENDING' ? 'var(--info)' : 'var(--ink-5)'}}></span>
+                  <span className="indicator" style={{background: app.matchScore && app.matchScore >= 80 ? 'var(--good)' : 'var(--ink-5)'}}></span>
                   <div className="logo" style={{background: COLORS[i % COLORS.length]}}>{app.companyName[0]}</div>
                   <div>
                     <div className="title">{app.jobTitle} · {app.companyName}</div>
@@ -208,7 +208,8 @@ export default async function DashboardOverviewPage() {
                   </div>
                   <span className="match">{app.matchScore ? `${app.matchScore}% match` : ''}</span>
                   <div className="actions">
-                    <span className="chip" style={{fontSize: '10px'}}>{app.status.toLowerCase()}</span>
+                    <button className="btn btn-ghost btn-sm">Edit draft</button>
+                    <button className="btn btn-primary btn-sm">Send now</button>
                   </div>
                 </div>
               ))}
