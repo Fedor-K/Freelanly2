@@ -416,6 +416,11 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
     redirect(categorySlug ? `/freelance/${categorySlug}` : '/freelance');
   }
 
+  // Total project count for CTA banner
+  const totalProjectCount = await prisma.opportunity.count({
+    where: { createdAt: { gte: new Date(Date.now() - 14 * 86400000) }, isActive: true },
+  });
+
   // Get user session and plan
   const session = await auth();
   let userPlan: UserPlan = 'FREE';
@@ -737,6 +742,29 @@ export default async function FreelancePage({ params, searchParams }: FreelanceP
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPostingSchema) }}
       />
+
+      {/* Sticky CTA banner for unauthenticated users */}
+      {!session && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t" style={{ background: '#0A0B0F', borderColor: 'rgba(255,255,255,0.08)' }}>
+          <div className="container flex items-center justify-between gap-4 py-3.5 flex-wrap">
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-[11px] tracking-wider uppercase px-2.5 py-1 rounded-full" style={{ background: 'rgba(199,249,74,0.15)', color: '#C7F94A', border: '1px solid rgba(199,249,74,0.3)' }}>
+                1 of {totalProjectCount.toLocaleString()}
+              </span>
+              <span className="text-[14px] text-[#E8E8E3]">
+                open projects. <span className="text-[#9C9EA2]">Sign up — AI applies to all of them for you.</span>
+              </span>
+            </div>
+            <a
+              href="/auth/signin"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-[14px] whitespace-nowrap hover:-translate-y-px transition-transform"
+              style={{ background: '#C7F94A', color: '#000' }}
+            >
+              Start free →
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
