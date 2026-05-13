@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
       where: { id: session.user.id },
       select: { plan: true },
     });
-    const isPro = user?.plan !== 'FREE';
+    const paywallEnabled = false; // Set to true when ready to enable paywall
+    const isPro = paywallEnabled ? user?.plan !== 'FREE' : true;
 
     const filter = request.nextUrl.searchParams.get('filter') || 'all';
 

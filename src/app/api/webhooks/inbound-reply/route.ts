@@ -86,11 +86,13 @@ export async function POST(request: NextRequest) {
       console.log(`[InboundReply] ${appId} → ${newStatus} from ${from}: ${replyText.slice(0, 80)}`);
     }
 
-    // Forward full reply only to PRO+ users
-    // FREE users get a teaser notification (no reply text)
+    // Forward reply to user's email
+    // TODO: When paywall is enabled, FREE users get teaser instead of full reply
+    // For now, forward to everyone
     const isPro = app.user.plan !== 'FREE';
+    const paywallEnabled = false; // Set to true when ready to enable paywall
 
-    if (isPro) {
+    if (!paywallEnabled || isPro) {
       try {
         await sendEmail({
           to: app.user.email,
@@ -99,12 +101,12 @@ export async function POST(request: NextRequest) {
           text: plainBody || 'You received a reply. Check the original in Freelanly dashboard.',
           replyTo: from,
         });
-        console.log(`[InboundReply] Forwarded reply to PRO user ${app.user.email}`);
+        console.log(`[InboundReply] Forwarded reply to ${app.user.email}`);
       } catch (fwdErr) {
         console.error(`[InboundReply] Forward failed:`, fwdErr);
       }
     } else {
-      // FREE user: send teaser only — "You got a reply! Upgrade to read it"
+      // FREE user with paywall: send teaser only
       try {
         await sendEmail({
           to: app.user.email,
@@ -126,7 +128,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true, appId, forwarded: isPro });
+    return NextResponse.json({ ok: true, appId, forwarded: !paywallEnabled || isPro });
   } catch (error) {
     console.error('[InboundReply] Error:', error);
     return NextResponse.json({ ok: true }); // Always 200 to prevent Postal retries
