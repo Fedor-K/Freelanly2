@@ -170,14 +170,6 @@ export default function AboutPage() {
       <span className="eyebrow">— FAQ</span>
       <h2>Everything else.</h2>
     </div>
-    <div className="faq-cats reveal">
-      <span className="faq-cat active">All</span>
-      <span className="faq-cat">Product</span>
-      <span className="faq-cat">Pricing</span>
-      <span className="faq-cat">Privacy</span>
-      <span className="faq-cat">Support</span>
-    </div>
-
     <div className="reveal">
       <details className="faq-item-acc" open>
         <summary>
