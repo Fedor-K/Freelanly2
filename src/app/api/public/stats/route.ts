@@ -31,6 +31,7 @@ export async function GET() {
       totalCompanies,
       replyRate,
       totalReplies: replied,
+      medianTimeToSpot: '~15 min', // n8n scrapes LinkedIn every 15-20 min
     }, {
       headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' },
     });
