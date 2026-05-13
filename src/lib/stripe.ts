@@ -98,8 +98,8 @@ export const PRICE_INFO: Record<PriceKey, {
 
 // Plan limits
 export const PLAN_LIMITS = {
-  FREE: { appsPerMonth: 10, inboxes: 1, templates: 3, autoApply: false, followUps: false, earlyAccess: false, aiModel: 'basic' },
-  PRO: { appsPerMonth: 500, inboxes: 3, templates: -1, autoApply: true, followUps: true, earlyAccess: true, aiModel: 'premium' },
+  FREE: { appsPerMonth: 25, inboxes: 1, templates: 3, autoApply: true, followUps: 1, earlyAccess: false, aiModel: 'basic', replyPreview: 'sentiment' },
+  PRO: { appsPerMonth: 500, inboxes: 3, templates: -1, autoApply: true, followUps: 3, earlyAccess: true, aiModel: 'premium', replyPreview: 'full' },
   AGENCY: { appsPerMonth: -1, inboxes: 10, templates: -1, autoApply: true, followUps: true, earlyAccess: true, aiModel: 'premium', seats: 5 },
 } as const;
 
@@ -114,19 +114,22 @@ export const NEW_PRICE_INFO = {
 // Plan features for display
 export const PLAN_FEATURES = {
   free: [
-    '10 AI applications / month',
-    'Browse all 13,842+ live gigs',
-    'Basic AI cover letter',
-    'Manual send only',
+    '25 AI applications / month',
+    'Browse all live gigs',
+    'AI cover letter',
+    'Auto-apply',
+    '1 follow-up per application',
+    'Reply sentiment preview',
   ],
   pro: [
     'Everything in Free, plus:',
     '500 AI applications / month',
-    'Auto-apply with smart filters',
-    'Auto follow-ups after 5 days',
+    'Unlimited follow-ups (3 touches)',
+    'Full reply text + email forwarding',
     'Premium AI model',
+    'Send from your own inbox (SMTP)',
     'Tracking & reply analytics',
-    'Send from your own inbox',
+    'Templates & A/B testing',
     'Early access to new jobs (3hr edge)',
   ],
   agency: [

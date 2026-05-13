@@ -26,6 +26,8 @@ export async function GET(request: NextRequest) {
     });
     const paywallEnabled = false; // Set to true when ready to enable paywall
     const isPro = paywallEnabled ? user?.plan !== 'FREE' : true;
+    // Sentiment preview for FREE: show category + first 30 chars, not full text
+    const isSentimentOnly = paywallEnabled && !isPro;
 
     const filter = request.nextUrl.searchParams.get('filter') || 'all';
 
@@ -61,18 +63,25 @@ export async function GET(request: NextRequest) {
     });
 
     const enriched = threads.map(t => {
-      // FREE users: blur reply text, show teaser
+      // FREE with paywall: sentiment preview (category + 30 chars)
+      // PRO or paywall off: full text
       const replyText = isPro ? t.replyText : (t.replyText ? t.replyText.slice(0, 30) + '...' : null);
-      const locked = !isPro && !!t.replyText;
+      const locked = isSentimentOnly && !!t.replyText;
+      const sentiment = t.replyCategory === 'INTERVIEW' ? 'Wants to schedule a call 🟢'
+        : t.replyCategory === 'REPLIED' ? 'Interested 🟢'
+        : t.replyCategory === 'REJECTED' ? 'Not a fit 🔴'
+        : t.replyCategory === 'INFO_REQUEST' ? 'Asking for more info 🟡'
+        : 'Replied 🟢';
 
       return {
         ...t,
         replyText,
         locked,
+        sentiment: locked ? sentiment : undefined,
         thread: [
           { from: 'you', text: t.coverLetter, date: t.sentAt },
           ...(t.followUpSentAt ? [{ from: 'you', text: '(Follow-up sent)', date: t.followUpSentAt }] : []),
-          ...(t.replyText ? [{ from: 'recruiter', text: isPro ? t.replyText : '🔒 Upgrade to Pro to read this reply', date: t.repliedAt || t.updatedAt }] : []),
+          ...(t.replyText ? [{ from: 'recruiter', text: isPro ? t.replyText : `${sentiment} — Upgrade to Pro to read full reply`, date: t.repliedAt || t.updatedAt }] : []),
         ],
       };
     });

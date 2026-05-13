@@ -42,6 +42,7 @@ model User {
   parsedProfile  Json?     // AI-extracted: {name, skills, current_title, field, experience_years, summary}
 
   // Profile (used in outreach personalization)
+  workPreference String?   // "What kind of work do you want?" — free text, guides AI cover letters
   headline       String?   // One sentence, credibility — "Senior React dev · ex-Notion"
   location       String?   // "Berlin, Germany"
   availability   String?   // "~30 hrs/week"

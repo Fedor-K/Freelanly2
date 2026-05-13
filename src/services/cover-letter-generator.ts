@@ -58,6 +58,7 @@ interface UserProfile {
   experience: string;
   resumeText?: string;
   languages?: string[];
+  workPreference?: string;
 }
 
 interface CoverLetterInput {
@@ -99,7 +100,8 @@ Description: ${truncatedDesc}
 Applicant: ${userProfile.name}
 Skills: ${skillsList}
 Languages: ${userProfile.languages?.join(', ') || 'Not specified'}
-Experience: ${experienceSnippet}`,
+Experience: ${experienceSnippet}
+${userProfile.workPreference ? `Work preference: ${userProfile.workPreference}` : ''}`,
         },
       ],
     });
