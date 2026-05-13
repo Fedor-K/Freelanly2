@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
         userId: true,
         jobTitle: true,
         companyName: true,
-        user: { select: { email: true, name: true, plan: true } },
+        user: { select: { email: true, name: true, plan: true, notifySlackUrl: true, notifyOnReply: true } },
       },
     });
 
@@ -141,6 +141,26 @@ export async function POST(request: NextRequest) {
         console.log(`[InboundReply] Sent teaser to FREE user ${app.user.email}`);
       } catch (fwdErr) {
         console.error(`[InboundReply] Teaser failed:`, fwdErr);
+      }
+    }
+
+    // Slack notification
+    if (app.user.notifySlackUrl && app.user.notifyOnReply) {
+      try {
+        await fetch(app.user.notifySlackUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            blocks: [
+              { type: 'section', text: { type: 'mrkdwn', text: `*New reply from ${app.companyName}* — ${app.jobTitle}` } },
+              { type: 'section', text: { type: 'mrkdwn', text: signal ? `> ${signal}` : `> ${replyText.slice(0, 100)}...` } },
+              { type: 'actions', elements: [{ type: 'button', text: { type: 'plain_text', text: 'Open in Freelanly' }, url: 'https://freelanly.com/dashboard/auto-apply?tab=inbox' }] },
+            ],
+          }),
+        });
+        console.log(`[InboundReply] Slack notified for ${app.user.email}`);
+      } catch (slackErr) {
+        console.error(`[InboundReply] Slack failed:`, slackErr);
       }
     }
 
