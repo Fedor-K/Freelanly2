@@ -51,9 +51,57 @@ export default async function LandingPage() {
               <Link href="/freelance" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full text-[15px] border hover:bg-white/5 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>Browse projects</Link>
             </div>
             <div className="flex gap-5 text-[13px] text-[#A1A1AA]">{['No credit card', 'First 25 applications free', 'Cancel anytime'].map(t => (<span key={t} className="flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C7F94A" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>{t}</span>))}</div>
+          {/* Product widget — live feed ticker */}
+          <div className="mt-12 max-w-lg relative rounded-[14px] p-3.5 overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))', border: '1px solid rgba(255,255,255,0.14)', boxShadow: '0 40px 100px -30px rgba(0,0,0,0.6)' }}>
+            <div className="flex items-center gap-2 pb-2.5 mb-3 text-[11px] font-mono" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <span className="flex gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-white/10" /><span className="w-2.5 h-2.5 rounded-full bg-white/10" /><span className="w-2.5 h-2.5 rounded-full bg-white/10" /></span>
+              <span className="flex-1 text-center text-[#6B7280]">app.freelanly.com/inbox</span>
+            </div>
+            <div className="flex justify-between items-center mb-3">
+              <span className="font-mono text-[11px] tracking-widest uppercase text-[#A1A1AA]">Live activity</span>
+              <span className="font-mono text-[11px] text-[#C7F94A] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#C7F94A] animate-pulse" />STREAMING</span>
+            </div>
+            <div className="overflow-hidden max-h-[280px] relative" style={{ maskImage: 'linear-gradient(to bottom, transparent, #000 14%, #000 80%, transparent)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, #000 14%, #000 80%, transparent)' }}>
+              <div className="flex flex-col gap-2 animate-[feedScroll_22s_linear_infinite]">
+                {[...Array(2)].flatMap(() => [
+                  { logo: 'L', color: '#FF6B6B', title: 'Senior React Developer · Linear', meta: 'via LinkedIn · 2m ago', status: 'sending', statusColor: '#6EE7FF' },
+                  { logo: 'V', color: '#A8E024', title: 'Full-Stack Engineer · Vercel', meta: 'careers page · 6m ago', status: '✓ applied', statusColor: '#4ADE80' },
+                  { logo: 'S', color: '#6EE7FF', title: 'Brand Designer · Stripe', meta: 'via LinkedIn · 8m ago', status: '✦ reply!', statusColor: '#C7F94A' },
+                  { logo: 'N', color: '#FFB951', title: 'Product Designer · Notion', meta: 'via LinkedIn · 11m ago', status: '✓ applied', statusColor: '#4ADE80' },
+                  { logo: 'F', color: '#F87171', title: 'iOS Engineer · Figma', meta: 'careers page · 14m ago', status: '✓ applied', statusColor: '#4ADE80' },
+                  { logo: 'R', color: '#A78BFA', title: 'DevOps Engineer · Railway', meta: 'via LinkedIn · 18m ago', status: 'sending', statusColor: '#6EE7FF' },
+                ]).map((item, i) => (
+                  <div key={i} className="grid grid-cols-[36px_1fr_auto] gap-3 items-center p-3 rounded-[10px]" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div className="w-9 h-9 rounded-lg grid place-items-center font-mono font-bold text-sm text-black" style={{ background: item.color }}>{item.logo}</div>
+                    <div>
+                      <div className="text-[13.5px] font-medium truncate">{item.title}</div>
+                      <div className="text-[11.5px] font-mono text-[#6B7280] mt-0.5">{item.meta}</div>
+                    </div>
+                    <span className="font-mono text-[11px] px-2 py-1 rounded-full" style={{ color: item.statusColor, background: `${item.statusColor}15`, border: `1px solid ${item.statusColor}30` }}>{item.status}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
           </div>
         </div>
       </header>
+
+      {/* Marquee */}
+      <section className="py-9 overflow-hidden" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="text-center font-mono text-[11px] tracking-widest uppercase text-[#6B7280] mb-6">Freelancers landing gigs from</div>
+        <div className="flex gap-16 whitespace-nowrap animate-[scrollX_38s_linear_infinite]" style={{ width: 'max-content' }}>
+          {[...Array(2)].flatMap(() => ['Linear','Vercel','Stripe','Notion','Figma','Shopify','GitLab','Railway','Supabase','Automattic','Cloudflare']).map((name, i) => (
+            <span key={i} className="text-[22px] font-semibold tracking-tight text-[#A1A1AA]">{name}</span>
+          ))}
+        </div>
+      </section>
+
+      <style>{`
+        @keyframes feedScroll { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
+        @keyframes scrollX { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+      `}</style>
+
       <section className="py-16"><div className="max-w-[1240px] mx-auto px-8"><div className="grid grid-cols-2 md:grid-cols-5 rounded-[14px] overflow-hidden" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.08)' }}>{[{ num: `${(totalUsers/1000).toFixed(1)}K+`, label: 'Freelancers' },{ num: `${totalOpps}+`, label: 'Projects today' },{ num: `${totalCompanies.toLocaleString()}+`, label: 'Companies' },{ num: '5.1%', label: 'Reply rate', accent: true },{ num: '90+', label: 'Countries' }].map((s, i) => (<div key={i} className="p-7 border-r last:border-r-0" style={{ borderColor: 'rgba(255,255,255,0.08)' }}><div className={`text-[32px] font-semibold tracking-tight ${s.accent ? 'text-[#C7F94A]' : ''}`}>{s.num}</div><div className="text-[13px] text-[#A1A1AA] mt-1">{s.label}</div></div>))}</div></div></section>
       <section className="py-24"><div className="max-w-[1240px] mx-auto px-8"><div className="mb-14"><span className="font-mono text-xs tracking-widest uppercase text-[#A1A1AA]">— How it works</span><h2 className="text-[clamp(36px,4.4vw,56px)] font-semibold tracking-tighter mt-4">Three steps. Zero busywork.</h2><p className="text-[#D4D4D8] text-lg mt-3">Set your filters once. We hunt, write, and send while you do real work.</p></div><div className="grid md:grid-cols-3 gap-6">{[{ num: '01', title: 'Discover', sub: 'We find the gigs others miss', desc: 'Scrapes LinkedIn hiring posts and 3,500+ career pages every few hours.' },{ num: '02', title: 'Personalize', sub: 'AI writes a letter that sounds like you', desc: 'References your portfolio, opens with a human hook. No "I hope this email finds you well."' },{ num: '03', title: 'Send & follow up', sub: 'Tracked. Followed up. From your inbox.', desc: 'Track opens, replies. Sends a nudge after 5 days if they go quiet.' }].map(s => (<div key={s.num} className="p-7 rounded-[14px]" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.08)' }}><div className="font-mono text-xs tracking-widest uppercase text-[#C7F94A] mb-4">{s.num} — {s.title}</div><h3 className="text-[22px] font-semibold tracking-tight mb-3">{s.sub}</h3><p className="text-[#A1A1AA] text-[15px] leading-relaxed">{s.desc}</p></div>))}</div></div></section>
       <section className="py-24" style={{ background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.015))' }}><div className="max-w-[1240px] mx-auto px-8"><div className="mb-14"><span className="font-mono text-xs tracking-widest uppercase text-[#A1A1AA]">— What&apos;s inside</span><h2 className="text-[clamp(36px,4.4vw,56px)] font-semibold tracking-tighter mt-4">Built to win replies, not send spam.</h2></div><div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">{[{ t: 'AI cover letters', d: 'Reads the job post, references your portfolio. ~90 words. No fluff.' },{ t: 'Auto-apply engine', d: 'Set criteria once. Applications go out at human cadence.' },{ t: 'Auto follow-ups', d: 'If they go quiet for 5 days, one polite nudge. Then it stops.' },{ t: 'Reply & open tracking', d: 'Open rate, reply rate, interview rate by template.' },{ t: 'Pipeline / Kanban', d: 'Sent → Opened → Replied → Interview → Offer.' },{ t: 'Send from your inbox', d: 'OAuth into Gmail. Sends as you, replies route back.' }].map(f => (<div key={f.t} className="p-6 rounded-[14px] hover:border-white/15 transition-colors" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.08)' }}><h3 className="text-[18px] font-semibold tracking-tight mb-2">{f.t}</h3><p className="text-[#A1A1AA] text-[14px] leading-relaxed">{f.d}</p></div>))}</div></div></section>
