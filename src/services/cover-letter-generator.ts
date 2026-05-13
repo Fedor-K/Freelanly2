@@ -60,6 +60,7 @@ interface UserProfile {
   languages?: string[];
   workPreference?: string;
   bookingUrl?: string;
+  caseStudies?: Array<{ title: string; description: string; tech?: string[]; url?: string }>;
 }
 
 interface CoverLetterInput {
@@ -103,7 +104,8 @@ Skills: ${skillsList}
 Languages: ${userProfile.languages?.join(', ') || 'Not specified'}
 Experience: ${experienceSnippet}
 ${userProfile.workPreference ? `Work preference: ${userProfile.workPreference}` : ''}
-${userProfile.bookingUrl ? `Booking link (include naturally at the end): ${userProfile.bookingUrl}` : ''}`,
+${userProfile.bookingUrl ? `Booking link (include naturally at the end): ${userProfile.bookingUrl}` : ''}
+${userProfile.caseStudies?.length ? `Portfolio projects (pick the most relevant one to mention): ${userProfile.caseStudies.map(p => `${p.title}: ${p.description}${p.url ? ` (${p.url})` : ''}`).join('; ')}` : ''}`,
         },
       ],
     });
