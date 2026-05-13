@@ -43,9 +43,15 @@ export async function GET() {
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
     });
 
+    // Find winning template (highest reply rate with at least 10 sends)
+    const winningId = templates
+      .filter(t => t.sentCount >= 10)
+      .sort((a, b) => (b.replyCount / b.sentCount) - (a.replyCount / a.sentCount))[0]?.id || null;
+
     const templatesWithStats = templates.map(t => ({
       ...t,
       replyRate: t.sentCount > 0 ? ((t.replyCount / t.sentCount) * 100).toFixed(1) + '%' : null,
+      winning: t.id === winningId,
     }));
 
     return NextResponse.json({ templates: templatesWithStats, variables: TEMPLATE_VARIABLES });
@@ -55,7 +61,7 @@ export async function GET() {
   }
 }
 
-// POST /api/user/templates — Create a new cover letter template
+// POST /api/user/templates — Create, duplicate, or preview a template
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -64,6 +70,58 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+
+    // Duplicate template
+    if (body.action === 'duplicate' && body.id) {
+      const original = await prisma.coverLetterTemplate.findFirst({
+        where: { id: body.id, userId: session.user.id },
+      });
+      if (!original) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+      const duplicate = await prisma.coverLetterTemplate.create({
+        data: {
+          userId: session.user.id,
+          name: `${original.name} (copy)`,
+          subject: original.subject,
+          body: original.body,
+          type: original.type,
+          isDefault: false,
+        },
+      });
+      return NextResponse.json(duplicate);
+    }
+
+    // Preview send — substitute variables with sample data
+    if (body.action === 'preview' && body.id) {
+      const template = await prisma.coverLetterTemplate.findFirst({
+        where: { id: body.id, userId: session.user.id },
+      });
+      if (!template) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { name: true, parsedProfile: true },
+      });
+      const profile = user?.parsedProfile as Record<string, unknown> | null;
+
+      const preview = substituteVariables(template.body, {
+        company: 'Linear',
+        role: 'Senior React Developer',
+        recruiter: 'Sarah',
+        skills: (profile?.skills as string[])?.slice(0, 5) || ['React', 'TypeScript'],
+        name: user?.name || 'Alex',
+        experience: (profile?.summary as string) || 'experienced developer',
+      });
+
+      const previewSubject = substituteVariables(template.subject, {
+        company: 'Linear',
+        role: 'Senior React Developer',
+        name: user?.name || 'Alex',
+      });
+
+      return NextResponse.json({ subject: previewSubject, body: preview, charCount: preview.length, readTime: `~${Math.ceil(preview.split(/\s+/).length / 200 * 60)} sec read` });
+    }
+
     const { name, subject, body: templateBody, type, isDefault } = body as {
       name?: string;
       subject?: string;
