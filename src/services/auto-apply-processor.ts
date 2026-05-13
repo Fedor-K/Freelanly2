@@ -213,11 +213,13 @@ export async function processAutoApplyQueue(): Promise<{
         jobDescription = opp?.description || '';
       }
 
+      const parsedProfile = app.user.parsedProfile as Record<string, unknown> | null;
       const userProfile = {
         name: app.user.name || 'Applicant',
-        skills: (app.user.parsedProfile as Record<string, unknown>)?.skills as string[] || [],
+        skills: (parsedProfile?.skills as string[]) || [],
         experience: (app.user.resumeText || '').slice(0, 300),
         resumeText: app.user.resumeText || undefined,
+        languages: (parsedProfile?.languages as string[]) || [],
       };
 
       // Generate cover letter if not already set

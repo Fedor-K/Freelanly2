@@ -57,6 +57,7 @@ interface UserProfile {
   skills: string[];
   experience: string;
   resumeText?: string;
+  languages?: string[];
 }
 
 interface CoverLetterInput {
@@ -89,7 +90,7 @@ export async function generateCoverLetter(input: CoverLetterInput): Promise<stri
         {
           role: 'system',
           content: styleOverride ||
-            'Write a 3-5 sentence cover letter body for a job application. Be professional, specific to the role, and mention relevant skills. No greeting or signature — just the body text. Keep it under 150 words.',
+            'Write a 3-5 sentence cover letter body for a job application. Be professional and specific to the role. CRITICAL: ONLY mention skills, languages, and experience that are explicitly listed in the applicant\'s profile below. NEVER invent, fabricate, or assume skills the applicant does not have. If the applicant lacks a key requirement, focus on transferable skills they DO have. No greeting or signature — just the body text. Keep it under 150 words.',
         },
         {
           role: 'user',
@@ -97,6 +98,7 @@ export async function generateCoverLetter(input: CoverLetterInput): Promise<stri
 Description: ${truncatedDesc}
 Applicant: ${userProfile.name}
 Skills: ${skillsList}
+Languages: ${userProfile.languages?.join(', ') || 'Not specified'}
 Experience: ${experienceSnippet}`,
         },
       ],
