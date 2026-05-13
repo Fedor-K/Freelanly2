@@ -126,7 +126,7 @@ export default async function DashboardOverviewPage() {
   };
 
   const pendingCount = await prisma.autoApplication.count({
-    where: { userId, status: { in: ['PENDING', 'REVIEW'] } },
+    where: { userId, status: { in: ['PENDING', 'REVIEW', 'SENDING'] } },
   });
   const sentToday = await prisma.autoApplication.count({
     where: { userId, sentAt: { gte: todayStart }, status: { in: ['SENT', 'DELIVERED', 'OPENED', 'REPLIED'] } },

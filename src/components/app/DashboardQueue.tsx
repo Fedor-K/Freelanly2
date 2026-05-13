@@ -107,22 +107,16 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
               </div>
               <span className="match">{app.matchScore ? `${app.matchScore}% match` : ''}</span>
               <div className="actions">
-                {app.status === 'SENDING' ? (
-                  <span className="chip" style={{fontSize: '10px'}}>sending...</span>
-                ) : (
-                  <>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => openEdit(app)}
-                      disabled={!!loading[app.id]}
-                    >Edit draft</button>
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={() => handleAction(app.id, 'send-now')}
-                      disabled={!!loading[app.id]}
-                    >{loading[app.id] === 'send-now' ? 'Sending...' : 'Send now'}</button>
-                  </>
-                )}
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => openEdit(app)}
+                  disabled={!!loading[app.id]}
+                >Edit draft</button>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => handleAction(app.id, 'send-now')}
+                  disabled={!!loading[app.id]}
+                >{loading[app.id] === 'send-now' ? 'Sending...' : 'Send now'}</button>
               </div>
             </div>
           ))}

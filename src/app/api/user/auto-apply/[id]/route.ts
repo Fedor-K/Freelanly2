@@ -224,8 +224,8 @@ export async function POST(
     if (action === 'send-now') {
       // Change status to PENDING so the worker picks it up immediately
       // (or SENDING if we want instant processing)
-      if (!['PENDING', 'REVIEW'].includes(app.status)) {
-        return NextResponse.json({ error: 'Can only send PENDING or REVIEW applications' }, { status: 400 });
+      if (!['PENDING', 'REVIEW', 'SENDING'].includes(app.status)) {
+        return NextResponse.json({ error: 'Can only send queued applications' }, { status: 400 });
       }
       await prisma.autoApplication.update({
         where: { id },
