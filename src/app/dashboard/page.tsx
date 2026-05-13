@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
+import { DashboardQueue } from '@/components/app/DashboardQueue';
 import './dashboard-design.css';
 
 export const metadata: Metadata = {
@@ -56,7 +57,7 @@ export default async function DashboardOverviewPage() {
       where: { userId, status: { in: ['PENDING', 'REVIEW', 'SENDING'] } },
       orderBy: { createdAt: 'desc' },
       take: 6,
-      select: { id: true, companyName: true, jobTitle: true, matchScore: true, status: true, createdAt: true },
+      select: { id: true, companyName: true, jobTitle: true, matchScore: true, status: true, createdAt: true, coverLetter: true, subject: true },
     }),
     // Recent replies
     prisma.autoApplication.findMany({
@@ -183,52 +184,20 @@ export default async function DashboardOverviewPage() {
         <div className="col gap-4">
 
           {/* Today's queue */}
-          <div className="card">
-            <div className="card-head">
-              <div className="row gap-3">
-                <h3>Today&apos;s queue</h3>
-                <span className="chip chip-acid-soft"><span className="chip-dot live"></span>Auto-send active</span>
-              </div>
-              <div className="row gap-2">
-                <span className="meta">{pendingCount} queued · {sentToday} sent today</span>
-              </div>
-            </div>
-            <div>
-              {pending.length === 0 ? (
-                <div className="queue-row" style={{justifyContent: 'center', gridTemplateColumns: '1fr'}}>
-                  <div className="meta" style={{textAlign: 'center', padding: '20px 0'}}>No applications in queue. <a href="/dashboard/auto-apply" style={{color: 'var(--acid-deep)'}}>Set up auto-apply →</a></div>
-                </div>
-              ) : pending.map((app, i) => (
-                <div key={app.id} className="queue-row">
-                  <span className="indicator" style={{background: app.matchScore && app.matchScore >= 80 ? 'var(--good)' : 'var(--ink-5)'}}></span>
-                  <div className="logo" style={{background: COLORS[i % COLORS.length]}}>{app.companyName[0]}</div>
-                  <div>
-                    <div className="title">{app.jobTitle} · {app.companyName}</div>
-                    <div className="meta">{timeAgo(app.createdAt)} ago</div>
-                  </div>
-                  <span className="match">{app.matchScore ? `${app.matchScore}% match` : ''}</span>
-                  <div className="actions">
-                    <button className="btn btn-ghost btn-sm">Edit draft</button>
-                    <button className="btn btn-primary btn-sm">Send now</button>
-                  </div>
-                </div>
-              ))}
-              {pendingCount > 6 && (
-                <div className="queue-row">
-                  <span className="indicator" style={{background: 'var(--ink-5)'}}></span>
-                  <div className="logo" style={{background: '#34D399'}}>+</div>
-                  <div>
-                    <div className="title">+{pendingCount - 6} more queued</div>
-                    <div className="meta">will auto-send on schedule</div>
-                  </div>
-                  <span></span>
-                  <div className="actions">
-                    <a href="/dashboard/auto-apply" className="btn btn-ghost btn-sm">View all</a>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          <DashboardQueue
+            items={pending.map(app => ({
+              id: app.id,
+              companyName: app.companyName,
+              jobTitle: app.jobTitle,
+              matchScore: app.matchScore,
+              status: app.status,
+              createdAt: app.createdAt.toISOString(),
+              coverLetter: app.coverLetter,
+              subject: app.subject,
+            }))}
+            pendingCount={pendingCount}
+            sentToday={sentToday}
+          />
 
           {/* Activity, last 14 days */}
           <div className="card card-pad">

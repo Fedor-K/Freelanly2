@@ -110,7 +110,8 @@ export async function POST(
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
-    const { action, templateId, tone, followUpDay1, followUpDay2, followUpEnabled } = await request.json();
+    const body = await request.json();
+    const { action, templateId, tone, followUpDay1, followUpDay2, followUpEnabled } = body;
 
     const app = await prisma.autoApplication.findFirst({
       where: { id, userId: session.user.id },
@@ -218,6 +219,38 @@ export async function POST(
       });
 
       return NextResponse.json({ ok: true, coverLetter, tone });
+    }
+
+    if (action === 'send-now') {
+      // Change status to PENDING so the worker picks it up immediately
+      // (or SENDING if we want instant processing)
+      if (!['PENDING', 'REVIEW'].includes(app.status)) {
+        return NextResponse.json({ error: 'Can only send PENDING or REVIEW applications' }, { status: 400 });
+      }
+      await prisma.autoApplication.update({
+        where: { id },
+        data: { status: 'PENDING' }, // Worker will pick it up on next run
+      });
+      return NextResponse.json({ ok: true, message: 'Queued for immediate send' });
+    }
+
+    if (action === 'skip') {
+      if (!['PENDING', 'REVIEW', 'SENDING'].includes(app.status)) {
+        return NextResponse.json({ error: 'Can only skip queued applications' }, { status: 400 });
+      }
+      await prisma.autoApplication.delete({ where: { id } });
+      return NextResponse.json({ ok: true, message: 'Application removed from queue' });
+    }
+
+    if (action === 'update-draft') {
+      const updateData: Record<string, string> = {};
+      if (body.coverLetter) updateData.coverLetter = body.coverLetter;
+      if (body.subject) updateData.subject = body.subject;
+      if (Object.keys(updateData).length === 0) {
+        return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
+      }
+      await prisma.autoApplication.update({ where: { id }, data: updateData });
+      return NextResponse.json({ ok: true });
     }
 
     if (action === 'edit-sequence') {
