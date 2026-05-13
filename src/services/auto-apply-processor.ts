@@ -131,6 +131,26 @@ export async function processAutoApplyQueue(): Promise<{
       continue;
     }
 
+    // Language check for interpreter/translator jobs (catches old PENDING apps pre-fix)
+    const titleLowerSend = app.jobTitle.toLowerCase();
+    if (/interpret|translat|linguist/i.test(titleLowerSend)) {
+      const userProfile = app.user.parsedProfile as Record<string, unknown> | null;
+      const userLangs = ((userProfile?.languages as string[]) || []).map(l => l.toLowerCase());
+      const langPattern = /\b(uzbek|arabic|chinese|mandarin|cantonese|japanese|korean|thai|vietnamese|hindi|urdu|bengali|tamil|turkish|persian|farsi|russian|portuguese|french|spanish|german|italian|dutch|polish|czech|swedish|norwegian|danish|finnish|greek|hebrew|indonesian|malay|tagalog|swahili|amharic|haitian|creole|tongan|somali)\b/gi;
+      const jobLangs = [...titleLowerSend.matchAll(langPattern)].map(m => m[0]);
+      const nonEnglishJobLangs = jobLangs.filter(l => l !== 'english');
+      if (nonEnglishJobLangs.length > 0) {
+        const userKnowsLang = nonEnglishJobLangs.some(jl =>
+          userLangs.some(ul => ul.includes(jl) || jl.includes(ul))
+        );
+        if (!userKnowsLang) {
+          await markFailed(app.id, `User doesn't speak ${nonEnglishJobLangs.join(', ')}`);
+          skipped++;
+          continue;
+        }
+      }
+    }
+
     // Per-recipient limit within this batch
     const recipientCount = recipientSendsThisBatch.get(app.appliedToEmail) || 0;
     if (recipientCount >= MAX_PER_RECIPIENT_PER_DAY) {
