@@ -1,23 +1,44 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
+const ICONS: Record<string, string> = {
+  home:    '<path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1h-5v-7h-6v7H4a1 1 0 01-1-1V9.5z"/>',
+  compass: '<circle cx="12" cy="12" r="9"/><path d="M16 8l-2 6-6 2 2-6 6-2z"/>',
+  inbox:   '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>',
+  columns: '<rect x="3" y="3" width="6" height="18" rx="1"/><rect x="11" y="3" width="6" height="13" rx="1"/><rect x="19" y="3" width="2" height="9" rx="1"/>',
+  edit:    '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/>',
+  bar:     '<path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 6-6"/>',
+  cog:     '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
+  card:    '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+  bell:    '<path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>',
+  search:  '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+  plus:    '<path d="M12 5v14M5 12h14"/>',
+  menu:    '<path d="M3 12h18M3 6h18M3 18h18"/>',
+  chevron: '<path d="M9 18l6-6-6-6"/>',
+};
+
+function SvgIcon({ name, size = 18 }: { name: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: ICONS[name] || '' }} />
+  );
+}
+
 const NAV = [
   { label: 'PRIMARY', items: [
-    { id: 'dashboard', href: '/dashboard', label: 'Dashboard', icon: '🏠' },
-    { id: 'discovery', href: '/dashboard/auto-apply?tab=discovery', label: 'Discovery', icon: '🧭' },
-    { id: 'inbox', href: '/dashboard/auto-apply?tab=inbox', label: 'Inbox', icon: '📥' },
-    { id: 'pipeline', href: '/dashboard/auto-apply?tab=pipeline', label: 'Pipeline', icon: '📊' },
+    { id: 'dashboard', href: '/dashboard',  label: 'Dashboard',  icon: 'home' },
+    { id: 'discovery', href: '/dashboard/auto-apply?tab=discovery', label: 'Discovery', icon: 'compass', count: '142' },
+    { id: 'inbox',     href: '/dashboard/auto-apply?tab=inbox',     label: 'Inbox',     icon: 'inbox',   count: '7' },
+    { id: 'pipeline',  href: '/dashboard/auto-apply?tab=pipeline',  label: 'Pipeline',  icon: 'columns' },
   ]},
   { label: 'CONTENT', items: [
-    { id: 'templates', href: '/dashboard/auto-apply?tab=templates', label: 'Templates', icon: '✏️' },
-    { id: 'analytics', href: '/dashboard/auto-apply?tab=analytics', label: 'Analytics', icon: '📈' },
+    { id: 'templates', href: '/dashboard/auto-apply?tab=templates', label: 'Templates', icon: 'edit' },
+    { id: 'analytics', href: '/dashboard/auto-apply?tab=analytics', label: 'Analytics', icon: 'bar' },
   ]},
   { label: 'ACCOUNT', items: [
-    { id: 'settings', href: '/dashboard/settings', label: 'Settings', icon: '⚙️' },
-    { id: 'billing', href: '/dashboard/auto-apply?tab=billing', label: 'Billing', icon: '💳' },
+    { id: 'settings', href: '/dashboard/settings', label: 'Settings', icon: 'cog' },
+    { id: 'billing',  href: '/dashboard/auto-apply?tab=billing',    label: 'Billing',   icon: 'card' },
   ]},
 ];
 
@@ -26,92 +47,105 @@ export function AppShell({ children, userName, userPlan }: { children: React.Rea
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const initials = userName?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
-  const isActive = (href: string) => {
-    if (href === '/dashboard' && pathname === '/dashboard') return true;
-    if (href.includes('?tab=')) return pathname?.includes('/auto-apply') && href.includes(pathname.split('tab=')[1] || '');
-    return pathname?.startsWith(href);
+  const isActive = (item: { id: string; href: string }) => {
+    if (item.href === '/dashboard' && pathname === '/dashboard') return true;
+    if (item.href.includes('?tab=')) {
+      const tab = item.href.split('tab=')[1];
+      return pathname?.includes('/auto-apply') && new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('tab') === tab;
+    }
+    return pathname?.startsWith(item.href) && item.href !== '/dashboard';
   };
 
   return (
-    <div className="grid min-h-screen" style={{ gridTemplateColumns: '232px 1fr', background: '#F7F6F1' }}>
-      {/* Sidebar */}
-      <aside className={`hidden lg:flex flex-col p-3 gap-4 sticky top-0 h-screen overflow-y-auto ${sidebarOpen ? 'flex' : ''}`} style={{ background: '#0B0C0F', color: '#E8E8E3' }}>
-        <div className="flex items-center gap-2.5 px-2.5 pb-3 border-b border-white/[0.06] font-semibold text-[15px] tracking-tight">
-          <span className="w-[26px] h-[26px] rounded-[7px] bg-[#C7F94A] text-black grid place-items-center font-mono font-bold text-sm">F</span>
+    <div className="app">
+      {/* SIDEBAR */}
+      <aside className={`sidebar${sidebarOpen ? ' open' : ''}`} id="sidebar">
+        <div className="sb-logo">
+          <span className="sb-logo-mark">F</span>
           <span>Freelanly</span>
         </div>
 
         {NAV.map(group => (
           <div key={group.label}>
-            <div className="font-mono text-[10px] tracking-[0.1em] uppercase text-[#9C9EA2]/60 px-3 pt-3 pb-1.5">{group.label}</div>
-            <ul className="flex flex-col gap-0.5">
+            <div className="sb-section-label">{group.label}</div>
+            <ul className="sb-nav">
               {group.items.map(item => (
                 <li key={item.id}>
-                  <Link href={item.href} className={`flex items-center gap-3 px-3 py-2 rounded-[10px] text-[13.5px] transition-colors ${isActive(item.href) ? 'bg-[rgba(199,249,74,0.10)] text-[#C7F94A]' : 'text-[#E8E8E3] hover:bg-[#15171B]'}`}>
-                    <span className="text-sm">{item.icon}</span>
+                  <a href={item.href} className={isActive(item) ? 'active' : ''}>
+                    <span className="sb-icon"><SvgIcon name={item.icon} size={16} /></span>
                     <span>{item.label}</span>
-                  </Link>
+                    {item.count && <span className="sb-count">{item.count}</span>}
+                  </a>
                 </li>
               ))}
             </ul>
           </div>
         ))}
 
-        <div className="flex-1" />
+        <div className="sb-spacer"></div>
 
-        {/* Trial / upgrade */}
         {userPlan === 'FREE' && (
-          <div className="mt-2 p-3.5 rounded-[10px]" style={{ background: 'linear-gradient(180deg, rgba(199,249,74,0.10), rgba(199,249,74,0.04))', border: '1px solid rgba(199,249,74,0.20)' }}>
-            <div className="font-mono text-[10px] text-[#C7F94A] tracking-widest uppercase">Free plan</div>
-            <Link href="/pricing" className="block mt-2.5 text-[12px] text-[#C7F94A] font-medium">Upgrade → $29/mo</Link>
+          <div className="sb-trial">
+            <div className="label">Free plan</div>
+            <div className="days">5 applies / day</div>
+            <div className="bar"><div></div></div>
+            <a href="/pricing" className="upgrade">Upgrade → $29/mo</a>
           </div>
         )}
 
-        {/* User */}
-        <div className="flex items-center gap-2.5 p-2.5 border-t border-white/[0.06] cursor-pointer hover:bg-[#15171B] rounded-[10px]">
-          <div className="w-8 h-8 rounded-full grid place-items-center font-mono font-semibold text-xs text-black" style={{ background: 'linear-gradient(135deg, #FF6B6B, #C7F94A)' }}>{initials}</div>
+        <div className="sb-user">
+          <div className="sb-avatar">{initials}</div>
           <div>
-            <div className="text-[13px] font-medium leading-tight">{userName || 'User'}</div>
-            <div className="text-[11px] text-[#9C9EA2] font-mono">{userPlan || 'Free'}</div>
+            <div className="sb-user-name">{userName || 'User'}</div>
+            <div className="sb-user-plan">{userPlan || 'Free'}</div>
           </div>
+          <div style={{color: 'var(--ink-on-dark-2)'}}><SvgIcon name="chevron" size={14} /></div>
         </div>
       </aside>
 
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      {/* Mobile backdrop */}
+      {sidebarOpen && <div className="sidebar-backdrop show" onClick={() => setSidebarOpen(false)} />}
 
-      {/* Main */}
-      <main className="min-w-0 flex flex-col">
+      {/* MAIN */}
+      <main className="main">
         {/* Mobile topbar */}
-        <div className="flex lg:hidden items-center h-[52px] px-4 gap-3 border-b sticky top-0 z-20" style={{ borderColor: 'rgba(11,12,15,0.07)', background: '#F7F6F1' }}>
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-9 h-9 grid place-items-center rounded-[10px] hover:bg-[#F0EEE6]">☰</button>
-          <div className="flex items-center gap-2 font-semibold text-sm">
-            <span className="w-[22px] h-[22px] rounded-md bg-[#0A0B0F] text-[#C7F94A] grid place-items-center font-mono font-bold text-[12px]">F</span>
-            Freelanly
+        <div className="mobile-topbar">
+          <button className="menu-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            <SvgIcon name="menu" size={18} />
+          </button>
+          <div className="mlogo">
+            <span className="mlogo-mark">F</span>
+            <span>Freelanly</span>
           </div>
         </div>
 
-        {/* Topbar */}
-        <div className="hidden lg:flex items-center h-14 px-6 gap-4 border-b sticky top-0 z-20" style={{ borderColor: 'rgba(11,12,15,0.07)', background: 'rgba(247,246,241,0.85)', backdropFilter: 'blur(20px)' }}>
-          <div className="flex-1" />
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-[10px] text-[13px] text-[#5C6068]" style={{ background: 'white', border: '1px solid rgba(11,12,15,0.07)' }}>
-            🔍 <input placeholder="Search jobs, replies..." className="bg-transparent outline-none text-[13px] w-48" />
-            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-[#F0EEE6] border border-[rgba(11,12,15,0.07)] text-[#8A8E96]">⌘K</span>
+        {/* Desktop topbar */}
+        <div className="topbar">
+          <div className="crumb">
+            <span>Workspace</span>
+            <SvgIcon name="chevron" size={12} />
+            <strong>Dashboard</strong>
           </div>
-          <Link href="/dashboard/auto-apply?tab=discovery" className="flex items-center gap-1.5 h-9 px-3.5 rounded-[10px] bg-[#C7F94A] text-black text-[13px] font-medium">+ Apply</Link>
+          <div className="topbar-search">
+            <SvgIcon name="search" size={14} />
+            <input placeholder="Search jobs, replies, contacts…" />
+            <span className="shortcut">⌘K</span>
+          </div>
+          <div className="topbar-actions">
+            <button className="icon-btn" title="Notifications">
+              <SvgIcon name="bell" size={16} />
+              <span className="dot"></span>
+            </button>
+            <a href="/dashboard/auto-apply?tab=discovery" className="btn btn-acid btn-sm">
+              <SvgIcon name="plus" size={14} />
+              Apply
+            </a>
+          </div>
         </div>
 
         {/* Page content */}
-        <div className="p-5 md:p-7 max-w-[1400px] w-full mx-auto">
-          {children}
-        </div>
+        {children}
       </main>
-
-      <style jsx global>{`
-        @media (max-width: 1023px) {
-          .grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
     </div>
   );
 }
