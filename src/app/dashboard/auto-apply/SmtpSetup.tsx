@@ -133,9 +133,9 @@ export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
           </div>
         ))}
         <span className="text-sm text-gray-500 ml-2">
-          {step === 1 && 'Choose provider'}
+          {step === 1 && 'Enter email'}
           {step === 2 && 'Create app password'}
-          {step === 3 && 'Paste & connect'}
+          {step === 3 && 'Connect'}
         </span>
       </div>
 
@@ -149,31 +149,53 @@ export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
         </div>
       )}
 
-      {/* Step 1: Choose provider */}
+      {/* Step 1: Enter email → auto-detect provider */}
       {step === 1 && (
         <div>
-          <h2 className="text-lg font-semibold mb-2">Which email do you use?</h2>
+          <h2 className="text-lg font-semibold mb-2">Enter your email</h2>
           <p className="text-sm text-gray-500 mb-4">
             Applications will be sent from your personal email. Recruiters reply directly to your inbox.
           </p>
-          <div className="space-y-2">
-            {SMTP_PRESETS.map((preset) => (
-              <button
-                key={preset.label}
-                onClick={() => { setSelectedPreset(preset); setStep(2); }}
-                className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all hover:border-gray-400 ${
-                  selectedPreset.label === preset.label ? 'border-black bg-gray-50' : 'border-gray-200'
-                }`}
-              >
-                <span className="text-2xl">
-                  {preset.label === 'Gmail' && '📧'}
-                  {preset.label === 'Outlook / Hotmail' && '📬'}
-                  {preset.label === 'Yahoo' && '📨'}
+          <div className="space-y-4">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                const domain = e.target.value.split('@')[1]?.toLowerCase() || '';
+                const match = SMTP_PRESETS.find(p =>
+                  (p.label === 'Gmail' && (domain === 'gmail.com' || domain === 'googlemail.com')) ||
+                  (p.label === 'Outlook / Hotmail' && ['hotmail.com', 'outlook.com', 'live.com', 'msn.com'].includes(domain)) ||
+                  (p.label === 'Yahoo' && (domain === 'yahoo.com' || domain === 'yahoo.co.uk'))
+                );
+                if (match) setSelectedPreset(match);
+              }}
+              placeholder="your.email@gmail.com"
+              className="w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg"
+            />
+            {email.includes('@') && (
+              <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 p-3 rounded-lg">
+                <span className="text-lg">
+                  {selectedPreset.label === 'Gmail' && '📧'}
+                  {selectedPreset.label === 'Outlook / Hotmail' && '📬'}
+                  {selectedPreset.label === 'Yahoo' && '📨'}
                 </span>
-                <span className="font-medium">{preset.label}</span>
-                <span className="ml-auto text-gray-400">→</span>
-              </button>
-            ))}
+                Detected: <strong>{selectedPreset.label}</strong>
+              </div>
+            )}
+            <button
+              onClick={() => {
+                if (!email.includes('@')) {
+                  setMessage({ type: 'error', text: 'Please enter a valid email address' });
+                  return;
+                }
+                setStep(2);
+              }}
+              disabled={!email.includes('@')}
+              className="w-full px-4 py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors font-medium disabled:opacity-50"
+            >
+              Continue
+            </button>
           </div>
         </div>
       )}
@@ -253,26 +275,12 @@ export function SmtpSetup({ initialSmtp, onSmtpUpdated }: SmtpSetupProps) {
       {/* Step 3: Enter credentials */}
       {step === 3 && !verified && (
         <div>
-          <h2 className="text-lg font-semibold mb-2">Paste Your Credentials</h2>
+          <h2 className="text-lg font-semibold mb-2">Paste App Password</h2>
           <p className="text-sm text-gray-500 mb-4">
-            Enter your {selectedPreset.label} email and paste the app password you just created.
+            Paste the app password you created for <strong>{email}</strong>
           </p>
 
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={`your.email@${selectedPreset.label === 'Gmail' ? 'gmail.com' : selectedPreset.label === 'Yahoo' ? 'yahoo.com' : 'outlook.com'}`}
-                required
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 App Password
