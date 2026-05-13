@@ -32,8 +32,15 @@ export const STRIPE_PRICES_LEGACY = {
   annual: 'price_1Sk2JYKHJU6KLxM3QE0ffgxt',     // €150/year
 } as const;
 
-// New auto-apply plans (TODO: create in Stripe Dashboard and update IDs)
+// Current active prices (legacy — still used by PricingCards + checkout)
 export const STRIPE_PRICES = {
+  monthly: 'price_1Sk2G8KHJU6KLxM31y73p1lD',    // €15/month
+  quarterly: 'price_1Sk2I0KHJU6KLxM33CN9mn0E',  // €35/3 months
+  annual: 'price_1Sk2JYKHJU6KLxM3QE0ffgxt',     // €150/year
+} as const;
+
+// New auto-apply plans (TODO: create in Stripe Dashboard and update IDs)
+export const STRIPE_PRICES_NEW = {
   pro_monthly: process.env.STRIPE_PRICE_PRO_MONTHLY || 'price_pro_monthly_TODO',
   pro_annual: process.env.STRIPE_PRICE_PRO_ANNUAL || 'price_pro_annual_TODO',
   agency_monthly: process.env.STRIPE_PRICE_AGENCY_MONTHLY || 'price_agency_monthly_TODO',
@@ -42,6 +49,53 @@ export const STRIPE_PRICES = {
 
 export type PriceKey = keyof typeof STRIPE_PRICES;
 
+// Legacy PRICE_INFO (used by current PricingCards + UpgradeModal)
+export const PRICE_INFO: Record<PriceKey, {
+  name: string;
+  price: string;
+  pricePerDay: string;
+  period: string;
+  periodLabel: string;
+  description: string;
+  hasTrial: boolean;
+  popular?: boolean;
+  savings?: string;
+  originalPrice?: string;
+}> = {
+  monthly: {
+    name: 'Monthly',
+    price: '€15',
+    pricePerDay: '€0.50',
+    period: 'month',
+    periodLabel: 'per month',
+    description: 'Most flexible option',
+    hasTrial: false,
+    popular: true,
+  },
+  quarterly: {
+    name: 'Quarterly (3 months)',
+    price: '€35',
+    pricePerDay: '€0.39',
+    period: '3 months',
+    periodLabel: 'for 3 months',
+    description: 'Save 22% vs monthly',
+    hasTrial: false,
+    savings: 'Save 22%',
+    originalPrice: '€45',
+  },
+  annual: {
+    name: 'Annual',
+    price: '€150',
+    pricePerDay: '€0.41',
+    period: 'year',
+    periodLabel: 'per year',
+    description: 'Save 17% vs monthly',
+    hasTrial: false,
+    savings: 'Save 17%',
+    originalPrice: '€180',
+  },
+};
+
 // Plan limits
 export const PLAN_LIMITS = {
   FREE: { appsPerMonth: 10, inboxes: 1, templates: 3, autoApply: false, followUps: false, earlyAccess: false, aiModel: 'basic' },
@@ -49,60 +103,12 @@ export const PLAN_LIMITS = {
   AGENCY: { appsPerMonth: -1, inboxes: 10, templates: -1, autoApply: true, followUps: true, earlyAccess: true, aiModel: 'premium', seats: 5 },
 } as const;
 
-// Price display info
-export const PRICE_INFO: Record<PriceKey, {
-  name: string;
-  price: string;
-  annualPrice?: string;
-  period: string;
-  periodLabel: string;
-  description: string;
-  hasTrial: boolean;
-  popular?: boolean;
-  savings?: string;
-  plan: 'PRO' | 'AGENCY';
-}> = {
-  pro_monthly: {
-    name: 'Pro',
-    price: '$29',
-    period: 'month',
-    periodLabel: 'per month',
-    description: 'Auto-apply + AI cover letters + follow-ups',
-    hasTrial: true,
-    popular: true,
-    plan: 'PRO',
-  },
-  pro_annual: {
-    name: 'Pro (Annual)',
-    price: '$23',
-    annualPrice: '$276',
-    period: 'month',
-    periodLabel: 'per month, billed annually',
-    description: 'Save 20% vs monthly',
-    hasTrial: true,
-    savings: 'Save 20%',
-    plan: 'PRO',
-  },
-  agency_monthly: {
-    name: 'Agency',
-    price: '$89',
-    period: 'month',
-    periodLabel: 'per month, up to 5 seats',
-    description: 'Unlimited apps, team features, API',
-    hasTrial: false,
-    plan: 'AGENCY',
-  },
-  agency_annual: {
-    name: 'Agency (Annual)',
-    price: '$71',
-    annualPrice: '$852',
-    period: 'month',
-    periodLabel: 'per month, billed annually',
-    description: 'Save 20% vs monthly',
-    hasTrial: false,
-    savings: 'Save 20%',
-    plan: 'AGENCY',
-  },
+// New pricing info (for future use when switching to new plans)
+export const NEW_PRICE_INFO = {
+  pro_monthly: { name: 'Pro', price: '$29', period: 'month', hasTrial: true, popular: true, plan: 'PRO' as const },
+  pro_annual: { name: 'Pro (Annual)', price: '$23', period: 'month', savings: 'Save 20%', plan: 'PRO' as const },
+  agency_monthly: { name: 'Agency', price: '$89', period: 'month', plan: 'AGENCY' as const },
+  agency_annual: { name: 'Agency (Annual)', price: '$71', period: 'month', savings: 'Save 20%', plan: 'AGENCY' as const },
 };
 
 // Plan features for display
