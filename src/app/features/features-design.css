@@ -1,8 +1,8 @@
-.page-head { padding: 140px 0 64px; position: relative; overflow: hidden; border-bottom: 1px solid var(--line); }
-.page-head-bg { position: absolute; inset: 0; background: radial-gradient(ellipse 600px 300px at 30% -10%, rgba(199,249,74,0.12), transparent 70%); pointer-events: none; }
-.page-head h1 { font-size: clamp(48px, 6vw, 84px); letter-spacing: -0.04em; max-width: 14ch; }
-.page-head h1 .accent { color: var(--accent); font-style: italic; font-weight: 500; }
-.page-head .lede { margin-top: 22px; }
+.pg-features .page-head { padding: 140px 0 64px; position: relative; overflow: hidden; border-bottom: 1px solid var(--line); text-align: left; }
+.pg-features .page-head-bg { position: absolute; inset: 0; background: radial-gradient(ellipse 600px 300px at 30% -10%, rgba(199,249,74,0.12), transparent 70%); pointer-events: none; }
+.pg-features .page-head h1 { font-size: clamp(48px, 6vw, 84px); letter-spacing: -0.04em; max-width: 14ch; }
+.pg-features .page-head h1 .accent { color: var(--accent); font-style: italic; font-weight: 500; }
+.pg-features .page-head .lede { margin-top: 22px; }
 
 /* Pillar nav */
 .pillars {

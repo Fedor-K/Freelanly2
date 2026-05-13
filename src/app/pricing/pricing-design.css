@@ -1,14 +1,14 @@
-.page-head {
+.pg-pricing .page-head {
   padding: 140px 0 64px;
   text-align: center;
   position: relative;
   overflow: hidden;
 }
-.page-head .eyebrow { color: var(--accent); margin-bottom: 18px; display: block; }
-.page-head h1 { font-size: clamp(48px, 6vw, 80px); letter-spacing: -0.035em; margin-bottom: 22px; }
-.page-head h1 .accent { color: var(--accent); font-style: italic; font-weight: 500; }
-.page-head .lede { margin: 0 auto; }
-.page-head-bg {
+.pg-pricing .page-head .eyebrow { color: var(--accent); margin-bottom: 18px; display: block; }
+.pg-pricing .page-head h1 { font-size: clamp(48px, 6vw, 80px); letter-spacing: -0.035em; margin-bottom: 22px; }
+.pg-pricing .page-head h1 .accent { color: var(--accent); font-style: italic; font-weight: 500; }
+.pg-pricing .page-head .lede { margin: 0 auto; }
+.pg-pricing .page-head-bg {
   position: absolute; inset: 0;
   background:
     radial-gradient(ellipse 600px 300px at 50% -10%, rgba(199,249,74,0.14), transparent 70%);

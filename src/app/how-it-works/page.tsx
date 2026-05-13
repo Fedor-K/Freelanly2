@@ -14,7 +14,7 @@ const Chk = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" st
 
 export default function HowItWorksPage() {
   return (
-    <>
+    <div className="pg-hiw">
 {/* NAV */}
 <nav className="nav">
   <div className="nav-inner">
@@ -431,6 +431,6 @@ export default function HowItWorksPage() {
 
 {/* Reveal */}
 <script dangerouslySetInnerHTML={{ __html: `document.addEventListener('DOMContentLoaded',function(){if(typeof IntersectionObserver==='undefined')return;document.querySelectorAll('.reveal').forEach(function(el){new IntersectionObserver(function(e){e.forEach(function(entry){if(entry.isIntersecting)entry.target.classList.add('in')})},{threshold:0.1}).observe(el)})})` }} />
-    </>
+    </div>
   );
 }

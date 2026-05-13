@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function FeaturesPage() {
   return (
-    <>
+    <div className="pg-features">
 {/* NAV */}
 <nav className="nav">
   <div className="nav-inner">
@@ -355,6 +355,6 @@ export default function FeaturesPage() {
 
 {/* Reveal */}
 <script dangerouslySetInnerHTML={{ __html: `document.addEventListener('DOMContentLoaded',function(){if(typeof IntersectionObserver==='undefined')return;document.querySelectorAll('.reveal').forEach(function(el){new IntersectionObserver(function(e){e.forEach(function(entry){if(entry.isIntersecting)entry.target.classList.add('in')})},{threshold:0.1}).observe(el)})})` }} />
-    </>
+    </div>
   );
 }

@@ -15,7 +15,7 @@ const X = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stro
 
 export default function PricingPage() {
   return (
-    <>
+    <div className="pg-pricing">
 {/* NAV */}
 <nav className="nav">
   <div className="nav-inner">
@@ -36,12 +36,12 @@ export default function PricingPage() {
 </nav>
 
 {/* HEADER */}
-<header className="page-head" style={{textAlign:'center'}}>
+<header className="page-head">
   <div className="page-head-bg"></div>
-  <div className="container" style={{textAlign:'center'}}>
+  <div className="container">
     <span className="eyebrow">— Pricing</span>
     <h1>Pay less than <span className="accent">one billable hour</span>.<br/>Apply to a thousand gigs.</h1>
-    <p className="lede" style={{textAlign:'center', margin:'0 auto'}}>Start free. Upgrade when your inbox starts filling up. Cancel any time — your data goes with you.</p>
+    <p className="lede">Start free. Upgrade when your inbox starts filling up. Cancel any time — your data goes with you.</p>
   </div>
 </header>
 
@@ -302,6 +302,6 @@ export default function PricingPage() {
 
 {/* Reveal */}
 <script dangerouslySetInnerHTML={{ __html: `document.addEventListener('DOMContentLoaded',function(){if(typeof IntersectionObserver==='undefined')return;document.querySelectorAll('.reveal').forEach(function(el){new IntersectionObserver(function(e){e.forEach(function(entry){if(entry.isIntersecting)entry.target.classList.add('in')})},{threshold:0.1}).observe(el)})})` }} />
-    </>
+    </div>
   );
 }

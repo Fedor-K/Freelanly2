@@ -1,23 +1,24 @@
-.page-head {
+.pg-hiw .page-head {
   padding: 140px 0 64px;
   position: relative;
   overflow: hidden;
   border-bottom: 1px solid var(--line);
+  text-align: left;
 }
-.page-head-bg {
+.pg-hiw .page-head-bg {
   position: absolute; inset: 0;
   background: radial-gradient(ellipse 600px 300px at 70% -10%, rgba(199,249,74,0.12), transparent 70%);
   pointer-events: none;
 }
-.page-head-grid {
+.pg-hiw .page-head-grid {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
   gap: 80px;
   align-items: end;
 }
-@media (max-width: 900px) { .page-head-grid { grid-template-columns: 1fr; gap: 32px; } }
-.page-head h1 { font-size: clamp(48px, 6vw, 84px); letter-spacing: -0.04em; }
-.page-head h1 .accent { color: var(--accent); font-style: italic; font-weight: 500; }
+@media (max-width: 900px) { .pg-hiw .page-head-grid { grid-template-columns: 1fr; gap: 32px; } }
+.pg-hiw .page-head h1 { font-size: clamp(48px, 6vw, 84px); letter-spacing: -0.04em; }
+.pg-hiw .page-head h1 .accent { color: var(--accent); font-style: italic; font-weight: 500; }
 
 .toc {
   border-left: 1px solid var(--line-2);
