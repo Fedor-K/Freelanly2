@@ -90,12 +90,66 @@ export async function GET(request: NextRequest) {
       { hour: 9, sent: 0, replied: 0, replyRate: '0' }
     );
 
+    // Template performance
+    const templates = await prisma.coverLetterTemplate.findMany({
+      where: { userId },
+      select: { id: true, name: true, sentCount: true, replyCount: true, type: true },
+      orderBy: { replyCount: 'desc' },
+    });
+    const templateStats = templates.map(t => ({
+      id: t.id,
+      name: t.name,
+      type: t.type,
+      sent: t.sentCount,
+      replies: t.replyCount,
+      replyRate: t.sentCount > 0 ? ((t.replyCount / t.sentCount) * 100).toFixed(1) : '0',
+    }));
+
+    // KPI deltas — compare current period vs previous period
+    const totalSent = apps.length;
+    const totalReplied = apps.filter(a => ['REPLIED', 'INTERVIEW', 'OFFER'].includes(a.status)).length;
+    const replyRate = totalSent > 0 ? (totalReplied / totalSent) * 100 : 0;
+    const projectsClosed = apps.filter(a => a.status === 'OFFER').length;
+
+    let prevSent = 0, prevReplied = 0;
+    if (since) {
+      const prevPeriodStart = new Date(since.getTime() - (Date.now() - since.getTime()));
+      const prevApps = await prisma.autoApplication.findMany({
+        where: { userId, sentAt: { gte: prevPeriodStart, lt: since } },
+        select: { status: true },
+      });
+      prevSent = prevApps.length;
+      prevReplied = prevApps.filter(a => ['REPLIED', 'INTERVIEW', 'OFFER'].includes(a.status)).length;
+    }
+    const prevReplyRate = prevSent > 0 ? (prevReplied / prevSent) * 100 : 0;
+
+    // AI insight
+    let aiInsight: string | null = null;
+    if (sourceStats.length > 1) {
+      const sorted = [...sourceStats].sort((a, b) => parseFloat(b.replyRate) - parseFloat(a.replyRate));
+      const best = sorted[0];
+      const worst = sorted[sorted.length - 1];
+      if (best.source !== worst.source && parseFloat(best.replyRate) > parseFloat(worst.replyRate) * 1.5) {
+        aiInsight = `${best.source} has ${best.replyRate}% reply rate vs ${worst.source} at ${worst.replyRate}%. Consider shifting more volume to ${best.source}.`;
+      }
+    }
+    if (!aiInsight && bestHour.sent > 5) {
+      aiInsight = `Your best send hour is ${bestHour.hour}:00 UTC with ${bestHour.replyRate}% reply rate. Consider concentrating sends around this time.`;
+    }
+
     return NextResponse.json({
+      kpis: {
+        sent: { value: totalSent, delta: prevSent > 0 ? Math.round(((totalSent - prevSent) / prevSent) * 100) : null },
+        replies: { value: totalReplied, delta: prevReplied > 0 ? Math.round(((totalReplied - prevReplied) / prevReplied) * 100) : null },
+        replyRate: { value: Math.round(replyRate * 10) / 10, delta: prevReplyRate > 0 ? Math.round((replyRate - prevReplyRate) * 10) / 10 : null },
+        projectsClosed: { value: projectsClosed },
+      },
       sourceStats,
       hourStats,
       dailyStats,
+      templateStats,
       bestHour: bestHour.sent > 0 ? bestHour : null,
-      total: { sent: apps.length, replied: apps.filter(a => ['REPLIED', 'INTERVIEW', 'OFFER'].includes(a.status)).length },
+      aiInsight,
     });
   } catch (error) {
     console.error('[Analytics] Error:', error);
