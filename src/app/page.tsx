@@ -50,11 +50,13 @@ export default async function LandingPage() {
             <p className="text-[19px] text-[#D4D4D8] leading-relaxed max-w-[60ch] mb-8">Freelanly catches new freelance gigs the moment they&apos;re posted on LinkedIn and <strong className="text-white">{totalCompanies.toLocaleString()}+</strong> company sites — then sends a personalized AI application for you.</p>
             <div className="flex gap-3 flex-wrap mb-6">
               <Link href="/auth/signin" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-semibold text-[15px] hover:-translate-y-px transition-transform" style={{ background: '#C7F94A', color: '#0A0B0F' }}>Start free — no card needed →</Link>
-              <Link href="/freelance" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full text-[15px] border hover:bg-white/5 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>Browse projects</Link>
+              <Link href="/freelance" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full text-[15px] border hover:bg-white/5 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>See how it works</Link>
             </div>
             <div className="flex gap-5 text-[13px] text-[#A1A1AA]">{['No credit card', 'First 25 applications free', 'Cancel anytime'].map(t => (<span key={t} className="flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C7F94A" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>{t}</span>))}</div>
           {/* Product widget — live feed ticker */}
-          <div className="relative rounded-[14px] hidden md:block p-3.5 overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))', border: '1px solid rgba(255,255,255,0.14)', boxShadow: '0 40px 100px -30px rgba(0,0,0,0.6)' }}>
+          <div className="relative rounded-[14px] hidden md:block p-3.5 overflow-visible" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))', border: '1px solid rgba(255,255,255,0.14)', boxShadow: '0 40px 100px -30px rgba(0,0,0,0.6)' }}>
+            {/* Gradient border glow */}
+            <div className="absolute -inset-px rounded-[14px] -z-10" style={{ background: 'linear-gradient(135deg, rgba(199,249,74,0.3), transparent 30%, transparent 70%, rgba(199,249,74,0.15))', filter: 'blur(0.5px)' }} />
             <div className="flex items-center gap-2 pb-2.5 mb-3 text-[11px] font-mono" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
               <span className="flex gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-white/10" /><span className="w-2.5 h-2.5 rounded-full bg-white/10" /><span className="w-2.5 h-2.5 rounded-full bg-white/10" /></span>
               <span className="flex-1 text-center text-[#6B7280]">app.freelanly.com/inbox</span>
@@ -82,6 +84,19 @@ export default async function LandingPage() {
                     <span className="font-mono text-[11px] px-2 py-1 rounded-full" style={{ color: item.statusColor, background: `${item.statusColor}15`, border: `1px solid ${item.statusColor}30` }}>{item.status}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+            {/* Stat float card */}
+            <div className="absolute -right-6 -bottom-7 z-10 flex gap-4 items-center px-5 py-4 rounded-xl" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.14)', boxShadow: '0 30px 60px -20px rgba(0,0,0,0.7)' }}>
+              <div>
+                <div className="text-[30px] font-semibold tracking-tight tabular-nums text-[#C7F94A]">47</div>
+                <div className="font-mono text-[11px] tracking-widest uppercase text-[#A1A1AA]">Today</div>
+              </div>
+              <div className="w-px h-9" style={{ background: 'rgba(255,255,255,0.08)' }} />
+              <div>
+                <div className="text-[30px] font-semibold tracking-tight tabular-nums">4</div>
+                <div className="font-mono text-[11px] tracking-widest uppercase text-[#A1A1AA]">Replies</div>
+                <div className="text-[12px] text-[#6B7280]">▲ 8.5% rate</div>
               </div>
             </div>
           </div>
