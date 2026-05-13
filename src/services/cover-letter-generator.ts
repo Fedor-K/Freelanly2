@@ -59,6 +59,7 @@ interface UserProfile {
   resumeText?: string;
   languages?: string[];
   workPreference?: string;
+  bookingUrl?: string;
 }
 
 interface CoverLetterInput {
@@ -101,7 +102,8 @@ Applicant: ${userProfile.name}
 Skills: ${skillsList}
 Languages: ${userProfile.languages?.join(', ') || 'Not specified'}
 Experience: ${experienceSnippet}
-${userProfile.workPreference ? `Work preference: ${userProfile.workPreference}` : ''}`,
+${userProfile.workPreference ? `Work preference: ${userProfile.workPreference}` : ''}
+${userProfile.bookingUrl ? `Booking link (include naturally at the end): ${userProfile.bookingUrl}` : ''}`,
         },
       ],
     });

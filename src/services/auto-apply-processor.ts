@@ -85,6 +85,7 @@ export async function processAutoApplyQueue(): Promise<{
           resumeBase64: true,
           resumeFileName: true,
           workPreference: true,
+          bookingUrl: true,
           freeAppliesUsedToday: true,
           lastFreeApplyReset: true,
         },
@@ -242,6 +243,7 @@ export async function processAutoApplyQueue(): Promise<{
         resumeText: app.user.resumeText || undefined,
         languages: userLangsList,
         workPreference: (app.user as any).workPreference || undefined,
+        bookingUrl: (app.user as any).bookingUrl || undefined,
       };
 
       // Generate cover letter if not already set
