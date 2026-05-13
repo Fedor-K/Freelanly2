@@ -145,10 +145,10 @@ const nextConfig: NextConfig = {
 
     // Static legacy pages
     const legacyRedirects: Record<string, string> = {
-      '/how-it-works': '/freelance',
+      // '/how-it-works': '/freelance', // Now has its own page
       '/register': '/freelance',
-      '/faq': '/freelance',
-      '/contact-us': '/freelance',
+      // '/faq': '/freelance', // Now in /about
+      '/contact-us': '/about',
       '/terms-of-use': '/freelance',
       '/privacy-policy': '/freelance',
       '/popular': '/freelance',
