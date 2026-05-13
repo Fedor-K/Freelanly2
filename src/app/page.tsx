@@ -27,8 +27,10 @@ export default async function LandingPage() {
             <span>Freelanly</span>
           </Link>
           <div className="hidden md:flex items-center gap-7 flex-1 text-[14px] text-[#A1A1AA]">
+            <Link href="/how-it-works" className="hover:text-white transition-colors">How it works</Link>
+            <Link href="/features" className="hover:text-white transition-colors">Features</Link>
             <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
-            <Link href="/freelance" className="hover:text-white transition-colors">Browse Jobs</Link>
+            <Link href="/about" className="hover:text-white transition-colors">About</Link>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/auth/login" className="text-[14px] px-4 py-2 rounded-full border hover:bg-white/5 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>Sign in</Link>
