@@ -2,12 +2,13 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { siteConfig } from '@/config/site';
+import './marketing-styles.css';
 
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: 'Freelanly — AI Outreach Engine for Freelancers',
-  description: 'Be first in the inbox. Win the project. Freelanly catches new freelance gigs from LinkedIn and 3,500+ company sites, then sends a personalized AI application for you.',
+  title: 'Freelanly — Apply to 30 freelance gigs a day on autopilot',
+  description: 'Freelanly finds fresh freelance and contract gigs, writes personalized applications, and sends them while you sleep.',
   alternates: { canonical: siteConfig.url },
 };
 
@@ -19,147 +20,412 @@ export default async function LandingPage() {
   ]);
 
   return (
-    <div style={{ background: '#0A0B0F', color: '#FAFAFA' }}>
-      <nav className="fixed top-0 left-0 right-0 h-16 z-50 flex items-center" style={{ background: 'rgba(10,11,15,0.72)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div className="max-w-[1240px] mx-auto w-full px-8 flex items-center gap-10">
-          <Link href="/" className="flex items-center gap-2.5 font-semibold text-[17px]">
-            <span className="w-[26px] h-[26px] rounded-[7px] grid place-items-center font-mono font-bold text-sm" style={{ background: '#C7F94A', color: '#000', boxShadow: '0 0 18px #C7F94A50' }}>F</span>
-            <span>Freelanly</span>
-          </Link>
-          <div className="hidden md:flex items-center gap-7 flex-1 text-[14px] text-[#A1A1AA]">
-            <Link href="/how-it-works" className="hover:text-white transition-colors">How it works</Link>
-            <Link href="/features" className="hover:text-white transition-colors">Features</Link>
-            <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
-            <Link href="/about" className="hover:text-white transition-colors">About</Link>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href="/auth/login" className="text-[14px] px-4 py-2 rounded-full border hover:bg-white/5 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>Sign in</Link>
-            <Link href="/auth/signin" className="text-[14px] px-4 py-2 rounded-full font-semibold" style={{ background: '#C7F94A', color: '#0A0B0F' }}>Start free →</Link>
-          </div>
-        </div>
-      </nav>
-      <header className="relative pt-32 pb-20 overflow-hidden">
-        {/* Grid background */}
-        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px)', backgroundSize: '56px 56px', maskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 80%)', WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 80%)' }} />
-        <div className="absolute top-[-200px] left-1/2 -translate-x-1/2 w-[800px] h-[800px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(199,249,74,0.16) 0%, transparent 55%)', filter: 'blur(40px)' }} />
-        <div className="max-w-[1240px] mx-auto px-8 relative z-10 grid md:grid-cols-[1.1fr_0.9fr] gap-12 items-center">
-          <div>
-            <span className="inline-flex items-center gap-2 font-mono text-xs tracking-widest uppercase text-[#A1A1AA] px-3 py-1.5 rounded-full mb-6" style={{ border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.03)' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#C7F94A] animate-pulse" style={{ boxShadow: '0 0 10px #C7F94A' }} />
-              {totalOpps.toLocaleString()} fresh gigs · updated every 3 hours
-            </span>
-            <h1 className="text-[clamp(48px,6.5vw,84px)] font-semibold tracking-tighter leading-none mb-6">Be first in the inbox.<br /><span className="text-[#C7F94A] italic font-medium">Win</span> the project.</h1>
-            <p className="text-[19px] text-[#D4D4D8] leading-relaxed max-w-[60ch] mb-8">Freelanly catches new freelance gigs the moment they&apos;re posted on LinkedIn and <strong className="text-white">{totalCompanies.toLocaleString()}+</strong> company sites — then sends a personalized AI application for you.</p>
-            <div className="flex gap-3 flex-wrap mb-6">
-              <Link href="/auth/signin" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-semibold text-[15px] hover:-translate-y-px transition-transform" style={{ background: '#C7F94A', color: '#0A0B0F' }}>Start free — no card needed →</Link>
-              <Link href="/freelance" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full text-[15px] border hover:bg-white/5 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>See how it works</Link>
-            </div>
-            <div className="flex gap-5 text-[13px] text-[#A1A1AA]">{['No credit card', 'First 25 applications free', 'Cancel anytime'].map(t => (<span key={t} className="flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C7F94A" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>{t}</span>))}</div>
-          </div>
-          {/* Product widget — live feed ticker (RIGHT COLUMN) */}
-          <div className="relative rounded-[14px] hidden md:block p-3.5 overflow-visible" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))', border: '1px solid rgba(255,255,255,0.14)', boxShadow: '0 40px 100px -30px rgba(0,0,0,0.6)' }}>
-            {/* Gradient border glow */}
-            <div className="absolute -inset-px rounded-[14px] -z-10" style={{ background: 'linear-gradient(135deg, rgba(199,249,74,0.3), transparent 30%, transparent 70%, rgba(199,249,74,0.15))', filter: 'blur(0.5px)' }} />
-            <div className="flex items-center gap-2 pb-2.5 mb-3 text-[11px] font-mono" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <span className="flex gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-white/10" /><span className="w-2.5 h-2.5 rounded-full bg-white/10" /><span className="w-2.5 h-2.5 rounded-full bg-white/10" /></span>
-              <span className="flex-1 text-center text-[#6B7280]">app.freelanly.com/inbox</span>
-            </div>
-            <div className="flex justify-between items-center mb-3">
-              <span className="font-mono text-[11px] tracking-widest uppercase text-[#A1A1AA]">Live activity</span>
-              <span className="font-mono text-[11px] text-[#C7F94A] flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#C7F94A] animate-pulse" />STREAMING</span>
-            </div>
-            <div className="overflow-hidden max-h-[280px] relative" style={{ maskImage: 'linear-gradient(to bottom, transparent, #000 14%, #000 80%, transparent)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, #000 14%, #000 80%, transparent)' }}>
-              <div className="flex flex-col gap-2 animate-[feedScroll_22s_linear_infinite]">
-                {[...Array(2)].flatMap(() => [
-                  { logo: 'L', color: '#FF6B6B', title: 'Senior React Developer · Linear', meta: 'via LinkedIn · 2m ago', status: 'sending', statusColor: '#6EE7FF' },
-                  { logo: 'V', color: '#A8E024', title: 'Full-Stack Engineer · Vercel', meta: 'careers page · 6m ago', status: '✓ applied', statusColor: '#4ADE80' },
-                  { logo: 'S', color: '#6EE7FF', title: 'Brand Designer · Stripe', meta: 'via LinkedIn · 8m ago', status: '✦ reply!', statusColor: '#C7F94A' },
-                  { logo: 'N', color: '#FFB951', title: 'Product Designer · Notion', meta: 'via LinkedIn · 11m ago', status: '✓ applied', statusColor: '#4ADE80' },
-                  { logo: 'F', color: '#F87171', title: 'iOS Engineer · Figma', meta: 'careers page · 14m ago', status: '✓ applied', statusColor: '#4ADE80' },
-                  { logo: 'R', color: '#A78BFA', title: 'DevOps Engineer · Railway', meta: 'via LinkedIn · 18m ago', status: 'sending', statusColor: '#6EE7FF' },
-                ]).map((item, i) => (
-                  <div key={i} className="grid grid-cols-[36px_1fr_auto] gap-3 items-center p-3 rounded-[10px]" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <div className="w-9 h-9 rounded-lg grid place-items-center font-mono font-bold text-sm text-black" style={{ background: item.color }}>{item.logo}</div>
-                    <div>
-                      <div className="text-[13.5px] font-medium truncate">{item.title}</div>
-                      <div className="text-[11.5px] font-mono text-[#6B7280] mt-0.5">{item.meta}</div>
-                    </div>
-                    <span className="font-mono text-[11px] px-2 py-1 rounded-full" style={{ color: item.statusColor, background: `${item.statusColor}15`, border: `1px solid ${item.statusColor}30` }}>{item.status}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            {/* Stat float card */}
-            <div className="absolute -right-6 -bottom-7 z-10 flex gap-4 items-center px-5 py-4 rounded-xl" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.14)', boxShadow: '0 30px 60px -20px rgba(0,0,0,0.7)' }}>
-              <div>
-                <div className="text-[30px] font-semibold tracking-tight tabular-nums text-[#C7F94A]">47</div>
-                <div className="font-mono text-[11px] tracking-widest uppercase text-[#A1A1AA]">Today</div>
-              </div>
-              <div className="w-px h-9" style={{ background: 'rgba(255,255,255,0.08)' }} />
-              <div>
-                <div className="text-[30px] font-semibold tracking-tight tabular-nums">4</div>
-                <div className="font-mono text-[11px] tracking-widest uppercase text-[#A1A1AA]">Replies</div>
-                <div className="text-[12px] text-[#6B7280]">▲ 8.5% rate</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Marquee */}
-      <section className="py-9 overflow-hidden" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div className="text-center font-mono text-[11px] tracking-widest uppercase text-[#6B7280] mb-6">Freelancers landing gigs from</div>
-        <div className="flex gap-16 whitespace-nowrap animate-[scrollX_38s_linear_infinite]" style={{ width: 'max-content' }}>
-          {[...Array(2)].flatMap(() => ['Linear','Vercel','Stripe','Notion','Figma','Shopify','GitLab','Railway','Supabase','Automattic','Cloudflare']).map((name, i) => (
-            <span key={i} className="text-[22px] font-semibold tracking-tight text-[#A1A1AA]">{name}</span>
-          ))}
-        </div>
-      </section>
-
-      <style>{`
-        @keyframes feedScroll { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
-        @keyframes scrollX { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        .reveal { opacity: 0; transform: translateY(16px); transition: opacity 600ms cubic-bezier(0.2,0,0,1), transform 600ms cubic-bezier(0.2,0,0,1); }
-        .reveal.in { opacity: 1; transform: translateY(0); }
-      `}</style>
-      <script dangerouslySetInnerHTML={{ __html: `document.addEventListener('DOMContentLoaded',function(){if(typeof IntersectionObserver==='undefined')return;document.querySelectorAll('.reveal').forEach(function(el){new IntersectionObserver(function(e){e.forEach(function(entry){if(entry.isIntersecting)entry.target.classList.add('in')})},{threshold:0.1}).observe(el)})})` }} />
-
-      <section className="py-16"><div className="max-w-[1240px] mx-auto px-8"><div className="grid grid-cols-2 md:grid-cols-5 rounded-[14px] overflow-hidden" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.08)' }}>{[{ num: `${(totalUsers/1000).toFixed(1)}K+`, label: 'Freelancers' },{ num: `${totalOpps}+`, label: 'Projects today' },{ num: `${totalCompanies.toLocaleString()}+`, label: 'Companies' },{ num: '5.1%', label: 'Reply rate', accent: true },{ num: '90+', label: 'Countries' }].map((s, i) => (<div key={i} className="p-7 border-r last:border-r-0" style={{ borderColor: 'rgba(255,255,255,0.08)' }}><div className={`text-[32px] font-semibold tracking-tight ${s.accent ? 'text-[#C7F94A]' : ''}`}>{s.num}</div><div className="text-[13px] text-[#A1A1AA] mt-1">{s.label}</div></div>))}</div></div></section>
-      <section className="py-24"><div className="max-w-[1240px] mx-auto px-8"><div className="mb-14"><span className="font-mono text-xs tracking-widest uppercase text-[#A1A1AA]">— How it works</span><h2 className="text-[clamp(36px,4.4vw,56px)] font-semibold tracking-tighter mt-4">Three steps. Zero busywork.</h2><p className="text-[#D4D4D8] text-lg mt-3">Set your filters once. We hunt, write, and send while you do real work.</p></div><div className="grid md:grid-cols-3 gap-6">{[{ num: '01', title: 'Discover', sub: 'We find the gigs others miss', desc: 'Scrapes LinkedIn hiring posts and 3,500+ career pages every few hours.' },{ num: '02', title: 'Personalize', sub: 'AI writes a letter that sounds like you', desc: 'References your portfolio, opens with a human hook. No "I hope this email finds you well."' },{ num: '03', title: 'Send & follow up', sub: 'Tracked. Followed up. From your inbox.', desc: 'Track opens, replies. Sends a nudge after 5 days if they go quiet.' }].map(s => (<div key={s.num} className="p-7 rounded-[14px]" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.08)' }}><div className="font-mono text-xs tracking-widest uppercase text-[#C7F94A] mb-4">{s.num} — {s.title}</div><h3 className="text-[22px] font-semibold tracking-tight mb-3">{s.sub}</h3><p className="text-[#A1A1AA] text-[15px] leading-relaxed">{s.desc}</p></div>))}</div></div></section>
-      <section className="py-24" style={{ background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.015))' }}><div className="max-w-[1240px] mx-auto px-8"><div className="mb-14"><span className="font-mono text-xs tracking-widest uppercase text-[#A1A1AA]">— What&apos;s inside</span><h2 className="text-[clamp(36px,4.4vw,56px)] font-semibold tracking-tighter mt-4">Built to win replies, not send spam.</h2></div><div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">{[{ t: 'AI cover letters', d: 'Reads the job post, references your portfolio. ~90 words. No fluff.' },{ t: 'Auto-apply engine', d: 'Set criteria once. Applications go out at human cadence.' },{ t: 'Auto follow-ups', d: 'If they go quiet for 5 days, one polite nudge. Then it stops.' },{ t: 'Reply & open tracking', d: 'Open rate, reply rate, interview rate by template.' },{ t: 'Pipeline / Kanban', d: 'Sent → Opened → Replied → Interview → Offer.' },{ t: 'Send from your inbox', d: 'OAuth into Gmail. Sends as you, replies route back.' }].map(f => (<div key={f.t} className="p-6 rounded-[14px] hover:border-white/15 transition-colors" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.08)' }}><h3 className="text-[18px] font-semibold tracking-tight mb-2">{f.t}</h3><p className="text-[#A1A1AA] text-[14px] leading-relaxed">{f.d}</p></div>))}</div></div></section>
-      {/* Manual vs Freelanly comparison */}
-      <section className="py-24">
-        <div className="max-w-[900px] mx-auto px-8">
-          <div className="mb-10 text-center">
-            <span className="font-mono text-xs tracking-widest uppercase text-[#A1A1AA]">— Why not just…</span>
-            <h2 className="text-[clamp(36px,4.4vw,56px)] font-semibold tracking-tighter mt-4">Manual outreach vs. Freelanly</h2>
-          </div>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="rounded-[14px] p-7" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div className="font-mono text-[11px] tracking-widest uppercase text-[#6B7280] mb-4">Doing it yourself</div>
-              <p className="text-[14px] text-[#6B7280] italic mb-4">You, every morning, for 90 minutes.</p>
-              <ul className="space-y-3 text-[14px] text-[#A1A1AA]">
-                {['Refresh job boards, miss the fresh posts', 'Write each cover letter from scratch', 'Send, then forget about it', 'No follow-ups, no tracking, no learning', 'Burn out after 2 weeks of consistency'].map(t => (
-                  <li key={t} className="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F87171" strokeWidth="2.5" className="mt-0.5 flex-shrink-0"><path d="M18 6L6 18M6 6l12 12"/></svg>{t}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="rounded-[14px] p-7" style={{ background: '#0E1016', border: '2px solid rgba(199,249,74,0.3)', boxShadow: '0 0 40px -15px rgba(199,249,74,0.15)' }}>
-              <div className="font-mono text-[11px] tracking-widest uppercase text-[#C7F94A] mb-4">Freelanly</div>
-              <p className="text-[14px] text-[#C7F94A] italic mb-4">Set it once. Check it once a day.</p>
-              <ul className="space-y-3 text-[14px] text-[#D4D4D8]">
-                {['Fresh posts arrive within hours of posting', 'AI drafts a personalized letter in 2 seconds', 'Sent from your inbox at the right time', '2 follow-ups, tracking, A/B testing — automatic', 'Runs forever, even on the weeks you don\'t'].map(t => (
-                  <li key={t} className="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C7F94A" strokeWidth="2.5" className="mt-0.5 flex-shrink-0"><path d="M20 6L9 17l-5-5"/></svg>{t}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="py-24"><div className="max-w-[1240px] mx-auto px-8"><div className="mb-14"><span className="font-mono text-xs tracking-widest uppercase text-[#A1A1AA]">— Real freelancers</span><h2 className="text-[clamp(36px,4.4vw,56px)] font-semibold tracking-tighter mt-4">Less refreshing job boards. More billable work.</h2></div><div className="grid md:grid-cols-3 gap-6">{[{ q: 'I went from 4 client emails a month to 6 in a week. The cover letters genuinely sound like me.', n: 'Alex K.', r: 'Full-stack · Warsaw', c: '#C7F94A' },{ q: 'The "first in the inbox" thing is real. I landed a brand sprint because Freelanly caught the post 18 hours early.', n: 'Sofia D.', r: 'Brand designer · Lisbon', c: '#FF6B6B' },{ q: 'I paid for one month and got two retainers. The auto-follow-up alone is worth the subscription.', n: 'Ravi T.', r: 'iOS dev · Bangalore', c: '#6EE7FF' }].map(t => (<div key={t.n} className="p-7 rounded-[14px]" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.08)' }}><blockquote className="text-[15px] leading-relaxed text-[#D4D4D8] mb-6">&quot;{t.q}&quot;</blockquote><div className="flex items-center gap-3"><div className="w-9 h-9 rounded-full grid place-items-center font-mono font-semibold text-xs text-black" style={{ background: t.c }}>{t.n.split(' ').map(w=>w[0]).join('')}</div><div><div className="text-[13.5px] font-medium">{t.n}</div><div className="text-[12px] text-[#6B7280]">{t.r}</div></div></div></div>))}</div></div></section>
-      <section className="py-24 relative overflow-hidden"><div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(199,249,74,0.12) 0%, transparent 60%)', filter: 'blur(40px)' }} /><div className="max-w-[800px] mx-auto px-8 text-center relative z-10"><span className="font-mono text-xs tracking-widest uppercase text-[#C7F94A]">— Start today</span><h2 className="text-[clamp(36px,4.4vw,56px)] font-semibold tracking-tighter mt-4 mb-5">Your next client is <span className="text-[#C7F94A]">already posting.</span><br />Get there first.</h2><p className="text-[#D4D4D8] text-lg mb-8 max-w-[50ch] mx-auto">Free for your first 25 applications. No credit card. Plug in your CV, pick your filters, and see what comes back.</p><div className="flex gap-3 justify-center flex-wrap"><Link href="/auth/signin" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-semibold text-[15px] hover:-translate-y-px transition-transform" style={{ background: '#C7F94A', color: '#0A0B0F' }}>Start free →</Link><Link href="/pricing" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full text-[15px] border hover:bg-white/5 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>See pricing</Link></div></div></section>
-      <footer className="pt-20 pb-10" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}><div className="max-w-[1240px] mx-auto px-8"><div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-16"><div className="col-span-2 md:col-span-1"><Link href="/" className="flex items-center gap-2.5 font-semibold mb-4"><span className="w-[26px] h-[26px] rounded-[7px] grid place-items-center font-mono font-bold text-sm" style={{ background: '#C7F94A', color: '#000' }}>F</span>Freelanly</Link><p className="text-[14px] text-[#A1A1AA] max-w-[260px]">AI outreach engine for freelancers.</p></div>{[{t:'Product',l:[['Pricing','/pricing'],['Browse Jobs','/freelance'],['Companies','/companies']]},{t:'Resources',l:[['Blog','/blog'],['Contact','mailto:hi@freelanly.com']]},{t:'Legal',l:[['Privacy','/privacy'],['Terms','/terms']]}].map(c=>(<div key={c.t}><h5 className="font-mono text-[11px] tracking-widest uppercase text-[#6B7280] mb-4">{c.t}</h5><ul className="space-y-2.5">{c.l.map(([l,h])=>(<li key={l}><Link href={h} className="text-[14px] text-[#D4D4D8] hover:text-[#C7F94A] transition-colors">{l}</Link></li>))}</ul></div>))}</div><div className="flex justify-between items-center pt-8 text-[13px] text-[#6B7280]" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}><span>© 2026 Freelanly</span><span>Made for freelancers who&apos;d rather be working.</span></div></div></footer>
+    <>
+{/* NAV */}
+<nav className="nav">
+  <div className="nav-inner">
+    <Link href="/" className="logo">
+      <span className="logo-mark">F</span>
+      <span>Freelanly</span>
+    </Link>
+    <ul className="nav-links">
+      <li><Link href="/how-it-works">How it works</Link></li>
+      <li><Link href="/features">Features</Link></li>
+      <li><Link href="/pricing">Pricing</Link></li>
+      <li><Link href="/about">About</Link></li>
+    </ul>
+    <div className="nav-cta">
+      <Link href="/auth/login" className="btn btn-ghost btn-sm">Sign in</Link>
+      <Link href="/auth/signin" className="btn btn-primary btn-sm">Start free
+        <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </Link>
     </div>
+  </div>
+</nav>
+
+{/* HERO */}
+<header className="hero">
+  <div className="hero-bg-glow"></div>
+  <div className="grid-bg"></div>
+  <div className="container hero-inner">
+    <div>
+      <span className="hero-eyebrow">
+        <span className="live-dot"></span>
+        {totalOpps.toLocaleString()} fresh gigs · updated every 3 hours
+      </span>
+      <h1>
+        Be first in the inbox.<br/>
+        <span className="accent">Win</span> the project.
+      </h1>
+      <p className="hero-sub">
+        Freelanly catches new freelance gigs the moment they&apos;re posted on LinkedIn and <strong>{totalCompanies.toLocaleString()}+</strong> company sites — then sends a personalized AI application for you. <strong>500+ applications</strong> go out daily. <strong>5%</strong> get a reply.
+      </p>
+      <div className="hero-cta">
+        <Link href="/auth/signin" className="btn btn-primary btn-lg">
+          Start free — no card needed
+          <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </Link>
+        <Link href="/how-it-works" className="btn btn-ghost btn-lg">See how it works</Link>
+      </div>
+      <div className="hero-meta">
+        <span className="hero-meta-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+          No credit card
+        </span>
+        <span className="hero-meta-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+          First 25 applications free
+        </span>
+        <span className="hero-meta-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+          Cancel anytime
+        </span>
+      </div>
+    </div>
+
+    {/* Product widget */}
+    <div className="product-frame">
+      <div className="product-chrome">
+        <span className="chrome-dot"></span><span className="chrome-dot"></span><span className="chrome-dot"></span>
+        <span className="chrome-url">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          app.freelanly.com/inbox
+        </span>
+      </div>
+      <div className="product-header">
+        <span className="product-title">Live activity</span>
+        <span className="product-title-live">
+          <span className="live-dot" style={{background:'var(--accent)', boxShadow: '0 0 8px var(--accent)', animation: 'pulse 1.8s infinite'}}></span>
+          STREAMING
+        </span>
+      </div>
+      <div className="feed">
+        <div className="feed-inner">
+          {[...Array(2)].flatMap((_, setIdx) => [
+            { logo: 'L', color: '#FF6B6B', title: 'Senior React Developer · Linear', meta: 'via LinkedIn · 2 min ago', status: '● sending', cls: 'sending' },
+            { logo: 'V', color: '#A8E024', title: 'Full-Stack Engineer · Vercel', meta: 'careers page · 6 min ago', status: '✓ applied', cls: 'applied' },
+            { logo: 'S', color: '#6EE7FF', title: 'Brand Designer · Stripe', meta: 'via LinkedIn · contract · 8 min ago', status: '✦ reply!', cls: 'reply' },
+            { logo: 'N', color: '#FFB951', title: 'Product Designer · Notion', meta: 'via LinkedIn · 11 min ago', status: '✓ applied', cls: 'applied' },
+            { logo: 'F', color: '#F87171', title: 'iOS Engineer · Figma', meta: 'careers page · 14 min ago', status: '✓ applied', cls: 'applied' },
+            { logo: 'R', color: '#A78BFA', title: 'DevOps Engineer · Railway', meta: 'via LinkedIn · 18 min ago', status: '● sending', cls: 'sending' },
+          ].map((item, i) => (
+            <div key={`${setIdx}-${i}`} className="feed-item">
+              <div className="feed-logo" style={{background: item.color}}>{item.logo}</div>
+              <div>
+                <div className="feed-title">{item.title}</div>
+                <div className="feed-meta">{item.meta}</div>
+              </div>
+              <span className={`feed-status ${item.cls}`}>{item.status}</span>
+            </div>
+          )))}
+        </div>
+      </div>
+
+      <div className="stat-float">
+        <div>
+          <div className="stat-float-num tabular" style={{color: 'var(--accent)'}}>47</div>
+          <div className="stat-float-label">Today</div>
+        </div>
+        <div style={{width:'1px', height:'36px', background: 'var(--line)'}}></div>
+        <div>
+          <div className="stat-float-num tabular" style={{color: 'var(--ink)'}}>4</div>
+          <div className="stat-float-label">Replies</div>
+          <div className="stat-float-sub">▲ 8.5% rate</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+{/* MARQUEE */}
+<section className="marquee">
+  <div className="marquee-label">Freelancers landing gigs from</div>
+  <div className="marquee-track">
+    {[...Array(2)].flatMap((_, i) => ['Linear','·','Vercel','·','Stripe','·','Notion','·','Figma','·','Shopify','·','GitLab','·','Railway','·','Supabase','·','Automattic','·','Cloudflare','·'].map((name, j) => (
+      <span key={`${i}-${j}`} className="marquee-item">{name}</span>
+    )))}
+  </div>
+</section>
+
+{/* STATS */}
+<section className="section-sm">
+  <div className="container reveal">
+    <div className="stats-strip">
+      <div className="stat">
+        <div className="stat-num">{(totalUsers / 1000).toFixed(1)}K+</div>
+        <div className="stat-label">Freelancers using daily</div>
+      </div>
+      <div className="stat">
+        <div className="stat-num">500+</div>
+        <div className="stat-label">Apps sent every day</div>
+      </div>
+      <div className="stat">
+        <div className="stat-num">{totalCompanies.toLocaleString()}+</div>
+        <div className="stat-label">Companies tracked</div>
+      </div>
+      <div className="stat">
+        <div className="stat-num"><span className="accent">5%</span></div>
+        <div className="stat-label">Average reply rate</div>
+      </div>
+      <div className="stat">
+        <div className="stat-num">90+</div>
+        <div className="stat-label">Countries</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* HOW IT WORKS PREVIEW */}
+<section className="section">
+  <div className="container">
+    <div className="section-head reveal">
+      <span className="eyebrow">— How it works</span>
+      <h2>Three steps. Zero busywork.</h2>
+      <p>Set your filters once. We hunt, write, and send while you do real work.</p>
+    </div>
+
+    <div className="how-preview reveal">
+      <div className="how-step">
+        <div className="how-step-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        </div>
+        <div className="how-num">01 — Discover</div>
+        <h3>We find the gigs others miss</h3>
+        <p>Freelanly scrapes LinkedIn hiring posts and {totalCompanies.toLocaleString()}+ company career pages every few hours — so you see openings before they hit Indeed or Upwork.</p>
+      </div>
+      <div className="how-step">
+        <div className="how-step-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+        </div>
+        <div className="how-num">02 — Personalize</div>
+        <h3>AI writes a cover letter that doesn&apos;t sound like AI</h3>
+        <p>Trained on what wins replies. Pulls from your portfolio, references the job specifics, opens with a human hook — not &quot;I hope this email finds you well.&quot;</p>
+      </div>
+      <div className="how-step">
+        <div className="how-step-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        </div>
+        <div className="how-num">03 — Send &amp; follow up</div>
+        <h3>From your inbox. Tracked. Followed up.</h3>
+        <p>Applications go out from your own email. We track opens, replies, and send a nudge after 5 days if they go quiet. You see everything in one dashboard.</p>
+      </div>
+    </div>
+
+    <div style={{marginTop:'32px', textAlign:'center'}} className="reveal">
+      <Link href="/how-it-works" className="btn btn-soft">
+        Read the full breakdown
+        <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </Link>
+    </div>
+  </div>
+</section>
+
+{/* FEATURES */}
+<section className="section" style={{background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.015))'}}>
+  <div className="container">
+    <div className="split-head reveal" style={{marginBottom: '56px'}}>
+      <div className="section-head" style={{marginBottom: 0}}>
+        <span className="eyebrow">— What&apos;s inside</span>
+        <h2>Built to win replies, not send spam.</h2>
+      </div>
+      <Link href="/features" className="link-arrow">
+        All features
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </Link>
+    </div>
+
+    <div className="feature-grid">
+      <div className="feat feat-big reveal">
+        <span className="feat-eyebrow">AI Cover Letter</span>
+        <h3>Sounds like you. Hits the specifics.</h3>
+        <p>Reads the job post, scans the hiring manager&apos;s profile, pulls from your portfolio, and writes an opener they actually want to read.</p>
+        <div className="feat-visual">
+          <div className="cover-card">
+            <span style={{color: 'var(--ink-4)', fontSize: '11px'}}>{'// generated 2s ago'}</span><br/>
+            Hey <span className="accent">Sarah</span>,<br/><br/>
+            Saw you&apos;re hiring a React dev for <span className="accent">Linear&apos;s mobile team</span>. I shipped a similar offline-first sync engine last quarter for <span className="accent">Plain</span> — happy to walk through how I&apos;d approach yours.<br/><br/>
+            Portfolio: alex.dev/work<br/>
+            <span className="cover-typing">— Alex</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="feat feat-mid reveal">
+        <span className="feat-eyebrow">Auto-Apply</span>
+        <h3>Set criteria. Walk away.</h3>
+        <p>Tell Freelanly the stack, role, and red flags. It applies on your behalf — from your inbox, 24/7.</p>
+        <div style={{marginTop: '22px', display: 'flex', flexDirection: 'column', gap: '12px'}}>
+          <div style={{display:'flex', gap:'10px', flexWrap:'wrap'}}>
+            <span className="tag" style={{borderColor: 'rgba(199,249,74,0.3)', color: 'var(--accent)'}}>+ React</span>
+            <span className="tag" style={{borderColor: 'rgba(199,249,74,0.3)', color: 'var(--accent)'}}>+ TypeScript</span>
+            <span className="tag" style={{borderColor: 'rgba(199,249,74,0.3)', color: 'var(--accent)'}}>+ Remote</span>
+            <span className="tag" style={{color: 'var(--bad)', borderColor: 'rgba(248,113,113,0.3)'}}>− &quot;Web3&quot;</span>
+            <span className="tag" style={{color: 'var(--bad)', borderColor: 'rgba(248,113,113,0.3)'}}>− &quot;rockstar&quot;</span>
+          </div>
+          <div style={{border: '1px solid var(--line-2)', borderRadius: '10px', padding: '14px', fontFamily: "'Geist Mono', monospace", fontSize: '12.5px', color: 'var(--ink-2)'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <span>Send window</span>
+              <span style={{color: 'var(--accent)'}}>9–17 Mon–Fri</span>
+            </div>
+            <div style={{height:'1px', background: 'var(--line)', margin: '10px 0'}}></div>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <span>Daily cap</span>
+              <span style={{color: 'var(--accent)'}}>25 applications</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="feat feat-small reveal">
+        <span className="feat-eyebrow">Tracking</span>
+        <h3>Know what worked.</h3>
+        <p>Opens, replies, interview rate — per template, per company, per week.</p>
+        <div className="tracking-vis">
+          <div className="track-row"><div><div style={{fontSize:'12.5px', color: 'var(--ink-2)', marginBottom: '6px'}}>React roles</div><div className="track-bar"><div className="track-bar-fill" style={{width: '72%'}}></div></div></div><div className="track-num">12% reply</div></div>
+          <div className="track-row"><div><div style={{fontSize:'12.5px', color: 'var(--ink-2)', marginBottom: '6px'}}>Design roles</div><div className="track-bar"><div className="track-bar-fill" style={{width: '48%'}}></div></div></div><div className="track-num">8% reply</div></div>
+          <div className="track-row"><div><div style={{fontSize:'12.5px', color: 'var(--ink-2)', marginBottom: '6px'}}>Backend roles</div><div className="track-bar"><div className="track-bar-fill" style={{width: '34%'}}></div></div></div><div className="track-num">5% reply</div></div>
+        </div>
+      </div>
+
+      <div className="feat feat-small reveal">
+        <span className="feat-eyebrow">Auto Follow-Up</span>
+        <h3>Nudge without nagging.</h3>
+        <p>If they don&apos;t reply in 5 days, we send a short, polite follow-up. Stops the moment they respond.</p>
+        <div className="followup-vis">
+          <div className="followup-step done"><div className="followup-time">Day 0 — 09:14</div><div className="followup-text">Initial application sent</div></div>
+          <div className="followup-step done"><div className="followup-time">Day 5 — 09:00</div><div className="followup-text">Follow-up #1 sent automatically</div></div>
+          <div className="followup-step"><div className="followup-time">Day 9</div><div className="followup-text" style={{color: 'var(--ink-4)'}}>Stops at 2 nudges or first reply</div></div>
+        </div>
+      </div>
+
+      <div className="feat feat-small reveal">
+        <span className="feat-eyebrow">Unified Inbox</span>
+        <h3>One place to reply.</h3>
+        <p>Every reply lands back in Freelanly. Snooze, label, hand off to your real email when it gets serious.</p>
+        <div style={{marginTop: '22px', display: 'flex', flexDirection: 'column', gap: '8px'}}>
+          <div style={{display:'flex', alignItems:'center', gap:'10px', padding: '10px 12px', border:'1px solid var(--line-2)', borderRadius: '8px', background: 'rgba(199,249,74,0.06)'}}>
+            <div style={{width:'6px',height:'6px',background:'var(--accent)',borderRadius:'999px'}}></div>
+            <div style={{flex:1, fontSize: '13px'}}>Sarah · Linear</div>
+            <div style={{fontFamily: "'Geist Mono', monospace", fontSize: '11px', color: 'var(--ink-4)'}}>2m</div>
+          </div>
+          <div style={{display:'flex', alignItems:'center', gap:'10px', padding: '10px 12px', border:'1px solid var(--line)', borderRadius: '8px'}}>
+            <div style={{width:'6px',height:'6px',background:'var(--ink-4)',borderRadius:'999px'}}></div>
+            <div style={{flex:1, fontSize: '13px', color: 'var(--ink-3)'}}>Marcus · Stripe</div>
+            <div style={{fontFamily: "'Geist Mono', monospace", fontSize: '11px', color: 'var(--ink-4)'}}>1h</div>
+          </div>
+          <div style={{display:'flex', alignItems:'center', gap:'10px', padding: '10px 12px', border:'1px solid var(--line)', borderRadius: '8px'}}>
+            <div style={{width:'6px',height:'6px',background:'var(--ink-4)',borderRadius:'999px'}}></div>
+            <div style={{flex:1, fontSize: '13px', color: 'var(--ink-3)'}}>Priya · Vercel</div>
+            <div style={{fontFamily: "'Geist Mono', monospace", fontSize: '11px', color: 'var(--ink-4)'}}>3h</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* TESTIMONIALS */}
+<section className="section">
+  <div className="container">
+    <div className="section-head reveal">
+      <span className="eyebrow">— Real freelancers</span>
+      <h2>Less refreshing job boards. More billable work.</h2>
+    </div>
+    <div className="testi-grid">
+      <div className="testi reveal">
+        <svg className="testi-quote-mark" viewBox="0 0 24 24" fill="currentColor"><path d="M3 21c3 0 7-1 7-8V5c0-1.3-.7-2-2-2H4C2.7 3 2 3.7 2 5v6c0 1.3.7 2 2 2h2v1c0 3-1 4-3 4v3zm14 0c3 0 7-1 7-8V5c0-1.3-.7-2-2-2h-4c-1.3 0-2 .7-2 2v6c0 1.3.7 2 2 2h2v1c0 3-1 4-3 4v3z"/></svg>
+        <blockquote>I went from 4 client emails a month to 6 in a week. The cover letters genuinely sound like me — half my reply rate is &quot;wait, did a human write this?&quot;</blockquote>
+        <div className="testi-author">
+          <div className="testi-avatar">AK</div>
+          <div><div className="testi-name">Alex Kowalski</div><div className="testi-role">Full-stack freelancer · Warsaw</div></div>
+        </div>
+      </div>
+      <div className="testi reveal">
+        <svg className="testi-quote-mark" viewBox="0 0 24 24" fill="currentColor"><path d="M3 21c3 0 7-1 7-8V5c0-1.3-.7-2-2-2H4C2.7 3 2 3.7 2 5v6c0 1.3.7 2 2 2h2v1c0 3-1 4-3 4v3zm14 0c3 0 7-1 7-8V5c0-1.3-.7-2-2-2h-4c-1.3 0-2 .7-2 2v6c0 1.3.7 2 2 2h2v1c0 3-1 4-3 4v3z"/></svg>
+        <blockquote>The &quot;first in the inbox&quot; thing is real. I landed a Stripe brand sprint because Freelanly caught the post 18 hours before it hit LinkedIn jobs.</blockquote>
+        <div className="testi-author">
+          <div className="testi-avatar" style={{background:'#FF6B6B', color:'#000'}}>SD</div>
+          <div><div className="testi-name">Sofia Duarte</div><div className="testi-role">Brand designer · Lisbon</div></div>
+        </div>
+      </div>
+      <div className="testi reveal">
+        <svg className="testi-quote-mark" viewBox="0 0 24 24" fill="currentColor"><path d="M3 21c3 0 7-1 7-8V5c0-1.3-.7-2-2-2H4C2.7 3 2 3.7 2 5v6c0 1.3.7 2 2 2h2v1c0 3-1 4-3 4v3zm14 0c3 0 7-1 7-8V5c0-1.3-.7-2-2-2h-4c-1.3 0-2 .7-2 2v6c0 1.3.7 2 2 2h2v1c0 3-1 4-3 4v3z"/></svg>
+        <blockquote>I paid for one month to test it and got two retainers in the same week. The auto-follow-up alone is worth the subscription.</blockquote>
+        <div className="testi-author">
+          <div className="testi-avatar" style={{background:'#6EE7FF', color:'#000'}}>RT</div>
+          <div><div className="testi-name">Ravi Thakkar</div><div className="testi-role">iOS developer · Bangalore</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* FINAL CTA */}
+<section className="final-cta" id="signup">
+  <div className="final-cta-glow"></div>
+  <div className="container final-cta-inner reveal">
+    <span className="eyebrow eyebrow-accent">— Start today</span>
+    <h2 style={{marginTop: '16px'}}>Your next client is <span className="accent">already posting.</span><br/>Get there first.</h2>
+    <p>Free for your first 25 applications. No credit card. Plug in your inbox, pick your filters, and see what comes back this week.</p>
+    <div className="hero-cta">
+      <Link href="/auth/signin" className="btn btn-primary btn-lg">
+        Start free
+        <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </Link>
+      <Link href="/pricing" className="btn btn-ghost btn-lg">See pricing</Link>
+    </div>
+  </div>
+</section>
+
+{/* FOOTER */}
+<footer className="footer">
+  <div className="container">
+    <div className="footer-grid">
+      <div className="footer-col footer-brand">
+        <Link href="/" className="logo">
+          <span className="logo-mark">F</span>
+          <span>Freelanly</span>
+        </Link>
+        <p>AI outreach engine for freelancers. Be first in the inbox. Win the project.</p>
+      </div>
+      <div className="footer-col">
+        <h5>Product</h5>
+        <ul>
+          <li><Link href="/how-it-works">How it works</Link></li>
+          <li><Link href="/features">Features</Link></li>
+          <li><Link href="/pricing">Pricing</Link></li>
+        </ul>
+      </div>
+      <div className="footer-col">
+        <h5>Company</h5>
+        <ul>
+          <li><Link href="/about">About</Link></li>
+          <li><Link href="/blog">Blog</Link></li>
+        </ul>
+      </div>
+      <div className="footer-col">
+        <h5>Resources</h5>
+        <ul>
+          <li><Link href="/freelance">Browse Jobs</Link></li>
+          <li><Link href="/companies">Companies</Link></li>
+        </ul>
+      </div>
+      <div className="footer-col">
+        <h5>Legal</h5>
+        <ul>
+          <li><Link href="/privacy">Privacy</Link></li>
+          <li><Link href="/terms">Terms</Link></li>
+        </ul>
+      </div>
+    </div>
+    <div className="footer-bottom">
+      <span>© 2026 Freelanly · Made for freelancers who&apos;d rather be working.</span>
+    </div>
+  </div>
+</footer>
+
+{/* Reveal animation script */}
+<script dangerouslySetInnerHTML={{ __html: `document.addEventListener('DOMContentLoaded',function(){if(typeof IntersectionObserver==='undefined')return;document.querySelectorAll('.reveal').forEach(function(el){new IntersectionObserver(function(e){e.forEach(function(entry){if(entry.isIntersecting)entry.target.classList.add('in')})},{threshold:0.1}).observe(el)})})` }} />
+    </>
   );
 }

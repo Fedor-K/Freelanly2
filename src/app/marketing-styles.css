@@ -1,0 +1,10 @@
+/* Import design CSS for marketing pages */
+@import './design-marketing.css';
+
+/* Override font to use next/font instead of Google Fonts import */
+body {
+  font-family: var(--font-geist-sans, 'Geist', 'Inter', system-ui, -apple-system, sans-serif);
+}
+.mono, [class*="mono"] {
+  font-family: var(--font-geist-mono, 'Geist Mono', ui-monospace, monospace);
+}
