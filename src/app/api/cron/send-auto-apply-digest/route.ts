@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { sendEmail } from '@/lib/email/postal';
 import { isCronAuthorized } from '@/lib/cron-auth';
+import { dailyDigestEmail, weeklyReportEmail } from '@/lib/email-templates';
 
 /**
  * POST /api/cron/send-auto-apply-digest
@@ -59,24 +60,8 @@ export async function POST(request: NextRequest) {
 
       // === DAILY DIGEST ===
       try {
-        await sendEmail({
-          to: user.email,
-          subject: `📊 Daily: ${sentYesterday} sent, ${repliedYesterday} replies — Freelanly`,
-          html: `<div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 32px;">
-            <h2 style="margin: 0 0 16px;">Hi ${firstName}, here's yesterday's update</h2>
-            <div style="background: #f7f6f1; border-radius: 12px; padding: 20px; margin: 16px 0;">
-              <div style="display: flex; gap: 24px; text-align: center;">
-                <div><div style="font-size: 28px; font-weight: 600;">${sentYesterday}</div><div style="font-size: 13px; color: #666;">Sent</div></div>
-                <div><div style="font-size: 28px; font-weight: 600;">${openedYesterday}</div><div style="font-size: 13px; color: #666;">Opened</div></div>
-                <div><div style="font-size: 28px; font-weight: 600; color: #4D8B0A;">${repliedYesterday}</div><div style="font-size: 13px; color: #666;">Replies</div></div>
-              </div>
-            </div>
-            ${repliedYesterday > 0 ? '<p style="color: #555;">You have new replies waiting in your inbox!</p>' : ''}
-            <a href="https://freelanly.com/dashboard/auto-apply" style="display: inline-block; padding: 12px 24px; background: #C7F94A; color: #000; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 12px;">Open Dashboard →</a>
-            <p style="color: #999; font-size: 12px; margin-top: 24px;"><a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(user.email)}" style="color: #999;">Unsubscribe from digests</a></p>
-          </div>`,
-          text: `Hi ${firstName}, yesterday: ${sentYesterday} sent, ${openedYesterday} opened, ${repliedYesterday} replies. Open dashboard: https://freelanly.com/dashboard/auto-apply`,
-        });
+        const digest = dailyDigestEmail({ userName: user.name || 'there', sent: sentYesterday, opened: openedYesterday, replies: repliedYesterday });
+        await sendEmail({ to: user.email, subject: digest.subject, html: digest.html, text: digest.text });
         dailySent++;
       } catch (e) {
         console.error(`[Digest] Failed for ${user.email}:`, e);
@@ -91,23 +76,8 @@ export async function POST(request: NextRequest) {
         const replyRate = sentWeek > 0 ? ((repliedWeek / sentWeek) * 100).toFixed(1) : '0';
 
         try {
-          await sendEmail({
-            to: user.email,
-            subject: `📈 Weekly: ${sentWeek} sent, ${repliedWeek} replies (${replyRate}%) — Freelanly`,
-            html: `<div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 32px;">
-              <h2 style="margin: 0 0 16px;">Weekly report for ${firstName}</h2>
-              <div style="background: #f7f6f1; border-radius: 12px; padding: 20px; margin: 16px 0;">
-                <div style="display: flex; gap: 24px; text-align: center;">
-                  <div><div style="font-size: 28px; font-weight: 600;">${sentWeek}</div><div style="font-size: 13px; color: #666;">Sent this week</div></div>
-                  <div><div style="font-size: 28px; font-weight: 600; color: #4D8B0A;">${repliedWeek}</div><div style="font-size: 13px; color: #666;">Replies</div></div>
-                  <div><div style="font-size: 28px; font-weight: 600;">${replyRate}%</div><div style="font-size: 13px; color: #666;">Reply rate</div></div>
-                </div>
-              </div>
-              <a href="https://freelanly.com/dashboard/auto-apply?tab=analytics" style="display: inline-block; padding: 12px 24px; background: #C7F94A; color: #000; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 12px;">View Analytics →</a>
-              <p style="color: #999; font-size: 12px; margin-top: 24px;"><a href="https://freelanly.com/unsubscribe?email=${encodeURIComponent(user.email)}" style="color: #999;">Unsubscribe</a></p>
-            </div>`,
-            text: `Weekly: ${sentWeek} sent, ${repliedWeek} replies, ${replyRate}% reply rate.`,
-          });
+          const weekly = weeklyReportEmail({ userName: user.name || 'there', sent: sentWeek, replies: repliedWeek, replyRate });
+          await sendEmail({ to: user.email, subject: weekly.subject, html: weekly.html, text: weekly.text });
           weeklySent++;
         } catch (e) {
           console.error(`[WeeklyReport] Failed for ${user.email}:`, e);

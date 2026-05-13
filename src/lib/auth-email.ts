@@ -70,15 +70,16 @@ export async function sendMagicLinkEmail(
     // Continue — magic link still works even without code
   }
 
-  const html = generateMagicLinkHtml(url, code);
-  const text = generateMagicLinkText(url, code);
+  // Use branded OTP template
+  const { otpEmail } = await import('@/lib/email-templates');
+  const branded = otpEmail(code, email);
 
   try {
     const emailParams = {
       to: email,
-      subject: `${code} — your Freelanly sign-in code`,
-      html,
-      text,
+      subject: branded.subject,
+      html: branded.html,
+      text: branded.text,
     };
 
     // Send auth emails via Postal (self-hosted) for IP warming.

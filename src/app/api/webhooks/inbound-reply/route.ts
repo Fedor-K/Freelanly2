@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { sendEmail } from '@/lib/email/postal';
 import OpenAI from 'openai';
+import { replyNotificationEmail, replyTeaserEmail } from '@/lib/email-templates';
 
 function getAIClient() {
   const p = process.env.AI_PROVIDER?.toLowerCase();
@@ -109,36 +110,36 @@ export async function POST(request: NextRequest) {
     const paywallEnabled = false; // Set to true when ready to enable paywall
 
     if (!paywallEnabled || isPro) {
+      // PRO: branded reply notification with full content
       try {
-        await sendEmail({
-          to: app.user.email,
-          subject: `Reply: ${subject || app.jobTitle} — ${app.companyName}`,
-          html: htmlBody || `<pre>${plainBody}</pre>`,
-          text: plainBody || 'You received a reply. Check the original in Freelanly dashboard.',
-          replyTo: from,
+        const branded = replyNotificationEmail({
+          userName: app.user.name || 'there',
+          recruiterName: from.split('<')[0].trim() || app.companyName,
+          company: app.companyName,
+          jobTitle: app.jobTitle,
+          replyPreview: replyText.slice(0, 200),
+          replySignal: signal,
+          category: newStatus,
+          sentAgo: 'just now',
         });
-        console.log(`[InboundReply] Forwarded reply to ${app.user.email}`);
+        await sendEmail({ to: app.user.email, subject: branded.subject, html: branded.html, text: branded.text, replyTo: from });
+        console.log(`[InboundReply] Branded reply email sent to ${app.user.email}`);
       } catch (fwdErr) {
         console.error(`[InboundReply] Forward failed:`, fwdErr);
       }
     } else {
-      // FREE user with paywall: send teaser only
+      // FREE: branded teaser (no full text)
       try {
-        await sendEmail({
-          to: app.user.email,
-          subject: `🔔 ${app.companyName} replied to your application!`,
-          html: `<div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 32px;">
-            <h2 style="margin: 0 0 12px;">Great news — you got a reply!</h2>
-            <p style="color: #555; line-height: 1.6;">A recruiter from <strong>${app.companyName}</strong> responded to your <strong>${app.jobTitle}</strong> application.</p>
-            <div style="background: #f5f5f5; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
-              <p style="color: #999; font-size: 14px; margin: 0 0 8px;">Reply preview is available for Pro members</p>
-              <a href="https://freelanly.com/dashboard/auto-apply?tab=inbox" style="display: inline-block; padding: 12px 24px; background: #C7F94A; color: #000; border-radius: 8px; text-decoration: none; font-weight: 600;">Read reply — Upgrade to Pro →</a>
-            </div>
-            <p style="color: #888; font-size: 13px;">Freelanly Pro: unlimited applies, read all replies, auto follow-ups — $29/mo</p>
-          </div>`,
-          text: `Great news! ${app.companyName} replied to your ${app.jobTitle} application. Upgrade to Pro to read the full reply: https://freelanly.com/pricing`,
+        const teaser = replyTeaserEmail({
+          userName: app.user.name || 'there',
+          recruiterName: from.split('<')[0].trim() || app.companyName,
+          company: app.companyName,
+          jobTitle: app.jobTitle,
+          replySignal: signal,
+          category: newStatus,
         });
-        console.log(`[InboundReply] Sent teaser to FREE user ${app.user.email}`);
+        await sendEmail({ to: app.user.email, subject: teaser.subject, html: teaser.html, text: teaser.text });
+        console.log(`[InboundReply] Branded teaser sent to FREE user ${app.user.email}`);
       } catch (fwdErr) {
         console.error(`[InboundReply] Teaser failed:`, fwdErr);
       }
