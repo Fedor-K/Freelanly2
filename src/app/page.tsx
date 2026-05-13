@@ -53,7 +53,8 @@ export default async function LandingPage() {
               <Link href="/freelance" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full text-[15px] border hover:bg-white/5 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>See how it works</Link>
             </div>
             <div className="flex gap-5 text-[13px] text-[#A1A1AA]">{['No credit card', 'First 25 applications free', 'Cancel anytime'].map(t => (<span key={t} className="flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C7F94A" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>{t}</span>))}</div>
-          {/* Product widget — live feed ticker */}
+          </div>
+          {/* Product widget — live feed ticker (RIGHT COLUMN) */}
           <div className="relative rounded-[14px] hidden md:block p-3.5 overflow-visible" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))', border: '1px solid rgba(255,255,255,0.14)', boxShadow: '0 40px 100px -30px rgba(0,0,0,0.6)' }}>
             {/* Gradient border glow */}
             <div className="absolute -inset-px rounded-[14px] -z-10" style={{ background: 'linear-gradient(135deg, rgba(199,249,74,0.3), transparent 30%, transparent 70%, rgba(199,249,74,0.15))', filter: 'blur(0.5px)' }} />
@@ -99,7 +100,6 @@ export default async function LandingPage() {
                 <div className="text-[12px] text-[#6B7280]">▲ 8.5% rate</div>
               </div>
             </div>
-          </div>
           </div>
         </div>
       </header>
