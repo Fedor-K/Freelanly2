@@ -1,6 +1,19 @@
 import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
+
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist-sans",
+  display: "swap",
+});
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+  display: "swap",
+});
 import { siteConfig } from "@/config/site";
 import { AnalyticsScripts } from "@/components/analytics/AnalyticsScripts";
 import { SessionProvider } from "@/components/providers/SessionProvider";
@@ -148,7 +161,7 @@ export default function RootLayout({
         </noscript>
         <script id="vtag-ai-js" async src="https://r2.leadsy.ai/tag.js" data-pid="XmXSR8r7W3uP84n0" data-version="062024" />
       </head>
-      <body className="font-sans antialiased">
+      <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}>
         <SessionProvider>
           <Suspense fallback={null}>
             <GclidCapture />
