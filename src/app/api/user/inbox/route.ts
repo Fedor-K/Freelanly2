@@ -20,6 +20,12 @@ export async function GET(request: NextRequest) {
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { plan: true },
+    });
+    const isPro = user?.plan !== 'FREE';
+
     const filter = request.nextUrl.searchParams.get('filter') || 'all';
 
     const where: Record<string, unknown> = {
@@ -53,14 +59,22 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const enriched = threads.map(t => ({
-      ...t,
-      thread: [
-        { from: 'you', text: t.coverLetter, date: t.sentAt },
-        ...(t.followUpSentAt ? [{ from: 'you', text: '(Follow-up sent)', date: t.followUpSentAt }] : []),
-        ...(t.replyText ? [{ from: 'recruiter', text: t.replyText, date: t.repliedAt || t.updatedAt }] : []),
-      ],
-    }));
+    const enriched = threads.map(t => {
+      // FREE users: blur reply text, show teaser
+      const replyText = isPro ? t.replyText : (t.replyText ? t.replyText.slice(0, 30) + '...' : null);
+      const locked = !isPro && !!t.replyText;
+
+      return {
+        ...t,
+        replyText,
+        locked,
+        thread: [
+          { from: 'you', text: t.coverLetter, date: t.sentAt },
+          ...(t.followUpSentAt ? [{ from: 'you', text: '(Follow-up sent)', date: t.followUpSentAt }] : []),
+          ...(t.replyText ? [{ from: 'recruiter', text: isPro ? t.replyText : '🔒 Upgrade to Pro to read this reply', date: t.repliedAt || t.updatedAt }] : []),
+        ],
+      };
+    });
 
     return NextResponse.json({ threads: enriched, total: enriched.length });
   } catch (error) {

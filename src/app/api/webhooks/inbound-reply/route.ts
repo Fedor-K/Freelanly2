@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
         userId: true,
         jobTitle: true,
         companyName: true,
-        user: { select: { email: true, name: true } },
+        user: { select: { email: true, name: true, plan: true } },
       },
     });
 
@@ -86,21 +86,47 @@ export async function POST(request: NextRequest) {
       console.log(`[InboundReply] ${appId} → ${newStatus} from ${from}: ${replyText.slice(0, 80)}`);
     }
 
-    // Forward to user's email
-    try {
-      await sendEmail({
-        to: app.user.email,
-        subject: `Reply: ${subject || app.jobTitle} — ${app.companyName}`,
-        html: htmlBody || `<pre>${plainBody}</pre>`,
-        text: plainBody || 'You received a reply. Check the original in Freelanly dashboard.',
-        replyTo: from,
-      });
-      console.log(`[InboundReply] Forwarded reply to ${app.user.email}`);
-    } catch (fwdErr) {
-      console.error(`[InboundReply] Forward failed:`, fwdErr);
+    // Forward full reply only to PRO+ users
+    // FREE users get a teaser notification (no reply text)
+    const isPro = app.user.plan !== 'FREE';
+
+    if (isPro) {
+      try {
+        await sendEmail({
+          to: app.user.email,
+          subject: `Reply: ${subject || app.jobTitle} — ${app.companyName}`,
+          html: htmlBody || `<pre>${plainBody}</pre>`,
+          text: plainBody || 'You received a reply. Check the original in Freelanly dashboard.',
+          replyTo: from,
+        });
+        console.log(`[InboundReply] Forwarded reply to PRO user ${app.user.email}`);
+      } catch (fwdErr) {
+        console.error(`[InboundReply] Forward failed:`, fwdErr);
+      }
+    } else {
+      // FREE user: send teaser only — "You got a reply! Upgrade to read it"
+      try {
+        await sendEmail({
+          to: app.user.email,
+          subject: `🔔 ${app.companyName} replied to your application!`,
+          html: `<div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 32px;">
+            <h2 style="margin: 0 0 12px;">Great news — you got a reply!</h2>
+            <p style="color: #555; line-height: 1.6;">A recruiter from <strong>${app.companyName}</strong> responded to your <strong>${app.jobTitle}</strong> application.</p>
+            <div style="background: #f5f5f5; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
+              <p style="color: #999; font-size: 14px; margin: 0 0 8px;">Reply preview is available for Pro members</p>
+              <a href="https://freelanly.com/dashboard/auto-apply?tab=inbox" style="display: inline-block; padding: 12px 24px; background: #C7F94A; color: #000; border-radius: 8px; text-decoration: none; font-weight: 600;">Read reply — Upgrade to Pro →</a>
+            </div>
+            <p style="color: #888; font-size: 13px;">Freelanly Pro: unlimited applies, read all replies, auto follow-ups — $29/mo</p>
+          </div>`,
+          text: `Great news! ${app.companyName} replied to your ${app.jobTitle} application. Upgrade to Pro to read the full reply: https://freelanly.com/pricing`,
+        });
+        console.log(`[InboundReply] Sent teaser to FREE user ${app.user.email}`);
+      } catch (fwdErr) {
+        console.error(`[InboundReply] Teaser failed:`, fwdErr);
+      }
     }
 
-    return NextResponse.json({ ok: true, appId, forwarded: true });
+    return NextResponse.json({ ok: true, appId, forwarded: isPro });
   } catch (error) {
     console.error('[InboundReply] Error:', error);
     return NextResponse.json({ ok: true }); // Always 200 to prevent Postal retries

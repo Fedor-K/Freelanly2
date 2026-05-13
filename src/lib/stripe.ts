@@ -25,76 +25,113 @@ export const stripe = {
 };
 
 // Price IDs from Stripe Dashboard
+// Legacy prices (old model)
+export const STRIPE_PRICES_LEGACY = {
+  monthly: 'price_1Sk2G8KHJU6KLxM31y73p1lD',    // €15/month
+  quarterly: 'price_1Sk2I0KHJU6KLxM33CN9mn0E',  // €35/3 months
+  annual: 'price_1Sk2JYKHJU6KLxM3QE0ffgxt',     // €150/year
+} as const;
+
+// New auto-apply plans (TODO: create in Stripe Dashboard and update IDs)
 export const STRIPE_PRICES = {
-  monthly: 'price_1Sk2G8KHJU6KLxM31y73p1lD',    // €15/month, no trial
-  quarterly: 'price_1Sk2I0KHJU6KLxM33CN9mn0E',  // €35/3 months, no trial
-  annual: 'price_1Sk2JYKHJU6KLxM3QE0ffgxt',     // €150/year, no trial
+  pro_monthly: process.env.STRIPE_PRICE_PRO_MONTHLY || 'price_pro_monthly_TODO',
+  pro_annual: process.env.STRIPE_PRICE_PRO_ANNUAL || 'price_pro_annual_TODO',
+  agency_monthly: process.env.STRIPE_PRICE_AGENCY_MONTHLY || 'price_agency_monthly_TODO',
+  agency_annual: process.env.STRIPE_PRICE_AGENCY_ANNUAL || 'price_agency_annual_TODO',
 } as const;
 
 export type PriceKey = keyof typeof STRIPE_PRICES;
+
+// Plan limits
+export const PLAN_LIMITS = {
+  FREE: { appsPerMonth: 10, inboxes: 1, templates: 3, autoApply: false, followUps: false, earlyAccess: false, aiModel: 'basic' },
+  PRO: { appsPerMonth: 500, inboxes: 3, templates: -1, autoApply: true, followUps: true, earlyAccess: true, aiModel: 'premium' },
+  AGENCY: { appsPerMonth: -1, inboxes: 10, templates: -1, autoApply: true, followUps: true, earlyAccess: true, aiModel: 'premium', seats: 5 },
+} as const;
 
 // Price display info
 export const PRICE_INFO: Record<PriceKey, {
   name: string;
   price: string;
-  pricePerDay: string;
+  annualPrice?: string;
   period: string;
   periodLabel: string;
   description: string;
   hasTrial: boolean;
   popular?: boolean;
   savings?: string;
-  originalPrice?: string;
+  plan: 'PRO' | 'AGENCY';
 }> = {
-  monthly: {
-    name: 'Monthly',
-    price: '€15',
-    pricePerDay: '€0.50',
+  pro_monthly: {
+    name: 'Pro',
+    price: '$29',
     period: 'month',
     periodLabel: 'per month',
-    description: 'Most flexible option',
-    hasTrial: false,
+    description: 'Auto-apply + AI cover letters + follow-ups',
+    hasTrial: true,
     popular: true,
+    plan: 'PRO',
   },
-  quarterly: {
-    name: 'Quarterly (3 months)',
-    price: '€35',
-    pricePerDay: '€0.39',
-    period: '3 months',
-    periodLabel: 'for 3 months',
-    description: 'Save 22% vs monthly',
-    hasTrial: false,
-    savings: 'Save 22%',
-    originalPrice: '€45',
+  pro_annual: {
+    name: 'Pro (Annual)',
+    price: '$23',
+    annualPrice: '$276',
+    period: 'month',
+    periodLabel: 'per month, billed annually',
+    description: 'Save 20% vs monthly',
+    hasTrial: true,
+    savings: 'Save 20%',
+    plan: 'PRO',
   },
-  annual: {
-    name: 'Annual',
-    price: '€150',
-    pricePerDay: '€0.41',
-    period: 'year',
-    periodLabel: 'per year',
-    description: 'Save 17% vs monthly',
+  agency_monthly: {
+    name: 'Agency',
+    price: '$89',
+    period: 'month',
+    periodLabel: 'per month, up to 5 seats',
+    description: 'Unlimited apps, team features, API',
     hasTrial: false,
-    savings: 'Save 17%',
-    originalPrice: '€180',
+    plan: 'AGENCY',
+  },
+  agency_annual: {
+    name: 'Agency (Annual)',
+    price: '$71',
+    annualPrice: '$852',
+    period: 'month',
+    periodLabel: 'per month, billed annually',
+    description: 'Save 20% vs monthly',
+    hasTrial: false,
+    savings: 'Save 20%',
+    plan: 'AGENCY',
   },
 };
 
 // Plan features for display
 export const PLAN_FEATURES = {
   free: [
-    'Browse all job listings',
-    'Save unlimited jobs',
-    'Basic salary insights (average only)',
-    'Email alerts (daily digest)',
+    '10 AI applications / month',
+    'Browse all 13,842+ live gigs',
+    'Basic AI cover letter',
+    'Manual send only',
   ],
   pro: [
     'Everything in Free, plus:',
-    'Full salary insights (range, percentiles, source)',
-    'Instant email alerts',
-    'Apply to jobs directly',
-    'Application tracking',
-    'Priority support',
+    '500 AI applications / month',
+    'Auto-apply with smart filters',
+    'Auto follow-ups after 5 days',
+    'Premium AI model',
+    'Tracking & reply analytics',
+    'Send from your own inbox',
+    'Early access to new jobs (3hr edge)',
+  ],
+  agency: [
+    'Everything in Pro, plus:',
+    'Unlimited applications',
+    '5 seats ($15/extra seat)',
+    'Shared template library',
+    'Team analytics & pipeline view',
+    'API access',
+    'Priority support (4hr SLA)',
+    'Custom AI training on your style',
   ],
 };
 

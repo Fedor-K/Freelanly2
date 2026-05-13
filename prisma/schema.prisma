@@ -124,6 +124,8 @@ model User {
   savedFeeds            SavedFeed[]
   freeAppliesUsedToday  Int       @default(0)
   lastFreeApplyReset    DateTime  @default(now())
+  appsUsedThisCycle     Int       @default(0)   // Applications sent this billing cycle
+  cycleStartedAt        DateTime  @default(now()) // When current billing cycle started
   emailBounceCount      Int       @default(0)   // Hard bounces, disable alerts after 3
 
   createdAt     DateTime  @default(now())
