@@ -1,252 +1,149 @@
 import { Metadata } from 'next';
-import { Suspense } from 'react';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
+import Link from 'next/link';
 import { siteConfig } from '@/config/site';
-import { PricingCards } from './PricingCards';
-import { SenjaWidget } from '@/components/ui/SenjaWidget';
 
 export const metadata: Metadata = {
-  title: 'Pricing - Premium Plans for Job Seekers',
-  description: 'Get unlimited access to all jobs, full salary insights, and instant alerts. Weekly, monthly, and annual plans available.',
-  keywords: ['freelanly pricing', 'job board pricing', 'remote jobs subscription'],
-  openGraph: {
-    title: 'Freelanly Pricing - Premium Plans',
-    description: 'Unlimited job views and full salary insights for serious job seekers.',
-    url: `${siteConfig.url}/pricing`,
-  },
-  alternates: {
-    canonical: `${siteConfig.url}/pricing`,
-  },
+  title: 'Pricing — Freelanly · from $0/mo',
+  description: 'Start free. Upgrade when your inbox starts filling up. Cancel any time.',
+  alternates: { canonical: `${siteConfig.url}/pricing` },
 };
 
+const Check = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>;
+const Cross = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>;
+
 export default function PricingPage() {
-  const structuredData = {
-    '@context': 'https://schema.org',
-    '@type': 'WebPage',
-    name: 'Pricing',
-    description: 'Freelanly pricing plans for job seekers',
-    breadcrumb: {
-      '@type': 'BreadcrumbList',
-      itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'Home', item: siteConfig.url },
-        { '@type': 'ListItem', position: 2, name: 'Pricing', item: `${siteConfig.url}/pricing` },
-      ],
-    },
-  };
-
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-
-      <main className="flex-1">
-        <div className="container py-16">
-          {/* Header */}
-          <div className="text-center mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-4xl font-bold mb-3 sm:mb-4">
-              Stop Applying Into the Void
-            </h1>
-            <p className="text-base sm:text-xl text-muted-foreground max-w-2xl mx-auto px-2 sm:px-0">
-              Get direct contact info, apply before the crowd, and actually hear back.
-              Cancel anytime — but you won't want to.
-            </p>
+    <div style={{ background: '#0A0B0F', color: '#FAFAFA' }}>
+      {/* Nav */}
+      <nav className="h-16 flex items-center px-8" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(10,11,15,0.72)', backdropFilter: 'blur(20px)' }}>
+        <div className="max-w-[1240px] mx-auto w-full flex items-center gap-10">
+          <Link href="/" className="flex items-center gap-2.5 font-semibold text-[17px]">
+            <span className="w-[26px] h-[26px] rounded-[7px] grid place-items-center font-mono font-bold text-sm" style={{ background: '#C7F94A', color: '#000' }}>F</span>
+            <span>Freelanly</span>
+          </Link>
+          <div className="hidden md:flex items-center gap-7 flex-1 text-[14px] text-[#A1A1AA]">
+            <Link href="/" className="hover:text-white">Home</Link>
+            <Link href="/freelance" className="hover:text-white">Browse Jobs</Link>
           </div>
-
-          {/* Urgency Banner */}
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6 max-w-2xl mx-auto">
-            <p className="text-center text-sm text-orange-800">
-              <span className="font-semibold">⚡ Jobs move fast.</span> The average remote position gets 250+ applications.
-              Early applicants are <strong>8x more likely</strong> to get interviews.
-            </p>
+          <div className="flex items-center gap-3">
+            <Link href="/auth/login" className="text-[14px] px-4 py-2 rounded-full border" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>Sign in</Link>
+            <Link href="/auth/signin" className="text-[14px] px-4 py-2 rounded-full font-semibold" style={{ background: '#C7F94A', color: '#0A0B0F' }}>Start free</Link>
           </div>
-
-          {/* Social Proof Stats */}
-          <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mb-8 sm:mb-12 text-sm px-2 sm:px-0">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">⚡</span>
-              <span><strong>800+</strong> professionals upgraded this month</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">📅</span>
-              <span>Average time to first interview: <strong>8 days</strong></span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">🔒</span>
-              <span><strong>Secure payment</strong> · Cancel anytime</span>
-            </div>
-          </div>
-
-          {/* Plans */}
-          <Suspense fallback={<div className="text-center py-8">Loading plans...</div>}>
-            <PricingCards />
-          </Suspense>
-
-          {/* Testimonials - Senja Widget */}
-          <section className="mt-16 max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold text-center mb-8">
-              What Our Members Say
-            </h2>
-            <SenjaWidget />
-          </section>
-
-          {/* Features comparison */}
-          <section className="mt-20 max-w-3xl mx-auto">
-            <h2 className="text-2xl font-bold text-center mb-2">
-              Free vs Premium: What's the Difference?
-            </h2>
-            <p className="text-center text-muted-foreground mb-8">
-              Free lets you browse. Premium lets you <strong>actually apply</strong>.
-            </p>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="border rounded-lg p-6">
-                <h3 className="font-semibold mb-4 text-muted-foreground">Free — Window Shopping</h3>
-                <ul className="space-y-3">
-                  <li className="flex items-start gap-2 text-sm">
-                    <span className="text-green-500">✓</span>
-                    Browse all job listings
-                  </li>
-                  <li className="flex items-start gap-2 text-sm">
-                    <span className="text-green-500">✓</span>
-                    Save jobs to review later
-                  </li>
-                  <li className="flex items-start gap-2 text-sm">
-                    <span className="text-green-500">✓</span>
-                    Basic salary info (average only)
-                  </li>
-                  <li className="flex items-start gap-2 text-sm">
-                    <span className="text-green-500">✓</span>
-                    Daily digest emails
-                  </li>
-                  <li className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <span className="text-red-400">✗</span>
-                    Can't see contact info
-                  </li>
-                  <li className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <span className="text-red-400">✗</span>
-                    Can't apply to jobs
-                  </li>
-                </ul>
-              </div>
-              <div className="border-2 border-primary rounded-lg p-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs px-3 py-1 rounded-bl-lg font-medium">
-                  Get Hired
-                </div>
-                <h3 className="font-semibold mb-4 text-primary">Premium — Actually Apply</h3>
-                <ul className="space-y-3">
-                  <li className="flex items-start gap-2 text-sm">
-                    <span className="text-green-500">✓</span>
-                    Everything in Free, plus...
-                  </li>
-                  <li className="flex items-start gap-2 text-sm">
-                    <span className="text-green-500">✓</span>
-                    <strong>Direct contact info</strong> — email hiring managers
-                  </li>
-                  <li className="flex items-start gap-2 text-sm">
-                    <span className="text-green-500">✓</span>
-                    <strong>Apply with one click</strong> — skip the ATS
-                  </li>
-                  <li className="flex items-start gap-2 text-sm">
-                    <span className="text-green-500">✓</span>
-                    <strong>Instant alerts</strong> — be first to new jobs
-                  </li>
-                  <li className="flex items-start gap-2 text-sm">
-                    <span className="text-green-500">✓</span>
-                    Full salary data (know your worth)
-                  </li>
-                  <li className="flex items-start gap-2 text-sm">
-                    <span className="text-green-500">✓</span>
-                    Application tracking
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </section>
-
-          {/* FAQ */}
-          <section className="mt-20 max-w-3xl mx-auto">
-            <h2 className="text-2xl font-bold text-center mb-8">
-              Frequently Asked Questions
-            </h2>
-            <div className="space-y-4">
-              <details className="border rounded-lg p-4">
-                <summary className="font-medium cursor-pointer">
-                  Can I cancel my subscription anytime?
-                </summary>
-                <p className="mt-2 text-muted-foreground">
-                  Yes, you can cancel anytime. You'll continue to have Premium access until the end of your billing period.
-                </p>
-              </details>
-              <details className="border rounded-lg p-4">
-                <summary className="font-medium cursor-pointer">
-                  What payment methods do you accept?
-                </summary>
-                <p className="mt-2 text-muted-foreground">
-                  We accept all major credit and debit cards (Visa, Mastercard, American Express) through Stripe. PayPal and Apple Pay are also supported.
-                </p>
-              </details>
-              <details className="border rounded-lg p-4">
-                <summary className="font-medium cursor-pointer">
-                  Which plan should I choose?
-                </summary>
-                <p className="mt-2 text-muted-foreground">
-                  Most job searches take 1-3 months. We recommend the Quarterly plan for the best value. If you need quick access, start with Monthly and upgrade anytime.
-                </p>
-              </details>
-              <details className="border rounded-lg p-4">
-                <summary className="font-medium cursor-pointer">
-                  What happens after I subscribe?
-                </summary>
-                <p className="mt-2 text-muted-foreground">
-                  You get instant access to all Premium features: apply to unlimited jobs, see full salary data, and get priority job alerts. Start applying right away!
-                </p>
-              </details>
-              <details className="border rounded-lg p-4">
-                <summary className="font-medium cursor-pointer">
-                  Do you offer refunds?
-                </summary>
-                <p className="mt-2 text-muted-foreground">
-                  We offer refunds on a case-by-case basis. If you're not satisfied, contact us within 7 days of your payment and we'll work something out.
-                </p>
-              </details>
-            </div>
-          </section>
         </div>
-      </main>
+      </nav>
 
-      <Footer />
+      {/* Header */}
+      <header className="pt-20 pb-12 text-center relative overflow-hidden">
+        <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[600px] h-[300px] pointer-events-none" style={{ background: 'radial-gradient(ellipse, rgba(199,249,74,0.14), transparent 70%)' }} />
+        <div className="max-w-[1240px] mx-auto px-8 relative z-10">
+          <span className="font-mono text-xs tracking-widest uppercase text-[#A1A1AA]">— Pricing</span>
+          <h1 className="text-[clamp(36px,4.4vw,56px)] font-semibold tracking-tighter mt-4">
+            Pay less than <span className="text-[#C7F94A]">one billable hour</span>.<br/>Apply to a thousand gigs.
+          </h1>
+          <p className="text-[19px] text-[#D4D4D8] mt-4 max-w-[50ch] mx-auto leading-relaxed">
+            Start free. Upgrade when your inbox starts filling up. Cancel any time — your data goes with you.
+          </p>
+        </div>
+      </header>
 
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
+      {/* Plans */}
+      <section className="pb-24">
+        <div className="max-w-[1100px] mx-auto px-8">
+          <div className="grid md:grid-cols-3 gap-5 items-start">
+            
+            {/* FREE */}
+            <div className="rounded-2xl p-7" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="text-[15px] font-semibold mb-2">Free</div>
+              <p className="text-[13px] text-[#A1A1AA] mb-5">See what Freelanly catches before you commit.</p>
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="text-[13px] text-[#A1A1AA]">$</span>
+                <span className="text-[48px] font-semibold tracking-tighter leading-none">0</span>
+              </div>
+              <div className="text-[13px] text-[#6B7280] mb-6">forever, on us</div>
+              <Link href="/auth/signin" className="block w-full text-center py-3 rounded-full text-[14px] font-medium border mb-7" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>Start free</Link>
+              <div className="font-mono text-[10px] tracking-widest uppercase text-[#6B7280] mb-3">What&apos;s included</div>
+              <ul className="space-y-2.5 text-[13.5px]">
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> <strong>25</strong> AI applications / month</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> Browse all live gigs</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> AI cover letter</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> 1 follow-up per application</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> Reply sentiment preview</li>
+                <li className="flex items-center gap-2.5 text-[#6B7280]"><Cross /> Full reply text</li>
+                <li className="flex items-center gap-2.5 text-[#6B7280]"><Cross /> Send from own inbox</li>
+              </ul>
+            </div>
 
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'FAQPage',
-            mainEntity: [
-              {
-                '@type': 'Question',
-                name: 'Can I cancel my subscription anytime?',
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: 'Yes, you can cancel anytime. You\'ll continue to have Premium access until the end of your billing period.',
-                },
-              },
-              {
-                '@type': 'Question',
-                name: 'Which plan should I choose?',
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: 'Most job searches take 1-3 months. We recommend the Quarterly plan for the best value.',
-                },
-              },
-            ],
-          }),
-        }}
-      />
+            {/* PRO */}
+            <div className="rounded-2xl p-7 relative" style={{ background: '#0E1016', border: '2px solid #C7F94A', boxShadow: '0 0 60px -20px rgba(199,249,74,0.18)' }}>
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 font-mono text-[10px] tracking-widest uppercase px-3 py-1 rounded-full font-semibold" style={{ background: '#C7F94A', color: '#000' }}>Most popular</span>
+              <div className="text-[15px] font-semibold mb-2 text-[#C7F94A]">Pro</div>
+              <p className="text-[13px] text-[#A1A1AA] mb-5">Auto-apply + AI cover letters + follow-ups, on autopilot.</p>
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="text-[13px] text-[#A1A1AA]">$</span>
+                <span className="text-[48px] font-semibold tracking-tighter leading-none">29</span>
+                <span className="text-[15px] text-[#A1A1AA] ml-1">/ month</span>
+              </div>
+              <div className="text-[13px] text-[#6B7280] mb-6">billed monthly</div>
+              <Link href="/auth/signin" className="block w-full text-center py-3 rounded-full text-[14px] font-semibold mb-7" style={{ background: '#C7F94A', color: '#000' }}>Start 7-day free trial →</Link>
+              <div className="font-mono text-[10px] tracking-widest uppercase text-[#6B7280] mb-3">Everything in Free, plus</div>
+              <ul className="space-y-2.5 text-[13.5px]">
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> <strong>500</strong> AI applications / month</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> <strong>Auto-apply</strong> with smart filters</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> <strong>Auto follow-ups</strong> (3 touches)</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> Full reply text + email forwarding</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> Premium AI model</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> Send from your own inbox</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> Tracking &amp; reply analytics</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> Early access to new jobs (3hr edge)</li>
+              </ul>
+            </div>
+
+            {/* AGENCY */}
+            <div className="rounded-2xl p-7" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="text-[15px] font-semibold mb-2">Agency</div>
+              <p className="text-[13px] text-[#A1A1AA] mb-5">For studios &amp; small teams running outreach for multiple freelancers.</p>
+              <div className="flex items-baseline gap-1 mb-1">
+                <span className="text-[13px] text-[#A1A1AA]">$</span>
+                <span className="text-[48px] font-semibold tracking-tighter leading-none">89</span>
+                <span className="text-[15px] text-[#A1A1AA] ml-1">/ month</span>
+              </div>
+              <div className="text-[13px] text-[#6B7280] mb-6">up to 5 seats</div>
+              <a href="mailto:hi@freelanly.com" className="block w-full text-center py-3 rounded-full text-[14px] font-medium border mb-7" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>Talk to us</a>
+              <div className="font-mono text-[10px] tracking-widest uppercase text-[#6B7280] mb-3">Everything in Pro, plus</div>
+              <ul className="space-y-2.5 text-[13.5px]">
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> <strong>Unlimited</strong> applications</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> <strong>5 seats</strong> ($15 / extra seat)</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> Shared template library</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> Team analytics &amp; pipeline view</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> Priority support (4hr SLA)</li>
+                <li className="flex items-center gap-2.5 text-[#D4D4D8]"><Check /> Custom AI training on your style</li>
+              </ul>
+            </div>
+          </div>
+
+          <p className="text-center text-[14px] text-[#6B7280] mt-7">
+            All plans include unlimited browsing · No credit card to start · Cancel any time
+          </p>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-20 text-center relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(199,249,74,0.10) 0%, transparent 60%)' }} />
+        <div className="relative z-10">
+          <span className="font-mono text-xs tracking-widest uppercase text-[#C7F94A]">— Try the whole stack</span>
+          <h2 className="text-[clamp(28px,3.5vw,40px)] font-semibold tracking-tighter mt-4 mb-5">All features, free for 7 days.</h2>
+          <p className="text-[#D4D4D8] mb-8">No credit card. Cancel any time. Take your data with you if you go.</p>
+          <div className="flex gap-3 justify-center">
+            <Link href="/auth/signin" className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold" style={{ background: '#C7F94A', color: '#0A0B0F' }}>Start free trial →</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-8 text-center text-[13px] text-[#6B7280]" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        © 2026 Freelanly · <Link href="/privacy" className="hover:text-[#C7F94A]">Privacy</Link> · <Link href="/terms" className="hover:text-[#C7F94A]">Terms</Link>
+      </footer>
     </div>
   );
 }
