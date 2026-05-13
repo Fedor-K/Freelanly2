@@ -61,14 +61,27 @@ export async function GET(request: NextRequest) {
     const prevReplyRate = prevSent > 0 ? ((prevReplied / prevSent) * 100).toFixed(1) : '0';
     const replyRateDelta = (parseFloat(replyRate) - parseFloat(prevReplyRate)).toFixed(1);
 
+    // Get user rate floor for queue annotations
+    const userProfile = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, rateFloorHourly: true, rateFloorProject: true },
+    });
+
     // Queue (pending)
-    const queue = await prisma.autoApplication.findMany({
+    const queueRaw = await prisma.autoApplication.findMany({
       where: { userId, status: 'PENDING' },
       orderBy: { createdAt: 'desc' },
       take: 10,
       select: {
         id: true, jobTitle: true, companyName: true, matchScore: true, matchLabel: true, createdAt: true,
+        jobId: true, opportunityId: true,
       },
+    });
+
+    // Annotate queue items with rate floor warning
+    const queue = queueRaw.map(q => {
+      const belowRateFloor = false; // TODO: compare job salary with user rate floor when salary parsing is available
+      return { ...q, belowRateFloor };
     });
 
     // Recent replies
@@ -112,8 +125,19 @@ export async function GET(request: NextRequest) {
       offer: allApps.filter(a => a.status === 'OFFER').length,
     };
 
+    // Greeting
+    const hour = new Date().getUTCHours();
+    const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+    const pendingCount = await prisma.autoApplication.count({ where: { userId, status: 'PENDING' } });
+    const newReplies = await prisma.autoApplication.count({
+      where: { userId, status: { in: ['REPLIED', 'INTERVIEW'] }, repliedAt: { gte: new Date(Date.now() - 86400000) } },
+    });
+    const firstName = userProfile?.name?.split(' ')[0] || 'there';
+    const greeting = `Good ${timeOfDay}, ${firstName}. ${pendingCount} applications queued${newReplies > 0 ? `, ${newReplies} new ${newReplies === 1 ? 'reply' : 'replies'} waiting` : ''}.`;
+
     return NextResponse.json({
       period,
+      greeting,
       kpis: {
         sent, opened, replied, followUps, interviews, rejected,
         replyRate, sentDelta, replyRateDelta,
