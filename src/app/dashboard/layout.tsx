@@ -1,18 +1,34 @@
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/db';
+import { AppShell } from '@/components/app/AppShell';
 import { PendingRegistrationHandler } from '@/components/auth/PendingRegistrationHandler';
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
+  let userName = 'User';
+  let userPlan = 'FREE';
+
+  if (session?.user?.id) {
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, plan: true },
+    });
+    if (user) {
+      userName = user.name || 'User';
+      userPlan = user.plan;
+    }
+  }
+
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
+    <>
       <PendingRegistrationHandler />
-      <main className="flex-1">{children}</main>
-      <Footer />
-    </div>
+      <AppShell userName={userName} userPlan={userPlan}>
+        {children}
+      </AppShell>
+    </>
   );
 }
