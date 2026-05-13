@@ -1,125 +1,360 @@
 import { Metadata } from 'next';
-import { MarketingNav, MarketingCTA, MarketingFooter } from '@/components/marketing/MarketingShell';
+import Link from 'next/link';
+import { siteConfig } from '@/config/site';
+import '../marketing-styles.css';
+import './features-design.css';
 
 export const metadata: Metadata = {
-  title: 'Features — Freelanly',
-  description: 'Twenty-four product features grouped into four pillars: discovery, outreach, tracking, and workflow. Built for freelancers.',
+  title: 'Features — Freelanly · 24 tools across discovery, outreach, tracking',
+  description: 'Every feature in Freelanly: real-time gig discovery, AI personalization, A/B-tested templates, pipeline tracking, inbox routing, analytics, and more.',
+  alternates: { canonical: `${siteConfig.url}/features` },
 };
-
-const pillars = [
-  {
-    num: '01', title: 'Discovery', subtitle: 'Find gigs before they go viral.',
-    desc: 'Job-board listings are the leftovers. Real opportunities surface as LinkedIn posts and career-page drops hours before they hit the boards.',
-    features: [
-      { title: 'LinkedIn post crawler', desc: 'Scrapes "we\'re hiring" posts from hiring managers — not the public Jobs tab. Fresh feed every 3 hours.' },
-      { title: '3,500+ career-page monitors', desc: 'Greenhouse, Lever, Ashby, Workable, and custom career pages — pinged the moment a new role appears.' },
-      { title: 'Real-time signal mining', desc: 'Detects funding announcements, team-page changes, and new careers-page posts — leading indicators.' },
-      { title: 'Contact enrichment', desc: 'Surfaces the actual hiring manager\'s email or LinkedIn — not a generic careers@ address.' },
-      { title: 'Custom feeds', desc: 'Save filters as named feeds: "EU React contracts", "Brand design retainers". Each streams independently.' },
-      { title: 'Quiet-hours scanning', desc: 'Crawlers run round the clock. When you wake up, EU and US morning posts are already in your queue.' },
-    ],
-  },
-  {
-    num: '02', title: 'Outreach', subtitle: 'Outreach that actually gets replies.',
-    desc: 'Sending more applications doesn\'t win you more work — sending better ones does.',
-    features: [
-      { title: 'AI cover letter writer', desc: 'Reads the job post, references your portfolio, sounds like you. ~90 words. No "I hope this email finds you well."' },
-      { title: 'Auto-apply engine', desc: 'Set criteria once. Applications go out at human cadence (max 25/day, business hours) from your real inbox.' },
-      { title: 'Voice training', desc: 'Paste 3 of your real emails. The AI matches your sentence length, vocabulary, and sign-off.' },
-      { title: 'Auto follow-ups', desc: 'If quiet for 5 days, one polite nudge. Five days later, one more. Pauses the second they reply.' },
-      { title: 'Deal-breaker filters', desc: 'Never apply to "Web3 ninja rockstar" posts again. Block keywords, company types, contract terms.' },
-      { title: 'Send from your inbox', desc: 'OAuth into Gmail. Sends as you, not a third-party domain. Replies route back into Freelanly.' },
-    ],
-  },
-  {
-    num: '03', title: 'Tracking', subtitle: 'Know exactly what\'s working.',
-    desc: 'Every application tracked from send → open → reply → interview → offer.',
-    features: [
-      { title: 'Reply & open analytics', desc: 'Open rate, reply rate, interview rate. By week, by template, by company size, by industry.' },
-      { title: 'Pipeline / Kanban', desc: 'Drag-and-drop board: Sent → Opened → Replied → Interview → Offer. Conversion at each stage.' },
-      { title: 'Reply categorization', desc: 'Auto-tags every reply: interested, info-request, rejected. Move fast on the hot ones.' },
-      { title: 'Weekly digest', desc: 'Every Monday at 9am: applications sent, replies in, top-performing template. Read in 30 seconds.' },
-    ],
-  },
-  {
-    num: '04', title: 'Workflow', subtitle: 'Fits the rest of your stack.',
-    desc: 'Freelanly slots into your existing workflow — Notion, Calendly, Slack, your CRM.',
-    features: [
-      { title: 'Calendar booking', desc: 'Embed your Calendly / Cal.com link in cover letters. "Yes" replies go straight to a booked call.' },
-      { title: 'Portfolio integration', desc: 'Plug in your portfolio URL once. AI picks the most relevant project to mention per job.' },
-      { title: 'Slack notifications', desc: 'Pipe new replies into your personal Slack. Or a team channel. Or a Discord.' },
-      { title: 'Data export & portability', desc: 'CSV-export every application, reply, contact, template — anytime. Your data stays yours.' },
-    ],
-  },
-];
 
 export default function FeaturesPage() {
   return (
-    <div style={{ background: '#0A0B0F', color: '#FAFAFA' }}>
-      <MarketingNav />
-
-      <header className="pt-28 pb-16">
-        <div className="max-w-[1240px] mx-auto px-8 text-center">
-          <span className="font-mono text-xs tracking-widest uppercase text-[#C7F94A]">— Features</span>
-          <h1 className="text-[clamp(40px,5.5vw,68px)] font-semibold tracking-tighter mt-4 mb-5 leading-none">
-            Every tool you need to<br />land more work.
-          </h1>
-          <p className="text-[19px] text-[#D4D4D8] leading-relaxed max-w-[60ch] mx-auto">
-            Twenty-two product features grouped into four pillars: discovery, outreach, tracking, and workflow.
-          </p>
-        </div>
-      </header>
-
-      {pillars.map(pillar => (
-        <section key={pillar.num} className="py-20" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="max-w-[1240px] mx-auto px-8">
-            <div className="mb-12">
-              <span className="font-mono text-xs tracking-widest uppercase text-[#A1A1AA]">— Pillar {pillar.num} — {pillar.title}</span>
-              <h2 className="text-[clamp(30px,3.5vw,44px)] font-semibold tracking-tighter mt-4 mb-3">{pillar.subtitle}</h2>
-              <p className="text-[17px] text-[#D4D4D8] max-w-[60ch]">{pillar.desc}</p>
-            </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pillar.features.map(f => (
-                <div key={f.title} className="p-6 rounded-[14px] hover:border-white/15 transition-colors" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <h3 className="text-[16px] font-semibold tracking-tight mb-2">{f.title}</h3>
-                  <p className="text-[14px] text-[#A1A1AA] leading-relaxed">{f.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      ))}
-
-      {/* Manual vs Freelanly */}
-      <section className="py-20" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="max-w-[900px] mx-auto px-8">
-          <div className="mb-10 text-center">
-            <span className="font-mono text-xs tracking-widest uppercase text-[#A1A1AA]">— Why not just…</span>
-            <h2 className="text-[clamp(30px,3.5vw,44px)] font-semibold tracking-tighter mt-4">Manual outreach vs. Freelanly</h2>
-          </div>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="p-7 rounded-[14px]" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div className="font-mono text-[11px] tracking-widest uppercase text-[#6B7280] mb-4">Doing it yourself</div>
-              <ul className="space-y-3 text-[14px] text-[#A1A1AA]">
-                {['Refresh job boards, miss the fresh posts', 'Write each cover letter from scratch', 'Send, then forget about it', 'No follow-ups, no tracking', 'Burn out after 2 weeks'].map(t => (
-                  <li key={t} className="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F87171" strokeWidth="2.5" className="mt-0.5 flex-shrink-0"><path d="M18 6L6 18M6 6l12 12" /></svg>{t}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="p-7 rounded-[14px]" style={{ background: '#0E1016', border: '2px solid rgba(199,249,74,0.3)' }}>
-              <div className="font-mono text-[11px] tracking-widest uppercase text-[#C7F94A] mb-4">Freelanly</div>
-              <ul className="space-y-3 text-[14px] text-[#D4D4D8]">
-                {['Fresh posts arrive within hours', 'AI drafts a personalized letter in 2 seconds', 'Sent from your inbox at the right time', '2 follow-ups, tracking — automatic', 'Runs forever, even on weeks you don\'t'].map(t => (
-                  <li key={t} className="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C7F94A" strokeWidth="2.5" className="mt-0.5 flex-shrink-0"><path d="M20 6L9 17l-5-5" /></svg>{t}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <MarketingCTA />
-      <MarketingFooter />
+    <>
+{/* NAV */}
+<nav className="nav">
+  <div className="nav-inner">
+    <Link href="/" className="logo"><span className="logo-mark">F</span><span>Freelanly</span></Link>
+    <ul className="nav-links">
+      <li><Link href="/how-it-works">How it works</Link></li>
+      <li><Link href="/features">Features</Link></li>
+      <li><Link href="/pricing">Pricing</Link></li>
+      <li><Link href="/about">About</Link></li>
+    </ul>
+    <div className="nav-cta">
+      <Link href="/auth/login" className="btn btn-ghost btn-sm">Sign in</Link>
+      <Link href="/auth/signin" className="btn btn-primary btn-sm">Start free
+        <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </Link>
     </div>
+  </div>
+</nav>
+
+{/* HEADER */}
+<header className="page-head">
+  <div className="page-head-bg"></div>
+  <div className="container">
+    <span className="eyebrow eyebrow-accent">— Features</span>
+    <h1 style={{marginTop: '18px'}}>Every tool you need to <span className="accent">land</span> more work.</h1>
+    <p className="lede">Twenty-four product features grouped into four pillars: <strong style={{color: 'var(--ink)'}}>discovery</strong>, <strong style={{color: 'var(--ink)'}}>outreach</strong>, <strong style={{color: 'var(--ink)'}}>tracking</strong>, and <strong style={{color: 'var(--ink)'}}>workflow</strong>. Built specifically for freelancers, not job-board users.</p>
+  </div>
+</header>
+
+{/* Sticky pillar nav */}
+<nav className="pillars">
+  <a href="#discovery"><span className="num">01</span>Discovery</a>
+  <a href="#outreach"><span className="num">02</span>Outreach</a>
+  <a href="#tracking"><span className="num">03</span>Tracking</a>
+  <a href="#workflow"><span className="num">04</span>Workflow</a>
+</nav>
+
+{/* PILLAR 1: DISCOVERY */}
+<section className="pillar" id="discovery">
+  <div className="container">
+    <div className="pillar-head reveal">
+      <div>
+        <div className="pillar-num">— Pillar 01 — Discovery</div>
+        <div className="pillar-name">
+          <h2>Find gigs <span className="accent">before</span> they go viral.</h2>
+        </div>
+      </div>
+      <p className="pillar-desc">Job-board listings are the leftovers. Real opportunities surface as LinkedIn posts, career-page drops, and Slack-community shouts hours before they hit the boards.</p>
+    </div>
+    <div className="feat-cards">
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        </div>
+        <h3>LinkedIn post crawler</h3>
+        <p>Scrapes &quot;we&apos;re hiring&quot; posts from hiring managers — not the public Jobs tab. Pulls a feed of fresh openings every 3 hours.</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>
+        </div>
+        <h3>3,400+ career-page monitors</h3>
+        <p>We watch Greenhouse, Lever, Ashby, Workable, and custom career pages — and ping you the moment a new role appears.</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <h3>Real-time signal mining</h3>
+        <p>Detects funding announcements, team-page changes, and new careers-page posts — leading indicators that a job post is coming.</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
+        </div>
+        <h3>Contact enrichment</h3>
+        <p>Surfaces the actual hiring manager&apos;s email or LinkedIn — not a generic <code style={{fontFamily:"'Geist Mono',monospace", fontSize: '12px', color: 'var(--accent)'}}>careers@</code> address. No ATS black holes.</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </div>
+        <h3>Custom feeds</h3>
+        <p>Save filters as named feeds: &quot;EU React contracts&quot;, &quot;Brand design over $5k&quot;, etc. Each one streams independently.</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/></svg>
+        </div>
+        <h3>Quiet-hours scanning</h3>
+        <p>The crawlers run round the clock so when you wake up, the EU and US morning posts are already in your queue.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* PILLAR 2: OUTREACH */}
+<section className="pillar" id="outreach">
+  <div className="container">
+    <div className="pillar-head reveal">
+      <div>
+        <div className="pillar-num">— Pillar 02 — Outreach</div>
+        <div className="pillar-name">
+          <h2>Outreach that <span className="accent">actually</span> gets replies.</h2>
+        </div>
+      </div>
+      <p className="pillar-desc">Sending more applications doesn&apos;t win you more work — sending <em>better</em> ones does. Our AI is tuned on what hiring managers actually reply to: short, specific, human.</p>
+    </div>
+    <div className="feat-cards">
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><circle cx="11" cy="11" r="2"/></svg>
+        </div>
+        <h3>AI cover letter writer</h3>
+        <p>Reads the job post, references specifics from your portfolio, sounds like you. ~90 words. No &quot;I hope this email finds you well.&quot;</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+        </div>
+        <h3>Auto-apply engine</h3>
+        <p>Set criteria once. Applications go out at human cadence (max 25/day, business hours, randomized) from your real inbox.</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+        </div>
+        <h3>Voice training</h3>
+        <p>Paste 3 of your real emails on setup. The AI matches your sentence length, vocabulary, and &quot;this is how I sign off.&quot;</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.4 8.4 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.4 8.4 0 013.8-.9h.5a8.5 8.5 0 018 8v.5z"/></svg>
+        </div>
+        <h3>Auto follow-ups</h3>
+        <p>If they go quiet for 5 days, one polite nudge. Five days later, one more. Then it stops. Pauses the second they reply.</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
+        </div>
+        <h3>Deal-breaker filters</h3>
+        <p>Never apply to &quot;Web3 ninja rockstar&quot; posts again. Block keywords, company types, contract terms, rate floors.</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        </div>
+        <h3>Send from your inbox</h3>
+        <p>OAuth into Gmail, Outlook, Fastmail. Sends as <em>you</em>, not a third-party domain. Replies route back into Freelanly.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* PILLAR 3: TRACKING */}
+<section className="pillar" id="tracking">
+  <div className="container">
+    <div className="pillar-head reveal">
+      <div>
+        <div className="pillar-num">— Pillar 03 — Tracking</div>
+        <div className="pillar-name">
+          <h2>Know exactly <span className="accent">what&apos;s working.</span></h2>
+        </div>
+      </div>
+      <p className="pillar-desc">Every application is tracked from send → open → reply → interview → offer. See which templates, openers, and verticals earn the highest reply rate.</p>
+    </div>
+    <div className="feat-cards">
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 6-6"/></svg>
+        </div>
+        <h3>Reply &amp; open analytics</h3>
+        <p>Open rate, reply rate, interview rate. By week, by template, by company size, by industry.</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </div>
+        <h3>Pipeline / Kanban</h3>
+        <p>Drag-and-drop board: <em>Sent → Opened → Replied → Call booked → Offer</em>. Conversion rate at each stage, visible at a glance.</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        </div>
+        <h3>Template A/B testing</h3>
+        <p>Run two cover-letter variants on the same role type. Freelanly picks the winner once one has enough data, kills the other.</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M2 12h20"/></svg>
+        </div>
+        <h3>Reply categorization</h3>
+        <p>Auto-tags every reply: <span className="tag" style={{display: 'inline-flex', verticalAlign: 'middle'}}>interested</span> <span className="tag" style={{display: 'inline-flex', verticalAlign: 'middle'}}>rate-mismatch</span> <span className="tag" style={{display: 'inline-flex', verticalAlign: 'middle'}}>already-filled</span>. So you can move fast on the hot ones.</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <h3>Weekly digest</h3>
+        <p>Every Monday at 9am: applications sent, replies in, top-performing template, next week&apos;s queue. Read in 30 seconds.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* PILLAR 4: WORKFLOW */}
+<section className="pillar" id="workflow">
+  <div className="container">
+    <div className="pillar-head reveal">
+      <div>
+        <div className="pillar-num">— Pillar 04 — Workflow</div>
+        <div className="pillar-name">
+          <h2>Fits the rest of your <span className="accent">stack.</span></h2>
+        </div>
+      </div>
+      <p className="pillar-desc">A freelancer&apos;s day already includes Notion, Calendly, Slack, an invoicing tool, and a CRM. Freelanly slots in — it doesn&apos;t replace your stack.</p>
+    </div>
+    <div className="feat-cards">
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        </div>
+        <h3>Calendar booking</h3>
+        <p>Embed your Calendly / Cal.com link directly in cover letters. Replies that say &quot;yes&quot; go straight to a booked call.</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+        </div>
+        <h3>Portfolio integration</h3>
+        <p>Plug in your portfolio URL once. We index your projects so the AI can pick the most relevant ones to mention per job.</p>
+      </div>
+      <div className="feat-card reveal">
+        <div className="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        </div>
+        <h3>Data export &amp; portability</h3>
+        <p>CSV-export every application, reply, contact, template — anytime. Hard-delete your account in one click. Your data stays yours.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* Versus */}
+<section className="section">
+  <div className="container">
+    <div className="section-head reveal" style={{textAlign:'center', margin: '0 auto 56px', alignItems: 'center'}}>
+      <span className="eyebrow eyebrow-accent">— Why not just…</span>
+      <h2>Manual outreach vs. Freelanly</h2>
+    </div>
+    <div className="compare-row reveal">
+      <div className="compare-cell bad">
+        <h3>Doing it yourself</h3>
+        <h4>You, every morning, for 90 minutes.</h4>
+        <ul>
+          <li>Refresh job boards, miss the fresh posts</li>
+          <li>Write each cover letter from scratch</li>
+          <li>Send, then forget about it</li>
+          <li>No follow-ups, no tracking, no learning</li>
+          <li>Burn out after 2 weeks of consistency</li>
+        </ul>
+      </div>
+      <div className="compare-cell good">
+        <h3>Freelanly</h3>
+        <h4>Set it once. Check it once a day.</h4>
+        <ul>
+          <li>Fresh posts arrive within hours of posting</li>
+          <li>AI drafts a personalized letter in 2 seconds</li>
+          <li>Sent from your inbox at the right time</li>
+          <li>2 follow-ups, tracking, A/B testing — automatic</li>
+          <li>Runs forever, even on the weeks you don&apos;t</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* FINAL CTA */}
+<section className="final-cta" style={{position: 'relative', padding: '120px 0', overflow:'hidden', borderTop: '1px solid var(--line)'}}>
+  <div style={{position:'absolute', width:'900px', height:'600px', background: 'radial-gradient(ellipse, rgba(199,249,74,0.16), transparent 60%)', filter: 'blur(40px)', top: 0, left: '50%', transform: 'translateX(-50%)', pointerEvents:'none'}}></div>
+  <div className="container" style={{position:'relative', textAlign:'center'}}>
+    <span className="eyebrow eyebrow-accent">— Try the whole stack</span>
+    <h2 style={{fontSize: 'clamp(40px, 5.5vw, 68px)', letterSpacing: '-0.035em', marginTop: '16px', marginBottom: '22px'}}>All 24 features, <span style={{color:'var(--accent)', fontStyle: 'italic', fontWeight: 500}}>free for 7 days.</span></h2>
+    <p style={{fontSize: '18px', color: 'var(--ink-3)', maxWidth: '540px', margin: '0 auto 32px'}}>No credit card. Cancel any time. Take your data with you if you go.</p>
+    <div style={{display:'flex', gap: '12px', justifyContent:'center', flexWrap:'wrap'}}>
+      <Link href="/auth/signin" className="btn btn-primary btn-lg">Start free trial
+        <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </Link>
+      <Link href="/pricing" className="btn btn-ghost btn-lg">See pricing</Link>
+    </div>
+  </div>
+</section>
+
+{/* FOOTER */}
+<footer className="footer">
+  <div className="container">
+    <div className="footer-grid">
+      <div className="footer-col footer-brand">
+        <Link href="/" className="logo"><span className="logo-mark">F</span><span>Freelanly</span></Link>
+        <p>AI outreach engine for freelancers. Be first in the inbox. Win the project.</p>
+      </div>
+      <div className="footer-col">
+        <h5>Product</h5>
+        <ul>
+          <li><Link href="/how-it-works">How it works</Link></li>
+          <li><Link href="/features">Features</Link></li>
+          <li><Link href="/pricing">Pricing</Link></li>
+        </ul>
+      </div>
+      <div className="footer-col">
+        <h5>Company</h5>
+        <ul>
+          <li><Link href="/about">About</Link></li>
+          <li><Link href="/about#faq">FAQ</Link></li>
+          <li><Link href="/blog">Blog</Link></li>
+        </ul>
+      </div>
+      <div className="footer-col">
+        <h5>Resources</h5>
+        <ul>
+          <li><Link href="/freelance">Browse Jobs</Link></li>
+          <li><Link href="/companies">Companies</Link></li>
+        </ul>
+      </div>
+      <div className="footer-col">
+        <h5>Legal</h5>
+        <ul>
+          <li><Link href="/privacy">Privacy</Link></li>
+          <li><Link href="/terms">Terms</Link></li>
+        </ul>
+      </div>
+    </div>
+    <div className="footer-bottom">
+      <div>© 2026 Freelanly · Made for freelancers who&apos;d rather be working.</div>
+    </div>
+  </div>
+</footer>
+
+{/* Reveal */}
+<script dangerouslySetInnerHTML={{ __html: `document.addEventListener('DOMContentLoaded',function(){if(typeof IntersectionObserver==='undefined')return;document.querySelectorAll('.reveal').forEach(function(el){new IntersectionObserver(function(e){e.forEach(function(entry){if(entry.isIntersecting)entry.target.classList.add('in')})},{threshold:0.1}).observe(el)})})` }} />
+    </>
   );
 }
