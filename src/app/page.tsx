@@ -40,13 +40,13 @@ export default async function LandingPage() {
         {/* Grid background */}
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px)', backgroundSize: '56px 56px', maskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 80%)', WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 80%)' }} />
         <div className="absolute top-[-200px] left-1/2 -translate-x-1/2 w-[800px] h-[800px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(199,249,74,0.16) 0%, transparent 55%)', filter: 'blur(40px)' }} />
-        <div className="max-w-[1240px] mx-auto px-8 relative z-10">
-          <div className="max-w-3xl">
+        <div className="max-w-[1240px] mx-auto px-8 relative z-10 grid md:grid-cols-[1.1fr_0.9fr] gap-12 items-center">
+          <div>
             <span className="inline-flex items-center gap-2 font-mono text-xs tracking-widest uppercase text-[#A1A1AA] px-3 py-1.5 rounded-full mb-6" style={{ border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.03)' }}>
               <span className="w-1.5 h-1.5 rounded-full bg-[#C7F94A] animate-pulse" style={{ boxShadow: '0 0 10px #C7F94A' }} />
               {totalOpps.toLocaleString()} fresh gigs · updated every 3 hours
             </span>
-            <h1 className="text-[clamp(48px,6.5vw,84px)] font-semibold tracking-tighter leading-none mb-6">Be first in the inbox.<br /><span className="text-[#C7F94A]">Win</span> the project.</h1>
+            <h1 className="text-[clamp(48px,6.5vw,84px)] font-semibold tracking-tighter leading-none mb-6">Be first in the inbox.<br /><span className="text-[#C7F94A] italic font-medium">Win</span> the project.</h1>
             <p className="text-[19px] text-[#D4D4D8] leading-relaxed max-w-[60ch] mb-8">Freelanly catches new freelance gigs the moment they&apos;re posted on LinkedIn and <strong className="text-white">{totalCompanies.toLocaleString()}+</strong> company sites — then sends a personalized AI application for you.</p>
             <div className="flex gap-3 flex-wrap mb-6">
               <Link href="/auth/signin" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-semibold text-[15px] hover:-translate-y-px transition-transform" style={{ background: '#C7F94A', color: '#0A0B0F' }}>Start free — no card needed →</Link>
@@ -54,7 +54,7 @@ export default async function LandingPage() {
             </div>
             <div className="flex gap-5 text-[13px] text-[#A1A1AA]">{['No credit card', 'First 25 applications free', 'Cancel anytime'].map(t => (<span key={t} className="flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C7F94A" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>{t}</span>))}</div>
           {/* Product widget — live feed ticker */}
-          <div className="mt-12 max-w-lg relative rounded-[14px] p-3.5 overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))', border: '1px solid rgba(255,255,255,0.14)', boxShadow: '0 40px 100px -30px rgba(0,0,0,0.6)' }}>
+          <div className="relative rounded-[14px] hidden md:block p-3.5 overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))', border: '1px solid rgba(255,255,255,0.14)', boxShadow: '0 40px 100px -30px rgba(0,0,0,0.6)' }}>
             <div className="flex items-center gap-2 pb-2.5 mb-3 text-[11px] font-mono" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
               <span className="flex gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-white/10" /><span className="w-2.5 h-2.5 rounded-full bg-white/10" /><span className="w-2.5 h-2.5 rounded-full bg-white/10" /></span>
               <span className="flex-1 text-center text-[#6B7280]">app.freelanly.com/inbox</span>
