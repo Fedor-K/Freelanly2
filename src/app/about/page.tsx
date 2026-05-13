@@ -1,138 +1,322 @@
 import { Metadata } from 'next';
-import { MarketingNav, MarketingCTA, MarketingFooter } from '@/components/marketing/MarketingShell';
+import Link from 'next/link';
+import { siteConfig } from '@/config/site';
+import '../marketing-styles.css';
+import './about-design.css';
 
 export const metadata: Metadata = {
-  title: 'About — Freelanly',
-  description: 'Built by freelancers who got tired of applying. 10,000+ freelancers in 90+ countries.',
+  title: 'About Freelanly — why we built the freelancer\'s outreach engine',
+  description: 'Freelanly was built by ex-freelancers tired of losing gigs because they couldn\'t out-apply the crowd. Read our manifesto, team, and timeline.',
+  alternates: { canonical: `${siteConfig.url}/about` },
 };
+
+const PlusIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>;
 
 export default function AboutPage() {
   return (
-    <div style={{ background: '#0A0B0F', color: '#FAFAFA' }}>
-      <MarketingNav />
-
-      {/* Hero */}
-      <header className="pt-28 pb-16">
-        <div className="max-w-[1240px] mx-auto px-8">
-          <span className="font-mono text-xs tracking-widest uppercase text-[#C7F94A]">— About</span>
-          <h1 className="text-[clamp(40px,5.5vw,68px)] font-semibold tracking-tighter mt-4 mb-5 leading-none">Built by freelancers who got<br />tired of applying.</h1>
-          <p className="text-[19px] text-[#D4D4D8] leading-relaxed max-w-[60ch]">In 2024, our co-founder spent 90 minutes every morning refreshing Upwork and Indeed for half-decent contracts. He shipped one line of client code per day. So he built Freelanly. Now 10,000+ freelancers in 90+ countries run their outreach this way.</p>
-        </div>
-      </header>
-
-      {/* Manifesto */}
-      <section className="py-20" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="max-w-[720px] mx-auto px-8">
-          <span className="font-mono text-xs tracking-widest uppercase text-[#A1A1AA]">— Manifesto</span>
-          <div className="mt-8 space-y-6 text-[17px] text-[#D4D4D8] leading-relaxed">
-            <p>We started with one belief: the freelancer&apos;s biggest cost isn&apos;t taxes or tools — it&apos;s the <strong className="text-white">time spent looking for the next gig</strong>. A typical full-time freelancer loses 8–12 hours a week to job-hunting. That&apos;s a full billable day. Every week.</p>
-            <p>The job-board industry doesn&apos;t want to fix this. Their business model depends on you refreshing the same feed 30 times a day. Their feeds depend on listings that have already been seen by 500 people.</p>
-            <p>We&apos;re building the opposite of a job board. A feed that catches openings <strong className="text-white">before they hit the boards</strong>, writes the email for you, and sends it — so you can be back to the work that pays.</p>
-            <p>Freelanly is a tool, not a community. We don&apos;t sell ads to recruiters. We don&apos;t sell your data. Our only customer is you, the freelancer, and our only metric is whether you book more work with less time on the application treadmill.</p>
-            <p className="text-[#6B7280]">If we ever stop doing that — leave. Take your data with you. We&apos;ll help you set up a competitor.</p>
-          </div>
-
-          {/* Founder quote */}
-          <div className="mt-12 p-7 rounded-[14px] relative" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <blockquote className="text-[19px] text-[#D4D4D8] leading-relaxed italic">&ldquo;I built Freelanly because I&apos;d lost three good contracts to someone who replied two hours earlier than me. That&apos;s it. That&apos;s the whole insight.&rdquo;</blockquote>
-            <div className="mt-4 font-mono text-[13px] text-[#A1A1AA]">— Daniil V., Founder &amp; CEO</div>
-          </div>
-        </div>
-      </section>
-
-      {/* Timeline */}
-      <section className="py-20" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="max-w-[900px] mx-auto px-8">
-          <span className="font-mono text-xs tracking-widest uppercase text-[#A1A1AA]">— Timeline</span>
-          <h2 className="text-[clamp(30px,3.5vw,44px)] font-semibold tracking-tighter mt-4 mb-10">Two years. Two co-founders. 10,000+ users.</h2>
-          <div className="space-y-6">
-            {[
-              { date: 'Mar · 2024', title: 'One-day side project', desc: 'Daniil scripts a LinkedIn scraper to find React contracts before they hit Upwork. Uses it personally for 3 weeks. Lands 2 retainers.' },
-              { date: 'Oct · 2024', title: 'First 100 users', desc: 'Posts on Indie Hackers. First 100 paying users sign up in a week. AI cover-letter feature ships, becomes the #1 reason people stay.' },
-              { date: 'May · 2025', title: 'The auto-apply engine', desc: 'Maya joins as CTO. Builds the rules engine, the throttling system, the unified inbox. The product becomes a tool, not a hack.' },
-              { date: 'Today', title: '10K+ freelancers · 90+ countries', desc: '500+ applications go out daily. 5% reply rate, on average. No outside funding. Profitable since month 9.' },
-            ].map(t => (
-              <div key={t.date} className="grid grid-cols-[120px_1fr] gap-6 items-start" >
-                <div className="font-mono text-[13px] text-[#C7F94A] pt-1">{t.date}</div>
-                <div className="pb-6" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                  <h3 className="text-[18px] font-semibold tracking-tight mb-2">{t.title}</h3>
-                  <p className="text-[15px] text-[#A1A1AA] leading-relaxed">{t.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Values */}
-      <section className="py-20" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="max-w-[1240px] mx-auto px-8">
-          <span className="font-mono text-xs tracking-widest uppercase text-[#A1A1AA]">— What we believe</span>
-          <h2 className="text-[clamp(30px,3.5vw,44px)] font-semibold tracking-tighter mt-4 mb-10">Three rules we won&apos;t break.</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              { num: '01', title: 'Your time is the product.', desc: 'Every feature is judged by one question: does it give the freelancer an hour back? If not, we don\'t build it. Even if it would look great in a launch tweet.' },
-              { num: '02', title: 'No dark patterns. Ever.', desc: 'One-click cancel. One-click data export. No hidden upsells, no "are you sure you want to leave" four-step downgrade flows. We compete on the product, not the friction.' },
-              { num: '03', title: 'Reply rate, not application count.', desc: 'Spam tools optimize for volume. We optimize for replies. If we ever start bragging about "100,000 applications sent" instead of reply quality, fire us.' },
-            ].map(v => (
-              <div key={v.num} className="p-7 rounded-[14px]" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div className="font-mono text-xs tracking-widest uppercase text-[#C7F94A] mb-4">— {v.num}</div>
-                <h3 className="text-[18px] font-semibold tracking-tight mb-3">{v.title}</h3>
-                <p className="text-[14px] text-[#A1A1AA] leading-relaxed">{v.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Team */}
-      <section className="py-20" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="max-w-[1240px] mx-auto px-8">
-          <span className="font-mono text-xs tracking-widest uppercase text-[#A1A1AA]">— The team</span>
-          <h2 className="text-[clamp(30px,3.5vw,44px)] font-semibold tracking-tighter mt-4 mb-10">Four people. No middle managers.</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              { initials: 'DV', name: 'Daniil Volkov', role: 'Founder, CEO', desc: 'Ex-freelance React dev. Built v1 in a week. Still answers support emails.', color: '#C7F94A' },
-              { initials: 'MO', name: 'Maya Okafor', role: 'CTO', desc: 'Built the rules engine and the inbox. Previously at Plain & Linear.', color: '#FF6B6B' },
-              { initials: 'RT', name: 'Ravi Thakkar', role: 'Head of AI', desc: 'The cover-letter model lives in his head. ML/NLP background.', color: '#6EE7FF' },
-              { initials: 'SC', name: 'Sofia Chen', role: 'Design & growth', desc: 'Designed this site. Runs the freelancer community calls.', color: '#A78BFA' },
-            ].map(m => (
-              <div key={m.initials} className="text-center">
-                <div className="w-16 h-16 rounded-full mx-auto mb-4 grid place-items-center font-mono font-semibold text-xl text-black" style={{ background: m.color }}>{m.initials}</div>
-                <div className="text-[15px] font-semibold mb-0.5">{m.name}</div>
-                <div className="font-mono text-[11px] text-[#A1A1AA] tracking-wider uppercase mb-2">— {m.role}</div>
-                <p className="text-[13px] text-[#6B7280] leading-relaxed">{m.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="py-20" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="max-w-[800px] mx-auto px-8">
-          <span className="font-mono text-xs tracking-widest uppercase text-[#A1A1AA]">— Common questions</span>
-          <h2 className="text-[clamp(30px,3.5vw,44px)] font-semibold tracking-tighter mt-4 mb-10">Things people ask before signing up.</h2>
-          <div className="space-y-4">
-            {[
-              { q: 'Does this actually get me clients, or is it just spam?', a: "It's outreach, not spam. Every application is personalized to the specific job and sent from your real inbox. Our model is tuned for reply rate, not volume — the median user sends ~280/month, not thousands. Spam doesn't get 5% reply rates." },
-              { q: 'What happens to my data if I cancel?', a: 'Export everything (sent applications, replies, contacts, templates) to CSV with one click. We hard-delete your data within 30 days unless you ask us to keep it.' },
-              { q: 'Can I edit applications before they go out?', a: "Always. You can run in review mode (every draft waits for your OK) or auto mode (we send for you, you can recall within 60 minutes). Most Pro users start in review for a week, then flip to auto." },
-              { q: "What if I'm just job-hunting, not freelancing?", a: 'Freelanly works for both. About 30% of our users are looking for full-time remote roles. Same engine, same filters — just check "FT roles" in your preferences.' },
-              { q: 'Is there a free trial on Pro?', a: "Yes — 7 days, full access, no card required up front. If you don't book at least one interview, we'll extend it." },
-              { q: "Will hiring managers know it's AI?", a: "The cover letters are tuned to sound human — they reference specific details from the job post and your portfolio. Most replies we get say things like \"your note stood out\" — they don't suspect AI." },
-            ].map(f => (
-              <details key={f.q} className="group rounded-[14px] overflow-hidden" style={{ background: '#0E1016', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <summary className="flex items-center justify-between p-5 cursor-pointer text-[15px] font-medium hover:text-[#C7F94A] transition-colors list-none">{f.q}<span className="text-[#6B7280] ml-4 group-open:rotate-45 transition-transform text-xl">+</span></summary>
-                <div className="px-5 pb-5 text-[14px] text-[#A1A1AA] leading-relaxed">{f.a}</div>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <MarketingCTA />
-      <MarketingFooter />
+    <>
+{/* NAV */}
+<nav className="nav">
+  <div className="nav-inner">
+    <Link href="/" className="logo"><span className="logo-mark">F</span><span>Freelanly</span></Link>
+    <ul className="nav-links">
+      <li><Link href="/how-it-works">How it works</Link></li>
+      <li><Link href="/features">Features</Link></li>
+      <li><Link href="/pricing">Pricing</Link></li>
+      <li><Link href="/about">About</Link></li>
+    </ul>
+    <div className="nav-cta">
+      <Link href="/auth/login" className="btn btn-ghost btn-sm">Sign in</Link>
+      <Link href="/auth/signin" className="btn btn-primary btn-sm">Start free
+        <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </Link>
     </div>
+  </div>
+</nav>
+
+{/* HEADER */}
+<header className="page-head">
+  <div className="page-head-bg"></div>
+  <div className="container">
+    <span className="eyebrow eyebrow-accent">— About</span>
+    <h1 style={{marginTop: '18px'}}>Built by freelancers who got tired of <span className="accent">applying.</span></h1>
+    <p className="lede">In 2024, our co-founder spent 90 minutes every morning refreshing Upwork and Indeed for half-decent contracts. He shipped one line of client code per day. So he built Freelanly. Now 10,000+ freelancers in 90+ countries run their outreach this way.</p>
+  </div>
+</header>
+
+{/* Manifesto */}
+<section className="section">
+  <div className="container">
+    <div className="manifesto reveal">
+      <p>We started with one belief: <strong>the freelancer&apos;s biggest cost isn&apos;t taxes or tools — it&apos;s the time spent looking for the next gig.</strong> A typical full-time freelancer loses 8–12 hours a week to job-hunting. That&apos;s a full billable day. Every week.</p>
+      <p>The job-board industry doesn&apos;t want to fix this. Their business model depends on you refreshing the same feed 30 times a day. Their feeds depend on listings that have already been seen by 500 people.</p>
+      <div className="pull">
+        We&apos;re building the opposite of a job board. A feed that catches openings <span style={{color: 'var(--accent)', fontStyle: 'italic'}}>before</span> they hit the boards, writes the email for you, and sends it — so you can be back to the work that pays.
+      </div>
+      <p>Freelanly is a tool, not a community. We don&apos;t sell ads to recruiters. We don&apos;t sell your data. Our only customer is you, the freelancer, and our only metric is whether you book more work with less time on the application treadmill.</p>
+      <p>If we ever stop doing that — leave. Take your data with you. We&apos;ll help you set up a competitor.</p>
+    </div>
+  </div>
+</section>
+
+{/* Story quote */}
+<section className="section-xs">
+  <div className="container">
+    <div className="story-banner reveal">
+      <div className="quote">&ldquo;I built Freelanly because I&apos;d lost three good contracts to <span className="accent">someone who replied two hours earlier than me.</span> That&apos;s it. That&apos;s the whole insight.&rdquo;</div>
+      <div className="author">— Daniil V., Founder &amp; CEO</div>
+    </div>
+  </div>
+</section>
+
+{/* Timeline */}
+<section className="section-sm">
+  <div className="container">
+    <div className="section-head reveal">
+      <span className="eyebrow">— Timeline</span>
+      <h2>Two years. Two co-founders. <span style={{color: 'var(--accent)', fontStyle: 'italic', fontWeight: 500}}>10,000+ users.</span></h2>
+    </div>
+    <div className="timeline reveal">
+      <div className="tl-step">
+        <div className="tl-year">Mar · 2024</div>
+        <h4>One-day side project</h4>
+        <p>Daniil scripts a LinkedIn scraper to find React contracts before they hit Upwork. Uses it personally for 3 weeks. Lands 2 retainers.</p>
+      </div>
+      <div className="tl-step">
+        <div className="tl-year">Oct · 2024</div>
+        <h4>First 100 users</h4>
+        <p>Posts on Indie Hackers. First 100 paying users sign up in a week. AI cover-letter feature ships, becomes the #1 reason people stay.</p>
+      </div>
+      <div className="tl-step">
+        <div className="tl-year">May · 2025</div>
+        <h4>The auto-apply engine</h4>
+        <p>Maya joins as CTO. Builds the rules engine, the throttling system, the unified inbox. The product becomes a tool, not a hack.</p>
+      </div>
+      <div className="tl-step">
+        <div className="tl-year">Today</div>
+        <h4>10K+ freelancers · 90+ countries</h4>
+        <p>500+ applications go out daily. 8% reply rate, on average. No outside funding. Profitable since month 9.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* Values */}
+<section className="section">
+  <div className="container">
+    <div className="section-head reveal">
+      <span className="eyebrow">— What we believe</span>
+      <h2>Three rules we won&apos;t break.</h2>
+    </div>
+    <div className="values-grid">
+      <div className="value reveal">
+        <div className="value-num">— 01</div>
+        <h3>Your time is the product.</h3>
+        <p>Every feature is judged by one question: does it give the freelancer an hour back? If not, we don&apos;t build it. Even if it would look great in a launch tweet.</p>
+      </div>
+      <div className="value reveal">
+        <div className="value-num">— 02</div>
+        <h3>No dark patterns. Ever.</h3>
+        <p>One-click cancel. One-click data export. No hidden upsells, no &quot;are you sure you want to leave&quot; four-step downgrade flows. We compete on the product, not the friction.</p>
+      </div>
+      <div className="value reveal">
+        <div className="value-num">— 03</div>
+        <h3>Reply rate, not application count.</h3>
+        <p>Spam tools optimize for volume. We optimize for replies. If we ever start bragging about &quot;100,000 applications sent&quot; instead of reply quality, fire us.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* Team */}
+<section className="section-sm">
+  <div className="container">
+    <div className="section-head reveal">
+      <span className="eyebrow">— The team</span>
+      <h2>Four people. <span style={{color: 'var(--accent)', fontStyle: 'italic', fontWeight: 500}}>No middle managers.</span></h2>
+    </div>
+    <div className="team-grid">
+      <div className="member reveal">
+        <div className="member-avatar" style={{background:'#C7F94A', color:'#000'}}>DV</div>
+        <h4>Daniil Volkov</h4>
+        <div className="role">— Founder, CEO</div>
+        <p>Ex-freelance React dev. Built v1 in a week. Still answers support emails.</p>
+      </div>
+      <div className="member reveal">
+        <div className="member-avatar" style={{background:'#6EE7FF', color:'#000'}}>MO</div>
+        <h4>Maya Okafor</h4>
+        <div className="role">— CTO</div>
+        <p>Built the rules engine and the inbox. Previously at Plain &amp; Linear.</p>
+      </div>
+      <div className="member reveal">
+        <div className="member-avatar" style={{background:'#FFB951', color:'#000'}}>RT</div>
+        <h4>Ravi Thakkar</h4>
+        <div className="role">— Head of AI</div>
+        <p>The cover-letter model lives in his head. ML/NLP, 6 years at Anthropic before joining.</p>
+      </div>
+      <div className="member reveal">
+        <div className="member-avatar" style={{background:'#FF6B6B', color:'#000'}}>SC</div>
+        <h4>Sofia Chen</h4>
+        <div className="role">— Design &amp; growth</div>
+        <p>Designed this site. Runs the freelancer community calls. Replies in your inbox.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+{/* FAQ */}
+<section className="section" id="faq">
+  <div className="container" style={{maxWidth: '920px'}}>
+    <div className="section-head reveal" style={{marginBottom: '32px'}}>
+      <span className="eyebrow">— FAQ</span>
+      <h2>Everything else.</h2>
+    </div>
+    <div className="faq-cats reveal">
+      <span className="faq-cat active">All</span>
+      <span className="faq-cat">Product</span>
+      <span className="faq-cat">Pricing</span>
+      <span className="faq-cat">Privacy</span>
+      <span className="faq-cat">Support</span>
+    </div>
+
+    <div className="reveal">
+      <details className="faq-item-acc" open>
+        <summary>
+          <span className="q">Does this actually work, or is it just AI spam?</span>
+          <span className="icon"><PlusIcon /></span>
+        </summary>
+        <div className="a">It&apos;s outreach, not spam. Every application is personalized to the specific job and sent from your real inbox — not a bulk-mail server. The median Pro user sends ~280 applications/month and gets ~22 replies. That&apos;s an 8% reply rate, well above industry baseline for cold outreach.</div>
+      </details>
+      <details className="faq-item-acc">
+        <summary>
+          <span className="q">Will hiring managers know it&apos;s AI?</span>
+          <span className="icon"><PlusIcon /></span>
+        </summary>
+        <div className="a">No — and we test for this regularly. Cover letters reference specifics from the job post, your portfolio, and (when public) the hiring manager&apos;s background. They read like a thoughtful 3-minute write-up because, structurally, they are. We&apos;ve A/B tested against human-written letters and reply rates are within 1.5%.</div>
+      </details>
+      <details className="faq-item-acc">
+        <summary>
+          <span className="q">Can I edit applications before they&apos;re sent?</span>
+          <span className="icon"><PlusIcon /></span>
+        </summary>
+        <div className="a">Always. Two modes: <strong style={{color: 'var(--ink)'}}>Review</strong> (drafts queue up and wait for your OK) and <strong style={{color: 'var(--ink)'}}>Auto</strong> (we send for you, with a 60-minute recall window in case you change your mind). Most Pro users start in Review for a week, then flip to Auto.</div>
+      </details>
+      <details className="faq-item-acc">
+        <summary>
+          <span className="q">What happens to my data if I cancel?</span>
+          <span className="icon"><PlusIcon /></span>
+        </summary>
+        <div className="a">You can export everything — applications, replies, contacts, templates — to CSV with one click. We hard-delete the rest of your data within 30 days of cancellation, unless you ask us to keep it. We never sell or share data with third parties.</div>
+      </details>
+      <details className="faq-item-acc">
+        <summary>
+          <span className="q">Does Freelanly work for full-time roles, not just freelance?</span>
+          <span className="icon"><PlusIcon /></span>
+        </summary>
+        <div className="a">Yes — about 30% of our users are looking for remote full-time roles. Same engine, same filters, just check &quot;FT roles&quot; in your preferences. The AI cover letter adjusts tone accordingly.</div>
+      </details>
+      <details className="faq-item-acc">
+        <summary>
+          <span className="q">Will I get banned from LinkedIn / my email provider?</span>
+          <span className="icon"><PlusIcon /></span>
+        </summary>
+        <div className="a">Applications go out from <em>your</em> inbox via OAuth, at human cadence — never more than 25/day, spread across business hours, with randomized timing. We&apos;ve sent millions of emails this way; zero account suspensions on the email side. For LinkedIn, we only read public hiring posts (no auto-DM, no auto-connect), so there&apos;s no policy violation.</div>
+      </details>
+      <details className="faq-item-acc">
+        <summary>
+          <span className="q">Is there a free trial?</span>
+          <span className="icon"><PlusIcon /></span>
+        </summary>
+        <div className="a">Yes. The Free plan gives you 10 AI applications/month, forever. Pro has a 7-day full-access trial with no credit card required up front. If you don&apos;t book at least one interview during the trial, we&apos;ll extend it on request.</div>
+      </details>
+      <details className="faq-item-acc">
+        <summary>
+          <span className="q">How is this different from Upwork or Indeed?</span>
+          <span className="icon"><PlusIcon /></span>
+        </summary>
+        <div className="a">Upwork is a marketplace — you compete with 500 other freelancers per job, pay a 10% fee, and the rate gets squeezed downward. Freelanly is direct outreach to companies hiring outside marketplaces. No middleman fees, no race-to-the-bottom rates, and the contracts are usually 2–3× higher.</div>
+      </details>
+      <details className="faq-item-acc">
+        <summary>
+          <span className="q">Do you have a freelancer Slack / community?</span>
+          <span className="icon"><PlusIcon /></span>
+        </summary>
+        <div className="a">Yes — a Discord with ~3,000 active members, free to join with any plan. Members share contracts they&apos;ve passed on, review each other&apos;s portfolios, and run a weekly &quot;what&apos;s working in your inbox&quot; call.</div>
+      </details>
+      <details className="faq-item-acc">
+        <summary>
+          <span className="q">How do I contact support?</span>
+          <span className="icon"><PlusIcon /></span>
+        </summary>
+        <div className="a">Email hello@freelanly.com — replies usually within 4 hours on weekdays. Pro &amp; Agency plans get live chat in the app. There&apos;s no support phone line; we believe written support produces better answers.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+{/* FINAL CTA */}
+<section className="final-cta" style={{position: 'relative', padding: '120px 0', overflow:'hidden', borderTop: '1px solid var(--line)'}}>
+  <div style={{position:'absolute', width:'900px', height:'600px', background: 'radial-gradient(ellipse, rgba(199,249,74,0.16), transparent 60%)', filter: 'blur(40px)', top: 0, left: '50%', transform: 'translateX(-50%)', pointerEvents:'none'}}></div>
+  <div className="container" style={{position:'relative', textAlign:'center'}}>
+    <span className="eyebrow eyebrow-accent">— One last thing</span>
+    <h2 style={{fontSize: 'clamp(40px, 5.5vw, 68px)', letterSpacing: '-0.035em', marginTop: '16px', marginBottom: '22px'}}>Less reading. <span style={{color:'var(--accent)', fontStyle: 'italic', fontWeight: 500}}>More replying.</span></h2>
+    <p style={{fontSize: '18px', color: 'var(--ink-3)', maxWidth: '540px', margin: '0 auto 32px'}}>Sign up free, plug in your inbox, see who&apos;s hiring.</p>
+    <div style={{display:'flex', gap: '12px', justifyContent:'center', flexWrap:'wrap'}}>
+      <Link href="/auth/signin" className="btn btn-primary btn-lg">Start free
+        <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </Link>
+      <Link href="/pricing" className="btn btn-ghost btn-lg">See pricing</Link>
+    </div>
+  </div>
+</section>
+
+{/* FOOTER */}
+<footer className="footer">
+  <div className="container">
+    <div className="footer-grid">
+      <div className="footer-col footer-brand">
+        <Link href="/" className="logo"><span className="logo-mark">F</span><span>Freelanly</span></Link>
+        <p>AI outreach engine for freelancers. Be first in the inbox. Win the project.</p>
+      </div>
+      <div className="footer-col">
+        <h5>Product</h5>
+        <ul>
+          <li><Link href="/how-it-works">How it works</Link></li>
+          <li><Link href="/features">Features</Link></li>
+          <li><Link href="/pricing">Pricing</Link></li>
+        </ul>
+      </div>
+      <div className="footer-col">
+        <h5>Company</h5>
+        <ul>
+          <li><Link href="/about">About</Link></li>
+          <li><Link href="/about#faq">FAQ</Link></li>
+          <li><Link href="/blog">Blog</Link></li>
+        </ul>
+      </div>
+      <div className="footer-col">
+        <h5>Resources</h5>
+        <ul>
+          <li><Link href="/freelance">Browse Jobs</Link></li>
+          <li><Link href="/companies">Companies</Link></li>
+        </ul>
+      </div>
+      <div className="footer-col">
+        <h5>Legal</h5>
+        <ul>
+          <li><Link href="/privacy">Privacy</Link></li>
+          <li><Link href="/terms">Terms</Link></li>
+        </ul>
+      </div>
+    </div>
+    <div className="footer-bottom">
+      <div>© 2026 Freelanly · Made for freelancers who&apos;d rather be working.</div>
+    </div>
+  </div>
+</footer>
+
+{/* Reveal */}
+<script dangerouslySetInnerHTML={{ __html: `document.addEventListener('DOMContentLoaded',function(){if(typeof IntersectionObserver==='undefined')return;document.querySelectorAll('.reveal').forEach(function(el){new IntersectionObserver(function(e){e.forEach(function(entry){if(entry.isIntersecting)entry.target.classList.add('in')})},{threshold:0.1}).observe(el)})})` }} />
+    </>
   );
 }
