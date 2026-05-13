@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>404 — Freelanly</title>
+<meta name="robots" content="noindex"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+body { min-height: 100vh; display: flex; flex-direction: column; }
+
+/* Hero canvas */
+.nf {
+  flex: 1;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  align-items: center;
+  gap: 80px;
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 120px var(--gutter) 120px;
+  width: 100%;
+}
+@media (max-width: 920px) {
+  .nf { grid-template-columns: 1fr; gap: 56px; padding-top: 110px; padding-bottom: 80px; }
+}
+
+/* Background pieces */
+.nf-bg {
+  position: absolute; inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.nf-bg .glow-top {
+  position: absolute;
+  top: -260px; left: -180px;
+  width: 740px; height: 740px;
+  background: radial-gradient(circle, rgba(199,249,74,0.20) 0%, transparent 60%);
+  filter: blur(20px);
+}
+.nf-bg .glow-bot {
+  position: absolute;
+  bottom: -300px; right: -200px;
+  width: 680px; height: 680px;
+  background: radial-gradient(circle, rgba(110,231,255,0.10) 0%, transparent 60%);
+  filter: blur(20px);
+}
+.nf-bg .grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000 30%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000 30%, transparent 80%);
+}
+
+/* Left column */
+.nf-left { position: relative; z-index: 1; }
+.nf-eyebrow {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 6px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.02);
+  width: max-content;
+  margin-bottom: 28px;
+}
+.nf-eyebrow::before {
+  content: ''; width: 6px; height: 6px; border-radius: 999px;
+  background: var(--bad);
+  box-shadow: 0 0 10px var(--bad);
+}
+.nf-left h1 {
+  font-size: clamp(48px, 7vw, 88px);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1.0;
+  margin: 0 0 24px;
+}
+.nf-left h1 .accent {
+  color: var(--accent);
+  font-style: italic;
+  font-weight: 500;
+}
+.nf-left .lede {
+  font-size: 18px;
+  color: var(--ink-2);
+  line-height: 1.55;
+  margin: 0 0 36px;
+  max-width: 44ch;
+}
+
+/* Search */
+.nf-search {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px 8px 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  max-width: 460px;
+  margin-bottom: 32px;
+}
+.nf-search:focus-within { border-color: var(--accent); }
+.nf-search svg { color: var(--ink-3); flex-shrink: 0; }
+.nf-search input {
+  flex: 1;
+  border: none; outline: none; background: none;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 14.5px;
+}
+.nf-search input::placeholder { color: var(--ink-4); }
+.nf-search .ent {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  padding: 4px 8px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 6px;
+  color: var(--ink-3);
+  border: 1px solid var(--line);
+}
+
+.nf-cta-row {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 36px;
+}
+
+/* Helpful links */
+.nf-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 480px;
+}
+.nf-link {
+  display: grid;
+  grid-template-columns: 28px 1fr 14px;
+  gap: 12px; align-items: center;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  transition: all 160ms var(--ease);
+  cursor: pointer;
+}
+.nf-link:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: var(--line-2);
+  transform: translateY(-1px);
+}
+.nf-link:hover .arr { color: var(--accent); transform: translateX(2px); }
+.nf-link .ico {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink-2);
+}
+.nf-link .lbl { font-size: 13.5px; font-weight: 500; line-height: 1.3; }
+.nf-link .sub { font-family: 'Geist Mono', monospace; font-size: 10.5px; color: var(--ink-4); margin-top: 2px; letter-spacing: 0.04em; }
+.nf-link .arr {
+  color: var(--ink-3);
+  transition: all 160ms var(--ease);
+}
+
+/* Right column — giant 404 with terminal trace */
+.nf-right { position: relative; z-index: 1; }
+
+.giant-404 {
+  position: relative;
+  font-family: 'Geist', sans-serif;
+  font-weight: 500;
+  font-size: clamp(150px, 32vw, 380px);
+  letter-spacing: -0.06em;
+  line-height: 0.85;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--line-2);
+  text-stroke: 1.5px var(--line-2);
+  text-align: center;
+  user-select: none;
+}
+.giant-404 .num {
+  display: inline-block;
+  position: relative;
+}
+.giant-404 .glitch {
+  position: absolute;
+  inset: 0;
+  color: var(--accent);
+  -webkit-text-stroke: 0;
+  text-stroke: 0;
+  mix-blend-mode: screen;
+  clip-path: polygon(0 18%, 100% 18%, 100% 28%, 0 28%);
+  opacity: 0.7;
+  animation: glitch 4s steps(1) infinite;
+}
+.giant-404 .glitch.b {
+  color: #6EE7FF;
+  clip-path: polygon(0 60%, 100% 60%, 100% 66%, 0 66%);
+  animation-delay: 1.2s;
+}
+@keyframes glitch {
+  0%, 90%, 100% { transform: translateX(0); }
+  92% { transform: translateX(-4px); }
+  94% { transform: translateX(3px); }
+  96% { transform: translateX(-2px); }
+  98% { transform: translateX(1px); }
+}
+
+/* Trace card overlay */
+.trace-card {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 380px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  overflow: hidden;
+  font-family: 'Geist Mono', monospace;
+  font-size: 11.5px;
+  line-height: 1.7;
+  box-shadow: 0 30px 60px -10px rgba(0,0,0,0.6);
+}
+.trace-head {
+  padding: 8px 14px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.trace-head .dot-row { display: flex; gap: 5px; }
+.trace-head .dot-row span { width: 8px; height: 8px; border-radius: 999px; background: rgba(255,255,255,0.12); }
+.trace-head .dot-row span.r { background: #FF6058; }
+.trace-head .dot-row span.y { background: #FFBD2E; }
+.trace-head .dot-row span.g { background: #28C840; }
+.trace-body { padding: 12px 14px; color: var(--ink-2); }
+.trace-body .lin { display: flex; gap: 10px; }
+.trace-body .lin .t { color: var(--ink-4); flex-shrink: 0; }
+.trace-body .lin .ok { color: var(--accent); }
+.trace-body .lin .err { color: var(--bad); }
+.trace-body .lin .hi { color: var(--ink); }
+.trace-body .blinker {
+  display: inline-block;
+  width: 7px; height: 12px;
+  background: var(--accent);
+  vertical-align: -1px;
+  margin-left: 4px;
+  animation: blink 1s steps(2) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Footer strip */
+.nf-foot {
+  border-top: 1px solid var(--line);
+  padding: 18px var(--gutter);
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-4);
+  letter-spacing: 0.04em;
+  display: flex; justify-content: space-between; align-items: center;
+  position: relative; z-index: 1;
+  background: var(--bg);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.nf-foot .l { display: flex; align-items: center; gap: 18px; }
+.nf-foot .l span { display: inline-flex; align-items: center; gap: 6px; }
+.nf-foot .live-dot {
+  width: 6px; height: 6px; border-radius: 999px;
+  background: var(--good);
+  box-shadow: 0 0 8px var(--good);
+}
+.nf-foot a { color: var(--ink-3); }
+.nf-foot a:hover { color: var(--accent); }
+
+/* ===== Mobile breakpoints (placed last so they win cascade) ===== */
+@media (max-width: 640px) {
+  .nf { padding-top: 100px; padding-bottom: 60px; }
+  .nf-eyebrow { margin-bottom: 22px; }
+  .nf-cta-row { flex-direction: column; gap: 10px; }
+  .nf-cta-row .btn-lg { width: 100%; }
+  .nf-links { grid-template-columns: 1fr; max-width: 100%; }
+  .nf-search { max-width: 100%; }
+  .nf-foot { flex-direction: column; align-items: flex-start; gap: 10px; padding: 16px var(--gutter); }
+  .nf-foot .l { flex-wrap: wrap; gap: 12px; }
+  .nf-right { width: 100%; overflow: hidden; padding-bottom: 80px; }
+  .giant-404 { font-size: clamp(110px, 32vw, 380px); }
+  .trace-card {
+    max-width: calc(100% - 16px);
+    left: 8px;
+    transform: none;
+    bottom: auto;
+    top: auto;
+    position: relative;
+    margin: -40px auto 0;
+  }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="index.html" class="logo">
+      <span class="logo-mark">F</span><span>Freelanly</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="how-it-works.html">How it works</a></li>
+      <li><a href="features.html">Features</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="about.html">About</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a href="signin.html" class="btn btn-ghost btn-sm">Sign in</a>
+      <a href="signup.html" class="btn btn-primary btn-sm">Start free
+        <svg class="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<main class="nf">
+
+  <div class="nf-bg">
+    <div class="grid"></div>
+    <div class="glow-top"></div>
+    <div class="glow-bot"></div>
+  </div>
+
+  <!-- LEFT -->
+  <div class="nf-left">
+    <span class="nf-eyebrow">Error 404 · page not found</span>
+
+    <h1>That gig got <span class="accent">snapped up.</span></h1>
+    <p class="lede">The page you're after either moved, never existed, or was filled before you got here. The good news — we're already scanning 14 job boards for the next one.</p>
+
+    <div class="nf-search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+      </svg>
+      <input placeholder="Search the site or paste a URL you were looking for" />
+      <kbd class="ent">↵</kbd>
+    </div>
+
+    <div class="nf-cta-row">
+      <a href="index.html" class="btn btn-primary btn-lg">
+        Take me home
+        <svg class="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <a href="signup.html" class="btn btn-ghost btn-lg">Start applying free</a>
+    </div>
+
+    <div class="nf-links">
+      <a class="nf-link" href="how-it-works.html">
+        <span class="ico">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </span>
+        <div>
+          <div class="lbl">How it works</div>
+          <div class="sub">2 min · founder demo</div>
+        </div>
+        <svg class="arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <a class="nf-link" href="pricing.html">
+        <span class="ico">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+          </svg>
+        </span>
+        <div>
+          <div class="lbl">Pricing</div>
+          <div class="sub">from $0 · cancel anytime</div>
+        </div>
+        <svg class="arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <a class="nf-link" href="features.html">
+        <span class="ico">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+        </span>
+        <div>
+          <div class="lbl">Features</div>
+          <div class="sub">discovery · inbox · pipeline</div>
+        </div>
+        <svg class="arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <a class="nf-link" href="about.html">
+        <span class="ico">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </span>
+        <div>
+          <div class="lbl">Status / contact</div>
+          <div class="sub">all systems · 99.98%</div>
+        </div>
+        <svg class="arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <!-- RIGHT — giant 404 with terminal trace -->
+  <div class="nf-right">
+    <div class="giant-404" aria-hidden="true">
+      <span class="num">
+        4
+        <span class="glitch">4</span>
+        <span class="glitch b">4</span>
+      </span><span class="num">
+        0
+        <span class="glitch">0</span>
+        <span class="glitch b">0</span>
+      </span><span class="num">
+        4
+        <span class="glitch">4</span>
+        <span class="glitch b">4</span>
+      </span>
+    </div>
+
+    <div class="trace-card">
+      <div class="trace-head">
+        <span>GET request trace</span>
+        <span class="dot-row">
+          <span class="r"></span><span class="y"></span><span class="g"></span>
+        </span>
+      </div>
+      <div class="trace-body">
+        <div class="lin"><span class="t">19:04:21</span> <span>resolving freelanly.com…</span></div>
+        <div class="lin"><span class="t">19:04:21</span> <span class="ok">✓ TLS 1.3 · 142ms</span></div>
+        <div class="lin"><span class="t">19:04:22</span> <span>routing <span class="hi">/jobs/senior-react-dev-x42</span></span></div>
+        <div class="lin"><span class="t">19:04:22</span> <span class="err">✕ 404 · no such route</span></div>
+        <div class="lin"><span class="t">19:04:23</span> <span>↳ best guess: <span class="hi">/discovery</span><span class="blinker"></span></span></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div class="nf-foot">
+  <div class="l">
+    <span><span class="live-dot"></span>All systems operational</span>
+    <span>Build a7f3c2 · region eu-central-1</span>
+  </div>
+  <div>
+    <a href="mailto:hi@freelanly.com">Tell us what you were looking for →</a>
+  </div>
+</div>
+
+</body>
+</html>

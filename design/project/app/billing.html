@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Billing — Freelanly</title>
+<link rel="stylesheet" href="app.css">
+<style>
+.plan-card {
+  padding: 22px 24px; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--bg-0);
+}
+.plan-card.current {
+  border-color: var(--acid-deep);
+  background: linear-gradient(180deg, rgba(199,249,74,0.06), var(--bg-0));
+}
+.plan-card .badge { font-family: 'Geist Mono', monospace; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--acid-deep); margin-bottom: 6px; }
+.plan-card .name { font-size: 18px; font-weight: 500; letter-spacing: -0.015em; }
+.plan-card .price { font-family: 'Geist Mono', monospace; font-size: 32px; font-weight: 600; margin-top: 6px; letter-spacing: -0.02em; }
+.plan-card .price .unit { font-size: 13px; font-weight: 400; color: var(--ink-3); }
+.plan-card .desc { font-size: 12.5px; color: var(--ink-3); margin-top: 6px; line-height: 1.5; }
+
+.usage-bar { height: 8px; background: var(--bg-2); border-radius: 999px; overflow: hidden; }
+.usage-bar .fill { height: 100%; background: var(--acid-deep); border-radius: 999px; }
+.usage-bar.warn .fill { background: var(--warn); }
+
+.invoice-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.invoice-table th, .invoice-table td { padding: 12px 18px; text-align: left; border-bottom: 1px solid var(--line); }
+.invoice-table th { font-family: 'Geist Mono', monospace; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-4); font-weight: 500; }
+.invoice-table td.num, .invoice-table th.num { text-align: right; font-family: 'Geist Mono', monospace; }
+.invoice-table tr:hover { background: var(--bg-2); }
+.invoice-table .status { font-size: 11px; padding: 3px 8px; border-radius: 999px; background: rgba(21,128,61,0.1); color: var(--good); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <div id="shellSidebar"></div>
+  <main class="main">
+    <div id="shellTopbar"></div>
+    <div class="page">
+
+      <div class="page-header">
+        <div class="page-title">
+          <h1>Billing &amp; usage</h1>
+          <p>Your plan, usage this cycle, payment method, and invoice history.</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-ghost">Download all invoices</button>
+        </div>
+      </div>
+
+      <!-- Current usage -->
+      <div class="grid grid-3 mb-4">
+        <div class="card card-pad">
+          <div class="eyebrow mb-2">Applications this cycle</div>
+          <div class="row between mb-2">
+            <span style="font-family: 'Geist Mono', monospace; font-size: 22px; font-weight: 600;">187</span>
+            <span class="meta">/ 800</span>
+          </div>
+          <div class="usage-bar"><div class="fill" style="width: 23.4%;"></div></div>
+          <div class="meta mt-2">Resets in 18 days · Nov 25</div>
+        </div>
+        <div class="card card-pad">
+          <div class="eyebrow mb-2">Inboxes</div>
+          <div class="row between mb-2">
+            <span style="font-family: 'Geist Mono', monospace; font-size: 22px; font-weight: 600;">1</span>
+            <span class="meta">/ 3 included</span>
+          </div>
+          <div class="usage-bar"><div class="fill" style="width: 33%;"></div></div>
+          <div class="meta mt-2">alex@chen.studio</div>
+        </div>
+        <div class="card card-pad">
+          <div class="eyebrow mb-2">Templates &amp; A/B tests</div>
+          <div class="row between mb-2">
+            <span style="font-family: 'Geist Mono', monospace; font-size: 22px; font-weight: 600;">12</span>
+            <span class="meta">Unlimited</span>
+          </div>
+          <div class="usage-bar"><div class="fill" style="width: 100%;"></div></div>
+          <div class="meta mt-2">2 active A/B tests</div>
+        </div>
+      </div>
+
+      <!-- Plan -->
+      <div class="card mb-4">
+        <div class="card-head">
+          <div>
+            <h3>Your plan</h3>
+            <div class="meta mt-1">Next charge $49.00 on Nov 25 · 18 days</div>
+          </div>
+          <div class="row gap-2">
+            <button class="btn btn-ghost btn-sm">Compare plans</button>
+            <button class="btn btn-soft btn-sm">Switch to annual · save 20%</button>
+          </div>
+        </div>
+        <div style="padding: 20px 24px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
+
+          <div class="plan-card">
+            <div class="badge" style="color: var(--ink-4);">— Starter</div>
+            <div class="name">Starter</div>
+            <div class="price">$19<span class="unit">/mo</span></div>
+            <div class="desc">200 applications/mo · 1 inbox · 3 templates · Basic analytics</div>
+            <button class="btn btn-soft btn-sm mt-3" style="width: 100%;">Downgrade</button>
+          </div>
+
+          <div class="plan-card current">
+            <div class="badge">★ Current plan</div>
+            <div class="name">Pro</div>
+            <div class="price">$49<span class="unit">/mo</span></div>
+            <div class="desc">800 applications/mo · 3 inboxes · Unlimited templates · A/B testing · Full pipeline · Priority support</div>
+            <div class="row gap-2 mt-3">
+              <button class="btn btn-ghost btn-sm" style="flex: 1;">Manage</button>
+              <button class="btn btn-soft btn-sm" style="flex: 1;">Cancel</button>
+            </div>
+          </div>
+
+          <div class="plan-card">
+            <div class="badge" style="color: var(--ink-4);">↑ Upgrade</div>
+            <div class="name">Studio</div>
+            <div class="price">$129<span class="unit">/mo</span></div>
+            <div class="desc">Unlimited applications · 10 inboxes · 5 seats · Shared templates · Dedicated success manager</div>
+            <button class="btn btn-acid btn-sm mt-3" style="width: 100%;" data-icon="send">Upgrade to Studio</button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Two col: payment + invoices -->
+      <div class="grid grid-2 mb-4" style="gap: 16px;">
+
+        <div class="card">
+          <div class="card-head"><h3>Payment method</h3><button class="btn btn-ghost btn-sm">Update</button></div>
+          <div style="padding: 20px 24px;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <div style="width: 48px; height: 32px; border-radius: 6px; background: linear-gradient(135deg, #1A1F36, #635BFF); display: grid; place-items: center; font-family: 'Geist Mono', monospace; font-size: 9px; font-weight: 700; color: #fff; letter-spacing: 0.05em;">VISA</div>
+              <div>
+                <div style="font-family: 'Geist Mono', monospace; font-size: 14px;">•••• •••• •••• 4242</div>
+                <div class="meta">Expires 09/27 · Alex Chen</div>
+              </div>
+            </div>
+            <div style="margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line);">
+              <div class="meta mb-2">Billing address</div>
+              <div style="font-size: 13px; line-height: 1.5;">Alex Chen<br>Brunnenstraße 145<br>10115 Berlin · DE<br>VAT: DE123456789</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Email receipts to</h3><button class="btn btn-ghost btn-sm">Add</button></div>
+          <div style="padding: 16px 24px;">
+            <div class="row between" style="padding: 10px 0; border-bottom: 1px solid var(--line);">
+              <div><div style="font-size: 13px;">alex@chen.studio</div><div class="meta">Primary</div></div>
+              <span class="meta">—</span>
+            </div>
+            <div class="row between" style="padding: 10px 0;">
+              <div><div style="font-size: 13px;">accounts@chen.studio</div><div class="meta">CC on invoices</div></div>
+              <button class="btn btn-ghost btn-sm">Remove</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Invoices -->
+      <div class="card">
+        <div class="card-head"><h3>Invoice history</h3><span class="meta">7 invoices</span></div>
+        <table class="invoice-table">
+          <thead>
+            <tr><th>Date</th><th>Description</th><th class="num">Amount</th><th>Status</th><th class="num">Receipt</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Oct 25, 2025</td><td>Freelanly Pro · monthly</td><td class="num">$49.00</td><td><span class="status">Paid</span></td><td class="num"><a href="#" class="muted f-mono" style="font-size: 11px;">PDF ↓</a></td></tr>
+            <tr><td>Sep 25, 2025</td><td>Freelanly Pro · monthly</td><td class="num">$49.00</td><td><span class="status">Paid</span></td><td class="num"><a href="#" class="muted f-mono" style="font-size: 11px;">PDF ↓</a></td></tr>
+            <tr><td>Aug 25, 2025</td><td>Freelanly Pro · monthly</td><td class="num">$49.00</td><td><span class="status">Paid</span></td><td class="num"><a href="#" class="muted f-mono" style="font-size: 11px;">PDF ↓</a></td></tr>
+            <tr><td>Jul 25, 2025</td><td>Freelanly Pro · monthly</td><td class="num">$49.00</td><td><span class="status">Paid</span></td><td class="num"><a href="#" class="muted f-mono" style="font-size: 11px;">PDF ↓</a></td></tr>
+            <tr><td>Jun 25, 2025</td><td>Freelanly Starter → Pro upgrade (prorated)</td><td class="num">$33.50</td><td><span class="status">Paid</span></td><td class="num"><a href="#" class="muted f-mono" style="font-size: 11px;">PDF ↓</a></td></tr>
+            <tr><td>May 25, 2025</td><td>Freelanly Starter · monthly</td><td class="num">$19.00</td><td><span class="status">Paid</span></td><td class="num"><a href="#" class="muted f-mono" style="font-size: 11px;">PDF ↓</a></td></tr>
+            <tr><td>Apr 25, 2025</td><td>Freelanly Starter · first month</td><td class="num">$19.00</td><td><span class="status">Paid</span></td><td class="num"><a href="#" class="muted f-mono" style="font-size: 11px;">PDF ↓</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="app.js"></script>
+<script>
+  Freelanly.initShell({ active: 'settings', crumbs: ['Workspace', 'Settings', 'Billing'] });
+  document.querySelectorAll('[data-icon]').forEach(el => {
+    el.insertAdjacentHTML('afterbegin', Freelanly.svg(el.dataset.icon, 14));
+  });
+</script>
+</body>
+</html>

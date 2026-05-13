@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About Freelanly — why we built the freelancer's outreach engine</title>
+  <meta name="description" content="Freelanly was built by ex-freelancers tired of losing gigs because they couldn't out-apply the crowd. Read our manifesto, team, and timeline."/>
+  <meta name="keywords" content="about freelanly, freelancer tools, freelance outreach, founders"/>
+  <meta name="author" content="Freelanly"/>
+  <link rel="canonical" href="https://freelanly.com/about.html"/>
+  <meta name="robots" content="index, follow"/>
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website"/>
+  <meta property="og:site_name" content="Freelanly"/>
+  <meta property="og:title" content="About Freelanly — why we built the freelancer's outreach engine"/>
+  <meta property="og:description" content="Freelanly was built by ex-freelancers tired of losing gigs because they couldn't out-apply the crowd. Read our manifesto, team, and timeline."/>
+  <meta property="og:url" content="https://freelanly.com/about.html"/>
+  <meta property="og:image" content="https://freelanly.com/og-about.png"/>
+  <meta property="og:locale" content="en_US"/>
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:site" content="@freelanly"/>
+  <meta name="twitter:title" content="About Freelanly — why we built the freelancer's outreach engine"/>
+  <meta name="twitter:description" content="Freelanly was built by ex-freelancers tired of losing gigs because they couldn't out-apply the crowd. Read our manifesto, team, and timeline."/>
+  <meta name="twitter:image" content="https://freelanly.com/og-about.png"/>
+
+  <!-- Structured data -->
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Freelanly","url":"https://freelanly.com","logo":"https://freelanly.com/logo.png","description":"AI-powered freelance application engine","sameAs":["https://twitter.com/freelanly","https://linkedin.com/company/freelanly"]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://freelanly.com/"},{"@type":"ListItem","position":2,"name":"About Freelanly","item":"https://freelanly.com/about.html"}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is this spam?","acceptedAnswer":{"@type":"Answer","text":"No — every email is personalized using your background and the specific gig, sent from your own inbox, with your sending rules and rate limits."}},{"@type":"Question","name":"Will I get banned from LinkedIn?","acceptedAnswer":{"@type":"Answer","text":"We never automate LinkedIn actions on your account. We read public posts and route opportunities to your inbox where you respond from your real email."}},{"@type":"Question","name":"Can I cancel anytime?","acceptedAnswer":{"@type":"Answer","text":"Yes. Cancel from billing, no questions asked. Pro-rata refund within the first 14 days."}}]}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+.page-head { padding: 140px 0 64px; position: relative; overflow: hidden; border-bottom: 1px solid var(--line); }
+.page-head-bg { position: absolute; inset: 0; background: radial-gradient(ellipse 600px 300px at 50% -10%, rgba(199,249,74,0.12), transparent 70%); pointer-events: none; }
+.page-head h1 { font-size: clamp(48px, 6vw, 84px); letter-spacing: -0.04em; max-width: 16ch; }
+.page-head h1 .accent { color: var(--accent); font-style: italic; font-weight: 500; }
+.page-head .lede { margin-top: 22px; max-width: 60ch; }
+
+.manifesto {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 0;
+}
+.manifesto p {
+  font-size: 22px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin-bottom: 24px;
+  letter-spacing: -0.005em;
+  text-wrap: pretty;
+}
+.manifesto p strong { color: var(--ink); font-weight: 500; }
+.manifesto p .accent { color: var(--accent); font-style: italic; font-weight: 500; }
+.manifesto .pull {
+  font-family: 'Geist', sans-serif;
+  font-size: 36px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  line-height: 1.15;
+  padding: 32px 0;
+  border-top: 1px solid var(--accent);
+  border-bottom: 1px solid var(--accent);
+  margin: 48px 0;
+  text-wrap: balance;
+}
+
+/* Timeline */
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--bg-1);
+}
+@media (max-width: 820px) { .timeline { grid-template-columns: 1fr 1fr; } }
+.tl-step {
+  padding: 28px 24px;
+  border-right: 1px solid var(--line);
+  position: relative;
+}
+.tl-step:last-child { border-right: none; }
+.tl-year {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+.tl-step h4 { font-size: 17px; font-weight: 500; letter-spacing: -0.015em; margin: 10px 0 8px; }
+.tl-step p { font-size: 13.5px; color: var(--ink-3); line-height: 1.5; }
+
+/* Values */
+.values-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+@media (max-width: 820px) { .values-grid { grid-template-columns: 1fr; } }
+.value {
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 32px;
+  background: var(--bg-1);
+}
+.value-num {
+  font-family: 'Geist Mono', monospace;
+  font-size: 13px;
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+.value h3 { font-size: 22px; font-weight: 500; letter-spacing: -0.02em; margin-bottom: 12px; }
+.value p { font-size: 14.5px; color: var(--ink-3); line-height: 1.55; }
+
+/* Team */
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+@media (max-width: 820px) { .team-grid { grid-template-columns: repeat(2, 1fr); } }
+.member {
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 24px;
+  background: var(--bg-1);
+  text-align: left;
+}
+.member-avatar {
+  width: 56px; height: 56px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  display: grid; place-items: center;
+  font-family: 'Geist Mono', monospace;
+  font-weight: 600; font-size: 18px;
+  color: var(--ink);
+  margin-bottom: 16px;
+}
+.member h4 { font-size: 16px; font-weight: 500; }
+.member .role { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--accent); margin-top: 4px; letter-spacing: 0.04em; }
+.member p { font-size: 13px; color: var(--ink-3); margin-top: 12px; line-height: 1.5; }
+
+/* FAQ Accordion */
+.faq-cats {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+.faq-cat {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--ink-3);
+  font-family: 'Geist Mono', monospace;
+  cursor: pointer;
+  transition: all 160ms var(--ease);
+}
+.faq-cat.active { background: var(--accent); color: #000; border-color: var(--accent); }
+.faq-cat:hover:not(.active) { border-color: var(--line-2); color: var(--ink); }
+
+.faq-item-acc {
+  border-bottom: 1px solid var(--line);
+}
+.faq-item-acc summary {
+  padding: 24px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+  gap: 24px;
+}
+.faq-item-acc summary::-webkit-details-marker { display: none; }
+.faq-item-acc summary .q {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+.faq-item-acc summary .icon {
+  width: 32px; height: 32px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+  transition: all 200ms var(--ease);
+}
+.faq-item-acc summary .icon svg { transition: transform 200ms var(--ease); }
+.faq-item-acc[open] summary .icon { background: var(--accent); border-color: var(--accent); color: #000; }
+.faq-item-acc[open] summary .icon svg { transform: rotate(45deg); }
+.faq-item-acc .a {
+  padding: 0 0 28px;
+  font-size: 15px;
+  color: var(--ink-3);
+  line-height: 1.6;
+  max-width: 76ch;
+}
+.faq-item-acc .a a { color: var(--accent); border-bottom: 1px solid currentColor; }
+
+/* Story image placeholder */
+.story-banner {
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  padding: 64px;
+  background: linear-gradient(135deg, var(--bg-1), var(--bg-2));
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  margin: 64px 0;
+}
+.story-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(199,249,74,0.08), transparent 40%),
+    radial-gradient(circle at 80% 50%, rgba(110,231,255,0.05), transparent 40%);
+}
+.story-banner .quote {
+  position: relative;
+  font-family: 'Geist', sans-serif;
+  font-size: clamp(28px, 3.4vw, 42px);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.story-banner .quote .accent { color: var(--accent); font-style: italic; font-weight: 500; }
+.story-banner .author {
+  position: relative;
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-top: 24px;
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="index.html" class="logo">
+      <span class="logo-mark">F</span><span>Freelanly</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="how-it-works.html">How it works</a></li>
+      <li><a href="features.html">Features</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="about.html">About</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a href="#" class="btn btn-ghost btn-sm">Sign in</a>
+      <a href="#" class="btn btn-primary btn-sm">Start free
+        <svg class="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<header class="page-head">
+  <div class="page-head-bg"></div>
+  <div class="container">
+    <span class="eyebrow eyebrow-accent">— About</span>
+    <h1 style="margin-top: 18px;">Built by freelancers who got tired of <span class="accent">applying.</span></h1>
+    <p class="lede">In 2024, our co-founder spent 90 minutes every morning refreshing Upwork and Indeed for half-decent contracts. He shipped one line of client code per day. So he built Freelanly. Now 10,000+ freelancers in 90+ countries run their outreach this way.</p>
+  </div>
+</header>
+
+<!-- Manifesto -->
+<section class="section">
+  <div class="container">
+    <div class="manifesto reveal">
+      <p>We started with one belief: <strong>the freelancer's biggest cost isn't taxes or tools — it's the time spent looking for the next gig.</strong> A typical full-time freelancer loses 8–12 hours a week to job-hunting. That's a full billable day. Every week.</p>
+      <p>The job-board industry doesn't want to fix this. Their business model depends on you refreshing the same feed 30 times a day. Their feeds depend on listings that have already been seen by 500 people.</p>
+      <div class="pull">
+        We're building the opposite of a job board. A feed that catches openings <span style="color: var(--accent); font-style: italic;">before</span> they hit the boards, writes the email for you, and sends it — so you can be back to the work that pays.
+      </div>
+      <p>Freelanly is a tool, not a community. We don't sell ads to recruiters. We don't sell your data. Our only customer is you, the freelancer, and our only metric is whether you book more work with less time on the application treadmill.</p>
+      <p>If we ever stop doing that — leave. Take your data with you. We'll help you set up a competitor.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Story quote -->
+<section class="section-xs">
+  <div class="container">
+    <div class="story-banner reveal">
+      <div class="quote">"I built Freelanly because I'd lost three good contracts to <span class="accent">someone who replied two hours earlier than me.</span> That's it. That's the whole insight."</div>
+      <div class="author">— Daniil V., Founder &amp; CEO</div>
+    </div>
+  </div>
+</section>
+
+<!-- Timeline -->
+<section class="section-sm">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="eyebrow">— Timeline</span>
+      <h2>Two years. Two co-founders. <span style="color: var(--accent); font-style: italic; font-weight: 500;">10,000+ users.</span></h2>
+    </div>
+    <div class="timeline reveal">
+      <div class="tl-step">
+        <div class="tl-year">Mar · 2024</div>
+        <h4>One-day side project</h4>
+        <p>Daniil scripts a LinkedIn scraper to find React contracts before they hit Upwork. Uses it personally for 3 weeks. Lands 2 retainers.</p>
+      </div>
+      <div class="tl-step">
+        <div class="tl-year">Oct · 2024</div>
+        <h4>First 100 users</h4>
+        <p>Posts on Indie Hackers. First 100 paying users sign up in a week. AI cover-letter feature ships, becomes the #1 reason people stay.</p>
+      </div>
+      <div class="tl-step">
+        <div class="tl-year">May · 2025</div>
+        <h4>The auto-apply engine</h4>
+        <p>Maya joins as CTO. Builds the rules engine, the throttling system, the unified inbox. The product becomes a tool, not a hack.</p>
+      </div>
+      <div class="tl-step">
+        <div class="tl-year">Today</div>
+        <h4>10K+ freelancers · 90+ countries</h4>
+        <p>500+ applications go out daily. 8% reply rate, on average. No outside funding. Profitable since month 9.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Values -->
+<section class="section">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="eyebrow">— What we believe</span>
+      <h2>Three rules we won't break.</h2>
+    </div>
+    <div class="values-grid">
+      <div class="value reveal">
+        <div class="value-num">— 01</div>
+        <h3>Your time is the product.</h3>
+        <p>Every feature is judged by one question: does it give the freelancer an hour back? If not, we don't build it. Even if it would look great in a launch tweet.</p>
+      </div>
+      <div class="value reveal">
+        <div class="value-num">— 02</div>
+        <h3>No dark patterns. Ever.</h3>
+        <p>One-click cancel. One-click data export. No hidden upsells, no "are you sure you want to leave" four-step downgrade flows. We compete on the product, not the friction.</p>
+      </div>
+      <div class="value reveal">
+        <div class="value-num">— 03</div>
+        <h3>Reply rate, not application count.</h3>
+        <p>Spam tools optimize for volume. We optimize for replies. If we ever start bragging about "100,000 applications sent" instead of reply quality, fire us.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Team -->
+<section class="section-sm">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="eyebrow">— The team</span>
+      <h2>Four people. <span style="color: var(--accent); font-style: italic; font-weight: 500;">No middle managers.</span></h2>
+    </div>
+    <div class="team-grid">
+      <div class="member reveal">
+        <div class="member-avatar" style="background:#C7F94A; color:#000;">DV</div>
+        <h4>Daniil Volkov</h4>
+        <div class="role">— Founder, CEO</div>
+        <p>Ex-freelance React dev. Built v1 in a week. Still answers support emails.</p>
+      </div>
+      <div class="member reveal">
+        <div class="member-avatar" style="background:#6EE7FF; color:#000;">MO</div>
+        <h4>Maya Okafor</h4>
+        <div class="role">— CTO</div>
+        <p>Built the rules engine and the inbox. Previously at Plain &amp; Linear.</p>
+      </div>
+      <div class="member reveal">
+        <div class="member-avatar" style="background:#FFB951; color:#000;">RT</div>
+        <h4>Ravi Thakkar</h4>
+        <div class="role">— Head of AI</div>
+        <p>The cover-letter model lives in his head. ML/NLP, 6 years at Anthropic before joining.</p>
+      </div>
+      <div class="member reveal">
+        <div class="member-avatar" style="background:#FF6B6B; color:#000;">SC</div>
+        <h4>Sofia Chen</h4>
+        <div class="role">— Design &amp; growth</div>
+        <p>Designed this site. Runs the freelancer community calls. Replies in your inbox.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section" id="faq">
+  <div class="container" style="max-width: 920px;">
+    <div class="section-head reveal" style="margin-bottom: 32px;">
+      <span class="eyebrow">— FAQ</span>
+      <h2>Everything else.</h2>
+    </div>
+    <div class="faq-cats reveal">
+      <span class="faq-cat active">All</span>
+      <span class="faq-cat">Product</span>
+      <span class="faq-cat">Pricing</span>
+      <span class="faq-cat">Privacy</span>
+      <span class="faq-cat">Support</span>
+    </div>
+
+    <div class="reveal">
+      <details class="faq-item-acc" open>
+        <summary>
+          <span class="q">Does this actually work, or is it just AI spam?</span>
+          <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span>
+        </summary>
+        <div class="a">It's outreach, not spam. Every application is personalized to the specific job and sent from your real inbox — not a bulk-mail server. The median Pro user sends ~280 applications/month and gets ~22 replies. That's an 8% reply rate, well above industry baseline for cold outreach.</div>
+      </details>
+      <details class="faq-item-acc">
+        <summary>
+          <span class="q">Will hiring managers know it's AI?</span>
+          <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span>
+        </summary>
+        <div class="a">No — and we test for this regularly. Cover letters reference specifics from the job post, your portfolio, and (when public) the hiring manager's background. They read like a thoughtful 3-minute write-up because, structurally, they are. We've A/B tested against human-written letters and reply rates are within 1.5%.</div>
+      </details>
+      <details class="faq-item-acc">
+        <summary>
+          <span class="q">Can I edit applications before they're sent?</span>
+          <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span>
+        </summary>
+        <div class="a">Always. Two modes: <strong style="color: var(--ink);">Review</strong> (drafts queue up and wait for your OK) and <strong style="color: var(--ink);">Auto</strong> (we send for you, with a 60-minute recall window in case you change your mind). Most Pro users start in Review for a week, then flip to Auto.</div>
+      </details>
+      <details class="faq-item-acc">
+        <summary>
+          <span class="q">What happens to my data if I cancel?</span>
+          <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span>
+        </summary>
+        <div class="a">You can export everything — applications, replies, contacts, templates — to CSV with one click. We hard-delete the rest of your data within 30 days of cancellation, unless you ask us to keep it. We never sell or share data with third parties.</div>
+      </details>
+      <details class="faq-item-acc">
+        <summary>
+          <span class="q">Does Freelanly work for full-time roles, not just freelance?</span>
+          <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span>
+        </summary>
+        <div class="a">Yes — about 30% of our users are looking for remote full-time roles. Same engine, same filters, just check "FT roles" in your preferences. The AI cover letter adjusts tone accordingly.</div>
+      </details>
+      <details class="faq-item-acc">
+        <summary>
+          <span class="q">Will I get banned from LinkedIn / my email provider?</span>
+          <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span>
+        </summary>
+        <div class="a">Applications go out from <em>your</em> inbox via OAuth, at human cadence — never more than 25/day, spread across business hours, with randomized timing. We've sent millions of emails this way; zero account suspensions on the email side. For LinkedIn, we only read public hiring posts (no auto-DM, no auto-connect), so there's no policy violation.</div>
+      </details>
+      <details class="faq-item-acc">
+        <summary>
+          <span class="q">Is there a free trial?</span>
+          <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span>
+        </summary>
+        <div class="a">Yes. The Free plan gives you 10 AI applications/month, forever. Pro has a 7-day full-access trial with no credit card required up front. If you don't book at least one interview during the trial, we'll extend it on request.</div>
+      </details>
+      <details class="faq-item-acc">
+        <summary>
+          <span class="q">How is this different from Upwork or Indeed?</span>
+          <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span>
+        </summary>
+        <div class="a">Upwork is a marketplace — you compete with 500 other freelancers per job, pay a 10% fee, and the rate gets squeezed downward. Freelanly is direct outreach to companies hiring outside marketplaces. No middleman fees, no race-to-the-bottom rates, and the contracts are usually 2–3× higher.</div>
+      </details>
+      <details class="faq-item-acc">
+        <summary>
+          <span class="q">Do you have a freelancer Slack / community?</span>
+          <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span>
+        </summary>
+        <div class="a">Yes — a Discord with ~3,000 active members, free to join with any plan. Members share contracts they've passed on, review each other's portfolios, and run a weekly "what's working in your inbox" call. <a href="#">Join here</a>.</div>
+      </details>
+      <details class="faq-item-acc">
+        <summary>
+          <span class="q">How do I contact support?</span>
+          <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span>
+        </summary>
+        <div class="a">Email <a href="#">hello@freelanly.com</a> — replies usually within 4 hours on weekdays. Pro &amp; Agency plans get live chat in the app. There's no support phone line; we believe written support produces better answers.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final-cta" style="position: relative; padding: 120px 0; overflow:hidden; border-top: 1px solid var(--line);">
+  <div style="position:absolute; width:900px; height:600px; background: radial-gradient(ellipse, rgba(199,249,74,0.16), transparent 60%); filter: blur(40px); top: 0; left: 50%; transform: translateX(-50%); pointer-events:none;"></div>
+  <div class="container" style="position:relative; text-align:center;">
+    <span class="eyebrow eyebrow-accent">— One last thing</span>
+    <h2 style="font-size: clamp(40px, 5.5vw, 68px); letter-spacing: -0.035em; margin-top: 16px; margin-bottom: 22px;">Less reading. <span style="color:var(--accent); font-style: italic; font-weight: 500;">More replying.</span></h2>
+    <p style="font-size: 18px; color: var(--ink-3); max-width: 540px; margin: 0 auto 32px;">Sign up free, plug in your inbox, see who's hiring.</p>
+    <div style="display:flex; gap: 12px; justify-content:center; flex-wrap:wrap;">
+      <a href="#" class="btn btn-primary btn-lg">Start free
+        <svg class="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <a href="pricing.html" class="btn btn-ghost btn-lg">See pricing</a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col footer-brand">
+        <a href="index.html" class="logo">
+          <span class="logo-mark">F</span><span>Freelanly</span>
+        </a>
+        <p>AI outreach engine for freelancers. Be first in the inbox. Win the project.</p>
+      </div>
+      <div class="footer-col">
+        <h5>Product</h5>
+        <ul>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="#">Changelog</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Company</h5>
+        <ul>
+          <li><a href="about.html">About</a></li>
+          <li><a href="about.html#faq">FAQ</a></li>
+          <li><a href="#">Blog</a></li>
+          <li><a href="#">Careers</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Resources</h5>
+        <ul>
+          <li><a href="#">Help center</a></li>
+          <li><a href="#">Cover letter library</a></li>
+          <li><a href="#">Rate calculator</a></li>
+          <li><a href="#">API</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Legal</h5>
+        <ul>
+          <li><a href="#">Privacy</a></li>
+          <li><a href="#">Terms</a></li>
+          <li><a href="#">DPA</a></li>
+          <li><a href="#">Security</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div>© 2026 Freelanly · Made for freelancers who'd rather be working.</div>
+      <div class="legal"><a href="#">English</a><span>v3.4.1</span></div>
+    </div>
+  </div>
+</footer>
+
+<script src="scripts.js"></script>
+<script>
+// FAQ category filter (visual only since all items are visible)
+document.querySelectorAll('.faq-cat').forEach(cat => {
+  cat.addEventListener('click', () => {
+    document.querySelectorAll('.faq-cat').forEach(c => c.classList.remove('active'));
+    cat.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

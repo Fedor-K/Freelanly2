@@ -9,6 +9,20 @@ function getAIClient() {
   return { client: new OpenAI({ baseURL: 'https://api.deepseek.com/v1', apiKey: process.env.DEEPSEEK_API_KEY || '' }), model: 'deepseek-chat' };
 }
 
+async function extractSignal(text: string, jobTitle: string, companyName: string): Promise<string> {
+  try {
+    const { client, model } = getAIClient();
+    const r = await client.chat.completions.create({
+      model, temperature: 0.1, max_tokens: 100,
+      messages: [
+        { role: 'system', content: 'Extract the key signal from this recruiter reply in ONE sentence. Include: their intent (interested/scheduling/requesting info/rejecting), any specific action items (proposed time, requested documents), and any caveats. Be factual and concise. Example: "Interested and proposed a call Tuesday 3pm CET. Caveat: role is full-time, not contract."' },
+        { role: 'user', content: `Job: ${jobTitle} at ${companyName}\nReply: ${text.slice(0, 500)}` },
+      ],
+    });
+    return r.choices[0]?.message?.content?.trim() || '';
+  } catch { return ''; }
+}
+
 async function categorizeReply(text: string): Promise<string> {
   try {
     const { client, model } = getAIClient();
@@ -69,9 +83,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Categorize reply with AI and update status
+    // Categorize reply + extract AI signal
     const replyText = plainBody || htmlBody?.replace(/<[^>]*>/g, '') || '';
     const newStatus = replyText.length > 10 ? await categorizeReply(replyText) : 'REPLIED';
+    const signal = replyText.length > 10 ? await extractSignal(replyText, app.jobTitle, app.companyName) : '';
 
     if (app.status !== 'INTERVIEW' && app.status !== 'OFFER') {
       await prisma.autoApplication.update({
@@ -80,6 +95,7 @@ export async function POST(request: NextRequest) {
           status: newStatus as any,
           replyText: replyText ? replyText.slice(0, 2000) : null,
           replyCategory: newStatus,
+          replySignal: signal || null,
           repliedAt: new Date(),
         },
       });

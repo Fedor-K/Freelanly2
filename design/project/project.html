@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Senior React Developer · Linear — Freelanly</title>
+<link rel="stylesheet" href="app/app.css">
+<style>
+/* ===== Public chrome — strip app shell, add marketing-style header + sticky CTA ===== */
+body { background: var(--bg); padding-bottom: 132px; }
+@media (max-width: 720px) { body { padding-bottom: 184px; } }
+
+.pub-header {
+  position: sticky; top: 0; z-index: 30;
+  background: rgba(247,246,241,0.88);
+  backdrop-filter: saturate(140%) blur(12px);
+  -webkit-backdrop-filter: saturate(140%) blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.pub-header-inner {
+  max-width: 1180px; margin: 0 auto;
+  padding: 14px 24px;
+  display: flex; align-items: center; gap: 16px;
+}
+.pub-logo { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.015em; font-size: 16px; color: var(--ink); }
+.pub-logo-mark { width: 28px; height: 28px; border-radius: 8px; background: var(--ink); color: var(--acid); display: grid; place-items: center; font-family: 'Geist Mono', monospace; font-weight: 700; font-size: 14px; }
+.pub-nav { display: flex; gap: 22px; margin-left: 28px; }
+@media (max-width: 720px) { .pub-nav { display: none; } }
+.pub-nav a { font-size: 13.5px; color: var(--ink-3); }
+.pub-nav a:hover { color: var(--ink); }
+.pub-cta { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.pub-cta .signin { font-size: 13.5px; color: var(--ink-3); }
+.pub-cta .signin:hover { color: var(--ink); }
+
+.pub-shell {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+}
+
+.pub-back {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: 'Geist Mono', monospace; font-size: 12px;
+  color: var(--ink-3); margin-bottom: 22px;
+}
+.pub-back:hover { color: var(--ink); }
+.pub-back .count { color: var(--ink); }
+
+/* Title block */
+.proj-hero { display: grid; grid-template-columns: 80px 1fr; gap: 22px; align-items: flex-start; margin-bottom: 28px; }
+@media (max-width: 720px) { .proj-hero { grid-template-columns: 56px 1fr; gap: 14px; } }
+.proj-logo { width: 80px; height: 80px; border-radius: 18px; background: #5E6AD2; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 36px; font-family: 'Geist Mono', monospace; }
+@media (max-width: 720px) { .proj-logo { width: 56px; height: 56px; font-size: 24px; border-radius: 14px; } }
+.proj-title { font-size: clamp(28px, 4vw, 40px); line-height: 1.1; letter-spacing: -0.025em; margin: 0; font-weight: 500; }
+.proj-sub { color: var(--ink-3); font-size: 15px; margin: 8px 0 14px; }
+.proj-sub a { text-decoration: underline; text-decoration-color: var(--line-3); text-underline-offset: 3px; }
+.proj-sub a:hover { color: var(--ink); }
+
+.proj-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.proj-tags .tag { padding: 5px 10px; border-radius: 999px; font-size: 12px; font-family: 'Geist Mono', monospace; background: var(--bg-1); border: 1px solid var(--line-2); }
+.proj-tags .tag-acid { background: var(--acid); border-color: var(--acid); color: #000; font-weight: 500; }
+
+/* Meta strip */
+.meta-strip {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg-1);
+  overflow: hidden;
+  margin-bottom: 28px;
+}
+@media (max-width: 720px) { .meta-strip { grid-template-columns: repeat(2, 1fr); } }
+.meta-cell { padding: 16px 20px; border-right: 1px solid var(--line); }
+.meta-cell:last-child { border-right: none; }
+@media (max-width: 720px) {
+  .meta-cell { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .meta-cell:nth-child(2n) { border-right: none; }
+  .meta-cell:nth-last-child(-n+2) { border-bottom: none; }
+}
+.meta-cell .lbl { font-family: 'Geist Mono', monospace; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 6px; }
+.meta-cell .val { font-size: 15px; font-weight: 500; letter-spacing: -0.01em; color: var(--ink); }
+.meta-cell .sub { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+
+/* Two col layout */
+.proj-grid { display: grid; grid-template-columns: 1fr 340px; gap: 28px; align-items: start; }
+@media (max-width: 980px) { .proj-grid { grid-template-columns: 1fr; } }
+
+/* Content card */
+.body-section { margin-bottom: 36px; }
+.body-section h2 {
+  font-size: 14px; font-family: 'Geist Mono', monospace;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-4); font-weight: 500;
+  margin: 0 0 14px;
+}
+.posting {
+  font-size: 15.5px; line-height: 1.7; color: var(--ink-2);
+  letter-spacing: -0.003em;
+}
+.posting p { margin: 0 0 16px; }
+.posting p:last-child { margin: 0; }
+.posting b { color: var(--ink); font-weight: 500; }
+.posting ul { margin: 0 0 16px; padding-left: 22px; }
+.posting ul li { margin-bottom: 8px; }
+
+/* Discovery callout */
+.disco-callout {
+  margin-top: 20px;
+  background: var(--ink); color: var(--ink-on-dark);
+  border-radius: 14px;
+  padding: 22px 24px;
+  display: grid; grid-template-columns: auto 1fr auto; gap: 18px;
+  align-items: center;
+}
+@media (max-width: 720px) { .disco-callout { grid-template-columns: 1fr; gap: 12px; } }
+.disco-callout .ico {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: var(--acid); color: #000;
+  display: grid; place-items: center;
+  font-family: 'Geist Mono', monospace; font-weight: 600;
+}
+.disco-callout .txt { font-size: 14px; line-height: 1.55; color: var(--ink-on-dark-2); }
+.disco-callout .txt b { color: var(--ink-on-dark); font-weight: 500; }
+.disco-callout .btn-acid {
+  background: var(--acid); color: #000;
+  padding: 10px 16px; border-radius: 10px;
+  font-size: 13.5px; font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Right column: poster + signals */
+.side-card {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.side-card h3 {
+  font-size: 11px; font-family: 'Geist Mono', monospace;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-4); font-weight: 500;
+  margin: 0 0 14px;
+}
+
+.poster {
+  display: grid; grid-template-columns: 48px 1fr;
+  gap: 12px; align-items: center;
+}
+.poster .pic {
+  width: 48px; height: 48px; border-radius: 999px;
+  background: linear-gradient(135deg, #FF6B6B 0%, #FFB44A 100%);
+  display: grid; place-items: center; color: #fff;
+  font-weight: 600; font-family: 'Geist Mono', monospace;
+}
+.poster .name { font-size: 14.5px; font-weight: 500; letter-spacing: -0.01em; }
+.poster .role { font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+.poster .badges { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.poster .badge {
+  font-size: 11px; padding: 3px 8px; border-radius: 999px;
+  background: var(--bg-2); color: var(--ink-3);
+  font-family: 'Geist Mono', monospace;
+}
+
+.signal-list { display: flex; flex-direction: column; gap: 12px; }
+.signal {
+  display: grid; grid-template-columns: 18px 1fr;
+  gap: 10px; align-items: flex-start;
+  font-size: 13px; line-height: 1.5; color: var(--ink-2);
+}
+.signal .dot {
+  width: 8px; height: 8px; border-radius: 999px;
+  background: var(--acid-deep); margin-top: 6px;
+}
+.signal .dot.muted { background: var(--ink-5); }
+.signal b { color: var(--ink); font-weight: 500; }
+
+/* Locked similar projects */
+.locked-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; position: relative; }
+@media (max-width: 720px) { .locked-grid { grid-template-columns: 1fr; } }
+.locked-card {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  position: relative;
+}
+.locked-card .top { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.locked-card .l-logo { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; color: #fff; font-weight: 600; font-size: 13px; font-family: 'Geist Mono', monospace; }
+.locked-card .l-title { font-size: 13.5px; font-weight: 500; letter-spacing: -0.01em; }
+.locked-card .l-sub { font-size: 12px; color: var(--ink-3); margin-top: 1px; }
+.locked-card .l-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+.locked-card .l-tags span { font-size: 10.5px; padding: 2px 7px; border-radius: 999px; background: var(--bg-2); color: var(--ink-3); font-family: 'Geist Mono', monospace; }
+.locked-card .l-rate { font-size: 13px; color: var(--ink-2); }
+.locked-card .l-rate b { color: var(--ink); }
+
+/* Blur reveal layer */
+.locked-card.blur > * { filter: blur(5px); user-select: none; pointer-events: none; }
+.locked-overlay {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  background: linear-gradient(180deg, rgba(247,246,241,0.4) 0%, rgba(247,246,241,0.85) 80%);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+}
+.lock-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--ink); color: var(--acid);
+  padding: 8px 14px; border-radius: 999px;
+  font-size: 12px; font-family: 'Geist Mono', monospace;
+  font-weight: 500;
+}
+
+/* Sticky bottom CTA banner */
+.cta-bar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: var(--ink); color: var(--ink-on-dark);
+  border-top: 1px solid #000;
+  z-index: 40;
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.18);
+}
+.cta-bar-inner {
+  max-width: 1180px; margin: 0 auto;
+  padding: 18px 24px;
+  display: grid; grid-template-columns: auto 1fr auto auto; gap: 22px;
+  align-items: center;
+}
+@media (max-width: 820px) {
+  .cta-bar-inner { grid-template-columns: 1fr; gap: 12px; padding: 16px 18px; text-align: left; }
+}
+.cta-counter {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-on-dark-2);
+  display: flex; align-items: center; gap: 10px;
+  white-space: nowrap;
+}
+.cta-counter .num { color: var(--acid); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; text-transform: none; }
+.cta-headline { font-size: 16px; line-height: 1.35; letter-spacing: -0.01em; }
+.cta-headline b { color: var(--acid); font-weight: 500; }
+.cta-meta { font-size: 11.5px; color: var(--ink-on-dark-2); font-family: 'Geist Mono', monospace; }
+.cta-btn {
+  background: var(--acid); color: #000;
+  padding: 12px 22px; border-radius: 12px;
+  font-size: 15px; font-weight: 500; letter-spacing: -0.01em;
+  display: inline-flex; align-items: center; gap: 8px;
+  white-space: nowrap;
+  transition: transform 140ms var(--ease);
+}
+.cta-btn:hover { transform: translateY(-1px); }
+.cta-btn .arrow { transition: transform 140ms; }
+.cta-btn:hover .arrow { transform: translateX(3px); }
+
+.cta-secondary {
+  font-size: 13px; color: var(--ink-on-dark-2);
+  padding: 10px 14px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.cta-secondary:hover { color: var(--ink-on-dark); border-color: rgba(255,255,255,0.22); }
+
+/* Match scorecard in right column */
+.match-score-card { text-align: center; }
+.match-big {
+  width: 88px; height: 88px; border-radius: 999px;
+  background: var(--acid);
+  display: grid; place-items: center;
+  margin: 0 auto 14px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 32px; font-weight: 600; color: #000;
+  letter-spacing: -0.02em;
+  position: relative;
+}
+.match-big::after {
+  content: ''; position: absolute; inset: -6px;
+  border-radius: 999px; border: 1.5px dashed var(--acid-deep);
+  opacity: 0.4;
+}
+.match-label {
+  font-size: 14px; font-weight: 500; letter-spacing: -0.01em;
+}
+.match-sub { font-size: 12px; color: var(--ink-3); margin-top: 4px; }
+
+.match-rows { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.match-rows .row { display: grid; grid-template-columns: 90px 1fr 36px; gap: 10px; align-items: center; font-size: 12px; }
+.match-rows .lbl { color: var(--ink-3); font-family: 'Geist Mono', monospace; font-size: 11px; }
+.match-rows .bar { height: 5px; background: var(--bg-2); border-radius: 999px; overflow: hidden; }
+.match-rows .fill { height: 100%; background: var(--acid-deep); border-radius: 999px; }
+.match-rows .pct { font-family: 'Geist Mono', monospace; font-size: 10.5px; color: var(--ink-3); text-align: right; }
+
+/* Reveal headline */
+.reveal-head {
+  font-size: 12px; font-family: 'Geist Mono', monospace;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-4); margin: 36px 0 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.reveal-head::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+/* small inline svg button */
+.btn-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 999px;
+  background: var(--ink); color: var(--ink-on-dark);
+  font-size: 13px; font-weight: 500;
+}
+.btn-pill.acid { background: var(--acid); color: #000; }
+.btn-pill.outline { background: transparent; color: var(--ink); border: 1px solid var(--line-2); }
+
+/* Posting "applies" preview */
+.apply-preview {
+  margin-top: 22px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.apply-preview .ap-head {
+  padding: 12px 18px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; font-family: 'Geist Mono', monospace; color: var(--ink-3);
+}
+.apply-preview .ap-head b { color: var(--ink); font-weight: 500; }
+.apply-preview .ap-body { padding: 22px 24px; font-size: 14.5px; line-height: 1.65; color: var(--ink-2); position: relative; }
+.apply-preview .ap-body p { margin: 0 0 12px; }
+.apply-preview .ap-body p:last-of-type { margin: 0; }
+.apply-preview .ap-body .var { background: var(--acid-tint); padding: 1px 5px; border-radius: 4px; color: var(--ink); font-weight: 500; }
+.apply-preview .ap-mask {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 70px;
+  background: linear-gradient(180deg, rgba(255,255,255,0) 0%, var(--bg-1) 75%);
+  pointer-events: none;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: 14px;
+}
+.apply-preview .ap-mask span {
+  font-size: 11.5px; color: var(--ink-3);
+  font-family: 'Geist Mono', monospace;
+  background: var(--bg-1);
+  padding: 6px 12px; border-radius: 999px;
+  border: 1px solid var(--line);
+}
+</style>
+</head>
+<body>
+
+<!-- Public header -->
+<header class="pub-header">
+  <div class="pub-header-inner">
+    <a href="index.html" class="pub-logo">
+      <span class="pub-logo-mark">F</span>
+      <span>Freelanly</span>
+    </a>
+    <nav class="pub-nav">
+      <a href="how-it-works.html">How it works</a>
+      <a href="features.html">Features</a>
+      <a href="pricing.html">Pricing</a>
+    </nav>
+    <div class="pub-cta">
+      <a href="#" class="signin">Sign in</a>
+      <a href="onboarding.html" class="btn-pill acid">Sign up free</a>
+    </div>
+  </div>
+</header>
+
+<div class="pub-shell">
+
+  <a href="#" class="pub-back">
+    ← Browse all <span class="count">847</span> open projects
+  </a>
+
+  <!-- Hero -->
+  <div class="proj-hero">
+    <div class="proj-logo">L</div>
+    <div>
+      <h1 class="proj-title">Senior React Developer — offline-first sync</h1>
+      <p class="proj-sub">
+        <a href="#">Linear</a> · posted 12 minutes ago · spotted on
+        <a href="#">LinkedIn</a> via Sarah Chen
+      </p>
+      <div class="proj-tags">
+        <span class="tag tag-acid">React</span>
+        <span class="tag tag-acid">TypeScript</span>
+        <span class="tag tag-acid">Offline sync</span>
+        <span class="tag">Remote · EU TZ</span>
+        <span class="tag">Long-term</span>
+        <span class="tag">~$90K/yr equiv</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Meta strip -->
+  <div class="meta-strip">
+    <div class="meta-cell">
+      <div class="lbl">Compensation</div>
+      <div class="val">~$90K/yr</div>
+      <div class="sub">equiv · negotiable</div>
+    </div>
+    <div class="meta-cell">
+      <div class="lbl">Engagement</div>
+      <div class="val">Permanent</div>
+      <div class="sub">full-time, remote</div>
+    </div>
+    <div class="meta-cell">
+      <div class="lbl">Timezone</div>
+      <div class="val">EU TZ</div>
+      <div class="sub">70% of team in Europe</div>
+    </div>
+    <div class="meta-cell">
+      <div class="lbl">Start</div>
+      <div class="val">ASAP</div>
+      <div class="sub">interviews this week</div>
+    </div>
+  </div>
+
+  <div class="proj-grid">
+
+    <!-- LEFT: posting + apply preview -->
+    <div>
+
+      <section class="body-section">
+        <h2>The project</h2>
+        <div class="posting">
+          <p>Linear is building a <b>mobile sync engine</b> — offline-first, CRDT-based, the same architecture our web app pioneered. We're looking for one engineer to own the front-end side of it end to end.</p>
+          <p>You'll be working directly with the founding eng team. This is a <b>permanent role, not a contract</b>, but we welcome people coming from senior contractor backgrounds — many of our team did.</p>
+          <p><b>What you'll do:</b></p>
+          <ul>
+            <li>Architect the React Native mobile client around our CRDT sync layer</li>
+            <li>Build conflict-resolution UX patterns that don't feel jarring</li>
+            <li>Ship offline-first features that genuinely work on subway commutes</li>
+            <li>Collaborate with the web team on shared sync primitives</li>
+          </ul>
+          <p><b>You'll thrive here if:</b></p>
+          <ul>
+            <li>You've shipped offline sync in production (any framework)</li>
+            <li>You think about state machines before reaching for libraries</li>
+            <li>You're EU-based or comfortable in EU TZ</li>
+            <li>You enjoy writing — we communicate async, in long-form</li>
+          </ul>
+          <p>Comp is around $90K/yr equivalent depending on experience and engagement model. Equity available. If interested, send a short note + portfolio. — Sarah</p>
+        </div>
+      </section>
+
+      <!-- Apply preview -->
+      <section class="body-section">
+        <h2>What Freelanly would send for you</h2>
+        <div class="apply-preview">
+          <div class="ap-head">
+            <span>From <b>you</b> &lt;you@inbox.com&gt; → sarah@linear.app</span>
+            <span>AI-personalized · 19s to write</span>
+          </div>
+          <div class="ap-body">
+            <p>Hi <span class="var">Sarah</span>,</p>
+            <p>Saw your post — I've shipped <span class="var">[your strongest offline-sync story]</span> using a CRDT-flavored merge layer, and it's the work I'm proudest of.</p>
+            <p>I'm <span class="var">[your location]</span>, available <span class="var">[your availability]</span>. Last 3 references all from senior eng leaders — happy to share.</p>
+            <p>Quick call this week? Portfolio: <span class="var">[your link]</span>. Otherwise no worries, good luck with the search.</p>
+            <p>— <span class="var">[your name]</span></p>
+          </div>
+          <div class="ap-mask"><span>Sign up to personalize with your résumé</span></div>
+        </div>
+
+        <!-- Dark callout -->
+        <div class="disco-callout">
+          <div class="ico">F</div>
+          <div class="txt">
+            <b>Freelanly spotted this 12 minutes after it was posted.</b><br>
+            On average, you're competing with 3 other applications when we surface a gig — versus 280+ a day later.
+          </div>
+          <a href="onboarding.html" class="btn-acid">Apply with one click →</a>
+        </div>
+      </section>
+
+      <!-- Locked similar -->
+      <div class="reveal-head">Similar open projects right now</div>
+      <div class="locked-grid">
+        <div class="locked-card">
+          <div class="top">
+            <div class="l-logo" style="background: #000;">N</div>
+            <div>
+              <div class="l-title">Senior FE engineer</div>
+              <div class="l-sub">Notion · 3h ago</div>
+            </div>
+          </div>
+          <div class="l-tags">
+            <span>React</span><span>TypeScript</span><span>EU</span>
+          </div>
+          <div class="l-rate"><b>$95K/yr</b> · remote · permanent</div>
+        </div>
+
+        <div class="locked-card blur">
+          <div class="top">
+            <div class="l-logo" style="background: #FF6B6B;">▲</div>
+            <div>
+              <div class="l-title">Mobile React Native lead</div>
+              <div class="l-sub">Acme · 1h ago</div>
+            </div>
+          </div>
+          <div class="l-tags">
+            <span>RN</span><span>Offline</span><span>Senior</span>
+          </div>
+          <div class="l-rate"><b>$120K/yr</b> · remote</div>
+          <div class="locked-overlay">
+            <span class="lock-pill">🔒 Sign up to view</span>
+          </div>
+        </div>
+
+        <div class="locked-card blur">
+          <div class="top">
+            <div class="l-logo" style="background: #7C3AED;">C</div>
+            <div>
+              <div class="l-title">React contractor (6mo)</div>
+              <div class="l-sub">Cron · 25m ago</div>
+            </div>
+          </div>
+          <div class="l-tags">
+            <span>React</span><span>$110/hr</span><span>Contract</span>
+          </div>
+          <div class="l-rate"><b>$110/hr</b> · 6 month engagement</div>
+          <div class="locked-overlay">
+            <span class="lock-pill">🔒 Sign up to view</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: match + poster + signals -->
+    <aside>
+
+      <div class="side-card match-score-card" style="position: relative; overflow: hidden;">
+        <h3>Your personal match</h3>
+        <div style="filter: blur(7px); user-select: none; pointer-events: none;">
+          <div class="match-big">??</div>
+          <div class="match-label">— — — — —</div>
+          <div class="match-sub">— — — — — — — — — —</div>
+          <div class="match-rows">
+            <div class="row"><span class="lbl">Tech</span><div class="bar"><div class="fill" style="width: 78%;"></div></div><span class="pct">··</span></div>
+            <div class="row"><span class="lbl">Comp</span><div class="bar"><div class="fill" style="width: 64%;"></div></div><span class="pct">··</span></div>
+            <div class="row"><span class="lbl">Timezone</span><div class="bar"><div class="fill" style="width: 92%;"></div></div><span class="pct">··</span></div>
+            <div class="row"><span class="lbl">Engagement</span><div class="bar"><div class="fill" style="width: 70%;"></div></div><span class="pct">··</span></div>
+          </div>
+        </div>
+        <div style="position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.92) 60%);">
+          <div style="text-align: center;">
+            <div style="font-size: 13.5px; line-height: 1.55; color: var(--ink-2); margin-bottom: 14px; max-width: 24ch;">
+              Upload your résumé to see your personal match for this project.
+            </div>
+            <a href="onboarding.html" class="btn-pill acid">Get my match score →</a>
+            <div style="font-size: 11px; color: var(--ink-4); font-family: 'Geist Mono', monospace; margin-top: 10px;">takes 30 seconds · free</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <h3>Why this is on the board</h3>
+        <div class="signal-list">
+          <div class="signal">
+            <div class="dot"></div>
+            <div><b>Trending today.</b> 14th most-viewed React project on Freelanly in the last 24h.</div>
+          </div>
+          <div class="signal">
+            <div class="dot"></div>
+            <div><b>Rare combo.</b> Offline-sync + permanent remote roles average 2.3 listings/week.</div>
+          </div>
+          <div class="signal">
+            <div class="dot"></div>
+            <div><b>Low competition window.</b> Under 20 applications so far — typically reaches 280+ within 24h.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <h3>Posted by</h3>
+        <div class="poster">
+          <div class="pic">SC</div>
+          <div>
+            <div class="name">Sarah Chen</div>
+            <div class="role">Engineering Manager · Linear</div>
+          </div>
+        </div>
+        <div class="poster-badges" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px;">
+          <span class="badge" style="font-size: 11px; padding: 4px 9px; border-radius: 999px; background: var(--bg-2); color: var(--ink-3); font-family: 'Geist Mono', monospace;">3 yrs at Linear</span>
+          <span class="badge" style="font-size: 11px; padding: 4px 9px; border-radius: 999px; background: var(--bg-2); color: var(--ink-3); font-family: 'Geist Mono', monospace;">Hires monthly</span>
+          <span class="badge" style="font-size: 11px; padding: 4px 9px; border-radius: 999px; background: var(--acid-tint); color: var(--ink); font-family: 'Geist Mono', monospace;">Responds in &lt;48h</span>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <h3>Signal strength</h3>
+        <div class="signal-list">
+          <div class="signal">
+            <div class="dot"></div>
+            <div><b>Just posted.</b> 12 minutes ago — applications under 20 so far. Apply now and you're in the top of her inbox.</div>
+          </div>
+          <div class="signal">
+            <div class="dot"></div>
+            <div><b>Hire-confirmed history.</b> Sarah has filled 4 of her last 5 LinkedIn posts within 3 weeks.</div>
+          </div>
+          <div class="signal">
+            <div class="dot"></div>
+            <div><b>Open to async.</b> Most prior hires applied via DM or short email, no formal application.</div>
+          </div>
+          <div class="signal">
+            <div class="dot muted"></div>
+            <div>Not a recruiter — direct hiring manager.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-card" style="background: var(--ink); color: var(--ink-on-dark); border: none;">
+        <h3 style="color: var(--ink-on-dark-2);">Avg response time</h3>
+        <div style="font-size: 36px; font-family: 'Geist Mono', monospace; font-weight: 600; letter-spacing: -0.02em; line-height: 1; margin-bottom: 6px;">
+          1.4<span style="font-size: 18px; color: var(--ink-on-dark-2);"> days</span>
+        </div>
+        <div style="font-size: 12.5px; color: var(--ink-on-dark-2); line-height: 1.5;">
+          Based on 31 prior Freelanly applications routed through Sarah's posts.
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+</div>
+
+<!-- Sticky CTA banner -->
+<div class="cta-bar">
+  <div class="cta-bar-inner">
+    <div class="cta-counter">
+      <span>This is</span>
+      <span class="num">1<span style="color: var(--ink-on-dark-2); font-size: 13px;"> of </span><span style="color: var(--ink-on-dark);">847</span></span>
+      <span>open projects</span>
+    </div>
+    <div class="cta-headline">
+      Sign up — <b>AI applies to all of them for you.</b><br>
+      <span class="cta-meta">Free plan · 5 applications/mo · no credit card</span>
+    </div>
+    <a href="#" class="cta-secondary">See pricing</a>
+    <a href="onboarding.html" class="cta-btn">
+      Start free
+      <span class="arrow">→</span>
+    </a>
+  </div>
+</div>
+
+</body>
+</html>

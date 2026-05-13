@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discovery — Freelanly</title>
+<link rel="stylesheet" href="app.css">
+<style>
+.disco-grid { display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .disco-grid { grid-template-columns: 1fr; } }
+.filter-section { padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.filter-section:last-child { border-bottom: none; }
+.filter-section h4 { font-size: 11px; font-family: 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); margin: 0 0 10px; font-weight: 500; }
+.filter-list { display: flex; flex-direction: column; gap: 6px; }
+.filter-item { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; font-size: 13px; cursor: pointer; }
+.filter-item .cb { width: 14px; height: 14px; border: 1.5px solid var(--line-3); border-radius: 4px; display: grid; place-items: center; flex-shrink: 0; }
+.filter-item.on .cb { background: var(--ink); border-color: var(--ink); }
+.filter-item.on .cb::after { content: ''; width: 7px; height: 4px; border: 1.5px solid #fff; border-top: 0; border-right: 0; transform: rotate(-45deg); margin-top: -2px; }
+.filter-item .left { display: flex; align-items: center; gap: 8px; flex: 1; }
+.filter-item .count { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-4); }
+.range-row { display: flex; gap: 6px; }
+.range-row input { width: 100%; padding: 6px 8px; background: var(--bg-1); border: 1px solid var(--line-2); border-radius: 6px; font-size: 12px; font-family: 'Geist Mono', monospace; outline: none; }
+
+.job-card { padding: 16px 20px; border-bottom: 1px solid var(--line); transition: background 140ms; cursor: pointer; display: grid; grid-template-columns: 40px 1fr auto; gap: 16px; }
+.job-card:hover { background: var(--bg-2); }
+.job-card:last-child { border-bottom: none; }
+.job-card .logo { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-weight: 700; font-size: 16px; color: #000; font-family: 'Geist Mono', monospace; }
+.job-title { font-size: 15px; font-weight: 500; letter-spacing: -0.01em; }
+.job-company { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+.job-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.job-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.match-circle { width: 56px; height: 56px; position: relative; }
+.match-circle svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.match-circle .val { position: absolute; inset: 0; display: grid; place-items: center; font-family: 'Geist Mono', monospace; font-size: 13px; font-weight: 600; color: var(--ink); }
+.job-actions { display: flex; gap: 6px; }
+.job-snippet { font-size: 13px; color: var(--ink-2); margin-top: 8px; line-height: 1.45; max-width: 70ch; }
+.job-snippet b { background: var(--acid-tint); padding: 0 3px; border-radius: 3px; color: var(--ink); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <div id="shellSidebar"></div>
+  <main class="main">
+    <div id="shellTopbar"></div>
+    <div class="page">
+
+      <div class="page-header">
+        <div class="page-title">
+          <h1>Discovery <span style="font-size: 16px; color: var(--ink-4); font-weight: 400; font-family: 'Geist Mono', monospace;">· 142 new today</span></h1>
+          <p>Live feed across LinkedIn posts, career pages, and freelance boards. Updated every 3 hours.</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-ghost" data-icon="refresh">Refresh feed</button>
+          <button class="btn btn-acid" data-icon="send">Auto-apply to all</button>
+        </div>
+      </div>
+
+      <div class="disco-grid">
+
+        <!-- Filters -->
+        <aside class="card" style="position: sticky; top: 72px;">
+          <div class="filter-section">
+            <h4>Saved feeds</h4>
+            <div class="filter-list">
+              <div class="filter-item on"><div class="left"><span style="color: var(--acid-deep);">●</span> EU React contracts</div><span class="count">142</span></div>
+              <div class="filter-item"><div class="left"><span style="color: var(--info);">●</span> Brand design retainers</div><span class="count">38</span></div>
+              <div class="filter-item"><div class="left"><span style="color: var(--warn);">●</span> Long-term retainers</div><span class="count">11</span></div>
+              <div class="filter-item"><div class="left"><span class="dim">+</span> New feed</div></div>
+            </div>
+          </div>
+          <div class="filter-section">
+            <h4>Tech / Skills</h4>
+            <div class="filter-list">
+              <div class="filter-item on"><div class="left"><span class="cb"></span>React</div><span class="count">87</span></div>
+              <div class="filter-item on"><div class="left"><span class="cb"></span>TypeScript</div><span class="count">62</span></div>
+              <div class="filter-item"><div class="left"><span class="cb"></span>Next.js</div><span class="count">41</span></div>
+              <div class="filter-item"><div class="left"><span class="cb"></span>Node.js</div><span class="count">38</span></div>
+              <div class="filter-item"><div class="left"><span class="cb"></span>React Native</div><span class="count">22</span></div>
+            </div>
+          </div>
+          <div class="filter-section">
+            <h4>Location / TZ</h4>
+            <div class="filter-list">
+              <div class="filter-item on"><div class="left"><span class="cb"></span>Remote</div><span class="count">128</span></div>
+              <div class="filter-item on"><div class="left"><span class="cb"></span>EU TZ</div><span class="count">94</span></div>
+              <div class="filter-item"><div class="left"><span class="cb"></span>US TZ</div><span class="count">52</span></div>
+              <div class="filter-item"><div class="left"><span class="cb"></span>On-site</div><span class="count">14</span></div>
+            </div>
+          </div>
+          <div class="filter-section">
+            <h4>Source</h4>
+            <div class="filter-list">
+              <div class="filter-item on"><div class="left"><span class="cb"></span>LinkedIn posts</div><span class="count">96</span></div>
+              <div class="filter-item on"><div class="left"><span class="cb"></span>Career pages</div><span class="count">46</span></div>
+            </div>
+          </div>
+          <div class="filter-section">
+            <h4>Exclude</h4>
+            <div class="row" style="flex-wrap: wrap; gap: 4px;">
+              <span class="tag" style="border-color: rgba(185,28,28,0.2); color: var(--bad);">− Web3</span>
+              <span class="tag" style="border-color: rgba(185,28,28,0.2); color: var(--bad);">− "rockstar"</span>
+              <span class="tag" style="border-color: rgba(185,28,28,0.2); color: var(--bad);">− unpaid</span>
+              <span class="tag" style="border-color: rgba(185,28,28,0.2); color: var(--bad);">− on-site</span>
+              <button class="tag" style="background: transparent; color: var(--ink-4);">+ add</button>
+            </div>
+          </div>
+          <div class="filter-section">
+            <button class="btn btn-soft" style="width: 100%;">Reset all filters</button>
+          </div>
+        </aside>
+
+        <!-- Results -->
+        <div class="card">
+          <div class="card-head">
+            <div class="row gap-3">
+              <h3>142 results</h3>
+              <span class="chip chip-acid-soft"><span class="chip-dot live"></span>Live feed</span>
+            </div>
+            <div class="row gap-2">
+              <span class="muted f-mono" style="font-size: 11px;">Sort:</span>
+              <div class="seg" data-seg>
+                <button class="active">Best match</button>
+                <button>Newest</button>
+              </div>
+            </div>
+          </div>
+
+          <a href="job.html" class="job-card">
+            <div class="logo" style="background:#FF6B6B">L</div>
+            <div>
+              <div class="row gap-2"><div class="job-title">Senior React Developer</div><span class="chip chip-acid"><span class="chip-dot live"></span>2m ago</span></div>
+              <div class="job-company">Linear · linkedin.com/posts/sarah-chen</div>
+              <div class="job-snippet">"Hiring a senior React dev for our <b>mobile sync engine</b>. Offline-first, CRDT background, fully remote. <b>$90K/yr equiv</b>, EU TZ preferred."</div>
+              <div class="job-meta">
+                <span class="tag tag-acid">React</span>
+                <span class="tag tag-acid">TypeScript</span>
+                <span class="tag">Remote</span>
+                <span class="tag">EU TZ</span>
+                <span class="tag">Long-term</span>
+              </div>
+            </div>
+            <div class="job-right">
+              <div class="match-circle">
+                <svg viewBox="0 0 56 56">
+                  <circle cx="28" cy="28" r="24" fill="none" stroke="var(--bg-2)" stroke-width="4"/>
+                  <circle cx="28" cy="28" r="24" fill="none" stroke="var(--acid-deep)" stroke-width="4" stroke-dasharray="150.79" stroke-dashoffset="6" stroke-linecap="round"/>
+                </svg>
+                <div class="val">96</div>
+              </div>
+              <div class="job-actions">
+                <button class="btn btn-ghost btn-sm">Skip</button>
+                <button class="btn btn-primary btn-sm" data-icon="send">Apply</button>
+              </div>
+            </div>
+          </a>
+
+          <a href="job.html" class="job-card">
+            <div class="logo" style="background:#A8E024">V</div>
+            <div>
+              <div class="row gap-2"><div class="job-title">Full-Stack Engineer · contract</div><span class="chip"><span class="chip-dot live"></span>12m ago</span></div>
+              <div class="job-company">Vercel · vercel.com/careers</div>
+              <div class="job-snippet">"Contract role on the <b>Edge Runtime team</b>. Need someone comfortable shipping serverless infra. <b>$110/hr</b>, 6-month minimum, fully remote."</div>
+              <div class="job-meta">
+                <span class="tag tag-acid">React</span>
+                <span class="tag tag-acid">TypeScript</span>
+                <span class="tag">Next.js</span>
+                <span class="tag">Contract · 6mo</span>
+                <span class="tag" style="border-color: rgba(199,249,74,0.4); color: var(--acid-deep);">3h ahead of LinkedIn</span>
+              </div>
+            </div>
+            <div class="job-right">
+              <div class="match-circle">
+                <svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="24" fill="none" stroke="var(--bg-2)" stroke-width="4"/><circle cx="28" cy="28" r="24" fill="none" stroke="var(--acid-deep)" stroke-width="4" stroke-dasharray="150.79" stroke-dashoffset="14" stroke-linecap="round"/></svg>
+                <div class="val">91</div>
+              </div>
+              <div class="job-actions">
+                <button class="btn btn-ghost btn-sm">Skip</button>
+                <button class="btn btn-primary btn-sm" data-icon="send">Apply</button>
+              </div>
+            </div>
+          </a>
+
+          <a href="job.html" class="job-card">
+            <div class="logo" style="background:#FFB951">P</div>
+            <div>
+              <div class="row gap-2"><div class="job-title">React Native engineer — onboarding refresh</div><span class="chip">34m ago</span></div>
+              <div class="job-company">Plain · plain.com/jobs</div>
+              <div class="job-snippet">"4–6 week project to <b>rebuild our mobile onboarding</b>. We have specs &amp; design, need an engineer who can ship fast. <b>$8K total</b>."</div>
+              <div class="job-meta">
+                <span class="tag tag-acid">React Native</span>
+                <span class="tag tag-acid">TypeScript</span>
+                <span class="tag">Project · 4–6 wks</span>
+                <span class="tag">Remote</span>
+              </div>
+            </div>
+            <div class="job-right">
+              <div class="match-circle">
+                <svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="24" fill="none" stroke="var(--bg-2)" stroke-width="4"/><circle cx="28" cy="28" r="24" fill="none" stroke="var(--acid-deep)" stroke-width="4" stroke-dasharray="150.79" stroke-dashoffset="9" stroke-linecap="round"/></svg>
+                <div class="val">94</div>
+              </div>
+              <div class="job-actions">
+                <button class="btn btn-ghost btn-sm">Skip</button>
+                <button class="btn btn-primary btn-sm" data-icon="send">Apply</button>
+              </div>
+            </div>
+          </a>
+
+          <a href="job.html" class="job-card">
+            <div class="logo" style="background:#6EE7FF">S</div>
+            <div>
+              <div class="row gap-2"><div class="job-title">Brand &amp; Web Designer</div><span class="chip">1h ago</span></div>
+              <div class="job-company">Stripe · linkedin.com/posts/marcus-d</div>
+              <div class="job-snippet">"Building out our <b>developer-tools brand</b> ahead of 2026 launches. Need a designer for 3 months of focused work. $130K/yr equiv."</div>
+              <div class="job-meta">
+                <span class="tag">Brand design</span>
+                <span class="tag">Figma</span>
+                <span class="tag">SF / remote</span>
+                <span class="tag">3-month sprint</span>
+              </div>
+            </div>
+            <div class="job-right">
+              <div class="match-circle">
+                <svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="24" fill="none" stroke="var(--bg-2)" stroke-width="4"/><circle cx="28" cy="28" r="24" fill="none" stroke="var(--acid-deep)" stroke-width="4" stroke-dasharray="150.79" stroke-dashoffset="33" stroke-linecap="round"/></svg>
+                <div class="val">78</div>
+              </div>
+              <div class="job-actions">
+                <button class="btn btn-ghost btn-sm">Skip</button>
+                <button class="btn btn-primary btn-sm">Review</button>
+              </div>
+            </div>
+          </a>
+
+          <a href="job.html" class="job-card">
+            <div class="logo" style="background:#A78BFA">R</div>
+            <div>
+              <div class="row gap-2"><div class="job-title">DevOps Engineer (contract)</div><span class="chip">2h ago</span></div>
+              <div class="job-company">Railway · railway.app/jobs</div>
+              <div class="job-snippet">"Infrastructure-as-code, K8s, observability. <b>$95–$120/hr</b>, async, fully remote, EU TZ preferred."</div>
+              <div class="job-meta">
+                <span class="tag">DevOps</span>
+                <span class="tag">Kubernetes</span>
+                <span class="tag">Terraform</span>
+                <span class="tag">EU TZ</span>
+              </div>
+            </div>
+            <div class="job-right">
+              <div class="match-circle">
+                <svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="24" fill="none" stroke="var(--bg-2)" stroke-width="4"/><circle cx="28" cy="28" r="24" fill="none" stroke="var(--acid-deep)" stroke-width="4" stroke-dasharray="150.79" stroke-dashoffset="20" stroke-linecap="round"/></svg>
+                <div class="val">87</div>
+              </div>
+              <div class="job-actions">
+                <button class="btn btn-ghost btn-sm">Skip</button>
+                <button class="btn btn-primary btn-sm" data-icon="send">Apply</button>
+              </div>
+            </div>
+          </a>
+
+          <a href="job.html" class="job-card">
+            <div class="logo" style="background:#34D399">N</div>
+            <div>
+              <div class="row gap-2"><div class="job-title">Frontend Engineer · long-term</div><span class="chip">3h ago</span></div>
+              <div class="job-company">Notion · linkedin.com/posts/jamie-l</div>
+              <div class="job-snippet">"Looking for a frontend engineer to <b>own the editor performance</b> work. Long-term retainer, $120K/yr equiv."</div>
+              <div class="job-meta">
+                <span class="tag tag-acid">React</span>
+                <span class="tag">Performance</span>
+                <span class="tag">Retainer</span>
+                <span class="tag">Remote</span>
+              </div>
+            </div>
+            <div class="job-right">
+              <div class="match-circle">
+                <svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="24" fill="none" stroke="var(--bg-2)" stroke-width="4"/><circle cx="28" cy="28" r="24" fill="none" stroke="var(--acid-deep)" stroke-width="4" stroke-dasharray="150.79" stroke-dashoffset="11" stroke-linecap="round"/></svg>
+                <div class="val">93</div>
+              </div>
+              <div class="job-actions">
+                <button class="btn btn-ghost btn-sm">Skip</button>
+                <button class="btn btn-primary btn-sm" data-icon="send">Apply</button>
+              </div>
+            </div>
+          </a>
+
+          <div style="padding: 14px 20px; text-align: center;">
+            <button class="btn btn-soft">Load 136 more results</button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="app.js"></script>
+<script>
+  Freelanly.initShell({ active: 'discovery', crumbs: ['Workspace', 'Discovery'] });
+  document.querySelectorAll('[data-icon]').forEach(el => {
+    el.insertAdjacentHTML('afterbegin', Freelanly.svg(el.dataset.icon, 14));
+  });
+  document.querySelectorAll('.filter-item').forEach(f => f.addEventListener('click', e => {
+    e.preventDefault(); f.classList.toggle('on');
+  }));
+</script>
+</body>
+</html>

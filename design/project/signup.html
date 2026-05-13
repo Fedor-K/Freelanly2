@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign up — Freelanly</title>
+<link rel="stylesheet" href="app/app.css">
+<style>
+body { background: var(--bg); min-height: 100vh; }
+.auth-wrap { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }
+@media (max-width: 880px) { .auth-wrap { grid-template-columns: 1fr; } }
+
+/* LEFT: form */
+.auth-form-side { padding: 32px 48px; display: flex; flex-direction: column; }
+@media (max-width: 720px) { .auth-form-side { padding: 24px 22px; } }
+
+.auth-logo { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.015em; font-size: 16px; color: var(--ink); margin-bottom: 36px; }
+.auth-logo-mark { width: 30px; height: 30px; border-radius: 8px; background: var(--ink); color: var(--acid); display: grid; place-items: center; font-family: 'Geist Mono', monospace; font-weight: 700; font-size: 14px; }
+
+.auth-form { max-width: 440px; width: 100%; margin: 0 auto; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.auth-eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 14px; }
+.auth-title { font-size: 32px; letter-spacing: -0.025em; line-height: 1.1; font-weight: 500; margin: 0 0 12px; }
+.auth-sub { color: var(--ink-3); font-size: 15px; line-height: 1.5; margin: 0 0 28px; }
+
+.oauth-btn {
+  width: 100%;
+  padding: 13px 16px;
+  border: 1px solid var(--line-3);
+  border-radius: 12px;
+  background: var(--bg-1);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-size: 14px; font-weight: 500;
+  transition: all 140ms;
+  cursor: pointer;
+}
+.oauth-btn:hover { background: var(--bg-2); border-color: var(--ink-3); }
+.oauth-btn svg { width: 18px; height: 18px; }
+
+.divider { display: flex; align-items: center; gap: 12px; margin: 22px 0; font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+.field-group { display: flex; flex-direction: column; gap: 14px; }
+.field-label { display: block; font-size: 12px; font-weight: 500; color: var(--ink-2); margin-bottom: 6px; font-family: 'Geist Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; }
+.text-input {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  font-size: 14.5px;
+  outline: none;
+  transition: border-color 140ms, background 140ms;
+}
+.text-input:focus { border-color: var(--ink); background: var(--bg-1); }
+.text-input::placeholder { color: var(--ink-4); }
+
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 540px) { .field-row { grid-template-columns: 1fr; } }
+
+.upload-zone {
+  border: 1.5px dashed var(--line-3);
+  border-radius: 12px;
+  padding: 18px 16px;
+  background: var(--bg-1);
+  display: flex; align-items: center; gap: 14px;
+  cursor: pointer;
+  transition: all 140ms;
+}
+.upload-zone:hover { border-color: var(--acid-deep); background: var(--acid-tint); }
+.upload-zone .up-ico { width: 36px; height: 36px; border-radius: 10px; background: var(--bg-2); display: grid; place-items: center; flex-shrink: 0; }
+.upload-zone .up-ttl { font-size: 14px; font-weight: 500; }
+.upload-zone .up-sub { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+
+.cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 540px) { .cat-grid { grid-template-columns: 1fr; } }
+.cat-chip {
+  padding: 10px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--bg-1);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  transition: all 140ms;
+}
+.cat-chip:hover { border-color: var(--ink-3); }
+.cat-chip.on { background: var(--acid); border-color: var(--acid); color: #000; font-weight: 500; }
+.cat-chip .cb { width: 14px; height: 14px; border: 1.5px solid var(--line-3); border-radius: 4px; flex-shrink: 0; display: grid; place-items: center; }
+.cat-chip.on .cb { background: #000; border-color: #000; }
+.cat-chip.on .cb::after { content: ''; width: 7px; height: 4px; border: 1.5px solid var(--acid); border-top: 0; border-right: 0; transform: rotate(-45deg); margin-top: -2px; }
+
+.primary-btn {
+  width: 100%; margin-top: 22px;
+  padding: 14px 18px;
+  background: var(--acid); color: #000;
+  border-radius: 12px;
+  font-size: 15px; font-weight: 500; letter-spacing: -0.01em;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  cursor: pointer;
+  transition: transform 120ms;
+}
+.primary-btn:hover { transform: translateY(-1px); }
+.primary-btn .arrow { transition: transform 140ms; }
+.primary-btn:hover .arrow { transform: translateX(3px); }
+
+.legal { font-size: 11.5px; color: var(--ink-4); margin-top: 16px; line-height: 1.5; text-align: center; }
+.legal a { color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--line-3); }
+
+.signin-line { font-size: 13.5px; color: var(--ink-3); margin-top: 28px; text-align: center; }
+.signin-line a { color: var(--ink); font-weight: 500; text-decoration: underline; text-decoration-color: var(--line-3); text-underline-offset: 3px; }
+
+/* RIGHT: trust panel */
+.auth-trust-side {
+  background: var(--ink); color: var(--ink-on-dark);
+  padding: 48px 48px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+@media (max-width: 880px) { .auth-trust-side { display: none; } }
+
+.trust-corner-acid {
+  position: absolute; top: -120px; right: -120px;
+  width: 360px; height: 360px;
+  background: radial-gradient(circle, var(--acid-tint-2) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.trust-head { font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-on-dark-2); position: relative; }
+
+.live-counter {
+  margin-top: 22px;
+  position: relative;
+}
+.live-counter .big {
+  font-family: 'Geist Mono', monospace;
+  font-size: clamp(48px, 5vw, 64px); font-weight: 500;
+  line-height: 1; letter-spacing: -0.03em;
+  color: var(--acid);
+}
+.live-counter .lbl { font-size: 17px; line-height: 1.4; margin-top: 12px; color: var(--ink-on-dark); max-width: 30ch; }
+
+.proof-stack { display: flex; flex-direction: column; gap: 14px; margin-top: 36px; position: relative; }
+.proof-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+.proof-card .top { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.proof-card .av { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; font-family: 'Geist Mono', monospace; font-weight: 600; font-size: 12px; color: #000; }
+.proof-card .nm { font-size: 13.5px; font-weight: 500; }
+.proof-card .role { font-size: 12px; color: var(--ink-on-dark-2); }
+.proof-card .quote { font-size: 13.5px; line-height: 1.55; color: var(--ink-on-dark); }
+.proof-card .quote .hl { background: var(--acid-tint); padding: 0 4px; border-radius: 3px; color: var(--acid); }
+
+.stat-row { display: flex; gap: 24px; margin-top: 28px; position: relative; }
+.stat-row .stat .v { font-family: 'Geist Mono', monospace; font-size: 22px; font-weight: 500; color: var(--ink-on-dark); }
+.stat-row .stat .l { font-size: 11.5px; color: var(--ink-on-dark-2); margin-top: 2px; }
+
+.trust-foot { font-size: 11.5px; color: var(--ink-on-dark-2); font-family: 'Geist Mono', monospace; position: relative; display: flex; justify-content: space-between; align-items: center; }
+.trust-foot .pulse { display: inline-flex; align-items: center; gap: 6px; }
+.trust-foot .pulse-dot { width: 7px; height: 7px; border-radius: 999px; background: var(--acid); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.helper { font-size: 12px; color: var(--ink-3); margin-top: 6px; }
+.helper b { color: var(--ink); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="auth-wrap">
+
+  <!-- LEFT: form -->
+  <div class="auth-form-side">
+    <a href="index.html" class="auth-logo">
+      <span class="auth-logo-mark">F</span>
+      <span>Freelanly</span>
+    </a>
+
+    <div class="auth-form">
+      <div class="auth-eyebrow">— Start free · no card</div>
+      <h1 class="auth-title">Apply to fresh<br>gigs while you sleep.</h1>
+      <p class="auth-sub">Takes 60 seconds. We'll find 30+ matching projects per day and auto-write applications in your voice.</p>
+
+      <!-- Google OAuth -->
+      <button class="oauth-btn">
+        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+      </button>
+
+      <div class="divider">or use email</div>
+
+      <div class="field-group">
+        <div class="field-row">
+          <div>
+            <label class="field-label">First name</label>
+            <input class="text-input" placeholder="Alex" />
+          </div>
+          <div>
+            <label class="field-label">Last name</label>
+            <input class="text-input" placeholder="Chen" />
+          </div>
+        </div>
+
+        <div>
+          <label class="field-label">Work email</label>
+          <input class="text-input" placeholder="you@inbox.com" type="email" />
+          <div class="helper">We'll send a 6-digit code · <b>no password to remember</b></div>
+        </div>
+
+        <div>
+          <label class="field-label">LinkedIn URL <span style="text-transform: none; letter-spacing: 0; color: var(--ink-4); font-family: 'Geist', sans-serif; font-weight: 400;">— optional, used as a credibility signal</span></label>
+          <input class="text-input" placeholder="linkedin.com/in/yourname" />
+        </div>
+
+        <div>
+          <label class="field-label">Résumé</label>
+          <label class="upload-zone">
+            <div class="up-ico">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            </div>
+            <div style="flex: 1;">
+              <div class="up-ttl">Upload your résumé</div>
+              <div class="up-sub">PDF or DOCX · we extract skills, roles, links</div>
+            </div>
+            <input type="file" accept=".pdf,.docx" style="display: none;" />
+            <span style="font-size: 11.5px; color: var(--ink-3); font-family: 'Geist Mono', monospace;">Choose →</span>
+          </label>
+        </div>
+
+        <div>
+          <label class="field-label">What kind of work do you want? <span style="text-transform: none; letter-spacing: 0; color: var(--ink-4); font-family: 'Geist', sans-serif; font-weight: 400;">— pick all that apply</span></label>
+          <div class="cat-grid">
+            <div class="cat-chip on" data-cat><span class="cb"></span>Engineering · Frontend</div>
+            <div class="cat-chip" data-cat><span class="cb"></span>Engineering · Backend</div>
+            <div class="cat-chip on" data-cat><span class="cb"></span>Design · Product</div>
+            <div class="cat-chip" data-cat><span class="cb"></span>Design · Brand</div>
+            <div class="cat-chip" data-cat><span class="cb"></span>Marketing / Growth</div>
+            <div class="cat-chip" data-cat><span class="cb"></span>Writing / Content</div>
+            <div class="cat-chip" data-cat><span class="cb"></span>Video / Motion</div>
+            <div class="cat-chip" data-cat><span class="cb"></span>Other</div>
+          </div>
+        </div>
+      </div>
+
+      <a href="verify.html" class="primary-btn">
+        Send me a code
+        <span class="arrow">→</span>
+      </a>
+
+      <div class="legal">
+        By signing up you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.<br>
+        We don't share your résumé with employers — only the applications you approve.
+      </div>
+
+      <div class="signin-line">Already have an account? <a href="signin.html">Sign in</a></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: trust panel -->
+  <div class="auth-trust-side">
+    <div class="trust-corner-acid"></div>
+
+    <div>
+      <div class="trust-head">Live · last 24h</div>
+      <div class="live-counter">
+        <div class="big">847</div>
+        <div class="lbl">fresh projects routed today across LinkedIn and career pages.</div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat"><div class="v">14.3%</div><div class="l">avg reply rate</div></div>
+        <div class="stat"><div class="v">~6 min</div><div class="l">median time-to-spot</div></div>
+        <div class="stat"><div class="v">4.8★</div><div class="l">from 412 freelancers</div></div>
+      </div>
+    </div>
+
+    <div class="proof-stack">
+      <div class="proof-card">
+        <div class="top">
+          <div class="av" style="background: var(--acid);">MR</div>
+          <div>
+            <div class="nm">Maya R.</div>
+            <div class="role">Brand designer · NYC</div>
+          </div>
+        </div>
+        <div class="quote">"Signed <span class="hl">two $15K projects</span> in my first month. Freelanly catches gigs in DMs and LinkedIn posts I'd never find scrolling."</div>
+      </div>
+      <div class="proof-card">
+        <div class="top">
+          <div class="av" style="background: #FF6B6B;">JK</div>
+          <div>
+            <div class="nm">Jakub K.</div>
+            <div class="role">React contractor · Warsaw</div>
+          </div>
+        </div>
+        <div class="quote">"Booked a call within <span class="hl">12 minutes</span> of the post going live. Replies feel personal because they are."</div>
+      </div>
+    </div>
+
+    <div class="trust-foot">
+      <span class="pulse"><span class="pulse-dot"></span>3 people signing up right now</span>
+      <span>SOC 2 · GDPR-ready</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('[data-cat]').forEach(c => c.addEventListener('click', () => c.classList.toggle('on')));
+  document.querySelector('.upload-zone').addEventListener('click', e => {
+    const inp = e.currentTarget.querySelector('input[type="file"]');
+    if (inp && e.target.tagName !== 'INPUT') inp.click();
+  });
+</script>
+</body>
+</html>

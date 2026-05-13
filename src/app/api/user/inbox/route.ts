@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
         followUpSentAt: true,
         replyText: true,
         replyCategory: true,
+        replySignal: true,
         repliedAt: true,
         updatedAt: true,
       },

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings — Freelanly</title>
+<link rel="stylesheet" href="app.css">
+<style>
+.settings-grid { display: grid; grid-template-columns: 240px 1fr; gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .settings-grid { grid-template-columns: 1fr; } }
+.settings-nav { position: sticky; top: 72px; display: flex; flex-direction: column; gap: 2px; padding: 8px; }
+.settings-nav a { padding: 8px 12px; font-size: 13px; color: var(--ink-3); border-radius: 8px; text-decoration: none; transition: all 120ms; }
+.settings-nav a:hover { background: var(--bg-2); color: var(--ink); }
+.settings-nav a.active { background: var(--ink); color: #FAFAF7; font-weight: 500; }
+.settings-section { padding: 24px 28px; border-bottom: 1px solid var(--line); }
+.settings-section:last-child { border-bottom: none; }
+.settings-section h2 { font-size: 18px; letter-spacing: -0.015em; margin: 0 0 4px; }
+.settings-section .desc { font-size: 13px; color: var(--ink-3); margin-bottom: 18px; }
+.field-row { display: grid; grid-template-columns: 200px 1fr; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line); align-items: center; }
+.field-row:first-of-type { border-top: none; padding-top: 4px; }
+.field-row .lbl { font-size: 13px; font-weight: 500; }
+.field-row .lbl .sub { display: block; font-weight: 400; font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.field-row .ctrl { display: flex; align-items: center; gap: 10px; }
+input.field, select.field, textarea.field { width: 100%; padding: 9px 12px; background: var(--bg-0); border: 1px solid var(--line-2); border-radius: 8px; font: inherit; font-size: 13px; outline: none; color: var(--ink); }
+input.field:focus, textarea.field:focus { border-color: var(--ink-3); box-shadow: 0 0 0 3px var(--bg-2); }
+.toggle { width: 36px; height: 22px; background: var(--line-3); border-radius: 999px; position: relative; cursor: pointer; transition: background 140ms; flex-shrink: 0; }
+.toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #fff; border-radius: 999px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); transition: left 140ms; }
+.toggle.on { background: var(--acid-deep); }
+.toggle.on::after { left: 16px; }
+.integration {
+  display: grid; grid-template-columns: 40px 1fr auto; gap: 14px; align-items: center;
+  padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px;
+}
+.integration .ico { width: 40px; height: 40px; border-radius: 8px; display: grid; place-items: center; font-family: 'Geist Mono', monospace; font-weight: 700; font-size: 13px; color: #000; }
+.integration .name { font-size: 13.5px; font-weight: 500; }
+.integration .meta { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.calendar-mini { padding: 10px; background: var(--bg-2); border-radius: 8px; font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-3); display: flex; gap: 8px; align-items: center; }
+.calendar-mini .pulse { width: 8px; height: 8px; border-radius: 999px; background: var(--acid-deep); }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <div id="shellSidebar"></div>
+  <main class="main">
+    <div id="shellTopbar"></div>
+    <div class="page">
+
+      <div class="page-header">
+        <div class="page-title">
+          <h1>Settings</h1>
+          <p>Profile, sending rules, integrations, and account.</p>
+        </div>
+      </div>
+
+      <div class="settings-grid">
+
+        <aside class="card">
+          <nav class="settings-nav">
+            <a href="#profile" class="active">Profile &amp; identity</a>
+            <a href="#rules">Sending rules</a>
+            <a href="#integrations">Integrations</a>
+            <a href="#notifications">Notifications</a>
+            <a href="#privacy">Privacy &amp; data</a>
+            <a href="billing.html">Billing →</a>
+          </nav>
+        </aside>
+
+        <div class="card">
+
+          <div class="settings-section" id="profile">
+            <h2>Profile &amp; identity</h2>
+            <div class="desc">This is what Freelanly uses to personalize every outreach. Keep it tight.</div>
+
+            <div class="field-row">
+              <div class="lbl">Display name<span class="sub">Appears in every email signature</span></div>
+              <div class="ctrl"><input class="field" value="Alex Chen"/></div>
+            </div>
+            <div class="field-row">
+              <div class="lbl">Headline<span class="sub">One sentence, lead with credibility</span></div>
+              <div class="ctrl"><input class="field" value="Senior frontend engineer · shipped Notion's offline sync · Berlin"/></div>
+            </div>
+            <div class="field-row">
+              <div class="lbl">LinkedIn URL<span class="sub">Your public profile, used as a credibility signal</span></div>
+              <div class="ctrl"><input class="field" value="https://linkedin.com/in/alexchen"/></div>
+            </div>
+            <div class="field-row">
+              <div class="lbl">Case studies<span class="sub">Freelanly picks the best-fit one per outreach</span></div>
+              <div class="ctrl" style="flex-wrap: wrap;">
+                <span class="tag tag-acid">notion-sync (8)</span>
+                <span class="tag tag-acid">crdt-merge (5)</span>
+                <span class="tag tag-acid">mobile-perf (4)</span>
+                <span class="tag">design-system (2)</span>
+                <span class="tag">+ add</span>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="lbl">Location / Timezone</div>
+              <div class="ctrl"><input class="field" value="Berlin · CET (UTC+1)" style="max-width: 280px;"/></div>
+            </div>
+            <div class="field-row">
+              <div class="lbl">Availability</div>
+              <div class="ctrl">
+                <select class="field" style="max-width: 200px;"><option>~30 hrs/week</option></select>
+                <span class="muted f-mono" style="font-size: 11px;">starting</span>
+                <input class="field" value="Mid-November 2025" style="max-width: 200px;"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section" id="rules">
+            <h2>Sending rules</h2>
+            <div class="desc">Set guardrails. Freelanly applies these to every queued send.</div>
+
+            <div class="field-row">
+              <div class="lbl">Send window<span class="sub">In your local timezone (CET)</span></div>
+              <div class="ctrl">
+                <input class="field" value="09:00" style="max-width: 100px;"/>
+                <span class="muted">→</span>
+                <input class="field" value="17:00" style="max-width: 100px;"/>
+                <span class="meta f-mono">Mon–Fri only</span>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="lbl">Daily cap</div>
+              <div class="ctrl"><input class="field" type="number" value="40" style="max-width: 100px;"/><span class="muted f-mono" style="font-size: 11px;">applications / day</span></div>
+            </div>
+            <div class="field-row">
+              <div class="lbl">Auto-apply threshold<span class="sub">Match score required for auto-send</span></div>
+              <div class="ctrl"><input class="field" type="number" value="85" style="max-width: 100px;"/><span class="muted f-mono" style="font-size: 11px;">/ 100 · below this, require review</span></div>
+            </div>
+            <div class="field-row">
+              <div class="lbl">Pause if…</div>
+              <div class="ctrl" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                <div class="row gap-2"><span class="toggle on"></span><span style="font-size: 13px;">Inbox has 5+ unanswered replies</span></div>
+                <div class="row gap-2"><span class="toggle on"></span><span style="font-size: 13px;">Reply rate drops below 4% over 14 days</span></div>
+                <div class="row gap-2"><span class="toggle"></span><span style="font-size: 13px;">I haven't logged in for 3 days</span></div>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="lbl">Exclude keywords</div>
+              <div class="ctrl" style="flex-wrap: wrap;">
+                <span class="tag" style="border-color: rgba(185,28,28,0.2); color: var(--bad);">− Web3</span>
+                <span class="tag" style="border-color: rgba(185,28,28,0.2); color: var(--bad);">− rockstar</span>
+                <span class="tag" style="border-color: rgba(185,28,28,0.2); color: var(--bad);">− unpaid</span>
+                <span class="tag" style="border-color: rgba(185,28,28,0.2); color: var(--bad);">− on-site only</span>
+                <button class="tag">+ add</button>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="lbl">Follow-up cadence</div>
+              <div class="ctrl">
+                <select class="field" style="max-width: 280px;"><option>3 touches · day 0, +4, +8</option></select>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section" id="integrations">
+            <h2>Integrations</h2>
+            <div class="desc">Where Freelanly reads opportunities and sends from.</div>
+
+            <div class="integration">
+              <div class="ico" style="background: #0A66C2; color: #fff;">in</div>
+              <div>
+                <div class="name">LinkedIn</div>
+                <div class="meta">Connected as alex.chen · scanning posts and DMs</div>
+              </div>
+              <span class="chip chip-good"><span class="chip-dot live"></span>Active</span>
+            </div>
+            <div class="integration">
+              <div class="ico" style="background: #EA4335; color: #fff;">G</div>
+              <div>
+                <div class="name">Gmail · alex@chen.studio</div>
+                <div class="meta">Sending from this address · OAuth · 187 sent this month</div>
+              </div>
+              <span class="chip chip-good"><span class="chip-dot live"></span>Active</span>
+            </div>
+            <div class="integration">
+              <div class="ico" style="background: #5865F2; color: #fff;">D</div>
+              <div>
+                <div class="name">Discord (3 servers)</div>
+                <div class="meta">#hiring channels at Indie Hackers, FE Devs, Mobile Devs</div>
+              </div>
+              <span class="chip chip-good"><span class="chip-dot live"></span>Active</span>
+            </div>
+            <div class="integration">
+              <div class="ico" style="background: var(--bg-2); color: var(--ink-3); border: 1px solid var(--line);">▲</div>
+              <div>
+                <div class="name">Slack communities</div>
+                <div class="meta">Bring your gig-channels into the feed</div>
+              </div>
+              <button class="btn btn-soft btn-sm">Connect</button>
+            </div>
+          </div>
+
+          <div class="settings-section" id="notifications">
+            <h2>Notifications</h2>
+            <div class="desc">When and how Freelanly pings you.</div>
+            <div class="field-row">
+              <div class="lbl">New reply</div>
+              <div class="ctrl"><span class="toggle on"></span><span style="font-size: 13px;">Push + email + Slack DM</span></div>
+            </div>
+            <div class="field-row">
+              <div class="lbl">Call booked</div>
+              <div class="ctrl"><span class="toggle on"></span><span style="font-size: 13px;">Push + calendar invite</span></div>
+            </div>
+            <div class="field-row">
+              <div class="lbl">Daily digest</div>
+              <div class="ctrl"><span class="toggle on"></span><span style="font-size: 13px;">Email at 09:00 CET</span></div>
+            </div>
+            <div class="field-row">
+              <div class="lbl">Weekly insights</div>
+              <div class="ctrl"><span class="toggle on"></span><span style="font-size: 13px;">Performance + template suggestions</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="app.js"></script>
+<script>
+  Freelanly.initShell({ active: 'settings', crumbs: ['Workspace', 'Settings'] });
+  document.querySelectorAll('.toggle').forEach(t => t.addEventListener('click', () => t.classList.toggle('on')));
+  document.querySelectorAll('.settings-nav a').forEach(a => a.addEventListener('click', e => {
+    if (a.getAttribute('href').startsWith('#')) {
+      document.querySelectorAll('.settings-nav a').forEach(x => x.classList.remove('active'));
+      a.classList.add('active');
+    }
+  }));
+</script>
+</body>
+</html>

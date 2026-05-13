@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify · Freelanly</title>
+<link rel="stylesheet" href="app/app.css">
+<style>
+body { background: var(--bg); min-height: 100vh; }
+.center-wrap { min-height: 100vh; display: grid; place-items: center; padding: 32px 22px; }
+.verify-card {
+  width: 100%; max-width: 460px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 40px 36px;
+  text-align: center;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.02), 0 8px 36px rgba(0,0,0,0.06);
+}
+@media (max-width: 480px) { .verify-card { padding: 32px 22px; } }
+
+.v-logo { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.015em; font-size: 16px; color: var(--ink); margin-bottom: 28px; }
+.v-logo-mark { width: 30px; height: 30px; border-radius: 8px; background: var(--ink); color: var(--acid); display: grid; place-items: center; font-family: 'Geist Mono', monospace; font-weight: 700; font-size: 14px; }
+
+.v-icon {
+  width: 56px; height: 56px;
+  border-radius: 16px;
+  background: var(--acid);
+  display: grid; place-items: center;
+  margin: 0 auto 18px;
+  color: #000;
+}
+
+.v-eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 12px; }
+.v-title { font-size: 26px; letter-spacing: -0.02em; line-height: 1.2; font-weight: 500; margin: 0 0 10px; }
+.v-sub { color: var(--ink-3); font-size: 14.5px; line-height: 1.55; margin: 0 0 28px; }
+.v-sub b { color: var(--ink); font-weight: 500; }
+
+/* OTP input row */
+.otp-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin: 0 auto 18px;
+  max-width: 340px;
+}
+.otp-cell {
+  width: 100%;
+  aspect-ratio: 1 / 1.2;
+  max-height: 60px;
+  text-align: center;
+  font-family: 'Geist Mono', monospace;
+  font-size: 24px; font-weight: 500;
+  background: var(--bg-1);
+  border: 1.5px solid var(--line-2);
+  border-radius: 12px;
+  outline: none;
+  color: var(--ink);
+  transition: all 120ms;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+}
+.otp-cell::-webkit-outer-spin-button,
+.otp-cell::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.otp-cell:focus { border-color: var(--ink); transform: translateY(-1px); box-shadow: 0 0 0 3px var(--acid-tint); }
+.otp-cell.filled { background: var(--bg-2); border-color: var(--ink-3); }
+
+.timer-row {
+  margin-top: 22px;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg-2);
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  font-family: 'Geist Mono', monospace;
+}
+.timer-row .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--ink-3); }
+.timer-row.ready { background: var(--acid-tint); color: var(--ink); cursor: pointer; }
+.timer-row.ready .dot { background: var(--acid-deep); animation: blink 1.4s ease infinite; }
+.timer-row.ready a { color: var(--ink); text-decoration: underline; }
+@keyframes blink { 50% { opacity: 0.4; } }
+
+.v-help { font-size: 12.5px; color: var(--ink-3); margin-top: 30px; line-height: 1.6; }
+.v-help a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line-3); text-underline-offset: 3px; }
+
+.v-back { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-3); margin-top: 16px; font-family: 'Geist Mono', monospace; }
+.v-back:hover { color: var(--ink); }
+
+.success-flash {
+  display: none;
+  margin-top: 20px;
+  padding: 12px 16px;
+  background: var(--acid-tint);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.success-flash.show { display: block; animation: slidein 200ms ease; }
+@keyframes slidein { from { transform: translateY(6px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div class="center-wrap">
+  <div class="verify-card">
+    <a href="index.html" class="v-logo">
+      <span class="v-logo-mark">F</span>
+      <span>Freelanly</span>
+    </a>
+
+    <div class="v-icon">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+    </div>
+
+    <div class="v-eyebrow">— Step 2 of 2</div>
+    <h1 class="v-title">Check your inbox.</h1>
+    <p class="v-sub">We sent a 6-digit code to <b>you@inbox.com</b>.<br>It expires in 10 minutes.</p>
+
+    <form id="otpForm" autocomplete="one-time-code">
+      <div class="otp-row" id="otpRow">
+        <input class="otp-cell" maxlength="1" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]" aria-label="Digit 1" autofocus/>
+        <input class="otp-cell" maxlength="1" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]" aria-label="Digit 2"/>
+        <input class="otp-cell" maxlength="1" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]" aria-label="Digit 3"/>
+        <input class="otp-cell" maxlength="1" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]" aria-label="Digit 4"/>
+        <input class="otp-cell" maxlength="1" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]" aria-label="Digit 5"/>
+        <input class="otp-cell" maxlength="1" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]" aria-label="Digit 6"/>
+      </div>
+    </form>
+
+    <div class="timer-row" id="timer">
+      <span class="dot"></span>
+      <span>Resend in <span id="countdown">0:30</span></span>
+    </div>
+
+    <div class="success-flash" id="flash">
+      ✓ Code verified — redirecting to your workspace…
+    </div>
+
+    <div class="v-help">
+      Didn't get it? Check spam, or <a href="signin.html">use a different email</a>.<br>
+      Need help? <a href="mailto:hi@freelanly.com">hi@freelanly.com</a>
+    </div>
+
+    <a href="signin.html" class="v-back">← Back to sign in</a>
+  </div>
+</div>
+
+<script>
+  // OTP cell navigation
+  const cells = [...document.querySelectorAll('.otp-cell')];
+  cells.forEach((c, i) => {
+    c.addEventListener('input', e => {
+      // strip non-digits
+      const v = e.target.value.replace(/\D/g, '');
+      e.target.value = v.slice(0, 1);
+      if (v) {
+        e.target.classList.add('filled');
+        if (i < cells.length - 1) cells[i + 1].focus();
+        else if (cells.every(x => x.value)) submitCode();
+      } else {
+        e.target.classList.remove('filled');
+      }
+    });
+    c.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !e.target.value && i > 0) {
+        cells[i - 1].focus();
+        cells[i - 1].value = '';
+        cells[i - 1].classList.remove('filled');
+      }
+    });
+    c.addEventListener('paste', e => {
+      e.preventDefault();
+      const digits = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6).split('');
+      digits.forEach((d, j) => {
+        if (cells[j]) { cells[j].value = d; cells[j].classList.add('filled'); }
+      });
+      if (digits.length === 6) submitCode();
+      else cells[Math.min(digits.length, 5)].focus();
+    });
+  });
+
+  function submitCode() {
+    cells.forEach(c => c.disabled = true);
+    setTimeout(() => {
+      document.getElementById('flash').classList.add('show');
+      setTimeout(() => window.location.href = 'app/index.html', 1200);
+    }, 400);
+  }
+
+  // Countdown timer
+  let seconds = 30;
+  const t = document.getElementById('timer');
+  const cd = document.getElementById('countdown');
+  const iv = setInterval(() => {
+    seconds--;
+    if (seconds <= 0) {
+      clearInterval(iv);
+      t.classList.add('ready');
+      t.innerHTML = '<span class="dot"></span><a href="#" id="resend">Resend code</a>';
+      document.getElementById('resend').addEventListener('click', e => {
+        e.preventDefault();
+        seconds = 30;
+        t.classList.remove('ready');
+        t.innerHTML = '<span class="dot"></span><span>Resend in <span id="countdown">0:30</span></span>';
+        location.reload();
+      });
+    } else {
+      cd.textContent = '0:' + String(seconds).padStart(2, '0');
+    }
+  }, 1000);
+</script>
+</body>
+</html>

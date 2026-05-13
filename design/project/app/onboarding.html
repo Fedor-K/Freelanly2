@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Welcome — Freelanly</title>
+<link rel="stylesheet" href="app.css">
+<style>
+body { background: var(--bg-1); }
+.onboard-shell { min-height: 100vh; display: grid; grid-template-columns: 1fr; }
+.onboard-top {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 18px 28px; border-bottom: 1px solid var(--line);
+  background: var(--bg-0);
+}
+.onboard-logo { font-family: 'Geist Mono', monospace; font-weight: 700; letter-spacing: -0.04em; font-size: 18px; }
+.onboard-logo::before { content: '◆'; color: var(--acid-deep); margin-right: 6px; }
+
+.steps-bar { display: flex; align-items: center; gap: 10px; font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-4); }
+.steps-bar .step { display: flex; align-items: center; gap: 6px; }
+.steps-bar .num { width: 20px; height: 20px; border-radius: 999px; background: var(--bg-2); display: grid; place-items: center; font-size: 10px; color: var(--ink-4); }
+.steps-bar .step.done .num { background: var(--acid); color: #000; }
+.steps-bar .step.active .num { background: var(--ink); color: #FAFAF7; }
+.steps-bar .step.active span { color: var(--ink); }
+.steps-bar .line { width: 30px; height: 1px; background: var(--line); }
+
+.onboard-main { max-width: 760px; margin: 60px auto 80px; padding: 0 24px; width: 100%; }
+.onboard-eyebrow { font-family: 'Geist Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--acid-deep); margin-bottom: 14px; }
+.onboard-h { font-size: 38px; letter-spacing: -0.025em; line-height: 1.05; margin: 0 0 14px; font-weight: 500; }
+.onboard-sub { font-size: 16px; color: var(--ink-3); line-height: 1.55; max-width: 56ch; }
+
+.role-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 32px; }
+.role-card {
+  padding: 22px; border: 1.5px solid var(--line); border-radius: 14px;
+  cursor: pointer; transition: all 140ms; background: var(--bg-0);
+}
+.role-card:hover { border-color: var(--ink-4); }
+.role-card.selected { border-color: var(--acid-deep); background: linear-gradient(180deg, rgba(199,249,74,0.08), var(--bg-0)); }
+.role-card .ico { width: 36px; height: 36px; border-radius: 10px; background: var(--bg-2); display: grid; place-items: center; font-family: 'Geist Mono', monospace; font-weight: 700; color: var(--ink); margin-bottom: 14px; }
+.role-card.selected .ico { background: var(--acid); }
+.role-card .ttl { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+.role-card .dsc { font-size: 13px; color: var(--ink-3); line-height: 1.5; }
+.role-card .tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 12px; }
+
+.onboard-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--line); }
+
+.import-card {
+  padding: 22px; border: 1.5px dashed var(--line-3); border-radius: 14px;
+  text-align: center; transition: all 140ms;
+}
+.import-card:hover { border-color: var(--acid-deep); background: var(--bg-2); }
+.import-card .ico { width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 12px; background: var(--bg-2); display: grid; place-items: center; }
+</style>
+</head>
+<body>
+
+<div class="onboard-shell">
+
+  <header class="onboard-top">
+    <div class="onboard-logo">freelanly</div>
+    <div class="steps-bar">
+      <div class="step done"><span class="num">✓</span><span>Your background</span></div>
+      <div class="line"></div>
+      <div class="step active"><span class="num">2</span><span>Categories</span></div>
+      <div class="line"></div>
+      <div class="step"><span class="num">3</span><span>Email</span></div>
+    </div>
+    <a href="index.html" class="muted" style="font-size: 12px; text-decoration: none;">Skip setup</a>
+  </header>
+
+  <main class="onboard-main">
+    <div class="onboard-eyebrow">Step 2 of 3</div>
+    <h1 class="onboard-h">What kind of work are you looking for?</h1>
+    <p class="onboard-sub">Pick a starting profile. Freelanly will tune the discovery feed and pre-load 4–5 templates that match. You can adjust anything later.</p>
+
+    <div class="role-grid">
+
+      <div class="role-card selected">
+        <div class="ico">{ }</div>
+        <div class="ttl">Senior engineer · contract / freelance</div>
+        <div class="dsc">React, full-stack, mobile, infra. Looking for project work or part-time retainers.</div>
+        <div class="tags">
+          <span class="tag tag-acid">React</span>
+          <span class="tag tag-acid">TypeScript</span>
+          <span class="tag">Remote</span>
+        </div>
+      </div>
+
+      <div class="role-card">
+        <div class="ico">✎</div>
+        <div class="ttl">Designer · brand / product</div>
+        <div class="dsc">Brand systems, product UI, design sprints, illustration. Project and retainer work.</div>
+        <div class="tags">
+          <span class="tag">Figma</span>
+          <span class="tag">Brand</span>
+        </div>
+      </div>
+
+      <div class="role-card">
+        <div class="ico">∿</div>
+        <div class="ttl">Marketer · growth / content</div>
+        <div class="dsc">SEO, paid, lifecycle, content writing. Retainers and project work.</div>
+        <div class="tags">
+          <span class="tag">SEO</span>
+          <span class="tag">Lifecycle</span>
+        </div>
+      </div>
+
+      <div class="role-card">
+        <div class="ico">▲</div>
+        <div class="ttl">Indie consultant / advisor</div>
+        <div class="dsc">Strategy, fractional roles, deep-dive engagements. Long-term advisory relationships.</div>
+        <div class="tags">
+          <span class="tag">Strategy</span>
+          <span class="tag">Fractional</span>
+        </div>
+      </div>
+
+      <div class="role-card">
+        <div class="ico">◉</div>
+        <div class="ttl">Studio / small team</div>
+        <div class="dsc">2–10 people. Project-based delivery. Larger engagements, longer cycles.</div>
+        <div class="tags">
+          <span class="tag">Studio</span>
+          <span class="tag">Long projects</span>
+        </div>
+      </div>
+
+      <div class="role-card">
+        <div class="ico">+</div>
+        <div class="ttl">Something else</div>
+        <div class="dsc">We'll ask you a few questions to build a custom profile.</div>
+      </div>
+
+    </div>
+
+    <div style="margin-top: 36px;">
+      <h3 style="font-size: 14px; font-weight: 500; margin: 0 0 10px;">Or import from your résumé / LinkedIn so we can auto-fill</h3>
+      <div class="grid grid-2" style="gap: 12px;">
+        <div class="import-card">
+          <div class="ico">in</div>
+          <div style="font-size: 13.5px; font-weight: 500; margin-bottom: 4px;">LinkedIn URL</div>
+          <div class="meta">We'll pull skills, experience, and headline</div>
+          <input class="field" placeholder="linkedin.com/in/yourname" style="margin-top: 12px; padding: 7px 10px; font-size: 12px; width: 100%;"/>
+        </div>
+        <div class="import-card">
+          <div class="ico">↑</div>
+          <div style="font-size: 13.5px; font-weight: 500; margin-bottom: 4px;">Upload résumé</div>
+          <div class="meta">PDF or DOCX · we extract role, skills, experience</div>
+          <button class="btn btn-soft btn-sm mt-3">Choose file</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="onboard-actions">
+      <button class="btn btn-ghost">← Back</button>
+      <div class="row gap-3">
+        <span class="meta">Press <kbd style="font-family: 'Geist Mono', monospace; padding: 2px 7px; background: var(--bg-2); border-radius: 5px; border: 1px solid var(--line); font-size: 10.5px;">Enter</kbd> to continue</span>
+        <button class="btn btn-acid" data-icon="send">Continue → Email setup</button>
+      </div>
+    </div>
+
+    <div style="margin-top: 60px; padding: 18px 22px; background: var(--ink); color: #FAFAF7; border-radius: 12px; display: flex; gap: 16px; align-items: center;">
+      <div style="flex-shrink: 0; width: 40px; height: 40px; border-radius: 999px; background: var(--acid); color: #000; display: grid; place-items: center; font-family: 'Geist Mono', monospace; font-weight: 700; font-size: 14px;">★</div>
+      <div style="flex: 1; font-size: 13.5px; line-height: 1.5; color: rgba(250,250,247,0.85);">
+        Once you finish setup, your first 20 applications will go out as <b style="color: var(--acid);">drafts</b> for you to review — not auto-sent. You stay in control until you're confident.
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+<script>
+  document.querySelectorAll('[data-icon]').forEach(el => {
+    el.insertAdjacentHTML('afterbegin', Freelanly.svg(el.dataset.icon, 14));
+  });
+  document.querySelectorAll('.role-card').forEach(c => c.addEventListener('click', () => {
+    document.querySelectorAll('.role-card').forEach(x => x.classList.remove('selected'));
+    c.classList.add('selected');
+  }));
+</script>
+</body>
+</html>

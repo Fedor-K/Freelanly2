@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email templates — Freelanly</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --canvas: #0E1014;
+  --canvas-2: #15171D;
+  --canvas-line: rgba(255,255,255,0.08);
+  --ink-on-canvas: #E8E8E3;
+  --ink-on-canvas-dim: #8A8E96;
+
+  /* Email-system colors */
+  --e-bg: #F7F6F1;
+  --e-card: #FFFFFF;
+  --e-ink: #0A0B0F;
+  --e-ink-2: #2F3138;
+  --e-ink-3: #5C6068;
+  --e-ink-4: #8A8E96;
+  --e-line: rgba(11,12,15,0.07);
+  --e-line-2: rgba(11,12,15,0.12);
+  --e-bg-2: #F0EEE6;
+  --e-bg-3: #E6E3D8;
+  --e-acid: #C7F94A;
+  --e-acid-deep: #4D8B0A;
+  --e-acid-tint: rgba(199,249,74,0.18);
+
+  --e-good: #15803D;
+  --e-warn: #B45309;
+  --e-info: #1D4ED8;
+}
+
+* { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--canvas);
+  color: var(--ink-on-canvas);
+  font-feature-settings: "ss01", "cv11";
+  letter-spacing: -0.005em;
+  min-height: 100vh;
+}
+a { color: inherit; }
+.mono { font-family: 'Geist Mono', ui-monospace, monospace; }
+
+/* ========== PAGE CHROME ========== */
+.page-head {
+  padding: 40px 32px 32px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+@media (max-width: 640px) {
+  .page-head { padding: 32px 20px 20px; }
+  .page-head h1 { font-size: 28px; }
+}
+.page-eyebrow {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-on-canvas-dim);
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-bottom: 14px;
+}
+.page-eyebrow::before {
+  content: ''; width: 6px; height: 6px; border-radius: 999px;
+  background: var(--e-acid); box-shadow: 0 0 10px var(--e-acid);
+}
+.page-head h1 {
+  font-size: 36px;
+  font-weight: 500;
+  letter-spacing: -0.028em;
+  margin: 0 0 10px;
+}
+.page-head p {
+  font-size: 15px;
+  color: var(--ink-on-canvas-dim);
+  margin: 0;
+  max-width: 60ch;
+  line-height: 1.55;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 12px 32px 80px;
+}
+@media (max-width: 1080px) { .grid { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .grid { padding: 8px 14px 60px; gap: 18px; }
+}
+
+/* ========== MAIL FRAME (mock client window) ========== */
+.mail-frame {
+  background: var(--canvas-2);
+  border: 1px solid var(--canvas-line);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.mf-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--canvas-line);
+  background: rgba(255,255,255,0.02);
+}
+.mf-toolbar .dots { display: flex; gap: 6px; }
+.mf-toolbar .dot { width: 10px; height: 10px; border-radius: 999px; }
+.mf-toolbar .dot.r { background: #FF6058; }
+.mf-toolbar .dot.y { background: #FFBD2E; }
+.mf-toolbar .dot.g { background: #28C840; }
+.mf-toolbar .label {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-on-canvas-dim);
+  margin-left: 8px;
+}
+.mf-toolbar .meta {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10.5px;
+  color: var(--ink-on-canvas-dim);
+  margin-left: auto;
+}
+
+/* The actual email "page" */
+.mail-body {
+  background: var(--e-bg);
+  padding: 32px 28px;
+  flex: 1;
+}
+
+.email {
+  max-width: 560px;
+  margin: 0 auto;
+  background: var(--e-card);
+  border-radius: 14px;
+  overflow: hidden;
+  color: var(--e-ink);
+  font-family: 'Geist', sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  box-shadow:
+    0 1px 0 rgba(0,0,0,0.02),
+    0 12px 32px -8px rgba(0,0,0,0.08);
+}
+
+/* Email header bar (brand) */
+.email-brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--e-line);
+  background: var(--e-card);
+}
+.email-brand .em-mark {
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  background: var(--e-ink);
+  color: var(--e-acid);
+  display: grid; place-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  font-family: 'Geist Mono', monospace;
+}
+.email-brand .em-name {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.email-brand .em-stamp {
+  margin-left: auto;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10.5px;
+  color: var(--e-ink-4);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.email-content {
+  padding: 32px 32px 28px;
+}
+.email h1 {
+  font-family: 'Geist', sans-serif;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.022em;
+  line-height: 1.15;
+  margin: 0 0 14px;
+  color: var(--e-ink);
+}
+.email h2 {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0 0 10px;
+  letter-spacing: -0.005em;
+  color: var(--e-ink);
+}
+.email p {
+  margin: 0 0 14px;
+  color: var(--e-ink-2);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.email p.dim {
+  color: var(--e-ink-3);
+  font-size: 13px;
+}
+.email .greeting {
+  font-size: 15px;
+  color: var(--e-ink);
+  margin-bottom: 18px;
+}
+.email .sig {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--e-line);
+  font-size: 13px;
+  color: var(--e-ink-3);
+}
+.email .sig b { color: var(--e-ink); font-weight: 500; }
+
+/* Email buttons */
+.e-btn-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px;
+  padding: 0 22px;
+  background: var(--e-ink);
+  color: #FFFFFF;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.e-btn-acid {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 46px;
+  padding: 0 22px;
+  background: var(--e-acid);
+  color: #000;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.e-btn-ghost {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 38px;
+  padding: 0 16px;
+  background: var(--e-bg-2);
+  color: var(--e-ink);
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Email footer */
+.email-footer {
+  padding: 22px 32px 28px;
+  font-size: 11.5px;
+  font-family: 'Geist Mono', monospace;
+  color: var(--e-ink-4);
+  letter-spacing: 0.04em;
+  line-height: 1.65;
+  background: var(--e-bg-2);
+  border-top: 1px solid var(--e-line);
+}
+.email-footer a { color: var(--e-ink-3); border-bottom: 1px solid var(--e-line-2); text-decoration: none; }
+.email-footer .row {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.email-footer .row .left { color: var(--e-ink-3); }
+.email-footer .small {
+  font-size: 10.5px;
+  margin-top: 8px;
+  color: var(--e-ink-4);
+}
+
+/* ===== Specifics per email ===== */
+
+/* OTP */
+.otp-code-box {
+  margin: 24px 0 20px;
+  padding: 24px 24px;
+  background: var(--e-bg-2);
+  border: 1px solid var(--e-line);
+  border-radius: 12px;
+  text-align: center;
+}
+.otp-code {
+  font-family: 'Geist Mono', monospace;
+  font-size: 44px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  color: var(--e-ink);
+  display: inline-block;
+  padding-left: 0.18em; /* compensate trailing tracking */
+}
+.otp-expires {
+  margin-top: 10px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--e-ink-4);
+}
+.otp-expires .em {
+  color: var(--e-warn);
+}
+
+.security-note {
+  margin-top: 22px;
+  padding: 14px 16px;
+  background: var(--e-bg);
+  border: 1px solid var(--e-line);
+  border-radius: 10px;
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.security-note .icon {
+  width: 20px; height: 20px;
+  color: var(--e-ink-3);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.security-note p {
+  font-size: 12.5px;
+  color: var(--e-ink-3);
+  margin: 0;
+  line-height: 1.5;
+}
+.security-note p b { color: var(--e-ink); font-weight: 500; }
+
+/* Reply notification */
+.reply-card {
+  margin: 18px 0 22px;
+  background: linear-gradient(180deg, rgba(199,249,74,0.10), rgba(199,249,74,0.02));
+  border: 1px solid rgba(199,249,74,0.40);
+  border-radius: 12px;
+  padding: 20px 22px;
+  position: relative;
+  overflow: hidden;
+}
+.reply-card .top-row {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 14px;
+}
+.reply-card .av {
+  width: 38px; height: 38px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FF6B6B, #FFB951);
+  color: #FFF;
+  display: grid; place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  font-family: 'Geist Mono', monospace;
+}
+.reply-card .meta-r .name { font-size: 14px; font-weight: 500; line-height: 1.3; }
+.reply-card .meta-r .role {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11.5px;
+  color: var(--e-ink-3);
+  margin-top: 1px;
+  letter-spacing: 0.02em;
+}
+.reply-card .tag-sent {
+  margin-left: auto;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--e-acid-deep);
+  background: var(--e-acid-tint);
+  border: 1px solid rgba(199,249,74,0.4);
+  padding: 3px 7px;
+  border-radius: 999px;
+}
+
+.reply-card .subj {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--e-ink);
+  margin-bottom: 8px;
+}
+.reply-card .quote {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--e-ink-2);
+  padding-left: 12px;
+  border-left: 3px solid var(--e-acid);
+  margin: 0;
+}
+.reply-card .quote em { color: var(--e-ink); font-style: normal; font-weight: 500; }
+
+.reply-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0;
+  margin: 18px 0 22px;
+  background: var(--e-bg-2);
+  border: 1px solid var(--e-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.reply-meta-grid .cell {
+  padding: 12px 16px;
+}
+.reply-meta-grid .cell + .cell { border-left: 1px solid var(--e-line); }
+.reply-meta-grid .lbl {
+  font-family: 'Geist Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--e-ink-4);
+}
+.reply-meta-grid .val {
+  font-family: 'Geist Mono', monospace;
+  font-size: 13px;
+  color: var(--e-ink);
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+/* Weekly digest */
+.digest-headline {
+  padding: 22px 24px;
+  background: var(--e-ink);
+  color: #FAFAF7;
+  border-radius: 12px;
+  margin: 18px 0 22px;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.digest-headline::after {
+  content: ''; position: absolute;
+  width: 240px; height: 240px;
+  right: -100px; top: -80px;
+  background: radial-gradient(circle, rgba(199,249,74,0.18) 0%, transparent 65%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.digest-headline .h-left { position: relative; z-index: 1; }
+.digest-headline .h-lbl {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(250,250,247,0.6);
+  margin-bottom: 4px;
+}
+.digest-headline .h-stat {
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+.digest-headline .h-stat .accent { color: var(--e-acid); }
+.digest-headline .h-right {
+  text-align: right;
+  position: relative; z-index: 1;
+  font-family: 'Geist Mono', monospace;
+}
+.digest-headline .h-right .label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(250,250,247,0.6);
+  margin-bottom: 4px;
+}
+.digest-headline .h-right .delta {
+  font-size: 13px;
+  color: var(--e-acid);
+}
+
+.digest-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid var(--e-line);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 22px;
+}
+.digest-grid .cell {
+  padding: 16px 18px;
+  background: var(--e-bg);
+}
+.digest-grid .cell:nth-child(1), .digest-grid .cell:nth-child(2) { border-bottom: 1px solid var(--e-line); }
+.digest-grid .cell:nth-child(odd) { border-right: 1px solid var(--e-line); }
+.digest-grid .lbl {
+  font-family: 'Geist Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--e-ink-4);
+  margin-bottom: 4px;
+}
+.digest-grid .val {
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--e-ink);
+  font-variant-numeric: tabular-nums;
+  display: flex; align-items: baseline; gap: 6px;
+}
+.digest-grid .val .delta {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--e-good);
+}
+.digest-grid .val .delta.bad { color: var(--e-warn); }
+
+.digest-list {
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--e-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.digest-list li {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  gap: 12px; align-items: center;
+  padding: 12px 14px;
+  background: var(--e-card);
+  border-bottom: 1px solid var(--e-line);
+}
+.digest-list li:last-child { border-bottom: none; }
+.digest-list li .logo {
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  display: grid; place-items: center;
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #000;
+}
+.digest-list li .info { display: flex; flex-direction: column; gap: 1px; }
+.digest-list li .role { font-size: 13px; font-weight: 500; line-height: 1.3; }
+.digest-list li .co { font-size: 11.5px; color: var(--e-ink-3); font-family: 'Geist Mono', monospace; }
+.digest-list li .v {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11.5px;
+  color: var(--e-ink-3);
+}
+
+/* Welcome */
+.welcome-hero {
+  margin: -32px -32px 24px;
+  padding: 36px 32px 28px;
+  background:
+    radial-gradient(circle at 80% 0%, rgba(199,249,74,0.18) 0%, transparent 60%),
+    linear-gradient(180deg, var(--e-bg-2) 0%, var(--e-card) 100%);
+  border-bottom: 1px solid var(--e-line);
+  position: relative;
+}
+.welcome-hero .pill-welcome {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--e-acid-deep);
+  background: rgba(199,249,74,0.18);
+  border: 1px solid rgba(199,249,74,0.4);
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 16px;
+}
+.welcome-hero h1 {
+  font-size: 30px;
+  letter-spacing: -0.028em;
+  line-height: 1.05;
+  margin: 0 0 8px;
+  max-width: 14ch;
+}
+.welcome-hero p {
+  font-size: 14px;
+  color: var(--e-ink-3);
+  margin: 0;
+}
+
+.welcome-steps {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 22px;
+}
+.welcome-step {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--e-line);
+  border-radius: 10px;
+  background: var(--e-card);
+}
+.welcome-step .num {
+  width: 26px; height: 26px;
+  border-radius: 999px;
+  background: var(--e-ink);
+  color: var(--e-acid);
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  display: grid; place-items: center;
+}
+.welcome-step .ws-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+.welcome-step .ws-sub {
+  font-size: 12.5px;
+  color: var(--e-ink-3);
+  line-height: 1.5;
+}
+
+.stat-callout {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin: 18px 0 0;
+  background: var(--e-ink);
+  border-radius: 10px;
+  overflow: hidden;
+  color: #FAFAF7;
+}
+.stat-callout .sc-cell { padding: 16px 18px; }
+.stat-callout .sc-cell + .sc-cell { border-left: 1px solid rgba(255,255,255,0.08); }
+.stat-callout .sc-num {
+  font-size: 22px; font-weight: 500;
+  letter-spacing: -0.022em;
+  font-variant-numeric: tabular-nums;
+}
+.stat-callout .sc-num .accent { color: var(--e-acid); }
+.stat-callout .sc-lbl {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(250,250,247,0.6);
+  margin-top: 2px;
+}
+
+/* Plain-text style subject preview above frame */
+.subject-strip {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 0 14px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-on-canvas-dim);
+  letter-spacing: 0.04em;
+}
+.subject-strip .from {
+  color: var(--ink-on-canvas);
+}
+.subject-strip .dot-sep { color: rgba(255,255,255,0.2); }
+.subject-strip .subj {
+  color: var(--ink-on-canvas);
+  font-family: 'Geist', sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.subject-strip .preview {
+  color: var(--ink-on-canvas-dim);
+  font-family: 'Geist', sans-serif;
+  font-size: 12.5px;
+  letter-spacing: -0.005em;
+}
+
+/* ===== Mobile breakpoints (placed last so they win cascade) ===== */
+@media (max-width: 640px) {
+  .mail-body { padding: 18px 14px; }
+  .email-content { padding: 24px 22px !important; }
+  .email-brand { padding: 14px 22px; }
+  .email-footer { padding: 18px 22px 22px; }
+  .email h1 { font-size: 20px; }
+  .otp-code { font-size: 32px; letter-spacing: 0.12em; }
+  .digest-headline { padding: 18px 20px; flex-wrap: wrap; }
+  .digest-headline .h-stat { font-size: 24px; }
+  .digest-grid { grid-template-columns: 1fr; }
+  .digest-grid .cell { border-right: none !important; border-bottom: 1px solid var(--e-line); }
+  .digest-grid .cell:last-child { border-bottom: none; }
+  .reply-meta-grid { grid-template-columns: 1fr; }
+  .reply-meta-grid .cell + .cell { border-left: none; border-top: 1px solid var(--e-line); }
+  .stat-callout { grid-template-columns: 1fr; }
+  .stat-callout .sc-cell + .sc-cell { border-left: none; border-top: 1px solid rgba(255,255,255,0.08); }
+  .welcome-hero { margin: -24px -22px 20px; padding: 28px 22px 22px; }
+  .welcome-hero h1 { font-size: 24px; }
+  .subject-strip { flex-wrap: wrap; }
+  .subject-strip .preview { display: none; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <div class="page-eyebrow">Transactional emails · v1</div>
+  <h1>Email templates</h1>
+  <p>Four states the user receives in their real inbox — sign-in, reply alert, weekly digest, welcome. Designed at 560px container, system fonts fallback, dark-mode safe.</p>
+</div>
+
+<div class="grid">
+
+  <!-- ====================================================== -->
+  <!-- 1. OTP                                                  -->
+  <!-- ====================================================== -->
+  <div class="mail-frame">
+    <div class="mf-toolbar">
+      <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+      <span class="label">Transactional · OTP</span>
+      <span class="meta">560 × auto · subject 38ch</span>
+    </div>
+
+    <div class="mail-body">
+      <div class="subject-strip">
+        <span class="from">Freelanly</span>
+        <span class="dot-sep">·</span>
+        <span class="subj">Your sign-in code: 384 921</span>
+        <span class="dot-sep">·</span>
+        <span class="preview">Expires in 10 minutes…</span>
+      </div>
+
+      <div class="email">
+        <div class="email-brand">
+          <span class="em-mark">F</span>
+          <span class="em-name">Freelanly</span>
+          <span class="em-stamp">Sign-in code</span>
+        </div>
+
+        <div class="email-content">
+          <h1>Your sign-in code</h1>
+          <p>Use the code below to finish signing in to your Freelanly account. It expires in 10 minutes.</p>
+
+          <div class="otp-code-box">
+            <div class="otp-code">384&nbsp;921</div>
+            <div class="otp-expires">expires in <span class="em">9 min 42 sec</span></div>
+          </div>
+
+          <a href="#" class="e-btn-primary">Enter code in browser →</a>
+
+          <div class="security-note">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <p><b>Didn't request this?</b> Someone may have typed your email by mistake. Ignore this message — no one can sign in without the code, and we'll never ask for it over chat or email.</p>
+          </div>
+
+          <div class="sig">
+            Requested from <b class="mono" style="font-size: 12.5px;">94.140.8.62</b> · Berlin, DE · 14:32 CET<br>
+            Browser: Chrome 132 on macOS
+          </div>
+        </div>
+
+        <div class="email-footer">
+          <div class="row">
+            <span class="left">Freelanly · sent because you typed your email at sign-in</span>
+            <a href="#">freelanly.com</a>
+          </div>
+          <div class="small">© 2026 Freelanly Inc · Salzufer 13, Berlin 10587</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================== -->
+  <!-- 2. "YOU GOT A REPLY!"                                   -->
+  <!-- ====================================================== -->
+  <div class="mail-frame">
+    <div class="mf-toolbar">
+      <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+      <span class="label">Notification · New reply</span>
+      <span class="meta">subject 42ch · preheader 60ch</span>
+    </div>
+
+    <div class="mail-body">
+      <div class="subject-strip">
+        <span class="from">Freelanly</span>
+        <span class="dot-sep">·</span>
+        <span class="subj">Sarah at Linear replied — and she's interested</span>
+        <span class="dot-sep">·</span>
+        <span class="preview">"yes, would love to chat. Tuesday 3pm CET work?…"</span>
+      </div>
+
+      <div class="email">
+        <div class="email-brand">
+          <span class="em-mark">F</span>
+          <span class="em-name">Freelanly</span>
+          <span class="em-stamp">New reply</span>
+        </div>
+
+        <div class="email-content">
+          <h1>You got a reply, Alex.</h1>
+          <p class="dim">Sarah Chen replied to your application 2 minutes ago. Reply within an hour to bump your booking rate by ~38%.</p>
+
+          <div class="reply-card">
+            <div class="top-row">
+              <span class="av">SC</span>
+              <div class="meta-r">
+                <div class="name">Sarah Chen</div>
+                <div class="role">linear.app · senior react dev</div>
+              </div>
+              <span class="tag-sent">Interested</span>
+            </div>
+            <div class="subj">Re: Senior React Dev — shipped Plain onboarding</div>
+            <blockquote class="quote">
+              <em>"yes, would love to chat."</em> Tuesday 3pm CET works on my end — happy to send a calendly if that's easier. Could you share a Loom of the bounce-rate work you mentioned?
+            </blockquote>
+          </div>
+
+          <div class="reply-meta-grid">
+            <div class="cell">
+              <div class="lbl">Sent</div>
+              <div class="val">2 days ago</div>
+            </div>
+            <div class="cell">
+              <div class="lbl">Opens</div>
+              <div class="val">3×</div>
+            </div>
+            <div class="cell">
+              <div class="lbl">Rate signal</div>
+              <div class="val" style="color: var(--e-acid-deep);">Hot</div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <a href="#" class="e-btn-acid">Open in Freelanly →</a>
+            <a href="#" class="e-btn-ghost">Reply from mail</a>
+          </div>
+
+          <p class="dim" style="margin-top: 22px; font-size: 12.5px;">
+            We've drafted a reply that mentions your Loom. Approve it in 1 click — or write yours from scratch.
+          </p>
+        </div>
+
+        <div class="email-footer">
+          <div class="row">
+            <span class="left">Reply notification · Inbox routing on</span>
+            <a href="#">Mute this thread</a>
+          </div>
+          <div class="small">Manage notifications · <a href="#">freelanly.com/settings/notifications</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================== -->
+  <!-- 3. WEEKLY DIGEST                                        -->
+  <!-- ====================================================== -->
+  <div class="mail-frame">
+    <div class="mf-toolbar">
+      <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+      <span class="label">Recurring · Weekly digest</span>
+      <span class="meta">Monday 09:00 local</span>
+    </div>
+
+    <div class="mail-body">
+      <div class="subject-strip">
+        <span class="from">Freelanly</span>
+        <span class="dot-sep">·</span>
+        <span class="subj">Your week: 14 replies, 3 calls booked</span>
+        <span class="dot-sep">·</span>
+        <span class="preview">8.1% reply rate — up 1.4pp from last week…</span>
+      </div>
+
+      <div class="email">
+        <div class="email-brand">
+          <span class="em-mark">F</span>
+          <span class="em-name">Freelanly</span>
+          <span class="em-stamp">Wk 19 · May 4–10</span>
+        </div>
+
+        <div class="email-content">
+          <h1>Good week, Alex.</h1>
+          <p class="dim">Sequences ran for 7 days. Here's what landed in your inbox while you were focused on shipping.</p>
+
+          <div class="digest-headline">
+            <div class="h-left">
+              <div class="h-lbl">Active conversations</div>
+              <div class="h-stat"><span class="accent">14</span> replies in 7 days</div>
+            </div>
+            <div class="h-right">
+              <div class="label">vs last week</div>
+              <div class="delta">↑ +5 replies</div>
+            </div>
+          </div>
+
+          <div class="digest-grid">
+            <div class="cell">
+              <div class="lbl">Sent</div>
+              <div class="val">173 <span class="delta">+22</span></div>
+            </div>
+            <div class="cell">
+              <div class="lbl">Opens</div>
+              <div class="val">128 <span class="delta">+18</span></div>
+            </div>
+            <div class="cell">
+              <div class="lbl">Replies</div>
+              <div class="val">14 <span class="delta">+5</span></div>
+            </div>
+            <div class="cell">
+              <div class="lbl">Reply rate</div>
+              <div class="val">8.1% <span class="delta">+1.4pp</span></div>
+            </div>
+          </div>
+
+          <h2 style="margin: 8px 0 12px;">↑ Top movers in your pipeline</h2>
+
+          <ul class="digest-list">
+            <li>
+              <span class="logo" style="background:#FF6B6B">L</span>
+              <div class="info">
+                <span class="role">Senior React Dev · Linear</span>
+                <span class="co">replied → interested · sched. Tue 15:00</span>
+              </div>
+              <span class="v">Sarah Chen</span>
+            </li>
+            <li>
+              <span class="logo" style="background:#FFB951">V</span>
+              <div class="info">
+                <span class="role">Full-stack contract · Vercel</span>
+                <span class="co">interview booked · tmrw 10:00</span>
+              </div>
+              <span class="v">Priya R.</span>
+            </li>
+            <li>
+              <span class="logo" style="background:#34D399">P</span>
+              <div class="info">
+                <span class="role">Onboarding rebuild · Plain</span>
+                <span class="co">offer received · signs Monday</span>
+              </div>
+              <span class="v" style="color: var(--e-acid-deep);">Anna K.</span>
+            </li>
+            <li>
+              <span class="logo" style="background:#A78BFA">S</span>
+              <div class="info">
+                <span class="role">Brand systems · Supabase</span>
+                <span class="co">info-requested · waiting on you</span>
+              </div>
+              <span class="v">Marcus D.</span>
+            </li>
+          </ul>
+
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <a href="#" class="e-btn-primary">See full pipeline →</a>
+            <a href="#" class="e-btn-ghost">Tweak this week's targets</a>
+          </div>
+
+          <p class="dim" style="margin-top: 22px; font-size: 12.5px;">
+            <b style="color: var(--e-ink); font-weight: 500;">Hint:</b> your Vercel-style outreach template got 14% reply rate. Mind if we apply that tone to your Linear sequence too?
+          </p>
+        </div>
+
+        <div class="email-footer">
+          <div class="row">
+            <span class="left">Sent every Monday 09:00 local · Wk 19, 2026</span>
+            <a href="#">Switch to bi-weekly</a>
+          </div>
+          <div class="small"><a href="#">Unsubscribe from digest</a> · <a href="#">freelanly.com</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================== -->
+  <!-- 4. WELCOME                                              -->
+  <!-- ====================================================== -->
+  <div class="mail-frame">
+    <div class="mf-toolbar">
+      <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+      <span class="label">Onboarding · Welcome (T+0)</span>
+      <span class="meta">sent within 60s of signup</span>
+    </div>
+
+    <div class="mail-body">
+      <div class="subject-strip">
+        <span class="from">Alex from Freelanly</span>
+        <span class="dot-sep">·</span>
+        <span class="subj">Welcome to Freelanly — your first 5 drafts are ready</span>
+        <span class="dot-sep">·</span>
+        <span class="preview">Hi Alex — three things you can do in the next 5 minutes…</span>
+      </div>
+
+      <div class="email">
+        <div class="email-brand">
+          <span class="em-mark">F</span>
+          <span class="em-name">Freelanly</span>
+          <span class="em-stamp">Welcome</span>
+        </div>
+
+        <div class="email-content" style="padding-top: 0;">
+          <div class="welcome-hero">
+            <span class="pill-welcome">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="color: var(--e-acid-deep);"><circle cx="12" cy="12" r="6"/></svg>
+              Day 1
+            </span>
+            <h1>Welcome aboard, Alex.</h1>
+            <p>Five drafts are sitting in your queue. Approve them and we'll send tonight.</p>
+          </div>
+
+          <p>I'm Alex Bain — I built Freelanly because I was tired of writing the same cover letter 30 times. Two things I'd love you to do in the next 5 minutes:</p>
+
+          <div class="welcome-steps">
+            <div class="welcome-step">
+              <span class="num">1</span>
+              <div>
+                <div class="ws-title">Upload your CV (or LinkedIn URL)</div>
+                <div class="ws-sub">We rewrite our drafts in your voice — past projects, numbers, tone. Takes 30 seconds.</div>
+              </div>
+            </div>
+            <div class="welcome-step">
+              <span class="num">2</span>
+              <div>
+                <div class="ws-title">Review your 5 drafts &amp; ship</div>
+                <div class="ws-sub">You read each one before it leaves. After 25 approvals, autopilot mode unlocks.</div>
+              </div>
+            </div>
+          </div>
+
+          <a href="#" class="e-btn-acid">Open my drafts →</a>
+
+          <div class="stat-callout">
+            <div class="sc-cell">
+              <div class="sc-num"><span class="accent">14.3%</span> reply rate</div>
+              <div class="sc-lbl">Median Freelanly user</div>
+            </div>
+            <div class="sc-cell">
+              <div class="sc-num"><span class="accent">~26h</span> to first call</div>
+              <div class="sc-lbl">From signup</div>
+            </div>
+          </div>
+
+          <div class="sig">
+            Reply to this email if anything's off — it goes to my real inbox.<br>
+            — <b>Alex Bain</b>, founder · Freelanly
+          </div>
+        </div>
+
+        <div class="email-footer">
+          <div class="row">
+            <span class="left">Welcome series · 1 of 4 over 10 days</span>
+            <a href="#">Skip the rest</a>
+          </div>
+          <div class="small">© 2026 Freelanly Inc · Salzufer 13, Berlin 10587 · <a href="#">Unsubscribe</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

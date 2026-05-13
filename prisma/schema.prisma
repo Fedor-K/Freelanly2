@@ -2019,6 +2019,7 @@ model AutoApplication {
   // Reply tracking
   replyText       String?  // recruiter's reply content
   replyCategory   String?  // INTERESTED, INTERVIEW, REJECTED, OTHER
+  replySignal     String?  // AI-extracted signal: "Wants to chat Tue 3pm CET. Caveat: role is full-time."
   repliedAt       DateTime?
 
   // Follow-up

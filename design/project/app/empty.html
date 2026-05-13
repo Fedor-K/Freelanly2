@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Empty states — Freelanly</title>
+<link rel="stylesheet" href="app.css">
+<style>
+.variant {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg-1);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.variant-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-2);
+  font-family: 'Geist Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.variant-head .label-dot { display: inline-flex; align-items: center; gap: 8px; }
+.variant-head .label-dot::before { content: ''; width: 6px; height: 6px; border-radius: 999px; background: var(--acid-deep); }
+.variant-head .ctx { color: var(--ink-4); }
+
+/* ====================================================== */
+/* 1. ZERO APPLICATIONS — first run, hero pipeline empty   */
+/* ====================================================== */
+.zero-apps-wrap {
+  padding: 48px 32px 56px;
+}
+
+.zero-reply-wrap { padding: 32px 32px 56px; }
+
+.kpi-grid-zero {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 32px;
+}
+@media (max-width: 920px) { .kpi-grid-zero { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .kpi-grid-zero { grid-template-columns: 1fr; } }
+.kpi-zero {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.kpi-zero .kpi-label {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.kpi-zero .v {
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  color: var(--ink-5);
+  font-variant-numeric: tabular-nums;
+}
+.kpi-zero .hint {
+  font-size: 11px;
+  font-family: 'Geist Mono', monospace;
+  color: var(--ink-4);
+}
+
+.first-app-card {
+  display: grid;
+  grid-template-columns: 1fr 0.9fr;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--bg-1);
+}
+@media (max-width: 920px) { .first-app-card { grid-template-columns: 1fr; } }
+
+.first-app-left {
+  padding: 40px 40px 36px;
+  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
+  position: relative;
+}
+.first-app-left .eyebrow-acid {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--acid-deep);
+  background: var(--acid-tint);
+  border: 1px solid rgba(199,249,74,0.4);
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 18px;
+}
+.first-app-left .eyebrow-acid::before {
+  content: ''; width: 6px; height: 6px; border-radius: 999px; background: var(--acid-deep);
+}
+.first-app-left h2 {
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -0.028em;
+  line-height: 1.08;
+  margin: 0 0 14px;
+  max-width: 16ch;
+}
+.first-app-left p {
+  font-size: 14.5px;
+  color: var(--ink-3);
+  line-height: 1.55;
+  margin: 0 0 26px;
+  max-width: 42ch;
+}
+
+.step-list {
+  display: grid; gap: 12px;
+  margin: 0 0 28px;
+  padding: 0;
+  list-style: none;
+}
+.step-list li {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  transition: all 140ms var(--ease);
+}
+.step-list li.done {
+  border-color: rgba(199,249,74,0.35);
+  background: rgba(199,249,74,0.06);
+}
+.step-list li.next { border-color: var(--line-3); }
+.step-list li .num {
+  width: 22px; height: 22px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--ink-3);
+  display: grid; place-items: center;
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--line);
+}
+.step-list li.done .num {
+  background: var(--acid);
+  color: #000;
+  border-color: var(--acid);
+}
+.step-list li.next .num { background: var(--ink); color: var(--acid); border-color: var(--ink); }
+.step-list li .step-title { font-size: 13.5px; font-weight: 500; line-height: 1.3; }
+.step-list li .step-sub { font-size: 12px; color: var(--ink-3); margin-top: 2px; line-height: 1.4; }
+.step-list li.done .step-title { color: var(--ink-3); text-decoration: line-through; text-decoration-thickness: 1px; }
+.step-list li .step-cta {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  color: var(--info);
+  font-weight: 500;
+}
+.step-list li.done .step-cta {
+  color: var(--good);
+  text-decoration: none;
+}
+
+.first-app-right {
+  background: var(--bg-dark);
+  color: var(--ink-on-dark);
+  padding: 40px 40px;
+  position: relative;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  justify-content: center;
+}
+.first-app-right::after {
+  content: '';
+  position: absolute;
+  width: 480px; height: 480px;
+  right: -200px; top: -160px;
+  background: radial-gradient(circle, rgba(199,249,74,0.18) 0%, transparent 65%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.preview-card-title {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-on-dark-2);
+  margin-bottom: 14px;
+  position: relative; z-index: 1;
+}
+
+/* Animated mock email preview */
+.mock-email {
+  background: #1B1F23;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 18px 20px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink-on-dark);
+  position: relative; z-index: 1;
+  font-family: 'Geist', sans-serif;
+}
+.mock-email .me-head {
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  margin-bottom: 12px;
+  display: grid; gap: 4px;
+}
+.mock-email .me-head .from { font-size: 12.5px; font-weight: 500; }
+.mock-email .me-head .to,
+.mock-email .me-head .subj {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-on-dark-2);
+}
+.mock-email .me-head .subj { color: var(--acid); }
+.mock-email p { color: var(--ink-on-dark); margin: 0 0 10px; }
+.mock-email .hl-token {
+  background: rgba(199,249,74,0.15);
+  color: var(--acid);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+}
+.mock-email .typing {
+  display: inline-block;
+  width: 8px; height: 14px;
+  background: var(--acid);
+  vertical-align: -2px;
+  margin-left: 2px;
+  animation: blink 1s steps(2) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+.mock-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 16px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10.5px;
+  color: var(--ink-on-dark-2);
+  position: relative; z-index: 1;
+}
+.mock-foot .pulse-dot {
+  width: 8px; height: 8px;
+  background: var(--acid);
+  border-radius: 999px;
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: middle;
+  box-shadow: 0 0 12px var(--acid);
+  animation: pulse 2s infinite;
+}
+
+.cta-row-zero {
+  display: flex; gap: 10px;
+}
+.btn-cta-acid {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 42px; padding: 0 18px;
+  background: var(--acid); color: #000;
+  border-radius: 10px;
+  font-weight: 600; font-size: 13.5px;
+  transition: all 140ms var(--ease);
+}
+.btn-cta-acid:hover { background: #D7FF66; transform: translateY(-1px); }
+
+/* ====================================================== */
+/* 2. ZERO REPLIES — inbox empty, sends going out          */
+/* ====================================================== */
+
+.inbox-frame {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg-1);
+  overflow: hidden;
+  min-height: 520px;
+}
+@media (max-width: 920px) { .inbox-frame { grid-template-columns: 1fr; } }
+
+.inbox-left { background: var(--bg-2); border-right: 1px solid var(--line); padding: 20px 18px; }
+.inbox-left .il-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px;
+}
+.inbox-left .il-head h4 {
+  font-size: 13px; font-weight: 500; margin: 0;
+}
+.inbox-left .il-head .pill-empty {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  padding: 2px 7px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-4);
+}
+
+.ghost-thread {
+  padding: 14px 12px;
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  margin-bottom: 6px;
+  background: var(--bg-1);
+  border: 1px dashed var(--line-2);
+  opacity: 0.7;
+}
+.ghost-thread .av-ghost {
+  width: 28px; height: 28px;
+  border-radius: 999px;
+  background: var(--bg-3);
+}
+.ghost-thread .gt-line {
+  height: 8px;
+  background: var(--bg-3);
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+.ghost-thread .gt-line.short { width: 60%; }
+.ghost-thread .gt-line.long { width: 90%; }
+
+.inbox-right {
+  padding: 60px 48px;
+  display: flex; flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  position: relative;
+}
+
+.zero-reply-glyph {
+  width: 140px; height: 96px;
+  margin-bottom: 28px;
+}
+.zero-reply-state h2 {
+  font-size: 24px; font-weight: 500;
+  letter-spacing: -0.022em;
+  margin: 0 0 10px;
+}
+.zero-reply-state p {
+  font-size: 14px; color: var(--ink-3);
+  line-height: 1.55;
+  margin: 0 0 28px;
+  max-width: 44ch;
+}
+
+/* Replies "estimator" -- shows expected timing */
+.estimator {
+  width: 100%;
+  max-width: 520px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-1);
+  overflow: hidden;
+}
+.estimator .e-head {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.estimator .e-head .e-title {
+  font-size: 12.5px; font-weight: 500;
+  display: flex; align-items: center; gap: 8px;
+  text-align: left;
+}
+.estimator .e-head .e-stat {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.timeline-mini {
+  position: relative;
+  padding: 24px 24px 20px;
+}
+.timeline-mini .track {
+  height: 4px;
+  background: var(--bg-3);
+  border-radius: 999px;
+  position: relative;
+  margin: 38px 0 14px;
+}
+.timeline-mini .progress {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 32%;
+  background: var(--ink);
+  border-radius: 999px;
+}
+.timeline-mini .ticks {
+  position: absolute; inset: 0;
+  display: flex; justify-content: space-between;
+}
+.timeline-mini .tick {
+  position: absolute;
+  top: -8px;
+  width: 1px; height: 20px;
+  background: var(--line-2);
+}
+.timeline-mini .marker {
+  position: absolute;
+  width: 16px; height: 16px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--acid);
+  border: 3px solid var(--bg-1);
+  box-shadow: 0 0 0 1px var(--ink);
+  top: -6px;
+  left: 32%;
+  transform: translateX(-50%);
+}
+.timeline-mini .marker::after {
+  content: 'you are here';
+  position: absolute;
+  white-space: nowrap;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--ink);
+}
+.timeline-labels {
+  display: flex; justify-content: space-between;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10.5px;
+  color: var(--ink-4);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.timeline-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  margin-top: 14px;
+}
+.timeline-row .col {
+  padding: 14px 12px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+.timeline-row .col + .col { border-left: 1px solid var(--line); }
+.timeline-row .col .num {
+  font-family: 'Geist Mono', monospace;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.timeline-row .col .lbl {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  margin-top: 2px;
+}
+.timeline-row .col.now .num { color: var(--ink); }
+.timeline-row .col.future .num { color: var(--ink-5); }
+
+.zero-reply-actions {
+  margin-top: 24px;
+  display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+}
+
+/* ===== Mobile breakpoints (placed last so they win cascade) ===== */
+@media (max-width: 640px) {
+  .zero-apps-wrap { padding: 32px 20px 40px; }
+  .first-app-left, .first-app-right { padding: 28px 24px !important; }
+  .first-app-left h2 { font-size: 24px; }
+  .cta-row-zero { flex-wrap: wrap; }
+  .cta-row-zero .btn-cta-acid, .cta-row-zero .btn { flex: 1 1 auto; }
+
+  .zero-reply-wrap { padding: 24px 16px 40px; }
+  .inbox-right { padding: 40px 22px !important; }
+  .zero-reply-state h2 { font-size: 20px; }
+  .timeline-row .col { padding: 12px 6px; }
+  .timeline-row .col .num { font-size: 14px; }
+  .zero-reply-actions { flex-direction: column; align-items: stretch; }
+  .zero-reply-actions .btn { width: 100%; }
+
+  .timeline-mini { padding: 22px 14px 18px; }
+  .estimator .e-head { padding: 12px 14px; }
+  .estimator .e-head .e-stat { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <div id="shellSidebar"></div>
+  <main class="main">
+    <div id="shellTopbar"></div>
+    <div class="page">
+
+      <div class="page-header">
+        <div class="page-title">
+          <h1>Empty states</h1>
+          <p>The two earliest moments — fresh signup with zero applications, and zero replies after first batch.</p>
+        </div>
+      </div>
+
+      <!-- ============================================================
+           VARIANT 1 — ZERO APPLICATIONS (fresh signup)
+           ============================================================ -->
+      <div class="variant">
+        <div class="variant-head">
+          <span class="label-dot">Empty · 0 applications sent</span>
+          <span class="ctx">In context: Dashboard, day 1, no setup complete</span>
+        </div>
+
+        <div class="zero-apps-wrap">
+
+          <!-- KPI strip in zero state -->
+          <div class="kpi-grid-zero">
+            <div class="kpi-zero">
+              <span class="kpi-label">Sent</span>
+              <span class="v">0</span>
+              <span class="hint">— start your first sequence</span>
+            </div>
+            <div class="kpi-zero">
+              <span class="kpi-label">Opens</span>
+              <span class="v">0</span>
+              <span class="hint">— tracking is on</span>
+            </div>
+            <div class="kpi-zero">
+              <span class="kpi-label">Replies</span>
+              <span class="v">0</span>
+              <span class="hint">— expect first in 18–36h</span>
+            </div>
+            <div class="kpi-zero">
+              <span class="kpi-label">Calls booked</span>
+              <span class="v">0</span>
+              <span class="hint">— auto-Calendly ready</span>
+            </div>
+          </div>
+
+          <div class="first-app-card">
+
+            <div class="first-app-left">
+              <span class="eyebrow-acid">Welcome, Alex</span>
+              <h2>Let's send your first 5 applications.</h2>
+              <p>Freelanly works best with a tight profile. Three quick steps and we'll start applying tonight while you sleep.</p>
+
+              <ul class="step-list">
+                <li class="done">
+                  <span class="num">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
+                  <div>
+                    <div class="step-title">Account created</div>
+                    <div class="step-sub">alex@kowalski.studio</div>
+                  </div>
+                  <span class="step-cta">Done</span>
+                </li>
+                <li class="next">
+                  <span class="num">2</span>
+                  <div>
+                    <div class="step-title">Upload your CV or LinkedIn</div>
+                    <div class="step-sub">We rewrite every application in your voice — past projects, numbers, tone. Takes 30 seconds.</div>
+                  </div>
+                  <span class="step-cta">Upload →</span>
+                </li>
+                <li>
+                  <span class="num">3</span>
+                  <div>
+                    <div class="step-title">Review 5 drafts &amp; launch</div>
+                    <div class="step-sub">First 5 applications go out the moment you approve them.</div>
+                  </div>
+                  <span class="step-cta">Locked</span>
+                </li>
+              </ul>
+
+              <div class="cta-row-zero">
+                <a href="onboarding.html" class="btn-cta-acid">
+                  Continue setup
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </a>
+              </div>
+            </div>
+
+            <div class="first-app-right">
+              <div class="preview-card-title">↳ Preview · a draft we'd send tonight</div>
+
+              <div class="mock-email">
+                <div class="me-head">
+                  <div class="from">From: Alex Kowalski</div>
+                  <div class="to">To: hiring@linear.app</div>
+                  <div class="subj">Re: Senior React Dev — shipped the Plain refactor in 5wks</div>
+                </div>
+                <p>Hi <span class="hl-token">{{first_name}}</span>,</p>
+                <p>Saw your post on <span class="hl-token">{{job_board}}</span> looking for a senior React dev who's "shipped real product, not just shipped code." I rebuilt Plain's onboarding in five weeks last quarter — bounce dropped from 41% to 12%.</p>
+                <p>Happy to share specifics. 20 min Thursday<span class="typing"></span></p>
+              </div>
+
+              <div class="mock-foot">
+                <span><span class="pulse-dot"></span>Generated in 0.8s · GPT-4o · personalized</span>
+                <span>preview · not sent</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================
+           VARIANT 2 — ZERO REPLIES (sends out, none back yet)
+           ============================================================ -->
+      <div class="variant">
+        <div class="variant-head">
+          <span class="label-dot">Empty · 0 replies (yet)</span>
+          <span class="ctx">In context: Inbox, ~6h after first batch — patience state</span>
+        </div>
+
+        <div class="zero-reply-wrap">
+
+          <div class="inbox-frame">
+
+            <!-- Ghosted thread list -->
+            <div class="inbox-left">
+              <div class="il-head">
+                <h4>Inbox</h4>
+                <span class="pill-empty">0 unread</span>
+              </div>
+
+              <div class="ghost-thread">
+                <div class="av-ghost"></div>
+                <div>
+                  <div class="gt-line long"></div>
+                  <div class="gt-line short"></div>
+                </div>
+              </div>
+              <div class="ghost-thread">
+                <div class="av-ghost"></div>
+                <div>
+                  <div class="gt-line long"></div>
+                  <div class="gt-line short"></div>
+                </div>
+              </div>
+              <div class="ghost-thread">
+                <div class="av-ghost"></div>
+                <div>
+                  <div class="gt-line long"></div>
+                  <div class="gt-line short"></div>
+                </div>
+              </div>
+              <div class="ghost-thread">
+                <div class="av-ghost"></div>
+                <div>
+                  <div class="gt-line long"></div>
+                  <div class="gt-line short"></div>
+                </div>
+              </div>
+
+              <p style="font-family: 'Geist Mono', monospace; font-size: 10.5px; color: var(--ink-4); text-align: center; margin-top: 24px; line-height: 1.5;">
+                Threads appear<br>the moment someone replies.
+              </p>
+            </div>
+
+            <!-- Empty body -->
+            <div class="inbox-right">
+              <div class="zero-reply-state">
+
+                <div class="zero-reply-glyph">
+                  <!-- Paper plane mid-flight with dotted arc -->
+                  <svg viewBox="0 0 140 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Dotted arc -->
+                    <path d="M8 80 Q 50 0 132 60" stroke="var(--ink-5)" stroke-width="1.5" stroke-dasharray="3 4" stroke-linecap="round" fill="none" opacity="0.7"/>
+                    <!-- Sun/orbit -->
+                    <circle cx="8" cy="80" r="5" fill="var(--ink)" />
+                    <circle cx="8" cy="80" r="12" stroke="var(--ink)" stroke-width="1" fill="none" opacity="0.2"/>
+                    <!-- Destination -->
+                    <circle cx="132" cy="60" r="6" stroke="var(--ink-3)" stroke-width="1.5" stroke-dasharray="2 2" fill="#FFFFFF"/>
+                    <!-- Paper plane (mid-flight, roughly center) -->
+                    <g transform="translate(70 32) rotate(15)">
+                      <path d="M0 0 L36 12 L18 16 L14 28 Z" fill="var(--acid)" stroke="var(--ink)" stroke-width="1.5" stroke-linejoin="round"/>
+                      <line x1="14" y1="28" x2="18" y2="16" stroke="var(--ink)" stroke-width="1.5"/>
+                    </g>
+                    <!-- Trail -->
+                    <path d="M60 38 L 50 40 M54 32 L 44 36 M58 44 L 48 48"
+                      stroke="var(--acid-deep)" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+                  </svg>
+                </div>
+
+                <h2>Quiet inbox. Sequences are running.</h2>
+                <p>Your first 23 applications went out today. Replies usually start landing in ~18 hours — most before noon tomorrow.</p>
+
+                <div class="estimator">
+                  <div class="e-head">
+                    <div class="e-title">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink-3);">
+                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                      </svg>
+                      First reply, estimated
+                    </div>
+                    <div class="e-stat">based on 12k users, similar profile</div>
+                  </div>
+
+                  <div class="timeline-mini">
+                    <div class="track">
+                      <div class="progress"></div>
+                      <div class="marker"></div>
+                    </div>
+                    <div class="timeline-labels">
+                      <span>now · 0h</span>
+                      <span>18h</span>
+                      <span>36h</span>
+                      <span>72h</span>
+                    </div>
+
+                    <div class="timeline-row">
+                      <div class="col now"><div class="num">23</div><div class="lbl">sent</div></div>
+                      <div class="col now"><div class="num">14</div><div class="lbl">opened</div></div>
+                      <div class="col future"><div class="num">~2</div><div class="lbl">expected replies</div></div>
+                      <div class="col future"><div class="num">~1</div><div class="lbl">est. booked call</div></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="zero-reply-actions">
+                  <a href="pipeline.html" class="btn btn-soft">See sent queue</a>
+                  <a href="templates.html" class="btn btn-soft">Polish templates</a>
+                  <a href="discovery.html" class="btn btn-primary">Queue more applications</a>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="app.js"></script>
+<script>
+  Freelanly.initShell({ active: 'inbox', crumbs: ['Workspace', 'Empty states'] });
+</script>
+</body>
+</html>

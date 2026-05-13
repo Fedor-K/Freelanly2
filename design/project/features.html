@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Features — Freelanly · 24 tools across discovery, outreach, tracking</title>
+  <meta name="description" content="Every feature in Freelanly: real-time gig discovery, AI personalization, A/B-tested templates, pipeline tracking, inbox routing, analytics, and more."/>
+  <meta name="keywords" content="freelance tools, AI outreach, application tracker, pipeline CRM, A/B testing templates"/>
+  <meta name="author" content="Freelanly"/>
+  <link rel="canonical" href="https://freelanly.com/features.html"/>
+  <meta name="robots" content="index, follow"/>
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website"/>
+  <meta property="og:site_name" content="Freelanly"/>
+  <meta property="og:title" content="Features — Freelanly · 24 tools across discovery, outreach, tracking"/>
+  <meta property="og:description" content="Every feature in Freelanly: real-time gig discovery, AI personalization, A/B-tested templates, pipeline tracking, inbox routing, analytics, and more."/>
+  <meta property="og:url" content="https://freelanly.com/features.html"/>
+  <meta property="og:image" content="https://freelanly.com/og-features.png"/>
+  <meta property="og:locale" content="en_US"/>
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:site" content="@freelanly"/>
+  <meta name="twitter:title" content="Features — Freelanly · 24 tools across discovery, outreach, tracking"/>
+  <meta name="twitter:description" content="Every feature in Freelanly: real-time gig discovery, AI personalization, A/B-tested templates, pipeline tracking, inbox routing, analytics, and more."/>
+  <meta name="twitter:image" content="https://freelanly.com/og-features.png"/>
+
+  <!-- Structured data -->
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Freelanly","url":"https://freelanly.com","logo":"https://freelanly.com/logo.png","description":"AI-powered freelance application engine","sameAs":["https://twitter.com/freelanly","https://linkedin.com/company/freelanly"]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://freelanly.com/"},{"@type":"ListItem","position":2,"name":"Features","item":"https://freelanly.com/features.html"}]}</script>
+  
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+.page-head { padding: 140px 0 64px; position: relative; overflow: hidden; border-bottom: 1px solid var(--line); }
+.page-head-bg { position: absolute; inset: 0; background: radial-gradient(ellipse 600px 300px at 30% -10%, rgba(199,249,74,0.12), transparent 70%); pointer-events: none; }
+.page-head h1 { font-size: clamp(48px, 6vw, 84px); letter-spacing: -0.04em; max-width: 14ch; }
+.page-head h1 .accent { color: var(--accent); font-style: italic; font-weight: 500; }
+.page-head .lede { margin-top: 22px; }
+
+/* Pillar nav */
+.pillars {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-1);
+  position: sticky; top: 64px; z-index: 50;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(10,11,15,0.85);
+}
+@media (max-width: 720px) { .pillars { grid-template-columns: repeat(2, 1fr); } }
+.pillars a {
+  padding: 18px 24px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border-right: 1px solid var(--line);
+  transition: all 160ms var(--ease);
+  display: flex; align-items: center; gap: 10px;
+}
+.pillars a:last-child { border-right: none; }
+.pillars a:hover { color: var(--accent); background: rgba(199,249,74,0.04); }
+.pillars a .num { color: var(--accent); font-size: 10px; }
+
+/* Pillar */
+.pillar {
+  padding: 100px 0;
+  border-bottom: 1px solid var(--line);
+  position: relative;
+}
+.pillar-head {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 60px;
+  margin-bottom: 56px;
+  align-items: end;
+}
+@media (max-width: 900px) { .pillar-head { grid-template-columns: 1fr; gap: 24px; } }
+.pillar-num {
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+.pillar-name h2 { font-size: clamp(36px, 4.5vw, 56px); letter-spacing: -0.03em; font-weight: 500; }
+.pillar-name h2 .accent { color: var(--accent); font-style: italic; font-weight: 500; }
+.pillar-desc { font-size: 17px; color: var(--ink-2); line-height: 1.55; max-width: 56ch; }
+
+.feat-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+@media (max-width: 820px) { .feat-cards { grid-template-columns: 1fr; } }
+.feat-card {
+  border: 1px solid var(--line);
+  background: var(--bg-1);
+  border-radius: var(--r-lg);
+  padding: 24px;
+  display: flex; flex-direction: column; gap: 14px;
+  transition: border-color 180ms var(--ease), transform 180ms var(--ease);
+}
+.feat-card:hover { border-color: var(--line-2); transform: translateY(-2px); }
+.feat-card .icon {
+  width: 36px; height: 36px;
+  border: 1px solid var(--line-2);
+  background: rgba(199,249,74,0.05);
+  border-radius: 8px;
+  display: grid; place-items: center;
+  color: var(--accent);
+}
+.feat-card h3 { font-size: 17px; font-weight: 500; letter-spacing: -0.015em; }
+.feat-card p { font-size: 14px; color: var(--ink-3); line-height: 1.55; }
+
+/* Comparison */
+.compare-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--bg-1);
+}
+@media (max-width: 820px) { .compare-row { grid-template-columns: 1fr; } }
+.compare-cell {
+  padding: 36px;
+  border-right: 1px solid var(--line);
+}
+.compare-cell:last-child { border-right: none; }
+.compare-cell.bad { background: rgba(248,113,113,0.04); }
+.compare-cell.good { background: rgba(199,249,74,0.04); }
+.compare-cell h3 {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  font-weight: 500;
+}
+.compare-cell.bad h3 { color: var(--bad); }
+.compare-cell.good h3 { color: var(--accent); }
+.compare-cell h4 { font-size: 22px; letter-spacing: -0.02em; font-weight: 500; margin-bottom: 12px; }
+.compare-cell ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.compare-cell li { font-size: 14.5px; color: var(--ink-2); display: flex; gap: 10px; align-items: start; line-height: 1.5; }
+.compare-cell.bad li::before { content: '✗'; color: var(--bad); width: 14px; }
+.compare-cell.good li::before { content: '✓'; color: var(--accent); width: 14px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="index.html" class="logo">
+      <span class="logo-mark">F</span><span>Freelanly</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="how-it-works.html">How it works</a></li>
+      <li><a href="features.html">Features</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="about.html">About</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a href="#" class="btn btn-ghost btn-sm">Sign in</a>
+      <a href="#" class="btn btn-primary btn-sm">Start free
+        <svg class="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<header class="page-head">
+  <div class="page-head-bg"></div>
+  <div class="container">
+    <span class="eyebrow eyebrow-accent">— Features</span>
+    <h1 style="margin-top: 18px;">Every tool you need to <span class="accent">land</span> more work.</h1>
+    <p class="lede">Twenty-four product features grouped into four pillars: <strong style="color: var(--ink);">discovery</strong>, <strong style="color: var(--ink);">outreach</strong>, <strong style="color: var(--ink);">tracking</strong>, and <strong style="color: var(--ink);">workflow</strong>. Built specifically for freelancers, not job-board users.</p>
+  </div>
+</header>
+
+<!-- Sticky pillar nav -->
+<nav class="pillars">
+  <a href="#discovery"><span class="num">01</span>Discovery</a>
+  <a href="#outreach"><span class="num">02</span>Outreach</a>
+  <a href="#tracking"><span class="num">03</span>Tracking</a>
+  <a href="#workflow"><span class="num">04</span>Workflow</a>
+</nav>
+
+<!-- PILLAR 1: DISCOVERY -->
+<section class="pillar" id="discovery">
+  <div class="container">
+    <div class="pillar-head reveal">
+      <div>
+        <div class="pillar-num">— Pillar 01 — Discovery</div>
+        <div class="pillar-name">
+          <h2>Find gigs <span class="accent">before</span> they go viral.</h2>
+        </div>
+      </div>
+      <p class="pillar-desc">Job-board listings are the leftovers. Real opportunities surface as LinkedIn posts, career-page drops, and Slack-community shouts hours before they hit the boards.</p>
+    </div>
+    <div class="feat-cards">
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        </div>
+        <h3>LinkedIn post crawler</h3>
+        <p>Scrapes "we're hiring" posts from hiring managers — not the public Jobs tab. Pulls a feed of fresh openings every 3 hours.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>
+        </div>
+        <h3>3,400+ career-page monitors</h3>
+        <p>We watch Greenhouse, Lever, Ashby, Workable, and custom career pages — and ping you the moment a new role appears.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <h3>Real-time signal mining</h3>
+        <p>Detects funding announcements, team-page changes, and new careers-page posts — leading indicators that a job post is coming.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
+        </div>
+        <h3>Contact enrichment</h3>
+        <p>Surfaces the actual hiring manager's email or LinkedIn — not a generic <code style="font-family:'Geist Mono',monospace; font-size: 12px; color: var(--accent);">careers@</code> address. No ATS black holes.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </div>
+        <h3>Custom feeds</h3>
+        <p>Save filters as named feeds: "EU React contracts", "Brand design over $5k", etc. Each one streams independently.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/></svg>
+        </div>
+        <h3>Quiet-hours scanning</h3>
+        <p>The crawlers run round the clock so when you wake up, the EU and US morning posts are already in your queue.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PILLAR 2: OUTREACH -->
+<section class="pillar" id="outreach">
+  <div class="container">
+    <div class="pillar-head reveal">
+      <div>
+        <div class="pillar-num">— Pillar 02 — Outreach</div>
+        <div class="pillar-name">
+          <h2>Outreach that <span class="accent">actually</span> gets replies.</h2>
+        </div>
+      </div>
+      <p class="pillar-desc">Sending more applications doesn't win you more work — sending <em>better</em> ones does. Our AI is tuned on what hiring managers actually reply to: short, specific, human.</p>
+    </div>
+    <div class="feat-cards">
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><circle cx="11" cy="11" r="2"/></svg>
+        </div>
+        <h3>AI cover letter writer</h3>
+        <p>Reads the job post, references specifics from your portfolio, sounds like you. ~90 words. No "I hope this email finds you well."</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+        </div>
+        <h3>Auto-apply engine</h3>
+        <p>Set criteria once. Applications go out at human cadence (max 25/day, business hours, randomized) from your real inbox.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+        </div>
+        <h3>Voice training</h3>
+        <p>Paste 3 of your real emails on setup. The AI matches your sentence length, vocabulary, and "this is how I sign off."</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.4 8.4 0 013.8-.9h.5a8.5 8.5 0 018 8v.5z"/></svg>
+        </div>
+        <h3>Auto follow-ups</h3>
+        <p>If they go quiet for 5 days, one polite nudge. Five days later, one more. Then it stops. Pauses the second they reply.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
+        </div>
+        <h3>Deal-breaker filters</h3>
+        <p>Never apply to "Web3 ninja rockstar" posts again. Block keywords, company types, contract terms, rate floors.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        </div>
+        <h3>Send from your inbox</h3>
+        <p>OAuth into Gmail, Outlook, Fastmail. Sends as <em>you</em>, not a third-party domain. Replies route back into Freelanly.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PILLAR 3: TRACKING -->
+<section class="pillar" id="tracking">
+  <div class="container">
+    <div class="pillar-head reveal">
+      <div>
+        <div class="pillar-num">— Pillar 03 — Tracking</div>
+        <div class="pillar-name">
+          <h2>Know exactly <span class="accent">what's working.</span></h2>
+        </div>
+      </div>
+      <p class="pillar-desc">Every application is tracked from send → open → reply → interview → offer. See which templates, openers, and verticals earn the highest reply rate.</p>
+    </div>
+    <div class="feat-cards">
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 6-6"/></svg>
+        </div>
+        <h3>Reply &amp; open analytics</h3>
+        <p>Open rate, reply rate, interview rate. By week, by template, by company size, by industry.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </div>
+        <h3>Pipeline / Kanban</h3>
+        <p>Drag-and-drop board: <em>Sent → Opened → Replied → Call booked → Offer</em>. Conversion rate at each stage, visible at a glance.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        </div>
+        <h3>Template A/B testing</h3>
+        <p>Run two cover-letter variants on the same role type. Freelanly picks the winner once one has enough data, kills the other.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+        </div>
+        <h3>Reply categorization</h3>
+        <p>Auto-tags every reply: <span class="tag" style="display: inline-flex; vertical-align: middle;">interested</span> <span class="tag" style="display: inline-flex; vertical-align: middle;">rate-mismatch</span> <span class="tag" style="display: inline-flex; vertical-align: middle;">already-filled</span>. So you can move fast on the hot ones.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <h3>Weekly digest</h3>
+        <p>Every Monday at 9am: applications sent, replies in, top-performing template, next week's queue. Read in 30 seconds.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PILLAR 4: WORKFLOW -->
+<section class="pillar" id="workflow">
+  <div class="container">
+    <div class="pillar-head reveal">
+      <div>
+        <div class="pillar-num">— Pillar 04 — Workflow</div>
+        <div class="pillar-name">
+          <h2>Fits the rest of your <span class="accent">stack.</span></h2>
+        </div>
+      </div>
+      <p class="pillar-desc">A freelancer's day already includes Notion, Calendly, Slack, an invoicing tool, and a CRM. Freelanly slots in — it doesn't replace your stack.</p>
+    </div>
+    <div class="feat-cards">
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        </div>
+        <h3>Calendar booking</h3>
+        <p>Embed your Calendly / Cal.com link directly in cover letters. Replies that say "yes" go straight to a booked call.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+        </div>
+        <h3>Portfolio integration</h3>
+        <p>Plug in your portfolio URL once. We index your projects so the AI can pick the most relevant ones to mention per job.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        </div>
+        <h3>Data export &amp; portability</h3>
+        <p>CSV-export every application, reply, contact, template — anytime. Hard-delete your account in one click. Your data stays yours.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Versus -->
+<section class="section">
+  <div class="container">
+    <div class="section-head reveal" style="text-align:center; margin: 0 auto 56px; align-items: center;">
+      <span class="eyebrow eyebrow-accent">— Why not just…</span>
+      <h2>Manual outreach vs. Freelanly</h2>
+    </div>
+    <div class="compare-row reveal">
+      <div class="compare-cell bad">
+        <h3>Doing it yourself</h3>
+        <h4>You, every morning, for 90 minutes.</h4>
+        <ul>
+          <li>Refresh job boards, miss the fresh posts</li>
+          <li>Write each cover letter from scratch</li>
+          <li>Send, then forget about it</li>
+          <li>No follow-ups, no tracking, no learning</li>
+          <li>Burn out after 2 weeks of consistency</li>
+        </ul>
+      </div>
+      <div class="compare-cell good">
+        <h3>Freelanly</h3>
+        <h4>Set it once. Check it once a day.</h4>
+        <ul>
+          <li>Fresh posts arrive within hours of posting</li>
+          <li>AI drafts a personalized letter in 2 seconds</li>
+          <li>Sent from your inbox at the right time</li>
+          <li>2 follow-ups, tracking, A/B testing — automatic</li>
+          <li>Runs forever, even on the weeks you don't</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final-cta" style="position: relative; padding: 120px 0; overflow:hidden; border-top: 1px solid var(--line);">
+  <div style="position:absolute; width:900px; height:600px; background: radial-gradient(ellipse, rgba(199,249,74,0.16), transparent 60%); filter: blur(40px); top: 0; left: 50%; transform: translateX(-50%); pointer-events:none;"></div>
+  <div class="container" style="position:relative; text-align:center;">
+    <span class="eyebrow eyebrow-accent">— Try the whole stack</span>
+    <h2 style="font-size: clamp(40px, 5.5vw, 68px); letter-spacing: -0.035em; margin-top: 16px; margin-bottom: 22px;">All 24 features, <span style="color:var(--accent); font-style: italic; font-weight: 500;">free for 7 days.</span></h2>
+    <p style="font-size: 18px; color: var(--ink-3); max-width: 540px; margin: 0 auto 32px;">No credit card. Cancel any time. Take your data with you if you go.</p>
+    <div style="display:flex; gap: 12px; justify-content:center; flex-wrap:wrap;">
+      <a href="#" class="btn btn-primary btn-lg">Start free trial
+        <svg class="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <a href="pricing.html" class="btn btn-ghost btn-lg">See pricing</a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col footer-brand">
+        <a href="index.html" class="logo">
+          <span class="logo-mark">F</span><span>Freelanly</span>
+        </a>
+        <p>AI outreach engine for freelancers. Be first in the inbox. Win the project.</p>
+      </div>
+      <div class="footer-col">
+        <h5>Product</h5>
+        <ul>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="#">Changelog</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Company</h5>
+        <ul>
+          <li><a href="about.html">About</a></li>
+          <li><a href="about.html#faq">FAQ</a></li>
+          <li><a href="#">Blog</a></li>
+          <li><a href="#">Careers</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Resources</h5>
+        <ul>
+          <li><a href="#">Help center</a></li>
+          <li><a href="#">Cover letter library</a></li>
+          <li><a href="#">Rate calculator</a></li>
+          <li><a href="#">API</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Legal</h5>
+        <ul>
+          <li><a href="#">Privacy</a></li>
+          <li><a href="#">Terms</a></li>
+          <li><a href="#">DPA</a></li>
+          <li><a href="#">Security</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div>© 2026 Freelanly · Made for freelancers who'd rather be working.</div>
+      <div class="legal"><a href="#">English</a><span>v3.4.1</span></div>
+    </div>
+  </div>
+</footer>
+
+<script src="scripts.js"></script>
+</body>
+</html>
