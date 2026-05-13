@@ -162,6 +162,40 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Snooze — hide from inbox for N days
+    if (action === 'snooze') {
+      const snoozeDays = message ? parseInt(message) : 7;
+      const snoozeUntil = new Date(Date.now() + snoozeDays * 86400000);
+      await prisma.autoApplication.update({
+        where: { id: applicationId },
+        data: { errorMessage: `[snoozed] until ${snoozeUntil.toISOString().slice(0, 10)}` },
+      });
+      return NextResponse.json({ ok: true, snoozedUntil: snoozeUntil });
+    }
+
+    // Move to pipeline stage
+    if (action === 'move') {
+      const validStatuses = ['SENT', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER'];
+      const newStatus = message;
+      if (!newStatus || !validStatuses.includes(newStatus)) {
+        return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+      }
+      await prisma.autoApplication.update({
+        where: { id: applicationId },
+        data: { status: newStatus as any },
+      });
+      return NextResponse.json({ ok: true, status: newStatus });
+    }
+
+    // Book call — return user's booking URL
+    if (action === 'book') {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { bookingUrl: true },
+      });
+      return NextResponse.json({ bookingUrl: user?.bookingUrl || null });
+    }
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error('[Inbox] POST error:', error);
