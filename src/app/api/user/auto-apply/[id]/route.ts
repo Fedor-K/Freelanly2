@@ -20,6 +20,7 @@ export async function GET(
       where: { id, userId: session.user.id },
       include: {
         loop: { select: { name: true, followUpDay1: true, followUpDay2: true, followUpEnabled: true } },
+        user: { select: { parsedProfile: true } },
       },
     });
 
@@ -61,12 +62,34 @@ export async function GET(
       { touch: 3, day: app.loop.followUpDay2, label: 'Final breakup email', status: 'scheduled', date: app.sentAt ? new Date(app.sentAt.getTime() + app.loop.followUpDay2 * 86400000) : null },
     ] : [];
 
+    // "Why matched" — explain match reasons
+    const userProfile = app.user?.parsedProfile as Record<string, unknown> | null;
+    const userSkills = ((userProfile?.skills as string[]) || []).map(s => s.toLowerCase());
+    const userLangs = ((userProfile?.languages as string[]) || []).map(l => l.toLowerCase());
+    const titleLower = app.jobTitle.toLowerCase();
+    const descLower = description.toLowerCase();
+
+    const matchReasons: string[] = [];
+    const matchedSkills = userSkills.filter(s => titleLower.includes(s) || descLower.includes(s));
+    if (matchedSkills.length > 0) {
+      matchReasons.push(`Skills match: ${matchedSkills.slice(0, 5).join(', ')}`);
+    }
+    if (userLangs.some(l => titleLower.includes(l) || descLower.includes(l))) {
+      matchReasons.push('Language requirement matches your profile');
+    }
+    if (app.matchScore && app.matchScore >= 80) {
+      matchReasons.push('Strong overall fit based on your experience and skills');
+    } else if (app.matchScore && app.matchScore >= 50) {
+      matchReasons.push('Good fit — several key requirements match your profile');
+    }
+
     return NextResponse.json({
       ...app,
       description,
       originalUrl,
       similar: similar.map(s => ({ id: s.id, title: s.title, company: s.company?.name, salary: s.salaryText })),
       followUpSchedule,
+      whyMatched: matchReasons,
     });
   } catch (error) {
     console.error('[AutoApply Detail] GET error:', error);
@@ -87,7 +110,7 @@ export async function POST(
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
-    const { action, templateId, tone } = await request.json();
+    const { action, templateId, tone, followUpDay1, followUpDay2, followUpEnabled } = await request.json();
 
     const app = await prisma.autoApplication.findFirst({
       where: { id, userId: session.user.id },
@@ -195,6 +218,19 @@ export async function POST(
       });
 
       return NextResponse.json({ ok: true, coverLetter, tone });
+    }
+
+    if (action === 'edit-sequence') {
+      await prisma.autoApplyLoop.update({
+        where: { id: app.loopId },
+        data: {
+          ...(followUpDay1 !== undefined && { followUpDay1: parseInt(followUpDay1) }),
+          ...(followUpDay2 !== undefined && { followUpDay2: parseInt(followUpDay2) }),
+          ...(followUpEnabled !== undefined && { followUpEnabled }),
+        },
+      });
+
+      return NextResponse.json({ ok: true });
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
