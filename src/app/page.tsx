@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { siteConfig } from '@/config/site';
 import './marketing-styles.css';
+import './landing-design.css';
 
 export const revalidate = 300;
 
