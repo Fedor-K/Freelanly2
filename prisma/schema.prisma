@@ -41,6 +41,15 @@ model User {
   resumeFileName String?   // Original filename
   parsedProfile  Json?     // AI-extracted: {name, skills, current_title, field, experience_years, summary}
 
+  // Profile (used in outreach personalization)
+  headline       String?   // One sentence, credibility — "Senior React dev · ex-Notion"
+  location       String?   // "Berlin, Germany"
+  availability   String?   // "~30 hrs/week"
+  availableFrom  String?   // "mid-November", "immediately"
+  rateFloorHourly Int?     // Minimum $/hr — auto-skip jobs below this
+  rateFloorProject Int?    // Minimum $/project — auto-skip below
+  caseStudies    Json?     // ["notion-sync", "crdt-merge"] — AI picks best per outreach
+
   // Voice training (3 sample emails for AI to match writing style)
   voiceSamples   Json?     // ["sample email 1", "sample email 2", "sample email 3"]
 
@@ -48,9 +57,11 @@ model User {
   timezone       String?   // "Europe/Berlin", "America/New_York"
   sendStartHour  Int?      // 9 (9am)
   sendEndHour    Int?      // 17 (5pm)
+  sendWeekdaysOnly Boolean @default(true) // Mon-Fri only
 
   // Notification preferences
   notifyOnReply  Boolean   @default(true)
+  notifyDigest   Boolean   @default(true)  // Daily digest email
   notifySlackUrl String?   // Slack webhook URL
   bookingUrl     String?   // Calendly/Cal.com link
 
@@ -1913,6 +1924,19 @@ model AutoApplyLoop {
   sentToday       Int      @default(0)
   lastResetAt     DateTime @default(now())
   isActive        Boolean  @default(true)
+
+  // Match threshold — below this score, require manual review
+  matchThreshold  Int      @default(50)  // 0-100
+
+  // Follow-up cadence (days after initial send)
+  followUpDay1    Int      @default(4)   // 1st bump after N days
+  followUpDay2    Int      @default(8)   // Breakup after N days
+  followUpEnabled Boolean  @default(true)
+
+  // Auto-pause conditions
+  pauseOnUnanswered  Int?     // Pause if N+ unanswered replies in inbox
+  pauseOnLowRate     Float?   // Pause if reply rate drops below X% over 14d
+  pauseOnInactive    Int?     // Pause if user hasn't logged in for N days
 
   // Relations
   applications    AutoApplication[]

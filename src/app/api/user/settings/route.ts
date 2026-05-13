@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-// GET /api/user/settings - Get user settings
+// GET /api/user/settings - Get full user settings + loop settings
 export async function GET() {
   try {
     const session = await auth();
@@ -15,13 +15,97 @@ export async function GET() {
       select: {
         name: true,
         email: true,
+        headline: true,
+        location: true,
+        availability: true,
+        availableFrom: true,
+        rateFloorHourly: true,
+        rateFloorProject: true,
+        caseStudies: true,
+        linkedinUrl: true,
         resumeUrl: true,
+        timezone: true,
+        sendStartHour: true,
+        sendEndHour: true,
+        sendWeekdaysOnly: true,
+        notifyOnReply: true,
+        notifyDigest: true,
+        notifySlackUrl: true,
+        bookingUrl: true,
+        voiceSamples: true,
+        plan: true,
+        userSmtp: { select: { host: true, email: true, verified: true } },
+        autoApplyLoops: {
+          where: { isActive: true },
+          take: 1,
+          select: {
+            id: true,
+            dailyLimit: true,
+            matchThreshold: true,
+            followUpDay1: true,
+            followUpDay2: true,
+            followUpEnabled: true,
+            pauseOnUnanswered: true,
+            pauseOnLowRate: true,
+            pauseOnInactive: true,
+            excludeKeywords: true,
+            mode: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json(user);
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const loop = user.autoApplyLoops[0] || null;
+
+    return NextResponse.json({
+      profile: {
+        name: user.name,
+        email: user.email,
+        headline: user.headline,
+        location: user.location,
+        availability: user.availability,
+        availableFrom: user.availableFrom,
+        rateFloorHourly: user.rateFloorHourly,
+        rateFloorProject: user.rateFloorProject,
+        caseStudies: user.caseStudies,
+        linkedinUrl: user.linkedinUrl,
+        resumeUrl: user.resumeUrl,
+        bookingUrl: user.bookingUrl,
+        voiceSamples: user.voiceSamples,
+      },
+      sendingRules: {
+        timezone: user.timezone,
+        sendStartHour: user.sendStartHour ?? 9,
+        sendEndHour: user.sendEndHour ?? 17,
+        sendWeekdaysOnly: user.sendWeekdaysOnly,
+        dailyLimit: loop?.dailyLimit ?? 10,
+        matchThreshold: loop?.matchThreshold ?? 50,
+        excludeKeywords: loop?.excludeKeywords || '',
+        followUpEnabled: loop?.followUpEnabled ?? true,
+        followUpDay1: loop?.followUpDay1 ?? 4,
+        followUpDay2: loop?.followUpDay2 ?? 8,
+        pauseOnUnanswered: loop?.pauseOnUnanswered,
+        pauseOnLowRate: loop?.pauseOnLowRate,
+        pauseOnInactive: loop?.pauseOnInactive,
+        mode: loop?.mode || 'AUTO',
+      },
+      integrations: {
+        smtp: user.userSmtp ? { host: user.userSmtp.host, email: user.userSmtp.email, verified: user.userSmtp.verified } : null,
+        linkedin: user.linkedinUrl ? { connected: true, url: user.linkedinUrl } : null,
+      },
+      notifications: {
+        onReply: user.notifyOnReply,
+        digest: user.notifyDigest,
+        slackUrl: user.notifySlackUrl,
+      },
+      plan: user.plan,
+    });
   } catch (error) {
-    console.error('[API] Error getting user settings:', error);
+    console.error('[Settings] GET error:', error);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }
@@ -35,36 +119,88 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, resumeUrl } = body;
+    const { section } = body;
 
-    // Validate resumeUrl if provided
-    if (resumeUrl && resumeUrl.length > 0) {
-      try {
-        new URL(resumeUrl);
-      } catch {
-        return NextResponse.json(
-          { error: 'Invalid resume URL' },
-          { status: 400 }
-        );
-      }
+    if (section === 'profile') {
+      const { name, headline, location, availability, availableFrom,
+        rateFloorHourly, rateFloorProject, caseStudies, linkedinUrl, bookingUrl } = body;
+
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: {
+          ...(name !== undefined && { name: name?.trim() || null }),
+          ...(headline !== undefined && { headline: headline?.trim() || null }),
+          ...(location !== undefined && { location: location?.trim() || null }),
+          ...(availability !== undefined && { availability: availability?.trim() || null }),
+          ...(availableFrom !== undefined && { availableFrom: availableFrom?.trim() || null }),
+          ...(rateFloorHourly !== undefined && { rateFloorHourly: rateFloorHourly ? parseInt(rateFloorHourly) : null }),
+          ...(rateFloorProject !== undefined && { rateFloorProject: rateFloorProject ? parseInt(rateFloorProject) : null }),
+          ...(caseStudies !== undefined && { caseStudies: caseStudies || null }),
+          ...(linkedinUrl !== undefined && { linkedinUrl: linkedinUrl?.trim() || null }),
+          ...(bookingUrl !== undefined && { bookingUrl: bookingUrl?.trim() || null }),
+        },
+      });
+      return NextResponse.json({ ok: true });
     }
 
-    const user = await prisma.user.update({
-      where: { id: session.user.id },
-      data: {
-        name: name?.trim() || null,
-        resumeUrl: resumeUrl?.trim() || null,
-      },
-      select: {
-        name: true,
-        email: true,
-        resumeUrl: true,
-      },
-    });
+    if (section === 'sendingRules') {
+      const { timezone, sendStartHour, sendEndHour, sendWeekdaysOnly,
+        dailyLimit, matchThreshold, excludeKeywords, mode,
+        followUpEnabled, followUpDay1, followUpDay2,
+        pauseOnUnanswered, pauseOnLowRate, pauseOnInactive } = body;
 
-    return NextResponse.json(user);
+      // Update user-level send schedule
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: {
+          ...(timezone !== undefined && { timezone }),
+          ...(sendStartHour !== undefined && { sendStartHour: parseInt(sendStartHour) }),
+          ...(sendEndHour !== undefined && { sendEndHour: parseInt(sendEndHour) }),
+          ...(sendWeekdaysOnly !== undefined && { sendWeekdaysOnly }),
+        },
+      });
+
+      // Update active loop settings
+      const activeLoop = await prisma.autoApplyLoop.findFirst({
+        where: { userId: session.user.id, isActive: true },
+      });
+
+      if (activeLoop) {
+        await prisma.autoApplyLoop.update({
+          where: { id: activeLoop.id },
+          data: {
+            ...(dailyLimit !== undefined && { dailyLimit: Math.max(1, Math.min(100, parseInt(dailyLimit))) }),
+            ...(matchThreshold !== undefined && { matchThreshold: Math.max(0, Math.min(100, parseInt(matchThreshold))) }),
+            ...(excludeKeywords !== undefined && { excludeKeywords }),
+            ...(mode !== undefined && { mode }),
+            ...(followUpEnabled !== undefined && { followUpEnabled }),
+            ...(followUpDay1 !== undefined && { followUpDay1: parseInt(followUpDay1) }),
+            ...(followUpDay2 !== undefined && { followUpDay2: parseInt(followUpDay2) }),
+            ...(pauseOnUnanswered !== undefined && { pauseOnUnanswered: pauseOnUnanswered ? parseInt(pauseOnUnanswered) : null }),
+            ...(pauseOnLowRate !== undefined && { pauseOnLowRate: pauseOnLowRate ? parseFloat(pauseOnLowRate) : null }),
+            ...(pauseOnInactive !== undefined && { pauseOnInactive: pauseOnInactive ? parseInt(pauseOnInactive) : null }),
+          },
+        });
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    if (section === 'notifications') {
+      const { onReply, digest, slackUrl } = body;
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: {
+          ...(onReply !== undefined && { notifyOnReply: onReply }),
+          ...(digest !== undefined && { notifyDigest: digest }),
+          ...(slackUrl !== undefined && { notifySlackUrl: slackUrl?.trim() || null }),
+        },
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    return NextResponse.json({ error: 'Unknown section' }, { status: 400 });
   } catch (error) {
-    console.error('[API] Error updating user settings:', error);
+    console.error('[Settings] PATCH error:', error);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }

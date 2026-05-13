@@ -97,6 +97,10 @@ export async function processAutoApplyQueue(): Promise<{
           isActive: true,
           resumeUrl: true,
           mode: true,
+          matchThreshold: true,
+          followUpDay1: true,
+          followUpDay2: true,
+          followUpEnabled: true,
         },
       },
     },
@@ -177,7 +181,13 @@ export async function processAutoApplyQueue(): Promise<{
     // Check daily limit
     if (app.loop.sentToday >= app.loop.dailyLimit) {
       skipped++;
-      continue; // Leave as PENDING, will be sent tomorrow
+      continue;
+    }
+
+    // Check match threshold from loop settings
+    if (app.matchScore && app.matchScore < (app.loop.matchThreshold ?? 50)) {
+      skipped++;
+      continue;
     }
 
     // SEMI mode: mark for review instead of sending
