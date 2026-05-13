@@ -36,12 +36,12 @@ export default function PricingPage() {
 </nav>
 
 {/* HEADER */}
-<header className="page-head">
+<header className="page-head" style={{textAlign:'center'}}>
   <div className="page-head-bg"></div>
-  <div className="container">
+  <div className="container" style={{textAlign:'center'}}>
     <span className="eyebrow">— Pricing</span>
     <h1>Pay less than <span className="accent">one billable hour</span>.<br/>Apply to a thousand gigs.</h1>
-    <p className="lede" style={{textAlign:'center'}}>Start free. Upgrade when your inbox starts filling up. Cancel any time — your data goes with you.</p>
+    <p className="lede" style={{textAlign:'center', margin:'0 auto'}}>Start free. Upgrade when your inbox starts filling up. Cancel any time — your data goes with you.</p>
   </div>
 </header>
 
@@ -65,11 +65,11 @@ export default function PricingPage() {
         <div className="plan-section-label">What&apos;s included</div>
         <ul className="plan-features">
           <li><Chk /> <span><strong>10</strong> AI applications / month</span></li>
-          <li><Chk /> Browse all live gigs</li>
-          <li><Chk /> Basic AI cover letter</li>
-          <li><Chk /> Manual send</li>
-          <li className="dim"><X /> Auto-apply</li>
-          <li className="dim"><X /> Follow-ups</li>
+          <li><Chk /> <span>Browse all live gigs</span></li>
+          <li><Chk /> <span>Basic AI cover letter</span></li>
+          <li><Chk /> <span>Manual send</span></li>
+          <li className="dim"><X /> <span>Auto-apply</span></li>
+          <li className="dim"><X /> <span>Follow-ups</span></li>
         </ul>
       </div>
 
@@ -92,12 +92,12 @@ export default function PricingPage() {
         <div className="plan-section-label">Everything in Free, plus</div>
         <ul className="plan-features">
           <li><Chk /> <span><strong>500</strong> AI applications / month</span></li>
-          <li><Chk /> <strong>Auto-apply</strong> with smart filters</li>
-          <li><Chk /> <strong>Auto follow-ups</strong> after 5 days</li>
-          <li><Chk /> Premium AI model (GPT-class)</li>
-          <li><Chk /> Tracking &amp; reply analytics</li>
-          <li><Chk /> Send from your own inbox</li>
-          <li><Chk /> Early access to new jobs (3hr edge)</li>
+          <li><Chk /> <span><strong>Auto-apply</strong> with smart filters</span></li>
+          <li><Chk /> <span><strong>Auto follow-ups</strong> after 5 days</span></li>
+          <li><Chk /> <span>Premium AI model (GPT-class)</span></li>
+          <li><Chk /> <span>Tracking &amp; reply analytics</span></li>
+          <li><Chk /> <span>Send from your own inbox</span></li>
+          <li><Chk /> <span>Early access to new jobs (3hr edge)</span></li>
         </ul>
       </div>
 
@@ -116,12 +116,12 @@ export default function PricingPage() {
         </div>
         <div className="plan-section-label">Everything in Pro, plus</div>
         <ul className="plan-features">
-          <li><Chk /> <strong>Unlimited</strong> applications</li>
-          <li><Chk /> <strong>5 seats</strong> ($15 / extra seat)</li>
-          <li><Chk /> Shared template library</li>
-          <li><Chk /> Team analytics &amp; pipeline view</li>
-          <li><Chk /> Priority support (4hr SLA)</li>
-          <li><Chk /> Custom AI training on your style</li>
+          <li><Chk /> <span><strong>Unlimited</strong> applications</span></li>
+          <li><Chk /> <span><strong>5 seats</strong> ($15 / extra seat)</span></li>
+          <li><Chk /> <span>Shared template library</span></li>
+          <li><Chk /> <span>Team analytics &amp; pipeline view</span></li>
+          <li><Chk /> <span>Priority support (4hr SLA)</span></li>
+          <li><Chk /> <span>Custom AI training on your style</span></li>
         </ul>
       </div>
     </div>
