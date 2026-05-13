@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { extractText } from 'unpdf';
 import OpenAI from 'openai';
+import { put } from '@vercel/blob';
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'deepseek';
 
@@ -58,10 +59,11 @@ export async function POST(request: NextRequest) {
 
     let pdfText = '';
     let parsedProfile: Record<string, unknown> | null = null;
+    let buffer: Uint8Array | null = null;
 
     // Option 1: PDF resume
     if (file) {
-      const buffer = new Uint8Array(await file.arrayBuffer());
+      buffer = new Uint8Array(await file.arrayBuffer());
       try {
         const { text } = await extractText(buffer, { mergePages: true });
         pdfText = typeof text === 'string' ? text : (text as string[]).join('\n');
@@ -141,11 +143,26 @@ Extract up to 15 skills. If not found, use null.`,
       }
     }
 
+    // Upload original PDF to Vercel Blob
+    let blobUrl = file ? `uploaded:${file.name}` : linkedinUrl || undefined;
+    if (file && buffer) {
+      try {
+        const blob = await put(`resumes/${user.id}/${file.name}`, buffer, {
+          access: 'public',
+          contentType: 'application/pdf',
+        });
+        blobUrl = blob.url;
+        console.log(`[ResumePreAuth] Uploaded to Blob: ${blob.url}`);
+      } catch (blobErr) {
+        console.warn('[ResumePreAuth] Blob upload failed:', blobErr);
+      }
+    }
+
     // Save to user
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        resumeUrl: file ? `uploaded:${file.name}` : linkedinUrl || undefined,
+        resumeUrl: blobUrl,
         resumeText: pdfText ? pdfText.substring(0, 10000) : undefined,
         resumeFileName: file?.name || undefined,
         parsedProfile: parsedProfile || undefined,

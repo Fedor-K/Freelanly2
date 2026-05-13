@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { extractText } from 'unpdf';
 import OpenAI from 'openai';
+import { put } from '@vercel/blob';
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'deepseek';
 
@@ -97,13 +98,25 @@ Extract as many skills as you can find (up to 15). If a field is not found, use 
       console.error('[Resume] AI parsing failed:', aiError);
     }
 
-    // Store resume data + PDF + parsed profile on user
+    // Upload original PDF to Vercel Blob
+    let blobUrl = `uploaded:${file.name}`;
+    try {
+      const blob = await put(`resumes/${session.user.id}/${file.name}`, buffer, {
+        access: 'public',
+        contentType: 'application/pdf',
+      });
+      blobUrl = blob.url;
+      console.log(`[Resume] Uploaded to Blob: ${blob.url}`);
+    } catch (blobErr) {
+      console.warn('[Resume] Blob upload failed, storing without original PDF:', blobErr);
+    }
+
+    // Store resume data + parsed profile on user
     await prisma.user.update({
       where: { id: session.user.id },
       data: {
-        resumeUrl: `uploaded:${file.name}`,
+        resumeUrl: blobUrl,
         resumeText: pdfText.substring(0, 10000),
-        resumeBase64: Buffer.from(buffer).toString('base64'),
         resumeFileName: file.name,
         parsedProfile: parsedProfile || undefined,
         name: parsedProfile?.name || undefined,
