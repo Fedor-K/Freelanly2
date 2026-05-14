@@ -221,6 +221,15 @@ export async function POST(
       return NextResponse.json({ ok: true, coverLetter, tone });
     }
 
+    if (action === 'move-stage') {
+      const validStatuses = ['SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER'];
+      if (!body.status || !validStatuses.includes(body.status)) {
+        return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+      }
+      await prisma.autoApplication.update({ where: { id }, data: { status: body.status } });
+      return NextResponse.json({ ok: true });
+    }
+
     if (action === 'send-now') {
       // Change status to PENDING so the worker picks it up immediately
       // (or SENDING if we want instant processing)
