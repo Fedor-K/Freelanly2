@@ -747,7 +747,6 @@ export function RegistrationForm({
           <span style={{transition: 'transform 140ms'}}>→</span>
         </button>
 
-        <div className="signin-line">Already have an account? <a href="/auth/login">Sign in</a></div>
       </div>
     );
   }

@@ -25,7 +25,6 @@ export default function AboutPage() {
       <li><a href="/about">About</a></li>
     </ul>
     <div className="nav-cta">
-      <a href="/auth/login" className="btn btn-ghost btn-sm">Sign in</a>
       <a href="/auth/signin" className="btn btn-primary btn-sm">Start free
         <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </a>
