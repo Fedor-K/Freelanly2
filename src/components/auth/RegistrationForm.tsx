@@ -2,11 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { signIn } from 'next-auth/react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { categories, countries, languages } from '@/config/site';
-import { Mail, ChevronDown, Check, X, Zap, ArrowLeft, Loader2, AlertTriangle, TrendingUp } from 'lucide-react';
 import { getStoredClickId, getStoredUtmSource, getStoredUtmParams } from '@/components/analytics/GclidCapture';
 
 /** Read UTM params from current page URL as fallback when localStorage is empty */
@@ -572,19 +568,17 @@ export function RegistrationForm({
   // Step: Email Sent — show code input
   if (step === 'sent') {
     return (
-      <div className="text-center py-4">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Mail className="w-8 h-8 text-green-600" />
+      <div style={{textAlign: 'center', padding: '16px 0'}}>
+        <div style={{width: '64px', height: '64px', background: 'rgba(199,249,74,0.2)', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px'}}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4D8B0A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>
         </div>
-        <h2 className="text-xl font-semibold mb-2">Enter the code</h2>
-        <p className="text-muted-foreground mb-6">
-          We sent a 6-digit code to
-          <br />
-          <span className="font-medium text-foreground">{email}</span>
+        <h2 style={{fontSize: '20px', fontWeight: 600, marginBottom: '8px'}}>Enter the code</h2>
+        <p style={{color: '#5C6068', marginBottom: '24px'}}>
+          We sent a 6-digit code to<br/>
+          <span style={{fontWeight: 500, color: '#0A0B0F'}}>{email}</span>
         </p>
 
-        {/* Code input — single input styled as 6 boxes for iOS AutoFill */}
-        <div className="relative flex justify-center mb-4">
+        <div style={{position: 'relative', display: 'flex', justifyContent: 'center', marginBottom: '16px'}}>
           <input
             ref={(el) => { otpRefs.current[0] = el; }}
             type="text"
@@ -603,38 +597,31 @@ export function RegistrationForm({
             onPaste={handleOtpPaste}
             disabled={otpLoading}
             autoFocus
-            className="absolute inset-0 w-full opacity-0 z-10 cursor-pointer"
-            style={{ caretColor: 'transparent' }}
+            style={{position: 'absolute', inset: 0, width: '100%', opacity: 0, zIndex: 10, cursor: 'pointer', caretColor: 'transparent'}}
           />
-          <div className="flex gap-2 pointer-events-none">
+          <div style={{display: 'flex', gap: '8px', pointerEvents: 'none'}}>
             {otpCode.map((digit, index) => (
               <div
                 key={index}
-                className={`w-11 h-13 flex items-center justify-center text-2xl font-bold border-2 rounded-lg transition-colors ${
-                  otpError ? 'border-destructive' : digit ? 'border-primary' : 'border-input'
-                } ${otpLoading ? 'opacity-50' : ''}`}
+                style={{
+                  width: '44px', height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '24px', fontWeight: 700, border: `2px solid ${otpError ? '#B91C1C' : digit ? '#0A0B0F' : 'rgba(11,12,15,0.12)'}`,
+                  borderRadius: '10px', transition: 'border-color 140ms', opacity: otpLoading ? 0.5 : 1,
+                }}
               >
                 {digit}
               </div>
             ))}
           </div>
         </div>
-        {otpError && <p className="text-sm text-destructive mb-3">{otpError}</p>}
-        {otpLoading && <p className="text-sm text-muted-foreground mb-3">Verifying...</p>}
+        {otpError && <p style={{fontSize: '13px', color: '#B91C1C', marginBottom: '12px'}}>{otpError}</p>}
+        {otpLoading && <p style={{fontSize: '13px', color: '#5C6068', marginBottom: '12px'}}>Verifying...</p>}
 
-        <p className="text-xs text-muted-foreground mb-4">
-          or click the link in the email
-        </p>
+        <p style={{fontSize: '12px', color: '#6B7280', marginBottom: '16px'}}>or click the link in the email</p>
 
         <button
-          onClick={() => {
-            setStep('email');
-            setEmail('');
-            setUserInfo(null);
-            setOtpCode(['', '', '', '', '', '']);
-            setOtpError('');
-          }}
-          className="text-sm text-muted-foreground hover:text-foreground underline"
+          onClick={() => { setStep('email'); setEmail(''); setUserInfo(null); setOtpCode(['','','','','','']); setOtpError(''); }}
+          style={{fontSize: '13px', color: '#5C6068', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer'}}
         >
           Use a different email
         </button>
@@ -645,35 +632,38 @@ export function RegistrationForm({
   // Step: Email Input (+ registration fields for new users)
   if (step === 'email') {
     return (
-      <div className="space-y-4">
+      <div className="field-group">
+        {/* Google OAuth */}
+        <button className="oauth-btn" type="button" onClick={handleGoogleSignIn}>
+          <svg viewBox="0 0 24 24" width="18" height="18"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Continue with Google
+        </button>
+
+        <div className="divider">or use email</div>
+
         {/* Job context */}
         {showJobContext && jobTitle && companyName && (
-          <div className="rounded-lg bg-muted/50 p-3 text-center text-sm">
+          <div style={{padding: '10px 14px', background: 'rgba(199,249,74,0.1)', border: '1px solid rgba(199,249,74,0.3)', borderRadius: '10px', textAlign: 'center', fontSize: '13px'}}>
             Apply to <strong>{jobTitle}</strong> at <strong>{companyName}</strong>
           </div>
         )}
 
         {/* Email Input */}
         <div>
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
+          <label className="field-label">Work email</label>
+          <input
+            className="text-input"
             type="email"
             value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              setIsExistingUser(null); // reset on change
-            }}
+            onChange={(e) => { setEmail(e.target.value); setIsExistingUser(null); }}
             onBlur={() => checkEmailExists(email)}
             onKeyDown={handleEmailKeyDown}
-            placeholder="your@email.com"
-            className="mt-1"
+            placeholder="you@inbox.com"
             autoFocus
           />
+          <div className="helper">We&apos;ll send a 6-digit code · <b>no password to remember</b></div>
           {isCheckingEmail && (
-            <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
-              <Loader2 className="h-3 w-3 animate-spin" /> Checking...
-            </p>
+            <p style={{marginTop: '4px', fontSize: '12px', color: '#5C6068'}}>Checking...</p>
           )}
         </div>
 
@@ -682,258 +672,82 @@ export function RegistrationForm({
           <>
             {/* Name */}
             <div>
-              <Label htmlFor="name-modal">Your name *</Label>
-              <Input
-                id="name-modal"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Full name"
-                className="mt-1"
-                required
-              />
+              <label className="field-label">Your name</label>
+              <input className="text-input" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" required />
             </div>
 
-            {/* Categories Multi-select */}
+            {/* LinkedIn URL */}
             <div>
-              <Label>What roles interest you? *</Label>
-              <div className="relative mt-1" ref={categoryDropdownRef}>
-                <div
-                  onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                  className="min-h-[42px] px-3 py-2 border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center"
-                >
-                  {selectedCategories.length === 0 ? (
-                    <span className="text-muted-foreground">Select categories...</span>
-                  ) : (
-                    selectedCategories.map((slug) => {
-                      const cat = categories.find((c) => c.slug === slug);
-                      return (
-                        <span
-                          key={slug}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-sm"
-                        >
-                          {cat?.name || slug}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeCategory(slug);
-                            }}
-                            className="hover:text-primary/70"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </span>
-                      );
-                    })
-                  )}
-                  <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
-                </div>
-
-                {showCategoryDropdown && (
-                  <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {categories.map((cat) => (
-                      <button
-                        key={cat.slug}
-                        type="button"
-                        onClick={() => toggleCategory(cat.slug)}
-                        className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between"
-                      >
-                        <span>
-                          {cat.icon} {cat.name}
-                        </span>
-                        {selectedCategories.includes(cat.slug) && (
-                          <Check className="h-4 w-4 text-primary" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Job Count Preview */}
-            {selectedCategories.length > 0 && (
-              <div className={`p-3 rounded-lg border ${
-                jobCountPreview && jobCountPreview.count < 5
-                  ? 'bg-amber-50 border-amber-200'
-                  : 'bg-green-50 border-green-200'
-              }`}>
-                {isLoadingJobCount ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Checking job availability...</span>
-                  </div>
-                ) : jobCountPreview ? (
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-sm">
-                      {jobCountPreview.count < 5 ? (
-                        <>
-                          <AlertTriangle className="h-4 w-4 text-amber-600" />
-                          <span className="font-medium text-amber-800">
-                            Only {jobCountPreview.count} job{jobCountPreview.count !== 1 ? 's' : ''} in the last 7 days
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <TrendingUp className="h-4 w-4 text-green-600" />
-                          <span className="font-medium text-green-800">
-                            {jobCountPreview.count} jobs in the last 7 days (~{jobCountPreview.dailyAverage}/day)
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    {jobCountPreview.count < 5 && selectedCategories.length === 1 && (
-                      <p className="text-xs text-amber-700">
-                        Tip: Add more categories to receive more job alerts.
-                      </p>
-                    )}
-                  </div>
-                ) : null}
-              </div>
-            )}
-
-            {/* Country removed — worldwide by default for remote/freelance */}
-
-            {/* Translation Languages */}
-            {showTranslationFields && (
-              <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
-                <Label>Your Languages *</Label>
-                <p className="text-xs text-muted-foreground -mt-1">Select languages you can translate (besides English)</p>
-                <div className="relative" ref={languageDropdownRef}>
-                  <div
-                    onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-                    className="min-h-[42px] px-3 py-2 border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center bg-background"
-                  >
-                    {selectedLanguages.length === 0 ? (
-                      <span className="text-muted-foreground">Select languages...</span>
-                    ) : (
-                      selectedLanguages.map((code) => {
-                        const lang = languages.find((l) => l.code === code);
-                        return (
-                          <span
-                            key={code}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-sm"
-                          >
-                            {lang?.name || code}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeLanguage(code);
-                              }}
-                              className="hover:text-primary/70"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </span>
-                        );
-                      })
-                    )}
-                    <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
-                  </div>
-
-                  {showLanguageDropdown && (
-                    <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {languages
-                        .filter((l) => l.code !== 'EN')
-                        .map((lang) => (
-                          <button
-                            key={lang.code}
-                            type="button"
-                            onClick={() => toggleLanguage(lang.code)}
-                            className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between"
-                          >
-                            <span>{lang.name}</span>
-                            {selectedLanguages.includes(lang.code) && (
-                              <Check className="h-4 w-4 text-primary" />
-                            )}
-                          </button>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Instant alerts notice */}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-              <Zap className="h-4 w-4 text-yellow-500" />
-              <span>You&apos;ll get instant alerts for matching jobs</span>
+              <label className="field-label">LinkedIn URL <span className="optional">— optional, used as a credibility signal</span></label>
+              <input className="text-input" type="url" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/in/yourname" />
             </div>
 
             {/* Resume Upload */}
             <div>
-              <label className="block text-sm font-medium mb-1.5">
-                Resume (PDF) — <span className="text-muted-foreground font-normal">we&apos;ll auto-apply to matching projects for you</span>
+              <label className="field-label">Résumé</label>
+              <label className="upload-zone" onClick={(e) => { const inp = (e.currentTarget as HTMLElement).querySelector('input[type="file"]') as HTMLInputElement; if (inp && (e.target as HTMLElement).tagName !== 'INPUT') inp.click(); }}>
+                <div className="up-ico">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                </div>
+                <div style={{flex: 1}}>
+                  <div className="up-ttl">{resumeFile ? resumeFile.name : 'Upload your résumé'}</div>
+                  <div className="up-sub">{resumeFile ? 'Ready to upload' : 'PDF or DOCX · we extract skills, roles, links'}</div>
+                </div>
+                <input type="file" accept=".pdf,.docx" style={{display: 'none'}} onChange={(e) => setResumeFile(e.target.files?.[0] || null)} />
+                <span style={{fontSize: '11.5px', color: '#5C6068', fontFamily: "'Geist Mono', monospace"}}>Choose →</span>
               </label>
-              <input
-                type="file"
-                accept=".pdf"
-                onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
-                className="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-primary/10 file:text-primary file:font-medium file:cursor-pointer hover:file:bg-primary/20"
-              />
-              {resumeFile && (
-                <p className="text-xs text-green-600 mt-1">{resumeFile.name} ready</p>
-              )}
-              <p className="text-xs text-muted-foreground mt-1">or paste your LinkedIn profile URL:</p>
-              <input
-                type="url"
-                placeholder="https://linkedin.com/in/your-profile"
-                value={linkedinUrl}
-                onChange={(e) => setLinkedinUrl(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg text-sm"
-              />
             </div>
 
-            {/* Terms of Service Agreement */}
-            <div className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                id="terms-email"
-                checked={agreedToTerms}
-                onChange={(e) => setAgreedToTerms(e.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-              />
-              <label htmlFor="terms-email" className="text-sm text-muted-foreground">
-                I agree to the{' '}
-                <a href="/terms" target="_blank" className="text-primary underline hover:no-underline">
-                  Terms of Service
-                </a>{' '}
-                and{' '}
-                <a href="/privacy" target="_blank" className="text-primary underline hover:no-underline">
-                  Privacy Policy
-                </a>
-                {resumeFile && '. Freelanly will apply to matching projects on my behalf.'}
-              </label>
+            {/* Categories */}
+            <div>
+              <label className="field-label">What kind of work do you want? <span className="optional">— pick all that apply</span></label>
+              <div className="cat-grid">
+                {categories.slice(0, 8).map((cat) => (
+                  <div key={cat.slug} className={`cat-chip${selectedCategories.includes(cat.slug) ? ' on' : ''}`} onClick={() => toggleCategory(cat.slug)}>
+                    <span className="cb"></span>
+                    {cat.name}
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* Job Count Preview */}
+            {selectedCategories.length > 0 && jobCountPreview && (
+              <div style={{padding: '10px 14px', borderRadius: '10px', fontSize: '13px', background: jobCountPreview.count < 5 ? 'rgba(180,83,9,0.06)' : 'rgba(21,128,61,0.06)', border: `1px solid ${jobCountPreview.count < 5 ? 'rgba(180,83,9,0.2)' : 'rgba(21,128,61,0.2)'}`, color: jobCountPreview.count < 5 ? '#B45309' : '#15803D'}}>
+                {jobCountPreview.count} jobs in the last 7 days (~{jobCountPreview.dailyAverage}/day)
+              </div>
+            )}
+
+            {/* Translation Languages */}
+            {showTranslationFields && (
+              <div style={{padding: '12px', background: 'rgba(11,12,15,0.03)', borderRadius: '10px'}}>
+                <label className="field-label">Your Languages *</label>
+                <p style={{fontSize: '12px', color: '#5C6068', marginBottom: '8px'}}>Select languages you can translate (besides English)</p>
+                <div className="cat-grid">
+                  {languages.filter(l => l.code !== 'EN').slice(0, 12).map((lang) => (
+                    <div key={lang.code} className={`cat-chip${selectedLanguages.includes(lang.code) ? ' on' : ''}`} onClick={() => toggleLanguage(lang.code)}>
+                      <span className="cb"></span>
+                      {lang.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p style={{fontSize: '13px', color: '#B91C1C'}}>{error}</p>}
 
-        <Button
+        <button
+          className="primary-btn"
           onClick={handleSendMagicLink}
-          disabled={isLoading || isExistingUser === null || (isExistingUser === false && (selectedCategories.length === 0 || !agreedToTerms || !name.trim()))}
-          className="w-full"
-          size="lg"
+          disabled={isLoading || isExistingUser === null || (isExistingUser === false && (selectedCategories.length === 0 || !name.trim()))}
         >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Sending...
-            </>
-          ) : (
-            <>
-              <Mail className="mr-2 h-4 w-4" />
-              Send Magic Link
-            </>
-          )}
-        </Button>
+          {isLoading ? 'Sending...' : isExistingUser ? 'Send me a code' : 'Send me a code'}
+          <span style={{transition: 'transform 140ms'}}>→</span>
+        </button>
 
-        <p className="text-center text-xs text-muted-foreground">
-          We&apos;ll send a sign-in link to your email.
-        </p>
+        <div className="signin-line">Already have an account? <a href="/auth/login">Sign in</a></div>
       </div>
     );
   }
@@ -943,318 +757,62 @@ export function RegistrationForm({
     const displayName = userInfo?.name?.split(' ')[0] || 'there';
 
     return (
-      <div className="space-y-6">
-        {/* Back button */}
-        <button
-          onClick={goBack}
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
+      <div className="field-group">
+        <button onClick={goBack} style={{fontSize: '13px', color: '#5C6068', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'}}>
+          ← Back
         </button>
 
-        {/* Welcome message */}
-        <div className="text-center">
-          <h2 className="text-xl font-semibold">Welcome back, {displayName}!</h2>
-          <p className="mt-1 text-muted-foreground">{email}</p>
+        <div style={{textAlign: 'center'}}>
+          <h2 style={{fontSize: '20px', fontWeight: 600}}>Welcome back, {displayName}!</h2>
+          <p style={{marginTop: '4px', color: '#5C6068'}}>{email}</p>
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p style={{fontSize: '13px', color: '#B91C1C'}}>{error}</p>}
 
-        {/* Magic Link */}
-        <Button
-          onClick={handleMagicLinkLogin}
-          disabled={isLoading}
-          className="w-full"
-          size="lg"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Sending...
-            </>
-          ) : (
-            <>
-              <Mail className="mr-2 h-4 w-4" />
-              Send magic link
-            </>
-          )}
-        </Button>
+        <button className="primary-btn" onClick={handleMagicLinkLogin} disabled={isLoading}>
+          {isLoading ? 'Sending...' : 'Send me a code →'}
+        </button>
 
-        <p className="text-center text-xs text-muted-foreground">
-          We&apos;ll email you a link to sign in instantly.
+        <p style={{textAlign: 'center', fontSize: '12px', color: '#6B7280'}}>
+          We&apos;ll email you a code to sign in instantly.
         </p>
       </div>
     );
   }
 
-  // Step: Register (new user)
+  // Step: Register (new user) — fallback, should not normally reach here
+  // since the email step now handles both new and existing users
   return (
-    <div className="space-y-6">
-      {/* Back button */}
-      <button
-        onClick={goBack}
-        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back
-      </button>
-
-      {/* Header */}
-      <div className="text-center">
-        <h2 className="text-xl font-semibold">Create your account</h2>
-        <p className="mt-1 text-muted-foreground">{email}</p>
+    <div className="field-group">
+      <button onClick={goBack} style={{fontSize: '13px', color: '#5C6068', background: 'none', border: 'none', cursor: 'pointer'}}>← Back</button>
+      <div style={{textAlign: 'center'}}>
+        <h2 style={{fontSize: '20px', fontWeight: 600}}>Create your account</h2>
+        <p style={{color: '#5C6068'}}>{email}</p>
       </div>
 
-      {/* Job context */}
-      {showJobContext && jobTitle && companyName && (
-        <div className="rounded-lg bg-muted/50 p-3 text-center text-sm">
-          Apply to <strong>{jobTitle}</strong> at <strong>{companyName}</strong>
-        </div>
-      )}
-
-      {/* Registration Form */}
-      <form onSubmit={handleRegistrationSubmit} className="space-y-4">
-        {/* Name */}
+      <form onSubmit={handleRegistrationSubmit} className="field-group">
         <div>
-          <Label htmlFor="name">Name (optional)</Label>
-          <Input
-            id="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Your name"
-            className="mt-1"
-          />
+          <label className="field-label">Name</label>
+          <input className="text-input" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
         </div>
 
-        {/* Categories Multi-select */}
         <div>
-          <Label>What roles interest you? *</Label>
-          <div className="relative mt-1" ref={categoryDropdownRef}>
-            {/* Selected categories chips */}
-            <div
-              onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-              className="min-h-[42px] px-3 py-2 border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center"
-            >
-              {selectedCategories.length === 0 ? (
-                <span className="text-muted-foreground">Select categories...</span>
-              ) : (
-                selectedCategories.map((slug) => {
-                  const cat = categories.find((c) => c.slug === slug);
-                  return (
-                    <span
-                      key={slug}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-sm"
-                    >
-                      {cat?.name || slug}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeCategory(slug);
-                        }}
-                        className="hover:text-primary/70"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  );
-                })
-              )}
-              <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
-            </div>
-
-            {/* Dropdown */}
-            {showCategoryDropdown && (
-              <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {categories.map((cat) => (
-                  <button
-                    key={cat.slug}
-                    type="button"
-                    onClick={() => toggleCategory(cat.slug)}
-                    className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between"
-                  >
-                    <span>
-                      {cat.icon} {cat.name}
-                    </span>
-                    {selectedCategories.includes(cat.slug) && (
-                      <Check className="h-4 w-4 text-primary" />
-                    )}
-                  </button>
-                ))}
+          <label className="field-label">What kind of work? <span className="optional">— pick all that apply</span></label>
+          <div className="cat-grid">
+            {categories.slice(0, 8).map((cat) => (
+              <div key={cat.slug} className={`cat-chip${selectedCategories.includes(cat.slug) ? ' on' : ''}`} onClick={() => toggleCategory(cat.slug)}>
+                <span className="cb"></span>{cat.name}
               </div>
-            )}
+            ))}
           </div>
         </div>
 
-        {/* Job Count Preview */}
-        {selectedCategories.length > 0 && (
-          <div className={`p-3 rounded-lg border ${
-            jobCountPreview && jobCountPreview.count < 5
-              ? 'bg-amber-50 border-amber-200'
-              : 'bg-green-50 border-green-200'
-          }`}>
-            {isLoadingJobCount ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Checking job availability...</span>
-              </div>
-            ) : jobCountPreview ? (
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm">
-                  {jobCountPreview.count < 5 ? (
-                    <>
-                      <AlertTriangle className="h-4 w-4 text-amber-600" />
-                      <span className="font-medium text-amber-800">
-                        Only {jobCountPreview.count} job{jobCountPreview.count !== 1 ? 's' : ''} in the last 7 days
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <TrendingUp className="h-4 w-4 text-green-600" />
-                      <span className="font-medium text-green-800">
-                        {jobCountPreview.count} jobs in the last 7 days (~{jobCountPreview.dailyAverage}/day)
-                      </span>
-                    </>
-                  )}
-                </div>
-                {jobCountPreview.count < 5 && selectedCategories.length === 1 && (
-                  <p className="text-xs text-amber-700">
-                    Tip: Add more categories to receive more job alerts.
-                  </p>
-                )}
-              </div>
-            ) : null}
-          </div>
-        )}
+        {error && <p style={{fontSize: '13px', color: '#B91C1C'}}>{error}</p>}
 
-        {/* Translation Languages */}
-        {showTranslationFields && (
-          <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
-            <Label>Your Languages *</Label>
-            <p className="text-xs text-muted-foreground -mt-1">Select languages you can translate (besides English)</p>
-            <div className="relative" ref={languageDropdownRef}>
-              {/* Selected languages chips */}
-              <div
-                onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-                className="min-h-[42px] px-3 py-2 border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center bg-background"
-              >
-                {selectedLanguages.length === 0 ? (
-                  <span className="text-muted-foreground">Select languages...</span>
-                ) : (
-                  selectedLanguages.map((code) => {
-                    const lang = languages.find((l) => l.code === code);
-                    return (
-                      <span
-                        key={code}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-sm"
-                      >
-                        {lang?.name || code}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeLanguage(code);
-                          }}
-                          className="hover:text-primary/70"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    );
-                  })
-                )}
-                <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
-              </div>
-
-              {/* Dropdown */}
-              {showLanguageDropdown && (
-                <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {languages
-                    .filter((l) => l.code !== 'EN') // Exclude English - it's implicit
-                    .map((lang) => (
-                      <button
-                        key={lang.code}
-                        type="button"
-                        onClick={() => toggleLanguage(lang.code)}
-                        className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between"
-                      >
-                        <span>{lang.name}</span>
-                        {selectedLanguages.includes(lang.code) && (
-                          <Check className="h-4 w-4 text-primary" />
-                        )}
-                      </button>
-                    ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Error message */}
-        {error && <p className="text-sm text-destructive">{error}</p>}
-
-        {/* Instant alerts notice */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-          <Zap className="h-4 w-4 text-yellow-500" />
-          <span>You&apos;ll get instant alerts for matching jobs</span>
-        </div>
-
-        {/* Resume Upload (optional) */}
-        <div>
-          <label className="block text-sm font-medium mb-1.5">
-            Resume (PDF) — <span className="text-muted-foreground font-normal">optional, enables auto-apply</span>
-          </label>
-          <input
-            type="file"
-            accept=".pdf"
-            onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
-            className="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-primary/10 file:text-primary file:font-medium file:cursor-pointer hover:file:bg-primary/20"
-          />
-          {resumeFile && (
-            <p className="text-xs text-green-600 mt-1">{resumeFile.name} ready</p>
-          )}
-        </div>
-
-        {/* Terms of Service Agreement */}
-        <div className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            id="terms"
-            checked={agreedToTerms}
-            onChange={(e) => setAgreedToTerms(e.target.checked)}
-            className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-          />
-          <label htmlFor="terms" className="text-sm text-muted-foreground">
-            I agree to the{' '}
-            <a href="/terms" target="_blank" className="text-primary underline hover:no-underline">
-              Terms of Service
-            </a>{' '}
-            and{' '}
-            <a href="/privacy" target="_blank" className="text-primary underline hover:no-underline">
-              Privacy Policy
-            </a>
-            . {resumeFile && 'Freelanly will apply to matching projects on my behalf.'}
-          </label>
-        </div>
-
-        {/* Submit */}
-        <Button type="submit" className="w-full" size="lg" disabled={isLoading || !agreedToTerms}>
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Creating account...
-            </>
-          ) : (
-            'Get Started Free'
-          )}
-        </Button>
+        <button className="primary-btn" type="submit" disabled={isLoading || !agreedToTerms}>
+          {isLoading ? 'Creating account...' : 'Get Started Free →'}
+        </button>
       </form>
-
-      <p className="text-center text-xs text-muted-foreground">
-        You&apos;ll receive job alerts. Unsubscribe anytime.
-      </p>
     </div>
   );
 }
