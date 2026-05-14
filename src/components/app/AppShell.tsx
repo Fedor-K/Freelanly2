@@ -27,18 +27,18 @@ function SvgIcon({ name, size = 18 }: { name: string; size?: number }) {
 
 const NAV = [
   { label: 'PRIMARY', items: [
-    { id: 'dashboard', href: '/dashboard',  label: 'Dashboard',  icon: 'home' },
-    { id: 'discovery', href: '/dashboard/auto-apply?tab=discovery', label: 'Discovery', icon: 'compass', count: '142' },
-    { id: 'inbox',     href: '/dashboard/auto-apply?tab=inbox',     label: 'Inbox',     icon: 'inbox',   count: '7' },
-    { id: 'pipeline',  href: '/dashboard/auto-apply?tab=pipeline',  label: 'Pipeline',  icon: 'columns' },
+    { id: 'dashboard', href: '/dashboard',            label: 'Dashboard',  icon: 'home' },
+    { id: 'discovery', href: '/dashboard/discovery',   label: 'Discovery', icon: 'compass' },
+    { id: 'inbox',     href: '/dashboard/inbox',        label: 'Inbox',     icon: 'inbox' },
+    { id: 'pipeline',  href: '/dashboard/pipeline',     label: 'Pipeline',  icon: 'columns' },
   ]},
   { label: 'CONTENT', items: [
-    { id: 'templates', href: '/dashboard/auto-apply?tab=templates', label: 'Templates', icon: 'edit' },
-    { id: 'analytics', href: '/dashboard/auto-apply?tab=analytics', label: 'Analytics', icon: 'bar' },
+    { id: 'templates', href: '/dashboard/templates',    label: 'Templates', icon: 'edit' },
+    { id: 'analytics', href: '/dashboard/analytics',    label: 'Analytics', icon: 'bar' },
   ]},
   { label: 'ACCOUNT', items: [
-    { id: 'settings', href: '/dashboard/settings', label: 'Settings', icon: 'cog' },
-    { id: 'billing',  href: '/dashboard/auto-apply?tab=billing',    label: 'Billing',   icon: 'card' },
+    { id: 'settings', href: '/dashboard/settings',      label: 'Settings', icon: 'cog' },
+    { id: 'billing',  href: '/dashboard/billing',       label: 'Billing',  icon: 'card' },
   ]},
 ];
 
@@ -49,11 +49,8 @@ export function AppShell({ children, userName, userPlan }: { children: React.Rea
 
   const isActive = (item: { id: string; href: string }) => {
     if (item.href === '/dashboard' && pathname === '/dashboard') return true;
-    if (item.href.includes('?tab=')) {
-      const tab = item.href.split('tab=')[1];
-      return pathname?.includes('/auto-apply') && new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('tab') === tab;
-    }
-    return pathname?.startsWith(item.href) && item.href !== '/dashboard';
+    if (item.href === '/dashboard') return false;
+    return pathname?.startsWith(item.href);
   };
 
   return (
