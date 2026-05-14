@@ -210,8 +210,9 @@ export async function processAutoApplyQueue(): Promise<{
     });
 
     try {
-      // Fetch job description for tailoring
+      // Fetch job description + recruiter name for tailoring
       let jobDescription = '';
+      let recruiterName = '';
       if (app.jobId) {
         const job = await prisma.job.findUnique({
           where: { id: app.jobId },
@@ -221,9 +222,13 @@ export async function processAutoApplyQueue(): Promise<{
       } else if (app.opportunityId) {
         const opp = await prisma.opportunity.findUnique({
           where: { id: app.opportunityId },
-          select: { description: true },
+          select: { description: true, clientName: true, clientType: true },
         });
         jobDescription = opp?.description || '';
+        // clientName is the recruiter/poster name when clientType is 'profile'
+        if (opp?.clientType === 'profile' && opp.clientName) {
+          recruiterName = opp.clientName.split(' ')[0]; // First name
+        }
       }
 
       const parsedProfile = app.user.parsedProfile as Record<string, unknown> | null;
@@ -286,6 +291,7 @@ export async function processAutoApplyQueue(): Promise<{
         userName: app.user.name || 'Applicant',
         jobTitle: app.jobTitle,
         companyName: app.companyName,
+        recruiterName,
         applicationId: app.id,
       });
 
@@ -731,11 +737,11 @@ function buildApplicationEmailHtml(params: {
   userName: string;
   jobTitle: string;
   companyName: string;
+  recruiterName?: string;
   applicationId?: string;
 }): string {
-  const { coverLetter, userName, companyName, applicationId } = params;
-  // Don't use companyName as person's name — it's a company now
-  const greeting = 'Hi there';
+  const { coverLetter, userName, recruiterName, applicationId } = params;
+  const greeting = recruiterName ? `Hi ${recruiterName}` : 'Hi there';
 
   // Convert newlines to paragraphs
   const paragraphs = coverLetter
