@@ -133,7 +133,7 @@ export function AppShell({ children, userName, userPlan }: { children: React.Rea
               <SvgIcon name="bell" size={16} />
               <span className="dot"></span>
             </button>
-            <a href="/dashboard/auto-apply?tab=discovery" className="btn btn-acid btn-sm">
+            <a href="/dashboard/discovery" className="btn btn-acid btn-sm">
               <SvgIcon name="plus" size={14} />
               Apply
             </a>

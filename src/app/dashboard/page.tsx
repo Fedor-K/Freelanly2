@@ -147,7 +147,7 @@ export default async function DashboardOverviewPage() {
           <p>It&apos;s {dayName} — {pendingCount} applications queued. {replies.length > 0 ? `${replies.length} new repl${replies.length === 1 ? 'y' : 'ies'} waiting.` : 'No new replies yet.'}</p>
         </div>
         <div className="page-actions">
-          <a href="/dashboard/auto-apply" className="btn btn-acid">
+          <a href="/dashboard/discovery" className="btn btn-acid">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
             Apply to new gigs
           </a>
@@ -247,12 +247,12 @@ export default async function DashboardOverviewPage() {
           <div className="card">
             <div className="card-head">
               <h3>New replies</h3>
-              <a href="/dashboard/auto-apply?tab=inbox" className="muted f-mono" style={{fontSize: '11px', letterSpacing: '0.04em', textTransform: 'uppercase'}}>Inbox →</a>
+              <a href="/dashboard/inbox" className="muted f-mono" style={{fontSize: '11px', letterSpacing: '0.04em', textTransform: 'uppercase'}}>Inbox →</a>
             </div>
             {replies.length === 0 ? (
               <div style={{padding: '24px 16px', textAlign: 'center', color: 'var(--ink-4)', fontSize: '13px'}}>No replies yet. Keep sending!</div>
             ) : replies.map((r, i) => (
-              <a key={r.id} href="/dashboard/auto-apply?tab=inbox" className="reply-row">
+              <a key={r.id} href="/dashboard/inbox" className="reply-row">
                 <div className="avatar av-sm" style={{background: COLORS[i % COLORS.length]}}>{r.companyName.slice(0, 2).toUpperCase()}</div>
                 <div>
                   <div className="row between">
