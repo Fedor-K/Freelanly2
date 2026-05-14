@@ -101,6 +101,7 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
   }
 
   const [sortBy, setSortBy] = useState<'newest' | 'match'>('newest');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   // Apply filters
   let visible = items.filter(i => !skipped.has(i.id));
@@ -195,7 +196,17 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
                 <span className="chip"><span className="chip-dot live"></span>{timeAgo(item.createdAt)}</span>
               </div>
               <div className="job-company">{item.companyName} · {item.source === 'linkedin' ? 'via LinkedIn' : item.source}</div>
-              <div className="job-snippet">{item.description.slice(0, 160)}{item.description.length > 160 ? '...' : ''}</div>
+              <div
+                className="job-snippet"
+                style={{cursor: 'pointer'}}
+                onClick={() => setExpanded(prev => {
+                  const next = new Set(prev);
+                  if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+                  return next;
+                })}
+              >
+                {expanded.has(item.id) ? item.description : item.description.slice(0, 160)}{!expanded.has(item.id) && item.description.length > 160 ? '... ▸ read more' : ''}
+              </div>
               <div className="job-meta">
                 {item.skills.slice(0, 5).map(s => (
                   <span key={s} className={`tag${activeSkills.has(s) ? ' tag-acid' : ''}`}>{s}</span>
