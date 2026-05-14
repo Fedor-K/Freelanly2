@@ -100,10 +100,24 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
     setTimeout(() => setApplyAllResult(null), 5000);
   }
 
+  const [sortBy, setSortBy] = useState<'newest' | 'match'>('newest');
+
   // Apply filters
   let visible = items.filter(i => !skipped.has(i.id));
   if (activeSkills.size > 0) {
     visible = visible.filter(i => i.skills.some(s => activeSkills.has(s)));
+  }
+
+  // Sort
+  if (sortBy === 'newest') {
+    visible.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } else {
+    // Best match = most matching active skills, then by skills count
+    visible.sort((a, b) => {
+      const aMatch = activeSkills.size > 0 ? a.skills.filter(s => activeSkills.has(s)).length : a.skills.length;
+      const bMatch = activeSkills.size > 0 ? b.skills.filter(s => activeSkills.has(s)).length : b.skills.length;
+      return bMatch - aMatch;
+    });
   }
 
   return (
@@ -162,8 +176,8 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
           <div className="row gap-2">
             <span className="muted f-mono" style={{fontSize: '11px'}}>Sort:</span>
             <div className="seg">
-              <button className="active">Newest</button>
-              <button>Best match</button>
+              <button className={sortBy === 'newest' ? 'active' : ''} onClick={() => setSortBy('newest')}>Newest</button>
+              <button className={sortBy === 'match' ? 'active' : ''} onClick={() => setSortBy('match')}>Best match</button>
             </div>
           </div>
         </div>
