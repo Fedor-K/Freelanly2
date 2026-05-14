@@ -74,6 +74,22 @@ export default async function DiscoveryPage() {
 
   const total = opportunities.length + jobs.length;
 
+  // Compute top skills with counts
+  const skillCounts: Record<string, number> = {};
+  for (const item of items) {
+    for (const s of item.skills) {
+      skillCounts[s] = (skillCounts[s] || 0) + 1;
+    }
+  }
+  const topSkills = Object.entries(skillCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+  // Compute sources
+  const sourceCounts: Record<string, number> = {};
+  for (const item of items) {
+    const src = item.source.includes('linkedin') ? 'LinkedIn posts' : item.source.includes('Lever') ? 'Career pages' : 'Career pages';
+    sourceCounts[src] = (sourceCounts[src] || 0) + 1;
+  }
+
   return (
     <div className="page">
 
@@ -90,7 +106,14 @@ export default async function DiscoveryPage() {
         </div>
       </div>
 
-      <DiscoveryFeed items={items} total={total} />
+      <div className="disco-grid">
+        <DiscoveryFeed
+          items={items}
+          total={total}
+          topSkills={topSkills}
+          sourceCounts={Object.entries(sourceCounts)}
+        />
+      </div>
 
     </div>
   );
