@@ -405,12 +405,18 @@ export async function queueAutoApplyForOpportunity(opportunityId: string): Promi
     return 0;
   }
 
+  // Use company name > posterCompany > clientName (but clientName is often a person's name, not a company)
+  const companyName = opportunity.company?.name
+    || opportunity.posterCompany
+    || (opportunity.clientType === 'company' ? opportunity.clientName : null)
+    || 'the hiring team';
+
   return queueAutoApplyForListing({
     type: 'opportunity',
     id: opportunity.id,
     title: opportunity.title,
     description: opportunity.description,
-    companyName: opportunity.company?.name || opportunity.clientName,
+    companyName,
     applyEmail: opportunity.applyEmail,
     categorySlug: opportunity.category.slug,
     country: opportunity.country,
@@ -728,7 +734,8 @@ function buildApplicationEmailHtml(params: {
   applicationId?: string;
 }): string {
   const { coverLetter, userName, companyName, applicationId } = params;
-  const recruiterFirstName = companyName.split(' ')[0];
+  // Don't use companyName as person's name — it's a company now
+  const greeting = 'Hi there';
 
   // Convert newlines to paragraphs
   const paragraphs = coverLetter
@@ -746,7 +753,7 @@ function buildApplicationEmailHtml(params: {
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6;">
-  <p style="margin: 0 0 12px;">Dear ${recruiterFirstName},</p>
+  <p style="margin: 0 0 12px;">${greeting},</p>
   ${paragraphs}
   <p style="margin: 24px 0 0;">Best regards,<br>${userName}</p>
   ${trackingPixel}
