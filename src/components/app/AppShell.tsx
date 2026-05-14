@@ -129,10 +129,10 @@ export function AppShell({ children, userName, userPlan }: { children: React.Rea
             <span className="shortcut">⌘K</span>
           </div>
           <div className="topbar-actions">
-            <button className="icon-btn" title="Notifications">
+            <a href="/dashboard/inbox" className="icon-btn" title="Notifications">
               <SvgIcon name="bell" size={16} />
               <span className="dot"></span>
-            </button>
+            </a>
             <a href="/dashboard/discovery" className="btn btn-acid btn-sm">
               <SvgIcon name="plus" size={14} />
               Apply
