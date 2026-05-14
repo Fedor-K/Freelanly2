@@ -10,16 +10,19 @@ export const metadata: Metadata = {
 
 export const revalidate = 60;
 
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const session = await auth();
   if (!session?.user?.id) redirect('/auth/signin');
 
+  const params = await searchParams;
+  const range = parseInt(params.range || '30') || 30;
+
   const userId = session.user.id;
   const now = new Date();
-  const d30 = new Date(now.getTime() - 30 * 86400000);
-  const d60 = new Date(now.getTime() - 60 * 86400000);
+  const d30 = new Date(now.getTime() - range * 86400000);
+  const d60 = new Date(now.getTime() - range * 2 * 86400000);
 
-  // KPIs: this 30d vs prev 30d
+  // KPIs: this 30d vs prev {range}d
   const [this30, prev30] = await Promise.all([
     prisma.autoApplication.groupBy({ by: ['status'], where: { userId, sentAt: { gte: d30 } }, _count: true }),
     prisma.autoApplication.groupBy({ by: ['status'], where: { userId, sentAt: { gte: d60, lt: d30 } }, _count: true }),
@@ -53,12 +56,12 @@ export default async function AnalyticsPage() {
   for (const row of dailyData) dailyMap.set(new Date(row.day).toISOString().slice(0, 10), Number(row.cnt));
 
   const bars: number[] = [];
-  for (let i = 29; i >= 0; i--) {
+  for (let i = range - 1; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 86400000).toISOString().slice(0, 10);
     bars.push(dailyMap.get(d) || 0);
   }
   const maxBar = Math.max(...bars, 1);
-  const barW = 800 / 30;
+  const barW = 800 / range;
 
   // Date labels
   const dl = (daysAgo: number) => new Date(now.getTime() - daysAgo * 86400000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -80,9 +83,9 @@ export default async function AnalyticsPage() {
         </div>
         <div className="page-actions">
           <div className="seg">
-            <button>7d</button>
-            <button className="active">30d</button>
-            <button>90d</button>
+            <a href="/dashboard/analytics?range=7" className={range === 7 ? 'active' : ''}>7d</a>
+            <a href="/dashboard/analytics?range=30" className={range === 30 ? 'active' : ''}>30d</a>
+            <a href="/dashboard/analytics?range=90" className={range === 90 ? 'active' : ''}>90d</a>
           </div>
         </div>
       </div>
@@ -92,22 +95,22 @@ export default async function AnalyticsPage() {
         <div className="kpi">
           <div className="kpi-label">Applications sent</div>
           <div className="kpi-value tabular">{sent}</div>
-          <div className={`kpi-delta ${sentDelta >= 0 ? 'up' : 'down'}`}>{sentDelta >= 0 ? '↑' : '↓'} {Math.abs(sentDelta)}% vs prev 30d</div>
+          <div className={`kpi-delta ${sentDelta >= 0 ? 'up' : 'down'}`}>{sentDelta >= 0 ? '↑' : '↓'} {Math.abs(sentDelta)}% vs prev {range}d</div>
         </div>
         <div className="kpi">
           <div className="kpi-label">Avg reply rate</div>
           <div className="kpi-value tabular">{replyRate}%</div>
-          <div className={`kpi-delta ${Number(rrDelta) >= 0 ? 'up' : 'down'}`}>{Number(rrDelta) >= 0 ? '↑' : '↓'} {Math.abs(Number(rrDelta))}pp vs prev 30d</div>
+          <div className={`kpi-delta ${Number(rrDelta) >= 0 ? 'up' : 'down'}`}>{Number(rrDelta) >= 0 ? '↑' : '↓'} {Math.abs(Number(rrDelta))}pp vs prev {range}d</div>
         </div>
         <div className="kpi">
           <div className="kpi-label">Calls booked</div>
           <div className="kpi-value tabular">{interviews}</div>
-          <div className={`kpi-delta ${interviews >= interviewsPrev ? 'up' : 'down'}`}>{interviews >= interviewsPrev ? '↑' : '↓'} {Math.abs(interviews - interviewsPrev)} vs prev 30d</div>
+          <div className={`kpi-delta ${interviews >= interviewsPrev ? 'up' : 'down'}`}>{interviews >= interviewsPrev ? '↑' : '↓'} {Math.abs(interviews - interviewsPrev)} vs prev {range}d</div>
         </div>
         <div className="kpi">
           <div className="kpi-label">Projects closed</div>
           <div className="kpi-value tabular">{offers}</div>
-          <div className={`kpi-delta ${offers >= offersPrev ? 'up' : 'down'}`}>{offers >= offersPrev ? '↑' : '↓'} {Math.abs(offers - offersPrev)} vs prev 30d</div>
+          <div className={`kpi-delta ${offers >= offersPrev ? 'up' : 'down'}`}>{offers >= offersPrev ? '↑' : '↓'} {Math.abs(offers - offersPrev)} vs prev {range}d</div>
         </div>
       </div>
 
@@ -134,7 +137,7 @@ export default async function AnalyticsPage() {
             })}
           </svg>
           <div style={{display: 'flex', justifyContent: 'space-between', fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', color: 'var(--ink-5)', marginTop: '8px'}}>
-            <span>{dl(29)}</span><span>{dl(22)}</span><span>{dl(15)}</span><span>{dl(7)}</span><span>Today</span>
+            <span>{dl(range - 1)}</span><span>{dl(Math.floor(range * 0.75))}</span><span>{dl(Math.floor(range * 0.5))}</span><span>{dl(Math.floor(range * 0.25))}</span><span>Today</span>
           </div>
         </div>
       </div>

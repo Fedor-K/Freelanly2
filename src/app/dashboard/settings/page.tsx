@@ -6,6 +6,7 @@ import { SettingsForm } from './SettingsForm';
 import { CancelSubscriptionSection } from './CancelSubscriptionSection';
 import { DeleteAccountSection } from './DeleteAccountSection';
 import { ManageSubscriptionButton } from './ManageSubscriptionButton';
+import { SendingRules, NotificationToggles } from '@/components/app/SettingsToggles';
 import './settings-design.css';
 
 export const metadata: Metadata = {
@@ -87,29 +88,7 @@ export default async function SettingsPage() {
             <h2>Sending rules</h2>
             <div className="desc">Set guardrails. Freelanly applies these to every queued send.</div>
 
-            <div className="field-row">
-              <div className="lbl">Send window<span className="sub">In your local timezone</span></div>
-              <div className="ctrl">
-                <input className="field" defaultValue="09:00" style={{maxWidth: '100px'}} />
-                <span className="muted">→</span>
-                <input className="field" defaultValue="17:00" style={{maxWidth: '100px'}} />
-                <span className="meta f-mono">Mon–Fri only</span>
-              </div>
-            </div>
-            <div className="field-row">
-              <div className="lbl">Daily cap</div>
-              <div className="ctrl"><input className="field" type="number" defaultValue="25" style={{maxWidth: '100px'}} /><span className="muted f-mono" style={{fontSize: '11px'}}>applications / day</span></div>
-            </div>
-            <div className="field-row">
-              <div className="lbl">Follow-up cadence</div>
-              <div className="ctrl">
-                <select className="field" style={{maxWidth: '280px'}} defaultValue="3">
-                  <option value="3">3 touches · day 0, +4, +8</option>
-                  <option value="2">2 touches · day 0, +5</option>
-                  <option value="1">1 touch · day 0 only</option>
-                </select>
-              </div>
-            </div>
+            <SendingRules />
           </div>
 
           {/* Integrations */}
@@ -150,7 +129,7 @@ export default async function SettingsPage() {
                 <div className="name">Slack communities</div>
                 <div className="meta">Bring your gig-channels into the feed</div>
               </div>
-              <button className="btn btn-soft btn-sm">Connect</button>
+              <span className="meta" style={{fontSize: '11px'}}>Coming soon</span>
             </div>
           </div>
 
@@ -158,18 +137,7 @@ export default async function SettingsPage() {
           <div className="settings-section" id="notifications">
             <h2>Notifications</h2>
             <div className="desc">When and how Freelanly pings you.</div>
-            <div className="field-row">
-              <div className="lbl">New reply</div>
-              <div className="ctrl"><span className="toggle on"></span><span style={{fontSize: '13px'}}>Email notification</span></div>
-            </div>
-            <div className="field-row">
-              <div className="lbl">Daily digest</div>
-              <div className="ctrl"><span className="toggle on"></span><span style={{fontSize: '13px'}}>Email at 09:00</span></div>
-            </div>
-            <div className="field-row">
-              <div className="lbl">Weekly insights</div>
-              <div className="ctrl"><span className="toggle on"></span><span style={{fontSize: '13px'}}>Performance + template suggestions</span></div>
-            </div>
+            <NotificationToggles />
           </div>
 
           {/* Account */}
