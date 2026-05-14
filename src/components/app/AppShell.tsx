@@ -90,14 +90,14 @@ export function AppShell({ children, userName, userPlan }: { children: React.Rea
           </div>
         )}
 
-        <div className="sb-user">
+        <a href="/dashboard/settings" className="sb-user">
           <div className="sb-avatar">{initials}</div>
           <div>
             <div className="sb-user-name">{userName || 'User'}</div>
             <div className="sb-user-plan">{userPlan || 'Free'}</div>
           </div>
           <div style={{color: 'var(--ink-on-dark-2)'}}><SvgIcon name="chevron" size={14} /></div>
-        </div>
+        </a>
       </aside>
 
       {/* Mobile backdrop */}
