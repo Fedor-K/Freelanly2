@@ -103,11 +103,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Resolve company name vs recruiter name
+    const emailDomain = opportunity.applyEmail?.split('@')[1] || '';
+    const isCorpEmail = emailDomain && !['gmail.com','yahoo.com','hotmail.com','outlook.com','live.com','aol.com','icloud.com','mail.com','protonmail.com','yandex.com','zoho.com'].includes(emailDomain);
+    const companyFromDomain = isCorpEmail ? emailDomain.split('.')[0].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
+
     const companyName = opportunity.company?.name
       || opportunity.posterCompany
       || (opportunity.clientType === 'company' ? opportunity.clientName : null)
+      || companyFromDomain
       || 'the hiring team';
-    const recruiterName = opportunity.clientType === 'profile' ? opportunity.clientName.split(' ')[0] : '';
+
+    // Extract recruiter name: from clientName or from email local part
+    let recruiterName = '';
+    if (opportunity.clientType === 'profile' && opportunity.clientName) {
+      recruiterName = opportunity.clientName.split(' ')[0];
+    } else if (opportunity.applyEmail) {
+      const localPart = opportunity.applyEmail.split('@')[0];
+      // Extract first name from email like nishtha.saretha or john_doe
+      const namePart = localPart.split(/[._-]/)[0];
+      if (namePart.length >= 3 && namePart !== 'info' && namePart !== 'hr' && namePart !== 'careers' && namePart !== 'jobs' && namePart !== 'hiring' && namePart !== 'recruit' && namePart !== 'admin' && namePart !== 'contact' && namePart !== 'hello' && namePart !== 'apply' && namePart !== 'support') {
+        recruiterName = namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase();
+      }
+    }
 
     // Use provided text or generate new
     let coverLetter: string;
