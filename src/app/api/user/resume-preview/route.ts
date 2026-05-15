@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 const VALID_TEMPLATES = ['sequence', 'wire', 'stack', 'spread', 'brief'];
-const HETZNER_RESUME_API = 'http://87.99.147.105:3100';
+const HETZNER_RESUME_API = 'https://postal.freelanly.com/api/resume';
 const RESUME_API_KEY = 'rk_freelanly_resume_2026';
 
 export async function GET(request: NextRequest) {
@@ -70,40 +70,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // HTML preview via Hetzner
-    const res = await fetch(`${HETZNER_RESUME_API}/generate-from-template`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': RESUME_API_KEY },
-      body: JSON.stringify({
-        template,
-        user: {
-          name: user.name || 'User',
-          email: user.email,
-          skills,
-          languages,
-          resumeText: user.resumeText || '',
-          location,
-        },
-      }),
-    });
-
-    if (!res.ok) {
-      // Fallback: serve static template
+    // HTML preview: fetch static template from own domain and do text replacement
+    const baseUrl = request.nextUrl.origin || 'https://freelanly.com';
+    const templateRes = await fetch(`${baseUrl}/resumes/${template}.html`);
+    if (!templateRes.ok) {
       return NextResponse.redirect(new URL(`/resumes/${template}.html`, request.url));
     }
-
-    const data = await res.json();
-    // data.pdf is base64 — but we want HTML preview, not PDF
-    // For preview, fetch the raw template from Hetzner preview endpoint
-    const previewRes = await fetch(`${HETZNER_RESUME_API}/preview-template?template=${template}`, {
-      headers: { 'x-api-key': RESUME_API_KEY },
-    });
-
-    if (!previewRes.ok) {
-      return NextResponse.redirect(new URL(`/resumes/${template}.html`, request.url));
-    }
-
-    let html = await previewRes.text();
+    let html = await templateRes.text();
 
     // Do the replacements client-side since we have the data
     const fullName = user.name || 'User';
