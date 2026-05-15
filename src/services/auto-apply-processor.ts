@@ -31,7 +31,7 @@ export async function processAutoApplyQueue(): Promise<{
   const todayStart = new Date(); todayStart.setUTCHours(0, 0, 0, 0);
   const resetResult = await prisma.autoApplyLoop.updateMany({
     where: { isActive: true, lastResetAt: { lt: todayStart } },
-    data: { sentToday: 0, lastResetAt: now },
+    data: { sentToday: 0, lastResetAt: new Date() },
   });
   if (resetResult.count > 0) {
     console.log(`[AutoApply] Reset sentToday for ${resetResult.count} loops`);
