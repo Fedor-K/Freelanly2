@@ -165,7 +165,10 @@ export function renderResumeTemplate(html: string, data: ResumeData): string {
     let eduIdx = 0;
     let eduRowPos = html.indexOf('<div class="edu-row">');
     while (eduRowPos > 0 && eduIdx < education.length) {
-      const rowEnd = html.indexOf('</div>', html.indexOf('</div>', eduRowPos + 1) + 1) + 6;
+      // edu-row has 3 closing divs: inner content, yr, edu-row wrapper
+      let rowEnd = html.indexOf('</div>', eduRowPos + 20) + 6; // close inner div
+      rowEnd = html.indexOf('</div>', rowEnd) + 6; // close yr div
+      rowEnd = html.indexOf('</div>', rowEnd) + 6; // close edu-row
       const edu = education[eduIdx];
       const newRow = `<div class="edu-row"><div>${edu.degree} <span class="place">— ${edu.institution}</span></div><div class="yr">${edu.dates || ''}</div></div>`;
       html = html.slice(0, eduRowPos) + newRow + html.slice(rowEnd);
@@ -173,10 +176,13 @@ export function renderResumeTemplate(html: string, data: ResumeData): string {
       eduRowPos = html.indexOf('<div class="edu-row">', eduRowPos + newRow.length);
     }
     // Remove extra edu-rows if user has fewer entries than template
+    let extraSearch = eduRowPos > 0 ? eduRowPos : html.indexOf('<div class="edu-row">');
     while (true) {
-      const extra = html.indexOf('<div class="edu-row">', eduRowPos > 0 ? eduRowPos : 0);
+      const extra = html.indexOf('<div class="edu-row">', extraSearch);
       if (extra < 0) break;
-      const extraEnd = html.indexOf('</div>', html.indexOf('</div>', extra + 1) + 1) + 6;
+      let extraEnd = html.indexOf('</div>', extra + 20) + 6;
+      extraEnd = html.indexOf('</div>', extraEnd) + 6;
+      extraEnd = html.indexOf('</div>', extraEnd) + 6;
       html = html.slice(0, extra) + html.slice(extraEnd);
     }
   }
