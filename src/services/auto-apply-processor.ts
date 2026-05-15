@@ -27,6 +27,16 @@ export async function processAutoApplyQueue(): Promise<{
   const MAX_PER_HOUR = 250; // Throttle: avoid IP reputation damage
   const DELAY_BETWEEN_SENDS_MS = 3000; // 3 sec between sends = ~20/min = ~1200/hr max
 
+  // Reset sentToday for loops where lastResetAt is from a previous day
+  const todayStart = new Date(); todayStart.setUTCHours(0, 0, 0, 0);
+  const resetResult = await prisma.autoApplyLoop.updateMany({
+    where: { isActive: true, lastResetAt: { lt: todayStart } },
+    data: { sentToday: 0, lastResetAt: now },
+  });
+  if (resetResult.count > 0) {
+    console.log(`[AutoApply] Reset sentToday for ${resetResult.count} loops`);
+  }
+
   // Find loops that haven't hit their daily limit yet
   const availableLoops = await prisma.autoApplyLoop.findMany({
     where: { isActive: true },
