@@ -74,14 +74,16 @@ export function renderResumeTemplate(html: string, data: ResumeData): string {
   if (experience.length > 0) {
     // Build experience HTML
     let expHtml = '';
-    for (let i = 0; i < Math.min(experience.length, 5); i++) {
+    const maxRoles = isDense ? 4 : 5;
+    const maxBullets = isDense ? 2 : 3;
+    for (let i = 0; i < Math.min(experience.length, maxRoles); i++) {
       const role = experience[i];
       expHtml += `<div class="role-entry${i === 0 ? ' current' : ''}">`;
       expHtml += `<div class="role-head"><div class="role-title">${role.title} <span class="co">— ${role.company}</span></div>`;
       if (role.dates) expHtml += `<div class="role-dates">${role.dates}</div>`;
       expHtml += `</div>`;
       if (role.description) {
-        const bullets = role.description.split(/\.\s+/).filter(s => s.length > 10).slice(0, 3);
+        const bullets = role.description.split(/\.\s+/).filter(s => s.length > 10).slice(0, maxBullets);
         if (bullets.length > 0) {
           expHtml += `<div class="role-body"><ul>${bullets.map(b => `<li>${b}.</li>`).join('')}</ul></div>`;
         } else {
@@ -186,35 +188,38 @@ export function renderResumeTemplate(html: string, data: ResumeData): string {
   }
 
   // ======= COMPACT OVERRIDES (fit everything on 1 page) =======
+  // Estimate content density and adjust font sizes
+  const totalItems = experience.length + projects.length + education.length + (certifications.length > 0 ? 1 : 0);
+  const isLight = totalItems <= 4;
+  const isDense = totalItems >= 8;
+
   const compactCss = `<style>
-    .page { height: auto !important; max-height: 297mm; overflow: hidden !important; }
-    .main { padding: 10mm 14mm 8mm !important; }
-    .aside { padding: 12mm 10mm 8mm 12mm !important; }
-    .intro { font-size: 10px !important; line-height: 1.4 !important; margin-bottom: 3mm !important; }
-    .section-h { margin-top: 3mm !important; margin-bottom: 2mm !important; font-size: 9px !important; }
-    .role-entry { padding: 2mm 0 !important; border-bottom-width: 0.5px !important; }
+    .main { padding: ${isDense ? '8mm 12mm 6mm' : isLight ? '16mm 18mm 12mm' : '10mm 14mm 8mm'} !important; }
+    .aside { padding: ${isDense ? '10mm 8mm 6mm 10mm' : isLight ? '18mm 14mm 14mm 16mm' : '12mm 10mm 8mm 12mm'} !important; }
+    .intro { font-size: ${isDense ? '9px' : isLight ? '12px' : '10px'} !important; line-height: 1.4 !important; margin-bottom: ${isDense ? '2mm' : '4mm'} !important; }
+    .section-h { margin-top: ${isDense ? '2mm' : '4mm'} !important; margin-bottom: ${isDense ? '1.5mm' : '3mm'} !important; font-size: ${isDense ? '8px' : '9px'} !important; }
+    .role-entry { padding: ${isDense ? '1.5mm 0' : '2.5mm 0'} !important; }
     .role-entry.current::before { display: none !important; }
-    .role-title { font-size: 11px !important; }
-    .role-dates { font-size: 8.5px !important; }
-    .role-meta { font-size: 8.5px !important; }
-    .role-body { font-size: 9.5px !important; line-height: 1.35 !important; }
+    .role-title { font-size: ${isDense ? '10px' : isLight ? '13px' : '11px'} !important; }
+    .role-dates { font-size: ${isDense ? '7.5px' : '8.5px'} !important; }
+    .role-meta { font-size: ${isDense ? '7.5px' : '8.5px'} !important; }
+    .role-body { font-size: ${isDense ? '8.5px' : isLight ? '10.5px' : '9.5px'} !important; line-height: ${isDense ? '1.3' : '1.4'} !important; }
     .role-body ul { margin: 1px 0 !important; padding-left: 10px !important; }
     .role-body li { margin-bottom: 0 !important; }
-    .role-body p { margin-bottom: 2px !important; }
-    .proj-grid { gap: 4px !important; }
-    .proj-card { padding: 3px !important; }
-    .proj-card .nm { font-size: 10px !important; }
-    .proj-card .dsc { font-size: 8.5px !important; line-height: 1.3 !important; }
-    .name { font-size: 24px !important; margin-bottom: 2px !important; line-height: 1 !important; }
-    .role { font-size: 9px !important; margin-bottom: 5mm !important; }
-    .avail { font-size: 8px !important; margin-bottom: 5mm !important; padding: 3px 7px !important; }
-    .aside-block { margin-bottom: 4mm !important; }
+    .proj-grid { gap: ${isDense ? '3px' : '5px'} !important; }
+    .proj-card .nm { font-size: ${isDense ? '9px' : '10px'} !important; }
+    .proj-card .dsc { font-size: ${isDense ? '7.5px' : '8.5px'} !important; line-height: 1.3 !important; }
+    .name { font-size: ${isLight ? '28px' : '24px'} !important; margin-bottom: 2px !important; line-height: 1 !important; }
+    .role { font-size: ${isLight ? '10px' : '9px'} !important; margin-bottom: ${isLight ? '8mm' : '5mm'} !important; }
+    .avail { font-size: 8px !important; margin-bottom: ${isLight ? '8mm' : '5mm'} !important; padding: 3px 7px !important; }
+    .aside-block { margin-bottom: ${isLight ? '6mm' : '4mm'} !important; }
     .aside-label { font-size: 8px !important; margin-bottom: 4px !important; }
     .skill-line { font-size: 9px !important; }
     .skill-line .bar { height: 2px !important; }
     .contact-row { font-size: 9px !important; line-height: 1.4 !important; }
-    .brand { margin-bottom: 12mm !important; font-size: 8.5px !important; }
+    .brand { margin-bottom: ${isLight ? '18mm' : '12mm'} !important; font-size: 8.5px !important; }
     .aside-foot { font-size: 7.5px !important; }
+    .edu-row { font-size: ${isDense ? '9px' : '10.5px'} !important; padding: 2px 0 !important; }
   </style>`;
   html = html.replace('</head>', compactCss + '\n</head>');
 
