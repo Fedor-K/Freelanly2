@@ -175,9 +175,10 @@ export function renderResumeTemplate(html: string, data: ResumeData): string {
         if (next < 0 || next > firstEduRow + 2000) break;
         searchFrom = next;
       }
-      // End after last edu-row's closing divs
-      eduBlockEnd = html.indexOf('</div>', html.indexOf('</div>', searchFrom) + 6) + 6;
-      eduBlockEnd = html.indexOf('</div>', eduBlockEnd) + 6;
+      // End after last edu-row's closing div (but NOT the parent wrappers)
+      eduBlockEnd = html.indexOf('</div>', searchFrom) + 6; // close edu-row inner
+      eduBlockEnd = html.indexOf('</div>', eduBlockEnd) + 6; // close edu-row outer
+      eduBlockEnd = html.indexOf('</div>', eduBlockEnd) + 6; // close wrapping div
 
       let eduHtml = `<div>\n      <div class="section-h"><span>Education</span></div>`;
       for (const edu of education) {
