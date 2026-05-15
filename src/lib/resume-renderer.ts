@@ -159,28 +159,33 @@ export function renderResumeTemplate(html: string, data: ResumeData): string {
   }
 
   // ======= EDUCATION =======
-  const eduPatterns = ['>Education<', '>EDUCATION<'];
-  for (const eduPattern of eduPatterns) {
-    const eduIdx = html.indexOf(eduPattern);
-    if (eduIdx < 0) continue;
-    if (education.length === 0) break;
-
-    const eduSectionStart = html.lastIndexOf('<div', eduIdx);
-    const afterEdu = html.indexOf('</section>', eduIdx);
-    const nextDiv = html.indexOf('<div class="section-h">', eduIdx + 20);
-    const sectionEnd = afterEdu > 0 ? afterEdu : (nextDiv > 0 ? nextDiv : html.length);
-
-    if (eduSectionStart > 0) {
-      const isUpper = eduPattern.includes('EDUCATION');
-      let eduHtml = `<div ${isUpper ? 'class="section-h"><span>EDUCATION</span>' : 'class="section-h"><span>Education</span>'}></div>`;
-      for (const edu of education) {
-        eduHtml += `<div class="role-entry"><div class="role-head"><div class="role-title">${edu.degree} <span class="co">— ${edu.institution}</span></div>`;
-        if (edu.dates) eduHtml += `<div class="role-dates">${edu.dates}</div>`;
-        eduHtml += `</div></div>`;
+  if (education.length > 0) {
+    // Find edu-row elements and replace them
+    const firstEduRow = html.indexOf('<div class="edu-row">');
+    if (firstEduRow > 0) {
+      // Find the wrapping div (parent of edu-rows)
+      const eduWrapStart = html.lastIndexOf('<div>', firstEduRow - 10);
+      const eduSectionH = html.lastIndexOf('class="section-h">', firstEduRow);
+      const eduBlockStart = html.lastIndexOf('<div', eduSectionH);
+      // Find end of education block — it ends with </div>\n\n  </section> or similar
+      let eduBlockEnd = firstEduRow;
+      let searchFrom = firstEduRow;
+      while (true) {
+        const next = html.indexOf('<div class="edu-row">', searchFrom + 1);
+        if (next < 0 || next > firstEduRow + 2000) break;
+        searchFrom = next;
       }
-      html = html.slice(0, eduSectionStart) + eduHtml + html.slice(sectionEnd);
+      // End after last edu-row's closing divs
+      eduBlockEnd = html.indexOf('</div>', html.indexOf('</div>', searchFrom) + 6) + 6;
+      eduBlockEnd = html.indexOf('</div>', eduBlockEnd) + 6;
+
+      let eduHtml = `<div>\n      <div class="section-h"><span>Education</span></div>`;
+      for (const edu of education) {
+        eduHtml += `\n      <div class="edu-row"><div>${edu.degree} <span class="place">— ${edu.institution}</span></div><div class="yr">${edu.dates || ''}</div></div>`;
+      }
+      eduHtml += '\n    </div>';
+      html = html.slice(0, eduBlockStart) + eduHtml + html.slice(eduBlockEnd);
     }
-    break;
   }
 
   // ======= HIDE EMPTY SECTIONS =======
