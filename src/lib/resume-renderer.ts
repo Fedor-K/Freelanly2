@@ -22,6 +22,11 @@ export function renderResumeTemplate(html: string, data: ResumeData): string {
   const firstName = name.split(' ')[0];
   const lastName = name.split(' ').slice(1).join(' ') || firstName;
 
+  // Estimate content density for adaptive layout
+  const totalItems = experience.length + projects.length + education.length + (certifications.length > 0 ? 1 : 0);
+  const isLight = totalItems <= 4;
+  const isDense = totalItems >= 8;
+
   // ======= NAMES (all formats) =======
   html = html.replace(/Alex<br>Chen/g, `${firstName}<br>${lastName}`);
   html = html.replace(/Alex Chen/g, name);
@@ -188,11 +193,6 @@ export function renderResumeTemplate(html: string, data: ResumeData): string {
   }
 
   // ======= COMPACT OVERRIDES (fit everything on 1 page) =======
-  // Estimate content density and adjust font sizes
-  const totalItems = experience.length + projects.length + education.length + (certifications.length > 0 ? 1 : 0);
-  const isLight = totalItems <= 4;
-  const isDense = totalItems >= 8;
-
   const compactCss = `<style>
     .main { padding: ${isDense ? '8mm 12mm 6mm' : isLight ? '16mm 18mm 12mm' : '10mm 14mm 8mm'} !important; }
     .aside { padding: ${isDense ? '10mm 8mm 6mm 10mm' : isLight ? '18mm 14mm 14mm 16mm' : '12mm 10mm 8mm 12mm'} !important; }
