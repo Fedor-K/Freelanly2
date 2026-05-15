@@ -77,8 +77,23 @@ export async function POST(request: NextRequest) {
           {
             role: 'system',
             content: `You extract structured data from resumes. Return ONLY valid JSON, no markdown, no explanation.
-Format: {"name":"string","email":"string or null","phone":"string or null","skills":["skill1","skill2","skill3"],"experience_years":number,"current_title":"string","field":"string","summary":"1-2 sentence professional summary","languages":["English","Spanish"]}
-Extract as many skills as you can find (up to 15). If a field is not found, use null.`,
+Format: {
+  "name":"string",
+  "email":"string or null",
+  "phone":"string or null",
+  "skills":["skill1","skill2"],
+  "experience_years":number,
+  "current_title":"string",
+  "field":"string",
+  "summary":"1-2 sentence professional summary",
+  "languages":["English","Spanish"],
+  "location":"City, Country or null",
+  "experience":[{"title":"Job Title","company":"Company Name","dates":"Start - End","description":"Brief description of role and achievements"}],
+  "education":[{"degree":"Degree","institution":"University Name","dates":"Start - End"}],
+  "projects":[{"name":"Project Name","description":"Brief description"}],
+  "certifications":["Cert name (Year)"]
+}
+Extract as many skills as you can find (up to 20). Extract ALL experience roles, education entries, projects, and certifications. If a field is not found, use null or empty array.`,
           },
           {
             role: 'user',
@@ -86,7 +101,7 @@ Extract as many skills as you can find (up to 15). If a field is not found, use 
           },
         ],
         temperature: 0.1,
-        max_tokens: 600,
+        max_tokens: 1500,
       });
 
       const content = response.choices[0]?.message?.content?.trim() || '';

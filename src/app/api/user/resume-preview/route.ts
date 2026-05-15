@@ -9,81 +9,53 @@ const RESUME_API_KEY = 'rk_freelanly_resume_2026';
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
+    if (!session?.user?.id) return new NextResponse('Unauthorized', { status: 401 });
 
     const template = request.nextUrl.searchParams.get('template') || 'sequence';
-    if (!VALID_TEMPLATES.includes(template)) {
-      return new NextResponse('Invalid template', { status: 400 });
-    }
-
+    if (!VALID_TEMPLATES.includes(template)) return new NextResponse('Invalid template', { status: 400 });
     const isPdf = request.nextUrl.searchParams.get('pdf') === '1';
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: {
-        name: true,
-        email: true,
-        resumeText: true,
-        parsedProfile: true,
-      },
+      select: { name: true, email: true, resumeText: true, parsedProfile: true },
     });
-
     if (!user) return new NextResponse('User not found', { status: 404 });
 
-    const profile = user.parsedProfile as Record<string, unknown> | null;
-    const skills = (profile?.skills as string[]) || [];
-    const languages = (profile?.languages as string[]) || [];
-    const location = (profile?.location as string) || '';
-
-    if (isPdf) {
-      // Generate PDF via Hetzner Puppeteer
-      const res = await fetch(`${HETZNER_RESUME_API}/generate-from-template?format=binary`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': RESUME_API_KEY },
-        body: JSON.stringify({
-          template,
-          user: {
-            name: user.name || 'User',
-            email: user.email,
-            skills,
-            languages,
-            resumeText: user.resumeText || '',
-            location,
-          },
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.text();
-        return new NextResponse(`PDF generation failed: ${err}`, { status: 500 });
-      }
-
-      const pdfBuffer = await res.arrayBuffer();
-      const firstName = (user.name || 'User').split(' ')[0];
-      return new NextResponse(pdfBuffer, {
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="Resume_${firstName}_${template}.pdf"`,
-        },
-      });
-    }
-
-    // HTML preview: fetch static template from own domain and do text replacement
-    const baseUrl = request.nextUrl.origin || 'https://freelanly.com';
-    const templateRes = await fetch(`${baseUrl}/resumes/${template}.html`);
-    if (!templateRes.ok) {
-      return NextResponse.redirect(new URL(`/resumes/${template}.html`, request.url));
-    }
-    let html = await templateRes.text();
-
-    // Do the replacements
-    const fullName = user.name || 'User';
+    const p = (user.parsedProfile || {}) as Record<string, unknown>;
+    const skills = (p.skills as string[]) || [];
+    const languages = (p.languages as string[]) || [];
+    const location = (p.location as string) || '';
+    const experience = (p.experience as Array<{title: string; company: string; dates: string; description: string}>) || [];
+    const education = (p.education as Array<{degree: string; institution: string; dates: string}>) || [];
+    const projects = (p.projects as Array<{name: string; description: string}>) || [];
+    const certifications = (p.certifications as string[]) || [];
+    const summary = (p.summary as string) || '';
+    const fullName = user.name || (p.name as string) || 'User';
     const nameParts = fullName.split(' ');
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(' ') || firstName;
 
+    // For PDF, send structured data to Hetzner
+    if (isPdf) {
+      const res = await fetch(`${HETZNER_RESUME_API}/generate-from-template?format=binary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': RESUME_API_KEY },
+        body: JSON.stringify({ template, user: { name: fullName, email: user.email, skills, languages, resumeText: user.resumeText || '', location } }),
+      });
+      if (!res.ok) return new NextResponse(`PDF generation failed: ${await res.text()}`, { status: 500 });
+      const pdfBuffer = await res.arrayBuffer();
+      return new NextResponse(pdfBuffer, {
+        headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="Resume_${firstName}_${template}.pdf"` },
+      });
+    }
+
+    // HTML preview: fetch static template, replace with structured data
+    const baseUrl = request.nextUrl.origin || 'https://freelanly.com';
+    const templateRes = await fetch(`${baseUrl}/resumes/${template}.html`);
+    if (!templateRes.ok) return NextResponse.redirect(new URL(`/resumes/${template}.html`, request.url));
+    let html = await templateRes.text();
+
+    // === NAME ===
     html = html.replace(/Alex Chen/g, fullName);
     html = html.replace(/Alex<br>Chen/g, `${firstName}<br>${lastName}`);
     html = html.replace(/alex\.chen/g, `${firstName.toLowerCase()}.${lastName.toLowerCase()}`);
@@ -93,6 +65,7 @@ export async function GET(request: NextRequest) {
     html = html.replace(/@alexchen/g, `@${firstName.toLowerCase()}`);
     html = html.replace(/Alex/g, firstName);
 
+    // === LOCATION ===
     if (location) {
       html = html.replace(/Berlin · CET/g, location);
       html = html.replace(/Berlin/g, location.split(',')[0] || location);
@@ -100,85 +73,83 @@ export async function GET(request: NextRequest) {
       html = html.replace(/Berlin · CET/g, '');
     }
 
+    // === TITLE ===
     const headline = skills.length > 0 ? `${skills.slice(0, 3).join(', ')} specialist` : 'Software Developer';
     html = html.replace(/Senior engineer — offline-first[\s\S]*?infrastructure/g, headline);
     html = html.replace(/Senior engineer/g, skills.length > 0 ? `${skills[0]} Developer` : 'Software Developer');
+
+    // === LANGUAGES ===
     if (languages.length > 0) {
       html = html.replace(/>English[\s\S]*?German</g, '>' + languages.join(', ') + '<');
     }
 
-    // Parse resume into sections
-    const experience = user.resumeText || '';
-    const resumeSections = experience.split(/(?=EXPERIENCE|EDUCATION|PROJECTS|SKILLS|CERTIFICATIONS|LANGUAGES)/);
-    const introText = resumeSections[0]?.trim().slice(0, 300) || '';
-
-    if (introText.length > 20) {
-      html = html.replace(/Twelve years building[\s\S]*?not headcount\./, introText);
-      html = html.replace(/Twelve years on the boring[\s\S]*?sync engines\./, introText.slice(0, 200));
+    // === INTRO ===
+    if (summary) {
+      html = html.replace(/Twelve years building[\s\S]*?not headcount\./, summary);
+      html = html.replace(/Twelve years on the boring[\s\S]*?sync engines\./, summary);
     }
 
-    // Replace experience
-    const expSection = resumeSections.find(s => s.startsWith('EXPERIENCE')) || '';
-    const expContent = expSection.replace(/^EXPERIENCE\s*/, '');
-    if (expContent.length > 50) {
-      // Split by company/date patterns
-      const roleBlocks = expContent.split(/(?=(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s*[A-Z])|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})/);
-      const lines = roleBlocks.filter(b => b.trim().length > 10);
+    // === EXPERIENCE ===
+    if (experience.length > 0) {
       let expHtml = '';
-      let roleCount = 0;
-      for (const block of lines) {
-        if (roleCount >= 5) break;
-        const trimmed = block.trim();
-        if (trimmed.length < 10) continue;
-        // First sentence = role title, rest = body
-        const dotIdx = trimmed.indexOf('. ');
-        const title = dotIdx > 0 && dotIdx < 80 ? trimmed.slice(0, dotIdx) : trimmed.slice(0, 80);
-        const body = dotIdx > 0 ? trimmed.slice(dotIdx + 2) : '';
-        expHtml += `<div class="role-entry${roleCount === 0 ? ' current' : ''}">`;
-        expHtml += `<div class="role-head"><div class="role-title">${title}</div></div>`;
-        if (body.length > 10) {
-          const bullets = body.split(/\.\s+/).filter(s => s.length > 10).slice(0, 3);
-          expHtml += `<div class="role-body"><ul>${bullets.map(b => `<li>${b}.</li>`).join('')}</ul></div>`;
+      for (let i = 0; i < Math.min(experience.length, 5); i++) {
+        const role = experience[i];
+        expHtml += `<div class="role-entry${i === 0 ? ' current' : ''}">`;
+        expHtml += `<div class="role-head"><div class="role-title">${role.title} <span class="co">— ${role.company}</span></div>`;
+        if (role.dates) expHtml += `<div class="role-dates">${role.dates}</div>`;
+        expHtml += `</div>`;
+        if (role.description) {
+          const bullets = role.description.split(/\.\s+/).filter(s => s.length > 10).slice(0, 3);
+          if (bullets.length > 0) {
+            expHtml += `<div class="role-body"><ul>${bullets.map(b => `<li>${b}.</li>`).join('')}</ul></div>`;
+          }
         }
         expHtml += '</div>';
-        roleCount++;
       }
-      if (roleCount > 0) {
-        const expStart = html.indexOf('class="section-h"><span>Experience');
-        const expNext = html.indexOf('class="section-h">', expStart + 50);
-        if (expStart > 0 && expNext > expStart) {
-          html = html.slice(0, expStart) + `class="section-h"><span>Experience</span><span class="count">${roleCount} roles</span></div>\n${expHtml}\n</div>\n\n    <div ` + html.slice(expNext);
+      const expStart = html.indexOf('class="section-h"><span>Experience');
+      const expNext = html.indexOf('class="section-h">', expStart + 50);
+      if (expStart > 0 && expNext > expStart) {
+        html = html.slice(0, expStart) + `class="section-h"><span>Experience</span><span class="count">${experience.length} roles</span></div>\n${expHtml}\n</div>\n\n    <div ` + html.slice(expNext);
+      }
+    }
+
+    // === PROJECTS (replace "Selected open-source") ===
+    const osStart = html.indexOf('Selected open-source');
+    if (osStart > 0) {
+      const osSectionStart = html.lastIndexOf('<div', osStart);
+      const nextSection = html.indexOf('class="section-h">', osStart + 30);
+      if (osSectionStart > 0 && nextSection > osSectionStart) {
+        if (projects.length > 0) {
+          let projHtml = 'class="section-h"><span>Projects</span></div>\n<div class="proj-grid">';
+          for (const proj of projects.slice(0, 4)) {
+            projHtml += `<div class="proj-card"><div class="nm">${proj.name}</div><div class="dsc">${proj.description.slice(0, 120)}</div></div>`;
+          }
+          projHtml += '</div>\n</div>\n\n    <div ';
+          html = html.slice(0, osSectionStart) + '<div ' + projHtml + html.slice(nextSection);
+        } else {
+          html = html.slice(0, osSectionStart) + html.slice(html.lastIndexOf('<div', nextSection));
         }
       }
     }
 
-    // Hide sections that user doesn't have data for (don't show Alex Chen's fake data)
-    // Remove "Selected open-source & writing" section if user doesn't have projects
-    const hasProjects = experience.toLowerCase().includes('project') || experience.toLowerCase().includes('open-source');
-    if (!hasProjects) {
-      const osStart = html.indexOf('Selected open-source');
-      if (osStart > 0) {
-        const osSectionStart = html.lastIndexOf('<div', osStart);
-        const nextSection = html.indexOf('class="section-h">', osStart + 30);
-        if (osSectionStart > 0 && nextSection > osSectionStart) {
-          const osSectionEnd = html.lastIndexOf('</div>', nextSection);
-          html = html.slice(0, osSectionStart) + html.slice(nextSection > 0 ? html.lastIndexOf('<div', nextSection) : osSectionEnd);
+    // === EDUCATION ===
+    const eduIdx = html.indexOf('>Education<');
+    if (eduIdx > 0 && education.length > 0) {
+      const eduSectionStart = html.lastIndexOf('<div', eduIdx);
+      const afterEdu = html.indexOf('</section>', eduIdx);
+      if (eduSectionStart > 0 && afterEdu > eduSectionStart) {
+        let eduHtml = `<div class="section-h"><span>Education</span></div>`;
+        for (const edu of education) {
+          eduHtml += `<div class="role-entry"><div class="role-head"><div class="role-title">${edu.degree} <span class="co">— ${edu.institution}</span></div><div class="role-dates">${edu.dates || ''}</div></div></div>`;
         }
+        html = html.slice(0, eduSectionStart) + eduHtml + html.slice(afterEdu);
       }
     }
 
-    // Remove Rate/GitHub lines if user doesn't have them
-    if (!experience.includes('$') && !experience.includes('/hr')) {
-      html = html.replace(/<div class="contact-row">[\s\S]*?Rate[\s\S]*?<\/div>/g, '');
-    }
-    if (!experience.toLowerCase().includes('github.com')) {
-      html = html.replace(/<div class="contact-row">[\s\S]*?GitHub[\s\S]*?<\/div>/g, '');
-    }
-
-    // Remove location placeholder if user has no location
-    if (!location) {
-      html = html.replace(/Berlin\s*·?\s*CET/g, '');
-    }
+    // === HIDE EMPTY ===
+    if (!location) html = html.replace(/Berlin\s*·?\s*CET/g, '');
+    if (!(user.resumeText || '').includes('$')) html = html.replace(/<div class="contact-row">[\s\S]*?Rate[\s\S]*?<\/div>/g, '');
+    if (!(user.resumeText || '').toLowerCase().includes('github.com')) html = html.replace(/<div class="contact-row">[\s\S]*?GitHub[\s\S]*?<\/div>/g, '');
 
     html = html.replace(/<title>.*?<\/title>/, `<title>Resume — ${fullName} · ${template}</title>`);
 
