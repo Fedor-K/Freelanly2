@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { readFile } from 'fs/promises';
-import path from 'path';
-import { headers } from 'next/headers';
 
 const VALID_TEMPLATES = ['sequence', 'wire', 'stack', 'spread', 'brief'];
+const HETZNER_RESUME_API = 'http://87.99.147.105:3100';
+const RESUME_API_KEY = 'rk_freelanly_resume_2026';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,6 +17,8 @@ export async function GET(request: NextRequest) {
     if (!VALID_TEMPLATES.includes(template)) {
       return new NextResponse('Invalid template', { status: 400 });
     }
+
+    const isPdf = request.nextUrl.searchParams.get('pdf') === '1';
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -34,132 +35,132 @@ export async function GET(request: NextRequest) {
     const profile = user.parsedProfile as Record<string, unknown> | null;
     const skills = (profile?.skills as string[]) || [];
     const languages = (profile?.languages as string[]) || [];
-    const experience = user.resumeText || '';
+    const location = (profile?.location as string) || '';
 
-    // Parse name
-    const fullName = user.name || 'Your Name';
-    const firstName = fullName.split(' ')[0];
-    const lastName = fullName.split(' ').slice(1).join(' ');
+    if (isPdf) {
+      // Generate PDF via Hetzner Puppeteer
+      const res = await fetch(`${HETZNER_RESUME_API}/generate-from-template?format=binary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': RESUME_API_KEY },
+        body: JSON.stringify({
+          template,
+          user: {
+            name: user.name || 'User',
+            email: user.email,
+            skills,
+            languages,
+            resumeText: user.resumeText || '',
+            location,
+          },
+        }),
+      });
 
-    // Build headline from skills
-    const headline = skills.length > 0
-      ? `${skills.slice(0, 3).join(', ')} specialist`
-      : 'Software Developer';
+      if (!res.ok) {
+        const err = await res.text();
+        return new NextResponse(`PDF generation failed: ${err}`, { status: 500 });
+      }
 
-    // Read template HTML — try filesystem first, fallback to HTTP fetch
-    let html: string;
-    try {
-      const templatePath = path.join(process.cwd(), 'public', 'resumes', `${template}.html`);
-      html = await readFile(templatePath, 'utf-8');
-    } catch {
-      // On Vercel, public/ may not be readable via fs — fetch via HTTP
-      const headersList = await headers();
-      const host = headersList.get('host') || 'freelanly.com';
-      const proto = headersList.get('x-forwarded-proto') || 'https';
-      const res = await fetch(`${proto}://${host}/resumes/${template}.html`);
-      if (!res.ok) return new NextResponse('Template not found', { status: 404 });
-      html = await res.text();
+      const pdfBuffer = await res.arrayBuffer();
+      const firstName = (user.name || 'User').split(' ')[0];
+      return new NextResponse(pdfBuffer, {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="Resume_${firstName}_${template}.pdf"`,
+        },
+      });
     }
 
-    // Replace placeholder data with user data
-    // Name replacements
-    html = html.replace(/Alex Chen/g, fullName);
-    html = html.replace(/Alex/g, firstName);
-    html = html.replace(/Chen/g, lastName || firstName);
+    // HTML preview via Hetzner
+    const res = await fetch(`${HETZNER_RESUME_API}/generate-from-template`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': RESUME_API_KEY },
+      body: JSON.stringify({
+        template,
+        user: {
+          name: user.name || 'User',
+          email: user.email,
+          skills,
+          languages,
+          resumeText: user.resumeText || '',
+          location,
+        },
+      }),
+    });
 
-    // Contact
+    if (!res.ok) {
+      // Fallback: serve static template
+      return NextResponse.redirect(new URL(`/resumes/${template}.html`, request.url));
+    }
+
+    const data = await res.json();
+    // data.pdf is base64 — but we want HTML preview, not PDF
+    // For preview, fetch the raw template from Hetzner preview endpoint
+    const previewRes = await fetch(`${HETZNER_RESUME_API}/preview-template?template=${template}`, {
+      headers: { 'x-api-key': RESUME_API_KEY },
+    });
+
+    if (!previewRes.ok) {
+      return NextResponse.redirect(new URL(`/resumes/${template}.html`, request.url));
+    }
+
+    let html = await previewRes.text();
+
+    // Do the replacements client-side since we have the data
+    const fullName = user.name || 'User';
+    const firstName = fullName.split(' ')[0];
+    html = html.replace(/Alex Chen/g, fullName);
     html = html.replace(/alex@chen\.studio/g, user.email);
     html = html.replace(/chen\.studio/g, user.email.split('@')[1] || 'portfolio.dev');
     html = html.replace(/@alexchen/g, `@${firstName.toLowerCase()}`);
 
-    // Location — use from profile or generic
-    const location = (profile?.location as string) || '';
     if (location) {
-      html = html.replace(/Berlin\s*·?\s*CET/g, location);
       html = html.replace(/Berlin/g, location.split(',')[0] || location);
     }
 
-    // Title/headline
-    html = html.replace(/Senior engineer — offline-first[\s\S]*?infrastructure/g, headline);
+    const headline = skills.length > 0 ? `${skills.slice(0, 3).join(', ')} specialist` : 'Software Developer';
     html = html.replace(/Senior engineer/g, skills.length > 0 ? `${skills[0]} Developer` : 'Software Developer');
-    html = html.replace(/senior engineer/g, skills.length > 0 ? `${skills[0].toLowerCase()} developer` : 'software developer');
-
-    // Skills — replace existing skill lists with user's skills
-    if (skills.length > 0) {
-      // Replace specialties section content where applicable
-      const skillChips = skills.slice(0, 8).map(s => `<span>${s}</span>`).join('');
-      html = html.replace(
-        /Distributed systems[\s\S]*?System design/g,
-        skills.slice(0, 6).join('</span></div><div class="spec-row"><span>')
-      );
-    }
-
-    // Languages
     if (languages.length > 0) {
       html = html.replace(/English[\s\S]*?German/g, languages.join(', '));
     }
 
-    // Replace the intro paragraph
-    const introText = experience.length > 50
-      ? experience.split('\n').filter(l => l.trim().length > 20).slice(0, 2).join(' ').slice(0, 300)
-      : `${headline}. ${skills.slice(0, 5).join(', ')}.`;
-    html = html.replace(
-      /Twelve years building[\s\S]*?not headcount\./,
-      introText
-    );
+    // Replace intro
+    const experience = user.resumeText || '';
+    if (experience.length > 50) {
+      const introLines = experience.split('\n').filter(l => l.trim().length > 20).slice(0, 2);
+      html = html.replace(/Twelve years building[\s\S]*?not headcount\./, introLines.join(' ').slice(0, 300));
+    }
 
-    // Replace experience section with user's resume content
+    // Replace experience
     if (experience.length > 100) {
       const lines = experience.split('\n').filter(l => l.trim().length > 5);
       let expHtml = '';
       let roleCount = 0;
-
       for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.length < 100 && trimmed.length > 5 && !trimmed.startsWith('-') && !trimmed.startsWith('•') && !trimmed.startsWith('·') && !trimmed.startsWith('–')) {
+        const t = line.trim();
+        if (t.length < 100 && t.length > 5 && !/^[-•·–]/.test(t) && roleCount < 6) {
           if (roleCount > 0) expHtml += '</ul></div></div>';
-          expHtml += `<div class="role-entry${roleCount === 0 ? ' current' : ''}">
-            <div class="role-head"><div class="role-title">${trimmed}</div></div>
-            <div class="role-body"><ul>`;
+          expHtml += `<div class="role-entry${roleCount === 0 ? ' current' : ''}"><div class="role-head"><div class="role-title">${t}</div></div><div class="role-body"><ul>`;
           roleCount++;
-        } else if ((trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.startsWith('·') || trimmed.startsWith('–')) && roleCount > 0) {
-          expHtml += `<li>${trimmed.replace(/^[-•·–]\s*/, '')}</li>`;
-        } else if (trimmed.length > 20 && roleCount > 0) {
-          expHtml += `<li>${trimmed}</li>`;
+        } else if (/^[-•·–]/.test(t) && roleCount > 0) {
+          expHtml += `<li>${t.replace(/^[-•·–]\s*/, '')}</li>`;
+        } else if (t.length > 20 && roleCount > 0) {
+          expHtml += `<li>${t}</li>`;
         }
-        if (roleCount >= 6) break;
       }
       if (roleCount > 0) expHtml += '</ul></div></div>';
-
       if (roleCount > 0) {
-        // Find and replace between Experience header and next section header
         const expStart = html.indexOf('class="section-h"><span>Experience');
-        const expNextSection = html.indexOf('class="section-h">', expStart + 50);
-        if (expStart > 0 && expNextSection > expStart) {
-          // Find the closing </div> before next section
-          const beforeNext = html.lastIndexOf('</div>', expNextSection);
-          if (beforeNext > expStart) {
-            const newSection = `class="section-h"><span>Experience</span><span class="count">${roleCount} roles</span></div>\n${expHtml}\n</div>\n\n    <div `;
-            html = html.slice(0, expStart) + newSection + html.slice(expNextSection);
-          }
+        const expNext = html.indexOf('class="section-h">', expStart + 50);
+        if (expStart > 0 && expNext > expStart) {
+          html = html.slice(0, expStart) + `class="section-h"><span>Experience</span><span class="count">${roleCount} roles</span></div>\n${expHtml}\n</div>\n\n    <div ` + html.slice(expNext);
         }
       }
     }
 
-    // Update title
     html = html.replace(/<title>.*?<\/title>/, `<title>Resume — ${fullName} · ${template}</title>`);
 
-    // Auto-print if requested
-    const autoPrint = request.nextUrl.searchParams.get('print') === '1';
-    if (autoPrint) {
-      html = html.replace('</body>', '<script>window.addEventListener("load",()=>setTimeout(()=>window.print(),600))</script></body>');
-    }
-
     return new NextResponse(html, {
-      headers: {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'private, max-age=60',
-      },
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, max-age=60' },
     });
   } catch (error) {
     console.error('[ResumePreview] Error:', error);
