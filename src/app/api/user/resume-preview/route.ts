@@ -157,6 +157,34 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Hide sections that user doesn't have data for (don't show Alex Chen's fake data)
+    // Remove "Selected open-source & writing" section if user doesn't have projects
+    const hasProjects = experience.toLowerCase().includes('project') || experience.toLowerCase().includes('open-source');
+    if (!hasProjects) {
+      const osStart = html.indexOf('Selected open-source');
+      if (osStart > 0) {
+        const osSectionStart = html.lastIndexOf('<div', osStart);
+        const nextSection = html.indexOf('class="section-h">', osStart + 30);
+        if (osSectionStart > 0 && nextSection > osSectionStart) {
+          const osSectionEnd = html.lastIndexOf('</div>', nextSection);
+          html = html.slice(0, osSectionStart) + html.slice(nextSection > 0 ? html.lastIndexOf('<div', nextSection) : osSectionEnd);
+        }
+      }
+    }
+
+    // Remove Rate/GitHub lines if user doesn't have them
+    if (!experience.includes('$') && !experience.includes('/hr')) {
+      html = html.replace(/<div class="contact-row">[\s\S]*?Rate[\s\S]*?<\/div>/g, '');
+    }
+    if (!experience.toLowerCase().includes('github.com')) {
+      html = html.replace(/<div class="contact-row">[\s\S]*?GitHub[\s\S]*?<\/div>/g, '');
+    }
+
+    // Remove location placeholder if user has no location
+    if (!location) {
+      html = html.replace(/Berlin\s*·?\s*CET/g, '');
+    }
+
     html = html.replace(/<title>.*?<\/title>/, `<title>Resume — ${fullName} · ${template}</title>`);
 
     return new NextResponse(html, {
