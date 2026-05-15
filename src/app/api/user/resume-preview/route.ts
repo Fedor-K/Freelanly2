@@ -146,6 +146,30 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // === SKILLS SIDEBAR ===
+    if (skills.length > 0) {
+      const firstSkill = html.indexOf('<div class="skill-line">');
+      if (firstSkill > 0) {
+        // Find the end of the last skill-line
+        let lastSkillEnd = firstSkill;
+        let searchFrom = firstSkill;
+        while (true) {
+          const next = html.indexOf('<div class="skill-line">', searchFrom + 1);
+          if (next < 0 || next > firstSkill + 2000) break;
+          searchFrom = next;
+        }
+        // Find closing </div></div> after last skill-line
+        lastSkillEnd = html.indexOf('</div>', html.indexOf('</div>', html.indexOf('</div>', searchFrom) + 1) + 1) + 6;
+
+        let newSkills = '';
+        skills.slice(0, 6).forEach((s, i) => {
+          const pct = Math.max(40, 95 - i * 10);
+          newSkills += `<div class="skill-line"><span>${s}</span><div class="bar"><div style="width:${pct}%"></div></div></div>\n`;
+        });
+        html = html.slice(0, firstSkill) + newSkills + html.slice(lastSkillEnd);
+      }
+    }
+
     // === HIDE EMPTY ===
     if (!location) html = html.replace(/Berlin\s*·?\s*CET/g, '');
     if (!(user.resumeText || '').includes('$')) html = html.replace(/<div class="contact-row">[\s\S]*?Rate[\s\S]*?<\/div>/g, '');
