@@ -95,8 +95,8 @@ export async function generateCoverLetter(input: CoverLetterInput): Promise<stri
           content: styleOverride ||
             `Write a short, direct cover letter body (3-4 sentences, under 90 words). Rules:
 - Sound like a real person, not a template. No "I am excited", "I am eager", "I am confident".
-- Lead with a specific thing from the job post that caught your eye.
-- Mention 1-2 relevant skills/projects from the applicant's profile that directly match.
+- Lead with a specific thing from the job post that caught your eye. Mention the company name naturally.
+- Mention 1-2 relevant skills/projects from the applicant's profile that directly match the role.
 - ONLY mention skills the applicant actually has. NEVER invent skills.
 - If the applicant lacks a key requirement, don't mention it — focus on what matches.
 - End with a soft call to action (quick call, happy to share more).
