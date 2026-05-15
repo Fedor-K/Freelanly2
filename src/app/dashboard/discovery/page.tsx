@@ -11,9 +11,14 @@ export const metadata: Metadata = {
 
 export const revalidate = 120;
 
-export default async function DiscoveryPage() {
+export default async function DiscoveryPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const session = await auth();
   if (!session?.user?.id) redirect('/auth/signin');
+
+  const params = await searchParams;
+  const page = parseInt(params.page || '1') || 1;
+  const perPage = 50;
+  const skip = (page - 1) * perPage;
 
   const dayAgo = new Date(Date.now() - 24 * 3600000);
   const weekAgo = new Date(Date.now() - 7 * 86400000);
@@ -23,7 +28,8 @@ export default async function DiscoveryPage() {
     prisma.opportunity.findMany({
       where: { isActive: true, createdAt: { gte: weekAgo } },
       orderBy: { createdAt: 'desc' },
-      take: 30,
+      take: perPage,
+      skip,
       select: {
         id: true, title: true, clientName: true, posterCompany: true,
         description: true, createdAt: true, skills: true, location: true,
@@ -34,7 +40,8 @@ export default async function DiscoveryPage() {
     prisma.job.findMany({
       where: { isActive: true, createdAt: { gte: weekAgo }, applyEmail: { not: null } },
       orderBy: { createdAt: 'desc' },
-      take: 20,
+      take: perPage,
+      skip,
       select: {
         id: true, title: true, description: true, createdAt: true,
         skills: true, country: true, applyEmail: true, sourceUrl: true,
@@ -70,9 +77,10 @@ export default async function DiscoveryPage() {
       location: j.country,
       applyEmail: j.applyEmail,
     })),
-  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 40);
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const total = opportunities.length + jobs.length;
+  const total = items.length;
+  const hasMore = opportunities.length === perPage || jobs.length === perPage;
 
   // Compute top skills with counts
   const skillCounts: Record<string, number> = {};
@@ -113,6 +121,17 @@ export default async function DiscoveryPage() {
           topSkills={topSkills}
           sourceCounts={Object.entries(sourceCounts)}
         />
+      </div>
+
+      {/* Pagination */}
+      <div style={{display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '16px'}}>
+        {page > 1 && (
+          <a href={`/dashboard/discovery?page=${page - 1}`} className="btn btn-ghost btn-sm">← Previous</a>
+        )}
+        <span style={{fontSize: '13px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", alignSelf: 'center'}}>Page {page}</span>
+        {hasMore && (
+          <a href={`/dashboard/discovery?page=${page + 1}`} className="btn btn-ghost btn-sm">Next →</a>
+        )}
       </div>
 
     </div>
