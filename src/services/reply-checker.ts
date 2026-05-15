@@ -90,7 +90,35 @@ function extractBodyFromFetch(fetchResp: string): string {
     // Decode quoted-printable =XX sequences
     body = body.replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
     body = body.replace(/=\r?\n/g, '');
+    // Strip HTML tags if the body is HTML
+    if (body.includes('<html') || body.includes('<div') || body.includes('<p')) {
+      body = body.replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<\/div>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"');
+    }
+    // Strip MIME boundaries
+    body = body.replace(/--[a-zA-Z0-9_=-]+--?\r?\n?/g, '');
+    body = body.replace(/Content-Type:.*\r?\n/gi, '');
+    body = body.replace(/Content-Transfer-Encoding:.*\r?\n/gi, '');
+    body = body.replace(/\r?\n{3,}/g, '\n\n');
     return body.trim();
+  }
+
+  // Fallback: try to extract any readable text between FETCH markers
+  const bodyStart = fetchResp.indexOf('\r\n\r\n');
+  if (bodyStart > 0) {
+    let fallback = fetchResp.slice(bodyStart + 4);
+    // Remove IMAP closing tag
+    const closingTag = fallback.lastIndexOf(')');
+    if (closingTag > 0) fallback = fallback.slice(0, closingTag);
+    fallback = fallback.replace(/<[^>]+>/g, '').trim();
+    if (fallback.length > 10) return fallback.slice(0, 2000);
   }
   return '';
 }
@@ -193,6 +221,19 @@ async function searchForReplies(
                 );
                 if (fetchResp.includes(`${fetchTag} OK`)) {
                   replyText = extractBodyFromFetch(fetchResp);
+                }
+                // Fallback: if TEXT part is empty, try fetching full body
+                if (!replyText || replyText.length < 5) {
+                  const fetchTag2 = nextTag();
+                  const fetchResp2 = await sendImapCommand(
+                    socket,
+                    fetchTag2,
+                    `FETCH ${latestUid} BODY.PEEK[1]`
+                  );
+                  if (fetchResp2.includes(`${fetchTag2} OK`)) {
+                    const fallback = extractBodyFromFetch(fetchResp2);
+                    if (fallback.length > replyText.length) replyText = fallback;
+                  }
                 }
               } catch {
                 // Fetch failed, still mark as replied but without body
