@@ -205,7 +205,9 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
                   return next;
                 })}
               >
-                {expanded.has(item.id) ? item.description : item.description.slice(0, 160)}{!expanded.has(item.id) && item.description.length > 160 ? '... ▸ read more' : ''}
+                {expanded.has(item.id) ? item.description : item.description.slice(0, 200)}
+                {!expanded.has(item.id) && item.description.length > 200 ? <span style={{color: 'var(--acid-deep, #4D8B0A)', fontWeight: 500}}> ... read more ▸</span> : null}
+                {expanded.has(item.id) && item.description.length > 200 ? <span style={{color: 'var(--ink-4)', fontWeight: 400}}> ▴ collapse</span> : null}
               </div>
               <div className="job-meta">
                 {item.skills.slice(0, 5).map(s => (
