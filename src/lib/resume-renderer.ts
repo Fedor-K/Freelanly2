@@ -191,6 +191,33 @@ export function renderResumeTemplate(html: string, data: ResumeData): string {
     html = html.replace(/<div class="contact-row">[\s\S]*?GitHub[\s\S]*?<\/div>/g, '');
   }
 
+  // ======= COMPACT OVERRIDES (fit everything on 1 page) =======
+  const compactCss = `<style>
+    .main { padding: 14mm 16mm 10mm !important; }
+    .aside { padding: 16mm 12mm 12mm 14mm !important; }
+    .intro { font-size: 11px !important; line-height: 1.45 !important; margin-bottom: 4mm !important; }
+    .section-h { margin-top: 4mm !important; margin-bottom: 3mm !important; }
+    .role-entry { padding: 3mm 0 !important; }
+    .role-title { font-size: 12px !important; }
+    .role-dates { font-size: 9px !important; }
+    .role-meta { font-size: 9px !important; }
+    .role-body { font-size: 10px !important; line-height: 1.4 !important; }
+    .role-body ul { margin: 2px 0 !important; padding-left: 12px !important; }
+    .role-body li { margin-bottom: 1px !important; }
+    .proj-grid { gap: 6px !important; }
+    .proj-card { padding: 4px !important; }
+    .proj-card .nm { font-size: 10.5px !important; }
+    .proj-card .dsc { font-size: 9px !important; line-height: 1.35 !important; }
+    .name { font-size: 26px !important; margin-bottom: 4px !important; }
+    .role { font-size: 10px !important; margin-bottom: 8mm !important; }
+    .avail { font-size: 8.5px !important; margin-bottom: 8mm !important; }
+    .aside-block { margin-bottom: 6mm !important; }
+    .skill-line { font-size: 9.5px !important; }
+    .contact-row { font-size: 9.5px !important; line-height: 1.5 !important; }
+    .brand { margin-bottom: 18mm !important; }
+  </style>`;
+  html = html.replace('</head>', compactCss + '\n</head>');
+
   // ======= TITLE TAG =======
   html = html.replace(/<title>.*?<\/title>/, `<title>Resume — ${name}</title>`);
 
