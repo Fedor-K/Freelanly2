@@ -24,6 +24,7 @@ export default async function SettingsPage() {
       subscriptionEndsAt: true, stripeSubscriptionId: true,
       stripeId: true, paymentProvider: true, payproSubscriptionId: true,
       resumeText: true, parsedProfile: true,
+      resumeUrl: true, resumeFileName: true,
     },
   });
 
@@ -119,6 +120,17 @@ export default async function SettingsPage() {
                       )}
                     </div>
                   </div>
+                  {user.resumeUrl && (
+                    <div className="field-row">
+                      <div className="lbl">Resume file<span className="sub">Your uploaded document</span></div>
+                      <div className="ctrl">
+                        <a href={user.resumeUrl} target="_blank" rel="noopener" className="btn btn-soft btn-sm" style={{display: 'inline-flex', alignItems: 'center', gap: '6px'}}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                          {user.resumeFileName || 'Download resume'}
+                        </a>
+                      </div>
+                    </div>
+                  )}
                   <div className="field-row">
                     <div className="lbl">Update resume</div>
                     <div className="ctrl">
