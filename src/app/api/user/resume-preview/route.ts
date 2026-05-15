@@ -104,30 +104,33 @@ export async function GET(request: NextRequest) {
 
       for (const line of lines) {
         const trimmed = line.trim();
-        // Detect role/title lines (typically short, may have company names)
-        if (trimmed.length < 80 && trimmed.length > 5 && !trimmed.startsWith('-') && !trimmed.startsWith('•') && !trimmed.startsWith('·')) {
-          if (roleCount > 0) expHtml += '</div></div>';
+        if (trimmed.length < 100 && trimmed.length > 5 && !trimmed.startsWith('-') && !trimmed.startsWith('•') && !trimmed.startsWith('·') && !trimmed.startsWith('–')) {
+          if (roleCount > 0) expHtml += '</ul></div></div>';
           expHtml += `<div class="role-entry${roleCount === 0 ? ' current' : ''}">
             <div class="role-head"><div class="role-title">${trimmed}</div></div>
             <div class="role-body"><ul>`;
           roleCount++;
-        } else if (trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.startsWith('·')) {
-          expHtml += `<li>${trimmed.replace(/^[-•·]\s*/, '')}</li>`;
+        } else if ((trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.startsWith('·') || trimmed.startsWith('–')) && roleCount > 0) {
+          expHtml += `<li>${trimmed.replace(/^[-•·–]\s*/, '')}</li>`;
         } else if (trimmed.length > 20 && roleCount > 0) {
           expHtml += `<li>${trimmed}</li>`;
         }
-        if (roleCount >= 5) break;
+        if (roleCount >= 6) break;
       }
       if (roleCount > 0) expHtml += '</ul></div></div>';
 
       if (roleCount > 0) {
-        // Replace the entire experience content between markers
-        html = html.replace(
-          /<div class="role-entry[\s\S]*?<\/div>\s*<\/div>\s*<\/div>\s*<\/div>\s*<\/div>\s*<\/div>/,
-          expHtml + '</div>'
-        );
-        // Update role count
-        html = html.replace(/5 roles · 11 yrs/, `${roleCount} roles`);
+        // Find and replace between Experience header and next section header
+        const expStart = html.indexOf('class="section-h"><span>Experience');
+        const expNextSection = html.indexOf('class="section-h">', expStart + 50);
+        if (expStart > 0 && expNextSection > expStart) {
+          // Find the closing </div> before next section
+          const beforeNext = html.lastIndexOf('</div>', expNextSection);
+          if (beforeNext > expStart) {
+            const newSection = `class="section-h"><span>Experience</span><span class="count">${roleCount} roles</span></div>\n${expHtml}\n</div>\n\n    <div `;
+            html = html.slice(0, expStart) + newSection + html.slice(expNextSection);
+          }
+        }
       }
     }
 
