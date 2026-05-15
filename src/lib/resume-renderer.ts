@@ -160,21 +160,26 @@ export function renderResumeTemplate(html: string, data: ResumeData): string {
 
   // ======= EDUCATION =======
   if (education.length > 0) {
-    // Remove the entire original education block and insert new one before </section>
-    const eduHeaderIdx = html.indexOf('>Education<');
-    if (eduHeaderIdx > 0) {
-      // Find the parent <div> that wraps the education section header + edu-rows
-      const eduBlockStart = html.lastIndexOf('<div>', eduHeaderIdx);
-      // Find the </section> that closes the main content area
-      const sectionClose = html.indexOf('</section>', eduHeaderIdx);
-      if (eduBlockStart > 0 && sectionClose > eduBlockStart) {
-        // Build new education HTML
+    // Strategy: find the text pattern "\n    <div>\n      <div class="section-h"><span>Education"
+    // and replace from there to just before </section>
+    const eduMarker = html.indexOf('<div class="section-h"><span>Education');
+    if (eduMarker > 0) {
+      // Go back to find the wrapping <div> — it's the <div> on the previous line
+      // Search backwards from eduMarker for "\n" then find "<div>" before it
+      const lineStart = html.lastIndexOf('\n', eduMarker - 1);
+      const prevLineStart = html.lastIndexOf('\n', lineStart - 1);
+      const wrapDiv = html.indexOf('<div>', prevLineStart);
+
+      // Use wrapDiv if it's close to eduMarker (within 50 chars), otherwise use eduMarker itself
+      const eduBlockStart = (wrapDiv > 0 && eduMarker - wrapDiv < 50) ? wrapDiv : eduMarker;
+
+      const sectionClose = html.indexOf('</section>', eduMarker);
+      if (sectionClose > eduBlockStart) {
         let eduHtml = `<div>\n      <div class="section-h"><span>Education</span></div>`;
         for (const edu of education) {
           eduHtml += `\n      <div class="edu-row"><div>${edu.degree} <span class="place">— ${edu.institution}</span></div><div class="yr">${edu.dates || ''}</div></div>`;
         }
         eduHtml += '\n    </div>';
-        // Replace everything from edu block start to just before </section>
         html = html.slice(0, eduBlockStart) + eduHtml + '\n\n  ' + html.slice(sectionClose);
       }
     }
