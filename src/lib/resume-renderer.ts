@@ -160,32 +160,24 @@ export function renderResumeTemplate(html: string, data: ResumeData): string {
 
   // ======= EDUCATION =======
   if (education.length > 0) {
-    // Find edu-row elements and replace them
-    const firstEduRow = html.indexOf('<div class="edu-row">');
-    if (firstEduRow > 0) {
-      // Find the wrapping div (parent of edu-rows)
-      const eduWrapStart = html.lastIndexOf('<div>', firstEduRow - 10);
-      const eduSectionH = html.lastIndexOf('class="section-h">', firstEduRow);
-      const eduBlockStart = html.lastIndexOf('<div', eduSectionH);
-      // Find end of education block — it ends with </div>\n\n  </section> or similar
-      let eduBlockEnd = firstEduRow;
-      let searchFrom = firstEduRow;
-      while (true) {
-        const next = html.indexOf('<div class="edu-row">', searchFrom + 1);
-        if (next < 0 || next > firstEduRow + 2000) break;
-        searchFrom = next;
-      }
-      // End after last edu-row's closing div (but NOT the parent wrappers)
-      eduBlockEnd = html.indexOf('</div>', searchFrom) + 6; // close edu-row inner
-      eduBlockEnd = html.indexOf('</div>', eduBlockEnd) + 6; // close edu-row outer
-      eduBlockEnd = html.indexOf('</div>', eduBlockEnd) + 6; // close wrapping div
-
-      let eduHtml = `<div>\n      <div class="section-h"><span>Education</span></div>`;
-      for (const edu of education) {
-        eduHtml += `\n      <div class="edu-row"><div>${edu.degree} <span class="place">— ${edu.institution}</span></div><div class="yr">${edu.dates || ''}</div></div>`;
-      }
-      eduHtml += '\n    </div>';
-      html = html.slice(0, eduBlockStart) + eduHtml + html.slice(eduBlockEnd);
+    // Simple approach: replace each edu-row's inner HTML
+    // First, replace all existing edu-row contents with user data
+    let eduIdx = 0;
+    let eduRowPos = html.indexOf('<div class="edu-row">');
+    while (eduRowPos > 0 && eduIdx < education.length) {
+      const rowEnd = html.indexOf('</div>', html.indexOf('</div>', eduRowPos + 1) + 1) + 6;
+      const edu = education[eduIdx];
+      const newRow = `<div class="edu-row"><div>${edu.degree} <span class="place">— ${edu.institution}</span></div><div class="yr">${edu.dates || ''}</div></div>`;
+      html = html.slice(0, eduRowPos) + newRow + html.slice(rowEnd);
+      eduIdx++;
+      eduRowPos = html.indexOf('<div class="edu-row">', eduRowPos + newRow.length);
+    }
+    // Remove extra edu-rows if user has fewer entries than template
+    while (true) {
+      const extra = html.indexOf('<div class="edu-row">', eduRowPos > 0 ? eduRowPos : 0);
+      if (extra < 0) break;
+      const extraEnd = html.indexOf('</div>', html.indexOf('</div>', extra + 1) + 1) + 6;
+      html = html.slice(0, extra) + html.slice(extraEnd);
     }
   }
 
