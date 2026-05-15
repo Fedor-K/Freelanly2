@@ -37,12 +37,19 @@ export async function GET(request: NextRequest) {
       certifications: (p.certifications as string[]) || [],
     };
 
-    // PDF via Hetzner Puppeteer
+    // Fetch template and render with user data
+    const baseUrl = request.nextUrl.origin || 'https://freelanly.com';
+    const templateRes = await fetch(`${baseUrl}/resumes/${template}.html`);
+    if (!templateRes.ok) return NextResponse.redirect(new URL(`/resumes/${template}.html`, request.url));
+    let html = await templateRes.text();
+    html = renderResumeTemplate(html, resumeData);
+
+    // PDF: send rendered HTML to Hetzner Puppeteer
     if (isPdf) {
-      const res = await fetch(`${HETZNER_RESUME_API}/generate-from-template?format=binary`, {
+      const res = await fetch(`${HETZNER_RESUME_API}/html-to-pdf?format=binary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': RESUME_API_KEY },
-        body: JSON.stringify({ template, user: { name: resumeData.name, email: resumeData.email, skills: resumeData.skills, languages: resumeData.languages, resumeText: user.resumeText || '', location: resumeData.location } }),
+        body: JSON.stringify({ html }),
       });
       if (!res.ok) return new NextResponse(`PDF generation failed: ${await res.text()}`, { status: 500 });
       const pdfBuffer = await res.arrayBuffer();
@@ -51,14 +58,6 @@ export async function GET(request: NextRequest) {
         headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="Resume_${firstName}_${template}.pdf"` },
       });
     }
-
-    // HTML preview
-    const baseUrl = request.nextUrl.origin || 'https://freelanly.com';
-    const templateRes = await fetch(`${baseUrl}/resumes/${template}.html`);
-    if (!templateRes.ok) return NextResponse.redirect(new URL(`/resumes/${template}.html`, request.url));
-    let html = await templateRes.text();
-
-    html = renderResumeTemplate(html, resumeData);
 
     return new NextResponse(html, {
       headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, max-age=60' },
