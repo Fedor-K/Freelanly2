@@ -187,6 +187,7 @@ export function renderResumeTemplate(html: string, data: ResumeData): string {
 
   // ======= COMPACT OVERRIDES (fit everything on 1 page) =======
   const compactCss = `<style>
+    .page { height: auto !important; max-height: 297mm; overflow: hidden !important; }
     .main { padding: 10mm 14mm 8mm !important; }
     .aside { padding: 12mm 10mm 8mm 12mm !important; }
     .intro { font-size: 10px !important; line-height: 1.4 !important; margin-bottom: 3mm !important; }
