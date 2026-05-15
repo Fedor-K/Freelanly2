@@ -160,30 +160,23 @@ export function renderResumeTemplate(html: string, data: ResumeData): string {
 
   // ======= EDUCATION =======
   if (education.length > 0) {
-    // Simple approach: replace each edu-row's inner HTML
-    // First, replace all existing edu-row contents with user data
-    let eduIdx = 0;
-    let eduRowPos = html.indexOf('<div class="edu-row">');
-    while (eduRowPos > 0 && eduIdx < education.length) {
-      // edu-row has 3 closing divs: inner content, yr, edu-row wrapper
-      let rowEnd = html.indexOf('</div>', eduRowPos + 20) + 6; // close inner div
-      rowEnd = html.indexOf('</div>', rowEnd) + 6; // close yr div
-      rowEnd = html.indexOf('</div>', rowEnd) + 6; // close edu-row
-      const edu = education[eduIdx];
-      const newRow = `<div class="edu-row"><div>${edu.degree} <span class="place">— ${edu.institution}</span></div><div class="yr">${edu.dates || ''}</div></div>`;
-      html = html.slice(0, eduRowPos) + newRow + html.slice(rowEnd);
-      eduIdx++;
-      eduRowPos = html.indexOf('<div class="edu-row">', eduRowPos + newRow.length);
-    }
-    // Remove extra edu-rows if user has fewer entries than template
-    let extraSearch = eduRowPos > 0 ? eduRowPos : html.indexOf('<div class="edu-row">');
-    while (true) {
-      const extra = html.indexOf('<div class="edu-row">', extraSearch);
-      if (extra < 0) break;
-      let extraEnd = html.indexOf('</div>', extra + 20) + 6;
-      extraEnd = html.indexOf('</div>', extraEnd) + 6;
-      extraEnd = html.indexOf('</div>', extraEnd) + 6;
-      html = html.slice(0, extra) + html.slice(extraEnd);
+    // Remove the entire original education block and insert new one before </section>
+    const eduHeaderIdx = html.indexOf('>Education<');
+    if (eduHeaderIdx > 0) {
+      // Find the parent <div> that wraps the education section header + edu-rows
+      const eduBlockStart = html.lastIndexOf('<div>', eduHeaderIdx);
+      // Find the </section> that closes the main content area
+      const sectionClose = html.indexOf('</section>', eduHeaderIdx);
+      if (eduBlockStart > 0 && sectionClose > eduBlockStart) {
+        // Build new education HTML
+        let eduHtml = `<div>\n      <div class="section-h"><span>Education</span></div>`;
+        for (const edu of education) {
+          eduHtml += `\n      <div class="edu-row"><div>${edu.degree} <span class="place">— ${edu.institution}</span></div><div class="yr">${edu.dates || ''}</div></div>`;
+        }
+        eduHtml += '\n    </div>';
+        // Replace everything from edu block start to just before </section>
+        html = html.slice(0, eduBlockStart) + eduHtml + '\n\n  ' + html.slice(sectionClose);
+      }
     }
   }
 
