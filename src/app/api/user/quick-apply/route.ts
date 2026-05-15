@@ -133,9 +133,12 @@ export async function POST(request: NextRequest) {
       userName: user.name || 'Applicant',
     });
 
-    // Draft-only mode: return generated letter without sending
+    // Draft-only mode: return full letter with greeting + signature
     if (draftOnly) {
-      return NextResponse.json({ ok: true, coverLetter, subject, to: opportunity.applyEmail });
+      const greet = recruiterName ? `Hi ${recruiterName},` : 'Hi there,';
+      const sign = `\n\nBest regards,\n${user.name || 'Applicant'}`;
+      const fullDraft = `${greet}\n\n${coverLetter}${sign}`;
+      return NextResponse.json({ ok: true, coverLetter: fullDraft, subject, to: opportunity.applyEmail });
     }
 
     // Build full letter with greeting and signature
