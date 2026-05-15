@@ -107,31 +107,42 @@ export async function GET(request: NextRequest) {
       html = html.replace(/>English[\s\S]*?German</g, '>' + languages.join(', ') + '<');
     }
 
-    // Replace intro
+    // Parse resume into sections
     const experience = user.resumeText || '';
-    if (experience.length > 50) {
-      const introLines = experience.split('\n').filter(l => l.trim().length > 20).slice(0, 2);
-      html = html.replace(/Twelve years building[\s\S]*?not headcount\./, introLines.join(' ').slice(0, 300));
+    const resumeSections = experience.split(/(?=EXPERIENCE|EDUCATION|PROJECTS|SKILLS|CERTIFICATIONS|LANGUAGES)/);
+    const introText = resumeSections[0]?.trim().slice(0, 300) || '';
+
+    if (introText.length > 20) {
+      html = html.replace(/Twelve years building[\s\S]*?not headcount\./, introText);
+      html = html.replace(/Twelve years on the boring[\s\S]*?sync engines\./, introText.slice(0, 200));
     }
 
     // Replace experience
-    if (experience.length > 100) {
-      const lines = experience.split('\n').filter(l => l.trim().length > 5);
+    const expSection = resumeSections.find(s => s.startsWith('EXPERIENCE')) || '';
+    const expContent = expSection.replace(/^EXPERIENCE\s*/, '');
+    if (expContent.length > 50) {
+      // Split by company/date patterns
+      const roleBlocks = expContent.split(/(?=(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s*[A-Z])|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})/);
+      const lines = roleBlocks.filter(b => b.trim().length > 10);
       let expHtml = '';
       let roleCount = 0;
-      for (const line of lines) {
-        const t = line.trim();
-        if (t.length < 100 && t.length > 5 && !/^[-•·–]/.test(t) && roleCount < 6) {
-          if (roleCount > 0) expHtml += '</ul></div></div>';
-          expHtml += `<div class="role-entry${roleCount === 0 ? ' current' : ''}"><div class="role-head"><div class="role-title">${t}</div></div><div class="role-body"><ul>`;
-          roleCount++;
-        } else if (/^[-•·–]/.test(t) && roleCount > 0) {
-          expHtml += `<li>${t.replace(/^[-•·–]\s*/, '')}</li>`;
-        } else if (t.length > 20 && roleCount > 0) {
-          expHtml += `<li>${t}</li>`;
+      for (const block of lines) {
+        if (roleCount >= 5) break;
+        const trimmed = block.trim();
+        if (trimmed.length < 10) continue;
+        // First sentence = role title, rest = body
+        const dotIdx = trimmed.indexOf('. ');
+        const title = dotIdx > 0 && dotIdx < 80 ? trimmed.slice(0, dotIdx) : trimmed.slice(0, 80);
+        const body = dotIdx > 0 ? trimmed.slice(dotIdx + 2) : '';
+        expHtml += `<div class="role-entry${roleCount === 0 ? ' current' : ''}">`;
+        expHtml += `<div class="role-head"><div class="role-title">${title}</div></div>`;
+        if (body.length > 10) {
+          const bullets = body.split(/\.\s+/).filter(s => s.length > 10).slice(0, 3);
+          expHtml += `<div class="role-body"><ul>${bullets.map(b => `<li>${b}.</li>`).join('')}</ul></div>`;
         }
+        expHtml += '</div>';
+        roleCount++;
       }
-      if (roleCount > 0) expHtml += '</ul></div></div>';
       if (roleCount > 0) {
         const expStart = html.indexOf('class="section-h"><span>Experience');
         const expNext = html.indexOf('class="section-h">', expStart + 50);
