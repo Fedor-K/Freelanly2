@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { readFile } from 'fs/promises';
 import path from 'path';
+import { headers } from 'next/headers';
 
 const VALID_TEMPLATES = ['sequence', 'wire', 'stack', 'spread', 'brief'];
 
@@ -45,9 +46,20 @@ export async function GET(request: NextRequest) {
       ? `${skills.slice(0, 3).join(', ')} specialist`
       : 'Software Developer';
 
-    // Read template HTML
-    const templatePath = path.join(process.cwd(), 'public', 'resumes', `${template}.html`);
-    let html = await readFile(templatePath, 'utf-8');
+    // Read template HTML — try filesystem first, fallback to HTTP fetch
+    let html: string;
+    try {
+      const templatePath = path.join(process.cwd(), 'public', 'resumes', `${template}.html`);
+      html = await readFile(templatePath, 'utf-8');
+    } catch {
+      // On Vercel, public/ may not be readable via fs — fetch via HTTP
+      const headersList = await headers();
+      const host = headersList.get('host') || 'freelanly.com';
+      const proto = headersList.get('x-forwarded-proto') || 'https';
+      const res = await fetch(`${proto}://${host}/resumes/${template}.html`);
+      if (!res.ok) return new NextResponse('Template not found', { status: 404 });
+      html = await res.text();
+    }
 
     // Replace placeholder data with user data
     // Name replacements
