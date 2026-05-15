@@ -78,22 +78,33 @@ export async function GET(request: NextRequest) {
     }
     let html = await templateRes.text();
 
-    // Do the replacements client-side since we have the data
+    // Do the replacements
     const fullName = user.name || 'User';
-    const firstName = fullName.split(' ')[0];
+    const nameParts = fullName.split(' ');
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(' ') || firstName;
+
     html = html.replace(/Alex Chen/g, fullName);
+    html = html.replace(/Alex<br>Chen/g, `${firstName}<br>${lastName}`);
+    html = html.replace(/alex\.chen/g, `${firstName.toLowerCase()}.${lastName.toLowerCase()}`);
+    html = html.replace(/alex-chen\.pdf/g, `${firstName.toLowerCase()}-${lastName.toLowerCase()}.pdf`);
     html = html.replace(/alex@chen\.studio/g, user.email);
     html = html.replace(/chen\.studio/g, user.email.split('@')[1] || 'portfolio.dev');
     html = html.replace(/@alexchen/g, `@${firstName.toLowerCase()}`);
+    html = html.replace(/Alex/g, firstName);
 
     if (location) {
+      html = html.replace(/Berlin · CET/g, location);
       html = html.replace(/Berlin/g, location.split(',')[0] || location);
+    } else {
+      html = html.replace(/Berlin · CET/g, '');
     }
 
     const headline = skills.length > 0 ? `${skills.slice(0, 3).join(', ')} specialist` : 'Software Developer';
+    html = html.replace(/Senior engineer — offline-first[\s\S]*?infrastructure/g, headline);
     html = html.replace(/Senior engineer/g, skills.length > 0 ? `${skills[0]} Developer` : 'Software Developer');
     if (languages.length > 0) {
-      html = html.replace(/English[\s\S]*?German/g, languages.join(', '));
+      html = html.replace(/>English[\s\S]*?German</g, '>' + languages.join(', ') + '<');
     }
 
     // Replace intro
