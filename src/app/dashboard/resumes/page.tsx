@@ -72,7 +72,7 @@ export default async function ResumesPage() {
                 <span className="ribbon" style={tpl.id === 'brief' ? {background: 'var(--ink)', color: 'var(--acid)'} : undefined}>{tpl.ribbon}</span>
               )}
               <div style={{width: '210mm', height: '297mm', transform: tpl.id === 'brief' ? 'scale(0.46)' : 'scale(0.40)', transformOrigin: 'top center', pointerEvents: 'none', background: '#fff', boxShadow: '0 8px 32px rgba(0,0,0,0.10)'}}>
-                <iframe src={tpl.file} loading="lazy" title={tpl.name} style={{width: '100%', height: '100%', border: 0, display: 'block', background: '#fff'}} />
+                <iframe src={`/api/user/resume-preview?template=${tpl.id}`} loading="lazy" title={tpl.name} style={{width: '100%', height: '100%', border: 0, display: 'block', background: '#fff'}} />
               </div>
             </div>
             <div className="res-meta">
@@ -88,10 +88,10 @@ export default async function ResumesPage() {
               </div>
             </div>
             <div className="res-actions">
-              <a className="btn btn-ghost btn-sm" href={tpl.file} target="_blank" rel="noopener">Preview</a>
+              <a className="btn btn-ghost btn-sm" href={`/api/user/resume-preview?template=${tpl.id}`} target="_blank" rel="noopener">Preview</a>
               <div className="grow"></div>
-              <a className="btn btn-ghost btn-sm" href={tpl.file} target="_blank" rel="noopener">Edit</a>
-              <a className="btn btn-acid btn-sm" href={tpl.file} target="_blank" rel="noopener">Save as PDF</a>
+              <a className="btn btn-ghost btn-sm" href={`/api/user/resume-preview?template=${tpl.id}`} target="_blank" rel="noopener">Edit</a>
+              <a className="btn btn-acid btn-sm" href={`/api/user/resume-preview?template=${tpl.id}`} target="_blank" rel="noopener">Save as PDF</a>
             </div>
           </article>
         ))}
