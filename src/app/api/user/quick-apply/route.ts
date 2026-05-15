@@ -78,8 +78,11 @@ export async function POST(request: NextRequest) {
         title: true,
         description: true,
         clientName: true,
+        clientType: true,
+        posterCompany: true,
         applyEmail: true,
         category: { select: { slug: true } },
+        company: { select: { name: true } },
       },
     });
 
@@ -99,6 +102,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'already_applied', message: 'You already applied to this project.' }, { status: 409 });
     }
 
+    // Resolve company name vs recruiter name
+    const companyName = opportunity.company?.name
+      || opportunity.posterCompany
+      || (opportunity.clientType === 'company' ? opportunity.clientName : null)
+      || 'the hiring team';
+    const recruiterName = opportunity.clientType === 'profile' ? opportunity.clientName.split(' ')[0] : '';
+
     // Use provided text or generate new
     let coverLetter: string;
     if (providedCoverLetter || editedCoverLetter) {
@@ -108,7 +118,7 @@ export async function POST(request: NextRequest) {
       coverLetter = await generateCoverLetter({
         jobTitle: opportunity.title,
         jobDescription: opportunity.description.slice(0, 800),
-        companyName: opportunity.clientName,
+        companyName,
         userProfile: {
           name: user.name || 'Applicant',
           skills: (profile?.skills as string[]) || [],
@@ -129,8 +139,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build full letter with greeting and signature
-    const recruiterFirstName = opportunity.clientName.split(' ')[0];
-    const greeting = `Hi ${recruiterFirstName}`;
+    const greeting = recruiterName ? `Hi ${recruiterName}` : 'Hi there';
     const replyEmail = user.userSmtp?.email || user.email;
     const signature = `Best regards,\n${user.name || 'Applicant'}\n${replyEmail}`;
     const fullLetter = `${greeting}\n\n${coverLetter}\n\n${signature}`;

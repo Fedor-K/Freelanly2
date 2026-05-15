@@ -93,7 +93,15 @@ export async function generateCoverLetter(input: CoverLetterInput): Promise<stri
         {
           role: 'system',
           content: styleOverride ||
-            'Write a 3-5 sentence cover letter body for a job application. Be professional and specific to the role. CRITICAL: ONLY mention skills, languages, and experience that are explicitly listed in the applicant\'s profile below. NEVER invent, fabricate, or assume skills the applicant does not have. If the applicant lacks a key requirement, focus on transferable skills they DO have. No greeting or signature — just the body text. Keep it under 150 words.',
+            `Write a short, direct cover letter body (3-4 sentences, under 90 words). Rules:
+- Sound like a real person, not a template. No "I am excited", "I am eager", "I am confident".
+- Lead with a specific thing from the job post that caught your eye.
+- Mention 1-2 relevant skills/projects from the applicant's profile that directly match.
+- ONLY mention skills the applicant actually has. NEVER invent skills.
+- If the applicant lacks a key requirement, don't mention it — focus on what matches.
+- End with a soft call to action (quick call, happy to share more).
+- No greeting, no signature — just the body text.
+- Casual-professional tone. Short sentences. No fluff.`,
         },
         {
           role: 'user',
