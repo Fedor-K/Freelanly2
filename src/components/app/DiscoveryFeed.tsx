@@ -39,7 +39,11 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
 
   async function handleApply(item: Job) {
     if (!item.applyEmail) return;
-    setLoading(prev => ({ ...prev, [item.id]: 'apply' }));
+    setDraftItem(item);
+    setDraftSubject('');
+    setDraftBody('');
+    setDraftGenerating(true);
+
     try {
       const res = await fetch('/api/user/quick-apply', {
         method: 'POST',
@@ -47,18 +51,51 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
         body: JSON.stringify({
           opportunityId: item.type === 'opportunity' ? item.id : undefined,
           jobId: item.type === 'job' ? item.id : undefined,
+          draftOnly: true,
         }),
       });
       if (res.ok) {
-        setApplied(prev => new Set(prev).add(item.id));
+        const data = await res.json();
+        setDraftSubject(data.subject || `Application: ${item.title}`);
+        setDraftBody(data.coverLetter || '');
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to apply');
+        setDraftBody(data.error || 'Failed to generate draft. You can write your own below.');
+        setDraftSubject(`Application: ${item.title}`);
+      }
+    } catch {
+      setDraftBody('Failed to generate. Write your cover letter below.');
+      setDraftSubject(`Application: ${item.title}`);
+    } finally {
+      setDraftGenerating(false);
+    }
+  }
+
+  async function handleSendDraft() {
+    if (!draftItem) return;
+    setDraftSending(true);
+    try {
+      const res = await fetch('/api/user/quick-apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          opportunityId: draftItem.type === 'opportunity' ? draftItem.id : undefined,
+          jobId: draftItem.type === 'job' ? draftItem.id : undefined,
+          coverLetter: draftBody,
+          subject: draftSubject,
+        }),
+      });
+      if (res.ok) {
+        setApplied(prev => new Set(prev).add(draftItem.id));
+        setDraftItem(null);
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to send');
       }
     } catch {
       alert('Network error');
     } finally {
-      setLoading(prev => ({ ...prev, [item.id]: '' }));
+      setDraftSending(false);
     }
   }
 
@@ -72,6 +109,13 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
 
   const [applyingAll, setApplyingAll] = useState(false);
   const [applyAllResult, setApplyAllResult] = useState<string | null>(null);
+
+  // Draft modal state
+  const [draftItem, setDraftItem] = useState<Job | null>(null);
+  const [draftSubject, setDraftSubject] = useState('');
+  const [draftBody, setDraftBody] = useState('');
+  const [draftGenerating, setDraftGenerating] = useState(false);
+  const [draftSending, setDraftSending] = useState(false);
 
   async function handleApplyAll() {
     const withEmail = visible.filter(i => i.applyEmail && !applied.has(i.id));
@@ -248,6 +292,69 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
           </div>
         )}
       </div>
+
+      {/* Draft preview modal */}
+      {draftItem && (
+        <div style={{position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'grid', placeItems: 'center'}} onClick={() => !draftGenerating && !draftSending && setDraftItem(null)}>
+          <div style={{background: '#fff', borderRadius: '14px', padding: '0', width: '100%', maxWidth: '640px', maxHeight: '85vh', overflow: 'auto', border: '1px solid rgba(11,12,15,0.12)'}} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{padding: '16px 24px', borderBottom: '1px solid rgba(11,12,15,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <div>
+                <div style={{fontSize: '15px', fontWeight: 500}}>{draftItem.title}</div>
+                <div style={{fontSize: '12px', color: '#5C6068', marginTop: '2px'}}>{draftItem.companyName} · {draftItem.applyEmail}</div>
+              </div>
+              <button style={{background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#5C6068'}} onClick={() => setDraftItem(null)}>✕</button>
+            </div>
+
+            {draftGenerating ? (
+              <div style={{padding: '60px 24px', textAlign: 'center', color: '#5C6068'}}>
+                <div style={{fontSize: '14px', marginBottom: '8px'}}>Generating your cover letter...</div>
+                <div style={{fontSize: '12px', color: '#8A8E96'}}>AI is reading the job post and matching with your profile</div>
+              </div>
+            ) : (
+              <>
+                {/* Subject */}
+                <div style={{padding: '12px 24px', borderBottom: '1px solid rgba(11,12,15,0.07)', background: '#F7F6F1'}}>
+                  <div style={{fontSize: '11px', fontFamily: "'Geist Mono', monospace", color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px'}}>Subject</div>
+                  <input
+                    value={draftSubject}
+                    onChange={e => setDraftSubject(e.target.value)}
+                    style={{width: '100%', border: 'none', background: 'none', fontSize: '14px', outline: 'none', fontFamily: "'Geist Mono', monospace"}}
+                  />
+                </div>
+
+                {/* Body */}
+                <div style={{padding: '20px 24px'}}>
+                  <div style={{fontSize: '11px', fontFamily: "'Geist Mono', monospace", color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px'}}>Cover letter</div>
+                  <textarea
+                    value={draftBody}
+                    onChange={e => setDraftBody(e.target.value)}
+                    rows={10}
+                    style={{width: '100%', border: '1px solid rgba(11,12,15,0.12)', borderRadius: '10px', padding: '14px', fontSize: '14px', lineHeight: 1.6, resize: 'vertical', outline: 'none', fontFamily: 'inherit'}}
+                  />
+                </div>
+
+                {/* Actions */}
+                <div style={{padding: '14px 24px', borderTop: '1px solid rgba(11,12,15,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                  <div style={{fontSize: '12px', color: '#8A8E96', fontFamily: "'Geist Mono', monospace"}}>{draftBody.length} chars</div>
+                  <div style={{display: 'flex', gap: '8px'}}>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setDraftItem(null)}>Cancel</button>
+                    <button
+                      className="btn btn-acid btn-sm"
+                      onClick={handleSendDraft}
+                      disabled={draftSending || !draftBody.trim()}
+                      style={{display: 'flex', alignItems: 'center', gap: '6px'}}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                      {draftSending ? 'Sending...' : 'Send application'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

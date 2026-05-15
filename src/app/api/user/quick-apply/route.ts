@@ -20,9 +20,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { opportunityId, editedCoverLetter, editedSubject } = await request.json();
-    if (!opportunityId) {
-      return NextResponse.json({ error: 'opportunityId required' }, { status: 400 });
+    const body = await request.json();
+    const { opportunityId, jobId, editedCoverLetter, editedSubject, draftOnly, coverLetter: providedCoverLetter, subject: providedSubject } = body;
+    if (!opportunityId && !jobId) {
+      return NextResponse.json({ error: 'opportunityId or jobId required' }, { status: 400 });
     }
 
     // Get user with SMTP and profile
@@ -98,10 +99,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'already_applied', message: 'You already applied to this project.' }, { status: 409 });
     }
 
-    // Use edited text or generate new
+    // Use provided text or generate new
     let coverLetter: string;
-    if (editedCoverLetter) {
-      coverLetter = editedCoverLetter;
+    if (providedCoverLetter || editedCoverLetter) {
+      coverLetter = providedCoverLetter || editedCoverLetter;
     } else {
       const profile = user.parsedProfile as Record<string, unknown> | null;
       coverLetter = await generateCoverLetter({
@@ -112,19 +113,24 @@ export async function POST(request: NextRequest) {
           name: user.name || 'Applicant',
           skills: (profile?.skills as string[]) || [],
           experience: (user.resumeText || '').slice(0, 300),
-        resumeText: user.resumeText || undefined,
-      },
-    });
+          resumeText: user.resumeText || undefined,
+        },
+      });
     }
 
-    const subject = editedSubject || await generateSubjectLine({
+    const subject = providedSubject || editedSubject || await generateSubjectLine({
       jobTitle: opportunity.title,
       userName: user.name || 'Applicant',
     });
 
+    // Draft-only mode: return generated letter without sending
+    if (draftOnly) {
+      return NextResponse.json({ ok: true, coverLetter, subject, to: opportunity.applyEmail });
+    }
+
     // Build full letter with greeting and signature
     const recruiterFirstName = opportunity.clientName.split(' ')[0];
-    const greeting = `Dear ${recruiterFirstName},`;
+    const greeting = `Hi ${recruiterFirstName}`;
     const replyEmail = user.userSmtp?.email || user.email;
     const signature = `Best regards,\n${user.name || 'Applicant'}\n${replyEmail}`;
     const fullLetter = `${greeting}\n\n${coverLetter}\n\n${signature}`;
