@@ -45,6 +45,7 @@ const NAV = [
 export function AppShell({ children, userName, userPlan }: { children: React.ReactNode; userName?: string; userPlan?: string }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const initials = userName?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
   const isActive = (item: { id: string; href: string }) => {
@@ -90,14 +91,20 @@ export function AppShell({ children, userName, userPlan }: { children: React.Rea
           </div>
         )}
 
-        <a href="/dashboard/settings" className="sb-user">
+        <div className="sb-user" onClick={() => setShowUserMenu(!showUserMenu)} style={{cursor: 'pointer', position: 'relative'}}>
           <div className="sb-avatar">{initials}</div>
           <div>
             <div className="sb-user-name">{userName || 'User'}</div>
             <div className="sb-user-plan">{userPlan || 'Free'}</div>
           </div>
           <div style={{color: 'var(--ink-on-dark-2)'}}><SvgIcon name="chevron" size={14} /></div>
-        </a>
+          {showUserMenu && (
+            <div style={{position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: '8px', background: 'var(--bg-dark-2)', border: '1px solid var(--line-dark)', borderRadius: '10px', overflow: 'hidden', zIndex: 50}}>
+              <a href="/dashboard/settings" style={{display: 'block', padding: '10px 14px', fontSize: '13px', color: 'var(--ink-on-dark)', borderBottom: '1px solid var(--line-dark)'}}>Settings</a>
+              <a href="/api/auth/signout" style={{display: 'block', padding: '10px 14px', fontSize: '13px', color: '#F87171'}}>Log out</a>
+            </div>
+          )}
+        </div>
       </aside>
 
       {/* Mobile backdrop */}
