@@ -34,6 +34,7 @@ const NAV = [
   ]},
   { label: 'CONTENT', items: [
     { id: 'templates', href: '/dashboard/templates',    label: 'Templates', icon: 'edit' },
+    { id: 'resumes',   href: '/dashboard/resumes',      label: 'Resumes',   icon: 'star' },
     { id: 'analytics', href: '/dashboard/analytics',    label: 'Analytics', icon: 'bar' },
   ]},
   { label: 'ACCOUNT', items: [
