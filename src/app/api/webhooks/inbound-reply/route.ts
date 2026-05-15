@@ -84,8 +84,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Categorize reply + extract AI signal
-    const replyText = plainBody || htmlBody?.replace(/<[^>]*>/g, '') || '';
+    // Try multiple body fields (Postal may use different formats)
+    const rawBody = plainBody || htmlBody?.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&') || body.body || body.content || body.message || '';
+    const replyText = rawBody.trim();
+    if (!replyText) {
+      console.log(`[InboundReply] Empty body for ${appId}. Keys: ${Object.keys(body).join(', ')}`);
+    }
     const newStatus = replyText.length > 10 ? await categorizeReply(replyText) : 'REPLIED';
     const signal = replyText.length > 10 ? await extractSignal(replyText, app.jobTitle, app.companyName) : '';
 
