@@ -23,6 +23,7 @@ export default async function SettingsPage() {
       name: true, email: true, plan: true, createdAt: true,
       subscriptionEndsAt: true, stripeSubscriptionId: true,
       stripeId: true, paymentProvider: true, payproSubscriptionId: true,
+      resumeText: true, parsedProfile: true,
     },
   });
 
@@ -81,6 +82,52 @@ export default async function SettingsPage() {
               <div className="lbl">Member since</div>
               <div className="ctrl"><span className="meta f-mono">{new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span></div>
             </div>
+
+            {/* Parsed profile from resume */}
+            {(() => {
+              const profile = user.parsedProfile as Record<string, unknown> | null;
+              const skills = (profile?.skills as string[]) || [];
+              const languages = (profile?.languages as string[]) || [];
+              const experience = (user.resumeText || '').slice(0, 200);
+              return (
+                <>
+                  <div className="field-row">
+                    <div className="lbl">Skills<span className="sub">Extracted from your resume</span></div>
+                    <div className="ctrl" style={{flexWrap: 'wrap', gap: '4px'}}>
+                      {skills.length > 0 ? skills.map(s => (
+                        <span key={s} className="tag tag-acid">{s}</span>
+                      )) : <span className="meta">No skills detected — upload a resume</span>}
+                    </div>
+                  </div>
+                  {languages.length > 0 && (
+                    <div className="field-row">
+                      <div className="lbl">Languages</div>
+                      <div className="ctrl" style={{flexWrap: 'wrap', gap: '4px'}}>
+                        {languages.map(l => <span key={l} className="tag">{l}</span>)}
+                      </div>
+                    </div>
+                  )}
+                  <div className="field-row">
+                    <div className="lbl">Resume preview<span className="sub">How the system sees you</span></div>
+                    <div className="ctrl">
+                      {experience ? (
+                        <div style={{fontSize: '12.5px', color: 'var(--ink-2)', lineHeight: 1.5, maxWidth: '400px'}}>
+                          {experience}{user.resumeText && user.resumeText.length > 200 ? '...' : ''}
+                        </div>
+                      ) : (
+                        <span className="meta">No resume uploaded</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="field-row">
+                    <div className="lbl">Update resume</div>
+                    <div className="ctrl">
+                      <a href="/onboarding" className="btn btn-soft btn-sm">Upload new resume</a>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* Sending rules */}
