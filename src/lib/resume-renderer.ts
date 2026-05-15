@@ -159,31 +159,23 @@ export function renderResumeTemplate(html: string, data: ResumeData): string {
   }
 
   // ======= EDUCATION =======
+  // Step 1: Remove ALL original edu-rows via regex
+  html = html.replace(/<div class="edu-row">[\s\S]*?<\/div>\s*<\/div>/g, '');
+  // Step 2: Replace original Education section header content
   if (education.length > 0) {
-    // Strategy: find the text pattern "\n    <div>\n      <div class="section-h"><span>Education"
-    // and replace from there to just before </section>
-    const eduMarker = html.indexOf('<div class="section-h"><span>Education');
-    if (eduMarker > 0) {
-      // Go back to find the wrapping <div> — it's the <div> on the previous line
-      // Search backwards from eduMarker for "\n" then find "<div>" before it
-      const lineStart = html.lastIndexOf('\n', eduMarker - 1);
-      const prevLineStart = html.lastIndexOf('\n', lineStart - 1);
-      const wrapDiv = html.indexOf('<div>', prevLineStart);
-
-      // Use wrapDiv if it's close to eduMarker (within 50 chars), otherwise use eduMarker itself
-      const eduBlockStart = (wrapDiv > 0 && eduMarker - wrapDiv < 50) ? wrapDiv : eduMarker;
-
-      const sectionClose = html.indexOf('</section>', eduMarker);
-      if (sectionClose > eduBlockStart) {
-        let eduHtml = `<div>\n      <div class="section-h"><span>Education</span></div>`;
-        for (const edu of education) {
-          eduHtml += `\n      <div class="edu-row"><div>${edu.degree} <span class="place">— ${edu.institution}</span></div><div class="yr">${edu.dates || ''}</div></div>`;
-        }
-        eduHtml += '\n    </div>';
-        html = html.slice(0, eduBlockStart) + eduHtml + '\n\n  ' + html.slice(sectionClose);
+    // Find </section> and insert education just before it
+    const sectionClose = html.indexOf('</section>');
+    if (sectionClose > 0) {
+      let eduHtml = `\n    <div>\n      <div class="section-h"><span>Education</span></div>`;
+      for (const edu of education) {
+        eduHtml += `\n      <div class="edu-row"><div>${edu.degree} <span class="place">— ${edu.institution}</span></div><div class="yr">${edu.dates || ''}</div></div>`;
       }
+      eduHtml += `\n    </div>\n\n  `;
+      html = html.slice(0, sectionClose) + eduHtml + html.slice(sectionClose);
     }
   }
+  // Remove the now-empty original Education section header if it exists
+  html = html.replace(/<div class="section-h"><span>Education<\/span><\/div>\s*<\/div>/g, '');
 
   // ======= HIDE EMPTY SECTIONS =======
   // Rate line
