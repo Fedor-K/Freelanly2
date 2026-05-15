@@ -87,15 +87,58 @@ export async function GET(request: NextRequest) {
       html = html.replace(/English[\s\S]*?German/g, languages.join(', '));
     }
 
-    // Experience snippet — replace the detailed experience if we have resume text
+    // Replace the intro paragraph
+    const introText = experience.length > 50
+      ? experience.split('\n').filter(l => l.trim().length > 20).slice(0, 2).join(' ').slice(0, 300)
+      : `${headline}. ${skills.slice(0, 5).join(', ')}.`;
+    html = html.replace(
+      /Twelve years building[\s\S]*?not headcount\./,
+      introText
+    );
+
+    // Replace experience section with user's resume content
     if (experience.length > 100) {
-      const expLines = experience.split('\n').filter(l => l.trim().length > 20).slice(0, 5);
-      // We don't replace the full experience section as it's complex HTML
-      // but we can inject a note
+      const lines = experience.split('\n').filter(l => l.trim().length > 5);
+      let expHtml = '';
+      let roleCount = 0;
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        // Detect role/title lines (typically short, may have company names)
+        if (trimmed.length < 80 && trimmed.length > 5 && !trimmed.startsWith('-') && !trimmed.startsWith('•') && !trimmed.startsWith('·')) {
+          if (roleCount > 0) expHtml += '</div></div>';
+          expHtml += `<div class="role-entry${roleCount === 0 ? ' current' : ''}">
+            <div class="role-head"><div class="role-title">${trimmed}</div></div>
+            <div class="role-body"><ul>`;
+          roleCount++;
+        } else if (trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.startsWith('·')) {
+          expHtml += `<li>${trimmed.replace(/^[-•·]\s*/, '')}</li>`;
+        } else if (trimmed.length > 20 && roleCount > 0) {
+          expHtml += `<li>${trimmed}</li>`;
+        }
+        if (roleCount >= 5) break;
+      }
+      if (roleCount > 0) expHtml += '</ul></div></div>';
+
+      if (roleCount > 0) {
+        // Replace the entire experience content between markers
+        html = html.replace(
+          /<div class="role-entry[\s\S]*?<\/div>\s*<\/div>\s*<\/div>\s*<\/div>\s*<\/div>\s*<\/div>/,
+          expHtml + '</div>'
+        );
+        // Update role count
+        html = html.replace(/5 roles · 11 yrs/, `${roleCount} roles`);
+      }
     }
 
     // Update title
     html = html.replace(/<title>.*?<\/title>/, `<title>Resume — ${fullName} · ${template}</title>`);
+
+    // Auto-print if requested
+    const autoPrint = request.nextUrl.searchParams.get('print') === '1';
+    if (autoPrint) {
+      html = html.replace('</body>', '<script>window.addEventListener("load",()=>setTimeout(()=>window.print(),600))</script></body>');
+    }
 
     return new NextResponse(html, {
       headers: {

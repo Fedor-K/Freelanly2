@@ -91,7 +91,7 @@ export default async function ResumesPage() {
               <a className="btn btn-ghost btn-sm" href={`/api/user/resume-preview?template=${tpl.id}`} target="_blank" rel="noopener">Preview</a>
               <div className="grow"></div>
               <a className="btn btn-ghost btn-sm" href={`/api/user/resume-preview?template=${tpl.id}`} target="_blank" rel="noopener">Edit</a>
-              <a className="btn btn-acid btn-sm" href={`/api/user/resume-preview?template=${tpl.id}`} target="_blank" rel="noopener">Save as PDF</a>
+              <a className="btn btn-acid btn-sm" href={`/api/user/resume-preview?template=${tpl.id}&print=1`} target="_blank" rel="noopener">Save as PDF</a>
             </div>
           </article>
         ))}
