@@ -76,8 +76,10 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
         if (res.ok) {
           const data = await res.json();
           // Add greeting + signature
-          const recruiterName = item.companyName.split(' ')[0];
-          const greeting = `Hi ${recruiterName},\n\n`;
+          // Smart greeting — skip generic names
+          const skip = ['the', 'hiring', 'team', 'unknown', 'company'];
+          const firstWord = item.companyName.split(' ')[0].toLowerCase();
+          const greeting = skip.includes(firstWord) ? 'Hi there,\n\n' : `Hi ${item.companyName.split(' ')[0]},\n\n`;
           const signature = `\n\nBest regards,\n${document.querySelector('.sb-user-name')?.textContent || 'Applicant'}`;
           const fullLetter = greeting + (data.coverLetter || '') + signature;
           setEditText(fullLetter);

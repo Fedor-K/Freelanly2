@@ -421,11 +421,18 @@ export async function queueAutoApplyForOpportunity(opportunityId: string): Promi
     return 0;
   }
 
-  // Use company name > posterCompany > clientName (but clientName is often a person's name, not a company)
+  // Use company name > posterCompany > clientName > extract from email domain
+  const emailDomain = opportunity.applyEmail?.split('@')[1] || '';
+  const freeEmails = ['gmail.com','yahoo.com','hotmail.com','outlook.com','live.com','aol.com','icloud.com','protonmail.com','yandex.com','zoho.com','mail.com'];
+  const companyFromDomain = emailDomain && !freeEmails.includes(emailDomain)
+    ? emailDomain.split('.')[0].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    : '';
+
   const companyName = opportunity.company?.name
     || opportunity.posterCompany
     || (opportunity.clientType === 'company' ? opportunity.clientName : null)
-    || 'the hiring team';
+    || companyFromDomain
+    || opportunity.clientName;
 
   return queueAutoApplyForListing({
     type: 'opportunity',
