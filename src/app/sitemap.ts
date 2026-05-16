@@ -1,12 +1,7 @@
 import { MetadataRoute } from 'next';
-import { siteConfig, categories, levels, countries as siteCountries, jobRoles, languagePairs } from '@/config/site';
-import { countries as programmaticCountries } from '@/config/countries';
-import { salaryRanges } from '@/config/salary-ranges';
-import { skills } from '@/config/skills';
+import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
-import { getSitemapPriority } from '@/lib/content-quality';
 
-// Generate sitemap dynamically on each request (cached for 1 hour)
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
 
@@ -14,321 +9,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = siteConfig.url;
   const now = new Date();
 
-  // Static pages
+  // Core marketing pages only (job pages now redirect to signup)
   const staticPages: MetadataRoute.Sitemap = [
-    {
-      url: baseUrl,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 1.0,
-    },
-    {
-      url: `${baseUrl}/jobs`,
-      lastModified: now,
-      changeFrequency: 'hourly',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/companies`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/employers`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/pricing`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/privacy`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.3,
-    },
-    {
-      url: `${baseUrl}/terms`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.3,
-    },
-    {
-      url: `${baseUrl}/about`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.6,
-    },
-    {
-      url: `${baseUrl}/country`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 0.85,
-    },
-    {
-      url: `${baseUrl}/companies-hiring-worldwide`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 0.85,
-    },
-    {
-      url: `${baseUrl}/blog`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 0.8,
-    },
+    { url: baseUrl, lastModified: now, changeFrequency: 'daily', priority: 1.0 },
+    { url: `${baseUrl}/pricing`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
+    { url: `${baseUrl}/how-it-works`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
+    { url: `${baseUrl}/features`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
+    { url: `${baseUrl}/about`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
+    { url: `${baseUrl}/auth/signin`, lastModified: now, changeFrequency: 'weekly', priority: 0.85 },
+    { url: `${baseUrl}/blog`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
+    { url: `${baseUrl}/privacy`, lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
+    { url: `${baseUrl}/terms`, lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
   ];
 
-  // NOTE: Pagination pages removed - robots.txt blocks ?page=* which conflicts with sitemap
-  // Google recommends not including URLs in sitemap that are blocked by robots.txt
-
-  // Category pages: /jobs/[category]
-  const categoryPages: MetadataRoute.Sitemap = categories.map((cat) => ({
-    url: `${baseUrl}/jobs/${cat.slug}`,
-    lastModified: now,
-    changeFrequency: 'hourly' as const,
-    priority: 0.9,
-  }));
-
-  // Freelance pages: /freelance and /freelance/[category]
-  const freelancePages: MetadataRoute.Sitemap = [
-    {
-      url: `${baseUrl}/freelance`,
-      lastModified: now,
-      changeFrequency: 'daily' as const,
-      priority: 0.9,
-    },
-    ...categories.map((cat) => ({
-      url: `${baseUrl}/freelance/${cat.slug}`,
-      lastModified: now,
-      changeFrequency: 'daily' as const,
-      priority: 0.85,
-    })),
-  ];
-
-  // Category + Level pages: /jobs/[category]/[level]
-  const categoryLevelPages: MetadataRoute.Sitemap = categories.flatMap((cat) =>
-    levels.map((level) => ({
-      url: `${baseUrl}/jobs/${cat.slug}/${level.value.toLowerCase()}`,
-      lastModified: now,
-      changeFrequency: 'daily' as const,
-      priority: 0.8,
-    }))
-  );
-
-  // NOTE: Old landing pages (/remote-[skill]-jobs) now redirect to /jobs/skills/[skill]
-  // See next.config.ts for 301 redirects
-
-  // Country pages: /country/[country]
-  const countryPages: MetadataRoute.Sitemap = siteCountries.map((country) => ({
-    url: `${baseUrl}/country/${country.slug}`,
-    lastModified: now,
-    changeFrequency: 'daily' as const,
-    priority: 0.85,
-  }));
-
-  // Country + Role pages: /country/[country]/jobs/[role]
-  const countryRolePages: MetadataRoute.Sitemap = siteCountries.flatMap((country) =>
-    jobRoles.map((role) => ({
-      url: `${baseUrl}/country/${country.slug}/jobs/${role.slug}`,
-      lastModified: now,
-      changeFrequency: 'daily' as const,
-      priority: 0.8,
-    }))
-  );
-
-  // Jobs by country pages: /jobs/country/[country]
-  const jobsByCountryPages: MetadataRoute.Sitemap = siteCountries.map((country) => ({
-    url: `${baseUrl}/jobs/country/${country.slug}`,
-    lastModified: now,
-    changeFrequency: 'daily' as const,
-    priority: 0.85,
-  }));
-
-  // Translation language pair pages: /jobs/translation/[pair]
-  // Filter out invalid pairs (same source and target language)
-  const translationPairPages: MetadataRoute.Sitemap = languagePairs
-    .filter((pair) => pair.source !== pair.target)
-    .map((pair) => ({
-      url: `${baseUrl}/jobs/translation/${pair.slug}`,
-      lastModified: now,
-      changeFrequency: 'daily' as const,
-      priority: 0.85,
-    }));
-
-  // Category + Country pages: /jobs/[category]/country/[country]
-  // Programmatic SEO pages (630 combinations)
-  const categoryCountryPages: MetadataRoute.Sitemap = categories.flatMap((cat) =>
-    programmaticCountries.map((country) => ({
-      url: `${baseUrl}/jobs/${cat.slug}/country/${country.slug}`,
-      lastModified: now,
-      changeFrequency: 'daily' as const,
-      priority: 0.8,
-    }))
-  );
-
-  // Category + Salary pages: /jobs/[category]/salary/[range]
-  // Programmatic SEO pages (84 combinations: 21 categories × 4 salary ranges)
-  const categorySalaryPages: MetadataRoute.Sitemap = categories.flatMap((cat) =>
-    salaryRanges.map((range) => ({
-      url: `${baseUrl}/jobs/${cat.slug}/salary/${range.slug}`,
-      lastModified: now,
-      changeFrequency: 'daily' as const,
-      priority: 0.8,
-    }))
-  );
-
-  // Skills pages: /jobs/skills/[skill]
-  // Programmatic SEO pages (50+ skills)
-  const skillPages: MetadataRoute.Sitemap = skills.map((skill) => ({
-    url: `${baseUrl}/jobs/skills/${skill.slug}`,
-    lastModified: now,
-    changeFrequency: 'daily' as const,
-    priority: 0.85,
-  }));
-
-  // Dynamic job pages from database - RRS format: /company/[company]/jobs/[job]
-  let jobPages: MetadataRoute.Sitemap = [];
-  let opportunityPages: MetadataRoute.Sitemap = [];
-  let companyPages: MetadataRoute.Sitemap = [];
-  let companyJobsPages: MetadataRoute.Sitemap = [];
+  // Blog posts
   let blogPages: MetadataRoute.Sitemap = [];
-  let blogCategoryPages: MetadataRoute.Sitemap = [];
-
   try {
-    // Fetch jobs with company info for new URL structure
-    // Exclude THIN content from sitemap (they have noindex anyway)
-    const jobs = await prisma.job.findMany({
-      where: {
-        isActive: true,
-        contentQuality: 'RICH', // Only RICH content in sitemap — THIN and LIGHT excluded
-      },
-      select: {
-        slug: true,
-        updatedAt: true,
-        contentQuality: true,
-        company: {
-          select: { slug: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50000,
-    });
-
-    // Job pages: /company/[companySlug]/jobs/[jobSlug]
-    // Priority based on content quality: RICH = 0.8, LIGHT = 0.5
-    jobPages = jobs.map((job) => ({
-      url: `${baseUrl}/company/${job.company.slug}/jobs/${job.slug}`,
-      lastModified: job.updatedAt,
-      changeFrequency: 'weekly' as const,
-      priority: getSitemapPriority(job.contentQuality),
-    }));
-
-    // Fetch opportunities (LinkedIn direct projects)
-    // Exclude THIN content from sitemap
-    const opportunities = await prisma.opportunity.findMany({
-      where: {
-        isActive: true,
-        contentQuality: 'RICH', // Only RICH content in sitemap
-      },
-      select: {
-        slug: true,
-        updatedAt: true,
-        contentQuality: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 5000,
-    });
-
-    // Opportunity pages: /freelance/[slug]
-    opportunityPages = opportunities.map((opp) => ({
-      url: `${baseUrl}/freelance/${opp.slug}`,
-      lastModified: opp.updatedAt,
-      changeFrequency: 'weekly' as const,
-      priority: getSitemapPriority(opp.contentQuality),
-    }));
-
-    // Only include companies that have at least 1 active job
-    // This prevents soft 404 pages (empty company pages) in sitemap
-    const companiesWithJobs = await prisma.company.findMany({
-      where: {
-        jobs: {
-          some: { isActive: true },
-        },
-      },
+    const posts = await prisma.blogPost.findMany({
+      where: { published: true },
       select: { slug: true, updatedAt: true },
-      take: 5000,
     });
-
-    // Company pages: /company/[slug] - only for companies with jobs
-    companyPages = companiesWithJobs.map((company) => ({
-      url: `${baseUrl}/company/${company.slug}`,
-      lastModified: company.updatedAt,
-      changeFrequency: 'weekly' as const,
-      priority: 0.6,
-    }));
-
-    // Company jobs listing pages: /company/[slug]/jobs - only for companies with jobs
-    companyJobsPages = companiesWithJobs.map((company) => ({
-      url: `${baseUrl}/company/${company.slug}/jobs`,
-      lastModified: company.updatedAt,
-      changeFrequency: 'daily' as const,
-      priority: 0.65,
-    }));
-
-    // Blog posts: /blog/[slug]
-    const blogPosts = await prisma.blogPost.findMany({
-      where: { status: 'PUBLISHED' },
-      select: { slug: true, updatedAt: true },
-      orderBy: { publishedAt: 'desc' },
-      take: 1000,
-    });
-
-    blogPages = blogPosts.map((post) => ({
+    blogPages = posts.map(post => ({
       url: `${baseUrl}/blog/${post.slug}`,
       lastModified: post.updatedAt,
-      changeFrequency: 'weekly' as const,
+      changeFrequency: 'monthly' as const,
       priority: 0.7,
     }));
-
-    // Blog categories: /blog/category/[category]
-    const blogCategories = await prisma.blogCategory.findMany({
-      select: { slug: true, updatedAt: true },
-    });
-
-    blogCategoryPages = blogCategories.map((cat) => ({
-      url: `${baseUrl}/blog/category/${cat.slug}`,
-      lastModified: cat.updatedAt,
-      changeFrequency: 'weekly' as const,
-      priority: 0.6,
-    }));
-  } catch (error) {
-    // Database might not be available during build
-    console.log('Sitemap: Could not fetch dynamic pages from database');
+  } catch {
+    // blogPost table may not exist
   }
 
-  return [
-    ...staticPages,
-    ...freelancePages,
-    ...categoryPages,
-    ...categoryLevelPages,
-    ...countryPages,
-    ...countryRolePages,
-    ...jobsByCountryPages,
-    ...translationPairPages,
-    ...categoryCountryPages,
-    ...categorySalaryPages,
-    ...skillPages,
-    ...companyPages,
-    ...companyJobsPages,
-    ...jobPages,
-    ...opportunityPages,
-    ...blogPages,
-    ...blogCategoryPages,
-  ];
+  return [...staticPages, ...blogPages];
 }
