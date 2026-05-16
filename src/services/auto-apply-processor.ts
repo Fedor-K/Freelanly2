@@ -598,6 +598,9 @@ interface ListingData {
 /**
  * Internal: match a listing (job or opportunity) against active loops and queue applications.
  */
+// Cache AI match results per listing+skills combo (within one run)
+const aiMatchCache = new Map<string, { shouldApply: boolean; score: number; reason: string }>();
+
 async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
   // Find all active loops from users with verified SMTP
   const activeLoops = await prisma.autoApplyLoop.findMany({
@@ -745,16 +748,26 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     }
 
     // AI matching for borderline cases (score 30-79)
+    // Cache by listing ID + skill hash to avoid duplicate AI calls
     if (matchScore < 80) {
-      try {
-        const aiMatch = await aiMatchCheck(listing, userSkills, (loop.user as any).resumeText || '', (loop.user as any).name || 'Applicant');
-        if (!aiMatch.shouldApply) {
-          continue; // AI says don't apply
+      const skillHash = userSkills.slice(0, 5).sort().join(',');
+      const cacheKey = `${listing.id}:${skillHash}`;
+      let aiResult = aiMatchCache.get(cacheKey);
+
+      if (!aiResult) {
+        try {
+          aiResult = await aiMatchCheck(listing, userSkills, (loop.user as any).resumeText || '', (loop.user as any).name || 'Applicant');
+          aiMatchCache.set(cacheKey, aiResult);
+        } catch {
+          aiResult = null;
         }
-        matchScore = aiMatch.score;
+      }
+
+      if (aiResult) {
+        if (!aiResult.shouldApply) continue;
+        matchScore = aiResult.score;
         matchLabel = matchScore >= 80 ? 'Strong' : matchScore >= 50 ? 'Good' : 'Weak';
-      } catch {
-        // AI failed — fall back to original score, skip if < 50
+      } else {
         if (matchScore < 50) continue;
       }
     }
