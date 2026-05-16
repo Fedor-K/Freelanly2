@@ -1,7 +1,5 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
 import { BlogPostCard } from '@/components/blog/BlogPostCard';
 import { Badge } from '@/components/ui/badge';
 import { siteConfig } from '@/config/site';
@@ -90,7 +88,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      
 
       <main className="flex-1">
         <div className="container py-8">
@@ -201,7 +199,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
         </div>
       </main>
 
-      <Footer />
+      
 
       {/* Structured Data */}
       <script

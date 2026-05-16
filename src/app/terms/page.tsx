@@ -1,6 +1,4 @@
 import { Metadata } from 'next';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
 import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
@@ -14,7 +12,7 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      
 
       <main className="flex-1">
         <div className="container py-12 max-w-4xl">
@@ -167,7 +165,7 @@ export default function TermsPage() {
         </div>
       </main>
 
-      <Footer />
+      
 
       <script
         type="application/ld+json"

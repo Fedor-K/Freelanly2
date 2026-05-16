@@ -1,8 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
 import { BlogPostCard } from '@/components/blog/BlogPostCard';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft } from 'lucide-react';
@@ -98,7 +96,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      
 
       <main className="flex-1">
         <div className="container py-8">
@@ -197,7 +195,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         </div>
       </main>
 
-      <Footer />
+      
 
       {/* Structured Data */}
       <script

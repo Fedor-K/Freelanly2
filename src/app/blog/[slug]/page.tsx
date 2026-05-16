@@ -2,8 +2,6 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
 import { TableOfContents } from '@/components/blog/TableOfContents';
 import { BlogPostCard } from '@/components/blog/BlogPostCard';
 import { Badge } from '@/components/ui/badge';
@@ -122,7 +120,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      
 
       <main className="flex-1">
         <article className="container py-8">
@@ -315,7 +313,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         </article>
       </main>
 
-      <Footer />
+      
 
       {/* Structured Data - Article */}
       <script
