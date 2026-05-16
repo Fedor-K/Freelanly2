@@ -493,18 +493,16 @@ async function aiMatchCheck(
   resumeText: string,
   userName: string,
 ): Promise<{ shouldApply: boolean; score: number; reason: string }> {
-  const { generateCoverLetter } = await import('@/services/cover-letter-generator');
-
-  // Use the same AI client
+  // Use same AI provider as cover letter generator (respects AI_PROVIDER env)
   const OpenAI = (await import('openai')).default;
-  const client = new OpenAI({
-    apiKey: process.env.DEEPSEEK_API_KEY || '',
-    baseURL: 'https://api.deepseek.com/v1',
-    timeout: 10000,
-  });
+  const provider = (process.env.AI_PROVIDER || 'deepseek').toLowerCase();
+  const client = provider === 'zai'
+    ? new OpenAI({ apiKey: process.env.ZAI_API_KEY || '', baseURL: 'https://api.z.ai/api/paas/v4', timeout: 10000 })
+    : new OpenAI({ apiKey: process.env.DEEPSEEK_API_KEY || '', baseURL: 'https://api.deepseek.com/v1', timeout: 10000 });
+  const model = provider === 'zai' ? 'glm-4-32b-0414-128k' : 'deepseek-chat';
 
   const response = await client.chat.completions.create({
-    model: 'deepseek-chat',
+    model,
     temperature: 0.1,
     max_tokens: 100,
     messages: [
