@@ -75,11 +75,22 @@ export async function processAutoApplyQueue(): Promise<{
   }
 
   // Find pending applications only for loops that can still send
+  // Expire old PENDING applications (>24h — too late, recruiter already moved on)
+  const expireCutoff = new Date(Date.now() - 24 * 3600000);
+  const expired = await prisma.autoApplication.updateMany({
+    where: { status: AutoApplyStatus.PENDING, createdAt: { lt: expireCutoff } },
+    data: { status: 'FAILED' as any, errorMessage: 'Expired: older than 24 hours' },
+  });
+  if (expired.count > 0) {
+    console.log(`[AutoApply] Expired ${expired.count} PENDING applications older than 24h`);
+  }
+
   const batchSize = Math.min(200, hourlyBudget);
   const pendingApps = await prisma.autoApplication.findMany({
     where: {
       status: AutoApplyStatus.PENDING,
       loopId: { in: availableLoopIds },
+      createdAt: { gte: expireCutoff }, // Only fresh applications
       ...(blockedEmails.size > 0 ? { appliedToEmail: { notIn: [...blockedEmails] } } : {}),
     },
     include: {
