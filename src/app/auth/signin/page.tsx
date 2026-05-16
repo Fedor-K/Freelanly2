@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/db';
 import { RegistrationForm } from '@/components/auth/RegistrationForm';
 import { TrustPanel } from './TrustPanel';
 import './signup-design.css';
@@ -13,12 +14,60 @@ interface SignInPageProps {
   searchParams: Promise<{
     callbackUrl?: string;
     error?: string;
+    ref?: string;
+    category?: string;
+    country?: string;
   }>;
 }
+
+const CATEGORY_LABELS: Record<string, string> = {
+  engineering: 'Engineering', design: 'Design', product: 'Product', marketing: 'Marketing',
+  sales: 'Sales', data: 'Data & Analytics', devops: 'DevOps', qa: 'QA',
+  writing: 'Writing & Content', translation: 'Translation', creative: 'Creative',
+  support: 'Support', hr: 'HR', finance: 'Finance', legal: 'Legal',
+  operations: 'Operations', education: 'Education', research: 'Research',
+  consulting: 'Consulting', security: 'Security', 'project-management': 'Project Management',
+};
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
   const session = await auth();
   const params = await searchParams;
+
+  // Personalized headline based on ref source
+  let headline = 'Apply to fresh\ngigs while you sleep.';
+  let subtitle = "Takes 60 seconds. We'll find 30+ matching projects per day and auto-write applications in your voice.";
+
+  if (params.ref === 'jobs' || params.ref === 'freelance') {
+    const category = params.category;
+    const label = category ? CATEGORY_LABELS[category] || category : null;
+
+    // Get real count
+    const dayAgo = new Date(Date.now() - 24 * 3600000);
+    const count = await prisma.opportunity.count({
+      where: {
+        isActive: true,
+        createdAt: { gte: dayAgo },
+        ...(category ? { category: { slug: category } } : {}),
+      },
+    }).catch(() => 0);
+
+    if (label && count > 0) {
+      headline = `${count}+ ${label} gigs\nfound this week.`;
+      subtitle = `Sign up and we'll auto-apply to matching ${label.toLowerCase()} roles for you. AI writes personalized cover letters in your voice.`;
+    } else if (count > 0) {
+      headline = `${count}+ fresh gigs\nfound today.`;
+      subtitle = "Sign up and we'll auto-apply to matching roles for you. AI writes personalized cover letters in your voice.";
+    }
+  } else if (params.ref === 'country') {
+    const country = params.country;
+    if (country) {
+      headline = `Remote jobs in\n${country.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}.`;
+      subtitle = "Sign up to get auto-applied to matching remote roles. AI writes personalized cover letters in your voice.";
+    }
+  } else if (params.ref === 'job') {
+    headline = "This job caught\nyour eye?";
+    subtitle = "Sign up and we'll auto-apply for you with a personalized cover letter. Plus 30+ similar gigs every day.";
+  }
 
   return (
     <div className="auth-wrap">
@@ -31,8 +80,8 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
         <div className="auth-form">
           <div className="auth-eyebrow">— Start free · no card</div>
-          <h1 className="auth-title">Apply to fresh<br/>gigs while you sleep.</h1>
-          <p className="auth-sub">Takes 60 seconds. We&apos;ll find 30+ matching projects per day and auto-write applications in your voice.</p>
+          <h1 className="auth-title">{headline.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br/>}</span>)}</h1>
+          <p className="auth-sub">{subtitle}</p>
 
           {/* Error message */}
           {params.error && (
