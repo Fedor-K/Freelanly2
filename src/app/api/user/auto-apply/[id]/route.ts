@@ -135,18 +135,36 @@ export async function POST(
     const parsedProfile = app.user.parsedProfile as Record<string, unknown> | null;
 
     if (action === 'regenerate') {
-      const toneOverride = tone ? `Write in a ${tone} tone. ` : '';
+      // Load full opportunity/job data for AI context
+      let fullDescription = jobDescription;
+      let posterName = app.companyName;
+      let recruiterEmail = app.appliedToEmail || '';
+      let originalContent = '';
+
+      if (app.opportunityId) {
+        const opp = await prisma.opportunity.findUnique({
+          where: { id: app.opportunityId },
+          select: { description: true, originalContent: true, clientName: true, clientHeadline: true, posterCompany: true, applyEmail: true, company: { select: { name: true } } },
+        });
+        if (opp) {
+          fullDescription = opp.description;
+          originalContent = opp.originalContent || '';
+          posterName = opp.company?.name || opp.posterCompany || opp.clientName || app.companyName;
+          recruiterEmail = opp.applyEmail || recruiterEmail;
+        }
+      }
+
       const coverLetter = await generateCoverLetter({
         jobTitle: app.jobTitle,
-        jobDescription,
-        companyName: app.companyName,
+        jobDescription: originalContent ? `${fullDescription}\n\n--- Original LinkedIn post ---\n${originalContent.slice(0, 500)}` : fullDescription,
+        companyName: posterName,
         userProfile: {
           name: app.user.name || 'Applicant',
           skills: (parsedProfile?.skills as string[]) || [],
-          experience: (app.user.resumeText || '').slice(0, 300),
+          experience: (app.user.resumeText || '').slice(0, 500),
           languages: (parsedProfile?.languages as string[]) || [],
-        },
-        styleOverride: toneOverride ? `${toneOverride}Write a 3-5 sentence cover letter body. Be professional and specific. ONLY mention skills the applicant actually has. No greeting or signature. Under 150 words.` : undefined,
+          recruiterEmail,
+        } as any,
       });
 
       const subject = await generateSubjectLine({ jobTitle: app.jobTitle, userName: app.user.name || 'Applicant' });
