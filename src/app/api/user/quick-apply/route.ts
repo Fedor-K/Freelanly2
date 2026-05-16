@@ -141,7 +141,8 @@ export async function POST(request: NextRequest) {
           skills: (profile?.skills as string[]) || [],
           experience: (user.resumeText || '').slice(0, 300),
           resumeText: user.resumeText || undefined,
-        },
+          recruiterEmail: opportunity.applyEmail,
+        } as any,
       });
     }
 
@@ -150,12 +151,9 @@ export async function POST(request: NextRequest) {
       userName: user.name || 'Applicant',
     });
 
-    // Draft-only mode: return full letter with greeting + signature
+    // Draft-only mode: AI generates complete email (greeting + body + signature)
     if (draftOnly) {
-      const greet = recruiterName ? `Hi ${recruiterName},` : 'Hi there,';
-      const sign = `\n\nBest regards,\n${user.name || 'Applicant'}`;
-      const fullDraft = `${greet}\n\n${coverLetter}${sign}`;
-      return NextResponse.json({ ok: true, coverLetter: fullDraft, subject, to: opportunity.applyEmail });
+      return NextResponse.json({ ok: true, coverLetter, subject, to: opportunity.applyEmail });
     }
 
     // Build full letter with greeting and signature

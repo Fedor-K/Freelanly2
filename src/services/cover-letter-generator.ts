@@ -88,32 +88,37 @@ export async function generateCoverLetter(input: CoverLetterInput): Promise<stri
     const response = await client.chat.completions.create({
       model,
       temperature: 0.7,
-      max_tokens: 300,
+      max_tokens: 400,
       messages: [
         {
           role: 'system',
           content: styleOverride ||
-            `Write a short, direct cover letter body (3-4 sentences, under 90 words). Rules:
-- Sound like a real person, not a template. No "I am excited", "I am eager", "I am confident".
-- Lead with a specific thing from the job post that caught your eye. Mention the company name naturally.
-- Mention 1-2 relevant skills/projects from the applicant's profile that directly match the role.
-- ONLY mention skills the applicant actually has. NEVER invent skills.
-- If the applicant lacks a key requirement, don't mention it — focus on what matches.
-- End with a soft call to action (quick call, happy to share more).
-- No greeting, no signature — just the body text.
-- Casual-professional tone. Short sentences. No fluff.`,
+            `Write a COMPLETE short email for a job application. You decide everything: greeting, body, sign-off. Rules:
+- Figure out the recruiter's name from the email/description. If you can tell their name, use "Hi [Name],". If not, use "Hi there,".
+- Figure out the company name from the description, email domain, or context. Mention it naturally.
+- Sound like a real human writing a quick note, NOT a template. NEVER use "I am excited", "I am eager", "I am confident", "I am writing to express".
+- Lead with something specific from the job post. Show you actually read it.
+- Mention 1-2 matching skills from the applicant's profile. ONLY skills they actually have — NEVER invent.
+- If the applicant lacks a key requirement, skip it — focus on what matches.
+- End with a casual call to action (quick call, happy to share more).
+- Sign off with the applicant's name.
+- Total: 4-6 lines, under 100 words. Casual-professional. Short sentences. No fluff.
+- Output the complete email exactly as it should be sent. Nothing else.`,
         },
         {
           role: 'user',
-          content: `Role: ${jobTitle} at ${companyName}
-Description: ${truncatedDesc}
-Applicant: ${userProfile.name}
-Skills: ${skillsList}
-Languages: ${userProfile.languages?.join(', ') || 'Not specified'}
-Experience: ${experienceSnippet}
+          content: `Job title: ${jobTitle}
+Company/poster: ${companyName}
+Job description: ${truncatedDesc}
+Recruiter email: ${(userProfile as any).recruiterEmail || 'unknown'}
+
+Applicant name: ${userProfile.name}
+Applicant skills: ${skillsList}
+Applicant languages: ${userProfile.languages?.join(', ') || 'Not specified'}
+Applicant experience: ${experienceSnippet}
 ${userProfile.workPreference ? `Work preference: ${userProfile.workPreference}` : ''}
-${userProfile.bookingUrl ? `Booking link (include naturally at the end): ${userProfile.bookingUrl}` : ''}
-${userProfile.caseStudies?.length ? `Portfolio projects (pick the most relevant one to mention): ${userProfile.caseStudies.map(p => `${p.title}: ${p.description}${p.url ? ` (${p.url})` : ''}`).join('; ')}` : ''}`,
+${userProfile.bookingUrl ? `Booking link: ${userProfile.bookingUrl}` : ''}
+${userProfile.caseStudies?.length ? `Portfolio (pick most relevant): ${userProfile.caseStudies.map(p => `${p.title}: ${p.description}${p.url ? ` (${p.url})` : ''}`).join('; ')}` : ''}`,
         },
       ],
     });

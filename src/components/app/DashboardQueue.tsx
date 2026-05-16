@@ -76,15 +76,10 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
         if (res.ok) {
           const data = await res.json();
           // Add greeting + signature
-          // Smart greeting — skip generic names
-          const skip = ['the', 'hiring', 'team', 'unknown', 'company'];
-          const firstWord = item.companyName.split(' ')[0].toLowerCase();
-          const greeting = skip.includes(firstWord) ? 'Hi there,\n\n' : `Hi ${item.companyName.split(' ')[0]},\n\n`;
-          const signature = `\n\nBest regards,\n${document.querySelector('.sb-user-name')?.textContent || 'Applicant'}`;
-          const fullLetter = greeting + (data.coverLetter || '') + signature;
-          setEditText(fullLetter);
+          // AI generates complete email (greeting + body + signature)
+          setEditText(data.coverLetter || '');
           setEditSubject(data.subject || '');
-          setItems(prev => prev.map(i => i.id === item.id ? { ...i, coverLetter: fullLetter, subject: data.subject } : i));
+          setItems(prev => prev.map(i => i.id === item.id ? { ...i, coverLetter: data.coverLetter, subject: data.subject } : i));
         } else {
           setEditText('Failed to generate. Try again.');
           setEditSubject('');

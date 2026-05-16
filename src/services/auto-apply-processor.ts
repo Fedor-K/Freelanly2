@@ -272,7 +272,7 @@ export async function processAutoApplyQueue(): Promise<{
           jobTitle: app.jobTitle,
           jobDescription: jobDescription.slice(0, 800),
           companyName: app.companyName,
-          userProfile,
+          userProfile: { ...userProfile, recruiterEmail: app.appliedToEmail } as any,
         });
       }
 
@@ -305,7 +305,8 @@ export async function processAutoApplyQueue(): Promise<{
         applicationId: app.id,
       });
 
-      const text = `${coverLetter}\n\nBest regards,\n${app.user.name || 'Applicant'}`;
+      // AI now generates complete email with greeting + signature
+      const text = coverLetter;
 
       // Send via user's SMTP or Postal (Freelanly domain)
       let result: { success: boolean; messageId?: string; error?: string };
@@ -776,9 +777,7 @@ function buildApplicationEmailHtml(params: {
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6;">
-  <p style="margin: 0 0 12px;">${greeting},</p>
   ${paragraphs}
-  <p style="margin: 24px 0 0;">Best regards,<br>${userName}</p>
   ${trackingPixel}
 </body>
 </html>
