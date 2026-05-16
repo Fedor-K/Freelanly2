@@ -58,7 +58,9 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
 
   async function openEdit(item: QueueItem) {
     setEditingId(item.id);
-    if (item.coverLetter && item.coverLetter.length > 0) {
+    const badPhrases = ['I am excited', 'I am eager', 'I am confident', 'I am writing to express'];
+    const needsRegen = !item.coverLetter || item.coverLetter.length === 0 || badPhrases.some(p => item.coverLetter.includes(p));
+    if (!needsRegen) {
       setEditText(item.coverLetter);
       setEditSubject(item.subject);
     } else {
