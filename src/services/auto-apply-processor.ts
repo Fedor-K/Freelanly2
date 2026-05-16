@@ -74,15 +74,14 @@ export async function processAutoApplyQueue(): Promise<{
     console.log(`[AutoApply] ${blockedEmails.size} recruiter emails at daily limit (${MAX_PER_RECIPIENT_PER_DAY}/day)`);
   }
 
-  // Find pending applications only for loops that can still send
-  // Expire old PENDING applications (>24h — too late, recruiter already moved on)
+  // Expire old applications (>24h — too late, recruiter already moved on)
   const expireCutoff = new Date(Date.now() - 24 * 3600000);
   const expired = await prisma.autoApplication.updateMany({
-    where: { status: AutoApplyStatus.PENDING, createdAt: { lt: expireCutoff } },
+    where: { status: { in: [AutoApplyStatus.PENDING, AutoApplyStatus.REVIEW, AutoApplyStatus.SENDING] }, createdAt: { lt: expireCutoff } },
     data: { status: 'FAILED' as any, errorMessage: 'Expired: older than 24 hours' },
   });
   if (expired.count > 0) {
-    console.log(`[AutoApply] Expired ${expired.count} PENDING applications older than 24h`);
+    console.log(`[AutoApply] Expired ${expired.count} PENDING/REVIEW/SENDING applications older than 24h`);
   }
 
   const batchSize = Math.min(200, hourlyBudget);
@@ -441,9 +440,9 @@ export async function queueAutoApplyForOpportunity(opportunityId: string): Promi
     : '';
 
   const companyName = opportunity.company?.name
-    || opportunity.posterCompany
     || (opportunity.clientType === 'company' ? opportunity.clientName : null)
     || companyFromDomain
+    || opportunity.posterCompany
     || opportunity.clientName;
 
   return queueAutoApplyForListing({

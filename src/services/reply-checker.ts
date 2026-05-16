@@ -76,6 +76,42 @@ function sendImapCommand(
 /**
  * Extract plain text body from IMAP FETCH response
  */
+function decodeBase64Block(text: string): string {
+  try { return Buffer.from(text.replace(/\r?\n/g, ''), 'base64').toString('utf-8'); } catch { return ''; }
+}
+
+function stripHtml(text: string): string {
+  return text
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"');
+}
+
+function cleanMimeText(text: string): string {
+  let body = text;
+  // Strip null bytes
+  body = body.replace(/\0/g, '');
+  // Decode quoted-printable
+  body = body.replace(/=\r?\n/g, '');
+  body = body.replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+  // Strip HTML
+  if (body.includes('<html') || body.includes('<div') || body.includes('<p')) {
+    body = stripHtml(body);
+  }
+  // Strip MIME boundaries and artifacts
+  body = body.replace(/^--[a-zA-Z0-9_=.-]+--?\s*$/gm, '');
+  body = body.replace(/Content-Type:.*\r?\n/gi, '');
+  body = body.replace(/Content-Transfer-Encoding:.*\r?\n/gi, '');
+  body = body.replace(/\r?\n{3,}/g, '\n\n');
+  return body.trim();
+}
+
 function extractBodyFromFetch(fetchResp: string): string {
   // Look for literal size marker {NNN} then grab the content
   const literalMatch = fetchResp.match(/\{(\d+)\}\r\n/);
@@ -83,41 +119,49 @@ function extractBodyFromFetch(fetchResp: string): string {
     const size = parseInt(literalMatch[1], 10);
     const start = fetchResp.indexOf(literalMatch[0]) + literalMatch[0].length;
     let body = fetchResp.slice(start, start + size);
-    // Decode base64 if needed
+
+    // Try to find and decode base64 blocks within MIME parts
+    // Split by MIME boundaries and look for base64-encoded text/plain parts
+    const parts = body.split(/--[a-zA-Z0-9_=-]+\r?\n/);
+    for (const part of parts) {
+      const isBase64 = /Content-Transfer-Encoding:\s*base64/i.test(part);
+      const isTextPlain = /Content-Type:\s*text\/plain/i.test(part);
+      if (isBase64 && isTextPlain) {
+        // Extract base64 content after headers (double newline)
+        const headerEnd = part.search(/\r?\n\r?\n/);
+        if (headerEnd > 0) {
+          const b64 = part.slice(headerEnd).trim();
+          const decoded = decodeBase64Block(b64);
+          if (decoded.length > 10) return cleanMimeText(decoded);
+        }
+      }
+    }
+
+    // Also try: entire body is base64 (simple case)
     if (/^[A-Za-z0-9+/=\r\n]+$/.test(body.trim()) && body.length > 50) {
-      try { body = Buffer.from(body.replace(/\r?\n/g, ''), 'base64').toString('utf-8'); } catch {}
+      const decoded = decodeBase64Block(body);
+      if (decoded.length > 10) return cleanMimeText(decoded);
     }
-    // Decode quoted-printable =XX sequences
-    body = body.replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
-    body = body.replace(/=\r?\n/g, '');
-    // Strip HTML tags if the body is HTML
-    if (body.includes('<html') || body.includes('<div') || body.includes('<p')) {
-      body = body.replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<\/p>/gi, '\n')
-        .replace(/<\/div>/gi, '\n')
-        .replace(/<[^>]+>/g, '')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"');
+
+    // Also try: body has base64 blocks without proper Content-Type headers
+    // Look for large base64 chunks (lines of 76 chars)
+    const b64Blocks = body.match(/(?:^|\n)([A-Za-z0-9+/=\r\n]{100,})(?:\n|$)/);
+    if (b64Blocks) {
+      const decoded = decodeBase64Block(b64Blocks[1]);
+      if (decoded.length > 10 && /[a-zA-Z]{3,}/.test(decoded)) return cleanMimeText(decoded);
     }
-    // Strip MIME boundaries
-    body = body.replace(/--[a-zA-Z0-9_=-]+--?\r?\n?/g, '');
-    body = body.replace(/Content-Type:.*\r?\n/gi, '');
-    body = body.replace(/Content-Transfer-Encoding:.*\r?\n/gi, '');
-    body = body.replace(/\r?\n{3,}/g, '\n\n');
-    return body.trim();
+
+    // Fallback: clean as-is
+    return cleanMimeText(body);
   }
 
   // Fallback: try to extract any readable text between FETCH markers
   const bodyStart = fetchResp.indexOf('\r\n\r\n');
   if (bodyStart > 0) {
     let fallback = fetchResp.slice(bodyStart + 4);
-    // Remove IMAP closing tag
     const closingTag = fallback.lastIndexOf(')');
     if (closingTag > 0) fallback = fallback.slice(0, closingTag);
-    fallback = fallback.replace(/<[^>]+>/g, '').trim();
+    fallback = stripHtml(fallback).trim();
     if (fallback.length > 10) return fallback.slice(0, 2000);
   }
   return '';
@@ -137,7 +181,7 @@ async function searchForReplies(
     const timeout = setTimeout(() => {
       socket.destroy();
       reject(new Error('IMAP connection timeout'));
-    }, 15000);
+    }, 120000);
 
     const socket = tls.connect(993, imapHost, { rejectUnauthorized: false });
 
@@ -290,7 +334,7 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
       sentAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
     },
     select: { id: true, subject: true, appliedToEmail: true },
-    take: 30,
+    orderBy: { sentAt: 'desc' },
   });
 
   if (recentApps.length === 0) return 0;
@@ -308,7 +352,8 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
     let repliedCount = 0;
     for (const result of results) {
       if (result.replied) {
-        const replyText = result.replyText || '';
+        // Strip null bytes and non-printable chars that PostgreSQL rejects
+        const replyText = (result.replyText || '').replace(/\0/g, '').replace(/[\x01-\x08\x0B\x0C\x0E-\x1F]/g, '');
         const category = replyText.length > 10 ? await categorizeReply(replyText) : 'REPLIED';
 
         await prisma.autoApplication.update({
@@ -349,11 +394,11 @@ export async function checkAllReplies(): Promise<number> {
 
   let totalReplies = 0;
 
-  // Limit to 3 users per run to stay within Vercel function timeout
-  // Rotate by using current minute to offset — different users checked each run
-  const offset = Math.floor(Date.now() / (15 * 60 * 1000)) % Math.max(usersWithSentApps.length, 1);
+  // Check 10 users per run (Hetzner worker has no timeout limit)
+  // Rotate by using current interval to offset — different users checked each run
+  const offset = Math.floor(Date.now() / (10 * 60 * 1000)) % Math.max(usersWithSentApps.length, 1);
   const rotated = [...usersWithSentApps.slice(offset), ...usersWithSentApps.slice(0, offset)];
-  const usersToCheck = rotated.slice(0, 3);
+  const usersToCheck = rotated.slice(0, 10);
   console.log(`[ReplyChecker] Checking ${usersToCheck.length} of ${usersWithSentApps.length} users`);
 
   for (const { userId } of usersToCheck) {
