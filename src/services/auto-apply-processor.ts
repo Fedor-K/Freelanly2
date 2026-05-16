@@ -483,6 +483,63 @@ export async function queueAutoApplyForJob(jobId: string): Promise<number> {
 /**
  * Calculate match score (0-100) between user skills and listing.
  */
+/**
+ * AI-powered match verification for borderline cases.
+ * Returns whether to apply and a refined score.
+ */
+async function aiMatchCheck(
+  listing: ListingData,
+  userSkills: string[],
+  resumeText: string,
+  userName: string,
+): Promise<{ shouldApply: boolean; score: number; reason: string }> {
+  const { generateCoverLetter } = await import('@/services/cover-letter-generator');
+
+  // Use the same AI client
+  const OpenAI = (await import('openai')).default;
+  const client = new OpenAI({
+    apiKey: process.env.DEEPSEEK_API_KEY || '',
+    baseURL: 'https://api.deepseek.com/v1',
+    timeout: 10000,
+  });
+
+  const response = await client.chat.completions.create({
+    model: 'deepseek-chat',
+    temperature: 0.1,
+    max_tokens: 100,
+    messages: [
+      {
+        role: 'system',
+        content: `You evaluate if a job applicant is a good match for a role. Return ONLY valid JSON: {"shouldApply": true/false, "score": 0-100, "reason": "one sentence"}
+
+Rules:
+- score 70+: skills overlap well, should apply
+- score 40-69: partial match, some transferable skills
+- score <40: poor match, don't waste the send
+- If job requires 5+ years and applicant is a student/intern → score low
+- If job requires specific tech (Golang, Rust) that applicant doesn't have → score low
+- "Java" and "JavaScript" are DIFFERENT technologies`,
+      },
+      {
+        role: 'user',
+        content: `JOB: ${listing.title}\nSkills needed: ${listing.skills.join(', ')}\nDescription: ${listing.description.slice(0, 300)}\n\nAPPLICANT: ${userName}\nSkills: ${userSkills.join(', ')}\nBackground: ${resumeText.slice(0, 200)}`,
+      },
+    ],
+  });
+
+  const content = response.choices[0]?.message?.content?.trim() || '';
+  const match = content.match(/\{[\s\S]*\}/);
+  if (match) {
+    const parsed = JSON.parse(match[0]);
+    return {
+      shouldApply: !!parsed.shouldApply,
+      score: Math.min(100, Math.max(0, Number(parsed.score) || 0)),
+      reason: String(parsed.reason || ''),
+    };
+  }
+  throw new Error('AI returned invalid JSON');
+}
+
 function calculateMatchScore(
   userSkills: string[],
   listing: ListingData,
@@ -556,6 +613,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           name: true,
           email: true,
           parsedProfile: true,
+          resumeText: true,
         },
       },
     },
@@ -679,13 +737,28 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
       }
     }
 
-    // Calculate match score
-    const matchScore = calculateMatchScore(userSkills, listing, loop.jobTitles, titleLower);
-    const matchLabel = matchScore >= 80 ? 'Strong' : matchScore >= 50 ? 'Good' : 'Weak';
+    // Calculate rough match score
+    let matchScore = calculateMatchScore(userSkills, listing, loop.jobTitles, titleLower);
+    let matchLabel = matchScore >= 80 ? 'Strong' : matchScore >= 50 ? 'Good' : 'Weak';
 
-    // Skip weak matches — too low quality, wastes sends and hurts reputation
-    if (matchScore < 50) {
+    // Skip obvious mismatches
+    if (matchScore < 30) {
       continue;
+    }
+
+    // AI matching for borderline cases (score 30-79)
+    if (matchScore < 80) {
+      try {
+        const aiMatch = await aiMatchCheck(listing, userSkills, (loop.user as any).resumeText || '', (loop.user as any).name || 'Applicant');
+        if (!aiMatch.shouldApply) {
+          continue; // AI says don't apply
+        }
+        matchScore = aiMatch.score;
+        matchLabel = matchScore >= 80 ? 'Strong' : matchScore >= 50 ? 'Good' : 'Weak';
+      } catch {
+        // AI failed — fall back to original score, skip if < 50
+        if (matchScore < 50) continue;
+      }
     }
 
     // Determine status based on loop mode
