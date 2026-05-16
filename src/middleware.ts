@@ -32,18 +32,19 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(newUrl, 301);
   }
 
-  // 3. Old job URL patterns → 301 to /freelance (by category when possible)
-  // Catches: /jobs/italian-translation-job-0398f84e, /jobs/some-old-slug
-  const oldJobUrlMatch = pathname.match(/^\/jobs\/([^\/]+)$/);
-  if (oldJobUrlMatch) {
-    const slug = oldJobUrlMatch[1];
-    if (!VALID_CATEGORIES.has(slug)) {
-      // Route translation/interpretation jobs to the right category
-      const dest = /translation|interpretation/.test(slug)
-        ? '/freelance/translation'
-        : '/freelance';
-      return NextResponse.redirect(new URL(dest, req.url), 301);
+  // 3. All /jobs/*, /freelance/*, /company/*, /country/* → signup
+  if (pathname.startsWith('/jobs') || pathname.startsWith('/freelance') || pathname.startsWith('/company') || pathname.startsWith('/companies') || pathname.startsWith('/country')) {
+    const category = pathname.match(/^\/jobs\/([^\/]+)/)?.[1];
+    const country = pathname.match(/^\/country\/([^\/]+)/)?.[1];
+    let dest = '/auth/signin?ref=jobs';
+    if (category && VALID_CATEGORIES.has(category)) {
+      dest = `/auth/signin?ref=jobs&category=${category}`;
+    } else if (country) {
+      dest = `/auth/signin?ref=country&country=${country}`;
+    } else if (pathname.startsWith('/freelance')) {
+      dest = '/auth/signin?ref=freelance';
     }
+    return NextResponse.redirect(new URL(dest, req.url), 301);
   }
 
   // 5. Auth: check for session cookie (NextAuth session token)
