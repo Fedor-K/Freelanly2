@@ -75,10 +75,14 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
         });
         if (res.ok) {
           const data = await res.json();
-          setEditText(data.coverLetter || '');
+          // Add greeting + signature
+          const recruiterName = item.companyName.split(' ')[0];
+          const greeting = `Hi ${recruiterName},\n\n`;
+          const signature = `\n\nBest regards,\n${document.querySelector('.sb-user-name')?.textContent || 'Applicant'}`;
+          const fullLetter = greeting + (data.coverLetter || '') + signature;
+          setEditText(fullLetter);
           setEditSubject(data.subject || '');
-          // Update local state
-          setItems(prev => prev.map(i => i.id === item.id ? { ...i, coverLetter: data.coverLetter, subject: data.subject } : i));
+          setItems(prev => prev.map(i => i.id === item.id ? { ...i, coverLetter: fullLetter, subject: data.subject } : i));
         } else {
           setEditText('Failed to generate. Try again.');
           setEditSubject('');
