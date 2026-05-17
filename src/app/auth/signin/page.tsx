@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { redirect } from 'next/navigation';
 import { RegistrationForm } from '@/components/auth/RegistrationForm';
 import { TrustPanel } from './TrustPanel';
 import './signup-design.css';
