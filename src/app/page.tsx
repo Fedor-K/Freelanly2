@@ -1,7 +1,6 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/db';
 import { siteConfig } from '@/config/site';
-import { StartFreeButton } from '@/components/auth/StartFreeButton';
 import './marketing-styles.css';
 import './landing-design.css';
 
@@ -36,9 +35,9 @@ export default async function LandingPage() {
       <li><a href="/about">About</a></li>
     </ul>
     <div className="nav-cta">
-      <StartFreeButton className="btn btn-primary btn-sm">Start free
+      <a href="/auth/signin" className="btn btn-primary btn-sm">Start free
         <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </StartFreeButton>
+      </a>
     </div>
   </div>
 </nav>
@@ -61,10 +60,10 @@ export default async function LandingPage() {
         Freelanly catches new freelance gigs the moment they&apos;re posted on LinkedIn and <strong>{totalCompanies.toLocaleString()}+</strong> company sites — then sends a personalized AI application for you. <strong>500+ applications</strong> go out daily. <strong>5%</strong> get a reply.
       </p>
       <div className="hero-cta">
-        <StartFreeButton className="btn btn-primary btn-lg">
+        <a href="/auth/signin" className="btn btn-primary btn-lg">
           Start free — no card needed
           <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-        </StartFreeButton>
+        </a>
         <a href="/how-it-works" className="btn btn-ghost btn-lg">See how it works</a>
       </div>
       <div className="hero-meta">
@@ -368,10 +367,10 @@ export default async function LandingPage() {
     <h2 style={{marginTop: '16px'}}>Your next client is <span className="accent">already posting.</span><br/>Get there first.</h2>
     <p>Free for your first 25 applications. No credit card. Plug in your inbox, pick your filters, and see what comes back this week.</p>
     <div className="hero-cta">
-      <StartFreeButton className="btn btn-primary btn-lg">
+      <a href="/auth/signin" className="btn btn-primary btn-lg">
         Start free
         <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </StartFreeButton>
+      </a>
       <a href="/pricing" className="btn btn-ghost btn-lg">See pricing</a>
     </div>
   </div>
