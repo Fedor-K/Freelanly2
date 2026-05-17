@@ -46,12 +46,15 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
         if (action === 'skip') {
           setItems(prev => prev.filter(i => i.id !== id));
         } else if (action === 'send-now') {
-          setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'SENDING' } : i));
-          // Remove from queue after brief visual feedback
+          // Instant send — show success then remove
+          setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'SENT' } : i));
           setTimeout(() => {
             setItems(prev => prev.filter(i => i.id !== id));
-          }, 1500);
+          }, 2000);
         }
+      } else {
+        // Show error state briefly
+        setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'FAILED' } : i));
       }
     } catch (e) {
       console.error(e);
@@ -146,10 +149,10 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
                   disabled={!!loading[app.id]}
                 >Edit draft</button>
                 <button
-                  className={`btn btn-sm ${app.status === 'SENDING' ? 'btn-ghost' : 'btn-primary'}`}
+                  className={`btn btn-sm ${app.status === 'SENT' ? 'btn-ghost' : app.status === 'FAILED' ? 'btn-ghost' : 'btn-primary'}`}
                   onClick={() => handleAction(app.id, 'send-now')}
-                  disabled={!!loading[app.id] || app.status === 'SENDING'}
-                >{app.status === 'SENDING' ? '✓ Queued' : loading[app.id] === 'send-now' ? 'Sending...' : 'Send now'}</button>
+                  disabled={!!loading[app.id] || app.status === 'SENT'}
+                >{app.status === 'SENT' ? '✓ Sent!' : app.status === 'FAILED' ? '✗ Failed' : loading[app.id] === 'send-now' ? 'Sending...' : 'Send now'}</button>
               </div>
             </div>
           ))}

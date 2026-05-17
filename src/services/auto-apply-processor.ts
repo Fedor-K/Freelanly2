@@ -844,7 +844,7 @@ async function markFailed(id: string, errorMessage: string): Promise<void> {
 /**
  * Build a clean HTML email for the application
  */
-function buildApplicationEmailHtml(params: {
+export function buildApplicationEmailHtml(params: {
   coverLetter: string;
   userName: string;
   jobTitle: string;

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { generateCoverLetter, generateSubjectLine } from '@/services/cover-letter-generator';
+import { sendEmailViaSMTP } from '@/lib/smtp-sender';
+import { sendAutoApplyViaPostal } from '@/lib/email/postal';
+import { buildApplicationEmailHtml } from '@/services/auto-apply-processor';
 
 /**
  * GET /api/user/auto-apply/[id] — Full application detail
@@ -249,16 +252,75 @@ export async function POST(
     }
 
     if (action === 'send-now') {
-      // Change status to PENDING so the worker picks it up immediately
-      // (or SENDING if we want instant processing)
       if (!['PENDING', 'REVIEW', 'SENDING'].includes(app.status)) {
         return NextResponse.json({ error: 'Can only send queued applications' }, { status: 400 });
       }
-      await prisma.autoApplication.update({
-        where: { id },
-        data: { status: 'PENDING' }, // Worker will pick it up on next run
+
+      // Fetch full user data for sending
+      const fullUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { name: true, email: true, plan: true, userSmtp: true },
       });
-      return NextResponse.json({ ok: true, message: 'Queued for immediate send' });
+      if (!fullUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+      // Generate cover letter if missing
+      let coverLetter = app.coverLetter;
+      let subject = app.subject;
+      if (!coverLetter) {
+        coverLetter = await generateCoverLetter({
+          jobTitle: app.jobTitle,
+          jobDescription: jobDescription.slice(0, 800),
+          companyName: app.companyName,
+          userProfile: { name: fullUser.name || 'Applicant', skills: [], experience: '' },
+        });
+      }
+      if (!subject) {
+        subject = await generateSubjectLine({ jobTitle: app.jobTitle, userName: fullUser.name || 'Applicant' });
+      }
+
+      const html = buildApplicationEmailHtml({
+        coverLetter,
+        userName: fullUser.name || 'Applicant',
+        jobTitle: app.jobTitle,
+        companyName: app.companyName,
+        recruiterName: '',
+        applicationId: id,
+      });
+
+      const hasSmtp = !!fullUser.userSmtp?.verified;
+      let result: { success: boolean; messageId?: string; error?: string };
+
+      if (hasSmtp) {
+        const smtp = fullUser.userSmtp!;
+        result = await sendEmailViaSMTP(
+          { host: smtp.host, port: smtp.port, email: smtp.email, password: smtp.password },
+          { from: `${fullUser.name || 'Applicant'} <${smtp.email}>`, to: app.appliedToEmail, replyTo: smtp.email, subject, html, text: coverLetter }
+        );
+      } else {
+        result = await sendAutoApplyViaPostal({
+          userName: fullUser.name || 'Applicant',
+          userEmail: fullUser.email,
+          to: app.appliedToEmail,
+          subject,
+          html,
+          text: coverLetter,
+          applicationId: id,
+        });
+      }
+
+      if (result.success) {
+        await prisma.autoApplication.update({
+          where: { id },
+          data: { status: 'SENT', sentVia: hasSmtp ? 'smtp' : 'postal', coverLetter, subject, sentAt: new Date() },
+        });
+        // Increment sentToday
+        if (app.loopId) {
+          await prisma.autoApplyLoop.update({ where: { id: app.loopId }, data: { sentToday: { increment: 1 } } }).catch(() => {});
+        }
+        return NextResponse.json({ ok: true, message: 'Sent!', sentTo: app.appliedToEmail });
+      } else {
+        return NextResponse.json({ error: 'Send failed', message: result.error }, { status: 500 });
+      }
     }
 
     if (action === 'skip') {
