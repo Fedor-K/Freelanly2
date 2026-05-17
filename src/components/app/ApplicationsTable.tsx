@@ -39,7 +39,7 @@ const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   FAILED: { label: 'Failed', cls: 'failed' },
 };
 
-const DEFAULT_FILTER = ['SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'];
+const DEFAULT_FILTER = ['PENDING', 'REVIEW', 'SENDING', 'SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'];
 
 const FILTERS = [
   { label: 'All', value: DEFAULT_FILTER },
