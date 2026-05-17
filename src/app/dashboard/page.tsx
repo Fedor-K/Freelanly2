@@ -3,7 +3,6 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { ApplicationsTable } from '@/components/app/ApplicationsTable';
-import { ActivityFeed } from '@/components/app/ActivityFeed';
 import './dashboard-design.css';
 
 export const metadata: Metadata = {
@@ -176,15 +175,6 @@ export default async function DashboardOverviewPage() {
           <div className="kpi-value tabular">{loop?.sentToday || 0} <span className="unit">/ {loop?.dailyLimit || 15}</span></div>
           <div className="kpi-delta up">{(loop?.dailyLimit || 15) - (loop?.sentToday || 0)} remaining</div>
         </div>
-      </div>
-
-      {/* Live activity feed */}
-      <div className="card mb-4">
-        <div className="card-head">
-          <h3>Live activity</h3>
-          <span className="chip chip-acid-soft" style={{height: '20px', padding: '0 8px', fontSize: '10px'}}><span className="chip-dot live"></span>Updating</span>
-        </div>
-        <ActivityFeed />
       </div>
 
       {/* Applications table — full width */}

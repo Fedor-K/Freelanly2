@@ -122,11 +122,13 @@ function SearchBar() {
   );
 }
 
+type FeedItem = { id: string; icon: string; text: string; time: string; type: string };
+
 function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<Array<{ id: string; type: string; title: string; subtitle: string; time: string }>>([]);
+  const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [count, setCount] = useState(0);
+  const [hasUnread, setHasUnread] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -135,44 +137,52 @@ function NotificationBell() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  async function loadNotifications() {
-    if (items.length > 0) { setOpen(!open); return; }
-    setOpen(true);
+  useEffect(() => {
+    // Check for unread on mount
+    fetch('/api/user/activity-feed').then(r => r.json()).then(d => {
+      if (d.items?.some((i: FeedItem) => i.type === 'reply')) setHasUnread(true);
+    }).catch(() => {});
+  }, []);
+
+  async function toggle() {
+    setOpen(!open);
+    if (items.length > 0) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/user/notifications');
+      const res = await fetch('/api/user/activity-feed');
       if (res.ok) {
         const data = await res.json();
         setItems(data.items || []);
-        setCount(data.unread || 0);
+        setHasUnread(false);
       }
     } catch { /* ignore */ }
     setLoading(false);
   }
 
+  const TYPE_COLORS: Record<string, string> = { scan: 'var(--ink-4)', match: 'var(--acid-deep)', send: 'var(--info)', sent: 'var(--good)', open: '#6EE7FF', reply: '#C7F94A', skip: 'var(--ink-5)' };
+
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <button className="icon-btn" title="Notifications" onClick={loadNotifications} style={{ background: 'none', border: 'none', cursor: 'pointer', position: 'relative' }}>
+      <button className="icon-btn" title="Activity" onClick={toggle} style={{ background: 'none', border: 'none', cursor: 'pointer', position: 'relative' }}>
         <SvgIcon name="bell" size={16} />
-        {count > 0 && <span className="dot"></span>}
+        {hasUnread && <span className="dot"></span>}
       </button>
       {open && (
-        <div style={{ position: 'absolute', top: '100%', right: 0, width: '360px', background: 'var(--bg-1)', border: '1px solid var(--line-2)', borderRadius: '12px', boxShadow: '0 12px 32px rgba(0,0,0,0.15)', zIndex: 100, maxHeight: '400px', overflow: 'auto' }}>
+        <div style={{ position: 'absolute', top: '100%', right: 0, width: '380px', background: 'var(--bg-1)', border: '1px solid var(--line-2)', borderRadius: '12px', boxShadow: '0 12px 32px rgba(0,0,0,0.15)', zIndex: 100, maxHeight: '440px', overflow: 'auto' }}>
           <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 600, fontSize: '14px' }}>Notifications</span>
-            <a href="/dashboard/inbox" style={{ fontSize: '12px', color: 'var(--acid-deep)' }}>View all →</a>
+            <span style={{ fontWeight: 600, fontSize: '14px' }}>Activity</span>
+            <a href="/dashboard/inbox" style={{ fontSize: '12px', color: 'var(--acid-deep)' }}>Inbox →</a>
           </div>
           {loading && <div style={{ padding: '20px 16px', fontSize: '13px', color: 'var(--ink-4)', textAlign: 'center' }}>Loading...</div>}
-          {!loading && items.length === 0 && <div style={{ padding: '20px 16px', fontSize: '13px', color: 'var(--ink-4)', textAlign: 'center' }}>No notifications yet</div>}
-          {items.map(item => (
-            <div key={item.id} style={{ padding: '10px 16px', borderBottom: '1px solid var(--line)', fontSize: '13px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontWeight: 500 }}>{item.title}</span>
-                <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', color: 'var(--ink-4)' }}>{item.time}</span>
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--ink-3)', marginTop: '2px' }}>{item.subtitle}</div>
+          {!loading && items.length === 0 && <div style={{ padding: '20px 16px', fontSize: '13px', color: 'var(--ink-4)', textAlign: 'center' }}>No activity yet</div>}
+          {items.map((item, i) => (
+            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 16px', borderBottom: '1px solid var(--line)', fontSize: '12.5px', animation: `feedSlideIn 0.3s ease ${i * 0.05}s both`, opacity: 0 }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: TYPE_COLORS[item.type] || 'var(--ink-4)', flexShrink: 0, boxShadow: item.type === 'reply' ? '0 0 8px #C7F94A' : 'none' }}></span>
+              <span style={{ flex: 1, fontFamily: "'Geist Mono', monospace", fontSize: '11.5px' }}>{item.icon} {item.text}</span>
+              <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: '10px', color: 'var(--ink-4)', flexShrink: 0 }}>{item.time}</span>
             </div>
           ))}
+          <style>{`@keyframes feedSlideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
         </div>
       )}
     </div>
