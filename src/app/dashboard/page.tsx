@@ -25,7 +25,7 @@ export default async function DashboardOverviewPage() {
   const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
   const monthAgo = new Date(now.getTime() - 30 * 86400000);
 
-  const [user, today, yesterday, month, applications, repliesTodayCount, followUps, dailyActivity, loop] = await Promise.all([
+  const [user, today, yesterday, month, applications, repliesTodayCount, followUps, dailyActivity, loop, queuedCount] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true } }),
     prisma.autoApplication.groupBy({
       by: ['status'],
@@ -69,6 +69,9 @@ export default async function DashboardOverviewPage() {
     prisma.autoApplyLoop.findFirst({
       where: { userId },
       select: { isActive: true, sentToday: true, dailyLimit: true },
+    }),
+    prisma.autoApplication.count({
+      where: { userId, status: { in: ['PENDING', 'REVIEW', 'SENDING'] } },
     }),
   ]);
 
@@ -135,7 +138,7 @@ export default async function DashboardOverviewPage() {
           <h1>{greeting}, {firstName}.</h1>
           <p>
             {loop?.isActive ? (
-              <><span className="chip chip-acid-soft" style={{marginRight: '8px'}}><span className="chip-dot live"></span>Auto-apply running</span> {loop.sentToday}/{loop.dailyLimit} sent today</>
+              <><span className="chip chip-acid-soft" style={{marginRight: '8px'}}><span className="chip-dot live"></span>Auto-apply running</span> {loop.sentToday}/{loop.dailyLimit} sent today{queuedCount > 0 && ` · ${queuedCount} matches sending soon`}</>
             ) : (
               <span className="chip" style={{marginRight: '8px'}}>Auto-apply paused</span>
             )}
