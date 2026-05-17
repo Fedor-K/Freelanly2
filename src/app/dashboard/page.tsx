@@ -138,7 +138,7 @@ export default async function DashboardOverviewPage() {
           <h1>{greeting}, {firstName}.</h1>
           <p>
             {loop?.isActive ? (
-              <><span className="chip chip-acid-soft" style={{marginRight: '8px'}}><span className="chip-dot live"></span>Auto-apply running</span> {loop.sentToday}/{loop.dailyLimit} sent today{queuedCount > 0 && ` · ${queuedCount} matches sending soon`}</>
+              <><span className="chip chip-acid-soft" style={{marginRight: '8px'}}><span className="chip-dot live"></span>Auto-apply running</span> {loop.sentToday}/{loop.dailyLimit} sent today{queuedCount > 0 && loop.sentToday < loop.dailyLimit && ` · sending more soon`}</>
             ) : (
               <span className="chip" style={{marginRight: '8px'}}>Auto-apply paused</span>
             )}
