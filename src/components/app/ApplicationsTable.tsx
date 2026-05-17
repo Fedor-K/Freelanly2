@@ -39,8 +39,10 @@ const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   FAILED: { label: 'Failed', cls: 'failed' },
 };
 
+const DEFAULT_FILTER = ['PENDING', 'REVIEW', 'SENDING', 'SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'];
+
 const FILTERS = [
-  { label: 'All', value: null },
+  { label: 'All', value: DEFAULT_FILTER },
   { label: 'Sent', value: ['SENT', 'DELIVERED'] },
   { label: 'Opened', value: ['OPENED'] },
   { label: 'Replied', value: ['REPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'] },
@@ -61,7 +63,7 @@ function timeAgo(iso: string) {
 }
 
 export function ApplicationsTable({ rows }: { rows: AppRow[] }) {
-  const [filter, setFilter] = useState<string[] | null>(null);
+  const [filter, setFilter] = useState<string[]>(DEFAULT_FILTER);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AppDetail>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -70,7 +72,7 @@ export function ApplicationsTable({ rows }: { rows: AppRow[] }) {
   const [sendLoading, setSendLoading] = useState(false);
   const [sendResult, setSendResult] = useState<string | null>(null);
 
-  const filtered = filter ? rows.filter(r => filter.includes(r.status)) : rows;
+  const filtered = rows.filter(r => filter.includes(r.status));
 
   async function toggleExpand(id: string) {
     if (expandedId === id) {
@@ -152,8 +154,7 @@ export function ApplicationsTable({ rows }: { rows: AppRow[] }) {
             className={`filter-tab ${JSON.stringify(filter) === JSON.stringify(f.value) ? 'active' : ''}`}
             onClick={() => setFilter(f.value)}
           >
-            {f.label}
-            {f.value ? ` (${rows.filter(r => f.value!.includes(r.status)).length})` : ` (${rows.length})`}
+            {f.label} ({rows.filter(r => f.value.includes(r.status)).length})
           </button>
         ))}
       </div>
