@@ -444,23 +444,29 @@ export async function checkAllReplies(): Promise<number> {
 
   let totalReplies = 0;
 
-  // Check ALL users per run (Hetzner worker has no timeout limit)
-  const usersToCheck = usersWithSentApps;
-  console.log(`[ReplyChecker] Checking ${usersToCheck.length} of ${usersWithSentApps.length} users`);
+  // Check ALL users in parallel batches (20 concurrent IMAP connections)
+  const BATCH_SIZE = 20;
+  console.log(`[ReplyChecker] Checking ${usersWithSentApps.length} users in batches of ${BATCH_SIZE}`);
 
-  for (const { userId } of usersToCheck) {
-    try {
-      const replies = await checkRepliesForUser(userId);
-      totalReplies += replies;
-      if (replies > 0) {
-        console.log(`[ReplyChecker] Found ${replies} replies for user ${userId}`);
-      }
-    } catch (error) {
-      console.error(`[ReplyChecker] Failed for user ${userId}:`, String(error).slice(0, 200));
+  for (let i = 0; i < usersWithSentApps.length; i += BATCH_SIZE) {
+    const batch = usersWithSentApps.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(async ({ userId }) => {
+        try {
+          const replies = await checkRepliesForUser(userId);
+          if (replies > 0) {
+            console.log(`[ReplyChecker] Found ${replies} replies for user ${userId}`);
+          }
+          return replies;
+        } catch (error) {
+          console.error(`[ReplyChecker] Failed for user ${userId}:`, String(error).slice(0, 200));
+          return 0;
+        }
+      })
+    );
+    for (const r of results) {
+      if (r.status === 'fulfilled') totalReplies += r.value;
     }
-
-    // Rate limit between users
-    await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
   return totalReplies;
