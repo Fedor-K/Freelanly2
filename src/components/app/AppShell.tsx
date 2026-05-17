@@ -42,7 +42,7 @@ const NAV = [
   ]},
 ];
 
-type SearchResult = { id: string; jobTitle: string; companyName: string; status: string; repliedAt?: string };
+type SearchResult = { id: string; type: 'application' | 'opportunity' | 'job'; jobTitle: string; companyName: string; status: string };
 
 function SearchBar() {
   const router = useRouter();
@@ -93,19 +93,29 @@ function SearchBar() {
         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-1)', border: '1px solid var(--line-2)', borderRadius: '0 0 10px 10px', boxShadow: '0 12px 32px rgba(0,0,0,0.15)', zIndex: 100, maxHeight: '320px', overflow: 'auto' }}>
           {loading && <div style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--ink-4)' }}>Searching...</div>}
           {!loading && results.length === 0 && <div style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--ink-4)' }}>No results for &ldquo;{query}&rdquo;</div>}
-          {results.map(r => (
-            <div
-              key={r.id}
-              style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid var(--line)', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              onMouseDown={() => { setOpen(false); setQuery(''); router.push(`/dashboard#${r.id}`); }}
-            >
-              <div>
-                <span style={{ fontWeight: 500 }}>{r.jobTitle}</span>
-                <span style={{ color: 'var(--ink-3)', marginLeft: '8px' }}>{r.companyName}</span>
+          {results.map(r => {
+            const href = r.type === 'application' ? `/dashboard#${r.id}`
+              : r.type === 'opportunity' ? `/dashboard/discovery/${r.id}`
+              : `/jobs`;
+            const chipCls = r.status === 'OPPORTUNITY' ? 'queued' : r.status === 'JOB' ? 'queued'
+              : r.status === 'REPLIED' ? 'replied' : r.status === 'INTERVIEW' ? 'interview'
+              : r.status === 'OPENED' ? 'opened' : 'sent';
+            const label = r.type === 'application' ? r.status.toLowerCase()
+              : r.type === 'opportunity' ? 'opportunity' : 'job';
+            return (
+              <div
+                key={`${r.type}-${r.id}`}
+                style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid var(--line)', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                onMouseDown={() => { setOpen(false); setQuery(''); router.push(href); }}
+              >
+                <div>
+                  <span style={{ fontWeight: 500 }}>{r.jobTitle}</span>
+                  <span style={{ color: 'var(--ink-3)', marginLeft: '8px' }}>{r.companyName}</span>
+                </div>
+                <span className={`status-chip ${chipCls}`} style={{ fontSize: '10px', padding: '2px 6px' }}>{label}</span>
               </div>
-              <span className={`status-chip ${r.status === 'REPLIED' ? 'replied' : r.status === 'INTERVIEW' ? 'interview' : r.status === 'OPENED' ? 'opened' : 'sent'}`} style={{ fontSize: '10px', padding: '2px 6px' }}>{r.status.toLowerCase()}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
