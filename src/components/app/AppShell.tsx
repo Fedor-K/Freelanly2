@@ -1,7 +1,7 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useRef, useEffect } from 'react';
 
 const ICONS: Record<string, string> = {
   home:    '<path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1h-5v-7h-6v7H4a1 1 0 01-1-1V9.5z"/>',
@@ -41,6 +41,76 @@ const NAV = [
     { id: 'billing',  href: '/dashboard/billing',       label: 'Billing',  icon: 'card' },
   ]},
 ];
+
+type SearchResult = { id: string; jobTitle: string; companyName: string; status: string; repliedAt?: string };
+
+function SearchBar() {
+  const router = useRouter();
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'k' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); (ref.current?.querySelector('input') as HTMLInputElement)?.focus(); } };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => { document.removeEventListener('mousedown', handleClick); document.removeEventListener('keydown', handleKey); };
+  }, []);
+
+  function handleSearch(q: string) {
+    setQuery(q);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (q.length < 2) { setResults([]); setOpen(false); return; }
+    debounceRef.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/user/search?q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setResults(data.results || []);
+          setOpen(true);
+        }
+      } catch { /* ignore */ }
+      setLoading(false);
+    }, 300);
+  }
+
+  return (
+    <div className="topbar-search" ref={ref} style={{ position: 'relative' }}>
+      <SvgIcon name="search" size={14} />
+      <input
+        placeholder="Search jobs, replies, contacts…"
+        value={query}
+        onChange={e => handleSearch(e.target.value)}
+        onFocus={() => { if (results.length > 0) setOpen(true); }}
+      />
+      <span className="shortcut">⌘K</span>
+      {open && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-1)', border: '1px solid var(--line-2)', borderRadius: '0 0 10px 10px', boxShadow: '0 12px 32px rgba(0,0,0,0.15)', zIndex: 100, maxHeight: '320px', overflow: 'auto' }}>
+          {loading && <div style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--ink-4)' }}>Searching...</div>}
+          {!loading && results.length === 0 && <div style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--ink-4)' }}>No results for &ldquo;{query}&rdquo;</div>}
+          {results.map(r => (
+            <div
+              key={r.id}
+              style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid var(--line)', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              onMouseDown={() => { setOpen(false); setQuery(''); router.push(`/dashboard#${r.id}`); }}
+            >
+              <div>
+                <span style={{ fontWeight: 500 }}>{r.jobTitle}</span>
+                <span style={{ color: 'var(--ink-3)', marginLeft: '8px' }}>{r.companyName}</span>
+              </div>
+              <span className={`status-chip ${r.status === 'REPLIED' ? 'replied' : r.status === 'INTERVIEW' ? 'interview' : r.status === 'OPENED' ? 'opened' : 'sent'}`} style={{ fontSize: '10px', padding: '2px 6px' }}>{r.status.toLowerCase()}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function AppShell({ children, userName, userPlan }: { children: React.ReactNode; userName?: string; userPlan?: string }) {
   const pathname = usePathname();
@@ -130,11 +200,7 @@ export function AppShell({ children, userName, userPlan }: { children: React.Rea
             <SvgIcon name="chevron" size={12} />
             <strong>Dashboard</strong>
           </div>
-          <div className="topbar-search">
-            <SvgIcon name="search" size={14} />
-            <input placeholder="Search jobs, replies, contacts…" />
-            <span className="shortcut">⌘K</span>
-          </div>
+          <SearchBar />
           <div className="topbar-actions">
             <a href="/dashboard/inbox" className="icon-btn" title="Notifications">
               <SvgIcon name="bell" size={16} />
