@@ -17,6 +17,8 @@ interface SignInPageProps {
     ref?: string;
     category?: string;
     country?: string;
+    utm_content?: string;
+    utm_source?: string;
   }>;
 }
 
@@ -32,6 +34,17 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default async function SignInPage({ searchParams }: SignInPageProps) {
   const session = await auth();
   const params = await searchParams;
+
+  // Redirect social links to public project page
+  if (params.utm_content && (params.utm_source === 'social' || params.ref === 'job')) {
+    const opp = await prisma.opportunity.findUnique({
+      where: { id: params.utm_content },
+      select: { slug: true },
+    }).catch(() => null);
+    if (opp?.slug) {
+      redirect(`/freelance/${opp.slug}?utm_source=${params.utm_source || 'social'}`);
+    }
+  }
 
   // Personalized headline based on ref source
   let headline = 'Apply to fresh\ngigs while you sleep.';
