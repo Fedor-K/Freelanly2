@@ -11,15 +11,7 @@ export const metadata: Metadata = {
 
 export const revalidate = 60;
 
-function timeAgo(date: Date): string {
-  const s = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h`;
-  return `${Math.floor(s / 86400)}d`;
-}
-
-const COLORS = ['#FF6B6B','#A8E024','#6EE7FF','#FFB951','#A78BFA','#34D399','#F87171','#818CF8'];
+// unused: timeAgo, COLORS (replies sidebar removed)
 
 export default async function DashboardOverviewPage() {
   const session = await auth();
@@ -188,95 +180,52 @@ export default async function DashboardOverviewPage() {
         </div>
       </div>
 
-      <div className="dash-grid">
+      {/* Applications table — full width */}
+      <div className="card mb-4">
+        <div className="card-head">
+          <h3>Applications</h3>
+          <span className="meta">{mSent} sent · {mReplied} replied · last 30 days</span>
+        </div>
+        <ApplicationsTable rows={appRows} />
+      </div>
 
-        {/* LEFT COL */}
-        <div className="col gap-4">
+      {/* Activity + Funnel side by side */}
+      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px'}}>
 
-          {/* Applications table */}
-          <div className="card">
-            <div className="card-head">
-              <h3>Applications</h3>
-              <span className="meta">{mSent} sent · {mReplied} replied · last 30 days</span>
-            </div>
-            <ApplicationsTable rows={appRows} />
+        {/* Activity chart */}
+        <div className="card card-pad">
+          <div className="section-head">
+            <h2>Activity, last 14 days</h2>
           </div>
-
-          {/* Activity chart */}
-          <div className="card card-pad">
-            <div className="section-head">
-              <h2>Activity, last 14 days</h2>
-            </div>
-            <div className="spark-strip mt-3">
-              {activityBars.map((v, i) => (
-                <div key={i} className="bar" style={{height: `${(v / maxBar) * 100}%`, opacity: i === activityBars.length - 1 ? 1 : 0.85}} title={`${v} sent`}></div>
-              ))}
-            </div>
-            <div className="row mt-3" style={{justifyContent: 'space-between', fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', color: 'var(--ink-4)', letterSpacing: '0.04em'}}>
-              <span>{dateLabel(13)}</span><span>{dateLabel(10)}</span><span>{dateLabel(7)}</span><span>{dateLabel(3)}</span><span>Today</span>
-            </div>
-          </div>
-
-          {/* Funnel */}
-          <div className="card card-pad">
-            <div className="section-head">
-              <h2>Funnel · last 30 days</h2>
-              <span className="muted f-mono" style={{fontSize: '11px'}}>{mSent > 0 ? `${(mReplied / mSent * 100).toFixed(1)}%` : '0%'} reply rate</span>
-            </div>
-            {[
-              { label: 'Sent', count: mSent, pct: 100, bg: 'var(--ink)', textColor: '#fff', dotColor: 'var(--s-sent)' },
-              { label: 'Opened', count: mOpened, pct: mSent > 0 ? Math.round(mOpened / mSent * 100) : 0, bg: '#DCE9FE', textColor: 'var(--info)', dotColor: 'var(--s-opened)' },
-              { label: 'Replied', count: mReplied, pct: mSent > 0 ? Math.round(mReplied / mSent * 100) : 0, bg: 'var(--acid)', textColor: '#000', dotColor: 'var(--s-replied)' },
-              { label: 'Interview', count: mInterview, pct: mSent > 0 ? Math.round(mInterview / mSent * 100) : 0, bg: '#D8C7F9', textColor: 'var(--s-booked)', dotColor: 'var(--s-booked)' },
-              { label: 'Offer', count: mOffer, pct: mSent > 0 ? Math.round(mOffer / mSent * 100) : 0, bg: '#BBF7D0', textColor: 'var(--s-offer)', dotColor: 'var(--s-offer)' },
-            ].map(f => (
-              <div key={f.label} className="funnel-row">
-                <div className="name"><span className="chip-dot" style={{background: f.dotColor, width:'8px', height:'8px'}}></span>{f.label}</div>
-                <div className="bar"><div className="fill" style={{width: `${Math.max(f.pct, 2)}%`, background: f.bg}}><span style={{color: f.textColor}}>{f.count}</span></div></div>
-                <div className="pct">{f.pct}%</div>
-              </div>
+          <div className="spark-strip mt-3">
+            {activityBars.map((v, i) => (
+              <div key={i} className="bar" style={{height: `${(v / maxBar) * 100}%`, opacity: i === activityBars.length - 1 ? 1 : 0.85}} title={`${v} sent`}></div>
             ))}
           </div>
-
+          <div className="row mt-3" style={{justifyContent: 'space-between', fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', color: 'var(--ink-4)', letterSpacing: '0.04em'}}>
+            <span>{dateLabel(13)}</span><span>{dateLabel(10)}</span><span>{dateLabel(7)}</span><span>{dateLabel(3)}</span><span>Today</span>
+          </div>
         </div>
 
-        {/* RIGHT COL */}
-        <div className="col gap-4">
-
-          {/* New replies */}
-          <div className="card">
-            <div className="card-head">
-              <h3>New replies</h3>
-              <a href="/dashboard/inbox" className="muted f-mono" style={{fontSize: '11px', letterSpacing: '0.04em', textTransform: 'uppercase'}}>Inbox →</a>
-            </div>
-            {replies.length === 0 ? (
-              <div style={{padding: '24px 16px', textAlign: 'center', color: 'var(--ink-4)', fontSize: '13px'}}>No replies yet. Keep sending!</div>
-            ) : replies.map((r, i) => (
-              <a key={r.id} href="/dashboard/inbox" className="reply-row">
-                <div className="avatar av-sm" style={{background: COLORS[i % COLORS.length]}}>{r.companyName.slice(0, 2).toUpperCase()}</div>
-                <div>
-                  <div className="row between">
-                    <span className="name">{r.companyName}</span>
-                    {r.replyCategory && <span className="chip chip-acid-soft" style={{height: '18px', padding: '0 7px', fontSize: '9.5px'}}>{r.replyCategory.toLowerCase()}</span>}
-                  </div>
-                  <div className="preview"><b>Re: {r.jobTitle}</b> — {r.replyText?.slice(0, 80) || 'Reply received'}{(r.replyText?.length || 0) > 80 ? '…' : ''}</div>
-                </div>
-                <span className="time">{r.repliedAt ? timeAgo(r.repliedAt) : ''}</span>
-              </a>
-            ))}
+        {/* Funnel */}
+        <div className="card card-pad">
+          <div className="section-head">
+            <h2>Funnel · last 30 days</h2>
+            <span className="muted f-mono" style={{fontSize: '11px'}}>{mSent > 0 ? `${(mReplied / mSent * 100).toFixed(1)}%` : '0%'} reply rate</span>
           </div>
-
-          {/* Summary */}
-          <div className="card card-pad" style={{background: 'linear-gradient(180deg, #FCFBEE, #FFFFFF)', borderColor: 'rgba(199,249,74,0.4)'}}>
-            <div className="row gap-2 mb-2">
-              <span className="chip chip-acid">★ SUMMARY</span>
-              <span className="eyebrow">Last 30 days</span>
+          {[
+            { label: 'Sent', count: mSent, pct: 100, bg: 'var(--ink)', textColor: '#fff', dotColor: 'var(--s-sent)' },
+            { label: 'Opened', count: mOpened, pct: mSent > 0 ? Math.round(mOpened / mSent * 100) : 0, bg: '#DCE9FE', textColor: 'var(--info)', dotColor: 'var(--s-opened)' },
+            { label: 'Replied', count: mReplied, pct: mSent > 0 ? Math.round(mReplied / mSent * 100) : 0, bg: 'var(--acid)', textColor: '#000', dotColor: 'var(--s-replied)' },
+            { label: 'Interview', count: mInterview, pct: mSent > 0 ? Math.round(mInterview / mSent * 100) : 0, bg: '#D8C7F9', textColor: 'var(--s-booked)', dotColor: 'var(--s-booked)' },
+            { label: 'Offer', count: mOffer, pct: mSent > 0 ? Math.round(mOffer / mSent * 100) : 0, bg: '#BBF7D0', textColor: 'var(--s-offer)', dotColor: 'var(--s-offer)' },
+          ].map(f => (
+            <div key={f.label} className="funnel-row">
+              <div className="name"><span className="chip-dot" style={{background: f.dotColor, width:'8px', height:'8px'}}></span>{f.label}</div>
+              <div className="bar"><div className="fill" style={{width: `${Math.max(f.pct, 2)}%`, background: f.bg}}><span style={{color: f.textColor}}>{f.count}</span></div></div>
+              <div className="pct">{f.pct}%</div>
             </div>
-            <div style={{fontSize: '14.5px', lineHeight: 1.5, color: 'var(--ink)', letterSpacing: '-0.005em'}}>
-              You&apos;ve sent <b>{mSent}</b> applications{mReplied > 0 ? <> and received <b style={{color: 'var(--acid-deep)'}}>{mReplied} replies</b> ({mSent > 0 ? (mReplied / mSent * 100).toFixed(1) : 0}% rate)</> : null}. {mInterview > 0 ? <><b>{mInterview}</b> led to interviews.</> : 'Keep going!'}
-            </div>
-          </div>
-
+          ))}
         </div>
 
       </div>
