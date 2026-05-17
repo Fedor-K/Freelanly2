@@ -126,6 +126,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    await prisma.activityLog.create({
+      data: { userId: session.user.id, action: 'LOOP_CREATED', details: { loopId: loop.id, name: loop.name } },
+    }).catch(() => {});
+
     return NextResponse.json(loop);
   } catch (error) {
     console.error('[API] Error creating auto-apply loop:', error);
@@ -193,6 +197,25 @@ export async function PATCH(request: NextRequest) {
       where: { id },
       data,
     });
+
+    // Log state changes
+    if (updates.isActive !== undefined) {
+      await prisma.activityLog.create({
+        data: {
+          userId: session.user.id,
+          action: updates.isActive ? 'LOOP_RESUMED' : 'LOOP_PAUSED',
+          details: { loopId: id, source: 'api' },
+        },
+      }).catch(() => {});
+    } else if (Object.keys(data).length > 0) {
+      await prisma.activityLog.create({
+        data: {
+          userId: session.user.id,
+          action: 'LOOP_UPDATED',
+          details: { loopId: id, fields: Object.keys(data) },
+        },
+      }).catch(() => {});
+    }
 
     return NextResponse.json(loop);
   } catch (error) {

@@ -129,6 +129,15 @@ export async function POST(request: NextRequest) {
             data: { isActive: false },
           });
 
+          // Log the auto-pause
+          await prisma.activityLog.create({
+            data: {
+              userId: user.id,
+              action: 'LOOP_PAUSED',
+              details: { loopId: loop.id, source: 'auto_pause', reason: pauseReason },
+            },
+          }).catch(() => {});
+
           // Send alert
           try {
             await sendEmail({

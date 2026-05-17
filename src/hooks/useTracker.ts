@@ -5,6 +5,7 @@ import { useCallback, useEffect } from 'react';
 type TrackAction =
   // Navigation
   | 'PAGE_VIEW'
+  | 'DASHBOARD_VIEW'
   // Jobs
   | 'JOB_VIEW'
   | 'JOB_APPLY'
@@ -34,6 +35,23 @@ type TrackAction =
   // Alerts
   | 'ALERT_CREATED'
   | 'ALERT_DELETED'
+  // Auto-Apply
+  | 'LOOP_CREATED'
+  | 'LOOP_PAUSED'
+  | 'LOOP_RESUMED'
+  | 'LOOP_DELETED'
+  | 'LOOP_UPDATED'
+  | 'SMTP_CONNECTED'
+  | 'SMTP_DISCONNECTED'
+  | 'INBOX_VIEW'
+  | 'INBOX_REPLY_SENT'
+  | 'INBOX_AI_SUGGEST'
+  | 'QUICK_APPLY'
+  | 'SETTINGS_UPDATED'
+  | 'TEMPLATE_CREATED'
+  | 'TEMPLATE_DELETED'
+  | 'RESUME_UPLOADED'
+  | 'PROFILE_UPDATED'
   // Other
   | 'UNSUBSCRIBE'
   | 'CONTACT_VIEW';

@@ -131,6 +131,10 @@ export async function POST(request: NextRequest) {
 
       const suggested = response.choices[0]?.message?.content?.trim() || 'Thank you for your response. I would be happy to discuss further.';
 
+      await prisma.activityLog.create({
+        data: { userId: session.user.id, action: 'INBOX_AI_SUGGEST', details: { applicationId, company: app.companyName } },
+      }).catch(() => {});
+
       return NextResponse.json({
         suggested,
         full: `Dear ${app.companyName.split(' ')[0]},\n\n${suggested}\n\nBest regards,\n${app.user.name}\n${app.user.email}`,
@@ -166,6 +170,9 @@ export async function POST(request: NextRequest) {
       }
 
       if (result.success) {
+        await prisma.activityLog.create({
+          data: { userId: session.user.id, action: 'INBOX_REPLY_SENT', details: { applicationId, to: app.appliedToEmail, company: app.companyName, viaSMTP: hasSmtp } },
+        }).catch(() => {});
         return NextResponse.json({ success: true, sentTo: app.appliedToEmail });
       } else {
         return NextResponse.json({ error: 'send_failed', message: result.error }, { status: 500 });

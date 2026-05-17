@@ -40,6 +40,10 @@ export async function POST() {
 
       console.log(`[SMTP Test] Success for user ${session.user.id}`);
 
+      await prisma.activityLog.create({
+        data: { userId: session.user.id, action: 'SMTP_CONNECTED', details: { host: smtp.host, email: smtp.email } },
+      }).catch(() => {});
+
       return NextResponse.json({
         success: true,
         message: 'Test email sent successfully. Check your inbox.',

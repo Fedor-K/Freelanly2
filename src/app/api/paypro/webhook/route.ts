@@ -264,6 +264,10 @@ export async function POST(request: NextRequest) {
             data: { isActive: false },
           }).catch(() => {});
 
+          await prisma.activityLog.create({
+            data: { userId: dbUserId, action: 'LOOP_PAUSED', details: { source: 'paypro_downgrade' } },
+          }).catch(() => {});
+
           console.log(`[PayPro Webhook] User ${dbUserId} downgraded to FREE (${ipnTypeName})`);
         }
         break;

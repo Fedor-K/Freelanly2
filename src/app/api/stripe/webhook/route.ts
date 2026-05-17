@@ -381,6 +381,10 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     data: { isActive: false },
   }).catch(() => {});
 
+  await prisma.activityLog.create({
+    data: { userId: user.id, action: 'LOOP_PAUSED', details: { source: 'stripe_downgrade' } },
+  }).catch(() => {});
+
   // Record churn event
   await prisma.revenueEvent.create({
     data: {

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { SmtpSetup } from './SmtpSetup';
 import { TemplateEditor } from './TemplateEditor';
 import { ApplicationsList } from './ApplicationsList';
+import { useTracker } from '@/hooks/useTracker';
 
 interface Country {
   slug: string;
@@ -145,6 +146,7 @@ export function AutoApplyDashboard({
   freeAppliesRemaining = 5,
   freeDailyLimit = 5,
 }: AutoApplyDashboardProps) {
+  const { track } = useTracker();
   const [loops, setLoops] = useState<AutoApplyLoop[]>(initialLoops);
   const [templates, setTemplates] = useState<CoverLetterTemplate[]>(initialTemplates);
   const [smtp, setSmtp] = useState<UserSmtp | null>(initialSmtp);
@@ -213,6 +215,7 @@ export function AutoApplyDashboard({
       });
       if (res.ok) {
         setLoops(loops.map(l => l.id === id ? { ...l, isActive: !isActive } : l));
+        track(isActive ? 'LOOP_PAUSED' : 'LOOP_RESUMED', { loopId: id });
       }
     } catch {}
   };
@@ -221,7 +224,10 @@ export function AutoApplyDashboard({
     if (!confirm('Delete this auto-apply loop?')) return;
     try {
       const res = await fetch(`/api/user/auto-apply?id=${id}`, { method: 'DELETE' });
-      if (res.ok) setLoops(loops.filter(l => l.id !== id));
+      if (res.ok) {
+        setLoops(loops.filter(l => l.id !== id));
+        track('LOOP_DELETED', { loopId: id });
+      }
     } catch {}
   };
 
