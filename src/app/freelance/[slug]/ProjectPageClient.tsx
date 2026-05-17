@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useTracker } from '@/hooks/useTracker';
 
 interface ProjectProps {
   project: {
@@ -23,13 +24,39 @@ interface ProjectProps {
 }
 
 export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
+  const { track } = useTracker();
   const [showAuth, setShowAuth] = useState(false);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const startTime = useRef(Date.now());
+  const scrollDepth = useRef(0);
+
+  // Track page view + time on page + scroll depth
+  useEffect(() => {
+    track('PAGE_VIEW', { page: 'project', projectId: project.id, title: project.title, company: project.companyName });
+
+    const handleScroll = () => {
+      const depth = Math.round((window.scrollY + window.innerHeight) / document.body.scrollHeight * 100);
+      if (depth > scrollDepth.current) scrollDepth.current = depth;
+    };
+    window.addEventListener('scroll', handleScroll);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      const timeSpent = Math.round((Date.now() - startTime.current) / 1000);
+      track('PAGE_VIEW', { page: 'project_exit', projectId: project.id, timeSpent, scrollDepth: scrollDepth.current });
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleApply() {
-    if (!email) { setShowAuth(true); return; }
+    if (!email) {
+      track('OPPORTUNITY_APPLY_CLICK', { projectId: project.id, step: 'show_email' });
+      setShowAuth(true);
+      return;
+    }
+    track('SIGNUP_START', { projectId: project.id, email });
     setLoading(true);
     try {
       // Register + send code
@@ -41,6 +68,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       const { signIn } = await import('next-auth/react');
       await signIn('resend', { email, callbackUrl: `/dashboard`, redirect: false });
       setSent(true);
+      track('SIGNUP_COMPLETE', { projectId: project.id, source: 'project_page' });
     } catch { /* ignore */ }
     setLoading(false);
   }
@@ -53,7 +81,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           <span style={{ background: '#000', color: '#fff', width: '28px', height: '28px', display: 'grid', placeItems: 'center', borderRadius: '7px', fontSize: '13px', fontWeight: 700 }}>F</span>
           Freelanly
         </a>
-        <a href="/auth/signin" style={{ padding: '8px 16px', background: '#C7F94A', color: '#000', borderRadius: '8px', fontSize: '13px', fontWeight: 500, textDecoration: 'none' }}>Sign up free</a>
+        <a href="/auth/signin" onClick={() => track('SIGNUP_START', { projectId: project.id, source: 'nav_button' })} style={{ padding: '8px 16px', background: '#C7F94A', color: '#000', borderRadius: '8px', fontSize: '13px', fontWeight: 500, textDecoration: 'none' }}>Sign up free</a>
       </nav>
 
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 24px', display: 'grid', gridTemplateColumns: '1fr 380px', gap: '40px', alignItems: 'start' }}>
@@ -102,7 +130,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 {project.poster.headline && <div style={{ fontSize: '12px', color: '#8A8780' }}>{project.poster.headline}</div>}
               </div>
               {project.poster.linkedIn && (
-                <a href={project.poster.linkedIn} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 'auto', fontSize: '12px', color: '#0A66C2' }}>LinkedIn →</a>
+                <a href={project.poster.linkedIn} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 'auto', fontSize: '12px', color: '#0A66C2' }} onClick={() => track('JOB_SOURCE_CLICK', { projectId: project.id, type: 'poster_linkedin' })}>LinkedIn →</a>
               )}
             </div>
           )}
@@ -112,7 +140,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             <div style={{ marginTop: '40px' }}>
               <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Similar projects</h3>
               {similar.map(s => (
-                <a key={s.slug} href={`/freelance/${s.slug}`} style={{ display: 'block', padding: '12px 16px', border: '1px solid #E8E5DC', borderRadius: '10px', marginBottom: '8px', textDecoration: 'none', color: '#333' }}>
+                <a key={s.slug} href={`/freelance/${s.slug}`} onClick={() => track('JOB_VIEW', { projectId: project.id, type: 'similar_click', targetSlug: s.slug })} style={{ display: 'block', padding: '12px 16px', border: '1px solid #E8E5DC', borderRadius: '10px', marginBottom: '8px', textDecoration: 'none', color: '#333' }}>
                   <div style={{ fontWeight: 500, fontSize: '14px' }}>{s.title}</div>
                   <div style={{ fontSize: '12px', color: '#8A8780', marginTop: '2px' }}>{s.companyName} {s.skills.length > 0 && `· ${s.skills.join(', ')}`}</div>
                 </a>
