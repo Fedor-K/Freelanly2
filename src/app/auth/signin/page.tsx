@@ -6,6 +6,8 @@ import { RegistrationForm } from '@/components/auth/RegistrationForm';
 import { TrustPanel } from './TrustPanel';
 import './signup-design.css';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Sign Up — Freelanly',
   description: 'Apply to fresh gigs while you sleep. AI finds projects and auto-writes applications in your voice.',
