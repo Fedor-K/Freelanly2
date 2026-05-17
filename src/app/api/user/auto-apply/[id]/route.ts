@@ -21,12 +21,19 @@ function cleanReplyText(text: string | null): string | null {
     .replace(/\r?\n{3,}/g, '\n\n')
     .trim();
   // Trim quoted original message ("On ... wrote:" or "From: ... Sent:")
-  const quoteIdx = clean.search(/\n\s*On .{10,80} wrote:\s*$/m);
+  const quoteIdx = clean.search(/\n\s*On .{10,120} wrote:?\s*$/m);
   if (quoteIdx > 20) clean = clean.slice(0, quoteIdx).trim();
+  // Also catch "On ... wrote:\n>" style
+  const quoteIdx2 = clean.search(/\n\s*On .{10,120} wrote:?\s*\n/m);
+  if (quoteIdx2 > 20) clean = clean.slice(0, quoteIdx2).trim();
   const fromIdx = clean.search(/\n\s*From: .{5,80}\n\s*Sent:/m);
   if (fromIdx > 20) clean = clean.slice(0, fromIdx).trim();
   const sentFromIdx = clean.search(/\n\s*Sent from (my iPhone|my iPad|Mail for Windows|Samsung|Proton Mail|Yahoo Mail)/im);
   if (sentFromIdx > 20) clean = clean.slice(0, sentFromIdx).trim();
+  // Strip email quote lines starting with >
+  clean = clean.replace(/\n\s*>.*$/gm, '').replace(/\n{2,}$/g, '').trim();
+  // Strip trailing underscores/dashes (signature separators)
+  clean = clean.replace(/\n\s*[_-]{3,}\s*$/m, '').trim();
   return clean;
 }
 
