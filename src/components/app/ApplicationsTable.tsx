@@ -84,7 +84,7 @@ function timeAgo(iso: string) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 10, isPro = false }: { rows: AppRow[]; sentToday?: number; dailyLimit?: number; isPro?: boolean }) {
+export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro = false }: { rows: AppRow[]; sentToday?: number; dailyLimit?: number; isPro?: boolean }) {
   const limitReached = !isPro && sentToday >= dailyLimit;
   const [filter, setFilter] = useState<string[]>(DEFAULT_FILTER);
   const [expandedId, setExpandedId] = useState<string | null>(null);
