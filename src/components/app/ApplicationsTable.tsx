@@ -227,7 +227,7 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 10, isPro 
                                 <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: '10px', padding: '12px', marginBottom: '8px' }}>
                                   <div style={{ fontSize: '11px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", marginBottom: '4px' }}>You · {formatDate(app.date)}</div>
                                   <div style={{ fontSize: '13px', color: 'var(--ink-2)', lineHeight: 1.5, maxHeight: '120px', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
-                                    {detail.coverLetter ? detail.coverLetter.slice(0, 400) + (detail.coverLetter.length > 400 ? '...' : '') : 'Cover letter sent'}
+                                    {detail.coverLetter ? detail.coverLetter.slice(0, 400) + (detail.coverLetter.length > 400 ? '...' : '') : (['PENDING', 'REVIEW'].includes(app.status) ? 'Cover letter will be generated before sending' : 'Cover letter sent')}
                                   </div>
                                 </div>
 
