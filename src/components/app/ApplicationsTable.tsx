@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 
 type AppRow = {
   id: string;
@@ -22,7 +22,6 @@ type AppDetail = {
   replyText: string | null;
   replyCategory: string | null;
   repliedAt: string | null;
-  followUpText: string | null;
   sourceUrl: string | null;
 } | null;
 
@@ -50,8 +49,7 @@ const FILTERS = [
 ];
 
 function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function timeAgo(iso: string) {
@@ -99,7 +97,6 @@ export function ApplicationsTable({ rows }: { rows: AppRow[] }) {
           replyText: data.replyText || null,
           replyCategory: data.replyCategory || null,
           repliedAt: data.repliedAt || null,
-          followUpText: data.followUpText || null,
           sourceUrl: data.originalUrl || data.sourceUrl || null,
         });
       }
@@ -110,7 +107,7 @@ export function ApplicationsTable({ rows }: { rows: AppRow[] }) {
   async function handleSuggest(appId: string) {
     setSuggestLoading(true);
     try {
-      const res = await fetch(`/api/user/inbox`, {
+      const res = await fetch('/api/user/inbox', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ applicationId: appId, action: 'suggest' }),
@@ -128,7 +125,7 @@ export function ApplicationsTable({ rows }: { rows: AppRow[] }) {
     setSendLoading(true);
     setSendResult(null);
     try {
-      const res = await fetch(`/api/user/inbox`, {
+      const res = await fetch('/api/user/inbox', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ applicationId: appId, action: 'send', message: replyText }),
@@ -138,7 +135,7 @@ export function ApplicationsTable({ rows }: { rows: AppRow[] }) {
         setReplyText('');
       } else {
         const data = await res.json();
-        setSendResult(`Failed: ${data.error || 'unknown error'}`);
+        setSendResult(`Failed: ${data.error || 'unknown'}`);
       }
     } catch {
       setSendResult('Failed to send');
@@ -164,11 +161,11 @@ export function ApplicationsTable({ rows }: { rows: AppRow[] }) {
         <table className="app-table">
           <thead>
             <tr>
-              <th>Job title</th>
-              <th>Company</th>
-              <th>Date</th>
-              <th>Status</th>
-              <th>Subject</th>
+              <th style={{ width: '28%' }}>Job title</th>
+              <th style={{ width: '20%' }}>Company</th>
+              <th style={{ width: '14%' }}>Date</th>
+              <th style={{ width: '14%' }}>Status</th>
+              <th style={{ width: '24%' }}>Subject</th>
             </tr>
           </thead>
           <tbody>
@@ -182,113 +179,109 @@ export function ApplicationsTable({ rows }: { rows: AppRow[] }) {
               const st = STATUS_MAP[app.status] || { label: app.status, cls: 'sent' };
               const isExpanded = expandedId === app.id;
               return (
-                <tr key={app.id} onClick={() => toggleExpand(app.id)} style={{ cursor: 'pointer' }}>
-                  <td colSpan={5} style={{ padding: 0 }}>
-                    {/* Row */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 120px 130px 1fr', gap: '0', alignItems: 'center' }}>
-                      <div style={{ padding: '14px 16px', fontWeight: 500, color: 'var(--ink)' }}>{app.jobTitle}</div>
-                      <div style={{ padding: '14px 8px', color: 'var(--ink-2)' }}>{app.companyName}</div>
-                      <div style={{ padding: '14px 8px', fontFamily: "'Geist Mono', monospace", fontSize: '12px', color: 'var(--ink-3)' }}>{formatDate(app.date)}</div>
-                      <div style={{ padding: '14px 8px' }}>
-                        <span className={`status-chip ${st.cls}`}>{st.label}</span>
-                        {app.followUp && app.followUp !== 'sent' && (
-                          <div className="followup">Follow-up {app.followUp}</div>
-                        )}
-                        {app.followUp === 'sent' && (
-                          <div className="followup">Follow-up sent</div>
-                        )}
-                      </div>
-                      <div style={{ padding: '14px 16px 14px 8px', fontSize: '12.5px', color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.subject || ''}</div>
-                    </div>
+                <Fragment key={app.id}>
+                  <tr onClick={() => toggleExpand(app.id)} style={{ cursor: 'pointer' }}>
+                    <td className="job-title">{app.jobTitle}</td>
+                    <td className="company">{app.companyName}</td>
+                    <td className="date">{formatDate(app.date)}</td>
+                    <td>
+                      <span className={`status-chip ${st.cls}`}>{st.label}</span>
+                    </td>
+                    <td className="subject">{app.subject || ''}</td>
+                  </tr>
 
-                    {/* Expanded detail */}
-                    {isExpanded && (
-                      <div style={{ borderTop: '1px solid var(--line)', padding: '20px', background: 'var(--bg-2)' }} onClick={e => e.stopPropagation()}>
-                        {loadingDetail ? (
-                          <div style={{ color: 'var(--ink-4)', fontSize: '13px' }}>Loading...</div>
-                        ) : detail ? (
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                            {/* Left: project info */}
-                            <div>
-                              <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: '8px' }}>Project details</div>
-                              <div style={{ fontSize: '13px', color: 'var(--ink-2)', lineHeight: 1.6, maxHeight: '200px', overflow: 'auto' }}>
-                                {detail.description ? detail.description.slice(0, 600) + (detail.description.length > 600 ? '...' : '') : 'No description available'}
-                              </div>
-                              <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--ink-3)' }}>
-                                <strong>Recruiter:</strong> {detail.clientName || app.companyName} · {detail.appliedToEmail}
-                              </div>
-                              {detail.sourceUrl && (
-                                <a href={detail.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '8px', fontSize: '12px', color: 'var(--acid-deep)' }}>View original posting →</a>
-                              )}
-                            </div>
-
-                            {/* Right: conversation thread + reply */}
-                            <div>
-                              <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: '8px' }}>Conversation</div>
-
-                              {/* Your application */}
-                              <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: '10px', padding: '12px', marginBottom: '8px' }}>
-                                <div style={{ fontSize: '11px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", marginBottom: '4px' }}>You · {formatDate(app.date)}</div>
-                                <div style={{ fontSize: '13px', color: 'var(--ink-2)', lineHeight: 1.5, maxHeight: '120px', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
-                                  {detail.coverLetter ? detail.coverLetter.slice(0, 400) + (detail.coverLetter.length > 400 ? '...' : '') : 'Cover letter sent'}
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: 0, background: 'var(--bg-2)', borderBottom: '2px solid var(--line)' }} onClick={e => e.stopPropagation()}>
+                        <div style={{ padding: '20px 16px' }}>
+                          {loadingDetail ? (
+                            <div style={{ color: 'var(--ink-4)', fontSize: '13px' }}>Loading...</div>
+                          ) : detail ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                              {/* Left: project info */}
+                              <div>
+                                <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: '8px' }}>Project details</div>
+                                <div style={{ fontSize: '13px', color: 'var(--ink-2)', lineHeight: 1.6, maxHeight: '200px', overflow: 'auto' }}>
+                                  {detail.description ? detail.description.slice(0, 600) + (detail.description.length > 600 ? '...' : '') : 'No description available'}
                                 </div>
+                                <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--ink-3)' }}>
+                                  <strong>Recruiter:</strong> {detail.clientName || app.companyName} · {detail.appliedToEmail}
+                                </div>
+                                {detail.sourceUrl && (
+                                  <a href={detail.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '8px', fontSize: '12px', color: 'var(--acid-deep)' }}>View original posting →</a>
+                                )}
                               </div>
 
-                              {/* Follow-up */}
-                              {app.followUp === 'sent' && (
+                              {/* Right: conversation + reply */}
+                              <div>
+                                <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: '8px' }}>Conversation</div>
+
+                                {/* Your application */}
                                 <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: '10px', padding: '12px', marginBottom: '8px' }}>
-                                  <div style={{ fontSize: '11px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", marginBottom: '4px' }}>You · Follow-up</div>
-                                  <div style={{ fontSize: '13px', color: 'var(--ink-2)' }}>Follow-up email sent</div>
+                                  <div style={{ fontSize: '11px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", marginBottom: '4px' }}>You · {formatDate(app.date)}</div>
+                                  <div style={{ fontSize: '13px', color: 'var(--ink-2)', lineHeight: 1.5, maxHeight: '120px', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
+                                    {detail.coverLetter ? detail.coverLetter.slice(0, 400) + (detail.coverLetter.length > 400 ? '...' : '') : 'Cover letter sent'}
+                                  </div>
                                 </div>
-                              )}
 
-                              {/* Recruiter reply */}
-                              {detail.replyText && (
-                                <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '10px', padding: '12px', marginBottom: '8px' }}>
-                                  <div style={{ fontSize: '11px', color: '#065F46', fontFamily: "'Geist Mono', monospace", marginBottom: '4px' }}>
-                                    {detail.clientName || app.companyName} · {detail.repliedAt ? timeAgo(detail.repliedAt) : 'replied'}
-                                    {detail.replyCategory && <span style={{ marginLeft: '8px', background: '#D1FAE5', padding: '1px 6px', borderRadius: '4px', fontSize: '10px' }}>{detail.replyCategory.toLowerCase()}</span>}
+                                {/* Follow-up */}
+                                {app.followUp === 'sent' && (
+                                  <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: '10px', padding: '12px', marginBottom: '8px' }}>
+                                    <div style={{ fontSize: '11px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace" }}>You · Follow-up sent</div>
                                   </div>
-                                  <div style={{ fontSize: '13px', color: '#065F46', lineHeight: 1.5, maxHeight: '150px', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
-                                    {detail.replyText.slice(0, 500)}{detail.replyText.length > 500 ? '...' : ''}
-                                  </div>
-                                </div>
-                              )}
+                                )}
 
-                              {/* Reply box */}
-                              {detail.replyText && (
-                                <div style={{ marginTop: '8px' }}>
-                                  <textarea
-                                    value={replyText}
-                                    onChange={e => setReplyText(e.target.value)}
-                                    placeholder="Write a reply..."
-                                    rows={3}
-                                    style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line-2)', borderRadius: '8px', fontSize: '13px', resize: 'vertical', background: 'var(--bg)', lineHeight: 1.5 }}
-                                  />
-                                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center' }}>
-                                    <button
-                                      className="btn btn-ghost btn-sm"
-                                      onClick={() => handleSuggest(app.id)}
-                                      disabled={suggestLoading}
-                                    >{suggestLoading ? 'Generating...' : '✦ AI suggest'}</button>
-                                    <button
-                                      className="btn btn-primary btn-sm"
-                                      onClick={() => handleSendReply(app.id)}
-                                      disabled={sendLoading || !replyText.trim()}
-                                    >{sendLoading ? 'Sending...' : 'Send reply'}</button>
-                                    {sendResult && <span style={{ fontSize: '12px', color: sendResult === 'Sent!' ? 'var(--good)' : '#DC2626' }}>{sendResult}</span>}
+                                {/* Recruiter reply */}
+                                {detail.replyText && (
+                                  <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '10px', padding: '12px', marginBottom: '8px' }}>
+                                    <div style={{ fontSize: '11px', color: '#065F46', fontFamily: "'Geist Mono', monospace", marginBottom: '4px' }}>
+                                      {detail.clientName || app.companyName} · {detail.repliedAt ? timeAgo(detail.repliedAt) : 'replied'}
+                                      {detail.replyCategory && <span style={{ marginLeft: '8px', background: '#D1FAE5', padding: '1px 6px', borderRadius: '4px', fontSize: '10px' }}>{detail.replyCategory.toLowerCase()}</span>}
+                                    </div>
+                                    <div style={{ fontSize: '13px', color: '#065F46', lineHeight: 1.5, maxHeight: '150px', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
+                                      {detail.replyText.slice(0, 500)}{detail.replyText.length > 500 ? '...' : ''}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
+
+                                {/* Reply box — show when there's a recruiter reply */}
+                                {detail.replyText && (
+                                  <div style={{ marginTop: '8px' }}>
+                                    <textarea
+                                      value={replyText}
+                                      onChange={e => setReplyText(e.target.value)}
+                                      placeholder="Write a reply..."
+                                      rows={3}
+                                      style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line-2)', borderRadius: '8px', fontSize: '13px', resize: 'vertical', background: 'var(--bg)', lineHeight: 1.5 }}
+                                    />
+                                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center' }}>
+                                      <button className="btn btn-ghost btn-sm" onClick={() => handleSuggest(app.id)} disabled={suggestLoading}>
+                                        {suggestLoading ? 'Generating...' : '✦ AI suggest'}
+                                      </button>
+                                      <button className="btn btn-primary btn-sm" onClick={() => handleSendReply(app.id)} disabled={sendLoading || !replyText.trim()}>
+                                        {sendLoading ? 'Sending...' : 'Send reply'}
+                                      </button>
+                                      {sendResult && <span style={{ fontSize: '12px', color: sendResult === 'Sent!' ? 'var(--good)' : '#DC2626' }}>{sendResult}</span>}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Follow-up timer for non-replied */}
+                                {!detail.replyText && app.followUp && app.followUp !== 'sent' && (
+                                  <div style={{ fontSize: '12px', color: 'var(--ink-4)', marginTop: '4px', fontFamily: "'Geist Mono', monospace" }}>
+                                    Follow-up {app.followUp}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div style={{ color: 'var(--ink-4)', fontSize: '13px' }}>Failed to load details</div>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                </tr>
+                          ) : (
+                            <div style={{ color: 'var(--ink-4)', fontSize: '13px' }}>Failed to load details</div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
           </tbody>
