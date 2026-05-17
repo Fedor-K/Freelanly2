@@ -790,6 +790,19 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           ? AutoApplyStatus.REVIEW
           : AutoApplyStatus.PENDING;
 
+    // Resolve real company name from email domain (portals like CyberJob.az post for other companies)
+    const FREE_EMAILS = ['gmail.com','yahoo.com','hotmail.com','outlook.com','live.com','aol.com','icloud.com','protonmail.com','proton.me','yandex.com','zoho.com','mail.com','zohomail.com','zohomail.in'];
+    const emailDomain = listing.applyEmail.split('@')[1]?.toLowerCase() || '';
+    const companyFromDomain = emailDomain && !FREE_EMAILS.includes(emailDomain)
+      ? emailDomain.split('.')[0].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      : '';
+    // Use domain-derived name if it differs significantly from listing companyName (portal detection)
+    const listedNameLower = listing.companyName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const domainNameLower = companyFromDomain.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const realCompanyName = (companyFromDomain && domainNameLower && !listedNameLower.includes(domainNameLower) && !domainNameLower.includes(listedNameLower))
+      ? companyFromDomain
+      : listing.companyName;
+
     // Generate cover letter + subject at queue time
     let coverLetter = '';
     let subject = '';
@@ -804,7 +817,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
         generateCoverLetter({
           jobTitle: listing.title,
           jobDescription: listing.description.slice(0, 800),
-          companyName: listing.companyName,
+          companyName: realCompanyName,
           userProfile,
         }),
         generateSubjectLine({ jobTitle: listing.title, userName: loop.user.name || 'Applicant' }),
@@ -821,7 +834,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           loopId: loop.id,
           jobId: listing.type === 'job' ? listing.id : null,
           opportunityId: listing.type === 'opportunity' ? listing.id : null,
-          companyName: listing.companyName,
+          companyName: realCompanyName,
           jobTitle: listing.title,
           appliedToEmail: listing.applyEmail,
           matchScore,
