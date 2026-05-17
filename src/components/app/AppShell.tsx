@@ -122,6 +122,63 @@ function SearchBar() {
   );
 }
 
+function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<Array<{ id: string; type: string; title: string; subtitle: string; time: string }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [count, setCount] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  async function loadNotifications() {
+    if (items.length > 0) { setOpen(!open); return; }
+    setOpen(true);
+    setLoading(true);
+    try {
+      const res = await fetch('/api/user/notifications');
+      if (res.ok) {
+        const data = await res.json();
+        setItems(data.items || []);
+        setCount(data.unread || 0);
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  }
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button className="icon-btn" title="Notifications" onClick={loadNotifications} style={{ background: 'none', border: 'none', cursor: 'pointer', position: 'relative' }}>
+        <SvgIcon name="bell" size={16} />
+        {count > 0 && <span className="dot"></span>}
+      </button>
+      {open && (
+        <div style={{ position: 'absolute', top: '100%', right: 0, width: '360px', background: 'var(--bg-1)', border: '1px solid var(--line-2)', borderRadius: '12px', boxShadow: '0 12px 32px rgba(0,0,0,0.15)', zIndex: 100, maxHeight: '400px', overflow: 'auto' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 600, fontSize: '14px' }}>Notifications</span>
+            <a href="/dashboard/inbox" style={{ fontSize: '12px', color: 'var(--acid-deep)' }}>View all →</a>
+          </div>
+          {loading && <div style={{ padding: '20px 16px', fontSize: '13px', color: 'var(--ink-4)', textAlign: 'center' }}>Loading...</div>}
+          {!loading && items.length === 0 && <div style={{ padding: '20px 16px', fontSize: '13px', color: 'var(--ink-4)', textAlign: 'center' }}>No notifications yet</div>}
+          {items.map(item => (
+            <div key={item.id} style={{ padding: '10px 16px', borderBottom: '1px solid var(--line)', fontSize: '13px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontWeight: 500 }}>{item.title}</span>
+                <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', color: 'var(--ink-4)' }}>{item.time}</span>
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--ink-3)', marginTop: '2px' }}>{item.subtitle}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AppShell({ children, userName, userPlan }: { children: React.ReactNode; userName?: string; userPlan?: string }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -212,10 +269,7 @@ export function AppShell({ children, userName, userPlan }: { children: React.Rea
           </div>
           <SearchBar />
           <div className="topbar-actions">
-            <a href="/dashboard/inbox" className="icon-btn" title="Notifications">
-              <SvgIcon name="bell" size={16} />
-              <span className="dot"></span>
-            </a>
+            <NotificationBell />
             <a href="/dashboard/discovery" className="btn btn-acid btn-sm">
               <SvgIcon name="plus" size={14} />
               Apply
