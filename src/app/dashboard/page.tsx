@@ -24,7 +24,7 @@ export default async function DashboardOverviewPage() {
   const monthAgo = new Date(now.getTime() - 30 * 86400000);
 
   const [user, thisWeek, lastWeek, month, applications, replies, followUps, dailyActivity, loop] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true } }),
     prisma.autoApplication.groupBy({
       by: ['status'],
       where: { userId, sentAt: { gte: weekAgo } },
@@ -186,7 +186,12 @@ export default async function DashboardOverviewPage() {
           <h3>Applications</h3>
           <span className="meta">{mSent} sent · {mReplied} replied · last 30 days</span>
         </div>
-        <ApplicationsTable rows={appRows} />
+        <ApplicationsTable
+          rows={appRows}
+          sentToday={loop?.sentToday || 0}
+          dailyLimit={loop?.dailyLimit || 10}
+          isPro={user?.plan === 'PRO'}
+        />
       </div>
 
       {/* Activity + Funnel side by side */}

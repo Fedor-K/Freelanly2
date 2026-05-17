@@ -62,7 +62,8 @@ function timeAgo(iso: string) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-export function ApplicationsTable({ rows }: { rows: AppRow[] }) {
+export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 10, isPro = false }: { rows: AppRow[]; sentToday?: number; dailyLimit?: number; isPro?: boolean }) {
+  const limitReached = !isPro && sentToday >= dailyLimit;
   const [filter, setFilter] = useState<string[]>(DEFAULT_FILTER);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AppDetail>(null);
@@ -187,6 +188,11 @@ export function ApplicationsTable({ rows }: { rows: AppRow[] }) {
                     <td className="date">{formatDate(app.date)}</td>
                     <td>
                       <span className={`status-chip ${st.cls}`}>{st.label}</span>
+                      {['PENDING', 'REVIEW', 'SENDING'].includes(app.status) && (
+                        <div style={{ fontSize: '10.5px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", marginTop: '2px' }}>
+                          {limitReached ? 'tomorrow' : '~10 min'}
+                        </div>
+                      )}
                     </td>
                     <td className="subject">{app.subject || ''}</td>
                   </tr>
@@ -288,6 +294,54 @@ export function ApplicationsTable({ rows }: { rows: AppRow[] }) {
           </tbody>
         </table>
       </div>
+
+      {/* Daily limit banner */}
+      {limitReached && (
+        <div style={{
+          margin: '0 16px 16px',
+          padding: '16px 20px',
+          background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
+          borderRadius: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+        }}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '14px', color: '#92400E' }}>
+              Daily limit reached ({sentToday}/{dailyLimit})
+            </div>
+            <div style={{ fontSize: '13px', color: '#A16207', marginTop: '2px' }}>
+              More matches found — upgrade to send unlimited applications today
+            </div>
+          </div>
+          <a href="/pricing" style={{
+            padding: '8px 16px',
+            background: '#000',
+            color: '#fff',
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: 500,
+            textDecoration: 'none',
+            whiteSpace: 'nowrap',
+          }}>
+            Upgrade to Pro
+          </a>
+        </div>
+      )}
+
+      {/* Progress bar for daily limit */}
+      {!isPro && !limitReached && sentToday > 0 && (
+        <div style={{ margin: '0 16px 16px', padding: '12px 16px', background: 'var(--bg-2)', borderRadius: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontFamily: "'Geist Mono', monospace", color: 'var(--ink-3)', marginBottom: '6px' }}>
+            <span>{sentToday}/{dailyLimit} sent today</span>
+            <span>{dailyLimit - sentToday} remaining</span>
+          </div>
+          <div style={{ height: '4px', background: 'var(--line)', borderRadius: '2px', overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${(sentToday / dailyLimit) * 100}%`, background: sentToday / dailyLimit > 0.8 ? '#F59E0B' : 'var(--acid)', borderRadius: '2px', transition: 'width 300ms' }}></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
