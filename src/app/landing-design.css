@@ -216,6 +216,38 @@
 @media (max-width: 980px) {
   .stat-float { right: 12px; }
 }
+@media (max-width: 640px) {
+  .hero { padding: 100px 0 56px; }
+  .hero h1 { font-size: clamp(32px, 8vw, 48px); }
+  .hero-sub { font-size: 16px; max-width: 100%; }
+  .hero-cta { flex-direction: column; align-items: stretch; }
+  .hero-cta .btn { text-align: center; justify-content: center; }
+  .hero-meta { gap: 12px; }
+  .product-frame { margin: 0 -8px; }
+  .feed-item { grid-template-columns: 32px 1fr auto; gap: 8px; padding: 10px 10px; }
+  .feed-logo { width: 32px; height: 32px; font-size: 12px; }
+  .feed-title { font-size: 12.5px; max-width: calc(100vw - 180px); }
+  .feed-meta { font-size: 10.5px; }
+  .feed-status { font-size: 10px; padding: 3px 6px; white-space: nowrap; }
+  .stat-float { right: 8px; bottom: -20px; padding: 12px 14px; gap: 12px; }
+  .stat-float .stat-float-num { font-size: 24px; }
+  .stat-float .stat-float-label { font-size: 10px; }
+  .section-head { margin-bottom: 36px; }
+  .section-head h2 { font-size: clamp(28px, 7vw, 36px); }
+  .section-head p { font-size: 15px; }
+  .how-step { padding: 24px 20px; }
+  .how-step h3 { font-size: 18px; }
+  .feat { padding: 22px; }
+  .feat h3 { font-size: 18px; }
+  .feat-big, .feat-mid, .feat-small { min-height: auto; }
+  .testi blockquote { font-size: 15px; }
+  .final-cta { padding: 72px 0; }
+  .final-cta h2 { font-size: clamp(32px, 8vw, 48px); }
+  .final-cta p { font-size: 16px; }
+  .final-cta .hero-cta { flex-direction: column; align-items: stretch; }
+  .split-head { flex-direction: column; align-items: start; gap: 16px; }
+  .marquee-item { font-size: 18px; }
+}
 
 /* ============ MARQUEE ============ */
 .marquee {
