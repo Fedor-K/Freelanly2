@@ -1,6 +1,28 @@
 'use client';
 
-import { useState, Fragment } from 'react';
+import { useState, useEffect, Fragment } from 'react';
+
+function SendCountdown() {
+  const [text, setText] = useState('');
+  useEffect(() => {
+    function calc() {
+      const now = new Date();
+      const min = now.getMinutes();
+      const sec = now.getSeconds();
+      // Worker runs at :00, :10, :20, :30, :40, :50 — sending phase starts ~2 min after
+      const nextCycle = 10 - (min % 10);
+      const totalSec = nextCycle * 60 - sec + 120; // +2 min for matching phase
+      if (totalSec <= 0) { setText('sending now...'); return; }
+      const m = Math.floor(totalSec / 60);
+      const s = totalSec % 60;
+      setText(`sending in ${m}:${s.toString().padStart(2, '0')}`);
+    }
+    calc();
+    const interval = setInterval(calc, 1000);
+    return () => clearInterval(interval);
+  }, []);
+  return <>{text}</>;
+}
 
 type AppRow = {
   id: string;
@@ -190,7 +212,7 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 10, isPro 
                       <span className={`status-chip ${st.cls}`}>{st.label}</span>
                       {['PENDING', 'REVIEW', 'SENDING'].includes(app.status) && (
                         <div style={{ fontSize: '10.5px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", marginTop: '2px' }}>
-                          {limitReached ? 'tomorrow' : '~10 min'}
+                          {limitReached ? 'tomorrow' : <SendCountdown />}
                         </div>
                       )}
                     </td>
