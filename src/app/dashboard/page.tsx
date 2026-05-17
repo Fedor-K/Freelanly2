@@ -42,9 +42,9 @@ export default async function DashboardOverviewPage() {
       where: { userId, createdAt: { gte: monthAgo } },
       _count: true,
     }),
-    // All recent applications (last 30 days) — the main table
+    // All recent applications (last 30 days) — the main table (only sent+, not queued)
     prisma.autoApplication.findMany({
-      where: { userId, createdAt: { gte: monthAgo } },
+      where: { userId, createdAt: { gte: monthAgo }, status: { in: ['SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'] } },
       orderBy: { createdAt: 'desc' },
       take: 100,
       select: {

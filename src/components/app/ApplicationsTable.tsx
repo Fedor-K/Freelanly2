@@ -62,15 +62,13 @@ const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   FAILED: { label: 'Failed', cls: 'failed' },
 };
 
-const DEFAULT_FILTER = ['PENDING', 'REVIEW', 'SENDING', 'SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'];
+const DEFAULT_FILTER = ['SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'];
 
 const FILTERS = [
   { label: 'All', value: DEFAULT_FILTER },
   { label: 'Sent', value: ['SENT', 'DELIVERED'] },
   { label: 'Opened', value: ['OPENED'] },
   { label: 'Replied', value: ['REPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'] },
-  { label: 'Queued', value: ['PENDING', 'REVIEW', 'SENDING'] },
-  { label: 'Failed', value: ['FAILED'] },
 ];
 
 function formatDate(iso: string) {
