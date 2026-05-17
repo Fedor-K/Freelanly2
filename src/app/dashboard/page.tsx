@@ -19,20 +19,22 @@ export default async function DashboardOverviewPage() {
 
   const userId = session.user.id;
   const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayStart = new Date(todayStart.getTime() - 86400000);
   const weekAgo = new Date(now.getTime() - 7 * 86400000);
   const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
   const monthAgo = new Date(now.getTime() - 30 * 86400000);
 
-  const [user, thisWeek, lastWeek, month, applications, replies, followUps, dailyActivity, loop] = await Promise.all([
+  const [user, today, yesterday, month, applications, replies, followUps, dailyActivity, loop] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true } }),
     prisma.autoApplication.groupBy({
       by: ['status'],
-      where: { userId, sentAt: { gte: weekAgo } },
+      where: { userId, sentAt: { gte: todayStart } },
       _count: true,
     }),
     prisma.autoApplication.groupBy({
       by: ['status'],
-      where: { userId, sentAt: { gte: twoWeeksAgo, lt: weekAgo } },
+      where: { userId, sentAt: { gte: yesterdayStart, lt: todayStart } },
       _count: true,
     }),
     prisma.autoApplication.groupBy({
@@ -76,20 +78,15 @@ export default async function DashboardOverviewPage() {
   const countByStatus = (groups: Array<{ status: string; _count: number }>, ...statuses: string[]) =>
     groups.filter(g => statuses.includes(g.status)).reduce((sum, g) => sum + g._count, 0);
 
-  const sentThisWeek = countByStatus(thisWeek, 'SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
-  const sentLastWeek = countByStatus(lastWeek, 'SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
-  const repliesThisWeek = countByStatus(thisWeek, 'REPLIED', 'INTERVIEW', 'OFFER');
-  const openedThisWeek = countByStatus(thisWeek, 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
-  const openedLastWeek = countByStatus(lastWeek, 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
+  const sentToday = countByStatus(today, 'SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
+  const sentYesterday = countByStatus(yesterday, 'SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
+  const repliesToday = countByStatus(today, 'REPLIED', 'INTERVIEW', 'OFFER');
+  const openedToday = countByStatus(today, 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
 
-  const replyRate = sentThisWeek > 0 ? (repliesThisWeek / sentThisWeek * 100).toFixed(1) : '0';
-  const openRate = sentThisWeek > 0 ? (openedThisWeek / sentThisWeek * 100).toFixed(1) : '0';
-  const lastReplyRate = sentLastWeek > 0 ? (countByStatus(lastWeek, 'REPLIED', 'INTERVIEW', 'OFFER') / sentLastWeek * 100) : 0;
-  const lastOpenRate = sentLastWeek > 0 ? (countByStatus(lastWeek, 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER') / sentLastWeek * 100) : 0;
+  const replyRate = sentToday > 0 ? (repliesToday / sentToday * 100).toFixed(1) : '0';
+  const openRate = sentToday > 0 ? (openedToday / sentToday * 100).toFixed(1) : '0';
 
-  const sentDelta = sentLastWeek > 0 ? Math.round((sentThisWeek - sentLastWeek) / sentLastWeek * 100) : 0;
-  const replyDelta = sentLastWeek > 0 ? (repliesThisWeek / sentThisWeek * 100 - lastReplyRate).toFixed(1) : '0';
-  const openDelta = sentLastWeek > 0 ? (openedThisWeek / sentThisWeek * 100 - lastOpenRate).toFixed(1) : '0';
+  const sentDelta = sentYesterday > 0 ? Math.round((sentToday - sentYesterday) / sentYesterday * 100) : 0;
 
   // 30-day funnel
   const mSent = countByStatus(month, 'SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
@@ -159,24 +156,24 @@ export default async function DashboardOverviewPage() {
       {/* KPIs */}
       <div className="kpi-grid mb-4">
         <div className="kpi">
-          <div className="kpi-label">Sent this week</div>
-          <div className="kpi-value tabular">{sentThisWeek}</div>
-          <div className={`kpi-delta ${sentDelta >= 0 ? 'up' : 'down'}`}>{sentDelta >= 0 ? '↑' : '↓'} {Math.abs(sentDelta)}% vs last week</div>
+          <div className="kpi-label">Sent today</div>
+          <div className="kpi-value tabular">{sentToday}</div>
+          <div className={`kpi-delta ${sentDelta >= 0 ? 'up' : 'down'}`}>{sentYesterday > 0 ? `${sentDelta >= 0 ? '↑' : '↓'} ${Math.abs(sentDelta)}% vs yesterday` : `${sentYesterday} yesterday`}</div>
         </div>
         <div className="kpi">
-          <div className="kpi-label">Replies</div>
-          <div className="kpi-value tabular">{repliesThisWeek} <span className="unit">/ {replyRate}%</span></div>
-          <div className={`kpi-delta ${Number(replyDelta) >= 0 ? 'up' : 'down'}`}>{Number(replyDelta) >= 0 ? '↑' : '↓'} {Math.abs(Number(replyDelta))}pp</div>
+          <div className="kpi-label">Replies today</div>
+          <div className="kpi-value tabular">{repliesToday} <span className="unit">/ {replyRate}%</span></div>
+          <div className="kpi-delta">{mReplied} total this month</div>
         </div>
         <div className="kpi">
-          <div className="kpi-label">Opened</div>
-          <div className="kpi-value tabular">{openedThisWeek} <span className="unit">/ {openRate}%</span></div>
-          <div className={`kpi-delta ${Number(openDelta) >= 0 ? 'up' : 'down'}`}>{Number(openDelta) >= 0 ? '↑' : '↓'} {Math.abs(Number(openDelta))}pp</div>
+          <div className="kpi-label">Opened today</div>
+          <div className="kpi-value tabular">{openedToday} <span className="unit">/ {openRate}%</span></div>
+          <div className="kpi-delta">{mOpened} total this month</div>
         </div>
         <div className="kpi">
-          <div className="kpi-label">Follow-ups</div>
-          <div className="kpi-value tabular">{followUps}</div>
-          <div className="kpi-delta up">this week</div>
+          <div className="kpi-label">Daily limit</div>
+          <div className="kpi-value tabular">{loop?.sentToday || 0} <span className="unit">/ {loop?.dailyLimit || 10}</span></div>
+          <div className="kpi-delta up">{(loop?.dailyLimit || 10) - (loop?.sentToday || 0)} remaining</div>
         </div>
       </div>
 
