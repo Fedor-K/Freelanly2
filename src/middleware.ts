@@ -32,8 +32,8 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(newUrl, 301);
   }
 
-  // 3. All /jobs/*, /freelance/*, /company/*, /country/* → signup
-  if (pathname.startsWith('/jobs') || pathname.startsWith('/freelance') || pathname.startsWith('/company') || pathname.startsWith('/companies') || pathname.startsWith('/country')) {
+  // 3. All /jobs/*, /company/*, /country/* → signup (but NOT /freelance/* — public project pages)
+  if (pathname.startsWith('/jobs') || pathname.startsWith('/company') || pathname.startsWith('/companies') || pathname.startsWith('/country')) {
     const category = pathname.match(/^\/jobs\/([^\/]+)/)?.[1];
     const country = pathname.match(/^\/country\/([^\/]+)/)?.[1];
     let dest = '/auth/signin?ref=jobs';
@@ -41,8 +41,6 @@ export function middleware(req: NextRequest) {
       dest = `/auth/signin?ref=jobs&category=${category}`;
     } else if (country) {
       dest = `/auth/signin?ref=country&country=${country}`;
-    } else if (pathname.startsWith('/freelance')) {
-      dest = '/auth/signin?ref=freelance';
     }
     return NextResponse.redirect(new URL(dest, req.url), 301);
   }
