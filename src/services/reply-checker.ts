@@ -2,6 +2,7 @@ import * as tls from 'tls';
 import { prisma } from '@/lib/db';
 import { AutoApplyStatus } from '@prisma/client';
 import OpenAI from 'openai';
+import { sendEmail } from '@/lib/email';
 
 function getAIClient() {
   const p = process.env.AI_PROVIDER?.toLowerCase();
@@ -326,10 +327,11 @@ async function searchForReplies(
  * Returns number of newly detected replies.
  */
 export async function checkRepliesForUser(userId: string): Promise<number> {
-  // Get user's SMTP config
-  const smtp = await prisma.userSmtp.findUnique({
-    where: { userId },
-  });
+  // Get user's SMTP config + user info for notifications
+  const [smtp, user] = await Promise.all([
+    prisma.userSmtp.findUnique({ where: { userId } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true, notifyOnReply: true } }),
+  ]);
 
   if (!smtp || !smtp.verified) return 0;
 
@@ -379,6 +381,38 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
         }).catch(() => {});
         console.log(`[ReplyChecker] ${result.applicationId} → ${category}: ${replyText.slice(0, 80)}`);
       }
+    }
+
+    // Send email notification for new replies
+    if (repliedCount > 0 && user?.email && user.notifyOnReply !== false) {
+      const apps = await prisma.autoApplication.findMany({
+        where: { userId, repliedAt: { gte: new Date(Date.now() - 60000) } },
+        select: { companyName: true, jobTitle: true, replyCategory: true, replyText: true },
+        take: 5,
+      });
+      const firstName = user.name?.split(' ')[0] || 'there';
+      const replyList = apps.map(a => {
+        const preview = a.replyText ? a.replyText.replace(/<[^>]+>/g, '').slice(0, 100) : '';
+        const emoji = a.replyCategory === 'INTERVIEW' ? '🟢' : a.replyCategory === 'REJECTED' ? '🔴' : '💬';
+        return `<tr><td style="padding:12px 16px;border-bottom:1px solid #E8E5DC"><strong>${emoji} ${a.companyName}</strong><br><span style="color:#666;font-size:13px">${a.jobTitle}</span><br><span style="color:#888;font-size:13px">${preview}${preview.length >= 100 ? '...' : ''}</span></td></tr>`;
+      }).join('');
+
+      await sendEmail({
+        to: user.email,
+        subject: repliedCount === 1
+          ? `${apps[0]?.companyName || 'A recruiter'} replied to your application!`
+          : `${repliedCount} new replies to your applications!`,
+        html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px">
+          <h2 style="margin:0 0 8px">Hey ${firstName}, you got ${repliedCount === 1 ? 'a reply' : `${repliedCount} replies`}! 🎉</h2>
+          <p style="color:#555;margin:0 0 20px;line-height:1.6">Recruiters responded to your applications. View and reply to keep the conversation going.</p>
+          <table style="width:100%;border:1px solid #E8E5DC;border-radius:10px;border-collapse:collapse">${replyList}</table>
+          <div style="margin-top:24px;text-align:center">
+            <a href="https://freelanly.com/dashboard" style="display:inline-block;padding:14px 32px;background:#C7F94A;color:#000;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px">View & Reply →</a>
+          </div>
+          <p style="margin-top:24px;font-size:12px;color:#999;text-align:center">You're receiving this because you have auto-apply running on Freelanly.</p>
+        </div>`,
+        text: `Hey ${firstName}, you got ${repliedCount} new ${repliedCount === 1 ? 'reply' : 'replies'}! View and reply: https://freelanly.com/dashboard`,
+      }).catch(e => console.error(`[ReplyChecker] Failed to send notification to ${user.email}:`, e));
     }
 
     return repliedCount;
