@@ -21,6 +21,9 @@ export function StartFreeButton({ className, children, callbackUrl }: StartFreeB
         open={open}
         onClose={() => setOpen(false)}
         callbackUrl={callbackUrl || '/dashboard'}
+        hideGoogle
+        title="Start free — takes 60 seconds"
+        subtitle="Enter your email and we'll start finding gigs for you"
       />
     </>
   );
