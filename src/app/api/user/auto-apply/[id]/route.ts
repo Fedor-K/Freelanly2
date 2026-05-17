@@ -8,7 +8,7 @@ import { buildApplicationEmailHtml } from '@/services/auto-apply-processor';
 
 function cleanReplyText(text: string | null): string | null {
   if (!text) return null;
-  return text
+  let clean = text
     .replace(/--[0-9a-fA-F]{20,}\s*/g, '')
     .replace(/--[a-zA-Z0-9_=.-]{10,}--?\s*/g, '')
     .replace(/------=[_a-zA-Z0-9.]+\s*/g, '')
@@ -20,6 +20,14 @@ function cleanReplyText(text: string | null): string | null {
     .replace(/\[cid:[^\]]*\]/g, '')
     .replace(/\r?\n{3,}/g, '\n\n')
     .trim();
+  // Trim quoted original message ("On ... wrote:" or "From: ... Sent:")
+  const quoteIdx = clean.search(/\n\s*On .{10,80} wrote:\s*$/m);
+  if (quoteIdx > 20) clean = clean.slice(0, quoteIdx).trim();
+  const fromIdx = clean.search(/\n\s*From: .{5,80}\n\s*Sent:/m);
+  if (fromIdx > 20) clean = clean.slice(0, fromIdx).trim();
+  const sentFromIdx = clean.search(/\n\s*Sent from (my iPhone|my iPad|Mail for Windows|Samsung|Proton Mail|Yahoo Mail)/im);
+  if (sentFromIdx > 20) clean = clean.slice(0, sentFromIdx).trim();
+  return clean;
 }
 
 /**
