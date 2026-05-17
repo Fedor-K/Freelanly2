@@ -665,7 +665,18 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
       select: { id: true },
     });
 
-    if (existing) continue; // Deduplication: already applied
+    if (existing) continue; // Deduplication: already applied to this exact listing
+
+    // Deduplication: skip if already applied to same recruiter email for similar job title
+    const alreadySentToRecruiter = await prisma.autoApplication.findFirst({
+      where: {
+        userId: loop.userId,
+        appliedToEmail: listing.applyEmail,
+        jobTitle: { equals: listing.title, mode: 'insensitive' },
+      },
+      select: { id: true },
+    });
+    if (alreadySentToRecruiter) continue;
 
     // Match job titles — flexible: match if any significant word from loop title appears in listing title
     const titleMatch = loop.jobTitles.some((t) => {
