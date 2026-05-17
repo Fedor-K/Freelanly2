@@ -387,10 +387,14 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
     if (repliedCount > 0 && user?.email && user.notifyOnReply !== false) {
       const apps = await prisma.autoApplication.findMany({
         where: { userId, repliedAt: { gte: new Date(Date.now() - 60000) } },
-        select: { companyName: true, jobTitle: true, replyCategory: true, replyText: true },
+        select: { id: true, companyName: true, jobTitle: true, replyCategory: true, replyText: true },
         take: 5,
       });
       const firstName = user.name?.split(' ')[0] || 'there';
+      const trackBase = `https://freelanly.com/api/track`;
+      const dashUrl = `${trackBase}/click?uid=${userId}&type=reply_notification&url=${encodeURIComponent('https://freelanly.com/dashboard')}`;
+      const openPixel = `<img src="${trackBase}/open?uid=${userId}&aid=reply_notify_${Date.now()}" width="1" height="1" style="display:none" alt="" />`;
+
       const replyList = apps.map(a => {
         const preview = a.replyText ? a.replyText.replace(/<[^>]+>/g, '').slice(0, 100) : '';
         const emoji = a.replyCategory === 'INTERVIEW' ? '🟢' : a.replyCategory === 'REJECTED' ? '🔴' : '💬';
@@ -407,9 +411,10 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
           <p style="color:#555;margin:0 0 20px;line-height:1.6">Recruiters responded to your applications. View and reply to keep the conversation going.</p>
           <table style="width:100%;border:1px solid #E8E5DC;border-radius:10px;border-collapse:collapse">${replyList}</table>
           <div style="margin-top:24px;text-align:center">
-            <a href="https://freelanly.com/dashboard" style="display:inline-block;padding:14px 32px;background:#C7F94A;color:#000;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px">View & Reply →</a>
+            <a href="${dashUrl}" style="display:inline-block;padding:14px 32px;background:#C7F94A;color:#000;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px">View & Reply →</a>
           </div>
           <p style="margin-top:24px;font-size:12px;color:#999;text-align:center">You're receiving this because you have auto-apply running on Freelanly.</p>
+          ${openPixel}
         </div>`,
         text: `Hey ${firstName}, you got ${repliedCount} new ${repliedCount === 1 ? 'reply' : 'replies'}! View and reply: https://freelanly.com/dashboard`,
       }).catch(e => console.error(`[ReplyChecker] Failed to send notification to ${user.email}:`, e));
