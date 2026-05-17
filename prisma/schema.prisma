@@ -1852,6 +1852,15 @@ enum ActivityAction {
   SETTINGS_UPDATED
   TEMPLATE_CREATED
   TEMPLATE_DELETED
+
+  // Engagement tracking
+  REPLY_VIEWED
+  REPLY_EXPANDED
+  RECRUITER_REPLIED
+  RESUME_UPDATED
+  LOOP_SETTINGS_CHANGED
+  ONBOARDING_STEP
+  FUNNEL_STEP
 }
 
 // ============================================

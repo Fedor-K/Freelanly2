@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, Fragment } from 'react';
+import { useTracker } from '@/hooks/useTracker';
 
 function SendCountdown() {
   const [text, setText] = useState('');
@@ -85,6 +86,7 @@ function timeAgo(iso: string) {
 }
 
 export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro = false }: { rows: AppRow[]; sentToday?: number; dailyLimit?: number; isPro?: boolean }) {
+  const { track } = useTracker();
   const limitReached = !isPro && sentToday >= dailyLimit;
   const [filter, setFilter] = useState<string[]>(DEFAULT_FILTER);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -110,10 +112,15 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
     setReplyText('');
     setSendResult(null);
     setLoadingDetail(true);
+    const row = rows.find(r => r.id === id);
+    track('REPLY_EXPANDED', { applicationId: id, status: row?.status, company: row?.companyName });
     try {
       const res = await fetch(`/api/user/auto-apply/${id}`);
       if (res.ok) {
         const data = await res.json();
+        if (data.replyText) {
+          track('REPLY_VIEWED', { applicationId: id, company: row?.companyName, replyCategory: data.replyCategory });
+        }
         setDetail({
           description: data.description || '',
           coverLetter: data.coverLetter || '',

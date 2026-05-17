@@ -364,6 +364,12 @@ export async function processAutoApplyQueue(): Promise<{
       }
 
       if (result.success) {
+        // Track first send for funnel
+        if (app.loop.sentToday === 0) {
+          prisma.activityLog.create({
+            data: { userId: app.user.id, action: 'FUNNEL_STEP', details: { step: 'first_send_today', applicationId: app.id, company: app.companyName } },
+          }).catch(() => {});
+        }
         const txOps = [
           prisma.autoApplication.update({
             where: { id: app.id },

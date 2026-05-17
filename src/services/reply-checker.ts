@@ -373,6 +373,10 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
           },
         });
         repliedCount++;
+        // Track engagement event
+        await prisma.activityLog.create({
+          data: { userId, action: 'RECRUITER_REPLIED', details: { applicationId: result.applicationId, category } },
+        }).catch(() => {});
         console.log(`[ReplyChecker] ${result.applicationId} → ${category}: ${replyText.slice(0, 80)}`);
       }
     }
