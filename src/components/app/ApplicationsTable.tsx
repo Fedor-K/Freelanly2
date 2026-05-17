@@ -214,7 +214,14 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
                     <td className="company">{app.companyName}</td>
                     <td className="date">{formatDate(app.date)}</td>
                     <td>
-                      <span className={`status-chip ${st.cls}`}>{st.label}</span>
+                      <span className={`status-chip ${st.cls}`}>{
+                        app.status === 'REPLIED' && app.replyCategory === 'INFO_REQUEST' ? 'Asks for info' :
+                        app.status === 'REPLIED' && app.replyCategory === 'INTERESTED' ? 'Interested' :
+                        app.status === 'REPLIED' ? 'Interested' :
+                        app.status === 'INTERVIEW' ? 'Wants interview' :
+                        app.status === 'REJECTED' ? 'Not a fit' :
+                        st.label
+                      }</span>
                       {['PENDING', 'REVIEW', 'SENDING'].includes(app.status) && (
                         <div style={{ fontSize: '10.5px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", marginTop: '2px' }}>
                           {limitReached ? 'tomorrow' : 'sending soon'}
