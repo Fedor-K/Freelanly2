@@ -515,11 +515,21 @@ export async function processInstantAlertQueue(): Promise<{
 
   console.log(`[InstantAlerts] Found ${newOpportunities.length} new opportunities since ${lastRun.toISOString()}`);
 
-  // Step 3: Load all active INSTANT alerts (once, for matching against all opportunities)
+  // Step 3: Find users with active auto-apply loops (skip them — they get auto-apply, not alerts)
+  const usersWithActiveLoops = await prisma.autoApplyLoop.findMany({
+    where: { isActive: true },
+    select: { userId: true },
+    distinct: ['userId'],
+  });
+  const loopUserIds = new Set(usersWithActiveLoops.map(l => l.userId));
+  console.log(`[InstantAlerts] Skipping ${loopUserIds.size} users with active auto-apply loops`);
+
+  // Load all active INSTANT alerts (once, for matching against all opportunities)
   const instantAlerts = await prisma.jobAlert.findMany({
     where: {
       isActive: true,
       frequency: 'INSTANT',
+      userId: { notIn: [...loopUserIds] },
       OR: [
         {
           user: {
