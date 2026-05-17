@@ -790,6 +790,29 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           ? AutoApplyStatus.REVIEW
           : AutoApplyStatus.PENDING;
 
+    // Generate cover letter + subject at queue time
+    let coverLetter = '';
+    let subject = '';
+    try {
+      const parsedProfile = loop.user.parsedProfile as Record<string, unknown> | null;
+      const userProfile = {
+        name: loop.user.name || 'Applicant',
+        skills: (parsedProfile?.skills as string[]) || [],
+        experience: (parsedProfile?.experience as string) || loop.user.resumeText?.slice(0, 300) || '',
+      };
+      [coverLetter, subject] = await Promise.all([
+        generateCoverLetter({
+          jobTitle: listing.title,
+          jobDescription: listing.description.slice(0, 800),
+          companyName: listing.companyName,
+          userProfile,
+        }),
+        generateSubjectLine({ jobTitle: listing.title, userName: loop.user.name || 'Applicant' }),
+      ]);
+    } catch (e) {
+      console.error(`[AutoApply] Failed to pre-generate cover letter for ${listing.title}:`, e);
+    }
+
     // Create PENDING AutoApplication
     try {
       await prisma.autoApplication.create({
@@ -803,8 +826,8 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           appliedToEmail: listing.applyEmail,
           matchScore,
           matchLabel,
-          coverLetter: '', // Will be generated during processing
-          subject: '', // Will be generated during processing
+          coverLetter,
+          subject,
           resumeUrl: loop.resumeUrl,
           status,
         },
