@@ -444,11 +444,8 @@ export async function checkAllReplies(): Promise<number> {
 
   let totalReplies = 0;
 
-  // Check 10 users per run (Hetzner worker has no timeout limit)
-  // Rotate by using current interval to offset — different users checked each run
-  const offset = Math.floor(Date.now() / (10 * 60 * 1000)) % Math.max(usersWithSentApps.length, 1);
-  const rotated = [...usersWithSentApps.slice(offset), ...usersWithSentApps.slice(0, offset)];
-  const usersToCheck = rotated.slice(0, 10);
+  // Check ALL users per run (Hetzner worker has no timeout limit)
+  const usersToCheck = usersWithSentApps;
   console.log(`[ReplyChecker] Checking ${usersToCheck.length} of ${usersWithSentApps.length} users`);
 
   for (const { userId } of usersToCheck) {
