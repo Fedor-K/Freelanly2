@@ -396,7 +396,7 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
       const openPixel = `<img src="${trackBase}/open?uid=${userId}&aid=reply_notify_${Date.now()}" width="1" height="1" style="display:none" alt="" />`;
 
       const replyList = apps.map(a => {
-        const preview = a.replyText ? a.replyText.replace(/<[^>]+>/g, '').slice(0, 100) : '';
+        const preview = a.replyText ? a.replyText.replace(/<[^>]+>/g, '').replace(/â€™/g, "'").replace(/â€œ/g, '"').replace(/â€/g, '"').replace(/â€"/g, '—').replace(/â€"/g, '–').replace(/Â/g, '').slice(0, 100) : '';
         const emoji = a.replyCategory === 'INTERVIEW' ? '🟢' : a.replyCategory === 'REJECTED' ? '🔴' : '💬';
         return `<tr><td style="padding:12px 16px;border-bottom:1px solid #E8E5DC"><strong>${emoji} ${a.companyName}</strong><br><span style="color:#666;font-size:13px">${a.jobTitle}</span><br><span style="color:#888;font-size:13px">${preview}${preview.length >= 100 ? '...' : ''}</span></td></tr>`;
       }).join('');
