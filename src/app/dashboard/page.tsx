@@ -70,9 +70,22 @@ export default async function DashboardOverviewPage() {
       where: { userId },
       select: { isActive: true, sentToday: true, dailyLimit: true },
     }),
-    prisma.autoApplication.count({
-      where: { userId, status: { in: ['PENDING', 'REVIEW', 'SENDING'] } },
-    }),
+    // Count queued apps excluding blocked recruiters (10+/day)
+    (async () => {
+      const pending = await prisma.autoApplication.findMany({
+        where: { userId, status: { in: ['PENDING', 'REVIEW', 'SENDING'] } },
+        select: { appliedToEmail: true },
+      });
+      if (pending.length === 0) return 0;
+      const blockedEmails = await prisma.$queryRaw<Array<{ appliedToEmail: string }>>`
+        SELECT "appliedToEmail" FROM "AutoApplication"
+        WHERE "sentAt" >= ${todayStart}
+        GROUP BY "appliedToEmail"
+        HAVING COUNT(*) >= 10
+      `;
+      const blockedSet = new Set(blockedEmails.map(r => r.appliedToEmail));
+      return pending.filter(p => !blockedSet.has(p.appliedToEmail)).length;
+    })(),
   ]);
 
   const countByStatus = (groups: Array<{ status: string; _count: number }>, ...statuses: string[]) =>
@@ -138,7 +151,7 @@ export default async function DashboardOverviewPage() {
           <h1>{greeting}, {firstName}.</h1>
           <p>
             {loop?.isActive ? (
-              <><span className="chip chip-acid-soft" style={{marginRight: '8px'}}><span className="chip-dot live"></span>Auto-apply running</span> {loop.sentToday}/{loop.dailyLimit} sent today{queuedCount > 0 && loop.sentToday < loop.dailyLimit && ` · sending more soon`}</>
+              <><span className="chip chip-acid-soft" style={{marginRight: '8px'}}><span className="chip-dot live"></span>Auto-apply running</span> {loop.sentToday}/{loop.dailyLimit} sent today{queuedCount > 0 && ` · ${queuedCount} matches sending soon`}</>
             ) : (
               <span className="chip" style={{marginRight: '8px'}}>Auto-apply paused</span>
             )}
