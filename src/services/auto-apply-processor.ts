@@ -23,7 +23,7 @@ export async function processAutoApplyQueue(): Promise<{
   let failed = 0;
   let skipped = 0;
 
-  const MAX_PER_RECIPIENT_PER_DAY = 5; // Anti-spam: max emails to same recruiter
+  const MAX_PER_RECIPIENT_PER_DAY = 10; // Anti-spam: max emails to same recruiter
   const MAX_PER_HOUR = 250; // Throttle: avoid IP reputation damage
   const DELAY_BETWEEN_SENDS_MS = 3000; // 3 sec between sends = ~20/min = ~1200/hr max
 
@@ -136,11 +136,20 @@ export async function processAutoApplyQueue(): Promise<{
     return { processed: 0, sent: 0, failed: 0, skipped: 0 };
   }
 
-  // Shuffle to spread across different users/recruiters (not all from same user first)
-  for (let i = pendingApps.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pendingApps[i], pendingApps[j]] = [pendingApps[j], pendingApps[i]];
+  // Sort: PRO users first, then shuffle within each tier
+  const proApps = pendingApps.filter(a => a.user.plan === 'PRO');
+  const freeApps = pendingApps.filter(a => a.user.plan !== 'PRO');
+  // Shuffle within each tier
+  for (const arr of [proApps, freeApps]) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
   }
+  const sortedApps = [...proApps, ...freeApps];
+  pendingApps.length = 0;
+  pendingApps.push(...sortedApps);
+  if (proApps.length > 0) console.log(`[AutoApply] Priority: ${proApps.length} PRO, ${freeApps.length} FREE`);
 
   console.log(`[AutoApply] Processing ${pendingApps.length} applications (hourly budget: ${hourlyBudget}, blocked recipients: ${blockedEmails.size})`);
 
