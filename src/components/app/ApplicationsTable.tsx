@@ -219,7 +219,7 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
                       <span className={`status-chip ${st.cls}`}>{st.label}</span>
                       {['PENDING', 'REVIEW', 'SENDING'].includes(app.status) && (
                         <div style={{ fontSize: '10.5px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", marginTop: '2px' }}>
-                          {limitReached ? 'tomorrow' : <SendCountdown />}
+                          {limitReached ? 'tomorrow' : 'sending soon'}
                         </div>
                       )}
                     </td>
