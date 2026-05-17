@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
-import { DashboardQueue } from '@/components/app/DashboardQueue';
+import { ApplicationsTable } from '@/components/app/ApplicationsTable';
 import './dashboard-design.css';
 
 export const metadata: Metadata = {
@@ -30,47 +30,44 @@ export default async function DashboardOverviewPage() {
   const weekAgo = new Date(now.getTime() - 7 * 86400000);
   const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
   const monthAgo = new Date(now.getTime() - 30 * 86400000);
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const [user, thisWeek, lastWeek, month, pending, replies, followUps, dailyActivity] = await Promise.all([
+  const [user, thisWeek, lastWeek, month, applications, replies, followUps, dailyActivity, loop] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
-    // This week stats
     prisma.autoApplication.groupBy({
       by: ['status'],
       where: { userId, sentAt: { gte: weekAgo } },
       _count: true,
     }),
-    // Last week stats (for delta)
     prisma.autoApplication.groupBy({
       by: ['status'],
       where: { userId, sentAt: { gte: twoWeeksAgo, lt: weekAgo } },
       _count: true,
     }),
-    // 30-day funnel
     prisma.autoApplication.groupBy({
       by: ['status'],
       where: { userId, createdAt: { gte: monthAgo } },
       _count: true,
     }),
-    // Pending queue (today)
+    // All recent applications (last 30 days) — the main table
     prisma.autoApplication.findMany({
-      where: { userId, status: { in: ['PENDING', 'REVIEW', 'SENDING'] } },
+      where: { userId, createdAt: { gte: monthAgo } },
       orderBy: { createdAt: 'desc' },
-      take: 6,
-      select: { id: true, companyName: true, jobTitle: true, matchScore: true, status: true, createdAt: true, coverLetter: true, subject: true },
+      take: 100,
+      select: {
+        id: true, companyName: true, jobTitle: true, status: true, subject: true,
+        sentAt: true, createdAt: true, followUpSentAt: true, followUpCount: true,
+        replyCategory: true, repliedAt: true, matchScore: true,
+      },
     }),
-    // Recent replies
     prisma.autoApplication.findMany({
-      where: { userId, status: 'REPLIED', repliedAt: { not: null } },
+      where: { userId, status: { in: ['REPLIED', 'INTERVIEW'] }, repliedAt: { not: null } },
       orderBy: { repliedAt: 'desc' },
       take: 5,
       select: { id: true, companyName: true, jobTitle: true, replyText: true, replyCategory: true, repliedAt: true, subject: true },
     }),
-    // Follow-ups this week
     prisma.autoApplication.count({
       where: { userId, followUpSentAt: { gte: weekAgo }, followUpCount: { gt: 0 } },
     }),
-    // Daily activity last 14 days
     prisma.$queryRaw<Array<{ day: Date; cnt: bigint }>>`
       SELECT DATE("sentAt") as day, COUNT(*) as cnt
       FROM "AutoApplication"
@@ -78,23 +75,25 @@ export default async function DashboardOverviewPage() {
       GROUP BY DATE("sentAt")
       ORDER BY day ASC
     `,
+    prisma.autoApplyLoop.findFirst({
+      where: { userId },
+      select: { isActive: true, sentToday: true, dailyLimit: true },
+    }),
   ]);
 
-  // Parse stats
   const countByStatus = (groups: Array<{ status: string; _count: number }>, ...statuses: string[]) =>
     groups.filter(g => statuses.includes(g.status)).reduce((sum, g) => sum + g._count, 0);
 
   const sentThisWeek = countByStatus(thisWeek, 'SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
   const sentLastWeek = countByStatus(lastWeek, 'SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
   const repliesThisWeek = countByStatus(thisWeek, 'REPLIED', 'INTERVIEW', 'OFFER');
-  const repliesLastWeek = countByStatus(lastWeek, 'REPLIED', 'INTERVIEW', 'OFFER');
   const openedThisWeek = countByStatus(thisWeek, 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
   const openedLastWeek = countByStatus(lastWeek, 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
 
   const replyRate = sentThisWeek > 0 ? (repliesThisWeek / sentThisWeek * 100).toFixed(1) : '0';
   const openRate = sentThisWeek > 0 ? (openedThisWeek / sentThisWeek * 100).toFixed(1) : '0';
-  const lastReplyRate = sentLastWeek > 0 ? (repliesLastWeek / sentLastWeek * 100) : 0;
-  const lastOpenRate = sentLastWeek > 0 ? (openedLastWeek / sentLastWeek * 100) : 0;
+  const lastReplyRate = sentLastWeek > 0 ? (countByStatus(lastWeek, 'REPLIED', 'INTERVIEW', 'OFFER') / sentLastWeek * 100) : 0;
+  const lastOpenRate = sentLastWeek > 0 ? (countByStatus(lastWeek, 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER') / sentLastWeek * 100) : 0;
 
   const sentDelta = sentLastWeek > 0 ? Math.round((sentThisWeek - sentLastWeek) / sentLastWeek * 100) : 0;
   const replyDelta = sentLastWeek > 0 ? (repliesThisWeek / sentThisWeek * 100 - lastReplyRate).toFixed(1) : '0';
@@ -107,7 +106,7 @@ export default async function DashboardOverviewPage() {
   const mInterview = countByStatus(month, 'INTERVIEW', 'OFFER');
   const mOffer = countByStatus(month, 'OFFER');
 
-  // Daily bars for sparkline
+  // Daily bars
   const dailyMap = new Map<string, number>();
   for (const row of dailyActivity) {
     dailyMap.set(new Date(row.day).toISOString().slice(0, 10), Number(row.cnt));
@@ -119,23 +118,27 @@ export default async function DashboardOverviewPage() {
   }
   const maxBar = Math.max(...activityBars, 1);
 
-  // Date labels for activity
   const dateLabel = (daysAgo: number) => {
     const d = new Date(now.getTime() - daysAgo * 86400000);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const pendingCount = await prisma.autoApplication.count({
-    where: { userId, status: { in: ['PENDING', 'REVIEW', 'SENDING'] } },
-  });
-  const sentToday = await prisma.autoApplication.count({
-    where: { userId, sentAt: { gte: todayStart }, status: { in: ['SENT', 'DELIVERED', 'OPENED', 'REPLIED'] } },
-  });
-
   const firstName = user?.name?.split(' ')[0] || 'there';
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
+
+  // Serialize applications for client component
+  const appRows = applications.map(a => ({
+    id: a.id,
+    jobTitle: a.jobTitle,
+    companyName: a.companyName,
+    status: a.status,
+    subject: a.subject,
+    date: (a.sentAt || a.createdAt).toISOString(),
+    followUp: a.followUpSentAt ? 'sent' : (a.sentAt && !a.followUpSentAt && ['SENT', 'DELIVERED', 'OPENED'].includes(a.status) ? `in ${3 - Math.min(3, Math.floor((now.getTime() - a.sentAt.getTime()) / 86400000))}d` : null),
+    replyCategory: a.replyCategory,
+    matchScore: a.matchScore,
+  }));
 
   return (
     <div className="page">
@@ -144,12 +147,19 @@ export default async function DashboardOverviewPage() {
       <div className="page-header">
         <div className="page-title">
           <h1>{greeting}, {firstName}.</h1>
-          <p>It&apos;s {dayName} — {pendingCount} applications queued. {replies.length > 0 ? `${replies.length} new repl${replies.length === 1 ? 'y' : 'ies'} waiting.` : 'No new replies yet.'}</p>
+          <p>
+            {loop?.isActive ? (
+              <><span className="chip chip-acid-soft" style={{marginRight: '8px'}}><span className="chip-dot live"></span>Auto-apply running</span> {loop.sentToday}/{loop.dailyLimit} sent today</>
+            ) : (
+              <span className="chip" style={{marginRight: '8px'}}>Auto-apply paused</span>
+            )}
+            {replies.length > 0 && <> · {replies.length} new {replies.length === 1 ? 'reply' : 'replies'}</>}
+          </p>
         </div>
         <div className="page-actions">
           <a href="/dashboard/discovery" className="btn btn-acid">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
-            Apply to new gigs
+            Browse gigs
           </a>
         </div>
       </div>
@@ -157,22 +167,22 @@ export default async function DashboardOverviewPage() {
       {/* KPIs */}
       <div className="kpi-grid mb-4">
         <div className="kpi">
-          <div className="kpi-label">Applications sent</div>
+          <div className="kpi-label">Sent this week</div>
           <div className="kpi-value tabular">{sentThisWeek}</div>
           <div className={`kpi-delta ${sentDelta >= 0 ? 'up' : 'down'}`}>{sentDelta >= 0 ? '↑' : '↓'} {Math.abs(sentDelta)}% vs last week</div>
         </div>
         <div className="kpi">
           <div className="kpi-label">Replies</div>
           <div className="kpi-value tabular">{repliesThisWeek} <span className="unit">/ {replyRate}%</span></div>
-          <div className={`kpi-delta ${Number(replyDelta) >= 0 ? 'up' : 'down'}`}>{Number(replyDelta) >= 0 ? '↑' : '↓'} {Math.abs(Number(replyDelta))}pp vs last week</div>
+          <div className={`kpi-delta ${Number(replyDelta) >= 0 ? 'up' : 'down'}`}>{Number(replyDelta) >= 0 ? '↑' : '↓'} {Math.abs(Number(replyDelta))}pp</div>
         </div>
         <div className="kpi">
           <div className="kpi-label">Opened</div>
           <div className="kpi-value tabular">{openedThisWeek} <span className="unit">/ {openRate}%</span></div>
-          <div className={`kpi-delta ${Number(openDelta) >= 0 ? 'up' : 'down'}`}>{Number(openDelta) >= 0 ? '↑' : '↓'} {Math.abs(Number(openDelta))}pp vs last week</div>
+          <div className={`kpi-delta ${Number(openDelta) >= 0 ? 'up' : 'down'}`}>{Number(openDelta) >= 0 ? '↑' : '↓'} {Math.abs(Number(openDelta))}pp</div>
         </div>
         <div className="kpi">
-          <div className="kpi-label">Follow-ups sent</div>
+          <div className="kpi-label">Follow-ups</div>
           <div className="kpi-value tabular">{followUps}</div>
           <div className="kpi-delta up">this week</div>
         </div>
@@ -183,29 +193,19 @@ export default async function DashboardOverviewPage() {
         {/* LEFT COL */}
         <div className="col gap-4">
 
-          {/* Today's queue */}
-          <DashboardQueue
-            items={pending.map(app => ({
-              id: app.id,
-              companyName: app.companyName,
-              jobTitle: app.jobTitle,
-              matchScore: app.matchScore,
-              status: app.status,
-              createdAt: app.createdAt.toISOString(),
-              coverLetter: app.coverLetter,
-              subject: app.subject,
-            }))}
-            pendingCount={pendingCount}
-            sentToday={sentToday}
-          />
+          {/* Applications table */}
+          <div className="card">
+            <div className="card-head">
+              <h3>Applications</h3>
+              <span className="meta">{mSent} sent · {mReplied} replied · last 30 days</span>
+            </div>
+            <ApplicationsTable rows={appRows} />
+          </div>
 
-          {/* Activity, last 14 days */}
+          {/* Activity chart */}
           <div className="card card-pad">
             <div className="section-head">
-              <div className="row gap-3">
-                <h2>Activity, last 14 days</h2>
-                <span className="chip"><span className="chip-dot" style={{background: 'var(--acid-deep)'}}></span>Applications</span>
-              </div>
+              <h2>Activity, last 14 days</h2>
             </div>
             <div className="spark-strip mt-3">
               {activityBars.map((v, i) => (
@@ -221,7 +221,7 @@ export default async function DashboardOverviewPage() {
           <div className="card card-pad">
             <div className="section-head">
               <h2>Funnel · last 30 days</h2>
-              <span className="muted f-mono" style={{fontSize: '11px'}}>{mSent > 0 ? `${(mOffer / mSent * 100).toFixed(1)}%` : '0%'} sent → offer</span>
+              <span className="muted f-mono" style={{fontSize: '11px'}}>{mSent > 0 ? `${(mReplied / mSent * 100).toFixed(1)}%` : '0%'} reply rate</span>
             </div>
             {[
               { label: 'Sent', count: mSent, pct: 100, bg: 'var(--ink)', textColor: '#fff', dotColor: 'var(--s-sent)' },
@@ -266,14 +266,14 @@ export default async function DashboardOverviewPage() {
             ))}
           </div>
 
-          {/* Stats summary */}
+          {/* Summary */}
           <div className="card card-pad" style={{background: 'linear-gradient(180deg, #FCFBEE, #FFFFFF)', borderColor: 'rgba(199,249,74,0.4)'}}>
             <div className="row gap-2 mb-2">
               <span className="chip chip-acid">★ SUMMARY</span>
-              <span className="eyebrow">All time</span>
+              <span className="eyebrow">Last 30 days</span>
             </div>
             <div style={{fontSize: '14.5px', lineHeight: 1.5, color: 'var(--ink)', letterSpacing: '-0.005em'}}>
-              You&apos;ve sent <b>{mSent}</b> applications in the last 30 days{mReplied > 0 ? <> and received <b style={{color: 'var(--acid-deep)'}}>{mReplied} replies</b> ({mSent > 0 ? (mReplied / mSent * 100).toFixed(1) : 0}% rate)</> : null}. {mInterview > 0 ? <><b>{mInterview}</b> led to interviews.</> : 'Keep going!'}
+              You&apos;ve sent <b>{mSent}</b> applications{mReplied > 0 ? <> and received <b style={{color: 'var(--acid-deep)'}}>{mReplied} replies</b> ({mSent > 0 ? (mReplied / mSent * 100).toFixed(1) : 0}% rate)</> : null}. {mInterview > 0 ? <><b>{mInterview}</b> led to interviews.</> : 'Keep going!'}
             </div>
           </div>
 
