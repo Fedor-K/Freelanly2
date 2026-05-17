@@ -103,9 +103,8 @@ const nextConfig: NextConfig = {
     redirects.push({ source: '/jobs/country/:country', destination: '/auth/signin?ref=country&country=:country', permanent: true });
     redirects.push({ source: '/jobs', destination: '/auth/signin?ref=jobs', permanent: true });
 
-    // /freelance → signup
+    // /freelance index → signup (but /freelance/:slug is a public project page — no redirect)
     redirects.push({ source: '/freelance', destination: '/auth/signin?ref=freelance', permanent: true });
-    redirects.push({ source: '/freelance/:slug', destination: '/auth/signin?ref=job', permanent: true });
 
     // /country → signup
     redirects.push({ source: '/country', destination: '/auth/signin?ref=jobs', permanent: true });
