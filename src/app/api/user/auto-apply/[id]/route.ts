@@ -6,6 +6,22 @@ import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { buildApplicationEmailHtml } from '@/services/auto-apply-processor';
 
+function cleanReplyText(text: string | null): string | null {
+  if (!text) return null;
+  return text
+    .replace(/--[0-9a-fA-F]{20,}\s*/g, '')
+    .replace(/--[a-zA-Z0-9_=.-]{10,}--?\s*/g, '')
+    .replace(/------=[_a-zA-Z0-9.]+\s*/g, '')
+    .replace(/boundary="[^"]*"\s*/g, '')
+    .replace(/Content-Type:[^\n]*\n/gi, '')
+    .replace(/Content-Transfer-Encoding:[^\n]*\n/gi, '')
+    .replace(/Content-Disposition:[^\n]*\n/gi, '')
+    .replace(/This is a multi-part message in MIME format\.\s*/gi, '')
+    .replace(/\[cid:[^\]]*\]/g, '')
+    .replace(/\r?\n{3,}/g, '\n\n')
+    .trim();
+}
+
 /**
  * GET /api/user/auto-apply/[id] — Full application detail
  */
@@ -88,6 +104,7 @@ export async function GET(
 
     return NextResponse.json({
       ...app,
+      replyText: cleanReplyText(app.replyText),
       description,
       originalUrl,
       similar: similar.map(s => ({ id: s.id, title: s.title, company: s.company?.name, salary: s.salaryText })),

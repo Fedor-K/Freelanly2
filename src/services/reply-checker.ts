@@ -104,10 +104,17 @@ function cleanMimeText(text: string): string {
   if (body.includes('<html') || body.includes('<div') || body.includes('<p')) {
     body = stripHtml(body);
   }
-  // Strip MIME boundaries and artifacts
-  body = body.replace(/^--[a-zA-Z0-9_=.-]+--?\s*$/gm, '');
-  body = body.replace(/Content-Type:.*\r?\n/gi, '');
-  body = body.replace(/Content-Transfer-Encoding:.*\r?\n/gi, '');
+  // Strip MIME boundaries and artifacts (aggressive)
+  body = body.replace(/--[0-9a-fA-F]{20,}\s*/g, '');
+  body = body.replace(/--[a-zA-Z0-9_=.-]{10,}--?\s*/g, '');
+  body = body.replace(/------=[_a-zA-Z0-9.]+\s*/g, '');
+  body = body.replace(/boundary="[^"]*"\s*/g, '');
+  body = body.replace(/Content-Type:[^\n]*\n/gi, '');
+  body = body.replace(/Content-Transfer-Encoding:[^\n]*\n/gi, '');
+  body = body.replace(/Content-Disposition:[^\n]*\n/gi, '');
+  body = body.replace(/charset="[^"]*"\s*/gi, '');
+  body = body.replace(/This is a multi-part message in MIME format\.\s*/gi, '');
+  body = body.replace(/\[cid:[^\]]*\]/g, '');
   body = body.replace(/\r?\n{3,}/g, '\n\n');
   return body.trim();
 }
