@@ -25,7 +25,7 @@ export default async function DashboardOverviewPage() {
   const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
   const monthAgo = new Date(now.getTime() - 30 * 86400000);
 
-  const [user, today, yesterday, month, applications, replies, followUps, dailyActivity, loop] = await Promise.all([
+  const [user, today, yesterday, month, applications, repliesTodayCount, followUps, dailyActivity, loop] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true } }),
     prisma.autoApplication.groupBy({
       by: ['status'],
@@ -53,11 +53,8 @@ export default async function DashboardOverviewPage() {
         replyCategory: true, repliedAt: true, matchScore: true,
       },
     }),
-    prisma.autoApplication.findMany({
-      where: { userId, status: { in: ['REPLIED', 'INTERVIEW'] }, repliedAt: { not: null } },
-      orderBy: { repliedAt: 'desc' },
-      take: 5,
-      select: { id: true, companyName: true, jobTitle: true, replyText: true, replyCategory: true, repliedAt: true, subject: true },
+    prisma.autoApplication.count({
+      where: { userId, status: { in: ['REPLIED', 'INTERVIEW'] }, repliedAt: { gte: todayStart } },
     }),
     prisma.autoApplication.count({
       where: { userId, followUpSentAt: { gte: weekAgo }, followUpCount: { gt: 0 } },
@@ -142,7 +139,7 @@ export default async function DashboardOverviewPage() {
             ) : (
               <span className="chip" style={{marginRight: '8px'}}>Auto-apply paused</span>
             )}
-            {replies.length > 0 && <> · {replies.length} new {replies.length === 1 ? 'reply' : 'replies'}</>}
+            {repliesTodayCount > 0 && <> · <a href="/dashboard/inbox" style={{color: 'var(--acid-deep)', fontWeight: 500}}>{repliesTodayCount} new {repliesTodayCount === 1 ? 'reply' : 'replies'} today</a></>}
           </p>
         </div>
         <div className="page-actions">
