@@ -127,7 +127,7 @@ export default async function DashboardOverviewPage() {
     status: a.status,
     subject: a.subject,
     date: (a.sentAt || a.createdAt).toISOString(),
-    followUp: a.followUpSentAt ? 'sent' : (a.sentAt && !a.followUpSentAt && ['SENT', 'DELIVERED', 'OPENED'].includes(a.status) ? `in ${3 - Math.min(3, Math.floor((now.getTime() - a.sentAt.getTime()) / 86400000))}d` : null),
+    followUp: a.followUpSentAt ? 'sent' : (a.sentAt && !a.followUpSentAt && ['SENT', 'DELIVERED', 'OPENED'].includes(a.status) ? (() => { const days = Math.floor((now.getTime() - a.sentAt!.getTime()) / 86400000); return days >= 3 ? 'overdue' : `in ${3 - days}d`; })() : null),
     replyCategory: a.replyCategory,
     matchScore: a.matchScore,
   }));

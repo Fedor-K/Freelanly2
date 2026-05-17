@@ -269,8 +269,8 @@ export function ApplicationsTable({ rows }: { rows: AppRow[] }) {
 
                                 {/* Follow-up timer for non-replied */}
                                 {!detail.replyText && app.followUp && app.followUp !== 'sent' && (
-                                  <div style={{ fontSize: '12px', color: 'var(--ink-4)', marginTop: '4px', fontFamily: "'Geist Mono', monospace" }}>
-                                    Follow-up {app.followUp}
+                                  <div style={{ fontSize: '12px', color: app.followUp === 'overdue' ? '#DC2626' : 'var(--ink-4)', marginTop: '4px', fontFamily: "'Geist Mono', monospace" }}>
+                                    {app.followUp === 'overdue' ? 'Follow-up overdue — will send on next cycle' : `Follow-up ${app.followUp}`}
                                   </div>
                                 )}
                               </div>
