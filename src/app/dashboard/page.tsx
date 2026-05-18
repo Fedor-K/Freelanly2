@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { ApplicationsTable } from '@/components/app/ApplicationsTable';
 import './dashboard-design.css';
+import './welcome-design.css';
 
 export const metadata: Metadata = {
   title: 'Dashboard — Freelanly',
@@ -237,43 +238,59 @@ export default async function DashboardOverviewPage() {
         </div>
       )}
 
-      {/* Welcome card for new users */}
+      {/* Welcome card — pixel-perfect from design */}
       {isNewUser && loop?.isActive && (
-        <div className="card mb-4" style={{overflow: 'hidden'}}>
-          <div style={{background: 'linear-gradient(135deg, #0A0B0F, #1a1d24)', padding: '32px 28px', color: '#fff', position: 'relative'}}>
-            <div style={{position: 'absolute', top: '16px', right: '20px', background: 'rgba(199,249,74,0.15)', padding: '4px 12px', borderRadius: '999px', fontSize: '11px', fontFamily: "'Geist Mono', monospace", color: '#C7F94A', letterSpacing: '0.04em'}}>
-              <span style={{width: '6px', height: '6px', borderRadius: '50%', background: '#C7F94A', display: 'inline-block', marginRight: '6px', boxShadow: '0 0 8px #C7F94A', animation: 'pulse 1.8s infinite'}}></span>
-              STARTING
+        <div className="welcome mb-4">
+          <header className="welcome-hero">
+            <div className="welcome-status">
+              <span className="welcome-pulse"></span>
+              <span>Starting &middot; setting up your loop</span>
             </div>
-            <h2 style={{fontSize: '22px', fontWeight: 600, letterSpacing: '-0.02em', margin: '0 0 8px'}}>Your auto-apply is starting!</h2>
-            <p style={{color: 'rgba(255,255,255,0.6)', fontSize: '14px', lineHeight: 1.5, margin: 0}}>
-              AI is scanning gigs and writing personalized applications. First sends within 30 minutes.
-            </p>
-          </div>
-          <div style={{padding: '24px 28px'}}>
-            <div style={{fontSize: '15px', color: 'var(--ink)', lineHeight: 1.6, marginBottom: '16px'}}>
-              {aiProfileSummary || `We'll apply to ${loopTitles.slice(0, 3).join(', ') || 'matching'} roles based on your resume and experience.`}
+            <h1>We&apos;re queueing your first wave of applications.</h1>
+            <p className="sub">Freelanly is scanning fresh postings against your profile and writing personal openers for the strongest matches. The first batch goes out within 30 minutes.</p>
+            <div className="welcome-ai">
+              <span className="ai-label">AI &middot; matched from your r&eacute;sum&eacute;</span>
+              {aiProfileSummary || `We'll apply to ${loopTitles.slice(0, 3).join(' and ') || 'matching'} roles based on your resume and experience.`}
             </div>
-            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', padding: '16px 0', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)'}}>
-              <div>
-                <div style={{fontSize: '24px', fontWeight: 600, color: 'var(--acid-deep)'}}>{matchingCount || '50+'}</div>
-                <div style={{fontSize: '12px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace"}}>matches found today</div>
-              </div>
-              <div>
-                <div style={{fontSize: '24px', fontWeight: 600}}>15</div>
-                <div style={{fontSize: '12px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace"}}>applications/day</div>
-              </div>
-              <div>
-                <div style={{fontSize: '24px', fontWeight: 600}}>~6%</div>
-                <div style={{fontSize: '12px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace"}}>avg reply rate</div>
-              </div>
+          </header>
+          <div className="welcome-stats">
+            <div className="welcome-stat">
+              <div className="label">Matches found today</div>
+              <div className="value">{matchingCount || '50+'}</div>
+              <div className="hint"><span className="live">scanning &middot; live</span></div>
             </div>
-            <div style={{marginTop: '16px', display: 'flex', gap: '12px', alignItems: 'center'}}>
-              <div style={{flex: 1, fontSize: '13px', color: 'var(--ink-3)', lineHeight: 1.5}}>
-                ⏳ First applications will be sent within 30 minutes. Most recruiters respond within 1–3 days.
-              </div>
+            <div className="welcome-stat">
+              <div className="label">Applications / day</div>
+              <div className="value">{loop?.dailyLimit || 15}</div>
+              <div className="hint">Free plan &middot; max for your tier</div>
+            </div>
+            <div className="welcome-stat">
+              <div className="label">Avg reply rate</div>
+              <div className="value">~6<span className="u">%</span></div>
+              <div className="hint">Last 30 days across platform</div>
             </div>
           </div>
+          <div className="welcome-foot">
+            <div className="note">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              <span><b>First applications within 30 minutes.</b> Most recruiters respond within 1&ndash;3 days. We&apos;ll route every reply to your inbox so nothing slips.</span>
+            </div>
+            {!user?.telegramChatId && (
+              <a className="btn-tg" href={`https://t.me/FLalarmbot?start=direct_${userId.slice(0, 12)}`} target="_blank" rel="noopener noreferrer">
+                <span className="tg-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.5 4.5 2.4 11.7c-1.3.5-1.3 1.2-.2 1.6L7 14.8l1.8 5.4c.2.6.1 1 .8 1 .5 0 .7-.2 1-.5l2.3-2.2 4.7 3.5c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.9-1.5-1.5z"/></svg></span>
+                Connect Telegram for replies
+                <span className="arrow">&rarr;</span>
+              </a>
+            )}
+          </div>
+          {loopTitles.length > 0 && (
+            <div className="welcome-loops">
+              <span className="label">Active loops</span>
+              {loopTitles.slice(0, 3).map((t: string) => (
+                <span key={t} className="loop-chip"><span className="ldot"></span>{t}</span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
