@@ -726,8 +726,8 @@ export function RegistrationForm({
               <div style={{padding: '12px', background: 'rgba(11,12,15,0.03)', borderRadius: '10px'}}>
                 <label className="field-label">Your Languages *</label>
                 <p style={{fontSize: '12px', color: '#5C6068', marginBottom: '8px'}}>Select languages you can translate (besides English)</p>
-                <div className="cat-grid">
-                  {languages.filter(l => l.code !== 'EN').slice(0, 12).map((lang) => (
+                <div className="cat-grid" style={{maxHeight: '240px', overflowY: 'auto'}}>
+                  {languages.filter(l => l.code !== 'EN').map((lang) => (
                     <div key={lang.code} className={`cat-chip${selectedLanguages.includes(lang.code) ? ' on' : ''}`} onClick={() => toggleLanguage(lang.code)}>
                       <span className="cb"></span>
                       {lang.name}
