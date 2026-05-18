@@ -59,16 +59,23 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     track('SIGNUP_START', { projectId: project.id, email });
     setLoading(true);
     try {
-      // Register + send code
-      await fetch('/api/auth/register', {
+      // Check if user exists
+      const checkRes = await fetch('/api/auth/check-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, categories: [project.category || 'engineering'], opportunityId: project.id }),
+        body: JSON.stringify({ email }),
       });
-      const { signIn } = await import('next-auth/react');
-      await signIn('resend', { email, callbackUrl: `/dashboard`, redirect: false });
-      setSent(true);
-      track('SIGNUP_COMPLETE', { projectId: project.id, source: 'project_page' });
+      const checkData = await checkRes.json();
+
+      if (checkData.exists) {
+        // Existing user — send code and show OTP input
+        const { signIn } = await import('next-auth/react');
+        await signIn('resend', { email, callbackUrl: '/dashboard', redirect: false });
+        setSent(true);
+      } else {
+        // New user — redirect to registration form
+        window.location.href = `/auth/signin?email=${encodeURIComponent(email)}&ref=project&projectId=${project.id}`;
+      }
     } catch { /* ignore */ }
     setLoading(false);
   }
