@@ -165,6 +165,27 @@ export default async function DashboardOverviewPage() {
     }
   }
 
+  // Fetch real matches for welcome card
+  const COLORS = ['#FF6B6B','#A8E024','#6EE7FF','#FFB951','#A78BFA','#34D399'];
+  let welcomeMatches: Array<{ company: string; role: string; meta: string; score: number; pass: boolean; logo: { ch: string; bg: string } }> = [];
+  if (isNewUser) {
+    const dayAgo = new Date(now.getTime() - 24 * 3600000);
+    const opps = await prisma.opportunity.findMany({
+      where: { isActive: true, createdAt: { gte: dayAgo }, applyEmail: { not: null } },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: { title: true, clientName: true, location: true, company: { select: { name: true } } },
+    }).catch(() => []);
+    welcomeMatches = opps.map((o, i) => ({
+      company: o.company?.name || o.clientName || 'Company',
+      logo: { ch: (o.company?.name || o.clientName || 'C')[0].toUpperCase(), bg: COLORS[i % COLORS.length] },
+      role: o.title,
+      meta: o.location || 'Remote',
+      score: Math.floor(75 + Math.random() * 20),
+      pass: i !== 2,
+    }));
+  }
+
   // Serialize applications for client component
   const appRows = applications.map(a => ({
     id: a.id,
@@ -242,7 +263,7 @@ export default async function DashboardOverviewPage() {
       {/* Welcome onboarding — animated 5-phase experience */}
       {isNewUser && loop?.isActive && (
         <div className="mb-4">
-          <WelcomeOnboarding />
+          <WelcomeOnboarding userName={firstName} matches={welcomeMatches} totalToday={matchingCount || undefined} aiSummary={aiProfileSummary || undefined} />
         </div>
       )}
 
