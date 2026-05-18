@@ -55,7 +55,7 @@ export async function GET() {
       items.push({
         id: 'scan',
         icon: '🔍',
-        text: `Scanning new gigs... ${matched} matches today`,
+        text: `Scanning new gigs... ${matched} ${matched === 1 ? 'match' : 'matches'} today`,
         time: 'live',
         type: 'scan',
         sort: Date.now(),
@@ -67,7 +67,7 @@ export async function GET() {
       items.push({
         id: 'queue',
         icon: '⏳',
-        text: `${queued} applications queued, sending soon`,
+        text: `${queued} ${queued === 1 ? 'application' : 'applications'} queued, sending soon`,
         time: 'now',
         type: 'match',
         sort: Date.now() - 1000,
