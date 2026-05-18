@@ -1182,6 +1182,84 @@
 Freelanly.initShell({ active: 'dashboard', crumbs: ['Workspace', 'Welcome'] });
 
 /* ==========================================================
+   LOAD REAL DATA — override demo constants
+   ========================================================== */
+(async function loadRealData() {
+  try {
+    // Fetch real matches
+    const matchRes = await fetch('/api/user/welcome-matches');
+    if (matchRes.ok) {
+      const data = await matchRes.json();
+      if (data.matches && data.matches.length > 0) {
+        // Override MATCHES after they're defined (they're const, so we modify in place)
+        window._realMatches = data.matches.map(m => ({
+          co: m.company, logo: m.logo, role: m.role, meta: m.meta,
+          score: m.score, pass: m.pass, reason: m.reason
+        }));
+        window._totalToday = data.totalToday || 47;
+      }
+    }
+    // Fetch user name
+    const notifRes = await fetch('/api/user/notifications');
+    if (notifRes.ok) {
+      // Just to confirm auth works; name comes from session
+    }
+  } catch(e) { console.log('[Welcome] Data fetch failed, using demo data', e); }
+
+  // Replace "Alex" and hardcoded company references with real data
+  try {
+    const settingsRes = await fetch('/api/user/settings');
+    if (settingsRes.ok) {
+      const settings = await settingsRes.json();
+      const name = settings?.name?.split(' ')[0] || 'there';
+      const fullName = settings?.name || 'there';
+      const h1 = document.querySelector('.page-header h1');
+      if (h1) h1.textContent = 'Welcome, ' + name + '.';
+
+      // Replace hardcoded values with real top match
+      const rm = window._realMatches;
+      if (rm && rm.length > 0) {
+        const top = rm.find(m => m.pass) || rm[0];
+        const topEmail = top.company.toLowerCase().replace(/\s+/g, '') + '.com';
+
+        // Replace all "Linear" references
+        document.querySelectorAll('b, span, div, p, h2').forEach(el => {
+          if (el.id === 'toastTitle') el.innerHTML = 'First application sent — to ' + top.company + ', "' + top.role + '"';
+        });
+        const matchSummaryRight = document.querySelector('.match-summary .right');
+        if (matchSummaryRight) matchSummaryRight.innerHTML = '<b>Top pick:</b> ' + top.company + ' · ' + top.role + ' · ' + top.score + '%';
+
+        const targetNm = document.querySelector('.target .nm');
+        if (targetNm) targetNm.innerHTML = top.role + '<span class="co">' + top.company + ' · ' + top.meta + '</span>';
+
+        const sendEmail = document.querySelector('.send-addr');
+        if (sendEmail) sendEmail.textContent = 'contact@' + topEmail;
+
+        const doneH2 = document.querySelector('[data-phase="done"] h2');
+        if (doneH2) doneH2.textContent = 'Sent — to ' + top.company + '.';
+        const doneP = document.querySelector('[data-phase="done"] p');
+        if (doneP) doneP.innerHTML = 'Your first application is on its way to <b>' + top.company + '</b>. 14 more are queued and will go out across today and tomorrow.';
+
+        // Update cover letter paragraphs
+        window._coverOverride = [
+          'Hi there,',
+          'Saw your <em>' + top.role + '</em> post — my background in ' + (rm.map(m => m.role).slice(0,2).join(' and ')) + ' aligns well with what you\'re looking for.',
+          'I\'d love to discuss how my experience can contribute to <em>' + top.company + '</em>.',
+          'Quick call this week?',
+          '— ' + fullName,
+        ];
+
+        // Update scan summary line
+        const totalToday = window._totalToday || 47;
+        document.querySelectorAll('.stat-value').forEach(el => {
+          if (el.dataset && el.dataset.counter) el.dataset.counter = String(totalToday);
+        });
+      }
+    }
+  } catch(e) { console.log('[Welcome] Name/override failed', e); }
+})();
+
+/* ==========================================================
    STATE MACHINE
    ========================================================== */
 
@@ -1333,9 +1411,10 @@ async function runScanning() {
 async function runMatching() {
   els.matchList.innerHTML = '';
   els.matchSummary.style.display = 'none';
-  for (let i = 0; i < MATCHES.length; i++) {
+  const realMatches = window._realMatches || MATCHES;
+  for (let i = 0; i < realMatches.length; i++) {
     if (cancelled) return;
-    const m = MATCHES[i];
+    const m = realMatches[i];
     const row = document.createElement('div');
     row.className = 'match-row ' + (m.pass ? 'pass' : 'skip');
     row.style.animationDelay = (i * 0.15) + 's';
@@ -1363,11 +1442,12 @@ async function runWriting() {
   let wordCount = 0;
   const startedAt = performance.now();
 
-  for (let pIdx = 0; pIdx < COVER_PARAGRAPHS.length; pIdx++) {
+  const coverText = window._coverOverride || COVER_PARAGRAPHS;
+  for (let pIdx = 0; pIdx < coverText.length; pIdx++) {
     const para = document.createElement('p');
     els.writerBody.appendChild(para);
 
-    const fullText = COVER_PARAGRAPHS[pIdx];
+    const fullText = coverText[pIdx];
     // Stream by token — keep HTML tags intact
     const tokens = tokenize(fullText);
     let cursor = '';
@@ -1375,7 +1455,7 @@ async function runWriting() {
       if (cancelled) return;
       cursor += tok;
       // Add caret at end while typing
-      para.innerHTML = cursor + (pIdx === COVER_PARAGRAPHS.length - 1 ? '' : '<span class="caret"></span>');
+      para.innerHTML = cursor + (pIdx === coverText.length - 1 ? '' : '<span class="caret"></span>');
       // strip caret span from old paragraphs
       for (let i = 0; i < els.writerBody.children.length - 1; i++) {
         const c = els.writerBody.children[i].querySelector('.caret');
@@ -1394,7 +1474,7 @@ async function runWriting() {
       await sleep(delay);
     }
     // pause between paragraphs
-    if (pIdx < COVER_PARAGRAPHS.length - 1) await sleep(360);
+    if (pIdx < coverText.length - 1) await sleep(360);
   }
   // remove final caret
   const lastCaret = els.writerBody.querySelector('.caret');
@@ -1459,7 +1539,7 @@ async function runSending() {
   await sleep(400);
   clearInterval(tickInterval);
   els.sendStatus.textContent = '';
-  els.sendStatusOk.textContent = '✓ delivered to sarah@linear.app';
+  const topCo = (window._realMatches && window._realMatches[0]) ? window._realMatches[0].company.toLowerCase().replace(/\s+/g,'') + '.com' : 'linear.app'; els.sendStatusOk.textContent = '✓ delivered to contact@' + topCo;
 }
 
 async function runDone() {
