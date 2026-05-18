@@ -191,11 +191,14 @@ export async function generateSubjectLine(params: {
       ],
     });
 
-    const content = response.choices[0]?.message?.content?.trim();
-    if (!content) return `Re: ${jobTitle}`;
-    return content.replace(/^["']|["']$/g, '');
+    let content = response.choices[0]?.message?.content?.trim();
+    if (!content) return `${jobTitle} — ${userName}`;
+    content = content.replace(/^["']|["']$/g, '');
+    // Remove AI placeholders
+    content = content.replace(/\[Company Name\]/gi, '').replace(/\[Your Name\]/gi, userName).replace(/\s{2,}/g, ' ').trim();
+    return content;
   } catch {
-    return `Re: ${jobTitle}`;
+    return `${jobTitle} — ${userName}`;
   }
 }
 
