@@ -26,7 +26,7 @@ export default async function DashboardOverviewPage() {
   const monthAgo = new Date(now.getTime() - 30 * 86400000);
 
   const [user, today, yesterday, month, applications, repliesTodayCount, followUps, dailyActivity, loop, queuedCount] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true } }),
     prisma.autoApplication.groupBy({
       by: ['status'],
       where: { userId, sentAt: { gte: todayStart } },
@@ -189,6 +189,19 @@ export default async function DashboardOverviewPage() {
           <div className="kpi-delta up">{(loop?.dailyLimit || 15) - (loop?.sentToday || 0)} remaining</div>
         </div>
       </div>
+
+      {/* Telegram connect banner */}
+      {!user?.telegramChatId && (
+        <div className="card mb-4" style={{background: 'linear-gradient(135deg, #E8F5E9, #F1F8E9)', borderColor: '#C8E6C9', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px'}}>
+          <div>
+            <div style={{fontWeight: 600, fontSize: '14px'}}>Get instant Telegram notifications</div>
+            <div style={{fontSize: '13px', color: '#555', marginTop: '2px'}}>Know the moment a recruiter replies — right in Telegram</div>
+          </div>
+          <a href={`https://t.me/FLalarmbot?start=direct_${userId.slice(0, 12)}`} target="_blank" rel="noopener noreferrer" style={{padding: '8px 16px', background: '#0088cc', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: 500, textDecoration: 'none', whiteSpace: 'nowrap'}}>
+            Connect Telegram
+          </a>
+        </div>
+      )}
 
       {/* Applications table — full width */}
       <div className="card mb-4">

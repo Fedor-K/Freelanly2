@@ -37,7 +37,25 @@ export async function POST(request: NextRequest) {
       const token = text.replace('/start', '').trim();
 
       if (token) {
-        // Find user by link token (stored temporarily)
+        // Direct link: direct_{userIdPrefix}
+        if (token.startsWith('direct_')) {
+          const prefix = token.replace('direct_', '');
+          const user = await prisma.user.findFirst({
+            where: { id: { startsWith: prefix } },
+            select: { id: true, name: true },
+          });
+          if (user) {
+            await prisma.user.update({ where: { id: user.id }, data: { telegramChatId: String(chatId) } });
+            await reply(chatId,
+              `✅ Connected! Hey ${user.name || firstName}!\n\n`
+              + `You'll get instant notifications here when recruiters reply to your applications.\n\n`
+              + `💬 Replies\n📨 Applications sent\n🟢 Interview invites`,
+            );
+            return NextResponse.json({ ok: true });
+          }
+        }
+
+        // Token link (from telegram-link API)
         const setting = await prisma.settings.findUnique({ where: { key: `tg_link_${token}` } });
         if (setting) {
           const userId = setting.value as string;
