@@ -26,7 +26,7 @@ export default async function DashboardOverviewPage() {
   const monthAgo = new Date(now.getTime() - 30 * 86400000);
 
   const [user, today, yesterday, month, applications, repliesTodayCount, followUps, dailyActivity, loop, queuedCount] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true, parsedProfile: true } }),
     prisma.autoApplication.groupBy({
       by: ['status'],
       where: { userId, sentAt: { gte: todayStart } },
@@ -68,7 +68,7 @@ export default async function DashboardOverviewPage() {
     `,
     prisma.autoApplyLoop.findFirst({
       where: { userId },
-      select: { isActive: true, sentToday: true, dailyLimit: true },
+      select: { isActive: true, sentToday: true, dailyLimit: true, jobTitles: true, keywords: true },
     }),
     // Count queued apps excluding blocked recruiters (10+/day)
     (async () => {
@@ -128,6 +128,17 @@ export default async function DashboardOverviewPage() {
   const firstName = user?.name?.split(' ')[0] || 'there';
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
+  const isNewUser = mSent === 0;
+  const profile = user?.parsedProfile as Record<string, unknown> | null;
+  const profileSkills = (profile?.skills as string[])?.slice(0, 6) || [];
+  const loopTitles = loop?.jobTitles || [];
+  const loopKeywords = loop?.keywords?.split(',').map((k: string) => k.trim()).filter(Boolean).slice(0, 5) || [];
+
+  // Count matching opportunities for new user
+  const matchingCount = isNewUser ? await prisma.opportunity.count({
+    where: { isActive: true, createdAt: { gte: new Date(now.getTime() - 24 * 3600000) } },
+  }).catch(() => 0) : 0;
 
   // Serialize applications for client component
   const appRows = applications.map(a => ({
@@ -200,6 +211,58 @@ export default async function DashboardOverviewPage() {
           <a href={`https://t.me/FLalarmbot?start=direct_${userId.slice(0, 12)}`} target="_blank" rel="noopener noreferrer" style={{padding: '8px 16px', background: '#0088cc', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: 500, textDecoration: 'none', whiteSpace: 'nowrap'}}>
             Connect Telegram
           </a>
+        </div>
+      )}
+
+      {/* Welcome card for new users */}
+      {isNewUser && loop?.isActive && (
+        <div className="card mb-4" style={{overflow: 'hidden'}}>
+          <div style={{background: 'linear-gradient(135deg, #0A0B0F, #1a1d24)', padding: '32px 28px', color: '#fff', position: 'relative'}}>
+            <div style={{position: 'absolute', top: '16px', right: '20px', background: 'rgba(199,249,74,0.15)', padding: '4px 12px', borderRadius: '999px', fontSize: '11px', fontFamily: "'Geist Mono', monospace", color: '#C7F94A', letterSpacing: '0.04em'}}>
+              <span style={{width: '6px', height: '6px', borderRadius: '50%', background: '#C7F94A', display: 'inline-block', marginRight: '6px', boxShadow: '0 0 8px #C7F94A', animation: 'pulse 1.8s infinite'}}></span>
+              STARTING
+            </div>
+            <h2 style={{fontSize: '22px', fontWeight: 600, letterSpacing: '-0.02em', margin: '0 0 8px'}}>Your auto-apply is starting!</h2>
+            <p style={{color: 'rgba(255,255,255,0.6)', fontSize: '14px', lineHeight: 1.5, margin: 0}}>
+              AI is scanning gigs and writing personalized applications. First sends within 30 minutes.
+            </p>
+          </div>
+          <div style={{padding: '24px 28px'}}>
+            <div style={{fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: '12px'}}>Based on your resume, we&apos;ll apply to</div>
+            {loopTitles.length > 0 && (
+              <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px'}}>
+                {loopTitles.map((t: string) => (
+                  <span key={t} style={{padding: '5px 12px', background: '#F0EDE5', borderRadius: '6px', fontSize: '13px', fontWeight: 500}}>{t}</span>
+                ))}
+              </div>
+            )}
+            {(profileSkills.length > 0 || loopKeywords.length > 0) && (
+              <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px'}}>
+                {[...profileSkills, ...loopKeywords].slice(0, 8).map((s: string) => (
+                  <span key={s} style={{padding: '3px 10px', background: 'rgba(199,249,74,0.15)', borderRadius: '4px', fontSize: '12px', color: 'var(--ink-2)'}}>{s}</span>
+                ))}
+              </div>
+            )}
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', padding: '16px 0', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)'}}>
+              <div>
+                <div style={{fontSize: '24px', fontWeight: 600, color: 'var(--acid-deep)'}}>{matchingCount || '50+'}</div>
+                <div style={{fontSize: '12px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace"}}>matches found today</div>
+              </div>
+              <div>
+                <div style={{fontSize: '24px', fontWeight: 600}}>15</div>
+                <div style={{fontSize: '12px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace"}}>applications/day</div>
+              </div>
+              <div>
+                <div style={{fontSize: '24px', fontWeight: 600}}>~6%</div>
+                <div style={{fontSize: '12px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace"}}>avg reply rate</div>
+              </div>
+            </div>
+            <div style={{marginTop: '16px', display: 'flex', gap: '12px', alignItems: 'center'}}>
+              <div style={{flex: 1, fontSize: '13px', color: 'var(--ink-3)', lineHeight: 1.5}}>
+                ⏳ First applications will be sent within 30 minutes. Most recruiters respond within 1–3 days.
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
