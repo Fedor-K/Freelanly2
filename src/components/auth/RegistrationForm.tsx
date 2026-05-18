@@ -698,7 +698,7 @@ export function RegistrationForm({
             <div>
               <label className="field-label">What kind of work do you want? <span className="optional">— pick all that apply</span></label>
               <div className="cat-grid">
-                {categories.slice(0, 8).map((cat) => (
+                {categories.map((cat) => (
                   <div key={cat.slug} className={`cat-chip${selectedCategories.includes(cat.slug) ? ' on' : ''}`} onClick={() => toggleCategory(cat.slug)}>
                     <span className="cb"></span>
                     {cat.name}
@@ -794,7 +794,7 @@ export function RegistrationForm({
         <div>
           <label className="field-label">What kind of work? <span className="optional">— pick all that apply</span></label>
           <div className="cat-grid">
-            {categories.slice(0, 8).map((cat) => (
+            {categories.map((cat) => (
               <div key={cat.slug} className={`cat-chip${selectedCategories.includes(cat.slug) ? ' on' : ''}`} onClick={() => toggleCategory(cat.slug)}>
                 <span className="cb"></span>{cat.name}
               </div>
