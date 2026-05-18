@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
 
       if (result.success) {
         await prisma.activityLog.create({
-          data: { userId: session.user.id, action: 'INBOX_REPLY_SENT', details: { applicationId, to: app.appliedToEmail, company: app.companyName, viaSMTP: hasSmtp } },
+          data: { userId: session.user.id, action: 'INBOX_REPLY_SENT', details: { applicationId, to: app.appliedToEmail, company: app.companyName, viaSMTP: hasSmtp, message: message.slice(0, 500), hasAttachment: !!attachmentBase64 } },
         }).catch(() => {});
         return NextResponse.json({ success: true, sentTo: app.appliedToEmail });
       } else {
