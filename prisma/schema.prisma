@@ -64,6 +64,7 @@ model User {
   notifyOnReply  Boolean   @default(true)
   notifyDigest   Boolean   @default(true)  // Daily digest email
   notifySlackUrl String?   // Slack webhook URL
+  telegramChatId String?   // Telegram chat ID for notifications
   bookingUrl     String?   // Calendly/Cal.com link
 
   // Activity tracking
