@@ -94,6 +94,7 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [sendLoading, setSendLoading] = useState(false);
   const [sendResult, setSendResult] = useState<string | null>(null);
+  const [attachment, setAttachment] = useState<File | null>(null);
 
   const filtered = rows.filter(r => filter.includes(r.status));
 
@@ -155,14 +156,22 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
     setSendLoading(true);
     setSendResult(null);
     try {
+      let attachmentBase64: string | undefined;
+      let attachmentFilename: string | undefined;
+      if (attachment) {
+        const buffer = await attachment.arrayBuffer();
+        attachmentBase64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        attachmentFilename = attachment.name;
+      }
       const res = await fetch('/api/user/inbox', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applicationId: appId, action: 'send', message: replyText }),
+        body: JSON.stringify({ applicationId: appId, action: 'send', message: replyText, attachmentBase64, attachmentFilename }),
       });
       if (res.ok) {
         setSendResult('Sent!');
         setReplyText('');
+        setAttachment(null);
       } else {
         const data = await res.json();
         setSendResult(`Failed: ${data.error || 'unknown'}`);
@@ -295,7 +304,15 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
                                       rows={3}
                                       style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line-2)', borderRadius: '8px', fontSize: '13px', resize: 'vertical', background: 'var(--bg)', lineHeight: 1.5 }}
                                     />
-                                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                      <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer' }}>
+                                        📎 Attach file
+                                        <input type="file" style={{ display: 'none' }} onChange={e => {
+                                          const file = e.target.files?.[0];
+                                          if (file) setAttachment(file);
+                                        }} />
+                                      </label>
+                                      {attachment && <span style={{ fontSize: '12px', color: 'var(--ink-3)' }}>📄 {attachment.name} <button onClick={() => setAttachment(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', fontSize: '12px' }}>✕</button></span>}
                                       <button className="btn btn-ghost btn-sm" onClick={() => handleSuggest(app.id)} disabled={suggestLoading}>
                                         {suggestLoading ? 'Generating...' : '✦ AI suggest'}
                                       </button>

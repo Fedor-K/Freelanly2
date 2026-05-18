@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { applicationId, action, message } = await request.json();
+    const { applicationId, action, message, attachmentBase64, attachmentFilename } = await request.json();
 
     const app = await prisma.autoApplication.findFirst({
       where: { id: applicationId, userId: session.user.id },
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
         const smtp = app.user.userSmtp!;
         result = await sendEmailViaSMTP(
           { host: smtp.host, port: smtp.port, email: smtp.email, password: smtp.password },
-          { from: `${app.user.name} <${smtp.email}>`, to: app.appliedToEmail, replyTo: smtp.email, subject, html, text: message }
+          { from: `${app.user.name} <${smtp.email}>`, to: app.appliedToEmail, replyTo: smtp.email, subject, html, text: message, attachmentBase64, attachmentFilename }
         );
       } else {
         result = await sendAutoApplyViaPostal({
@@ -166,6 +166,8 @@ export async function POST(request: NextRequest) {
           html,
           text: message,
           applicationId: app.id,
+          attachmentBase64,
+          attachmentFilename,
         });
       }
 
