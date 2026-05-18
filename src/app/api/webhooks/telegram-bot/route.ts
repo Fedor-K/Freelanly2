@@ -67,9 +67,14 @@ export async function POST(request: NextRequest) {
 
           const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
           await reply(chatId,
-            `✅ Connected! Hey ${user?.name || firstName}!\n\n`
-            + `You'll get instant notifications here when recruiters reply to your applications.\n\n`
-            + `💬 Replies\n📨 Applications sent\n🟢 Interview invites`,
+            `👋 Welcome to Freelanly, ${user?.name || firstName}!\n\n`
+            + `I'll send you instant notifications when recruiters reply to your applications.\n\n`
+            + `Here's what to expect:\n`
+            + `💬 Recruiter replies — "Company X is interested!"\n`
+            + `🟢 Interview invites — "They want to schedule a call"\n`
+            + `📊 Daily summary — sent, opened, replied\n\n`
+            + `Your auto-apply is running. I'll ping you the moment a recruiter responds.\n\n`
+            + `Dashboard: freelanly.com/dashboard`,
           );
           return NextResponse.json({ ok: true });
         }
@@ -77,10 +82,15 @@ export async function POST(request: NextRequest) {
 
       // Generic /start without token
       await reply(chatId,
-        `👋 Hey ${firstName}! I'm the Freelanly notification bot.\n\n`
-        + `To connect your account, go to:\n`
-        + `<b>freelanly.com/dashboard</b> → Settings → Connect Telegram\n\n`
-        + `You'll get instant notifications when recruiters reply!`,
+        `👋 Hey ${firstName}! Welcome to Freelanly.\n\n`
+        + `I'll send you instant notifications when recruiters reply to your applications.\n\n`
+        + `Here's what to expect:\n`
+        + `💬 Recruiter replies — "Company X is interested!"\n`
+        + `🟢 Interview invites — "They want to schedule a call"\n`
+        + `📊 Daily summary — sent, opened, replied\n\n`
+        + `To connect your account:\n`
+        + `<b>freelanly.com/dashboard</b> → click "Connect Telegram"\n\n`
+        + `Your auto-apply is running. I'll ping you the moment a recruiter responds.`,
       );
       return NextResponse.json({ ok: true });
     }
