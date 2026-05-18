@@ -14,10 +14,14 @@ export async function GET() {
     // Read the HTML template
     let html = readFileSync(join(process.cwd(), 'public', 'welcome-v2.html'), 'utf-8');
 
-    // Remove demo bar
+    // Remove demo bar, shell elements, and page header
     html = html.replace(/<!-- DEMO.*?<!-- \/DEMO -->/gs, '');
-    // Remove demo-bar div if not wrapped in comments
     html = html.replace(/<div class="demo-bar">[\s\S]*?<\/div>\s*(?=\s*<!--)/, '');
+    html = html.replace('<div id="shellSidebar"></div>', '');
+    html = html.replace('<div id="shellTopbar"></div>', '');
+    html = html.replace(/Freelanly\.initShell\([^)]*\);/, '// shell removed');
+    // Remove page header (parent dashboard has its own)
+    html = html.replace(/<div class="page-header">[\s\S]*?<\/div>\s*<\/div>/m, '');
 
     if (!userId) {
       return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
