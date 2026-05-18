@@ -22,6 +22,8 @@ interface SignInPageProps {
     country?: string;
     utm_content?: string;
     utm_source?: string;
+    email?: string;
+    projectId?: string;
   }>;
 }
 
@@ -111,7 +113,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           )}
 
           {/* Registration form */}
-          <RegistrationForm callbackUrl={params.callbackUrl} />
+          <RegistrationForm callbackUrl={params.callbackUrl} prefillEmail={params.email} />
 
           {/* Legal */}
           <div className="legal">

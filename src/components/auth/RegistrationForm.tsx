@@ -51,6 +51,7 @@ export interface RegistrationFormProps {
   callbackUrl?: string;
   onEmailSent?: (email: string) => void;
   showJobContext?: boolean;
+  prefillEmail?: string;
 }
 
 type FormStep = 'email' | 'login' | 'register' | 'sent';
@@ -67,6 +68,7 @@ export function RegistrationForm({
   callbackUrl,
   onEmailSent,
   showJobContext = false,
+  prefillEmail,
 }: RegistrationFormProps) {
   const { track: trackDb } = useTracker();
 
@@ -75,7 +77,7 @@ export function RegistrationForm({
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
   // Form fields
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(prefillEmail || '');
   const [name, setName] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
