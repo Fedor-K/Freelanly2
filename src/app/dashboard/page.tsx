@@ -185,8 +185,8 @@ export default async function DashboardOverviewPage() {
         </div>
         <div className="kpi">
           <div className="kpi-label">Daily limit</div>
-          <div className="kpi-value tabular">{loop?.sentToday || 0} <span className="unit">/ {loop?.dailyLimit || 15}</span></div>
-          <div className="kpi-delta up">{(loop?.dailyLimit || 15) - (loop?.sentToday || 0)} remaining</div>
+          <div className="kpi-value tabular">{Math.min(loop?.sentToday || 0, loop?.dailyLimit || 15)} <span className="unit">/ {loop?.dailyLimit || 15}</span></div>
+          <div className="kpi-delta up">{Math.max(0, (loop?.dailyLimit || 15) - (loop?.sentToday || 0))} remaining</div>
         </div>
       </div>
 
