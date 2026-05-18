@@ -105,6 +105,11 @@ export async function POST(request: NextRequest) {
         },
       });
       console.log(`[InboundReply] ${appId} → ${newStatus} from ${from}: ${replyText.slice(0, 80)}`);
+
+      // Track engagement event
+      await prisma.activityLog.create({
+        data: { userId: app.userId, action: 'RECRUITER_REPLIED', details: { applicationId: appId, category: newStatus, source: 'postal_webhook' } },
+      }).catch(() => {});
     }
 
     // Forward reply to user's email
