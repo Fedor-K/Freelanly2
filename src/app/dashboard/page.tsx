@@ -263,7 +263,7 @@ export default async function DashboardOverviewPage() {
       {/* Welcome onboarding — animated 5-phase experience */}
       {isNewUser && loop?.isActive && (
         <div className="mb-4">
-          <WelcomeOnboarding userName={firstName} matches={welcomeMatches} totalToday={matchingCount || undefined} aiSummary={aiProfileSummary || undefined} />
+          <WelcomeOnboarding />
         </div>
       )}
 
