@@ -145,21 +145,49 @@ Extract as many skills as you can find (up to 20). Extract ALL experience roles,
       where: { userId: session.user.id },
     });
     if (!existingLoop && parsedProfile) {
-      const titles: string[] = [];
-      if (parsedProfile.current_title) titles.push(parsedProfile.current_title);
-      if (parsedProfile.field) titles.push(parsedProfile.field);
+      // Use AI to determine real job titles to search for
+      let titles: string[] = [];
+      let keywords = '';
+      try {
+        const OpenAI = (await import('openai')).default;
+        const p = process.env.AI_PROVIDER?.toLowerCase();
+        const client = p === 'zai'
+          ? new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' })
+          : new OpenAI({ baseURL: 'https://api.deepseek.com/v1', apiKey: process.env.DEEPSEEK_API_KEY || '' });
+        const model = p === 'zai' ? 'glm-4-32b-0414-128k' : 'deepseek-chat';
+        const r = await client.chat.completions.create({
+          model, temperature: 0.3, max_tokens: 100,
+          messages: [
+            { role: 'system', content: 'Based on the resume profile, return exactly 3-5 job titles this person should apply to. Return ONLY a JSON array of strings, nothing else. Example: ["React Developer", "Frontend Engineer", "Full Stack Developer"]' },
+            { role: 'user', content: `Name: ${parsedProfile.name}\nTitle: ${parsedProfile.current_title}\nField: ${parsedProfile.field}\nSkills: ${(parsedProfile.skills as string[])?.join(', ')}\nExperience: ${parsedProfile.experience_years} years` },
+          ],
+        });
+        const content = r.choices[0]?.message?.content?.trim() || '';
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed) && parsed.length > 0) titles = parsed.slice(0, 5);
+      } catch {
+        // Fallback to parser output
+        if (parsedProfile.current_title) titles.push(parsedProfile.current_title);
+        if (parsedProfile.field) titles.push(parsedProfile.field);
+      }
+      if (titles.length === 0) {
+        if (parsedProfile.current_title) titles.push(parsedProfile.current_title);
+        if (parsedProfile.field) titles.push(parsedProfile.field);
+      }
+      keywords = (parsedProfile.skills as string[])?.slice(0, 5).join(', ') || '';
+
       await prisma.autoApplyLoop.create({
         data: {
           userId: session.user.id,
           name: `${titles[0] || 'Auto'} — Auto-Apply`,
-          jobTitles: titles.slice(0, 5),
-          keywords: (parsedProfile.skills as string[])?.slice(0, 5).join(', ') || null,
+          jobTitles: titles,
+          keywords: keywords || null,
           dailyLimit: 15,
           mode: 'AUTO',
           isActive: true,
         },
       });
-      console.log(`[Resume] Auto-created loop for user ${session.user.id}`);
+      console.log(`[Resume] Auto-created loop for user ${session.user.id}: ${titles.join(', ')}`);
     }
 
     return NextResponse.json({
