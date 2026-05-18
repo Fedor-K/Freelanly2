@@ -255,7 +255,7 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
                                   {detail.description || 'No description available'}
                                 </div>
                                 <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--ink-3)' }}>
-                                  <strong>Recruiter:</strong> {detail.clientName || app.companyName} · {detail.appliedToEmail}
+                                  <strong>Recruiter:</strong> {detail.clientName || app.companyName}
                                 </div>
                                 {detail.sourceUrl && (
                                   <a href={detail.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '8px', fontSize: '12px', color: 'var(--acid-deep)' }}>View original posting →</a>
