@@ -117,23 +117,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             {project.description}
           </div>
 
-          {/* Poster */}
-          {project.poster && (
-            <div style={{ marginTop: '32px', padding: '16px 20px', background: '#fff', border: '1px solid #E8E5DC', borderRadius: '12px', display: 'flex', gap: '14px', alignItems: 'center' }}>
-              {project.poster.avatar ? (
-                <img src={project.poster.avatar} alt="" style={{ width: '44px', height: '44px', borderRadius: '999px' }} />
-              ) : (
-                <div style={{ width: '44px', height: '44px', borderRadius: '999px', background: '#E8E5DC', display: 'grid', placeItems: 'center', fontWeight: 600, fontSize: '16px' }}>{project.poster.name[0]}</div>
-              )}
-              <div>
-                <div style={{ fontWeight: 500, fontSize: '14px' }}>{project.poster.name}</div>
-                {project.poster.headline && <div style={{ fontSize: '12px', color: '#8A8780' }}>{project.poster.headline}</div>}
-              </div>
-              {project.poster.linkedIn && (
-                <a href={project.poster.linkedIn} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 'auto', fontSize: '12px', color: '#0A66C2' }} onClick={() => track('JOB_SOURCE_CLICK', { projectId: project.id, type: 'poster_linkedin' })}>LinkedIn →</a>
-              )}
-            </div>
-          )}
+          {/* Poster — hidden, contact info behind platform */}
 
           {/* Similar */}
           {similar.length > 0 && (
