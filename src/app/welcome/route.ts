@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { headers } from 'next/headers';
 
 const COLORS = ['#FF6B6B','#A8E024','#6EE7FF','#FFB951','#A78BFA','#34D399'];
 
@@ -11,8 +12,18 @@ export async function GET() {
     const session = await auth();
     const userId = session?.user?.id;
 
-    // Read the HTML template
-    let html = readFileSync(join(process.cwd(), 'public', 'welcome-v2.html'), 'utf-8');
+    // Read the HTML template — try filesystem first, fallback to HTTP
+    let html = '';
+    try {
+      html = readFileSync(join(process.cwd(), 'public', 'welcome-v2.html'), 'utf-8');
+    } catch {
+      // Vercel serverless: fetch from own origin
+      const h = await headers();
+      const host = h.get('host') || 'freelanly.com';
+      const proto = host.includes('localhost') ? 'http' : 'https';
+      const res = await fetch(`${proto}://${host}/welcome-v2.html`);
+      html = await res.text();
+    }
 
     // Remove demo bar, shell elements, and page header
     html = html.replace(/<!-- DEMO.*?<!-- \/DEMO -->/gs, '');
