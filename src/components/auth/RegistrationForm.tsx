@@ -678,20 +678,27 @@ export function RegistrationForm({
               <input className="text-input" type="url" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/in/yourname" />
             </div>
 
-            {/* Resume Upload */}
+            {/* Resume Upload with drag & drop */}
             <div>
               <label className="field-label">Résumé</label>
-              <label className="upload-zone" onClick={(e) => { const inp = (e.currentTarget as HTMLElement).querySelector('input[type="file"]') as HTMLInputElement; if (inp && (e.target as HTMLElement).tagName !== 'INPUT') inp.click(); }}>
+              <div
+                className={`upload-zone${resumeFile ? ' has-file' : ''}`}
+                onClick={(e) => { const inp = (e.currentTarget as HTMLElement).querySelector('input[type="file"]') as HTMLInputElement; if (inp && (e.target as HTMLElement).tagName !== 'INPUT') inp.click(); }}
+                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }}
+                onDragLeave={(e) => { e.currentTarget.classList.remove('drag-over'); }}
+                onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drag-over'); const file = e.dataTransfer.files?.[0]; if (file && (file.name.endsWith('.pdf') || file.name.endsWith('.docx'))) setResumeFile(file); }}
+              >
                 <div className="up-ico">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
                 </div>
                 <div style={{flex: 1}}>
-                  <div className="up-ttl">{resumeFile ? resumeFile.name : 'Upload your résumé'}</div>
-                  <div className="up-sub">{resumeFile ? 'Ready to upload' : 'PDF or DOCX · we extract skills, roles, links'}</div>
+                  <div className="up-ttl">{resumeFile ? resumeFile.name : 'Drag & drop your résumé here'}</div>
+                  <div className="up-sub">{resumeFile ? 'Ready to upload' : 'PDF or DOCX · or click to choose'}</div>
                 </div>
                 <input type="file" accept=".pdf,.docx" style={{display: 'none'}} onChange={(e) => setResumeFile(e.target.files?.[0] || null)} />
-                <span style={{fontSize: '11.5px', color: '#5C6068', fontFamily: "'Geist Mono', monospace"}}>Choose →</span>
-              </label>
+                {!resumeFile && <span style={{fontSize: '11.5px', color: '#5C6068', fontFamily: "'Geist Mono', monospace"}}>Choose →</span>}
+                {resumeFile && <span style={{fontSize: '11.5px', color: '#047857', fontFamily: "'Geist Mono', monospace"}}>✓</span>}
+              </div>
             </div>
 
             {/* Categories */}
