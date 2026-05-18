@@ -140,6 +140,28 @@ Extract as many skills as you can find (up to 20). Extract ALL experience roles,
 
     console.log(`[Resume] Parsed for user ${session.user.id}: ${parsedProfile?.name || 'unknown'}, ${parsedProfile?.skills?.length || 0} skills, ${parsedProfile?.experience_years || '?'} years`);
 
+    // Auto-create loop if user doesn't have one
+    const existingLoop = await prisma.autoApplyLoop.findFirst({
+      where: { userId: session.user.id },
+    });
+    if (!existingLoop && parsedProfile) {
+      const titles: string[] = [];
+      if (parsedProfile.current_title) titles.push(parsedProfile.current_title);
+      if (parsedProfile.field) titles.push(parsedProfile.field);
+      await prisma.autoApplyLoop.create({
+        data: {
+          userId: session.user.id,
+          name: `${titles[0] || 'Auto'} — Auto-Apply`,
+          jobTitles: titles.slice(0, 5),
+          keywords: (parsedProfile.skills as string[])?.slice(0, 5).join(', ') || null,
+          dailyLimit: 15,
+          mode: 'AUTO',
+          isActive: true,
+        },
+      });
+      console.log(`[Resume] Auto-created loop for user ${session.user.id}`);
+    }
+
     return NextResponse.json({
       success: true,
       fileName: file.name,
