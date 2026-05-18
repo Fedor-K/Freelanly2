@@ -44,8 +44,8 @@ export default async function DashboardOverviewPage() {
     }),
     // All recent applications (last 30 days) — the main table (only sent+, not queued)
     prisma.autoApplication.findMany({
-      where: { userId, createdAt: { gte: monthAgo }, status: { in: ['SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'] } },
-      orderBy: { createdAt: 'desc' },
+      where: { userId, sentAt: { gte: monthAgo, not: null }, status: { in: ['SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'] } },
+      orderBy: { sentAt: 'desc' },
       take: 100,
       select: {
         id: true, companyName: true, jobTitle: true, status: true, subject: true,
