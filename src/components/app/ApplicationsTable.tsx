@@ -243,7 +243,7 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
                               <div>
                                 <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: '8px' }}>Project details</div>
                                 <div style={{ fontSize: '13px', color: 'var(--ink-2)', lineHeight: 1.6, maxHeight: '200px', overflow: 'auto' }}>
-                                  {detail.description ? detail.description.slice(0, 600) + (detail.description.length > 600 ? '...' : '') : 'No description available'}
+                                  {detail.description || 'No description available'}
                                 </div>
                                 <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--ink-3)' }}>
                                   <strong>Recruiter:</strong> {detail.clientName || app.companyName} · {detail.appliedToEmail}
@@ -261,7 +261,7 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
                                 <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: '10px', padding: '12px', marginBottom: '8px' }}>
                                   <div style={{ fontSize: '11px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", marginBottom: '4px' }}>You · {formatDate(app.date)}</div>
                                   <div style={{ fontSize: '13px', color: 'var(--ink-2)', lineHeight: 1.5, maxHeight: '120px', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
-                                    {detail.coverLetter ? detail.coverLetter.slice(0, 400) + (detail.coverLetter.length > 400 ? '...' : '') : (['PENDING', 'REVIEW'].includes(app.status) ? 'Cover letter will be generated before sending' : 'Cover letter sent')}
+                                    {detail.coverLetter || (['PENDING', 'REVIEW'].includes(app.status) ? 'Cover letter will be generated before sending' : 'Cover letter sent')}
                                   </div>
                                 </div>
 
@@ -280,7 +280,7 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
                                       {detail.replyCategory && <span style={{ marginLeft: '8px', background: '#D1FAE5', padding: '1px 6px', borderRadius: '4px', fontSize: '10px' }}>{detail.replyCategory.toLowerCase()}</span>}
                                     </div>
                                     <div style={{ fontSize: '13px', color: '#065F46', lineHeight: 1.5, maxHeight: '150px', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
-                                      {detail.replyText.slice(0, 500)}{detail.replyText.length > 500 ? '...' : ''}
+                                      {detail.replyText}
                                     </div>
                                   </div>
                                 )}
