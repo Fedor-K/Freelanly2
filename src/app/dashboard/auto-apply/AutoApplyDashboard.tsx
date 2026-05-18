@@ -433,15 +433,8 @@ export function AutoApplyDashboard({
         onResumeUploaded={() => setResumeUploaded(true)}
       />
 
-      {/* Step 2: Connect Email */}
-      {hasResume && (
-        <div className="mt-4">
-          <SmtpSetup initialSmtp={smtp} onSmtpUpdated={setSmtp} />
-        </div>
-      )}
-
-      {/* Step 3: Start — one button */}
-      {hasResume && hasSmtp && hasStyle && !hasLoop && (
+      {/* Step 2: Start — one button (SMTP removed from onboarding) */}
+      {hasResume && hasStyle && !hasLoop && (
         <div className="bg-white rounded-xl border-2 border-green-400 shadow-md p-6 mt-4">
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-lg shrink-0">🚀</div>
