@@ -131,14 +131,37 @@ export default async function DashboardOverviewPage() {
 
   const isNewUser = mSent === 0;
   const profile = user?.parsedProfile as Record<string, unknown> | null;
-  const profileSkills = (profile?.skills as string[])?.slice(0, 6) || [];
   const loopTitles = loop?.jobTitles || [];
-  const loopKeywords = loop?.keywords?.split(',').map((k: string) => k.trim()).filter(Boolean).slice(0, 5) || [];
+  const loopKeywords = loop?.keywords || '';
 
-  // Count matching opportunities for new user
-  const matchingCount = isNewUser ? await prisma.opportunity.count({
-    where: { isActive: true, createdAt: { gte: new Date(now.getTime() - 24 * 3600000) } },
-  }).catch(() => 0) : 0;
+  // Count matching opportunities for new user + AI summary
+  let matchingCount = 0;
+  let aiProfileSummary = '';
+  if (isNewUser) {
+    matchingCount = await prisma.opportunity.count({
+      where: { isActive: true, createdAt: { gte: new Date(now.getTime() - 24 * 3600000) } },
+    }).catch(() => 0);
+
+    // Generate human-readable profile summary via AI
+    if (profile || loopTitles.length > 0) {
+      try {
+        const OpenAI = (await import('openai')).default;
+        const p = process.env.AI_PROVIDER?.toLowerCase();
+        const client = p === 'zai'
+          ? new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' })
+          : new OpenAI({ baseURL: 'https://api.deepseek.com/v1', apiKey: process.env.DEEPSEEK_API_KEY || '' });
+        const model = p === 'zai' ? 'glm-4-32b-0414-128k' : 'deepseek-chat';
+        const r = await client.chat.completions.create({
+          model, temperature: 0.3, max_tokens: 80,
+          messages: [
+            { role: 'system', content: 'Write a 1-2 sentence summary of what kind of jobs we will apply to for this person. Be specific and encouraging. Address the user as "you". Example: "We\'ll apply to Senior React Developer and Full-Stack roles. Your 5 years with TypeScript and Node.js are a strong match for remote engineering positions."' },
+            { role: 'user', content: `Titles: ${loopTitles.join(', ')}\nSkills: ${loopKeywords}\nProfile: ${JSON.stringify(profile || {}).slice(0, 500)}` },
+          ],
+        });
+        aiProfileSummary = r.choices[0]?.message?.content?.trim() || '';
+      } catch { /* ignore */ }
+    }
+  }
 
   // Serialize applications for client component
   const appRows = applications.map(a => ({
@@ -228,21 +251,9 @@ export default async function DashboardOverviewPage() {
             </p>
           </div>
           <div style={{padding: '24px 28px'}}>
-            <div style={{fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: '12px'}}>Based on your resume, we&apos;ll apply to</div>
-            {loopTitles.length > 0 && (
-              <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px'}}>
-                {loopTitles.map((t: string) => (
-                  <span key={t} style={{padding: '5px 12px', background: '#F0EDE5', borderRadius: '6px', fontSize: '13px', fontWeight: 500}}>{t}</span>
-                ))}
-              </div>
-            )}
-            {(profileSkills.length > 0 || loopKeywords.length > 0) && (
-              <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px'}}>
-                {[...profileSkills, ...loopKeywords].slice(0, 8).map((s: string) => (
-                  <span key={s} style={{padding: '3px 10px', background: 'rgba(199,249,74,0.15)', borderRadius: '4px', fontSize: '12px', color: 'var(--ink-2)'}}>{s}</span>
-                ))}
-              </div>
-            )}
+            <div style={{fontSize: '15px', color: 'var(--ink)', lineHeight: 1.6, marginBottom: '16px'}}>
+              {aiProfileSummary || `We'll apply to ${loopTitles.slice(0, 3).join(', ') || 'matching'} roles based on your resume and experience.`}
+            </div>
             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', padding: '16px 0', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)'}}>
               <div>
                 <div style={{fontSize: '24px', fontWeight: 600, color: 'var(--acid-deep)'}}>{matchingCount || '50+'}</div>
