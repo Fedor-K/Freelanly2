@@ -104,6 +104,10 @@ export async function POST(request: NextRequest) {
           repliedAt: new Date(),
         },
       });
+      // Save to message thread
+      await prisma.message.create({
+        data: { applicationId: appId, from: 'recruiter', text: replyText.slice(0, 2000) },
+      }).catch(() => {});
       console.log(`[InboundReply] ${appId} → ${newStatus} from ${from}: ${replyText.slice(0, 80)}`);
 
       // Track engagement event

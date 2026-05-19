@@ -390,6 +390,9 @@ export async function processAutoApplyQueue(): Promise<{
               sentAt: now,
             },
           }),
+          prisma.message.create({
+            data: { applicationId: app.id, from: 'user', text: coverLetter },
+          }),
           prisma.autoApplyLoop.update({
             where: { id: app.loop.id },
             data: {

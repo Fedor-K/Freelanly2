@@ -2071,6 +2071,24 @@ model AutoApplication {
   @@index([loopId])
   @@index([status])
   @@index([createdAt])
+
+  messages   Message[]
+}
+
+model Message {
+  id              String   @id @default(cuid())
+
+  application     AutoApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicationId   String
+
+  from            String   // "user" or "recruiter" or "system"
+  text            String
+  attachmentUrl   String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([applicationId])
+  @@index([applicationId, createdAt])
 }
 
 enum AutoApplyStatus {

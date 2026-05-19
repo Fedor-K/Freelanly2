@@ -172,9 +172,14 @@ export async function POST(request: NextRequest) {
       }
 
       if (result.success) {
-        await prisma.activityLog.create({
-          data: { userId: session.user.id, action: 'INBOX_REPLY_SENT', details: { applicationId, to: app.appliedToEmail, company: app.companyName, viaSMTP: hasSmtp, message: message.slice(0, 500), hasAttachment: !!attachmentBase64 } },
-        }).catch(() => {});
+        await Promise.all([
+          prisma.activityLog.create({
+            data: { userId: session.user.id, action: 'INBOX_REPLY_SENT', details: { applicationId, to: app.appliedToEmail, company: app.companyName, viaSMTP: hasSmtp, message: message.slice(0, 500), hasAttachment: !!attachmentBase64 } },
+          }),
+          prisma.message.create({
+            data: { applicationId, from: 'user', text: message.slice(0, 2000), attachmentUrl: attachmentFilename || null },
+          }),
+        ]).catch(() => {});
         return NextResponse.json({ success: true, sentTo: app.appliedToEmail });
       } else {
         return NextResponse.json({ error: 'send_failed', message: result.error }, { status: 500 });
