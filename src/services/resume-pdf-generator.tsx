@@ -283,7 +283,7 @@ export async function parseResumeToProfile(
       messages: [
         {
           role: 'system',
-          content: `Extract structured resume data. Return ONLY valid JSON:
+          content: `Extract structured resume data from the text below. CRITICAL: ONLY extract information that is EXPLICITLY stated in the text. NEVER invent, fabricate, or hallucinate any experience, companies, skills, or details that are not in the original text. If the resume only has 2 jobs, return only 2 jobs. If there is no education listed, return an empty array. Return ONLY valid JSON:
 {
   "name": "string",
   "email": "string",
@@ -291,12 +291,12 @@ export async function parseResumeToProfile(
   "location": "string or null",
   "linkedin": "string or null",
   "github": "string or null",
-  "summary": "2-3 sentence professional summary",
-  "skills": ["skill1", "skill2"],
-  "experience": [{"title":"Job Title","company":"Company","period":"Mon YYYY - Mon YYYY","description":"2-3 sentences about role"}],
+  "summary": "2-3 sentence professional summary based ONLY on what is in the resume",
+  "skills": ["only skills mentioned in the resume"],
+  "experience": [{"title":"Job Title","company":"Company","period":"Mon YYYY - Mon YYYY","description":"2-3 sentences based ONLY on what the resume says about this role"}],
   "education": [{"degree":"Degree Name","institution":"University","period":"YYYY - YYYY"}],
-  "certifications": ["cert1"],
-  "languages": ["English", "Spanish"]
+  "certifications": ["only certs mentioned"],
+  "languages": ["only languages mentioned"]
 }`,
         },
         {
@@ -362,11 +362,11 @@ async function tailorResumeForJob(
           role: 'system',
           content: `You tailor resumes for specific jobs. Given a candidate profile and job posting, return JSON:
 {
-  "summary": "2-3 sentence summary highlighting relevance to THIS specific role",
-  "skills": ["reordered skills array — most relevant to the job first, keep all skills"],
-  "experienceHighlights": ["tailored description for each experience entry emphasizing relevant aspects"]
+  "summary": "2-3 sentence summary highlighting relevance to THIS specific role — use ONLY facts from the candidate profile",
+  "skills": ["reordered skills array — most relevant to the job first, keep ONLY skills the candidate actually has"],
+  "experienceHighlights": ["tailored description for each experience entry emphasizing relevant aspects — NEVER add companies, roles, or achievements not in the original"]
 }
-Keep it truthful — only reframe existing experience, never invent new skills or experience.`,
+CRITICAL: ONLY reframe existing experience. NEVER invent new skills, companies, technologies, metrics, or achievements. If the candidate has no relevant experience, say so honestly.`,
         },
         {
           role: 'user',
