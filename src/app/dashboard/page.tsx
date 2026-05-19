@@ -21,7 +21,7 @@ export default async function DashboardOverviewPage() {
 
   const userId = session.user.id;
   const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const yesterdayStart = new Date(todayStart.getTime() - 86400000);
   const weekAgo = new Date(now.getTime() - 7 * 86400000);
   const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
@@ -208,7 +208,7 @@ export default async function DashboardOverviewPage() {
           <h1>{greeting}, {firstName}.</h1>
           <p>
             {loop?.isActive ? (
-              <><span className="chip chip-acid-soft" style={{marginRight: '8px'}}><span className="chip-dot live"></span>Auto-apply running</span> {loop.sentToday}/{loop.dailyLimit} sent today{queuedCount > 0 && ` · ${queuedCount} matches sending soon`}</>
+              <><span className="chip chip-acid-soft" style={{marginRight: '8px'}}><span className="chip-dot live"></span>Auto-apply running</span> {sentToday}/{loop.dailyLimit} sent today{queuedCount > 0 && ` · ${queuedCount} matches sending soon`}</>
             ) : (
               <span className="chip" style={{marginRight: '8px'}}>Auto-apply paused</span>
             )}
@@ -242,8 +242,8 @@ export default async function DashboardOverviewPage() {
         </div>
         <div className="kpi">
           <div className="kpi-label">Daily limit</div>
-          <div className="kpi-value tabular">{Math.min(loop?.sentToday || 0, loop?.dailyLimit || 15)} <span className="unit">/ {loop?.dailyLimit || 15}</span></div>
-          <div className="kpi-delta up">{Math.max(0, (loop?.dailyLimit || 15) - (loop?.sentToday || 0))} remaining</div>
+          <div className="kpi-value tabular">{Math.min(sentToday, loop?.dailyLimit || 15)} <span className="unit">/ {loop?.dailyLimit || 15}</span></div>
+          <div className="kpi-delta up">{Math.max(0, (loop?.dailyLimit || 15) - sentToday)} remaining</div>
         </div>
       </div>
 
