@@ -666,12 +666,6 @@ export function RegistrationForm({
         {/* Registration fields — only for NEW users */}
         {isExistingUser === false && (
           <>
-            {/* Name */}
-            <div>
-              <label className="field-label">Your name</label>
-              <input className="text-input" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" required />
-            </div>
-
             {/* LinkedIn URL */}
             <div>
               <label className="field-label">LinkedIn URL <span className="optional">— optional, used as a credibility signal</span></label>
