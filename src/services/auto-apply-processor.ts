@@ -789,7 +789,6 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     }
 
     // AI matching for borderline cases (score 30-79) OR translation/language jobs (always verify)
-    const isLanguageJob = /translat|interpret|linguist|locali[sz]/i.test(listing.title + ' ' + listing.description.slice(0, 200));
     if (matchScore < 80 || isLanguageJob) {
       const skillHash = userSkills.slice(0, 5).sort().join(',');
       const cacheKey = `${listing.id}:${skillHash}`;
