@@ -520,6 +520,7 @@ async function aiMatchCheck(
   userSkills: string[],
   resumeText: string,
   userName: string,
+  userLanguages?: string[],
 ): Promise<{ shouldApply: boolean; score: number; reason: string }> {
   // Use same AI provider as cover letter generator (respects AI_PROVIDER env)
   const OpenAI = (await import('openai')).default;
@@ -544,11 +545,12 @@ Rules:
 - score <40: poor match, don't waste the send
 - If job requires 5+ years and applicant is a student/intern → score low
 - If job requires specific tech (Golang, Rust) that applicant doesn't have → score low
-- "Java" and "JavaScript" are DIFFERENT technologies`,
+- "Java" and "JavaScript" are DIFFERENT technologies
+- CRITICAL: For translation/interpreter/language jobs, the applicant MUST know the specific language required. A Japanese translator should NOT apply to Russian or Dutch translation roles. Score 0 if language mismatch.`,
       },
       {
         role: 'user',
-        content: `JOB: ${listing.title}\nSkills needed: ${listing.skills.join(', ')}\nDescription: ${listing.description.slice(0, 300)}\n\nAPPLICANT: ${userName}\nSkills: ${userSkills.join(', ')}\nBackground: ${resumeText.slice(0, 200)}`,
+        content: `JOB: ${listing.title}\nSkills needed: ${listing.skills.join(', ')}\nDescription: ${listing.description.slice(0, 300)}\n\nAPPLICANT: ${userName}\nSkills: ${userSkills.join(', ')}\nLanguages: ${userLanguages?.join(', ') || 'not specified'}\nBackground: ${resumeText.slice(0, 200)}`,
       },
     ],
   });
@@ -786,16 +788,17 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
       continue;
     }
 
-    // AI matching for borderline cases (score 30-79)
-    // Cache by listing ID + skill hash to avoid duplicate AI calls
-    if (matchScore < 80) {
+    // AI matching for borderline cases (score 30-79) OR translation/language jobs (always verify)
+    const isLanguageJob = /translat|interpret|linguist|locali[sz]/i.test(listing.title + ' ' + listing.description.slice(0, 200));
+    if (matchScore < 80 || isLanguageJob) {
       const skillHash = userSkills.slice(0, 5).sort().join(',');
       const cacheKey = `${listing.id}:${skillHash}`;
       let aiResult = aiMatchCache.get(cacheKey);
 
       if (!aiResult) {
         try {
-          aiResult = await aiMatchCheck(listing, userSkills, (loop.user as any).resumeText || '', (loop.user as any).name || 'Applicant');
+          const userLangs = ((loop.user as any).parsedProfile as any)?.languages as string[] | undefined;
+          aiResult = await aiMatchCheck(listing, userSkills, (loop.user as any).resumeText || '', (loop.user as any).name || 'Applicant', userLangs);
           aiMatchCache.set(cacheKey, aiResult);
         } catch {
           aiResult = null;
