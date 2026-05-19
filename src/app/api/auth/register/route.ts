@@ -153,6 +153,7 @@ export async function POST(request: NextRequest) {
         name: sanitizedName,
         // Not verified yet - will be set when magic link is clicked
         emailVerified: null,
+        needsOnboarding: true,
         // Record ToS agreement for dispute evidence
         agreedToTermsAt: agreedToTerms ? new Date() : null,
         // Google Ads attribution

@@ -126,9 +126,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await prisma.activityLog.create({
-      data: { userId: session.user.id, action: 'LOOP_CREATED', details: { loopId: loop.id, name: loop.name } },
-    }).catch(() => {});
+    await Promise.all([
+      prisma.activityLog.create({
+        data: { userId: session.user.id, action: 'LOOP_CREATED', details: { loopId: loop.id, name: loop.name } },
+      }),
+      prisma.user.update({
+        where: { id: session.user.id },
+        data: { needsOnboarding: false },
+      }),
+    ]).catch(() => {});
 
     return NextResponse.json(loop);
   } catch (error) {
