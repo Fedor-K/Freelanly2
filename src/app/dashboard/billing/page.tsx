@@ -131,8 +131,8 @@ export default async function BillingPage() {
               {user.plan === 'PRO' ? '★ Current plan' : '↑ Upgrade'}
             </div>
             <div className="name">Pro</div>
-            <div className="price">$29<span className="unit">/mo</span></div>
-            <div className="desc">800 applications/mo · 3 inboxes · Unlimited templates · A/B testing · Full pipeline · Priority support</div>
+            <div className="price">€15<span className="unit">/mo</span></div>
+            <div className="desc">Unlimited applications · Full inbox · AI replies · Follow-ups · Priority support</div>
             {user.plan === 'PRO' ? (
               <div className="row gap-2 mt-3">
                 {user.stripeId && (

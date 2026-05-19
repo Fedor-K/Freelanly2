@@ -138,7 +138,7 @@ export function replyTeaserEmail(params: {
       <p style="color:${BRAND.ink4};font-size:14px;margin:0 0 8px;">Full reply is available for Pro members</p>
       <a href="https://freelanly.com/pricing" style="display:inline-block;padding:12px 24px;background:${BRAND.acid};color:#000;border-radius:8px;text-decoration:none;font-weight:600;">Read reply — Upgrade to Pro →</a>
     </div>
-    <p style="color:${BRAND.ink4};font-size:13px;">Freelanly Pro: read all replies, auto follow-ups, 500 applies/mo — $29/mo</p>
+    <p style="color:${BRAND.ink4};font-size:13px;">Freelanly Pro: read all replies, auto follow-ups, unlimited applies — €15/mo</p>
   `);
   const text = `${recruiterName} at ${company} replied to your ${jobTitle} application! Upgrade to Pro to read: https://freelanly.com/pricing`;
   return { subject, html, text };

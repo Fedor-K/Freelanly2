@@ -4,8 +4,8 @@ import '../marketing-styles.css';
 import './pricing-design.css';
 
 export const metadata: Metadata = {
-  title: 'Pricing — Freelanly · from $0/mo · cancel anytime',
-  description: 'Three plans for solo freelancers, pros, and agencies. Free $0, Pro $29/mo, Agency $89/mo. 14-day money back. Annual saves 20%.',
+  title: 'Pricing — Freelanly · from €0/mo · cancel anytime',
+  description: 'Two plans for freelancers. Free €0 (15 applies/day), Pro €15/mo (unlimited). 14-day money back.',
   alternates: { canonical: `${siteConfig.url}/pricing` },
 };
 

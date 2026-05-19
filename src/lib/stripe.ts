@@ -105,10 +105,9 @@ export const PLAN_LIMITS = {
 
 // New pricing info (for future use when switching to new plans)
 export const NEW_PRICE_INFO = {
-  pro_monthly: { name: 'Pro', price: '$29', period: 'month', hasTrial: true, popular: true, plan: 'PRO' as const },
-  pro_annual: { name: 'Pro (Annual)', price: '$23', period: 'month', savings: 'Save 20%', plan: 'PRO' as const },
-  agency_monthly: { name: 'Agency', price: '$89', period: 'month', plan: 'AGENCY' as const },
-  agency_annual: { name: 'Agency (Annual)', price: '$71', period: 'month', savings: 'Save 20%', plan: 'AGENCY' as const },
+  pro_monthly: { name: 'Pro', price: '€15', period: 'month', hasTrial: true, popular: true, plan: 'PRO' as const },
+  pro_quarterly: { name: 'Pro (Quarterly)', price: '€12', period: 'month', savings: 'Save 22%', plan: 'PRO' as const },
+  pro_annual: { name: 'Pro (Annual)', price: '€12.50', period: 'month', savings: 'Save 17%', plan: 'PRO' as const },
 };
 
 // Plan features for display

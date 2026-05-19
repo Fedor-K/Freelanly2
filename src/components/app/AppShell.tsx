@@ -232,9 +232,9 @@ export function AppShell({ children, userName, userPlan }: { children: React.Rea
         {userPlan === 'FREE' && (
           <div className="sb-trial">
             <div className="label">Free plan</div>
-            <div className="days">5 applies / day</div>
+            <div className="days">15 applies / day</div>
             <div className="bar"><div></div></div>
-            <a href="/pricing" className="upgrade">Upgrade → $29/mo</a>
+            <a href="/pricing" className="upgrade">Upgrade → €15/mo</a>
           </div>
         )}
 
