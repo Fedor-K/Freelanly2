@@ -151,8 +151,14 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
     setSuggestLoading(false);
   }
 
+  const lastSentRef = { appId: '', time: 0 };
   async function handleSendReply(appId: string) {
-    if (!replyText.trim()) return;
+    if (!replyText.trim() || sendLoading) return;
+    // Debounce: prevent double-click within 5 seconds for same app
+    const now = Date.now();
+    if (lastSentRef.appId === appId && now - lastSentRef.time < 5000) return;
+    lastSentRef.appId = appId;
+    lastSentRef.time = now;
     setSendLoading(true);
     setSendResult(null);
     try {

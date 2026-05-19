@@ -143,6 +143,14 @@ export async function POST(request: NextRequest) {
 
     // Send Reply
     if (action === 'send' && message) {
+      // Dedup: check if same message was sent in last 60 seconds
+      const recentDupe = await prisma.message.findFirst({
+        where: { applicationId, from: 'user', text: message.slice(0, 2000), createdAt: { gte: new Date(Date.now() - 60000) } },
+      });
+      if (recentDupe) {
+        return NextResponse.json({ success: true, sentTo: app.appliedToEmail, note: 'already_sent' });
+      }
+
       const subject = `Re: ${app.subject}`;
       const html = `<div style="font-family: sans-serif; font-size: 15px; line-height: 1.6; color: #333;">
         ${message.split('\n').map((p: string) => `<p style="margin: 0 0 12px;">${p}</p>`).join('')}
