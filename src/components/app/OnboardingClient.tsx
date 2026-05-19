@@ -62,6 +62,13 @@ export function OnboardingClient({ firstName, hasResume }: { firstName: string; 
         });
       }
 
+      // Mark onboarding complete
+      await fetch('/api/user/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step: 'complete' }),
+      });
+
       window.location.href = '/dashboard';
     } catch {
       window.location.href = '/dashboard';
@@ -88,7 +95,7 @@ export function OnboardingClient({ firstName, hasResume }: { firstName: string; 
             <span>Email</span>
           </div>
         </div>
-        <a href="/dashboard" className="muted" style={{ fontSize: '12px', textDecoration: 'none' }}>Skip setup</a>
+        <a href="#" className="muted" style={{ fontSize: '12px', textDecoration: 'none' }} onClick={async (e) => { e.preventDefault(); await fetch('/api/user/onboarding', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ step: 'complete' }) }); window.location.href = '/dashboard'; }}>Skip setup</a>
       </header>
 
       <main className="onboard-main">
@@ -146,7 +153,7 @@ export function OnboardingClient({ firstName, hasResume }: { firstName: string; 
         </div>
 
         <div className="onboard-actions">
-          <a href="/dashboard" className="btn btn-ghost">← Skip</a>
+          <a href="#" className="btn btn-ghost" onClick={async (e) => { e.preventDefault(); await fetch('/api/user/onboarding', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ step: 'complete' }) }); window.location.href = '/dashboard'; }}>← Skip</a>
           <div className="row gap-3">
             <button className="btn btn-acid" onClick={handleContinue} disabled={saving}>
               {saving ? 'Saving...' : 'Continue → Dashboard'}

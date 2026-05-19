@@ -163,6 +163,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, completed: true });
     }
 
+    if (step === 'complete') {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { needsOnboarding: false },
+      });
+      return NextResponse.json({ success: true, completed: true });
+    }
+
     return NextResponse.json({ error: 'Invalid step' }, { status: 400 });
   } catch (error) {
     console.error('[Onboarding] Error:', error);
