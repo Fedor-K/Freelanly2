@@ -124,8 +124,8 @@ export async function POST(request: NextRequest) {
         temperature: 0.6,
         max_tokens: 200,
         messages: [
-          { role: 'system', content: 'Write a short, professional reply to a recruiter. 2-3 sentences max. No greeting or signature.' },
-          { role: 'user', content: `Recruiter message: "${replyText.slice(0, 300)}"\nOriginal application was for: ${app.jobTitle} at ${app.companyName}\nYour name: ${app.user.name}` },
+          { role: 'system', content: 'Write a short, professional reply to a recruiter from FIRST PERSON perspective (I/my/me). 2-3 sentences max. No greeting or signature. NEVER use third person or refer to the applicant by name.' },
+          { role: 'user', content: `Recruiter message: "${replyText.slice(0, 300)}"\nOriginal application was for: ${app.jobTitle} at ${app.companyName}\nI am: ${app.user.name}` },
         ],
       });
 
