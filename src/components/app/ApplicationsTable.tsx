@@ -327,7 +327,7 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
                                 {/* Follow-up timer for non-replied */}
                                 {!detail.replyText && app.followUp && app.followUp !== 'sent' && (
                                   <div style={{ fontSize: '12px', color: app.followUp === 'overdue' ? '#DC2626' : 'var(--ink-4)', marginTop: '4px', fontFamily: "'Geist Mono', monospace" }}>
-                                    {app.followUp === 'overdue' ? 'Follow-up overdue — will send on next cycle' : `Follow-up ${app.followUp}`}
+                                    {app.followUp === 'overdue' ? 'Follow-up overdue' : `We'll send a follow-up ${app.followUp} if no reply`}
                                   </div>
                                 )}
                               </div>
