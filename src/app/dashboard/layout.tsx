@@ -13,16 +13,12 @@ export default async function DashboardLayout({
   const session = await auth();
   let userName = 'User';
   let userPlan = 'FREE';
-
   if (session?.user?.id) {
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { name: true, plan: true, needsOnboarding: true },
+      select: { name: true, plan: true },
     });
     if (user) {
-      if (user.needsOnboarding !== false) {
-        redirect('/onboarding');
-      }
       userName = user.name || 'User';
       userPlan = user.plan;
     }
