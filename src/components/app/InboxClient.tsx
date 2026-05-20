@@ -192,54 +192,62 @@ export function InboxClient({ replies }: { replies: Reply[] }) {
               </div>
             </div>
 
-            <div className="message-list" style={{ flex: 1 }}>
-              <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: '8px' }}>Conversation</div>
+            {/* Messages — messenger style */}
+            <div style={{ flex: 1, overflow: 'auto', padding: '24px 24px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
-              {/* Your application */}
+              {/* Your message — right side */}
               {active.coverLetter && (
-                <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: '10px', padding: '12px', marginBottom: '8px' }}>
-                  <div style={{ fontSize: '11px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", marginBottom: '4px' }}>You · {active.sentAt ? new Date(active.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : ''}</div>
-                  <div style={{ fontSize: '13px', color: 'var(--ink-2)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                    {active.coverLetter}
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ maxWidth: '75%' }}>
+                    <div style={{ background: 'var(--ink)', color: '#FAFAF7', borderRadius: '16px 16px 4px 16px', padding: '12px 16px' }}>
+                      <div style={{ fontSize: '13px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{active.coverLetter}</div>
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--ink-4)', marginTop: '4px', textAlign: 'right', fontFamily: "'Geist Mono', monospace" }}>
+                      You · {active.sentAt ? new Date(active.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) : ''}
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Recruiter reply */}
-              <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '10px', padding: '12px', marginBottom: '8px' }}>
-                <div style={{ fontSize: '11px', color: '#065F46', fontFamily: "'Geist Mono', monospace", marginBottom: '4px' }}>
-                  {active.companyName} · {active.repliedAt ? timeAgo(active.repliedAt) : 'replied'}
-                  {active.replyCategory && <span style={{ marginLeft: '8px', background: '#D1FAE5', padding: '1px 6px', borderRadius: '4px', fontSize: '10px' }}>{active.replyCategory.toLowerCase()}</span>}
-                </div>
-                <div style={{ fontSize: '13px', color: '#065F46', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                  {cleanReplyText(active.replyText || 'Reply received')}
+              {/* Recruiter reply — left side */}
+              <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                <div style={{ maxWidth: '75%' }}>
+                  <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '16px 16px 16px 4px', padding: '12px 16px' }}>
+                    <div style={{ fontSize: '13px', lineHeight: 1.6, color: '#065F46', whiteSpace: 'pre-wrap' }}>
+                      {cleanReplyText(active.replyText || 'Reply received')}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '10px', color: 'var(--ink-4)', marginTop: '4px', fontFamily: "'Geist Mono', monospace", display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    {active.companyName} · {active.repliedAt ? new Date(active.repliedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) : ''}
+                    {active.replyCategory && <span style={{ background: '#D1FAE5', padding: '1px 6px', borderRadius: '4px', fontSize: '9px', color: '#065F46' }}>{active.replyCategory.toLowerCase()}</span>}
+                  </div>
                 </div>
               </div>
 
               {active.replySignal && (
-                <div style={{ padding: '12px 16px', background: 'var(--acid-tint)', borderRadius: '10px', fontSize: '13px', color: 'var(--acid-deep)', marginBottom: '14px' }}>
-                  <strong>AI Signal:</strong> {active.replySignal}
+                <div style={{ alignSelf: 'center', padding: '8px 14px', background: 'var(--acid-tint)', borderRadius: '20px', fontSize: '12px', color: 'var(--acid-deep)' }}>
+                  ✦ {active.replySignal}
                 </div>
               )}
+            </div>
 
-              {/* Reply box */}
-              <div style={{ marginTop: '8px' }}>
-                <textarea
-                  value={replyText}
-                  onChange={e => setReplyText(e.target.value)}
-                  placeholder="Write a reply..."
-                  rows={3}
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line-2)', borderRadius: '8px', fontSize: '13px', resize: 'vertical', background: 'var(--bg)', lineHeight: 1.5 }}
-                />
-                <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => handleSuggest(active.id)} disabled={suggestLoading}>
-                    {suggestLoading ? 'Generating...' : '✦ AI suggest'}
-                  </button>
-                  <button className="btn btn-primary btn-sm" onClick={() => handleSend(active.id)} disabled={sending || !replyText.trim()}>
-                    {sending ? 'Sending...' : 'Send reply'}
-                  </button>
-                  {sendResult && <span style={{ fontSize: '12px', color: sendResult === 'Sent!' ? 'var(--good)' : '#DC2626' }}>{sendResult}</span>}
-                </div>
+            {/* Reply input — bottom bar */}
+            <div style={{ padding: '14px 24px', borderTop: '1px solid var(--line)', background: 'var(--bg-2)' }}>
+              <textarea
+                value={replyText}
+                onChange={e => setReplyText(e.target.value)}
+                placeholder="Write a reply..."
+                rows={3}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line-2)', borderRadius: '8px', fontSize: '13px', resize: 'vertical', background: 'var(--bg)', lineHeight: 1.5 }}
+              />
+              <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => handleSuggest(active.id)} disabled={suggestLoading}>
+                  {suggestLoading ? 'Generating...' : '✦ AI suggest'}
+                </button>
+                <button className="btn btn-primary btn-sm" onClick={() => handleSend(active.id)} disabled={sending || !replyText.trim()}>
+                  {sending ? 'Sending...' : 'Send reply'}
+                </button>
+                {sendResult && <span style={{ fontSize: '12px', color: sendResult === 'Sent!' ? 'var(--good)' : '#DC2626' }}>{sendResult}</span>}
               </div>
             </div>
           </>

@@ -272,30 +272,42 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
                               <div>
                                 <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: '8px' }}>Conversation</div>
 
-                                {/* Your application */}
-                                <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: '10px', padding: '12px', marginBottom: '8px' }}>
-                                  <div style={{ fontSize: '11px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", marginBottom: '4px' }}>You · {formatDate(app.date)}</div>
-                                  <div style={{ fontSize: '13px', color: 'var(--ink-2)', lineHeight: 1.5, maxHeight: '120px', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
-                                    {detail.coverLetter || (['PENDING', 'REVIEW'].includes(app.status) ? 'Cover letter will be generated before sending' : 'Cover letter sent')}
+                                {/* Your application — right bubble */}
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+                                  <div style={{ maxWidth: '85%' }}>
+                                    <div style={{ background: 'var(--ink)', color: '#FAFAF7', borderRadius: '16px 16px 4px 16px', padding: '12px 16px' }}>
+                                      <div style={{ fontSize: '13px', lineHeight: 1.6, whiteSpace: 'pre-wrap', maxHeight: '120px', overflow: 'auto' }}>
+                                        {detail.coverLetter || (['PENDING', 'REVIEW'].includes(app.status) ? 'Cover letter will be generated before sending' : 'Cover letter sent')}
+                                      </div>
+                                    </div>
+                                    <div style={{ fontSize: '10px', color: 'var(--ink-4)', marginTop: '4px', textAlign: 'right', fontFamily: "'Geist Mono', monospace" }}>You · {formatDate(app.date)}</div>
                                   </div>
                                 </div>
 
-                                {/* Follow-up */}
+                                {/* Follow-up — right bubble */}
                                 {app.followUp === 'sent' && (
-                                  <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: '10px', padding: '12px', marginBottom: '8px' }}>
-                                    <div style={{ fontSize: '11px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace" }}>You · Follow-up sent</div>
+                                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+                                    <div style={{ maxWidth: '85%' }}>
+                                      <div style={{ background: 'var(--ink)', color: '#FAFAF7', borderRadius: '16px 16px 4px 16px', padding: '10px 16px' }}>
+                                        <div style={{ fontSize: '12px', opacity: 0.7 }}>Follow-up sent</div>
+                                      </div>
+                                    </div>
                                   </div>
                                 )}
 
-                                {/* Recruiter reply */}
+                                {/* Recruiter reply — left bubble */}
                                 {detail.replyText && (
-                                  <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '10px', padding: '12px', marginBottom: '8px' }}>
-                                    <div style={{ fontSize: '11px', color: '#065F46', fontFamily: "'Geist Mono', monospace", marginBottom: '4px' }}>
-                                      {detail.clientName || app.companyName} · {detail.repliedAt ? timeAgo(detail.repliedAt) : 'replied'}
-                                      {detail.replyCategory && <span style={{ marginLeft: '8px', background: '#D1FAE5', padding: '1px 6px', borderRadius: '4px', fontSize: '10px' }}>{detail.replyCategory.toLowerCase()}</span>}
-                                    </div>
-                                    <div style={{ fontSize: '13px', color: '#065F46', lineHeight: 1.5, maxHeight: '150px', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
-                                      {detail.replyText}
+                                  <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '12px' }}>
+                                    <div style={{ maxWidth: '85%' }}>
+                                      <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '16px 16px 16px 4px', padding: '12px 16px' }}>
+                                        <div style={{ fontSize: '13px', color: '#065F46', lineHeight: 1.6, maxHeight: '150px', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
+                                          {detail.replyText}
+                                        </div>
+                                      </div>
+                                      <div style={{ fontSize: '10px', color: 'var(--ink-4)', marginTop: '4px', fontFamily: "'Geist Mono', monospace", display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                        {detail.clientName || app.companyName} · {detail.repliedAt ? timeAgo(detail.repliedAt) : 'replied'}
+                                        {detail.replyCategory && <span style={{ background: '#D1FAE5', padding: '1px 6px', borderRadius: '4px', fontSize: '9px', color: '#065F46' }}>{detail.replyCategory.toLowerCase()}</span>}
+                                      </div>
                                     </div>
                                   </div>
                                 )}
