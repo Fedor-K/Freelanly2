@@ -22,6 +22,9 @@ const COLORS = ['#FF6B6B','#A8E024','#6EE7FF','#FFB951','#A78BFA','#34D399','#F8
 
 function cleanReplyText(text: string): string {
   let cleaned = text;
+  // Remove MIME boundaries (--_000_XXX...)
+  cleaned = cleaned.replace(/--_\w+[\w._-]*_?\s*/g, '').trim();
+  cleaned = cleaned.replace(/--\w{20,}\s*/g, '').trim();
   // Remove quoted original message (On ... wrote:)
   cleaned = cleaned.replace(/On\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun|[\d]{1,2})[\s\S]*?wrote:[\s\S]*/i, '').trim();
   // Remove email signatures after -- or __
@@ -34,6 +37,8 @@ function cleanReplyText(text: string): string {
   cleaned = cleaned.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
   // Remove URLs in angle brackets
   cleaned = cleaned.replace(/<https?:\/\/[^>]+>/g, '');
+  // Remove Content-Type headers
+  cleaned = cleaned.replace(/Content-Type:[\s\S]*?\n\n/gi, '').trim();
   // Clean up excessive whitespace
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
   return cleaned;

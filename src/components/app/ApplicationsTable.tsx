@@ -85,6 +85,8 @@ function timeAgo(iso: string) {
 
 function cleanReplyText(text: string): string {
   let cleaned = text;
+  cleaned = cleaned.replace(/--_\w+[\w._-]*_?\s*/g, '').trim();
+  cleaned = cleaned.replace(/--\w{20,}\s*/g, '').trim();
   cleaned = cleaned.replace(/On\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun|[\d]{1,2})[\s\S]*?wrote:[\s\S]*/i, '').trim();
   cleaned = cleaned.replace(/\n--\s*\n[\s\S]*/m, '').trim();
   cleaned = cleaned.replace(/\n__+\s*\n[\s\S]*/m, '').trim();
@@ -92,6 +94,7 @@ function cleanReplyText(text: string): string {
   cleaned = cleaned.replace(/CONFIDENTIAL[\s\S]*/i, '').trim();
   cleaned = cleaned.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
   cleaned = cleaned.replace(/<https?:\/\/[^>]+>/g, '');
+  cleaned = cleaned.replace(/Content-Type:[\s\S]*?\n\n/gi, '').trim();
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
   return cleaned;
 }
