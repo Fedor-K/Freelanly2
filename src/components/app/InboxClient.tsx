@@ -20,6 +20,26 @@ type Reply = {
 
 const COLORS = ['#FF6B6B','#A8E024','#6EE7FF','#FFB951','#A78BFA','#34D399','#F87171','#818CF8'];
 
+function cleanReplyHtml(text: string): string {
+  let cleaned = text;
+  // Remove quoted original message (On ... wrote:)
+  cleaned = cleaned.replace(/On\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun|[\d]{1,2})[\s\S]*?wrote:[\s\S]*/i, '').trim();
+  // Remove email signatures after -- or __ or common sign-offs followed by name+company block
+  cleaned = cleaned.replace(/\n--\s*\n[\s\S]*/m, '').trim();
+  cleaned = cleaned.replace(/\n__+\s*\n[\s\S]*/m, '').trim();
+  // Remove GDPR/disclaimer blocks
+  cleaned = cleaned.replace(/This email may contain[\s\S]*/i, '').trim();
+  cleaned = cleaned.replace(/CONFIDENTIAL[\s\S]*/i, '').trim();
+  // Remove HTML entities leftovers
+  cleaned = cleaned.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  // Remove URLs in angle brackets
+  cleaned = cleaned.replace(/<https?:\/\/[^>]+>/g, '');
+  // Clean up excessive whitespace
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+  // Convert newlines to <br/>
+  return cleaned.replace(/\n/g, '<br/>');
+}
+
 function timeAgo(date: string | null): string {
   if (!date) return '';
   const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -148,7 +168,7 @@ export function InboxClient({ replies }: { replies: Reply[] }) {
                   <span className="msg-from">{active.companyName}</span>
                   <span className="msg-time">{active.repliedAt ? new Date(active.repliedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
                 </div>
-                <div className="msg-body" dangerouslySetInnerHTML={{ __html: (active.replyText || 'Reply received').replace(/\n/g, '<br/>') }} />
+                <div className="msg-body" dangerouslySetInnerHTML={{ __html: cleanReplyHtml(active.replyText || 'Reply received') }} />
               </div>
 
               {active.replySignal && (
