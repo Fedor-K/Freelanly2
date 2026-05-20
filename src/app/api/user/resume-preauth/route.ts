@@ -202,17 +202,23 @@ Extract up to 15 skills. If not found, use null.`,
         if (parsedProfile.field) titles.push(parsedProfile.field);
       }
 
-      await prisma.autoApplyLoop.create({
-        data: {
-          userId: user.id,
-          name: `${titles[0] || 'Auto'} — Auto-Apply`,
-          jobTitles: titles,
-          keywords: (parsedProfile.skills as string[])?.slice(0, 5).join(', ') || null,
-          dailyLimit: 15,
-          mode: 'AUTO',
-          isActive: true,
-        },
-      });
+      await Promise.all([
+        prisma.autoApplyLoop.create({
+          data: {
+            userId: user.id,
+            name: `${titles[0] || 'Auto'} — Auto-Apply`,
+            jobTitles: titles,
+            keywords: (parsedProfile.skills as string[])?.slice(0, 5).join(', ') || null,
+            dailyLimit: 15,
+            mode: 'AUTO',
+            isActive: true,
+          },
+        }),
+        prisma.user.update({
+          where: { id: user.id },
+          data: { needsOnboarding: false },
+        }),
+      ]);
 
       console.log(`[ResumePreAuth] Created auto-apply loop for ${email}: ${titles.join(', ')}`);
     }

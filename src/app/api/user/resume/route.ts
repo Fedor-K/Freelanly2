@@ -176,17 +176,23 @@ Extract as many skills as you can find (up to 20). Extract ALL experience roles,
       }
       keywords = (parsedProfile.skills as string[])?.slice(0, 5).join(', ') || '';
 
-      await prisma.autoApplyLoop.create({
-        data: {
-          userId: session.user.id,
-          name: `${titles[0] || 'Auto'} — Auto-Apply`,
-          jobTitles: titles,
-          keywords: keywords || null,
-          dailyLimit: 15,
-          mode: 'AUTO',
-          isActive: true,
-        },
-      });
+      await Promise.all([
+        prisma.autoApplyLoop.create({
+          data: {
+            userId: session.user.id,
+            name: `${titles[0] || 'Auto'} — Auto-Apply`,
+            jobTitles: titles,
+            keywords: keywords || null,
+            dailyLimit: 15,
+            mode: 'AUTO',
+            isActive: true,
+          },
+        }),
+        prisma.user.update({
+          where: { id: session.user.id },
+          data: { needsOnboarding: false },
+        }),
+      ]);
       console.log(`[Resume] Auto-created loop for user ${session.user.id}: ${titles.join(', ')}`);
     }
 
