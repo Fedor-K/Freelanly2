@@ -44,11 +44,11 @@ export function formatReplyNotification(params: {
     + `<b>${params.jobTitle}</b>\n`
     + `<i>${categoryLabel}</i>\n\n`
     + `"${params.replyPreview.slice(0, 200)}${params.replyPreview.length > 200 ? '...' : ''}"\n\n`
-    + `<a href="https://freelanly.com/dashboard">View & Reply →</a>`;
+    + `<a href="https://freelanly.com/dashboard/inbox">View & Reply →</a>`;
 
   const markup = {
     inline_keyboard: [[
-      { text: '💬 View & Reply', url: 'https://freelanly.com/dashboard' },
+      { text: '💬 View & Reply', url: 'https://freelanly.com/dashboard/inbox' },
     ]],
   };
 

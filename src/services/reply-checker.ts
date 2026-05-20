@@ -395,7 +395,7 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
       });
       const firstName = user.name?.split(' ')[0] || 'there';
       const trackBase = `https://freelanly.com/api/track`;
-      const dashUrl = `${trackBase}/click?uid=${userId}&type=reply_notification&url=${encodeURIComponent('https://freelanly.com/dashboard')}`;
+      const dashUrl = `${trackBase}/click?uid=${userId}&type=reply_notification&url=${encodeURIComponent('https://freelanly.com/dashboard/inbox')}`;
       const openPixel = `<img src="${trackBase}/open?uid=${userId}&aid=reply_notify_${Date.now()}" width="1" height="1" style="display:none" alt="" />`;
 
       const replyList = apps.map(a => {
