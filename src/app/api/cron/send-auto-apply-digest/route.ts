@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { sendEmail } from '@/lib/email/postal';
 import { isCronAuthorized } from '@/lib/cron-auth';
-import { dailyDigestEmail, weeklyReportEmail } from '@/lib/email-templates';
+import { dailyRecapEmail, weeklyReportEmail } from '@/lib/email-templates';
 
 /**
  * POST /api/cron/send-auto-apply-digest
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
       // === DAILY DIGEST ===
       try {
-        const digest = dailyDigestEmail({ userName: user.name || 'there', sent: sentYesterday, opened: openedYesterday, replies: repliedYesterday });
+        const digest = dailyRecapEmail({ userName: user.name || 'there', sent: sentYesterday, opened: openedYesterday, replies: repliedYesterday, weekSent: sentYesterday, weekReplies: repliedYesterday, replyRate: sentYesterday > 0 ? (repliedYesterday / sentYesterday * 100).toFixed(1) : '0', pendingReplies: [] });
         await sendEmail({ to: user.email, subject: digest.subject, html: digest.html, text: digest.text });
         dailySent++;
       } catch (e) {
