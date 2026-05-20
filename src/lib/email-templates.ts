@@ -147,28 +147,52 @@ export function replyTeaserEmail(params: {
 /**
  * Daily digest email
  */
-export function dailyDigestEmail(params: {
+export function dailyRecapEmail(params: {
   userName: string;
   sent: number;
   opened: number;
   replies: number;
+  weekSent: number;
+  weekReplies: number;
+  replyRate: string;
+  pendingReplies: Array<{ company: string; preview: string; replyUrl: string }>;
 }): { subject: string; html: string; text: string } {
-  const { userName, sent, opened, replies } = params;
+  const { userName, sent, opened, replies, weekSent, weekReplies, replyRate, pendingReplies } = params;
   const firstName = userName?.split(' ')[0] || 'there';
-  const subject = `📊 Daily: ${sent} sent, ${replies} replies — Freelanly`;
-  const html = emailShell('Daily digest', `
-    <h1 style="font-size:24px;font-weight:500;margin:0 0 16px;">Hi ${firstName}, here's yesterday's update</h1>
-    <div style="background:${BRAND.bg2};border-radius:12px;padding:20px;margin:16px 0;">
+  const subject = replies > 0
+    ? `${replies} recruiter${replies === 1 ? '' : 's'} replied today — Freelanly`
+    : `${sent} applications sent today — Freelanly`;
+
+  const pendingHtml = pendingReplies.length > 0 ? `
+    <div style="margin:20px 0 0;">
+      <div style="font-family:monospace;font-size:10.5px;letter-spacing:0.06em;text-transform:uppercase;color:${BRAND.ink4};margin-bottom:10px;">⚡ Waiting for your reply</div>
+      ${pendingReplies.map(r => `
+        <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;padding:12px 16px;margin-bottom:8px;">
+          <div style="font-weight:500;font-size:13px;color:#065F46;margin-bottom:4px;">${r.company}</div>
+          <div style="font-size:12.5px;color:#065F46;line-height:1.4;">${r.preview}</div>
+          <a href="${r.replyUrl}" style="display:inline-block;margin-top:8px;padding:6px 14px;background:${BRAND.acid};color:#000;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">Reply now →</a>
+        </div>
+      `).join('')}
+    </div>` : '';
+
+  const html = emailShell('Daily recap', `
+    <h1 style="font-size:22px;font-weight:500;margin:0 0 6px;">Your daily recap 🚀</h1>
+    <p style="color:${BRAND.ink3};font-size:13px;margin:0 0 20px;">Hey ${firstName}, here's what Freelanly did for you today.</p>
+    <div style="background:${BRAND.bg2};border-radius:12px;padding:20px;margin:0 0 16px;">
       <table style="width:100%;text-align:center;"><tr>
-        <td><div style="font-size:28px;font-weight:600;">${sent}</div><div style="font-size:13px;color:${BRAND.ink3};">Sent</div></td>
-        <td><div style="font-size:28px;font-weight:600;">${opened}</div><div style="font-size:13px;color:${BRAND.ink3};">Opened</div></td>
-        <td><div style="font-size:28px;font-weight:600;color:${BRAND.acidDeep};">${replies}</div><div style="font-size:13px;color:${BRAND.ink3};">Replies</div></td>
+        <td><div style="font-size:28px;font-weight:600;">${sent}</div><div style="font-size:12px;color:${BRAND.ink3};">Sent</div></td>
+        <td><div style="font-size:28px;font-weight:600;">${opened}</div><div style="font-size:12px;color:${BRAND.ink3};">Opened</div></td>
+        <td><div style="font-size:28px;font-weight:600;color:${BRAND.acidDeep};">${replies}</div><div style="font-size:12px;color:${BRAND.ink3};">Replies</div></td>
       </tr></table>
     </div>
-    ${replies > 0 ? `<p style="color:${BRAND.ink2};">You have new replies waiting in your inbox!</p>` : ''}
-    <a href="https://freelanly.com/dashboard/auto-apply" style="display:inline-block;padding:12px 24px;background:${BRAND.acid};color:#000;border-radius:8px;text-decoration:none;font-weight:600;margin-top:12px;">Open Dashboard →</a>
+    ${pendingHtml}
+    <div style="margin-top:20px;padding:14px 16px;background:${BRAND.bg2};border-radius:10px;font-size:12.5px;color:${BRAND.ink3};line-height:1.5;">
+      📊 This week: ${weekSent} sent · ${weekReplies} replies · ${replyRate}% reply rate<br/>
+      Tomorrow we'll send more applications matching your profile.
+    </div>
+    <a href="https://freelanly.com/dashboard/inbox" style="display:inline-block;padding:12px 24px;background:${BRAND.acid};color:#000;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px;">Open Dashboard →</a>
   `);
-  const text = `Hi ${firstName}, yesterday: ${sent} sent, ${opened} opened, ${replies} replies. Dashboard: https://freelanly.com/dashboard/auto-apply`;
+  const text = `Hey ${firstName}, today: ${sent} sent, ${opened} opened, ${replies} replies. ${pendingReplies.length > 0 ? pendingReplies.length + ' recruiter(s) waiting for your reply!' : ''} This week: ${weekSent} sent, ${weekReplies} replies (${replyRate}%). Dashboard: https://freelanly.com/dashboard/inbox`;
   return { subject, html, text };
 }
 
