@@ -83,6 +83,19 @@ function timeAgo(iso: string) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
+function cleanReplyText(text: string): string {
+  let cleaned = text;
+  cleaned = cleaned.replace(/On\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun|[\d]{1,2})[\s\S]*?wrote:[\s\S]*/i, '').trim();
+  cleaned = cleaned.replace(/\n--\s*\n[\s\S]*/m, '').trim();
+  cleaned = cleaned.replace(/\n__+\s*\n[\s\S]*/m, '').trim();
+  cleaned = cleaned.replace(/This email may contain[\s\S]*/i, '').trim();
+  cleaned = cleaned.replace(/CONFIDENTIAL[\s\S]*/i, '').trim();
+  cleaned = cleaned.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  cleaned = cleaned.replace(/<https?:\/\/[^>]+>/g, '');
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+  return cleaned;
+}
+
 export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro = false }: { rows: AppRow[]; sentToday?: number; dailyLimit?: number; isPro?: boolean }) {
   const { track } = useTracker();
   const limitReached = !isPro && sentToday >= dailyLimit;
@@ -271,12 +284,13 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
                               {/* Right: conversation + reply */}
                               <div>
                                 <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: '8px' }}>Conversation</div>
+                                <div style={{ maxHeight: '400px', overflow: 'auto', marginBottom: '8px' }}>
 
                                 {/* Your application — right bubble */}
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
                                   <div style={{ maxWidth: '85%' }}>
                                     <div style={{ background: 'var(--ink)', color: '#FAFAF7', borderRadius: '16px 16px 4px 16px', padding: '12px 16px' }}>
-                                      <div style={{ fontSize: '13px', lineHeight: 1.6, whiteSpace: 'pre-wrap', maxHeight: '120px', overflow: 'auto' }}>
+                                      <div style={{ fontSize: '13px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                                         {detail.coverLetter || (['PENDING', 'REVIEW'].includes(app.status) ? 'Cover letter will be generated before sending' : 'Cover letter sent')}
                                       </div>
                                     </div>
@@ -300,8 +314,8 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
                                   <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '12px' }}>
                                     <div style={{ maxWidth: '85%' }}>
                                       <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '16px 16px 16px 4px', padding: '12px 16px' }}>
-                                        <div style={{ fontSize: '13px', color: '#065F46', lineHeight: 1.6, maxHeight: '150px', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
-                                          {detail.replyText}
+                                        <div style={{ fontSize: '13px', color: '#065F46', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                          {cleanReplyText(detail.replyText)}
                                         </div>
                                       </div>
                                       <div style={{ fontSize: '10px', color: 'var(--ink-4)', marginTop: '4px', fontFamily: "'Geist Mono', monospace", display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -311,6 +325,8 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
                                     </div>
                                   </div>
                                 )}
+
+                                </div>{/* close scroll container */}
 
                                 {/* Reply box — show when there's a recruiter reply */}
                                 {detail.replyText && (
