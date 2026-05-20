@@ -99,6 +99,16 @@ function cleanReplyText(text: string): string {
   return cleaned;
 }
 
+const RATINGS = [
+  { emoji: '🟢', label: 'Real opportunity', value: 'real_opportunity' },
+  { emoji: '🟡', label: 'Maybe', value: 'maybe' },
+  { emoji: '🔴', label: 'Spam', value: 'spam' },
+  { emoji: '😐', label: 'Wrong role', value: 'wrong_role' },
+  { emoji: '💰', label: 'Pay too low', value: 'low_pay' },
+  { emoji: '🌍', label: 'Wrong location', value: 'wrong_location' },
+  { emoji: '🤖', label: 'Automated template', value: 'automated' },
+];
+
 export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro = false }: { rows: AppRow[]; sentToday?: number; dailyLimit?: number; isPro?: boolean }) {
   const { track } = useTracker();
   const limitReached = !isPro && sentToday >= dailyLimit;
@@ -111,6 +121,7 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
   const [sendLoading, setSendLoading] = useState(false);
   const [sendResult, setSendResult] = useState<string | null>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
+  const [replyRatings, setReplyRatings] = useState<Record<string, string>>({});
 
   const filtered = rows.filter(r => filter.includes(r.status));
 
@@ -326,6 +337,28 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
                                         {detail.replyCategory && <span style={{ background: '#D1FAE5', padding: '1px 6px', borderRadius: '4px', fontSize: '9px', color: '#065F46' }}>{detail.replyCategory.toLowerCase()}</span>}
                                       </div>
                                     </div>
+                                  </div>
+                                )}
+
+                                {/* Rating */}
+                                {detail.replyText && (
+                                  <div style={{ margin: '8px 0', textAlign: 'center' }}>
+                                    {replyRatings[app.id] ? (
+                                      <div style={{ fontSize: '11px', color: 'var(--ink-4)' }}>
+                                        Rated: {RATINGS.find(r => r.value === replyRatings[app.id])?.emoji} {RATINGS.find(r => r.value === replyRatings[app.id])?.label}
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <div style={{ fontSize: '10px', color: 'var(--ink-4)', marginBottom: '4px' }}>Rate this reply:</div>
+                                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                                          {RATINGS.map(r => (
+                                            <button key={r.value} onClick={() => { setReplyRatings(prev => ({ ...prev, [app.id]: r.value })); fetch('/api/user/inbox', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ applicationId: app.id, action: 'rate', message: r.value }) }).catch(() => {}); }} style={{ padding: '3px 7px', borderRadius: '12px', border: '1px solid var(--line)', background: 'var(--bg)', fontSize: '10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                              {r.emoji} {r.label}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </>
+                                    )}
                                   </div>
                                 )}
 

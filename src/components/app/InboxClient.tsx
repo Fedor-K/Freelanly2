@@ -65,11 +65,22 @@ function chipClass(category: string | null): string {
   return 'chip';
 }
 
+const RATINGS = [
+  { emoji: '🟢', label: 'Real opportunity', value: 'real_opportunity' },
+  { emoji: '🟡', label: 'Maybe', value: 'maybe' },
+  { emoji: '🔴', label: 'Spam', value: 'spam' },
+  { emoji: '😐', label: 'Wrong role', value: 'wrong_role' },
+  { emoji: '💰', label: 'Pay too low', value: 'low_pay' },
+  { emoji: '🌍', label: 'Wrong location', value: 'wrong_location' },
+  { emoji: '🤖', label: 'Automated template', value: 'automated' },
+];
+
 export function InboxClient({ replies }: { replies: Reply[] }) {
   const [activeId, setActiveId] = useState(replies[0]?.id || null);
   const [filter, setFilter] = useState<string>('all');
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
+  const [ratings, setRatings] = useState<Record<string, string>>({});
   const [sendResult, setSendResult] = useState<string | null>(null);
   const [suggestLoading, setSuggestLoading] = useState(false);
 
@@ -92,6 +103,15 @@ export function InboxClient({ replies }: { replies: Reply[] }) {
       }
     } catch { setSendResult('Failed to send'); }
     setSending(false);
+  }
+
+  async function handleRate(appId: string, rating: string) {
+    setRatings(prev => ({ ...prev, [appId]: rating }));
+    fetch('/api/user/inbox', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ applicationId: appId, action: 'rate', message: rating }),
+    }).catch(() => {});
   }
 
   async function handleSuggest(appId: string) {
@@ -234,6 +254,30 @@ export function InboxClient({ replies }: { replies: Reply[] }) {
                   ✦ {active.replySignal}
                 </div>
               )}
+
+              {/* Rating */}
+              <div style={{ alignSelf: 'center', marginTop: '4px' }}>
+                {ratings[active.id] ? (
+                  <div style={{ fontSize: '12px', color: 'var(--ink-4)' }}>
+                    Rated: {RATINGS.find(r => r.value === ratings[active.id])?.emoji} {RATINGS.find(r => r.value === ratings[active.id])?.label}
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--ink-4)', marginBottom: '6px', textAlign: 'center' }}>Rate this reply:</div>
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      {RATINGS.map(r => (
+                        <button
+                          key={r.value}
+                          onClick={() => handleRate(active.id, r.value)}
+                          style={{ padding: '4px 8px', borderRadius: '14px', border: '1px solid var(--line)', background: 'var(--bg)', fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          {r.emoji} {r.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Reply input — bottom bar */}

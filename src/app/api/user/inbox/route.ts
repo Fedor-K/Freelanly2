@@ -228,6 +228,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ bookingUrl: user?.bookingUrl || null });
     }
 
+    // Rate recruiter reply
+    if (action === 'rate' && message) {
+      await prisma.activityLog.create({
+        data: { userId: session.user.id, action: 'REPLY_RATED', details: { applicationId, company: app.companyName, rating: message } },
+      }).catch(() => {});
+      return NextResponse.json({ ok: true, rating: message });
+    }
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error('[Inbox] POST error:', error);
