@@ -95,7 +95,7 @@ export function OnboardingClient({ firstName, hasResume }: { firstName: string; 
             <span>Email</span>
           </div>
         </div>
-        <a href="#" className="muted" style={{ fontSize: '12px', textDecoration: 'none' }} onClick={async (e) => { e.preventDefault(); await fetch('/api/user/onboarding', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ step: 'complete' }) }); window.location.href = '/dashboard'; }}>Skip setup</a>
+        <span></span>
       </header>
 
       <main className="onboard-main">
@@ -153,10 +153,10 @@ export function OnboardingClient({ firstName, hasResume }: { firstName: string; 
         </div>
 
         <div className="onboard-actions">
-          <a href="#" className="btn btn-ghost" onClick={async (e) => { e.preventDefault(); await fetch('/api/user/onboarding', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ step: 'complete' }) }); window.location.href = '/dashboard'; }}>← Skip</a>
+          <div></div>
           <div className="row gap-3">
-            <button className="btn btn-acid" onClick={handleContinue} disabled={saving}>
-              {saving ? 'Saving...' : 'Continue → Dashboard'}
+            <button className="btn btn-acid" onClick={handleContinue} disabled={saving || (!hasResume && !uploadResult?.includes('!'))}>
+              {saving ? 'Saving...' : (!hasResume && !uploadResult?.includes('!')) ? 'Upload résumé to continue' : 'Continue → Dashboard'}
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
             </button>
           </div>
