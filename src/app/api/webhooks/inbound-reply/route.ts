@@ -30,11 +30,12 @@ async function categorizeReply(text: string): Promise<string> {
     const r = await client.chat.completions.create({
       model, temperature: 0.1, max_tokens: 50,
       messages: [
-        { role: 'system', content: 'Categorize this recruiter reply. Return ONE word:\n- INTERESTED = recruiter asks for resume, CV, portfolio, details, or shows any positive interest\n- INTERVIEW = recruiter wants to schedule a call, meeting, or interview\n- REJECTION = explicit rejection ("unfortunately", "not a fit", "position filled")\n- OTHER = automated reply, out of office, or unrelated' },
+        { role: 'system', content: 'Categorize this recruiter reply. Return ONE word:\n- INTERESTED = recruiter asks for resume, CV, portfolio, details, or shows any positive interest\n- INTERVIEW = recruiter wants to schedule a call, meeting, or interview\n- REJECTION = explicit rejection ("unfortunately", "not a fit", "position filled")\n- SPAM = unpaid internship, no compensation, volunteer work, TMDA/captcha verification ("verify that you are"), out of office auto-reply, mass template collecting resumes without specific job, delivery failure/bounce\n- OTHER = unrelated or unclear' },
         { role: 'user', content: text.slice(0, 500) },
       ],
     });
     const cat = r.choices[0]?.message?.content?.trim().toUpperCase() || 'OTHER';
+    if (cat.includes('SPAM')) return 'SPAM';
     if (cat.includes('INTERVIEW')) return 'INTERVIEW';
     if (cat.includes('REJECT')) return 'REJECTED';
     return 'REPLIED';
@@ -91,6 +92,13 @@ export async function POST(request: NextRequest) {
       console.log(`[InboundReply] Empty body for ${appId}. Keys: ${Object.keys(body).join(', ')}`);
     }
     const newStatus = replyText.length > 10 ? await categorizeReply(replyText) : 'REPLIED';
+
+    // SPAM replies: log and skip — don't notify user, don't change status
+    if (newStatus === 'SPAM') {
+      console.log(`[InboundReply] SPAM filtered for ${appId} from ${from}: ${replyText.slice(0, 80)}`);
+      return NextResponse.json({ ok: true, appId, spam: true });
+    }
+
     const signal = replyText.length > 10 ? await extractSignal(replyText, app.jobTitle, app.companyName) : '';
 
     if (app.status !== 'INTERVIEW' && app.status !== 'OFFER') {
