@@ -20,11 +20,11 @@ type Reply = {
 
 const COLORS = ['#FF6B6B','#A8E024','#6EE7FF','#FFB951','#A78BFA','#34D399','#F87171','#818CF8'];
 
-function cleanReplyHtml(text: string): string {
+function cleanReplyText(text: string): string {
   let cleaned = text;
   // Remove quoted original message (On ... wrote:)
   cleaned = cleaned.replace(/On\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun|[\d]{1,2})[\s\S]*?wrote:[\s\S]*/i, '').trim();
-  // Remove email signatures after -- or __ or common sign-offs followed by name+company block
+  // Remove email signatures after -- or __
   cleaned = cleaned.replace(/\n--\s*\n[\s\S]*/m, '').trim();
   cleaned = cleaned.replace(/\n__+\s*\n[\s\S]*/m, '').trim();
   // Remove GDPR/disclaimer blocks
@@ -36,8 +36,7 @@ function cleanReplyHtml(text: string): string {
   cleaned = cleaned.replace(/<https?:\/\/[^>]+>/g, '');
   // Clean up excessive whitespace
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
-  // Convert newlines to <br/>
-  return cleaned.replace(/\n/g, '<br/>');
+  return cleaned;
 }
 
 function timeAgo(date: string | null): string {
@@ -194,22 +193,27 @@ export function InboxClient({ replies }: { replies: Reply[] }) {
             </div>
 
             <div className="message-list" style={{ flex: 1 }}>
+              <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: '8px' }}>Conversation</div>
+
+              {/* Your application */}
               {active.coverLetter && (
-                <div className="msg you">
-                  <div className="msg-head">
-                    <span className="msg-from">{active.userName} · sent via Freelanly</span>
-                    <span className="msg-time">{active.sentAt ? new Date(active.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
+                <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: '10px', padding: '12px', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", marginBottom: '4px' }}>You · {active.sentAt ? new Date(active.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : ''}</div>
+                  <div style={{ fontSize: '13px', color: 'var(--ink-2)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                    {active.coverLetter}
                   </div>
-                  <div className="msg-body" dangerouslySetInnerHTML={{ __html: active.coverLetter.replace(/\n/g, '<br/>') }} />
                 </div>
               )}
 
-              <div className="msg them">
-                <div className="msg-head">
-                  <span className="msg-from">{active.companyName}</span>
-                  <span className="msg-time">{active.repliedAt ? new Date(active.repliedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+              {/* Recruiter reply */}
+              <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '10px', padding: '12px', marginBottom: '8px' }}>
+                <div style={{ fontSize: '11px', color: '#065F46', fontFamily: "'Geist Mono', monospace", marginBottom: '4px' }}>
+                  {active.companyName} · {active.repliedAt ? timeAgo(active.repliedAt) : 'replied'}
+                  {active.replyCategory && <span style={{ marginLeft: '8px', background: '#D1FAE5', padding: '1px 6px', borderRadius: '4px', fontSize: '10px' }}>{active.replyCategory.toLowerCase()}</span>}
                 </div>
-                <div className="msg-body" dangerouslySetInnerHTML={{ __html: cleanReplyHtml(active.replyText || 'Reply received') }} />
+                <div style={{ fontSize: '13px', color: '#065F46', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                  {cleanReplyText(active.replyText || 'Reply received')}
+                </div>
               </div>
 
               {active.replySignal && (
@@ -217,31 +221,24 @@ export function InboxClient({ replies }: { replies: Reply[] }) {
                   <strong>AI Signal:</strong> {active.replySignal}
                 </div>
               )}
-            </div>
 
-            <div className="reply-cta" style={{ flexDirection: 'column', gap: '10px' }}>
-              <textarea
-                value={replyText}
-                onChange={e => setReplyText(e.target.value)}
-                placeholder="Write your reply..."
-                style={{ width: '100%', minHeight: '80px', padding: '12px', borderRadius: '8px', border: '1px solid var(--line)', fontSize: '13.5px', lineHeight: 1.5, resize: 'vertical', fontFamily: 'inherit' }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => handleSuggest(active.id)}
-                  disabled={suggestLoading}
-                >{suggestLoading ? 'Thinking...' : 'AI Suggest'}</button>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  {sendResult && <span style={{ fontSize: '12px', color: sendResult === 'Sent!' ? 'var(--good)' : 'var(--bad)' }}>{sendResult}</span>}
-                  <button
-                    className="btn btn-acid btn-sm"
-                    onClick={() => handleSend(active.id)}
-                    disabled={sending || !replyText.trim()}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+              {/* Reply box */}
+              <div style={{ marginTop: '8px' }}>
+                <textarea
+                  value={replyText}
+                  onChange={e => setReplyText(e.target.value)}
+                  placeholder="Write a reply..."
+                  rows={3}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--line-2)', borderRadius: '8px', fontSize: '13px', resize: 'vertical', background: 'var(--bg)', lineHeight: 1.5 }}
+                />
+                <div style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => handleSuggest(active.id)} disabled={suggestLoading}>
+                    {suggestLoading ? 'Generating...' : '✦ AI suggest'}
+                  </button>
+                  <button className="btn btn-primary btn-sm" onClick={() => handleSend(active.id)} disabled={sending || !replyText.trim()}>
                     {sending ? 'Sending...' : 'Send reply'}
                   </button>
+                  {sendResult && <span style={{ fontSize: '12px', color: sendResult === 'Sent!' ? 'var(--good)' : '#DC2626' }}>{sendResult}</span>}
                 </div>
               </div>
             </div>
