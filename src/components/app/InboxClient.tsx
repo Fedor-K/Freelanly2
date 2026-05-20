@@ -64,6 +64,47 @@ function chipClass(category: string | null): string {
 export function InboxClient({ replies }: { replies: Reply[] }) {
   const [activeId, setActiveId] = useState(replies[0]?.id || null);
   const [filter, setFilter] = useState<string>('all');
+  const [replyText, setReplyText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<string | null>(null);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+
+  async function handleSend(appId: string) {
+    if (!replyText.trim() || sending) return;
+    setSending(true);
+    setSendResult(null);
+    try {
+      const res = await fetch('/api/user/inbox', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId: appId, action: 'send', message: replyText }),
+      });
+      if (res.ok) {
+        setSendResult('Sent!');
+        setReplyText('');
+      } else {
+        const data = await res.json();
+        setSendResult(`Failed: ${data.error || 'unknown'}`);
+      }
+    } catch { setSendResult('Failed to send'); }
+    setSending(false);
+  }
+
+  async function handleSuggest(appId: string) {
+    setSuggestLoading(true);
+    try {
+      const res = await fetch('/api/user/inbox', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId: appId, action: 'suggest' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setReplyText(data.full || data.suggested || '');
+      }
+    } catch {}
+    setSuggestLoading(false);
+  }
 
   const filtered = filter === 'all' ? replies
     : filter === 'interested' ? replies.filter(r => r.replyCategory === 'INTERESTED' || r.replyCategory === 'INTERVIEW')
@@ -178,14 +219,31 @@ export function InboxClient({ replies }: { replies: Reply[] }) {
               )}
             </div>
 
-            <div className="reply-cta">
-              <div className="note">
-                <b>Reply directly from your email.</b> This message is in your inbox at <span className="f-mono">{active.userEmail}</span> — reply there and Freelanly will track the thread.
+            <div className="reply-cta" style={{ flexDirection: 'column', gap: '10px' }}>
+              <textarea
+                value={replyText}
+                onChange={e => setReplyText(e.target.value)}
+                placeholder="Write your reply..."
+                style={{ width: '100%', minHeight: '80px', padding: '12px', borderRadius: '8px', border: '1px solid var(--line)', fontSize: '13.5px', lineHeight: 1.5, resize: 'vertical', fontFamily: 'inherit' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => handleSuggest(active.id)}
+                  disabled={suggestLoading}
+                >{suggestLoading ? 'Thinking...' : 'AI Suggest'}</button>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {sendResult && <span style={{ fontSize: '12px', color: sendResult === 'Sent!' ? 'var(--good)' : 'var(--bad)' }}>{sendResult}</span>}
+                  <button
+                    className="btn btn-acid btn-sm"
+                    onClick={() => handleSend(active.id)}
+                    disabled={sending || !replyText.trim()}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+                    {sending ? 'Sending...' : 'Send reply'}
+                  </button>
+                </div>
               </div>
-              <a href={`mailto:${active.appliedToEmail}?subject=Re: ${active.subject || active.jobTitle}`} className="btn btn-acid btn-sm">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
-                Reply
-              </a>
             </div>
           </>
         ) : (
