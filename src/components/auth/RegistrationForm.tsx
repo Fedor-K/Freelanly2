@@ -738,7 +738,7 @@ export function RegistrationForm({
         <button
           className="primary-btn"
           onClick={handleSendMagicLink}
-          disabled={isLoading || isExistingUser === null || (isExistingUser === false && (selectedCategories.length === 0 || !name.trim()))}
+          disabled={isLoading || isExistingUser === null || (isExistingUser === false && selectedCategories.length === 0)}
         >
           {isLoading ? 'Sending...' : isExistingUser ? 'Send me a code' : 'Send me a code'}
           <span style={{transition: 'transform 140ms'}}>→</span>
