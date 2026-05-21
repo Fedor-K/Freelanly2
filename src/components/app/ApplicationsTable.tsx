@@ -100,7 +100,6 @@ function cleanReplyText(text: string): string {
 }
 
 const RATINGS = [
-  { emoji: '🟢', label: 'Good match', value: 'good_match' },
   { emoji: '😐', label: 'Not a skill match', value: 'wrong_skills' },
   { emoji: '🌍', label: 'Wrong location', value: 'wrong_location' },
   { emoji: '💬', label: 'Other', value: 'other' },
