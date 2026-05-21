@@ -685,43 +685,6 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     });
     if (alreadySentToRecruiter) continue;
 
-    // Match job titles — flexible: match if any significant word from loop title appears in listing title
-    const titleMatch = loop.jobTitles.some((t) => {
-      const loopWords = t.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !['the','and','for','with'].includes(w));
-      // Match if at least half the words match OR the full title is contained
-      if (titleLower.includes(t.toLowerCase())) return true;
-      const matchCount = loopWords.filter(w => titleLower.includes(w)).length;
-      return loopWords.length > 0 && matchCount >= Math.ceil(loopWords.length * 0.5);
-    });
-    if (loop.jobTitles.length > 0 && !titleMatch) continue;
-
-    // Match keywords
-    if (loop.keywords) {
-      const keywords = loop.keywords
-        .toLowerCase()
-        .split(',')
-        .map((k) => k.trim())
-        .filter((k) => k);
-      const searchText = `${titleLower} ${descLower}`;
-      const keywordMatch = keywords.some((kw) => searchText.includes(kw));
-      if (!keywordMatch) continue;
-    }
-
-    // Match country
-    if (loop.country && listing.country && loop.country !== listing.country) {
-      continue;
-    }
-
-    // Match level — flexible: allow one level up or down
-    if (loop.level && listing.level) {
-      const levelOrder = ['INTERN','ENTRY','JUNIOR','MID','SENIOR','LEAD','MANAGER','DIRECTOR','EXECUTIVE'];
-      const loopIdx = levelOrder.indexOf(loop.level);
-      const listIdx = levelOrder.indexOf(listing.level);
-      if (loopIdx >= 0 && listIdx >= 0 && Math.abs(loopIdx - listIdx) > 1) {
-        continue; // Skip if more than 1 level apart
-      }
-    }
-
     // Check blacklisted companies
     if (
       loop.blacklistCompanies.some(
@@ -729,25 +692,6 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
       )
     ) {
       continue;
-    }
-
-    // Skills matching — skip if user profile has skills and overlap is too low
-    const userProfile = loop.user.parsedProfile as Record<string, unknown> | null;
-    const userSkills = (userProfile?.skills as string[]) || [];
-    if (userSkills.length > 0 && listing.skills.length > 0) {
-      const userSkillsLower = userSkills.map(s => s.toLowerCase());
-      const listingSkillsLower = listing.skills.map(s => s.toLowerCase());
-
-      // Check if any user skill appears in listing skills or listing title/description
-      const skillOverlap = userSkillsLower.filter(us =>
-        listingSkillsLower.some(ls => ls.includes(us) || us.includes(ls)) ||
-        titleLower.includes(us) || descLower.includes(us)
-      ).length;
-
-      // Require at least 1 matching skill
-      if (skillOverlap === 0) {
-        continue;
-      }
     }
 
     // Exclude keywords — skip if any excluded keyword found in title or description
@@ -762,37 +706,14 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
       if (hasExcluded) continue;
     }
 
-    // Language check for interpreter/translator jobs
-    const isLanguageJob = /interpret|translat|linguist/i.test(titleLower);
-    if (isLanguageJob) {
-      const userLangs = ((userProfile?.languages as string[]) || []).map(l => l.toLowerCase());
-      // Extract language from title (e.g. "Uzbek-English" → ["uzbek", "english"])
-      const langPattern = /\b(uzbek|arabic|chinese|mandarin|cantonese|japanese|korean|thai|vietnamese|hindi|urdu|bengali|tamil|turkish|persian|farsi|russian|portuguese|french|spanish|german|italian|dutch|polish|czech|swedish|norwegian|danish|finnish|greek|hebrew|indonesian|malay|tagalog|swahili|amharic|haitian|creole|tongan|somali)\b/gi;
-      const jobLangs = [...titleLower.matchAll(langPattern)].map(m => m[0]);
-      // If job requires specific languages, user must know at least one non-English
-      const nonEnglishJobLangs = jobLangs.filter(l => l !== 'english');
-      if (nonEnglishJobLangs.length > 0) {
-        const userKnowsLang = nonEnglishJobLangs.some(jl =>
-          userLangs.some(ul => ul.includes(jl) || jl.includes(ul))
-        );
-        if (!userKnowsLang) {
-          continue; // User doesn't speak the required language
-        }
-      }
-    }
+    const userProfile = loop.user.parsedProfile as Record<string, unknown> | null;
+    const userSkills = (userProfile?.skills as string[]) || [];
 
-    // Calculate rough match score
-    let matchScore = calculateMatchScore(userSkills, listing, loop.jobTitles, titleLower);
-    let matchLabel = matchScore >= 80 ? 'Strong' : matchScore >= 50 ? 'Good' : 'Weak';
-
-    // Skip obvious mismatches
-    if (matchScore < 30) {
-      continue;
-    }
-
-    // AI matching for ALL candidates — verifies skills, language, and location
+    // AI matching — AI decides if user is a good match (skills, role, location, language)
+    let matchScore = 0;
+    let matchLabel = 'Weak';
     {
-      const userLoc = ((loop.user as any).parsedProfile as any)?.location as string | undefined;
+      const userLoc = (userProfile?.location as string) || undefined;
       const skillHash = userSkills.slice(0, 5).sort().join(',') + ':' + (userLoc || '');
       const cacheKey = `${listing.id}:${skillHash}`;
       let aiResult = aiMatchCache.get(cacheKey);
@@ -812,7 +733,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
         matchScore = aiResult.score;
         matchLabel = matchScore >= 80 ? 'Strong' : matchScore >= 50 ? 'Good' : 'Weak';
       } else {
-        if (matchScore < 50) continue;
+        continue; // AI failed — skip rather than send bad match
       }
     }
 
