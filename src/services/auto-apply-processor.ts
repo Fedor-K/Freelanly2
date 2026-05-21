@@ -521,6 +521,7 @@ async function aiMatchCheck(
   resumeText: string,
   userName: string,
   userLanguages?: string[],
+  userLocation?: string,
 ): Promise<{ shouldApply: boolean; score: number; reason: string }> {
   // Use same AI provider as cover letter generator (respects AI_PROVIDER env)
   const OpenAI = (await import('openai')).default;
@@ -546,11 +547,12 @@ Rules:
 - If job requires 5+ years and applicant is a student/intern → score low
 - If job requires specific tech (Golang, Rust) that applicant doesn't have → score low
 - "Java" and "JavaScript" are DIFFERENT technologies
-- CRITICAL: For translation/interpreter/language jobs, the applicant MUST know the specific language required. A Japanese translator should NOT apply to Russian or Dutch translation roles. Score 0 if language mismatch.`,
+- CRITICAL: For translation/interpreter/language jobs, the applicant MUST know the specific language required. A Japanese translator should NOT apply to Russian or Dutch translation roles. Score 0 if language mismatch.
+- CRITICAL: If job is onsite or hybrid in a specific city/country and applicant is in a DIFFERENT country → score 0, shouldApply false. Remote jobs are fine for anyone.`,
       },
       {
         role: 'user',
-        content: `JOB: ${listing.title}\nSkills needed: ${listing.skills.join(', ')}\nDescription: ${listing.description.slice(0, 300)}\n\nAPPLICANT: ${userName}\nSkills: ${userSkills.join(', ')}\nLanguages: ${userLanguages?.join(', ') || 'not specified'}\nBackground: ${resumeText.slice(0, 200)}`,
+        content: `JOB: ${listing.title}\nJob location: ${listing.country || 'not specified'}\nSkills needed: ${listing.skills.join(', ')}\nDescription: ${listing.description.slice(0, 300)}\n\nAPPLICANT: ${userName}\nApplicant location: ${userLocation || 'not specified'}\nSkills: ${userSkills.join(', ')}\nLanguages: ${userLanguages?.join(', ') || 'not specified'}\nBackground: ${resumeText.slice(0, 200)}`,
       },
     ],
   });
@@ -788,16 +790,17 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
       continue;
     }
 
-    // AI matching for borderline cases (score 30-79) OR translation/language jobs (always verify)
-    if (matchScore < 80 || isLanguageJob) {
-      const skillHash = userSkills.slice(0, 5).sort().join(',');
+    // AI matching for ALL candidates — verifies skills, language, and location
+    {
+      const userLoc = ((loop.user as any).parsedProfile as any)?.location as string | undefined;
+      const skillHash = userSkills.slice(0, 5).sort().join(',') + ':' + (userLoc || '');
       const cacheKey = `${listing.id}:${skillHash}`;
       let aiResult = aiMatchCache.get(cacheKey);
 
       if (!aiResult) {
         try {
           const userLangs = ((loop.user as any).parsedProfile as any)?.languages as string[] | undefined;
-          aiResult = await aiMatchCheck(listing, userSkills, (loop.user as any).resumeText || '', (loop.user as any).name || 'Applicant', userLangs);
+          aiResult = await aiMatchCheck(listing, userSkills, (loop.user as any).resumeText || '', (loop.user as any).name || 'Applicant', userLangs, userLoc);
           aiMatchCache.set(cacheKey, aiResult);
         } catch {
           aiResult = null;
