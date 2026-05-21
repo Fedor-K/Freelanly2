@@ -66,13 +66,10 @@ function chipClass(category: string | null): string {
 }
 
 const RATINGS = [
-  { emoji: '🟢', label: 'Real opportunity', value: 'real_opportunity' },
-  { emoji: '🟡', label: 'Maybe', value: 'maybe' },
-  { emoji: '🔴', label: 'Spam', value: 'spam' },
-  { emoji: '😐', label: 'Wrong role', value: 'wrong_role' },
-  { emoji: '💰', label: 'Pay too low', value: 'low_pay' },
+  { emoji: '🟢', label: 'Good match', value: 'good_match' },
+  { emoji: '😐', label: 'Not a skill match', value: 'wrong_skills' },
   { emoji: '🌍', label: 'Wrong location', value: 'wrong_location' },
-  { emoji: '🤖', label: 'Automated template', value: 'automated' },
+  { emoji: '💬', label: 'Other', value: 'other' },
 ];
 
 export function InboxClient({ replies }: { replies: Reply[] }) {
@@ -259,7 +256,21 @@ export function InboxClient({ replies }: { replies: Reply[] }) {
               <div style={{ alignSelf: 'center', marginTop: '4px' }}>
                 {ratings[active.id] ? (
                   <div style={{ fontSize: '12px', color: 'var(--ink-4)' }}>
-                    Rated: {RATINGS.find(r => r.value === ratings[active.id])?.emoji} {RATINGS.find(r => r.value === ratings[active.id])?.label}
+                    Thanks for your feedback {RATINGS.find(r => r.value === ratings[active.id])?.emoji}
+                  </div>
+                ) : ratings[active.id + '_showOther'] ? (
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'center' }}>
+                    <input
+                      type="text"
+                      placeholder="What's wrong?"
+                      maxLength={100}
+                      style={{ padding: '4px 8px', borderRadius: '8px', border: '1px solid var(--line)', fontSize: '11px', width: '180px' }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { const val = (e.target as HTMLInputElement).value.trim(); if (val) handleRate(active.id, 'other:' + val); } }}
+                    />
+                    <button
+                      style={{ padding: '4px 8px', borderRadius: '8px', border: '1px solid var(--line)', background: 'var(--bg)', fontSize: '11px', cursor: 'pointer' }}
+                      onClick={(e) => { const input = (e.target as HTMLElement).previousElementSibling as HTMLInputElement; if (input?.value.trim()) handleRate(active.id, 'other:' + input.value.trim()); }}
+                    >Send</button>
                   </div>
                 ) : (
                   <div>
@@ -268,7 +279,13 @@ export function InboxClient({ replies }: { replies: Reply[] }) {
                       {RATINGS.map(r => (
                         <button
                           key={r.value}
-                          onClick={() => handleRate(active.id, r.value)}
+                          onClick={() => {
+                            if (r.value === 'other') {
+                              setRatings(prev => ({ ...prev, [active.id + '_showOther']: 'true' }));
+                            } else {
+                              handleRate(active.id, r.value);
+                            }
+                          }}
                           style={{ padding: '4px 8px', borderRadius: '14px', border: '1px solid var(--line)', background: 'var(--bg)', fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap' }}
                         >
                           {r.emoji} {r.label}

@@ -100,13 +100,10 @@ function cleanReplyText(text: string): string {
 }
 
 const RATINGS = [
-  { emoji: '🟢', label: 'Real opportunity', value: 'real_opportunity' },
-  { emoji: '🟡', label: 'Maybe', value: 'maybe' },
-  { emoji: '🔴', label: 'Spam', value: 'spam' },
-  { emoji: '😐', label: 'Wrong role', value: 'wrong_role' },
-  { emoji: '💰', label: 'Pay too low', value: 'low_pay' },
+  { emoji: '🟢', label: 'Good match', value: 'good_match' },
+  { emoji: '😐', label: 'Not a skill match', value: 'wrong_skills' },
   { emoji: '🌍', label: 'Wrong location', value: 'wrong_location' },
-  { emoji: '🤖', label: 'Automated template', value: 'automated' },
+  { emoji: '💬', label: 'Other', value: 'other' },
 ];
 
 export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro = false }: { rows: AppRow[]; sentToday?: number; dailyLimit?: number; isPro?: boolean }) {
@@ -344,15 +341,27 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro 
                                 {detail.replyText && (
                                   <div style={{ margin: '8px 0', textAlign: 'center' }}>
                                     {replyRatings[app.id] ? (
-                                      <div style={{ fontSize: '11px', color: 'var(--ink-4)' }}>
-                                        Rated: {RATINGS.find(r => r.value === replyRatings[app.id])?.emoji} {RATINGS.find(r => r.value === replyRatings[app.id])?.label}
+                                      <div style={{ fontSize: '10px', color: 'var(--ink-4)' }}>
+                                        Thanks for your feedback {RATINGS.find(r => r.value === replyRatings[app.id])?.emoji}
+                                      </div>
+                                    ) : replyRatings[app.id + '_showOther'] ? (
+                                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'center' }}>
+                                        <input type="text" placeholder="What's wrong?" maxLength={100} style={{ padding: '3px 7px', borderRadius: '8px', border: '1px solid var(--line)', fontSize: '10px', width: '160px' }}
+                                          onKeyDown={(e) => { if (e.key === 'Enter') { const val = (e.target as HTMLInputElement).value.trim(); if (val) { setReplyRatings(prev => ({ ...prev, [app.id]: 'other' })); fetch('/api/user/inbox', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ applicationId: app.id, action: 'rate', message: 'other:' + val }) }).catch(() => {}); } } }}
+                                        />
+                                        <button style={{ padding: '3px 7px', borderRadius: '8px', border: '1px solid var(--line)', background: 'var(--bg)', fontSize: '10px', cursor: 'pointer' }}
+                                          onClick={(e) => { const input = (e.target as HTMLElement).previousElementSibling as HTMLInputElement; if (input?.value.trim()) { setReplyRatings(prev => ({ ...prev, [app.id]: 'other' })); fetch('/api/user/inbox', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ applicationId: app.id, action: 'rate', message: 'other:' + input.value.trim() }) }).catch(() => {}); } }}
+                                        >Send</button>
                                       </div>
                                     ) : (
                                       <>
                                         <div style={{ fontSize: '10px', color: 'var(--ink-4)', marginBottom: '4px' }}>Rate this reply:</div>
                                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
                                           {RATINGS.map(r => (
-                                            <button key={r.value} onClick={() => { setReplyRatings(prev => ({ ...prev, [app.id]: r.value })); fetch('/api/user/inbox', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ applicationId: app.id, action: 'rate', message: r.value }) }).catch(() => {}); }} style={{ padding: '3px 7px', borderRadius: '12px', border: '1px solid var(--line)', background: 'var(--bg)', fontSize: '10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                            <button key={r.value} onClick={() => {
+                                              if (r.value === 'other') { setReplyRatings(prev => ({ ...prev, [app.id + '_showOther']: 'true' })); }
+                                              else { setReplyRatings(prev => ({ ...prev, [app.id]: r.value })); fetch('/api/user/inbox', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ applicationId: app.id, action: 'rate', message: r.value }) }).catch(() => {}); }
+                                            }} style={{ padding: '3px 7px', borderRadius: '12px', border: '1px solid var(--line)', background: 'var(--bg)', fontSize: '10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                                               {r.emoji} {r.label}
                                             </button>
                                           ))}
