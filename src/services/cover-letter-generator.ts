@@ -129,6 +129,7 @@ YOUR JOB:
 6. Sign off with the applicant's name.
 
 RULES:
+- ALWAYS write in FIRST PERSON (I/my/me). NEVER use third person or refer to the applicant by name in the body. "I have experience" NOT "John has experience".
 - NEVER say "I am excited", "I am eager", "I am confident", "I am writing to express interest"
 - Sound like a real person writing a quick note to someone they want to work with
 - Short. 4-6 lines total including greeting and sign-off. Under 100 words.
