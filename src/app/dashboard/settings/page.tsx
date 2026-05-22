@@ -7,6 +7,7 @@ import { CancelSubscriptionSection } from './CancelSubscriptionSection';
 import { DeleteAccountSection } from './DeleteAccountSection';
 import { ManageSubscriptionButton } from './ManageSubscriptionButton';
 import { SendingRules, NotificationToggles } from '@/components/app/SettingsToggles';
+import { ResumeUploadButton } from '@/components/app/ResumeUploadButton';
 import './settings-design.css';
 
 export const metadata: Metadata = {
@@ -144,7 +145,7 @@ export default async function SettingsPage() {
                   <div className="field-row">
                     <div className="lbl">Update resume</div>
                     <div className="ctrl">
-                      <a href="/auth/signin" className="btn btn-soft btn-sm">Upload new resume</a>
+                      <ResumeUploadButton />
                     </div>
                   </div>
                 </>
