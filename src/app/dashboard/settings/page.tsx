@@ -144,7 +144,7 @@ export default async function SettingsPage() {
                   <div className="field-row">
                     <div className="lbl">Update resume</div>
                     <div className="ctrl">
-                      <a href="/onboarding" className="btn btn-soft btn-sm">Upload new resume</a>
+                      <a href="/auth/signin" className="btn btn-soft btn-sm">Upload new resume</a>
                     </div>
                   </div>
                 </>

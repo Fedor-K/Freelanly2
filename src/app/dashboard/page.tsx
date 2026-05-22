@@ -27,9 +27,9 @@ export default async function DashboardOverviewPage() {
   const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
   const monthAgo = new Date(now.getTime() - 30 * 86400000);
 
-  // Check onboarding
-  const onboardCheck = await prisma.user.findUnique({ where: { id: userId }, select: { needsOnboarding: true } });
-  if (onboardCheck?.needsOnboarding !== false) redirect('/onboarding');
+  // Check if user has resume — if not, redirect to signin to complete onboarding
+  const onboardCheck = await prisma.user.findUnique({ where: { id: userId }, select: { resumeUrl: true } });
+  if (!onboardCheck?.resumeUrl) redirect('/auth/signin');
 
   const [user, today, yesterday, month, applications, repliesTodayCount, followUps, dailyActivity, loop, queuedCount] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true, parsedProfile: true } }),

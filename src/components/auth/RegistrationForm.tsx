@@ -171,7 +171,7 @@ export function RegistrationForm({
   // Debounced fetch on filter changes
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (step === 'register' || (step === 'email' && isExistingUser === false)) {
+      if (step === 'register' || (step === 'email' && hasResume === false)) {
         fetchJobCount();
       }
     }, 300);
@@ -187,10 +187,14 @@ export function RegistrationForm({
     }
   }, [email, jobId, trackDb]);
 
+  // Has resume flag from check-email API
+  const [hasResume, setHasResume] = useState<boolean | null>(null);
+
   // Debounced email check on typing
   useEffect(() => {
     if (!email || !email.includes('@') || !email.includes('.')) {
       setIsExistingUser(null);
+      setHasResume(null);
       return;
     }
     const timer = setTimeout(() => {
@@ -215,8 +219,10 @@ export function RegistrationForm({
       });
       const data = await res.json();
       setIsExistingUser(data.exists);
+      setHasResume(data.hasResume ?? false);
     } catch {
       setIsExistingUser(null);
+      setHasResume(null);
     } finally {
       setIsCheckingEmail(false);
     }
@@ -232,8 +238,8 @@ export function RegistrationForm({
     // Normalize email to prevent case mismatch with OTP token lookup
     setEmail(prev => prev.toLowerCase().trim());
 
-    // New user — validate categories
-    if (isExistingUser === false) {
+    // Validate categories when onboarding fields are shown
+    if (hasResume === false) {
       if (selectedCategories.length === 0) {
         setError('Please select at least one job category');
         return;
@@ -248,8 +254,8 @@ export function RegistrationForm({
     setError('');
 
     try {
-      // New user: register first
-      if (isExistingUser === false) {
+      // Register or update alerts for users without resume
+      if (hasResume === false) {
         const regRes = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -663,8 +669,8 @@ export function RegistrationForm({
           )}
         </div>
 
-        {/* Registration fields — only for NEW users */}
-        {isExistingUser === false && (
+        {/* Registration fields — for users without resume (new or existing) */}
+        {hasResume === false && isExistingUser !== null && (
           <>
             {/* LinkedIn URL */}
             <div>
@@ -738,7 +744,7 @@ export function RegistrationForm({
         <button
           className="primary-btn"
           onClick={handleSendMagicLink}
-          disabled={isLoading || isExistingUser === null || (isExistingUser === false && selectedCategories.length === 0)}
+          disabled={isLoading || isExistingUser === null || (hasResume === false && selectedCategories.length === 0)}
         >
           {isLoading ? 'Sending...' : isExistingUser ? 'Send me a code' : 'Send me a code'}
           <span style={{transition: 'transform 140ms'}}>→</span>
