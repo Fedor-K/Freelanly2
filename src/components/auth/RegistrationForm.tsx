@@ -556,7 +556,7 @@ export function RegistrationForm({
       const res = await fetch('/api/auth/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: fullCode }),
+        body: JSON.stringify({ email, code: fullCode, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
       });
       const data = await res.json();
       if (res.ok && data.success) {

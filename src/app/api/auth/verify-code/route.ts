@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, code } = await request.json();
+    const { email, code, timezone } = await request.json();
 
     if (!email || !code) {
       return NextResponse.json(
@@ -80,12 +80,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Mark email as verified if not already
-    if (!user.emailVerified) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { emailVerified: new Date() },
-      });
+    // Mark email as verified + save timezone
+    const updateData: Record<string, unknown> = {};
+    if (!user.emailVerified) updateData.emailVerified = new Date();
+    if (timezone && typeof timezone === 'string' && timezone.includes('/')) updateData.timezone = timezone;
+    if (Object.keys(updateData).length > 0) {
+      await prisma.user.update({ where: { id: user.id }, data: updateData });
     }
 
     // Create a session (same as NextAuth would do after magic link click)

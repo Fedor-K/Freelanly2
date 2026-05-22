@@ -4,8 +4,31 @@ import { sendEmail } from '@/lib/email';
 import { dailyRecapEmail } from '@/lib/email-templates';
 
 /**
+ * Timezones grouped by UTC offset (hours).
+ * Used as fallback when user has no timezone set.
+ * Default: UTC+0 (sends at 19:00 UTC).
+ */
+const TARGET_HOUR = 19; // 19:00 local time
+
+function getUtcOffsetForTimezone(tz: string): number {
+  try {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false });
+    const localHour = parseInt(formatter.format(now));
+    const utcHour = now.getUTCHours();
+    let offset = localHour - utcHour;
+    if (offset > 12) offset -= 24;
+    if (offset < -12) offset += 24;
+    return offset;
+  } catch {
+    return 0;
+  }
+}
+
+/**
  * POST /api/cron/send-daily-recap
- * Send daily recap email to all users with active loops who had activity today.
+ * Send daily recap email to users whose local time is ~19:00.
+ * Called hourly from Hetzner cron.
  */
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -15,6 +38,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const now = new Date();
+    const currentUtcHour = now.getUTCHours();
     const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     const weekAgo = new Date(todayStart.getTime() - 7 * 86400000);
 
@@ -27,16 +51,22 @@ export async function POST(request: NextRequest) {
 
     let sent = 0;
     let skipped = 0;
+    let wrongTime = 0;
 
     for (const { userId, _count: sentToday } of usersWithActivity) {
       try {
         const user = await prisma.user.findUnique({
           where: { id: userId },
-          select: { name: true, email: true, unsubscribedFromMarketing: true },
+          select: { name: true, email: true, unsubscribedFromMarketing: true, timezone: true },
         });
 
         if (!user || user.unsubscribedFromMarketing) { skipped++; continue; }
         if (sentToday === 0) { skipped++; continue; }
+
+        // Check if it's ~19:00 in user's timezone
+        const userOffset = user.timezone ? getUtcOffsetForTimezone(user.timezone) : 0;
+        const userLocalHour = (currentUtcHour + userOffset + 24) % 24;
+        if (userLocalHour !== TARGET_HOUR) { wrongTime++; continue; }
 
         // Today's stats
         const [openedToday, repliesToday] = await Promise.all([
@@ -109,8 +139,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`[DailyRecap] Sent: ${sent}, Skipped: ${skipped}`);
-    return NextResponse.json({ sent, skipped });
+    console.log(`[DailyRecap] UTC hour: ${currentUtcHour}, Sent: ${sent}, Skipped: ${skipped}, WrongTime: ${wrongTime}`);
+    return NextResponse.json({ sent, skipped, wrongTime, utcHour: currentUtcHour });
   } catch (error) {
     console.error('[DailyRecap] Error:', error);
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
