@@ -95,6 +95,8 @@ function cleanReplyText(text: string): string {
   cleaned = cleaned.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
   cleaned = cleaned.replace(/<https?:\/\/[^>]+>/g, '');
   cleaned = cleaned.replace(/Content-Type:[\s\S]*?\n\n/gi, '').trim();
+  cleaned = cleaned.replace(/\[cid:[^\]]*\](\[X\])?/g, '').trim();
+  cleaned = cleaned.replace(/<mailto:[^>]+>/g, '').trim();
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
   return cleaned;
 }

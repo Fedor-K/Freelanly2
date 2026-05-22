@@ -39,6 +39,9 @@ function cleanReplyText(text: string): string {
   cleaned = cleaned.replace(/<https?:\/\/[^>]+>/g, '');
   // Remove Content-Type headers
   cleaned = cleaned.replace(/Content-Type:[\s\S]*?\n\n/gi, '').trim();
+  // Remove CID image references and mailto links
+  cleaned = cleaned.replace(/\[cid:[^\]]*\](\[X\])?/g, '').trim();
+  cleaned = cleaned.replace(/<mailto:[^>]+>/g, '').trim();
   // Clean up excessive whitespace
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
   return cleaned;
