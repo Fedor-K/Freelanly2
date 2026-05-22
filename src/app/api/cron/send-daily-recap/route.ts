@@ -64,9 +64,13 @@ export async function POST(request: NextRequest) {
         if (sentToday === 0) { skipped++; continue; }
 
         // Check if it's ~19:00 in user's timezone
-        const userOffset = user.timezone ? getUtcOffsetForTimezone(user.timezone) : 0;
-        const userLocalHour = (currentUtcHour + userOffset + 24) % 24;
-        if (userLocalHour !== TARGET_HOUR) { wrongTime++; continue; }
+        // If force=true query param, skip timezone check
+        const forceAll = request.nextUrl.searchParams.get('force') === 'true';
+        if (!forceAll) {
+          const userOffset = user.timezone ? getUtcOffsetForTimezone(user.timezone) : 0;
+          const userLocalHour = (currentUtcHour + userOffset + 24) % 24;
+          if (userLocalHour !== TARGET_HOUR) { wrongTime++; continue; }
+        }
 
         // Today's stats
         const [openedToday, repliesToday] = await Promise.all([
