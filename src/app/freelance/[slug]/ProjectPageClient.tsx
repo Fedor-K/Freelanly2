@@ -29,6 +29,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState('');
   const startTime = useRef(Date.now());
   const scrollDepth = useRef(0);
 
@@ -78,6 +81,30 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       }
     } catch { /* ignore */ }
     setLoading(false);
+  }
+
+  async function handleOtpSubmit(code: string) {
+    if (code.length !== 6) return;
+    setOtpLoading(true);
+    setOtpError('');
+    try {
+      const res = await fetch('/api/auth/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        window.location.href = '/dashboard/auto-apply';
+      } else {
+        setOtpError(data.error || 'Invalid code');
+        setOtpCode('');
+      }
+    } catch {
+      setOtpError('Something went wrong. Please try again.');
+    } finally {
+      setOtpLoading(false);
+    }
   }
 
   return (
@@ -204,8 +231,32 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             )}
 
             {sent && (
-              <div style={{ textAlign: 'center', padding: '12px', background: '#ECFDF5', borderRadius: '10px', fontSize: '14px', color: '#047857' }}>
-                Check your email for a 6-digit code
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ padding: '10px', background: '#ECFDF5', borderRadius: '10px', fontSize: '13px', color: '#047857', marginBottom: '12px' }}>
+                  Code sent to {email}
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  placeholder="Enter 6-digit code"
+                  value={otpCode}
+                  onChange={e => {
+                    const v = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setOtpCode(v);
+                    setOtpError('');
+                    if (v.length === 6) handleOtpSubmit(v);
+                  }}
+                  autoFocus
+                  disabled={otpLoading}
+                  style={{ width: '100%', padding: '14px', border: `1px solid ${otpError ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '18px', textAlign: 'center', letterSpacing: '8px', fontWeight: 600, marginBottom: '8px' }}
+                />
+                {otpError && <div style={{ fontSize: '12px', color: '#B91C1C', marginBottom: '8px' }}>{otpError}</div>}
+                {otpLoading && <div style={{ fontSize: '12px', color: '#047857' }}>Verifying...</div>}
+                <button onClick={() => { setSent(false); setOtpCode(''); setOtpError(''); }} style={{ fontSize: '12px', color: '#8A8780', background: 'none', border: 'none', cursor: 'pointer', marginTop: '4px' }}>
+                  Use a different email
+                </button>
               </div>
             )}
 
