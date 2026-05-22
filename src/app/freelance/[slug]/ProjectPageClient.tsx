@@ -82,6 +82,22 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .project-layout {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+            padding: 24px 16px !important;
+          }
+          .project-sidebar {
+            position: static !important;
+            order: -1;
+          }
+          .project-main h1 {
+            font-size: 24px !important;
+          }
+        }
+      `}</style>
       {/* Nav */}
       <nav style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E8E5DC', maxWidth: '1100px', margin: '0 auto' }}>
         <a href="/" style={{ fontWeight: 700, fontSize: '18px', color: '#000', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -91,9 +107,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         <a href="/auth/signin" onClick={() => track('SIGNUP_START', { projectId: project.id, source: 'nav_button' })} style={{ padding: '8px 16px', background: '#C7F94A', color: '#000', borderRadius: '8px', fontSize: '13px', fontWeight: 500, textDecoration: 'none' }}>Sign up free</a>
       </nav>
 
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 24px', display: 'grid', gridTemplateColumns: '1fr 380px', gap: '40px', alignItems: 'start' }}>
+      <div className="project-layout" style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 24px', display: 'grid', gridTemplateColumns: '1fr 380px', gap: '40px', alignItems: 'start' }}>
         {/* Left: project details */}
-        <div>
+        <div className="project-main">
           {/* Breadcrumb */}
           <div style={{ fontSize: '12px', color: '#8A8780', marginBottom: '16px', fontFamily: "'Geist Mono', monospace", letterSpacing: '0.04em' }}>
             <a href="/jobs" style={{ color: '#8A8780', textDecoration: 'none' }}>Jobs</a>
@@ -141,7 +157,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         </div>
 
         {/* Right: CTA card */}
-        <div style={{ position: 'sticky', top: '24px' }}>
+        <div className="project-sidebar" style={{ position: 'sticky', top: '24px' }}>
           <div style={{ background: '#fff', border: '1px solid #E8E5DC', borderRadius: '16px', padding: '28px', boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}>
             {/* Signals */}
             <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
