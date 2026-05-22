@@ -191,6 +191,10 @@ export function dailyRecapEmail(params: {
       Tomorrow we'll send more applications matching your profile.
     </div>
     <a href="https://freelanly.com/dashboard/inbox" style="display:inline-block;padding:12px 24px;background:${BRAND.acid};color:#000;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px;">Open Dashboard →</a>
+    <div style="margin-top:24px;padding:14px 16px;background:#E0F2FE;border:1px solid #BAE6FD;border-radius:10px;text-align:center;">
+      <div style="font-size:13px;color:#0369A1;line-height:1.5;">📱 Get instant notifications when recruiters reply</div>
+      <a href="https://t.me/FLalarmbot" style="display:inline-block;margin-top:8px;padding:8px 18px;background:#0088cc;color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;">Connect Telegram →</a>
+    </div>
   `);
   const text = `Hey ${firstName}, today: ${sent} sent, ${opened} opened, ${replies} replies. ${pendingReplies.length > 0 ? pendingReplies.length + ' recruiter(s) waiting for your reply!' : ''} This week: ${weekSent} sent, ${weekReplies} replies (${replyRate}%). Dashboard: https://freelanly.com/dashboard/inbox`;
   return { subject, html, text };
