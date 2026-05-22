@@ -130,37 +130,34 @@ export function CookieConsentBanner() {
   if (!showBanner) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-background border-t shadow-lg">
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-3 sm:p-4 bg-background border-t shadow-lg">
       <div className="container max-w-4xl mx-auto">
         {!showSettings ? (
-          // Main banner
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="flex items-start gap-3 flex-1">
-              <Cookie className="h-6 w-6 text-muted-foreground shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm">
-                  We use cookies to improve your experience. By continuing, you agree to our{' '}
-                  <Link href="/privacy" className="underline hover:text-primary">
-                    Privacy Policy
-                  </Link>
-                  .
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
+          // Main banner — compact on mobile
+          <div className="flex items-center gap-3">
+            <Cookie className="h-5 w-5 text-muted-foreground shrink-0 hidden sm:block" />
+            <p className="text-xs sm:text-sm flex-1">
+              We use cookies to improve your experience. By continuing, you agree to our{' '}
+              <Link href="/privacy" className="underline hover:text-primary">
+                Privacy Policy
+              </Link>.
+            </p>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowSettings(true)}
+                className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
               >
-                <Settings className="h-4 w-4 mr-1" />
-                Settings
+                <Settings className="h-3.5 w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Settings</span>
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={acceptNecessaryOnly}
                 disabled={saving}
+                className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
               >
                 Reject All
               </Button>
@@ -168,6 +165,7 @@ export function CookieConsentBanner() {
                 size="sm"
                 onClick={acceptAll}
                 disabled={saving}
+                className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
               >
                 Accept All
               </Button>
