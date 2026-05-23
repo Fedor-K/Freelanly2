@@ -61,12 +61,54 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
 
-  // Check if already authenticated
+  // Check if already authenticated + auto-apply on ?apply=1
   const [isAuthed, setIsAuthed] = useState(false);
   useEffect(() => {
     fetch('/api/user/settings', { method: 'GET' })
-      .then(r => { if (r.ok) setIsAuthed(true); })
+      .then(r => {
+        if (r.ok) {
+          setIsAuthed(true);
+          // Auto-trigger cover letter generation if ?apply=1
+          if (new URLSearchParams(window.location.search).get('apply') === '1') {
+            // Clean up URL
+            const url = new URL(window.location.href);
+            url.searchParams.delete('apply');
+            window.history.replaceState({}, '', url.toString());
+            // Generate cover letter
+            setPhase('generating');
+            fetch('/api/user/quick-apply', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ opportunityId: project.id, draftOnly: true }),
+            })
+              .then(r => r.json())
+              .then(data => {
+                if (data.ok || data.coverLetter) {
+                  setCoverLetter(data.coverLetter || '');
+                  setSubject(data.subject || `Application: ${project.title}`);
+                  setSendTo(data.to || '');
+                  setPhase('review');
+                } else if (data.error === 'already_applied') {
+                  setGenError('You already applied to this project.');
+                  setPhase('sent');
+                } else {
+                  setCoverLetter('');
+                  setSubject(`Application: ${project.title}`);
+                  setGenError(data.message || 'Write your cover letter below.');
+                  setPhase('review');
+                }
+              })
+              .catch(() => {
+                setCoverLetter('');
+                setSubject(`Application: ${project.title}`);
+                setGenError('Write your cover letter below.');
+                setPhase('review');
+              });
+          }
+        }
+      })
       .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Track page view
@@ -181,36 +223,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        // Authenticated! Generate cover letter
-        setPhase('generating');
-        setOtpLoading(false);
-        try {
-          const clRes = await fetch('/api/user/quick-apply', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ opportunityId: project.id, draftOnly: true }),
-          });
-          const clData = await clRes.json();
-          if (clRes.ok) {
-            setCoverLetter(clData.coverLetter || '');
-            setSubject(clData.subject || `Application: ${project.title}`);
-            setSendTo(clData.to || '');
-            setPhase('review');
-          } else if (clData.error === 'already_applied') {
-            setGenError('You already applied to this project.');
-            setPhase('sent');
-          } else {
-            setCoverLetter('');
-            setSubject(`Application: ${project.title}`);
-            setGenError(clData.message || 'Write your cover letter below.');
-            setPhase('review');
-          }
-        } catch {
-          setCoverLetter('');
-          setSubject(`Application: ${project.title}`);
-          setGenError('Write your cover letter below.');
-          setPhase('review');
-        }
+        // Authenticated! Reload with apply flag to trigger cover letter generation
+        const url = new URL(window.location.href);
+        url.searchParams.set('apply', '1');
+        window.location.href = url.toString();
         return;
       } else {
         setOtpError(data.error || 'Invalid code');
