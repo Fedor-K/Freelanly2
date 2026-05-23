@@ -151,30 +151,31 @@ export async function POST(request: NextRequest) {
       userName: user.name || 'Applicant',
     });
 
-    // Draft-only mode: AI generates complete email (greeting + body + signature)
-    if (draftOnly) {
-      return NextResponse.json({ ok: true, coverLetter, subject, to: opportunity.applyEmail });
-    }
-
     // Build full letter with greeting and signature
-    const greeting = recruiterName ? `Hi ${recruiterName}` : 'Hi there';
+    const greeting = recruiterName ? `Hi ${recruiterName},` : 'Hi there,';
     const replyEmail = user.userSmtp?.email || user.email;
     const signature = `Best regards,\n${user.name || 'Applicant'}\n${replyEmail}`;
     const fullLetter = `${greeting}\n\n${coverLetter}\n\n${signature}`;
 
-    // Build HTML
+    // Draft-only mode: return full letter as user will see it
+    if (draftOnly) {
+      return NextResponse.json({ ok: true, coverLetter: fullLetter, subject, to: opportunity.applyEmail });
+    }
+
+    // Use user-edited text if provided, otherwise use assembled fullLetter
+    const finalText = providedCoverLetter || editedCoverLetter || fullLetter;
+
+    // Build HTML from final text
     const html = `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6;">
-  <p style="margin: 0 0 12px;">${greeting}</p>
-  ${coverLetter.split('\n').filter(p => p.trim()).map(p => `<p style="margin: 0 0 12px; line-height: 1.6;">${p}</p>`).join('')}
-  <p style="margin: 24px 0 0;">Best regards,<br>${user.name || 'Applicant'}<br><span style="color: #666; font-size: 14px;">${replyEmail}</span></p>
+  ${finalText.split('\n').filter((p: string) => p.trim()).map((p: string) => `<p style="margin: 0 0 12px; line-height: 1.6;">${p}</p>`).join('')}
 </body>
 </html>`.trim();
 
-    const text = fullLetter;
+    const text = finalText;
 
     // Send via user's SMTP or Postal
     let result: { success: boolean; messageId?: string; error?: string };
