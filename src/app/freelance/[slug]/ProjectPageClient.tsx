@@ -624,7 +624,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         </div>
 
         {/* Right: CTA card */}
-        <div className="project-sidebar" style={{ position: 'sticky', top: '24px' }}>
+        <div className="project-sidebar" style={{ position: phase === 'guest' ? 'sticky' : 'static', top: '24px' }}>
           <div style={{ background: '#fff', border: '1px solid #E8E5DC', borderRadius: '16px', padding: '28px', boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}>
             {/* Signals — only in guest/auth phase */}
             {(phase === 'guest' || phase === 'auth') && (
