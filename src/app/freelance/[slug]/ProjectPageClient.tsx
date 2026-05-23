@@ -461,8 +461,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     if (phase === 'generating') {
       return (
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <div style={{ width: '48px', height: '48px', border: '3px solid #E8E5DC', borderTopColor: '#C7F94A', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
-          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+          <div style={{ fontSize: '32px', marginBottom: '16px' }}>✍️</div>
           <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '6px' }}>Writing your cover letter...</h2>
           <p style={{ fontSize: '13px', color: '#8A8780' }}>AI is reading the job post and matching with your profile</p>
         </div>
