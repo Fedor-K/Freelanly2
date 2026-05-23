@@ -60,6 +60,14 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
 
+  // Check if already authenticated
+  const [isAuthed, setIsAuthed] = useState(false);
+  useEffect(() => {
+    fetch('/api/user/settings', { method: 'GET' })
+      .then(r => { if (r.ok) setIsAuthed(true); })
+      .catch(() => {});
+  }, []);
+
   // Track page view
   useEffect(() => {
     track('PAGE_VIEW', { page: 'project', projectId: project.id, title: project.title, company: project.companyName });
@@ -259,7 +267,15 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           <p style={{ fontSize: '14px', color: '#8A8780', lineHeight: 1.5, marginBottom: '20px' }}>
             AI writes a personalized application in 19 seconds. Just upload your resume.
           </p>
-          <button onClick={() => { setPhase('auth'); track('OPPORTUNITY_APPLY_CLICK', { projectId: project.id }); }} style={{
+          <button onClick={() => {
+            track('OPPORTUNITY_APPLY_CLICK', { projectId: project.id });
+            if (isAuthed) {
+              setPhase('generating');
+              generateCoverLetter();
+            } else {
+              setPhase('auth');
+            }
+          }} style={{
             width: '100%', padding: '14px', background: '#C7F94A', color: '#000', border: 'none',
             borderRadius: '10px', fontSize: '15px', fontWeight: 600, cursor: 'pointer',
           }}>
