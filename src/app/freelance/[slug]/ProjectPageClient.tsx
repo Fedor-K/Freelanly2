@@ -45,6 +45,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
 
   // OTP state
   const [otpCode, setOtpCode] = useState('');
@@ -154,11 +155,19 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     setAuthError('');
 
     try {
-      // Validate for users without resume
-      if (hasResume === false && selectedCategories.length === 0) {
-        setAuthError('Select at least one job category');
-        setAuthLoading(false);
-        return;
+      // Validate all required fields
+      if (hasResume === false) {
+        const errors: Record<string, boolean> = {};
+        if (!resumeFile && !linkedinUrl) errors.resume = true;
+        if (selectedCategories.length === 0) errors.categories = true;
+        if (selectedCategories.includes('translation') && selectedLanguages.length === 0) errors.languages = true;
+        if (Object.keys(errors).length > 0) {
+          setFieldErrors(errors);
+          setAuthError('Please fill in all required fields');
+          setAuthLoading(false);
+          return;
+        }
+        setFieldErrors({});
       }
 
       // Register (new users) or update alerts (existing without resume)
@@ -388,10 +397,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             <div style={{ marginTop: '8px' }}>
               {/* Resume upload */}
               <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Resume (PDF)</label>
+                <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.resume ? '#B91C1C' : '#555', display: 'block', marginBottom: '4px' }}>Resume (PDF) <span style={{ color: '#B91C1C' }}>*</span></label>
                 <div
                   onClick={() => { const inp = document.getElementById('resume-input') as HTMLInputElement; inp?.click(); }}
-                  style={{ padding: '10px 14px', border: '1px dashed #D5D1C8', borderRadius: '8px', fontSize: '13px', color: resumeFile ? '#047857' : '#8A8780', cursor: 'pointer', background: resumeFile ? '#ECFDF5' : '#fff' }}
+                  style={{ padding: '10px 14px', border: `1px dashed ${fieldErrors.resume ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '13px', color: resumeFile ? '#047857' : '#8A8780', cursor: 'pointer', background: resumeFile ? '#ECFDF5' : '#fff' }}
                 >
                   {resumeFile ? `✓ ${resumeFile.name}` : 'Click to upload PDF'}
                   <input id="resume-input" type="file" accept=".pdf,.docx" hidden onChange={e => setResumeFile(e.target.files?.[0] || null)} />
@@ -400,7 +409,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
               {/* LinkedIn */}
               <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>LinkedIn <span style={{ color: '#AAA' }}>optional</span></label>
+                <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>LinkedIn <span style={{ color: '#AAA' }}>optional, replaces resume</span></label>
                 <input
                   type="url" placeholder="linkedin.com/in/yourname" value={linkedinUrl}
                   onChange={e => setLinkedinUrl(e.target.value)}
@@ -410,7 +419,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
               {/* Categories */}
               <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '6px' }}>What kind of work?</label>
+                <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.categories ? '#B91C1C' : '#555', display: 'block', marginBottom: '6px' }}>What kind of work? <span style={{ color: '#B91C1C' }}>*</span></label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                   {categories.map(cat => (
                     <span
@@ -431,7 +440,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
               {/* Languages for translation */}
               {selectedCategories.includes('translation') && (
                 <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '6px' }}>Your languages</label>
+                  <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.languages ? '#B91C1C' : '#555', display: 'block', marginBottom: '6px' }}>Your languages <span style={{ color: '#B91C1C' }}>*</span></label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxHeight: '120px', overflowY: 'auto' }}>
                     {languages.filter(l => l.code !== 'EN').map(lang => (
                       <span
@@ -452,11 +461,15 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             </div>
           )}
 
+          {hasResume === false && isExisting !== null && (
+            <div style={{ fontSize: '11px', color: '#8A8780', marginBottom: '8px' }}><span style={{ color: '#B91C1C' }}>*</span> Required fields</div>
+          )}
+
           {authError && <div style={{ fontSize: '13px', color: '#B91C1C', padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', marginBottom: '8px' }}>{authError}</div>}
 
           <button
             onClick={handleSendCode}
-            disabled={authLoading || isExisting === null || (hasResume === false && selectedCategories.length === 0)}
+            disabled={authLoading || isExisting === null}
             style={{
               width: '100%', padding: '14px', background: '#C7F94A', color: '#000', border: 'none',
               borderRadius: '10px', fontSize: '15px', fontWeight: 600, cursor: 'pointer', marginTop: '8px',
