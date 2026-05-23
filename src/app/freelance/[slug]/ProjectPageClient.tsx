@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useTracker } from '@/hooks/useTracker';
-import { categories } from '@/config/site';
+import { categories, languages } from '@/config/site';
 
 interface ProjectProps {
   project: {
@@ -42,6 +42,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
 
@@ -126,6 +127,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           body: JSON.stringify({
             email,
             categories: selectedCategories,
+            languages: selectedCategories.includes('translation') ? selectedLanguages : undefined,
             agreedToTerms: true,
           }),
         });
@@ -378,6 +380,28 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                   ))}
                 </div>
               </div>
+
+              {/* Languages for translation */}
+              {selectedCategories.includes('translation') && (
+                <div style={{ marginBottom: '8px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '6px' }}>Your languages</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxHeight: '120px', overflowY: 'auto' }}>
+                    {languages.filter(l => l.code !== 'EN').map(lang => (
+                      <span
+                        key={lang.code}
+                        onClick={() => setSelectedLanguages(prev => prev.includes(lang.code) ? prev.filter(c => c !== lang.code) : [...prev, lang.code])}
+                        style={{
+                          padding: '4px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer',
+                          background: selectedLanguages.includes(lang.code) ? '#0A0B0F' : '#F0EDE5',
+                          color: selectedLanguages.includes(lang.code) ? '#fff' : '#555',
+                        }}
+                      >
+                        {lang.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
