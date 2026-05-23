@@ -299,7 +299,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             </div>
             <input
               type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
-              placeholder="Enter 6-digit code" value={otpCode}
+              placeholder="000000" value={otpCode}
               onChange={e => {
                 const v = e.target.value.replace(/\D/g, '').slice(0, 6);
                 setOtpCode(v);
@@ -307,7 +307,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 if (v.length === 6) handleOtpSubmit(v);
               }}
               autoFocus disabled={otpLoading}
-              style={{ width: '100%', padding: '14px', border: `1px solid ${otpError ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '18px', textAlign: 'center', letterSpacing: '8px', fontWeight: 600, marginBottom: '8px' }}
+              style={{ width: '100%', padding: '14px', border: `1px solid ${otpError ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '24px', textAlign: 'center', letterSpacing: '12px', fontWeight: 600, marginBottom: '8px', fontFamily: "'Geist Mono', monospace" }}
             />
             {otpError && <div style={{ fontSize: '12px', color: '#B91C1C', marginBottom: '8px' }}>{otpError}</div>}
             {otpLoading && <div style={{ fontSize: '12px', color: '#047857' }}>Verifying...</div>}
