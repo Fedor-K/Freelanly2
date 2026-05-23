@@ -64,7 +64,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   // Check if already authenticated + auto-apply on ?apply=1
   const [isAuthed, setIsAuthed] = useState(false);
   useEffect(() => {
-    fetch('/api/user/settings', { method: 'GET' })
+    fetch('/api/user/settings', { method: 'GET', credentials: 'include' })
       .then(r => {
         if (r.ok) {
           setIsAuthed(true);
@@ -76,7 +76,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             window.history.replaceState({}, '', url.toString());
             // Generate cover letter
             setPhase('generating');
-            fetch('/api/user/quick-apply', {
+            fetch('/api/user/quick-apply', { credentials: 'include',
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ opportunityId: project.id, draftOnly: true }),
@@ -243,7 +243,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   async function generateCoverLetter() {
     setGenError('');
     try {
-      const res = await fetch('/api/user/quick-apply', {
+      const res = await fetch('/api/user/quick-apply', { credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ opportunityId: project.id, draftOnly: true }),
@@ -283,7 +283,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     setSending(true);
     setSendError('');
     try {
-      const res = await fetch('/api/user/quick-apply', {
+      const res = await fetch('/api/user/quick-apply', { credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ opportunityId: project.id, coverLetter, subject }),
