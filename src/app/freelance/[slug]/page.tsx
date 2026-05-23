@@ -42,6 +42,7 @@ export default async function ProjectPage({ params }: Props) {
       clientName: true, clientHeadline: true, clientAvatar: true, clientLinkedIn: true,
       sourceUrl: true, createdAt: true, isActive: true,
       company: { select: { name: true } },
+      categoryId: true,
       category: { select: { name: true, slug: true } },
     },
   });
@@ -59,7 +60,12 @@ export default async function ProjectPage({ params }: Props) {
     }),
     prisma.opportunity.count({ where: { isActive: true, createdAt: { gte: new Date(Date.now() - 14 * 86400000) } } }),
     prisma.opportunity.findMany({
-      where: { id: { not: opp.id }, isActive: true, createdAt: { gte: new Date(Date.now() - 7 * 86400000) } },
+      where: {
+        id: { not: opp.id },
+        isActive: true,
+        createdAt: { gte: new Date(Date.now() - 7 * 86400000) },
+        ...(opp.categoryId ? { categoryId: opp.categoryId } : {}),
+      },
       select: { id: true, slug: true, title: true, skills: true, company: { select: { name: true } }, clientName: true },
       take: 3, orderBy: { createdAt: 'desc' },
     }),
