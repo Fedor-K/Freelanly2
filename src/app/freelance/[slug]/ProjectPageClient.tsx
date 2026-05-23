@@ -511,6 +511,13 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           <p style={{ fontSize: '13px', color: '#555', marginTop: '12px', lineHeight: 1.5 }}>
             We&apos;ll notify you when the recruiter replies and start auto-applying to projects matching your profile.
           </p>
+          <a href="https://t.me/FLalarmbot" target="_blank" rel="noopener" style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            marginTop: '12px', padding: '10px', background: '#E0F2FE', border: '1px solid #BAE6FD',
+            borderRadius: '10px', textDecoration: 'none', color: '#0369A1', fontSize: '13px', fontWeight: 500,
+          }}>
+            <span>📱</span> Get instant alerts via Telegram
+          </a>
         </div>
       );
     }
