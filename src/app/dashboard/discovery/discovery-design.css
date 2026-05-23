@@ -1,5 +1,5 @@
 .disco-grid { display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start; }
-@media (max-width: 1100px) { .disco-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { .disco-grid { grid-template-columns: 1fr; } .disco-grid > aside { display: none; } .disco-grid > aside.show { display: block; } }
 .filter-section { padding: 16px 18px; border-bottom: 1px solid var(--line); }
 .filter-section:last-child { border-bottom: none; }
 .filter-section h4 { font-size: 11px; font-family: 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); margin: 0 0 10px; font-weight: 500; }
@@ -12,6 +12,9 @@
 .filter-item .count { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-4); }
 .range-row { display: flex; gap: 6px; }
 .range-row input { width: 100%; padding: 6px 8px; background: var(--bg-1); border: 1px solid var(--line-2); border-radius: 6px; font-size: 12px; font-family: 'Geist Mono', monospace; outline: none; }
+
+.disco-filter-toggle { display: none; }
+@media (max-width: 1100px) { .disco-filter-toggle { display: inline-flex; } }
 
 .job-card { padding: 16px 20px; border-bottom: 1px solid var(--line); transition: background 140ms; cursor: pointer; display: grid; grid-template-columns: 40px 1fr auto; gap: 16px; }
 .job-card:hover { background: var(--bg-2); }

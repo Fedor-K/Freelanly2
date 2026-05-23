@@ -146,6 +146,7 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
 
   const [sortBy, setSortBy] = useState<'newest' | 'match'>('newest');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [showFilters, setShowFilters] = useState(false);
 
   // Apply filters
   let visible = items.filter(i => !skipped.has(i.id));
@@ -168,7 +169,7 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
   return (
     <>
       {/* Filters sidebar */}
-      <aside className="card" style={{position: 'sticky', top: '72px'}}>
+      <aside className={`card${showFilters ? ' show' : ''}`} style={{position: 'sticky', top: '72px'}}>
         <div className="filter-section">
           <h4>Tech / Skills</h4>
           <div className="filter-list">
@@ -217,6 +218,7 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
           <div className="row gap-3">
             <h3>{visible.length} results</h3>
             <span className="chip chip-acid-soft"><span className="chip-dot live"></span>Live feed</span>
+            <button className="btn btn-ghost btn-sm disco-filter-toggle" onClick={() => setShowFilters(f => !f)}>{showFilters ? 'Hide filters' : 'Filters'}</button>
           </div>
           <div className="row gap-2">
             <span className="muted f-mono" style={{fontSize: '11px'}}>Sort:</span>
