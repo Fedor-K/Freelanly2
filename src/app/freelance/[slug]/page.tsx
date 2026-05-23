@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${opp.title}${company ? ` at ${company}` : ''} — Freelanly`,
     description: opp.description?.slice(0, 155) || `Apply for ${opp.title} with AI-powered cover letter`,
-    alternates: { canonical: `${siteConfig.url}/freelance/${slug}` },
+    robots: { index: false, follow: false },
     openGraph: {
       title: `${opp.title}${company ? ` — ${company}` : ''}`,
       description: opp.description?.slice(0, 155) || `Apply for ${opp.title}`,
