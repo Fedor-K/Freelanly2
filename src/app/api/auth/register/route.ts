@@ -61,10 +61,10 @@ export async function POST(request: NextRequest) {
     // Rate limit by email: 1 request per 10 minutes (prevent email bombing)
     const normalizedEmailForLimit = sanitizeEmail(email || '');
     if (normalizedEmailForLimit) {
-      const emailLimit = rateLimit('register_email', normalizedEmailForLimit, 1, 600_000);
+      const emailLimit = rateLimit('register_email', normalizedEmailForLimit, 3, 120_000);
       if (emailLimit.limited) {
         return NextResponse.json(
-          { error: 'A login link was already sent. Please check your email or try again in a few minutes.' },
+          { error: 'Too many attempts. Please try again in 2 minutes.' },
           { status: 429, headers: { 'Retry-After': String(emailLimit.retryAfter) } }
         );
       }
