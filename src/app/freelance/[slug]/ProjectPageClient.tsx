@@ -265,14 +265,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             </div>
           </div>
 
-          {/* Preview */}
-          <div style={{ marginTop: '16px', padding: '20px', background: '#fff', border: '1px solid #E8E5DC', borderRadius: '12px' }}>
-            <div style={{ fontSize: '11px', fontFamily: "'Geist Mono', monospace", color: '#8A8780', letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '8px' }}>AI cover letter preview</div>
-            <div style={{ fontSize: '13px', color: '#AAA', lineHeight: 1.6, fontStyle: 'italic' }}>
-              &ldquo;Hi [Hiring Manager], I saw your post — I&apos;ve [relevant experience] using [matching skills], and it&apos;s the work I&apos;m most excited about...&rdquo;
-            </div>
-            <div style={{ marginTop: '8px', fontSize: '11px', color: '#8A8780' }}>Generated in ~19 seconds from your resume</div>
-          </div>
         </div>
       </div>
 
