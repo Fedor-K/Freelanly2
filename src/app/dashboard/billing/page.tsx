@@ -118,7 +118,7 @@ export default async function BillingPage() {
             </div>
             <div className="name">Free</div>
             <div className="price">$0<span className="unit">/mo</span></div>
-            <div className="desc">150 applications/mo · 1 inbox · 3 templates · Basic analytics</div>
+            <div className="desc">600 applications/mo · 1 inbox · 3 templates · Basic analytics</div>
             {user.plan !== 'FREE' && user.stripeId && (
               <form action="/api/stripe/portal" method="POST">
                 <button type="submit" className="btn btn-soft btn-sm mt-3" style={{width: '100%'}}>Downgrade</button>

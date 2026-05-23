@@ -107,7 +107,7 @@ const RATINGS = [
   { emoji: '💬', label: 'Other', value: 'other' },
 ];
 
-export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 15, isPro = false }: { rows: AppRow[]; sentToday?: number; dailyLimit?: number; isPro?: boolean }) {
+export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 20, isPro = false }: { rows: AppRow[]; sentToday?: number; dailyLimit?: number; isPro?: boolean }) {
   const { track } = useTracker();
   const limitReached = !isPro && sentToday >= dailyLimit;
   const [filter, setFilter] = useState<string[]>(DEFAULT_FILTER);

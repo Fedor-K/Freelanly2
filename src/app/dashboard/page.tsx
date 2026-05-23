@@ -246,8 +246,8 @@ export default async function DashboardOverviewPage() {
         </div>
         <div className="kpi">
           <div className="kpi-label">Daily limit</div>
-          <div className="kpi-value tabular">{Math.min(sentToday, loop?.dailyLimit || 15)} <span className="unit">/ {loop?.dailyLimit || 15}</span></div>
-          <div className="kpi-delta up">{Math.max(0, (loop?.dailyLimit || 15) - sentToday)} remaining</div>
+          <div className="kpi-value tabular">{Math.min(sentToday, loop?.dailyLimit || 20)} <span className="unit">/ {loop?.dailyLimit || 20}</span></div>
+          <div className="kpi-delta up">{Math.max(0, (loop?.dailyLimit || 20) - sentToday)} remaining</div>
         </div>
       </div>
 
@@ -287,7 +287,7 @@ export default async function DashboardOverviewPage() {
             </div>
             <div className="welcome-stat">
               <div className="label">Applications / day</div>
-              <div className="value">{loop?.dailyLimit || 15}</div>
+              <div className="value">{loop?.dailyLimit || 20}</div>
               <div className="hint">Free plan &middot; max for your tier</div>
             </div>
             <div className="welcome-stat">
@@ -329,7 +329,7 @@ export default async function DashboardOverviewPage() {
         <ApplicationsTable
           rows={appRows}
           sentToday={loop?.sentToday || 0}
-          dailyLimit={loop?.dailyLimit || 15}
+          dailyLimit={loop?.dailyLimit || 20}
           isPro={user?.plan === 'PRO'}
         />
       </div>

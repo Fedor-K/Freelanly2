@@ -5,7 +5,7 @@ import { generateCoverLetter, generateSubjectLine } from '@/services/cover-lette
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 
-const FREE_DAILY_LIMIT = 5;
+const FREE_DAILY_LIMIT = 20;
 
 /**
  * POST /api/user/quick-apply

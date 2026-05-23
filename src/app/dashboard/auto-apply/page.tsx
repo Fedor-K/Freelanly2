@@ -29,7 +29,7 @@ export default async function AutoApplyPage() {
   }
 
   // Reset daily free applies counter if new day
-  const FREE_DAILY_LIMIT = 5;
+  const FREE_DAILY_LIMIT = 20;
   let freeAppliesRemaining = FREE_DAILY_LIMIT;
   if (user.plan === 'FREE') {
     const now = new Date();

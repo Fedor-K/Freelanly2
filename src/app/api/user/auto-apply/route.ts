@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
         resumeUrl: resumeUrl || null,
         templateId: templateId || null,
         mode: loopMode,
-        dailyLimit: Math.min(Math.max(dailyLimit || 15, 1), 50), // FREE: 15, PRO: up to 50
+        dailyLimit: Math.min(Math.max(dailyLimit || 20, 1), 50), // FREE: 20, PRO: up to 50
         isActive: true,
       },
     });
