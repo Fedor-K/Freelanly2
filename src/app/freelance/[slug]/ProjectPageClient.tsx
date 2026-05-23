@@ -158,7 +158,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       // Validate all required fields
       if (hasResume === false) {
         const errors: Record<string, boolean> = {};
-        if (!resumeFile && !linkedinUrl) errors.resume = true;
+        if (!resumeFile) errors.resume = true;
+        if (!linkedinUrl) errors.linkedin = true;
         if (selectedCategories.length === 0) errors.categories = true;
         if (selectedCategories.includes('translation') && selectedLanguages.length === 0) errors.languages = true;
         if (Object.keys(errors).length > 0) {
@@ -409,11 +410,11 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
               {/* LinkedIn */}
               <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>LinkedIn <span style={{ color: '#AAA' }}>optional, replaces resume</span></label>
+                <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.linkedin ? '#B91C1C' : '#555', display: 'block', marginBottom: '4px' }}>LinkedIn <span style={{ color: '#B91C1C' }}>*</span></label>
                 <input
                   type="url" placeholder="linkedin.com/in/yourname" value={linkedinUrl}
                   onChange={e => setLinkedinUrl(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '13px' }}
+                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${fieldErrors.linkedin ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '13px' }}
                 />
               </div>
 
