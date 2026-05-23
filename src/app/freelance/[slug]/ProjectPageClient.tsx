@@ -436,7 +436,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             </div>
           )}
 
-          {authError && <div style={{ fontSize: '12px', color: '#B91C1C', marginBottom: '8px' }}>{authError}</div>}
+          {authError && <div style={{ fontSize: '13px', color: '#B91C1C', padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', marginBottom: '8px' }}>{authError}</div>}
 
           <button
             onClick={handleSendCode}
