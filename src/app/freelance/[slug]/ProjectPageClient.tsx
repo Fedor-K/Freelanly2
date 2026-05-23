@@ -363,7 +363,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
               <div style={{ marginBottom: '8px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '6px' }}>What kind of work?</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                  {categories.slice(0, 12).map(cat => (
+                  {categories.map(cat => (
                     <span
                       key={cat.slug}
                       onClick={() => setSelectedCategories(prev => prev.includes(cat.slug) ? prev.filter(c => c !== cat.slug) : [...prev, cat.slug])}
