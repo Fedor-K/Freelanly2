@@ -528,12 +528,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             {sending ? 'Sending...' : 'Send application →'}
           </button>
 
-          <button
-            onClick={() => { setPhase('generating'); generateCoverLetter(); }}
-            style={{ fontSize: '12px', color: '#8A8780', background: 'none', border: 'none', cursor: 'pointer', marginTop: '8px', display: 'block', margin: '8px auto 0' }}
-          >
-            Regenerate cover letter
-          </button>
         </div>
       );
     }
