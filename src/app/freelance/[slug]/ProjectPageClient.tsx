@@ -181,8 +181,37 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        // Authenticated! Reload page — server will see session, client will detect isAuthed
-        window.location.reload();
+        // Authenticated! Generate cover letter
+        setPhase('generating');
+        setOtpLoading(false);
+        try {
+          const clRes = await fetch('/api/user/quick-apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ opportunityId: project.id, draftOnly: true }),
+          });
+          const clData = await clRes.json();
+          if (clRes.ok) {
+            setCoverLetter(clData.coverLetter || '');
+            setSubject(clData.subject || `Application: ${project.title}`);
+            setSendTo(clData.to || '');
+            setPhase('review');
+          } else if (clData.error === 'already_applied') {
+            setGenError('You already applied to this project.');
+            setPhase('sent');
+          } else {
+            setCoverLetter('');
+            setSubject(`Application: ${project.title}`);
+            setGenError(clData.message || 'Write your cover letter below.');
+            setPhase('review');
+          }
+        } catch {
+          setCoverLetter('');
+          setSubject(`Application: ${project.title}`);
+          setGenError('Write your cover letter below.');
+          setPhase('review');
+        }
+        return;
       } else {
         setOtpError(data.error || 'Invalid code');
         setOtpCode('');
