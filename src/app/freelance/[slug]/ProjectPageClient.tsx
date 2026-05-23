@@ -64,49 +64,49 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   // Check if already authenticated + auto-apply on ?apply=1
   const [isAuthed, setIsAuthed] = useState(false);
   useEffect(() => {
-    fetch('/api/user/settings', { method: 'GET', credentials: 'include' })
-      .then(r => {
-        if (r.ok) {
-          setIsAuthed(true);
-          // Auto-trigger cover letter generation if ?apply=1
-          if (new URLSearchParams(window.location.search).get('apply') === '1') {
-            // Clean up URL
-            const url = new URL(window.location.href);
-            url.searchParams.delete('apply');
-            window.history.replaceState({}, '', url.toString());
-            // Generate cover letter
-            setPhase('generating');
-            fetch('/api/user/quick-apply', { credentials: 'include',
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ opportunityId: project.id, draftOnly: true }),
-            })
-              .then(r => r.json())
-              .then(data => {
-                if (data.ok || data.coverLetter) {
-                  setCoverLetter(data.coverLetter || '');
-                  setSubject(data.subject || `Application: ${project.title}`);
-                  setSendTo(data.to || '');
-                  setPhase('review');
-                } else if (data.error === 'already_applied') {
-                  setGenError('You already applied to this project.');
-                  setPhase('sent');
-                } else {
-                  setCoverLetter('');
-                  setSubject(`Application: ${project.title}`);
-                  setGenError(data.message || 'Write your cover letter below.');
-                  setPhase('review');
-                }
-              })
-              .catch(() => {
-                setCoverLetter('');
-                setSubject(`Application: ${project.title}`);
-                setGenError('Write your cover letter below.');
-                setPhase('review');
-              });
-          }
-        }
+    const hasApplyFlag = new URLSearchParams(window.location.search).get('apply') === '1';
+
+    // If ?apply=1, skip settings check and go straight to cover letter
+    if (hasApplyFlag) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('apply');
+      window.history.replaceState({}, '', url.toString());
+      setIsAuthed(true);
+      setPhase('generating');
+      fetch('/api/user/quick-apply', { credentials: 'include',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ opportunityId: project.id, draftOnly: true }),
       })
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok || data.coverLetter) {
+            setCoverLetter(data.coverLetter || '');
+            setSubject(data.subject || `Application: ${project.title}`);
+            setSendTo(data.to || '');
+            setPhase('review');
+          } else if (data.error === 'already_applied') {
+            setGenError('You already applied to this project.');
+            setPhase('sent');
+          } else {
+            setCoverLetter('');
+            setSubject(`Application: ${project.title}`);
+            setGenError(data.message || 'Write your cover letter below.');
+            setPhase('review');
+          }
+        })
+        .catch(() => {
+          setCoverLetter('');
+          setSubject(`Application: ${project.title}`);
+          setGenError('Write your cover letter below.');
+          setPhase('review');
+        });
+      return;
+    }
+
+    // Normal auth check
+    fetch('/api/user/settings', { method: 'GET', credentials: 'include' })
+      .then(r => { if (r.ok) setIsAuthed(true); })
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
