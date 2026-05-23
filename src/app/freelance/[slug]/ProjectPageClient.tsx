@@ -182,8 +182,16 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       const data = await res.json();
       if (res.ok && data.success) {
         // Authenticated! Now generate cover letter
-        setPhase('generating');
-        generateCoverLetter();
+        try {
+          setPhase('generating');
+          await generateCoverLetter();
+        } catch (e) {
+          console.error('Cover letter generation failed:', e);
+          setGenError('Failed to generate cover letter');
+          setPhase('review');
+          setCoverLetter('');
+          setSubject(`Application: ${project.title}`);
+        }
       } else {
         setOtpError(data.error || 'Invalid code');
         setOtpCode('');
