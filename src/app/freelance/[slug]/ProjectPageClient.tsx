@@ -539,7 +539,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             Go to Dashboard →
           </a>
           <p style={{ fontSize: '13px', color: '#555', marginTop: '12px', lineHeight: 1.5 }}>
-            We&apos;ll notify you when the recruiter replies and start auto-applying to projects matching your profile.
+            We&apos;ll notify you when the recruiter replies and start auto-applying to up to 20 projects every day matching your profile.
           </p>
           <a href="https://t.me/FLalarmbot" target="_blank" rel="noopener" style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
