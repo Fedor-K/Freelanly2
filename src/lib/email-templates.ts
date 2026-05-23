@@ -106,11 +106,11 @@ export function replyNotificationEmail(params: {
       ${replyPreview ? `<div style="margin-top:10px;font-size:13px;color:${BRAND.ink3};font-style:italic;">"${replyPreview.slice(0, 100)}${replyPreview.length > 100 ? '...' : ''}"</div>` : ''}
     </div>
     <div style="display:flex;gap:10px;">
-      <a href="https://freelanly.com/dashboard/auto-apply?tab=inbox" style="display:inline-block;padding:12px 22px;background:${BRAND.acid};color:#000;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;">Open in Freelanly →</a>
+      <a href="https://freelanly.com/dashboard?tab=inbox" style="display:inline-block;padding:12px 22px;background:${BRAND.acid};color:#000;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;">Open in Freelanly →</a>
     </div>
     <p style="margin-top:22px;font-size:12.5px;color:${BRAND.ink3};">Reply quickly — early responses get 38% more bookings.</p>
   `);
-  const text = `${recruiterName} at ${company} replied to your ${jobTitle} application: ${replySignal || replyPreview?.slice(0, 100)}. Open: https://freelanly.com/dashboard/auto-apply?tab=inbox`;
+  const text = `${recruiterName} at ${company} replied to your ${jobTitle} application: ${replySignal || replyPreview?.slice(0, 100)}. Open: https://freelanly.com/dashboard?tab=inbox`;
   return { subject, html, text };
 }
 
@@ -222,7 +222,7 @@ export function weeklyReportEmail(params: {
         <td><div style="font-size:28px;font-weight:500;">${replyRate}%</div><div style="font-family:monospace;font-size:10px;color:rgba(250,250,247,0.6);text-transform:uppercase;">Reply rate</div></td>
       </tr></table>
     </div>
-    <a href="https://freelanly.com/dashboard/auto-apply?tab=analytics" style="display:inline-block;padding:12px 24px;background:${BRAND.ink};color:#FFF;border-radius:10px;text-decoration:none;font-weight:500;margin-top:12px;">View Analytics →</a>
+    <a href="https://freelanly.com/dashboard?tab=analytics" style="display:inline-block;padding:12px 24px;background:${BRAND.ink};color:#FFF;border-radius:10px;text-decoration:none;font-weight:500;margin-top:12px;">View Analytics →</a>
   `);
   const text = `Weekly: ${sent} sent, ${replies} replies, ${replyRate}% reply rate.`;
   return { subject, html, text };
@@ -255,7 +255,7 @@ export function welcomeEmail(userName: string): { subject: string; html: string;
         <div><div style="font-size:13.5px;font-weight:500;">Review your drafts & launch</div><div style="font-size:12.5px;color:${BRAND.ink3};">You read each one before it leaves. After 25 approvals, autopilot unlocks.</div></div>
       </div>
     </div>
-    <a href="https://freelanly.com/dashboard/auto-apply" style="display:inline-block;padding:12px 22px;background:${BRAND.acid};color:#000;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;">Open my drafts →</a>
+    <a href="https://freelanly.com/dashboard" style="display:inline-block;padding:12px 22px;background:${BRAND.acid};color:#000;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;">Open my drafts →</a>
     <div style="display:flex;gap:0;margin:18px 0 0;background:${BRAND.ink};border-radius:10px;overflow:hidden;color:#FAFAF7;">
       <div style="padding:16px 18px;flex:1;"><div style="font-size:22px;font-weight:500;"><span style="color:${BRAND.acid};">4.8%</span> reply rate</div><div style="font-family:monospace;font-size:10.5px;color:rgba(250,250,247,0.6);text-transform:uppercase;margin-top:2px;">Median user</div></div>
       <div style="padding:16px 18px;flex:1;border-left:1px solid rgba(255,255,255,0.08);"><div style="font-size:22px;font-weight:500;"><span style="color:${BRAND.acid};">~18h</span> to first reply</div><div style="font-family:monospace;font-size:10.5px;color:rgba(250,250,247,0.6);text-transform:uppercase;margin-top:2px;">From signup</div></div>
@@ -264,6 +264,6 @@ export function welcomeEmail(userName: string): { subject: string; html: string;
       Reply to this email if anything's off — it goes to a real inbox.<br>— <strong style="color:${BRAND.ink};">Freelanly Team</strong>
     </div>
   `);
-  const text = `Welcome to Freelanly, ${firstName}! Upload your CV, pick categories, review drafts. Open: https://freelanly.com/dashboard/auto-apply`;
+  const text = `Welcome to Freelanly, ${firstName}! Upload your CV, pick categories, review drafts. Open: https://freelanly.com/dashboard`;
   return { subject, html, text };
 }

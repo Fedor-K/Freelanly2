@@ -10,7 +10,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
   const [error, setError] = useState('');
 
   const handleGoogleSignIn = () => {
-    signIn('google', { callbackUrl: callbackUrl || '/dashboard/auto-apply' });
+    signIn('google', { callbackUrl: callbackUrl || '/dashboard' });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,7 +42,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
       const result = await signIn('email', {
         email,
         redirect: false,
-        callbackUrl: callbackUrl || '/dashboard/auto-apply',
+        callbackUrl: callbackUrl || '/dashboard',
       });
 
       if (result?.error) {

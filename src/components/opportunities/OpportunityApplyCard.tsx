@@ -185,7 +185,7 @@ export function OpportunityApplyCard({
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                       <p className="text-sm text-red-700">{applyError}</p>
                       {(applyError.includes('email first') || applyError.includes('resume first')) && (
-                        <a href="/dashboard/auto-apply" className="text-sm text-red-600 underline mt-1 inline-block">
+                        <a href="/dashboard" className="text-sm text-red-600 underline mt-1 inline-block">
                           Go to settings →
                         </a>
                       )}

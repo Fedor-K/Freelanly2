@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
             blocks: [
               { type: 'section', text: { type: 'mrkdwn', text: `*New reply from ${app.companyName}* — ${app.jobTitle}` } },
               { type: 'section', text: { type: 'mrkdwn', text: signal ? `> ${signal}` : `> ${replyText.slice(0, 100)}...` } },
-              { type: 'actions', elements: [{ type: 'button', text: { type: 'plain_text', text: 'Open in Freelanly' }, url: 'https://freelanly.com/dashboard/auto-apply?tab=inbox' }] },
+              { type: 'actions', elements: [{ type: 'button', text: { type: 'plain_text', text: 'Open in Freelanly' }, url: 'https://freelanly.com/dashboard?tab=inbox' }] },
             ],
           }),
         });

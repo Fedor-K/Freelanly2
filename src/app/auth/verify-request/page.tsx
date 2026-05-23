@@ -81,7 +81,7 @@ function VerifyRequestContent() {
 
       if (res.ok && data.success) {
         setSuccess(true);
-        setTimeout(() => router.push(callbackUrl || data.callbackUrl || '/dashboard/auto-apply'), 1200);
+        setTimeout(() => router.push(callbackUrl || data.callbackUrl || '/dashboard'), 1200);
       } else {
         setError(data.error || 'Invalid or expired code');
         setCode(['', '', '', '', '', '']);

@@ -147,9 +147,9 @@ export async function POST(request: NextRequest) {
                 <h2 style="margin: 0 0 16px;">Auto-apply paused</h2>
                 <p style="color: #555; line-height: 1.6;">Hi ${firstName}, your auto-apply has been paused because: <strong>${pauseReason}</strong></p>
                 <p style="color: #555;">This is a safety measure to protect your sending reputation. You can resume anytime from your dashboard.</p>
-                <a href="https://freelanly.com/dashboard/auto-apply" style="display: inline-block; padding: 12px 24px; background: #C7F94A; color: #000; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 12px;">Resume Auto-Apply →</a>
+                <a href="https://freelanly.com/dashboard" style="display: inline-block; padding: 12px 24px; background: #C7F94A; color: #000; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 12px;">Resume Auto-Apply →</a>
               </div>`,
-              text: `Auto-apply paused: ${pauseReason}. Resume: https://freelanly.com/dashboard/auto-apply`,
+              text: `Auto-apply paused: ${pauseReason}. Resume: https://freelanly.com/dashboard`,
             });
             pauseAlertsSent++;
           } catch (e) {

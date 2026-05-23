@@ -298,7 +298,7 @@ export function RegistrationForm({
       // Send magic link
       const result = await signIn('resend', {
         email,
-        callbackUrl: callbackUrl || '/dashboard/auto-apply',
+        callbackUrl: callbackUrl || '/dashboard',
         redirect: false,
       });
 
@@ -391,7 +391,7 @@ export function RegistrationForm({
       );
     }
 
-    await signIn('google', { callbackUrl: callbackUrl || '/dashboard/auto-apply' });
+    await signIn('google', { callbackUrl: callbackUrl || '/dashboard' });
   };
 
   // Magic Link Sign In (for existing users)
@@ -402,7 +402,7 @@ export function RegistrationForm({
     try {
       const result = await signIn('resend', {
         email,
-        callbackUrl: callbackUrl || '/dashboard/auto-apply',
+        callbackUrl: callbackUrl || '/dashboard',
         redirect: false,
       });
 
@@ -481,7 +481,7 @@ export function RegistrationForm({
       // Send magic link
       const result = await signIn('resend', {
         email,
-        callbackUrl: callbackUrl || '/dashboard/auto-apply',
+        callbackUrl: callbackUrl || '/dashboard',
         redirect: false,
       });
 
@@ -560,7 +560,7 @@ export function RegistrationForm({
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        window.location.href = callbackUrl || data.callbackUrl || '/dashboard/auto-apply';
+        window.location.href = callbackUrl || data.callbackUrl || '/dashboard';
       } else {
         setOtpError(data.error || 'Invalid code');
         setOtpCode(['', '', '', '', '', '']);

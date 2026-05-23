@@ -52,19 +52,19 @@ export async function GET(request: NextRequest) {
     let tip: { text: string; action?: string; actionLabel?: string } | null = null;
 
     if (sent === 0) {
-      tip = { text: 'Your auto-apply is set up! Applications will start going out as matching projects appear.', action: '/dashboard/auto-apply', actionLabel: 'View settings' };
+      tip = { text: 'Your auto-apply is set up! Applications will start going out as matching projects appear.', action: '/dashboard', actionLabel: 'View settings' };
     } else if (!hasResume) {
-      tip = { text: 'Upload your resume to improve match quality and get more personalized cover letters.', action: '/dashboard/auto-apply', actionLabel: 'Upload resume' };
+      tip = { text: 'Upload your resume to improve match quality and get more personalized cover letters.', action: '/dashboard', actionLabel: 'Upload resume' };
     } else if (!hasSmtp && sent > 10) {
-      tip = { text: `Your reply rate is ${replyRate.toFixed(1)}%. Connect your Gmail for better deliverability — emails from personal inboxes get 2-3x more replies.`, action: '/dashboard/auto-apply', actionLabel: 'Connect Gmail' };
+      tip = { text: `Your reply rate is ${replyRate.toFixed(1)}%. Connect your Gmail for better deliverability — emails from personal inboxes get 2-3x more replies.`, action: '/dashboard', actionLabel: 'Connect Gmail' };
     } else if (replyRate > 8) {
       tip = { text: `Your reply rate is ${replyRate.toFixed(1)}% — that's above average! ${replied + interviews} recruiters responded out of ${sent} applications.` };
     } else if (replyRate > 3 && replyRate <= 8) {
       tip = { text: `${replied} replies from ${sent} applications (${replyRate.toFixed(1)}%). Tip: applications sent in the morning tend to get more opens.` };
     } else if (sent > 20 && replyRate <= 3) {
-      tip = { text: `${sent} applications sent but only ${replied} replies (${replyRate.toFixed(1)}%). Try adding more relevant skills to your resume to improve match quality.`, action: '/dashboard/auto-apply', actionLabel: 'Update profile' };
+      tip = { text: `${sent} applications sent but only ${replied} replies (${replyRate.toFixed(1)}%). Try adding more relevant skills to your resume to improve match quality.`, action: '/dashboard', actionLabel: 'Update profile' };
     } else if (skillCount < 5 && sent > 5) {
-      tip = { text: `Your profile has ${skillCount} skills listed. Adding more skills helps AI write better cover letters and match more accurately.`, action: '/dashboard/auto-apply', actionLabel: 'Update profile' };
+      tip = { text: `Your profile has ${skillCount} skills listed. Adding more skills helps AI write better cover letters and match more accurately.`, action: '/dashboard', actionLabel: 'Update profile' };
     } else if (openRate > 50 && replyRate < 5) {
       tip = { text: `${openRate.toFixed(0)}% of recruiters open your emails but only ${replyRate.toFixed(1)}% reply. Your subject lines work — try making cover letters more specific to each role.` };
     } else if (pending > 20) {

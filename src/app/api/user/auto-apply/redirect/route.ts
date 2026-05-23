@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   const appId = request.nextUrl.searchParams.get('appId');
   if (!appId) {
-    return NextResponse.redirect(new URL('/dashboard/auto-apply', request.url));
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   const app = await prisma.autoApplication.findFirst({
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   });
 
   if (!app) {
-    return NextResponse.redirect(new URL('/dashboard/auto-apply', request.url));
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   if (app.opportunityId) {
@@ -46,5 +46,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(new URL('/dashboard/auto-apply', request.url));
+  return NextResponse.redirect(new URL('/dashboard', request.url));
 }

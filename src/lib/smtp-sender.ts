@@ -437,10 +437,10 @@ export async function testSmtpConnection(config: SmtpConfig): Promise<SmtpResult
             <li>Freelanly applies to matching jobs from your email</li>
           </ol>
         </div>
-        <p style="text-align: center;"><a href="https://freelanly.com/dashboard/auto-apply" style="display: inline-block; background: #000; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500;">Continue Setup →</a></p>
+        <p style="text-align: center;"><a href="https://freelanly.com/dashboard" style="display: inline-block; background: #000; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500;">Continue Setup →</a></p>
         <p style="color: #94a3b8; font-size: 11px; text-align: center; margin-top: 20px;">This is a test email from Freelanly Auto-Apply.</p>
       </div>
     `,
-    text: 'Email Connected Successfully! Your email is ready for Auto-Apply.\n\nEmail: ' + config.email + '\nServer: ' + config.host + ':' + config.port + '\nStatus: Verified\n\nNext steps:\n1. Create a cover letter template\n2. Set up your first auto-apply loop\n3. Freelanly applies to matching jobs from your email\n\nhttps://freelanly.com/dashboard/auto-apply',
+    text: 'Email Connected Successfully! Your email is ready for Auto-Apply.\n\nEmail: ' + config.email + '\nServer: ' + config.host + ':' + config.port + '\nStatus: Verified\n\nNext steps:\n1. Create a cover letter template\n2. Set up your first auto-apply loop\n3. Freelanly applies to matching jobs from your email\n\nhttps://freelanly.com/dashboard',
   });
 }
