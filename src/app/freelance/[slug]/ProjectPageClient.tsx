@@ -508,8 +508,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           }}>
             Go to Dashboard →
           </a>
-          <p style={{ fontSize: '12px', color: '#8A8780', marginTop: '12px' }}>
-            We&apos;ll notify you when the recruiter replies
+          <p style={{ fontSize: '13px', color: '#555', marginTop: '12px', lineHeight: 1.5 }}>
+            We&apos;ll notify you when the recruiter replies and start auto-applying to projects matching your profile.
           </p>
         </div>
       );
