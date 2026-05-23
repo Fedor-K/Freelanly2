@@ -532,11 +532,11 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '6px' }}>Application sent!</h2>
           {sendTo && <p style={{ fontSize: '13px', color: '#8A8780', marginBottom: '16px' }}>Sent to {sendTo}</p>}
           {genError && <p style={{ fontSize: '13px', color: '#8A8780', marginBottom: '16px' }}>{genError}</p>}
-          <a href="/dashboard/auto-apply" style={{
+          <a href="/dashboard" style={{
             display: 'inline-block', padding: '12px 24px', background: '#C7F94A', color: '#000',
             borderRadius: '10px', fontSize: '14px', fontWeight: 600, textDecoration: 'none',
           }}>
-            Go to Dashboard to apply to up to 20 more positions for free →
+            Go to Dashboard →
           </a>
           <p style={{ fontSize: '13px', color: '#555', marginTop: '12px', lineHeight: 1.5 }}>
             We&apos;ll notify you when the recruiter replies and start auto-applying to up to 20 projects every day matching your profile.
