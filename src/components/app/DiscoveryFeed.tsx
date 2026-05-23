@@ -144,7 +144,7 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
     setTimeout(() => setApplyAllResult(null), 5000);
   }
 
-  const [sortBy, setSortBy] = useState<'newest' | 'match'>('newest');
+  const [sortBy, setSortBy] = useState<'newest' | 'match'>('match');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
 
@@ -223,8 +223,8 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
           <div className="row gap-2">
             <span className="muted f-mono" style={{fontSize: '11px'}}>Sort:</span>
             <div className="seg">
-              <button className={sortBy === 'newest' ? 'active' : ''} onClick={() => setSortBy('newest')}>Newest</button>
-              <button className={sortBy === 'match' ? 'active' : ''} onClick={() => setSortBy('match')}>Best match</button>
+              <button className={sortBy === 'match' ? 'active' : ''} onClick={() => setSortBy('match')}>My matches</button>
+              <button className={sortBy === 'newest' ? 'active' : ''} onClick={() => setSortBy('newest')}>All</button>
             </div>
           </div>
         </div>
