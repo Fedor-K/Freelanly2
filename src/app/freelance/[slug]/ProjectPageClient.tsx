@@ -119,21 +119,24 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         return;
       }
 
-      // Register or update alerts if no resume
+      // Register (new users) or update alerts (existing without resume)
       if (hasResume === false) {
-        const regRes = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email,
-            categories: selectedCategories,
-            languages: selectedCategories.includes('translation') ? selectedLanguages : undefined,
-            agreedToTerms: true,
-          }),
-        });
-        if (!regRes.ok) {
-          const data = await regRes.json();
-          throw new Error(data.error || 'Registration failed');
+        // Only call register for new users; for existing users just upload resume
+        if (isExisting === false) {
+          const regRes = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email,
+              categories: selectedCategories,
+              languages: selectedCategories.includes('translation') ? selectedLanguages : undefined,
+              agreedToTerms: true,
+            }),
+          });
+          if (!regRes.ok) {
+            const data = await regRes.json();
+            throw new Error(data.error || 'Registration failed');
+          }
         }
 
         // Upload resume (non-blocking)
