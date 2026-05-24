@@ -49,6 +49,17 @@ async function categorizeReply(text: string): Promise<string> {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Verify a shared secret when configured (set POSTAL_WEBHOOK_SECRET + pass it
+    // as ?secret= or x-webhook-secret from Postal). No-op until configured.
+    const inboundSecret = process.env.POSTAL_WEBHOOK_SECRET;
+    if (inboundSecret) {
+      const got = request.headers.get('x-webhook-secret')
+        || new URL(request.url).searchParams.get('secret');
+      if (got !== inboundSecret) {
+        return NextResponse.json({ ok: true });
+      }
+    }
+
     const body = await request.json();
 
     // Postal inbound webhook format

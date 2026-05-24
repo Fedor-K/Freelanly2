@@ -102,8 +102,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/unsubscribe?error=missing_email', request.url));
   }
 
-  // Verify token if provided
-  if (token && !verifyUnsubscribeToken(email, token)) {
+  // Email-link unsubscribe always carries a token — require a valid one
+  // (prevents unsubscribing arbitrary emails via a token-less link).
+  if (!token || !verifyUnsubscribeToken(email, token)) {
     return NextResponse.redirect(new URL('/unsubscribe?error=invalid_token', request.url));
   }
 

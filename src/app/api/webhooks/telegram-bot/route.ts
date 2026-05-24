@@ -24,6 +24,13 @@ async function reply(chatId: number, text: string, markup?: object) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Verify Telegram's secret token when configured (set it via setWebhook's
+    // secret_token + the TELEGRAM_WEBHOOK_SECRET env). No-op until configured.
+    const tgSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+    if (tgSecret && request.headers.get('x-telegram-bot-api-secret-token') !== tgSecret) {
+      return NextResponse.json({ ok: true });
+    }
+
     const body = await request.json();
     const message = body.message;
     if (!message) return NextResponse.json({ ok: true });
