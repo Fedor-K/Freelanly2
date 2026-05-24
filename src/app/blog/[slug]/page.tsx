@@ -11,7 +11,8 @@ import { Clock, Calendar, Share2, ArrowLeft } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 import { formatDistanceToNow } from '@/lib/utils';
-import { marked } from 'marked';
+import { renderMarkdown, extractToc } from '@/lib/markdown';
+import { truncateTitle } from '@/lib/seo';
 
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
@@ -64,7 +65,7 @@ async function getRelatedPosts(post: { categorySlug: string; slug: string; relat
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
   const { slug } = await params;
   const post = await prisma.blogPost.findUnique({
-    where: { slug },
+    where: { slug, status: 'PUBLISHED' },
     include: { category: true },
   });
 
@@ -72,7 +73,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     notFound();
   }
 
-  const title = post.metaTitle || post.title;
+  const title = truncateTitle(post.metaTitle || post.title);
   const description = post.metaDescription || post.excerpt || `Read ${post.title} on the Freelanly Blog.`;
   const url = `${siteConfig.url}/blog/${post.slug}`;
   const ogImage = post.ogImage || `${siteConfig.url}/api/og/blog?title=${encodeURIComponent(post.title)}&category=${encodeURIComponent(post.category.name)}`;
@@ -114,7 +115,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   }
 
   const relatedPosts = await getRelatedPosts(post);
-  const tocItems = (post.tableOfContents as { level: number; text: string; id: string }[]) || [];
+  const tocItems = extractToc(post.content);
   const faqItems = (post.faqItems as { question: string; answer: string }[]) || [];
   const postUrl = `${siteConfig.url}/blog/${post.slug}`;
 
@@ -130,7 +131,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             {' / '}
             <Link href="/blog" className="hover:text-foreground">Blog</Link>
             {' / '}
-            <Link href={`/blog?category=${post.categorySlug}`} className="hover:text-foreground">
+            <Link href={`/blog/category/${post.categorySlug}`} className="hover:text-foreground">
               {post.category.name}
             </Link>
             {' / '}
@@ -208,7 +209,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               {/* Article Content */}
               <div
                 className="prose prose-lg max-w-none prose-headings:scroll-mt-24"
-                dangerouslySetInnerHTML={{ __html: marked.parse(post.content) as string }}
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(post.content) }}
               />
 
               {/* Share */}
@@ -281,7 +282,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                     Browse thousands of remote positions updated daily.
                   </p>
                   <Button className="w-full" asChild>
-                    <Link href="/jobs">Browse Jobs</Link>
+                    <Link href="/">Browse Jobs</Link>
                   </Button>
                 </div>
               </div>
@@ -321,9 +322,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             '@context': 'https://schema.org',
-            '@type': 'Article',
+            '@type': 'BlogPosting',
             headline: post.title,
             description: post.excerpt || post.metaDescription,
+            inLanguage: 'en',
+            url: postUrl,
             image: post.ogImage || `${siteConfig.url}/api/og/blog?title=${encodeURIComponent(post.title)}`,
             datePublished: post.publishedAt?.toISOString(),
             dateModified: post.updatedAt.toISOString(),
@@ -354,7 +357,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             itemListElement: [
               { '@type': 'ListItem', position: 1, name: 'Home', item: siteConfig.url },
               { '@type': 'ListItem', position: 2, name: 'Blog', item: `${siteConfig.url}/blog` },
-              { '@type': 'ListItem', position: 3, name: post.category.name, item: `${siteConfig.url}/blog?category=${post.categorySlug}` },
+              { '@type': 'ListItem', position: 3, name: post.category.name, item: `${siteConfig.url}/blog/category/${post.categorySlug}` },
               { '@type': 'ListItem', position: 4, name: post.title, item: postUrl },
             ],
           }),

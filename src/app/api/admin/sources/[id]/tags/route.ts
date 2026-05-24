@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addTagToSource, removeTagFromSource } from '@/services/source-scoring';
+import { checkAdminSession } from '@/lib/admin-auth';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -7,6 +8,8 @@ interface RouteContext {
 
 // POST /api/admin/sources/[id]/tags - Add tag to source
 export async function POST(request: NextRequest, context: RouteContext) {
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
   try {
     const { id } = await context.params;
     const { tag } = await request.json();
@@ -35,6 +38,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
 // DELETE /api/admin/sources/[id]/tags - Remove tag from source
 export async function DELETE(request: NextRequest, context: RouteContext) {
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
   try {
     const { id } = await context.params;
     const { searchParams } = new URL(request.url);

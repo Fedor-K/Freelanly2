@@ -119,10 +119,8 @@ export async function POST(request: NextRequest) {
       webhookSecret: webhookSecret ? 'configured' : 'missing',
     });
 
-    // Verify signature in production
-    // TODO: Fix signature verification - temporarily disabled to collect data
-    // Resend webhooks are already authenticated by the secret URL knowledge
-    if (false && process.env.NODE_ENV === 'production' && webhookSecret) {
+    // Verify signature in production when a webhook secret is configured
+    if (process.env.NODE_ENV === 'production' && webhookSecret) {
       const isValid = verifySvixSignature(rawBody, svixId, svixTimestamp, svixSignature, webhookSecret);
       if (!isValid) {
         console.error('[Resend Webhook] Invalid signature');

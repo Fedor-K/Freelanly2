@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { createPortalSession } from '@/lib/stripe';
 import { sendApplicationEmail } from '@/lib/email';
+import { checkAdminSession } from '@/lib/admin-auth';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
   try {
     const { id } = await context.params;
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { processDataSource } from '@/services/sources';
+import { checkAdminSession } from '@/lib/admin-auth';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -8,6 +9,8 @@ interface RouteContext {
 
 // POST /api/admin/sources/[id]/run - Run a specific source
 export async function POST(request: NextRequest, context: RouteContext) {
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
   try {
     const { id } = await context.params;
 
