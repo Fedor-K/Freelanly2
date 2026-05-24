@@ -22,6 +22,7 @@
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@react-pdf/renderer": "^4.5.1",
+    "@types/sanitize-html": "^2.16.1",
     "@vercel/analytics": "^1.6.1",
     "@vercel/blob": "^2.3.3",
     "apify-client": "^2.21.0",
@@ -42,6 +43,7 @@
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "recharts": "^2.15.0",
+    "sanitize-html": "^2.17.4",
     "stripe": "^20.1.0",
     "tailwind-merge": "^3.4.0",
     "unpdf": "^1.6.2"

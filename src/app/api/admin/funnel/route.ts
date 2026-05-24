@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { checkAdminSession } from '@/lib/admin-auth';
 
 /**
  * GET /api/admin/funnel?days=7
@@ -7,6 +8,8 @@ import { prisma } from '@/lib/db';
  * Returns funnel data: unique users at each stage of the conversion path.
  */
 export async function GET(request: NextRequest) {
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
   try {
     const { searchParams } = new URL(request.url);
     const days = parseInt(searchParams.get('days') || '7');

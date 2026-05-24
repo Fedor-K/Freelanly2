@@ -2,7 +2,6 @@ import { MetadataRoute } from 'next';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 
-export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -22,19 +21,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/terms`, lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
   ];
 
-  // Blog posts
+  // Blog posts + categories
   let blogPages: MetadataRoute.Sitemap = [];
   try {
-    const posts = await prisma.blogPost.findMany({
-      where: { published: true },
-      select: { slug: true, updatedAt: true },
-    });
-    blogPages = posts.map(post => ({
-      url: `${baseUrl}/blog/${post.slug}`,
-      lastModified: post.updatedAt,
-      changeFrequency: 'monthly' as const,
-      priority: 0.7,
-    }));
+    const [posts, categories] = await Promise.all([
+      prisma.blogPost.findMany({
+        where: { status: 'PUBLISHED' },
+        select: { slug: true, updatedAt: true },
+      }),
+      prisma.blogCategory.findMany({ select: { slug: true, updatedAt: true } }),
+    ]);
+    blogPages = [
+      ...posts.map(post => ({
+        url: `${baseUrl}/blog/${post.slug}`,
+        lastModified: post.updatedAt,
+        changeFrequency: 'monthly' as const,
+        priority: 0.7,
+      })),
+      ...categories.map(cat => ({
+        url: `${baseUrl}/blog/category/${cat.slug}`,
+        lastModified: cat.updatedAt,
+        changeFrequency: 'weekly' as const,
+        priority: 0.6,
+      })),
+    ];
   } catch {
     // blogPost table may not exist
   }

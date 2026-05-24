@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { ActivityAction } from '@prisma/client';
+import { checkAdminSession } from '@/lib/admin-auth';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -18,6 +19,8 @@ interface RouteContext {
  *   - to: ISO date string (optional)
  */
 export async function GET(request: NextRequest, context: RouteContext) {
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
   try {
     const { id } = await context.params;
     const { searchParams } = new URL(request.url);

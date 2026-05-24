@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { checkAdminSession } from '@/lib/admin-auth';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -7,6 +8,8 @@ interface RouteContext {
 
 // GET /api/admin/sources/[id] - Get a single source
 export async function GET(request: NextRequest, context: RouteContext) {
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
   try {
     const { id } = await context.params;
 
@@ -43,6 +46,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 // PATCH /api/admin/sources/[id] - Update a source
 export async function PATCH(request: NextRequest, context: RouteContext) {
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
   try {
     const { id } = await context.params;
     const body = await request.json();
@@ -86,6 +91,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 // DELETE /api/admin/sources/[id] - Delete a source
 export async function DELETE(request: NextRequest, context: RouteContext) {
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
   try {
     const { id } = await context.params;
 
