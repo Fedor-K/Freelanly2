@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db';
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { generateCoverLetter, generateSubjectLine, generateFollowUp } from '@/services/cover-letter-generator';
-import { generateTailoredResume } from '@/services/resume-pdf-generator';
+import { fetchResumeAttachment } from '@/lib/resume-attachment';
 import { AutoApplyStatus } from '@prisma/client';
 import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
@@ -134,6 +134,7 @@ export async function processAutoApplyQueue(): Promise<{
           userSmtp: true,
           resumeText: true,
           parsedProfile: true,
+          resumeUrl: true,
           resumeBase64: true,
           resumeFileName: true,
           workPreference: true,
@@ -342,9 +343,10 @@ export async function processAutoApplyQueue(): Promise<{
         });
       }
 
-      // Generate tailored resume PDF — DISABLED until design is ready
-      // TODO: re-enable once designer delivers HTML template
-      const resumeAttachment: { base64: string; filename: string } | null = null;
+      // Attach the user's actual résumé (Blob PDF) to the application. Recruiters
+      // constantly reply "send me your CV" — sending it up front cuts that round-trip.
+      // null when the user has no real stored résumé (placeholder) → send without one.
+      const resumeAttachment = await fetchResumeAttachment(app.user.resumeUrl, app.user.resumeFileName);
 
       // Build email HTML
       const html = buildApplicationEmailHtml({
@@ -404,7 +406,6 @@ export async function processAutoApplyQueue(): Promise<{
         }
       } else {
         // No SMTP — send via Postal (Freelanly domain)
-        // TODO: attach tailored resume PDF once design is ready
         result = await sendAutoApplyViaPostal({
           userName: app.user.name || 'Applicant',
           userEmail: app.user.email,
@@ -413,6 +414,8 @@ export async function processAutoApplyQueue(): Promise<{
           html,
           text,
           applicationId: app.id,
+          attachmentBase64: resumeAttachment?.base64,
+          attachmentFilename: resumeAttachment?.filename,
         });
       }
 
