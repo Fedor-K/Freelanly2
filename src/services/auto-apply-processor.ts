@@ -6,6 +6,7 @@ import { generateTailoredResume } from '@/services/resume-pdf-generator';
 import { AutoApplyStatus } from '@prisma/client';
 import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
+import { isScamRecipient } from '@/lib/scam-filter';
 
 // Anti-spam: max emails to the same recruiter per UTC day. Used by the sender as the
 // hard cap AND at match time to skip already-saturated recruiters (so we don't queue
@@ -25,6 +26,7 @@ const MAX_PENDING_PER_USER = 20;
 // and actually reply MORE than corporate inboxes.
 function isSendableRecipient(email: string | null | undefined): boolean {
   if (!email) return false;
+  if (isScamRecipient(email)) return false; // known resume-rewrite scammers
   const e = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return false;
   const [local, domain] = e.split('@');

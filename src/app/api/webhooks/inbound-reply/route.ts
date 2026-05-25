@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { escapeHtml } from '@/lib/html-escape';
+import { isScamReply } from '@/lib/scam-filter';
 import OpenAI from 'openai';
 import { replyNotificationEmail, replyTeaserEmail } from '@/lib/email-templates';
 
@@ -137,6 +138,13 @@ export async function POST(request: NextRequest) {
         }
       }
       return NextResponse.json({ ok: true, appId, forwarded: true });
+    }
+
+    // Predatory resume-rewrite "recruiters": treat exactly like SPAM — don't notify the
+    // user, don't mark the app replied, don't count it as a reply.
+    if (isScamReply(from, replyText)) {
+      console.log(`[InboundReply] Scam reply filtered for ${appId} from ${from}: ${replyText.slice(0, 80)}`);
+      return NextResponse.json({ ok: true, appId, scam: true });
     }
 
     const newStatus = replyText.length > 10 ? await categorizeReply(replyText) : 'REPLIED';
