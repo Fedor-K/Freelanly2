@@ -450,6 +450,13 @@ export async function queueAutoApplyForOpportunity(opportunityId: string): Promi
     return 0;
   }
 
+  // Quality gate: don't auto-apply to THIN/junk posts. Skill-less generic listings
+  // produce inflated AI match scores + recruiter spam (see match-scoring-fix). The
+  // tier is precomputed at ingest; LIGHT/RICH still flow through.
+  if (opportunity.contentQuality === 'THIN') {
+    return 0;
+  }
+
   // Use company name > posterCompany > clientName > extract from email domain
   const emailDomain = opportunity.applyEmail?.split('@')[1] || '';
   const freeEmails = ['gmail.com','yahoo.com','hotmail.com','outlook.com','live.com','aol.com','icloud.com','protonmail.com','yandex.com','zoho.com','mail.com'];
@@ -665,6 +672,19 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     return 0;
   }
 
+  // Fan-out cap: limit how many of OUR users apply to a single listing. Generic/viral
+  // posts otherwise pull hundreds of applicants — recruiter spam, burns user quota, and
+  // makes match runs take ~a day. Counts across runs; the early break below also stops
+  // wasteful AI match evaluations once the budget is spent.
+  const FANOUT_CAP = 30;
+  const existingForListing = await prisma.autoApplication.count({
+    where: listing.type === 'job' ? { jobId: listing.id } : { opportunityId: listing.id },
+  });
+  if (existingForListing >= FANOUT_CAP) {
+    return 0;
+  }
+  const fanoutBudget = FANOUT_CAP - existingForListing;
+
   let queued = 0;
   const titleLower = listing.title.toLowerCase();
   const descLower = listing.description.toLowerCase();
@@ -812,6 +832,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
         },
       });
       queued++;
+      if (queued >= fanoutBudget) break; // fan-out cap reached for this listing
     } catch (error) {
       // Unique constraint violation = already applied, skip silently
       const errorStr = String(error);
