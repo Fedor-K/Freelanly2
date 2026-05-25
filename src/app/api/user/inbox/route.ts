@@ -157,12 +157,22 @@ export async function POST(request: NextRequest) {
       // it one click instead of users pasting file paths or giving up to email.
       let attBase64: string | undefined = attachmentBase64;
       let attFilename: string | undefined = attachmentFilename;
-      if (!attBase64 && attachResume && app.user.resumeUrl && /^https?:\/\//.test(app.user.resumeUrl)) {
+      // SSRF guard: only ever fetch our OWN Vercel Blob store, never an arbitrary
+      // user-controlled URL (some old resumeUrl values are external/non-PDF).
+      const isOwnBlob = (u: string | null | undefined): boolean => {
+        try { return !!u && new URL(u).hostname.endsWith('.public.blob.vercel-storage.com'); } catch { return false; }
+      };
+      if (!attBase64 && attachResume && isOwnBlob(app.user.resumeUrl)) {
         try {
-          const resp = await fetch(app.user.resumeUrl);
+          const resp = await fetch(app.user.resumeUrl!);
           if (resp.ok) {
-            attBase64 = Buffer.from(await resp.arrayBuffer()).toString('base64');
-            attFilename = app.user.resumeFileName || 'resume.pdf';
+            const buf = Buffer.from(await resp.arrayBuffer());
+            if (buf.subarray(0, 5).toString() === '%PDF-') {
+              attBase64 = buf.toString('base64');
+              attFilename = app.user.resumeFileName || 'resume.pdf';
+            } else {
+              console.error('[Inbox] stored résumé is not a PDF — skipping attach');
+            }
           } else {
             console.error(`[Inbox] résumé fetch ${resp.status} for ${app.user.resumeUrl}`);
           }

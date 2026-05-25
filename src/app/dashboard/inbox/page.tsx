@@ -31,7 +31,10 @@ export default async function InboxPage() {
     where: { id: session.user.id },
     select: { resumeUrl: true, resumeFileName: true },
   });
-  const resumeAttachable = !!(me?.resumeUrl && /^https?:\/\//.test(me.resumeUrl));
+  // Only our own Blob-stored résumés are attachable (matches the SSRF guard server-side).
+  const resumeAttachable = (() => {
+    try { return !!me?.resumeUrl && new URL(me.resumeUrl).hostname.endsWith('.public.blob.vercel-storage.com'); } catch { return false; }
+  })();
 
   const serialized = replies.map(r => ({
     id: r.id,
