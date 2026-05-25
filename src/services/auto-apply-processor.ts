@@ -12,6 +12,30 @@ import { escapeHtml } from '@/lib/html-escape';
 // applications that would just be blocked and expire).
 const MAX_PER_RECIPIENT_PER_DAY = 10;
 
+// Phase 1.1 — per-user queue-depth cap. The sender drains ~20/day/user (FREE limit) and
+// expires anything PENDING for >24h. Queuing more than that just creates doomed PENDING
+// that expires unsent (was the dominant "FAILED" cause). Cap the backlog at one day's
+// worth so we only queue what we'll actually send.
+const MAX_PENDING_PER_USER = 20;
+
+// Phase 1.3 — don't queue/send to obviously-dead recipient addresses. Catches parsing
+// artifacts from LinkedIn post extraction (e.g. a phone number glued to a word like
+// "9944777gone@gmail.com") and no-reply/placeholder inboxes. NOTE: free-email providers
+// (gmail etc.) are kept on purpose — on freelance gigs they're the direct human client
+// and actually reply MORE than corporate inboxes.
+function isSendableRecipient(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const e = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return false;
+  const [local, domain] = e.split('@');
+  const deadLocal = ['noreply', 'no-reply', 'donotreply', 'do-not-reply', 'mailer-daemon', 'postmaster', 'abuse', 'unsubscribe', 'bounce'];
+  if (deadLocal.some((d) => local === d || local.startsWith(`${d}+`) || local.startsWith(`${d}-`))) return false;
+  if (['example.com', 'example.org', 'test.com', 'domain.com', 'email.com'].includes(domain)) return false;
+  // phone-number-like local glued to a word — a bad-extraction signature, almost never a real mailbox
+  if (/^\d{5,}[a-z]+$/.test(local)) return false;
+  return true;
+}
+
 /**
  * Process the auto-apply queue:
  * 1. Find PENDING AutoApplications
@@ -662,6 +686,11 @@ interface ListingData {
 const aiMatchCache = new Map<string, { shouldApply: boolean; score: number; reason: string }>();
 
 async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
+  // Phase 1.3: skip listings whose apply address is dead/garbage — sending there is pure waste.
+  if (!isSendableRecipient(listing.applyEmail)) {
+    return 0;
+  }
+
   // Find all active loops from users with verified SMTP
   const activeLoops = await prisma.autoApplyLoop.findMany({
     where: {
@@ -675,6 +704,9 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           email: true,
           parsedProfile: true,
           resumeText: true,
+          workPreference: true,
+          bookingUrl: true,
+          caseStudies: true,
         },
       },
     },
@@ -696,6 +728,18 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     return 0;
   }
   const fanoutBudget = FANOUT_CAP - existingForListing;
+
+  // Phase 1.1: current PENDING backlog per candidate user (one grouped query, not N).
+  // Used below to skip users whose queue is already a full day's worth of sends.
+  const pendingByUser = new Map<string, number>();
+  {
+    const groups = await prisma.autoApplication.groupBy({
+      by: ['userId'],
+      where: { userId: { in: activeLoops.map((l) => l.userId) }, status: AutoApplyStatus.PENDING },
+      _count: { _all: true },
+    });
+    for (const g of groups) pendingByUser.set(g.userId, g._count._all);
+  }
 
   // Skip recruiters already at/near their daily send cap. The sender caps each recruiter
   // at MAX_PER_RECIPIENT_PER_DAY/day; queuing beyond that just creates PENDING that gets
@@ -770,6 +814,12 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
       if (hasExcluded) continue;
     }
 
+    // Phase 1.1: don't queue past the user's drainable backlog — extra PENDING just
+    // expires unsent. Checked before the AI match call, so it also saves AI evals.
+    if ((pendingByUser.get(loop.userId) || 0) >= MAX_PENDING_PER_USER) {
+      continue;
+    }
+
     const userProfile = loop.user.parsedProfile as Record<string, unknown> | null;
     const userSkills = (userProfile?.skills as string[]) || [];
     const userLangsList = (userProfile?.languages as string[]) || [];
@@ -837,10 +887,17 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     let subject = '';
     try {
       const parsedProfile = loop.user.parsedProfile as Record<string, unknown> | null;
+      // Phase 2.4: feed the generator the full profile (was just 300 chars → generic letters).
       const userProfile = {
         name: loop.user.name || 'Applicant',
         skills: (parsedProfile?.skills as string[]) || [],
-        experience: (parsedProfile?.experience as string) || loop.user.resumeText?.slice(0, 300) || '',
+        experience: (parsedProfile?.experience as string) || loop.user.resumeText?.slice(0, 1500) || '',
+        resumeText: loop.user.resumeText || undefined,
+        languages: (parsedProfile?.languages as string[]) || undefined,
+        workPreference: loop.user.workPreference || undefined,
+        bookingUrl: loop.user.bookingUrl || undefined,
+        caseStudies: (parsedProfile?.caseStudies || loop.user.caseStudies) as any[] || undefined,
+        recruiterEmail: listing.applyEmail,
       };
       [coverLetter, subject] = await Promise.all([
         generateCoverLetter({
@@ -875,6 +932,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
         },
       });
       queued++;
+      pendingByUser.set(loop.userId, (pendingByUser.get(loop.userId) || 0) + 1);
       if (queued >= budget) break; // hit fan-out or recruiter-capacity budget
     } catch (error) {
       // Unique constraint violation = already applied, skip silently

@@ -108,7 +108,9 @@ export async function generateCoverLetter(input: CoverLetterInput): Promise<stri
   const { client, model } = getAIClient();
 
   const skillsList = userProfile.skills.slice(0, 15).join(', ');
-  const experienceSnippet = (userProfile.resumeText || userProfile.experience || '').slice(0, 500);
+  // Feed more real material so the AI has concrete proof points to cite (the best-replying
+  // letters are substantive ~700-1000 chars, not 100-word stubs).
+  const experienceSnippet = (userProfile.resumeText || userProfile.experience || '').slice(0, 1500);
 
   try {
     const response = await client.chat.completions.create({
@@ -123,17 +125,18 @@ export async function generateCoverLetter(input: CoverLetterInput): Promise<stri
 YOUR JOB:
 1. Figure out who to address — look at the recruiter email and job description. If you can tell the person's first name, use "Hi [Name],". Otherwise "Hi there,".
 2. Figure out the company — from the description, email domain, poster info, anything. Mention it.
-3. Write 3-4 sentences that show the applicant read the job post. Reference something specific.
-4. Mention 1-2 skills from the applicant's profile that match. ONLY real skills — NEVER invent.
+3. Open by referencing something specific from the job post (shows it was actually read).
+4. Give 1-2 CONCRETE proof points from the applicant's real background — a relevant project, result, or number. ONLY real things from the profile — NEVER invent.
 5. End with a soft call to action.
 6. Sign off with the applicant's name.
 
 RULES:
+- LEAD WITH THE APPLICANT'S STRONGEST GENUINE MATCH. NEVER mention a skill/technology the job asks for that the applicant does NOT have. Do not write "you need X — I have Y": that highlights the gap. If the overlap is partial, focus on the transferable strengths and never apologise for or draw attention to what's missing.
 - ALWAYS write in FIRST PERSON (I/my/me). NEVER use third person or refer to the applicant by name in the body. "I have experience" NOT "John has experience".
-- NEVER say "I am excited", "I am eager", "I am confident", "I am writing to express interest"
-- Sound like a real person writing a quick note to someone they want to work with
-- Short. 4-6 lines total including greeting and sign-off. Under 100 words.
-- Include line breaks between greeting, body, and sign-off.`,
+- NEVER say "I am excited", "I am eager", "I am confident", "I am writing to express interest", "I believe I align".
+- Sound like a real person writing a confident, specific note to someone they want to work with — not a template.
+- Substance over length: 2-3 short paragraphs, roughly 120-160 words. Long enough to land 1-2 concrete proof points, never padded with filler.
+- Include line breaks between greeting, body paragraphs, and sign-off.`,
         },
         {
           role: 'user',
