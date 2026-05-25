@@ -542,10 +542,18 @@ export default function UsersPage() {
                             <Activity className="h-4 w-4" />
                             Activity Stats
                             <a
-                              href={`/admin/users/${user.id}/activity`}
+                              href={`/admin/users/${user.id}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-xs text-blue-600 hover:underline ml-auto"
+                            >
+                              Переписки →
+                            </a>
+                            <a
+                              href={`/admin/users/${user.id}/activity`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline"
                             >
                               Full Timeline →
                             </a>
