@@ -522,6 +522,8 @@ async function aiMatchCheck(
   userName: string,
   userLanguages?: string[],
   userLocation?: string,
+  userCurrentTitle?: string,
+  userField?: string,
 ): Promise<{ shouldApply: boolean; score: number; reason: string }> {
   // Use same AI provider as cover letter generator (respects AI_PROVIDER env)
   const OpenAI = (await import('openai')).default;
@@ -534,25 +536,32 @@ async function aiMatchCheck(
   const response = await client.chat.completions.create({
     model,
     temperature: 0.1,
-    max_tokens: 100,
+    max_tokens: 200,
     messages: [
       {
         role: 'system',
-        content: `You evaluate if a job applicant is a good match for a role. Return ONLY valid JSON: {"shouldApply": true/false, "score": 0-100, "reason": "one sentence"}
+        content: `You decide whether to auto-apply to a gig ON THE USER'S BEHALF. Applying burns the user's daily quota and emails a real recruiter — be STRICT, default to NOT applying. Return ONLY JSON: {"shouldApply": true|false, "score": 0-100, "reason": "max 10 words"}.
 
-Rules:
-- score 70+: skills overlap well, should apply
-- score 40-69: partial match, some transferable skills
-- score <40: poor match, don't waste the send
-- If job requires 5+ years and applicant is a student/intern → score low
-- If job requires specific tech (Golang, Rust) that applicant doesn't have → score low
-- "Java" and "JavaScript" are DIFFERENT technologies
-- CRITICAL: For translation/interpreter/language jobs, the applicant MUST know the specific language required. A Japanese translator should NOT apply to Russian or Dutch translation roles. Score 0 if language mismatch.
-- CRITICAL: If job is onsite or hybrid in a specific city/country and applicant is in a DIFFERENT country → score 0, shouldApply false. Remote jobs are fine for anyone.`,
+Evaluate IN ORDER. Failing ANY hard gate => score <=15, shouldApply=false, no matter how much else overlaps:
+
+GATE 1 — Profession family must match. Identify the job's profession and the applicant's (from current title + field + skills). A genuinely DIFFERENT profession scores <=15 — e.g. a software developer, sales rep, marketer, engineer, hospitality/admin worker, teacher, or accountant applying to a translation/interpreting role. Generic soft skills (communication, MS Office, teamwork, project management, leadership) do NOT bridge professions. BUT treat translation, interpreting, localization, subtitling, transcreation, and bilingual editing/proofreading as ONE profession family: do NOT hard-gate one against another, and ignore domain qualifiers ("business", "medical", "legal", "sworn", "technical", "game") — those are domains, not different professions. Judge within-family candidates on language (GATE 2) and overlap at scoring, NOT here.
+
+GATE 2 — Language pair (translation/interpreting/localization roles only). Find the language the job needs (e.g. "English-Chinese" -> Chinese, "German sworn" -> German). Treat the applicant's language as CONFIRMED if it appears in their title, skills, languages, or background (a "Chinese Translator" or "Spanish Medical Interpreter" obviously has it). Score <=15 ONLY when the applicant clearly works in DIFFERENT languages (e.g. a Spanish interpreter on a Chinese role; a Japanese/Chinese translator on a German role).
+
+GATE 3 — Location: if the job is onsite or hybrid in a country different from the applicant's => score <=10. Remote = fine for anyone.
+
+GATE 4 — Seniority: if the job needs 5+ years and the applicant is a student/intern => score low.
+
+Only if ALL gates pass, score real skill/experience overlap:
+- 80-100 (Strong): same profession + language confirmed + strong overlap.
+- 60-79 (Good): same profession + language, partial overlap.
+- 40-59 (Weak): same field, weak overlap.
+- <=39: not a fit.
+"Java" != "JavaScript". Be honest — most candidates are NOT a strong match.`,
       },
       {
         role: 'user',
-        content: `JOB: ${listing.title}\nJob location: ${listing.country || 'not specified'}\nSkills needed: ${listing.skills.join(', ')}\nDescription: ${listing.description.slice(0, 300)}\n\nAPPLICANT: ${userName}\nApplicant location: ${userLocation || 'not specified'}\nSkills: ${userSkills.join(', ')}\nLanguages: ${userLanguages?.join(', ') || 'not specified'}\nBackground: ${resumeText.slice(0, 200)}`,
+        content: `JOB: ${listing.title}\nJob location: ${listing.country || 'not specified'}\nSkills needed: ${listing.skills.join(', ') || 'not specified'}\nDescription: ${listing.description.slice(0, 400)}\n\nAPPLICANT: ${userName}\nCurrent title: ${userCurrentTitle || 'not specified'}\nField: ${userField || 'not specified'}\nApplicant location: ${userLocation || 'not specified'}\nLanguages: ${userLanguages?.join(', ') || 'not specified'}\nSkills: ${userSkills.join(', ')}\nBackground: ${resumeText.slice(0, 300)}`,
       },
     ],
   });
@@ -714,14 +723,16 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     let matchLabel = 'Weak';
     {
       const userLoc = (userProfile?.location as string) || undefined;
-      const skillHash = userSkills.slice(0, 5).sort().join(',') + ':' + (userLoc || '');
+      const userTitle = (userProfile?.current_title as string) || '';
+      const userField = (userProfile?.field as string) || '';
+      const skillHash = userSkills.slice(0, 5).sort().join(',') + ':' + (userLoc || '') + ':' + userTitle;
       const cacheKey = `${listing.id}:${skillHash}`;
       let aiResult = aiMatchCache.get(cacheKey);
 
       if (!aiResult) {
         try {
-          const userLangs = ((loop.user as any).parsedProfile as any)?.languages as string[] | undefined;
-          aiResult = await aiMatchCheck(listing, userSkills, (loop.user as any).resumeText || '', (loop.user as any).name || 'Applicant', userLangs, userLoc);
+          const userLangs = (userProfile?.languages as string[]) || undefined;
+          aiResult = await aiMatchCheck(listing, userSkills, (loop.user as any).resumeText || '', (loop.user as any).name || 'Applicant', userLangs, userLoc, userTitle, userField);
           aiMatchCache.set(cacheKey, aiResult);
         } catch {
           aiResult = null;
