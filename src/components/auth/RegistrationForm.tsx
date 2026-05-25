@@ -238,8 +238,12 @@ export function RegistrationForm({
     // Normalize email to prevent case mismatch with OTP token lookup
     setEmail(prev => prev.toLowerCase().trim());
 
-    // Validate categories when onboarding fields are shown
+    // Validate required fields when onboarding fields are shown
     if (hasResume === false) {
+      if (!resumeFile && !linkedinUrl) {
+        setError('Please upload your resume or provide LinkedIn URL');
+        return;
+      }
       if (selectedCategories.length === 0) {
         setError('Please select at least one job category');
         return;
