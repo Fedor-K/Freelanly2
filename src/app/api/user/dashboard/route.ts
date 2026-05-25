@@ -64,8 +64,14 @@ export async function GET(request: NextRequest) {
     // Get user rate floor for queue annotations
     const userProfile = await prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true, rateFloorHourly: true, rateFloorProject: true },
+      select: { name: true, rateFloorHourly: true, rateFloorProject: true, parsedProfile: true },
     });
+
+    // Actionable signal: if the résumé didn't parse (no skills + no languages) auto-apply
+    // can't run — surface a "re-upload résumé" nudge instead of silently producing nothing.
+    const pp = (userProfile?.parsedProfile || {}) as Record<string, unknown>;
+    const needsResumeReupload =
+      ((pp.skills as unknown[])?.length || 0) === 0 && ((pp.languages as unknown[])?.length || 0) === 0;
 
     // Queue (pending)
     const queueRaw = await prisma.autoApplication.findMany({
@@ -149,6 +155,7 @@ export async function GET(request: NextRequest) {
       })),
       activity,
       funnel,
+      needsResumeReupload,
     });
   } catch (error) {
     console.error('[Dashboard] Error:', error);

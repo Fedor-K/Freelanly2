@@ -56,7 +56,7 @@ export default async function AdminUserDetailPage({
     where: { userId: id },
     select: {
       id: true, companyName: true, jobTitle: true, appliedToEmail: true,
-      status: true, subject: true, coverLetter: true,
+      status: true, subject: true, coverLetter: true, errorMessage: true,
       replyText: true, replyCategory: true, replySignal: true,
       sentAt: true, repliedAt: true, createdAt: true,
       messages: {
@@ -65,12 +65,34 @@ export default async function AdminUserDetailPage({
       },
     },
     orderBy: [{ repliedAt: 'desc' }, { sentAt: 'desc' }, { createdAt: 'desc' }],
-    take: 300,
+    take: 500,
   });
 
-  const replied = apps.filter((a) => a.repliedAt).length;
-  const withThread = apps.filter((a) => a.messages.length > 1 || (a.messages.length === 1 && a.replyText)).length;
+  // Only applications that were ACTUALLY SENT are real outreach. Everything else
+  // (queued, awaiting review, expired, invalid-profile, send errors) is queue debris —
+  // show it as a compact breakdown, not as a wall of "FAILED" conversation cards.
+  const realApps = apps.filter((a) => a.sentAt);
+  const neverSent = apps.filter((a) => !a.sentAt);
+
+  const reasonOf = (status: string, err: string | null): string => {
+    if (status === 'PENDING' || status === 'SENDING') return 'В очереди на отправку';
+    if (status === 'REVIEW') return 'Ждёт одобрения';
+    if (/^expired/i.test(err || '')) return 'Протухло (не успели за 24ч)';
+    if (/no skills|resume may be invalid/i.test(err || '')) return 'Битый профиль (резюме)';
+    if (/doesn't speak|does not speak/i.test(err || '')) return 'Язык не совпал';
+    if (/postal|smtp|recipient|bounce|connection/i.test(err || '')) return 'Ошибка отправки';
+    return 'Прочее / не отправлено';
+  };
+  const neverSentByReason = neverSent.reduce<Record<string, number>>((acc, a) => {
+    const r = reasonOf(a.status, a.errorMessage);
+    acc[r] = (acc[r] || 0) + 1;
+    return acc;
+  }, {});
+
+  const replied = realApps.filter((a) => a.repliedAt).length;
+  const withThread = realApps.filter((a) => a.messages.length > 1 || (a.messages.length === 1 && a.replyText)).length;
   const profile = (user.parsedProfile || {}) as Record<string, unknown>;
+  const badResume = ((profile.skills as unknown[])?.length || 0) === 0 && ((profile.languages as unknown[])?.length || 0) === 0;
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">
@@ -101,11 +123,21 @@ export default async function AdminUserDetailPage({
         </Link>
       </div>
 
-      {/* Stats */}
+      {/* Bad-resume nudge */}
+      {badResume && (
+        <Card className="border-amber-300 bg-amber-50">
+          <CardContent className="p-4 text-sm text-amber-900">
+            ⚠️ Резюме не распарсилось (нет навыков и языков в профиле) — авто-отклики не уходят.
+            Юзеру нужно перезалить резюме.
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Stats — only real (sent) outreach */}
       <div className="grid grid-cols-3 gap-4">
         <Card><CardContent className="p-4">
-          <div className="text-2xl font-bold">{apps.length}</div>
-          <div className="text-sm text-muted-foreground">Откликов{apps.length === 300 ? ' (показаны последние 300)' : ''}</div>
+          <div className="text-2xl font-bold">{realApps.length}</div>
+          <div className="text-sm text-muted-foreground">Отправлено</div>
         </CardContent></Card>
         <Card><CardContent className="p-4">
           <div className="text-2xl font-bold">{replied}</div>
@@ -117,15 +149,35 @@ export default async function AdminUserDetailPage({
         </CardContent></Card>
       </div>
 
-      {/* Conversations */}
+      {/* Never-sent debris — compact breakdown, not conversation cards */}
+      {neverSent.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-sm font-medium mb-2 text-muted-foreground">
+              Не отправлено: {neverSent.length} <span className="font-normal">(не отклики — мусор очереди)</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(neverSentByReason)
+                .sort(([, a], [, b]) => b - a)
+                .map(([reason, n]) => (
+                  <Badge key={reason} variant="outline" className="text-xs">
+                    {reason}: {n}
+                  </Badge>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Conversations — only applications that were actually sent */}
       <div className="space-y-4">
-        {apps.length === 0 && (
+        {realApps.length === 0 && (
           <Card><CardContent className="py-8">
-            <p className="text-center text-muted-foreground">Откликов нет</p>
+            <p className="text-center text-muted-foreground">Реальных отправок нет{neverSent.length > 0 ? ' (см. сводку выше)' : ''}</p>
           </CardContent></Card>
         )}
 
-        {apps.map((app) => {
+        {realApps.map((app) => {
           // Build the thread: prefer Message records; fall back to coverLetter + replyText
           // for older applications created before the Message model existed.
           const thread = app.messages.length > 0

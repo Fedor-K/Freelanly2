@@ -139,6 +139,9 @@ export default async function DashboardOverviewPage() {
 
   const isNewUser = mSent === 0;
   const profile = user?.parsedProfile as Record<string, unknown> | null;
+  // Résumé parsed to nothing usable → auto-apply silently sends nothing. Nudge to re-upload.
+  const needsResumeReupload =
+    ((profile?.skills as unknown[])?.length || 0) === 0 && ((profile?.languages as unknown[])?.length || 0) === 0;
   const loopTitles = loop?.jobTitles || [];
   const loopKeywords = loop?.keywords || '';
 
@@ -207,6 +210,14 @@ export default async function DashboardOverviewPage() {
 
   return (
     <div className="page">
+
+      {/* Résumé didn't parse → auto-apply can't run. Actionable nudge. */}
+      {needsResumeReupload && (
+        <div style={{ margin: '0 0 16px', padding: '14px 18px', borderRadius: '12px', background: '#FEF3C7', border: '1px solid #FCD34D', color: '#78350F', fontSize: '14px', lineHeight: 1.5 }}>
+          <strong>Резюме не распозналось.</strong> Мы не смогли вытащить из него навыки и языки, поэтому авто-отклики не отправляются.{' '}
+          <a href="/dashboard/settings#profile" style={{ color: '#92400E', fontWeight: 600, textDecoration: 'underline' }}>Перезалейте резюме (PDF с текстом) →</a>
+        </div>
+      )}
 
       {/* PAGE HEADER */}
       <div className="page-header">
