@@ -65,7 +65,9 @@ export async function POST(request: NextRequest) {
     if (file) {
       buffer = new Uint8Array(await file.arrayBuffer());
       try {
-        const { text } = await extractText(buffer, { mergePages: true });
+        // Pass a COPY: extractText (pdf.js) transfers/detaches the ArrayBuffer to a
+        // worker, which would later break the Blob put() on the same buffer.
+        const { text } = await extractText(new Uint8Array(buffer!), { mergePages: true });
         pdfText = typeof text === 'string' ? text : (text as string[]).join('\n');
       } catch {
         // Continue — LinkedIn might still work
@@ -145,7 +147,6 @@ Extract up to 15 skills. If not found, use null.`,
 
     // Upload original PDF to Vercel Blob
     let blobUrl = file ? `uploaded:${file.name}` : linkedinUrl || undefined;
-    let blobDebug: string | null = null; // TEMP debug
     if (file && buffer) {
       try {
         const blob = await put(`resumes/${user.id}/${file.name}`, buffer, {
@@ -155,7 +156,6 @@ Extract up to 15 skills. If not found, use null.`,
         blobUrl = blob.url;
         console.log(`[ResumePreAuth] Uploaded to Blob: ${blob.url}`);
       } catch (blobErr) {
-        blobDebug = `${(blobErr as Error)?.name || ''}: ${String((blobErr as Error)?.message || blobErr).slice(0, 220)}`;
         console.warn('[ResumePreAuth] Blob upload failed:', blobErr);
       }
     }
@@ -227,12 +227,7 @@ Extract up to 15 skills. If not found, use null.`,
 
     console.log(`[ResumePreAuth] Resume uploaded for ${email}: ${parsedProfile?.name || 'unknown'}`);
 
-    return NextResponse.json({
-      success: true,
-      _blobDebug: blobDebug,
-      _hasToken: !!process.env.BLOB_READ_WRITE_TOKEN,
-      _tokenLen: (process.env.BLOB_READ_WRITE_TOKEN || '').length,
-    });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[ResumePreAuth] Error:', error);
     return NextResponse.json({ error: 'Failed' }, { status: 500 });

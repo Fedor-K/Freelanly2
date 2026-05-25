@@ -54,7 +54,9 @@ export async function POST(request: NextRequest) {
     const buffer = new Uint8Array(await file.arrayBuffer());
     let pdfText: string;
     try {
-      const { text } = await extractText(buffer, { mergePages: true });
+      // Pass a COPY: extractText (pdf.js) detaches the ArrayBuffer, which would
+      // otherwise break the Blob put() on the same buffer below.
+      const { text } = await extractText(new Uint8Array(buffer), { mergePages: true });
       pdfText = typeof text === 'string' ? text : (text as string[]).join('\n');
     } catch (e) {
       console.error('[Resume] PDF extraction failed:', e);
