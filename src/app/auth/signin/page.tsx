@@ -51,6 +51,16 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
     }
   }
 
+  // A logged-in user must never see the signup form — that was the reported login
+  // loop (verify code → /dashboard → no résumé → /auth/signin → signup form again).
+  // Route them into the app: to résumé onboarding if they still need one.
+  if (session?.user?.id) {
+    const u = await prisma.user
+      .findUnique({ where: { id: session.user.id }, select: { resumeUrl: true } })
+      .catch(() => null);
+    redirect(u?.resumeUrl ? '/dashboard' : '/dashboard/settings#profile');
+  }
+
   // Personalized headline based on ref source
   let headline = 'Apply to fresh\ngigs while you sleep.';
   let subtitle = "Takes 60 seconds. We'll find 30+ matching projects per day and auto-write applications in your voice.";

@@ -27,9 +27,11 @@ export default async function DashboardOverviewPage() {
   const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
   const monthAgo = new Date(now.getTime() - 30 * 86400000);
 
-  // Check if user has resume — if not, redirect to signin to complete onboarding
+  // No résumé yet → send to in-app résumé onboarding, NOT back to /auth/signin.
+  // Redirecting a just-authenticated user to the signup form looked like a broken
+  // login ("enter code → page flashes → back to sign-up") — reported by users.
   const onboardCheck = await prisma.user.findUnique({ where: { id: userId }, select: { resumeUrl: true } });
-  if (!onboardCheck?.resumeUrl) redirect('/auth/signin');
+  if (!onboardCheck?.resumeUrl) redirect('/dashboard/settings#profile');
 
   const [user, today, yesterday, month, applications, repliesTodayCount, followUps, dailyActivity, loop, queuedCount] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true, parsedProfile: true } }),
