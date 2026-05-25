@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { generateCoverLetter, generateSubjectLine } from '@/services/cover-letter-generator';
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
+import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT } from '@/lib/apply-quota';
 
 const FREE_DAILY_LIMIT = 20;
 
@@ -177,6 +178,16 @@ export async function POST(request: NextRequest) {
 
     const text = finalText;
 
+    // Atomically consume the FREE daily quota slot BEFORE sending. The check at the
+    // top is a fast UX pre-check only; THIS is the real gate — TOCTOU-safe and covers
+    // the Postal branch, which previously never incremented the counter (→ unlimited).
+    if (!(await consumeApplyQuota(user.id, user.plan))) {
+      return NextResponse.json({
+        error: 'limit_reached',
+        message: `Daily limit reached (${FREE_DAILY_APPLY_LIMIT}/${FREE_DAILY_APPLY_LIMIT}). Upgrade to PRO for unlimited applies.`,
+      }, { status: 429 });
+    }
+
     // Send via user's SMTP or Postal
     let result: { success: boolean; messageId?: string; error?: string };
 
@@ -230,6 +241,7 @@ export async function POST(request: NextRequest) {
           where: { id: appRecord.id },
           data: { status: 'FAILED', errorMessage: result.error?.slice(0, 500) },
         });
+        await refundApplyQuota(user.id, user.plan); // send failed — give the slot back
         return NextResponse.json({ error: 'send_failed', message: result.error }, { status: 500 });
       }
 
@@ -237,6 +249,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!result.success) {
+      await refundApplyQuota(user.id, user.plan); // send failed — give the slot back
       return NextResponse.json({ error: 'send_failed', message: result.error }, { status: 500 });
     }
 
@@ -274,22 +287,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Increment free applies counter
-    if (user.plan === 'FREE') {
-      const now = new Date();
-      const lastReset = new Date(user.lastFreeApplyReset);
-      const isNewDay = now.getUTCDate() !== lastReset.getUTCDate() ||
-        now.getUTCMonth() !== lastReset.getUTCMonth() ||
-        now.getUTCFullYear() !== lastReset.getUTCFullYear();
-
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          freeAppliesUsedToday: isNewDay ? 1 : { increment: 1 },
-          lastFreeApplyReset: isNewDay ? now : undefined,
-        },
-      });
-    }
+    // (FREE quota was already consumed atomically before sending — see consumeApplyQuota)
 
     return NextResponse.json({
       success: true,
