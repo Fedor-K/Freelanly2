@@ -153,10 +153,12 @@ export async function POST(request: NextRequest) {
       userName: user.name || 'Applicant',
     });
 
-    // Build full letter with greeting and signature
+    // Build full letter with greeting and signature.
+    // NEVER include the user's email in the body — replies must route through us
+    // (apply@ From + reply+{appId}@ Reply-To), so exposing it would let recruiters
+    // contact the user directly, off-platform.
     const greeting = recruiterName ? `Hi ${recruiterName},` : 'Hi there,';
-    const replyEmail = user.userSmtp?.email || user.email;
-    const signature = `Best regards,\n${user.name || 'Applicant'}\n${replyEmail}`;
+    const signature = `Best regards,\n${user.name || 'Applicant'}`;
     const fullLetter = `${greeting}\n\n${coverLetter}\n\n${signature}`;
 
     // Draft-only mode: return full letter as user will see it

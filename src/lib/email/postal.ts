@@ -116,14 +116,23 @@ export async function sendAutoApplyViaPostal(params: {
     ? `reply+${params.applicationId}@reply.freelanly.com`
     : params.userEmail;
 
+  // Safety net: the user's real email must NEVER reach the recruiter (replies
+  // route through reply+{appId}@). Strip it from the body in case it leaked in
+  // from an AI-generated signature or a résumé snippet.
+  const stripUserEmail = (s: string): string => {
+    if (!s || !params.userEmail) return s;
+    const esc = params.userEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return s.replace(new RegExp(esc, 'gi'), '');
+  };
+
   try {
     const body: Record<string, unknown> = {
       to: [params.to.toLowerCase().trim()],
       from: `${fromName} <${fromEmail}>`,
       reply_to: replyTo,
       subject: params.subject,
-      html_body: params.html,
-      plain_body: params.text,
+      html_body: stripUserEmail(params.html),
+      plain_body: stripUserEmail(params.text),
     };
 
     if (params.attachmentBase64 && params.attachmentFilename) {
