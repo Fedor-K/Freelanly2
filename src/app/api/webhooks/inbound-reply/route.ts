@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
+import { sendAutoApplyViaPostal } from '@/lib/email/postal';
+import { escapeHtml } from '@/lib/html-escape';
 import OpenAI from 'openai';
 import { replyNotificationEmail, replyTeaserEmail } from '@/lib/email-templates';
 
@@ -87,6 +89,7 @@ export async function POST(request: NextRequest) {
         userId: true,
         jobTitle: true,
         companyName: true,
+        appliedToEmail: true,
         user: { select: { email: true, name: true, plan: true, notifySlackUrl: true, notifyOnReply: true } },
       },
     });
@@ -102,6 +105,40 @@ export async function POST(request: NextRequest) {
     if (!replyText) {
       console.log(`[InboundReply] Empty body for ${appId}. Keys: ${Object.keys(body).join(', ')}`);
     }
+
+    // Direction check. The application's recruiter notification routes recruiter
+    // replies here, but the notification email we send the USER also has its
+    // Reply-To set to reply+{appId}@ — so if the user hits "Reply" in their inbox
+    // the message lands here too. Forward it to the recruiter via apply@ (same as
+    // a dashboard reply) so the whole conversation stays on-platform and the
+    // user's real address is never exposed.
+    const senderEmail = (from.match(/<([^>]+)>/)?.[1] || from).toLowerCase().trim();
+    if (senderEmail && senderEmail === app.user.email?.toLowerCase().trim()) {
+      if (replyText && app.appliedToEmail) {
+        const fwd = await sendAutoApplyViaPostal({
+          userName: app.user.name || 'Applicant',
+          userEmail: app.user.email,
+          to: app.appliedToEmail,
+          subject: /^re:/i.test(subject) ? subject : `Re: ${app.jobTitle}`,
+          html: escapeHtml(replyText).replace(/\n/g, '<br>'),
+          text: replyText,
+          applicationId: app.id,
+        });
+        if (fwd.success) {
+          await prisma.message.create({
+            data: { applicationId: app.id, from: 'user', text: replyText.slice(0, 2000) },
+          }).catch(() => {});
+          await prisma.activityLog.create({
+            data: { userId: app.userId, action: 'INBOX_REPLY_SENT', details: { applicationId: app.id, to: app.appliedToEmail, company: app.companyName, source: 'email_reply' } },
+          }).catch(() => {});
+          console.log(`[InboundReply] User email-reply forwarded to recruiter for ${appId}`);
+        } else {
+          console.error(`[InboundReply] Failed to forward user reply for ${appId}: ${fwd.error}`);
+        }
+      }
+      return NextResponse.json({ ok: true, appId, forwarded: true });
+    }
+
     const newStatus = replyText.length > 10 ? await categorizeReply(replyText) : 'REPLIED';
 
     // SPAM replies: log and skip — don't notify user, don't change status
@@ -156,7 +193,7 @@ export async function POST(request: NextRequest) {
           appId,
           userId: app.userId,
         });
-        await sendEmail({ to: app.user.email, subject: branded.subject, html: branded.html, text: branded.text, replyTo: from });
+        await sendEmail({ to: app.user.email, subject: branded.subject, html: branded.html, text: branded.text, replyTo: `reply+${appId}@reply.freelanly.com` });
         console.log(`[InboundReply] Branded reply email sent to ${app.user.email}`);
         await prisma.activityLog.create({
           data: { userId: app.userId, action: 'EMAIL_SENT', details: { applicationId: appId, kind: 'reply_notification', variant: 'branded' } },
