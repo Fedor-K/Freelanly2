@@ -7,6 +7,11 @@ import { AutoApplyStatus } from '@prisma/client';
 import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
 
+// Anti-spam: max emails to the same recruiter per UTC day. Used by the sender as the
+// hard cap AND at match time to skip already-saturated recruiters (so we don't queue
+// applications that would just be blocked and expire).
+const MAX_PER_RECIPIENT_PER_DAY = 10;
+
 /**
  * Process the auto-apply queue:
  * 1. Find PENDING AutoApplications
@@ -25,7 +30,6 @@ export async function processAutoApplyQueue(): Promise<{
   let failed = 0;
   let skipped = 0;
 
-  const MAX_PER_RECIPIENT_PER_DAY = 10; // Anti-spam: max emails to same recruiter
   const MAX_PER_HOUR = 250; // Throttle: avoid IP reputation damage
   const DELAY_BETWEEN_SENDS_MS = 3000; // 3 sec between sends = ~20/min = ~1200/hr max
 
@@ -693,6 +697,29 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
   }
   const fanoutBudget = FANOUT_CAP - existingForListing;
 
+  // Skip recruiters already at/near their daily send cap. The sender caps each recruiter
+  // at MAX_PER_RECIPIENT_PER_DAY/day; queuing beyond that just creates PENDING that gets
+  // blocked and expires (was ~89% of all expirations). "Load" = sent today + still-pending
+  // to this recruiter (pending will consume the cap too). This also diversifies: once a
+  // recruiter is full, matching users flow to other (un-saturated) recruiters instead.
+  const startOfDayUTC = new Date(); startOfDayUTC.setUTCHours(0, 0, 0, 0);
+  const recipientLoad = await prisma.autoApplication.count({
+    where: {
+      appliedToEmail: listing.applyEmail,
+      OR: [
+        { status: AutoApplyStatus.PENDING },
+        { sentAt: { gte: startOfDayUTC } },
+      ],
+    },
+  });
+  const recipientHeadroom = MAX_PER_RECIPIENT_PER_DAY - recipientLoad;
+  if (recipientHeadroom <= 0) {
+    return 0; // recruiter saturated — don't queue applications that would just expire
+  }
+
+  // Never queue more than the recruiter can actually receive today.
+  const budget = Math.min(fanoutBudget, recipientHeadroom);
+
   let queued = 0;
   const titleLower = listing.title.toLowerCase();
   const descLower = listing.description.toLowerCase();
@@ -848,7 +875,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
         },
       });
       queued++;
-      if (queued >= fanoutBudget) break; // fan-out cap reached for this listing
+      if (queued >= budget) break; // hit fan-out or recruiter-capacity budget
     } catch (error) {
       // Unique constraint violation = already applied, skip silently
       const errorStr = String(error);
