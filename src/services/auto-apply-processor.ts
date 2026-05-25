@@ -737,6 +737,14 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
 
     const userProfile = loop.user.parsedProfile as Record<string, unknown> | null;
     const userSkills = (userProfile?.skills as string[]) || [];
+    const userLangsList = (userProfile?.languages as string[]) || [];
+
+    // Skip invalid/sparse profiles at MATCH time (no skills + no languages = not a real
+    // resume). Previously this was only caught at send time after wasting a queue slot,
+    // an AI match call and a generated cover letter — the dominant non-expiry FAILED cause.
+    if (userSkills.length === 0 && userLangsList.length === 0) {
+      continue;
+    }
 
     // AI matching — AI decides if user is a good match (skills, role, location, language)
     let matchScore = 0;
