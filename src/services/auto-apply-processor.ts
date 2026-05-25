@@ -4,6 +4,7 @@ import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { generateCoverLetter, generateSubjectLine, generateFollowUp } from '@/services/cover-letter-generator';
 import { generateTailoredResume } from '@/services/resume-pdf-generator';
 import { AutoApplyStatus } from '@prisma/client';
+import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
 
 /**
  * Process the auto-apply queue:
@@ -327,6 +328,18 @@ export async function processAutoApplyQueue(): Promise<{
       // AI now generates complete email with greeting + signature
       const text = coverLetter;
 
+      // Enforce the shared FREE 20/day cap atomically before sending (PRO unlimited).
+      // On the cap, return the app to PENDING so it can send after the daily reset
+      // instead of being permanently failed.
+      if (!(await consumeApplyQuota(app.user.id, app.user.plan))) {
+        await prisma.autoApplication.update({
+          where: { id: app.id },
+          data: { status: AutoApplyStatus.PENDING },
+        });
+        skipped++;
+        continue;
+      }
+
       // Send via user's SMTP or Postal (Freelanly domain)
       let result: { success: boolean; messageId?: string; error?: string };
 
@@ -400,20 +413,14 @@ export async function processAutoApplyQueue(): Promise<{
             },
           }),
         ];
-        // Increment free applies counter for FREE users
-        if (app.user.plan === 'FREE') {
-          txOps.push(
-            prisma.user.update({
-              where: { id: app.user.id },
-              data: { freeAppliesUsedToday: { increment: 1 } },
-            })
-          );
-        }
+        // (FREE quota already consumed atomically before sending — see consumeApplyQuota;
+        // the old increment here had no daily reset and never enforced the 20 cap.)
         await prisma.$transaction(txOps);
         sent++;
         recipientSendsThisBatch.set(app.appliedToEmail, recipientCount + 1);
         console.log(`[AutoApply] Sent application ${app.id} to ${app.appliedToEmail}`);
       } else {
+        await refundApplyQuota(app.user.id, app.user.plan); // send failed — give the slot back
         await markFailed(app.id, result.error || 'SMTP send failed');
         failed++;
         console.error(`[AutoApply] Failed to send ${app.id}: ${result.error}`);
