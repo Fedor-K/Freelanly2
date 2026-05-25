@@ -29,7 +29,7 @@ export default async function InboxPage() {
 
   const me = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { resumeUrl: true, resumeFileName: true },
+    select: { resumeUrl: true, resumeFileName: true, telegramChatId: true },
   });
   // Only our own Blob-stored résumés are attachable (matches the SSRF guard server-side).
   const resumeAttachable = (() => {
@@ -61,7 +61,7 @@ export default async function InboxPage() {
         </div>
       </div>
 
-      <InboxClient replies={serialized} resumeAttachable={resumeAttachable} resumeFileName={me?.resumeFileName || null} />
+      <InboxClient replies={serialized} resumeAttachable={resumeAttachable} resumeFileName={me?.resumeFileName || null} telegramConnected={!!me?.telegramChatId} telegramLink={`https://t.me/FLalarmbot?start=direct_${session.user.id.slice(0, 12)}`} />
     </div>
   );
 }

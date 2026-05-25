@@ -2062,6 +2062,7 @@ model AutoApplication {
   // Follow-up
   followUpSentAt  DateTime?
   followUpCount   Int      @default(0)
+  hotLeadReminderAt DateTime?  // when we nudged the user about an unanswered interview invite
 
   // Timestamps
   sentAt          DateTime?

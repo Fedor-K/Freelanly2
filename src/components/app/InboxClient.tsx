@@ -74,7 +74,7 @@ const RATINGS = [
   { emoji: '💬', label: 'Other', value: 'other' },
 ];
 
-export function InboxClient({ replies, resumeAttachable = false, resumeFileName = null }: { replies: Reply[]; resumeAttachable?: boolean; resumeFileName?: string | null }) {
+export function InboxClient({ replies, resumeAttachable = false, resumeFileName = null, telegramConnected = false, telegramLink = '' }: { replies: Reply[]; resumeAttachable?: boolean; resumeFileName?: string | null; telegramConnected?: boolean; telegramLink?: string }) {
   const [activeId, setActiveId] = useState(replies[0]?.id || null);
   const [filter, setFilter] = useState<string>('all');
   const [replyText, setReplyText] = useState('');
@@ -140,6 +140,13 @@ export function InboxClient({ replies, resumeAttachable = false, resumeFileName 
   const active = replies.find(r => r.id === activeId) || null;
 
   return (
+    <>
+    {replies.length > 0 && !telegramConnected && telegramLink && (
+      <a href={telegramLink} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', margin: '0 0 14px', padding: '12px 18px', borderRadius: '12px', background: 'linear-gradient(135deg,#E8F5E9,#F1F8E9)', border: '1px solid #C8E6C9', textDecoration: 'none', color: '#1B5E20' }}>
+        <span style={{ fontSize: '13px' }}><strong>🔔 Don&apos;t miss the next interview.</strong> Connect Telegram — we&apos;ll ping you the instant a recruiter wants to talk, so a reply doesn&apos;t sit unseen in email.</span>
+        <span style={{ padding: '7px 14px', background: '#0088cc', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap' }}>Connect →</span>
+      </a>
+    )}
     <div className="inbox-grid">
 
       {/* THREAD LIST */}
@@ -336,5 +343,6 @@ export function InboxClient({ replies, resumeAttachable = false, resumeFileName 
         )}
       </div>
     </div>
+    </>
   );
 }

@@ -277,8 +277,8 @@ export default async function DashboardOverviewPage() {
       {!user?.telegramChatId && (
         <div className="card mb-4" style={{background: 'linear-gradient(135deg, #E8F5E9, #F1F8E9)', borderColor: '#C8E6C9', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px'}}>
           <div>
-            <div style={{fontWeight: 600, fontSize: '14px'}}>Get instant Telegram notifications</div>
-            <div style={{fontSize: '13px', color: '#555', marginTop: '2px'}}>Know the moment a recruiter replies — right in Telegram</div>
+            <div style={{fontWeight: 600, fontSize: '14px'}}>🔔 Never miss an interview invite</div>
+            <div style={{fontSize: '13px', color: '#555', marginTop: '2px'}}>Recruiters move fast — get a Telegram ping the second one wants to interview you, so a hot lead doesn&apos;t go cold in your inbox.</div>
           </div>
           <a href={`https://t.me/FLalarmbot?start=direct_${userId.slice(0, 12)}`} target="_blank" rel="noopener noreferrer" style={{padding: '8px 16px', background: '#0088cc', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: 500, textDecoration: 'none', whiteSpace: 'nowrap'}}>
             Connect Telegram
