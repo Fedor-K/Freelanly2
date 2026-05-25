@@ -142,6 +142,10 @@ export default async function DashboardOverviewPage() {
   // Résumé parsed to nothing usable → auto-apply silently sends nothing. Nudge to re-upload.
   const needsResumeReupload =
     ((profile?.skills as unknown[])?.length || 0) === 0 && ((profile?.languages as unknown[])?.length || 0) === 0;
+  // Résumé FILE isn't actually stored — legacy "uploaded:<name>" placeholder (the ~1704
+  // who uploaded before the Blob store existed). Profile works, but the PDF can't be
+  // attached to applications/replies. Re-uploading stores it to Blob.
+  const resumeFileMissing = !/\.public\.blob\.vercel-storage\.com\//.test(onboardCheck?.resumeUrl || '');
   const loopTitles = loop?.jobTitles || [];
   const loopKeywords = loop?.keywords || '';
 
@@ -211,11 +215,16 @@ export default async function DashboardOverviewPage() {
   return (
     <div className="page">
 
-      {/* Résumé didn't parse → auto-apply can't run. Actionable nudge. */}
-      {needsResumeReupload && (
+      {/* Résumé nudge — parse failure (stronger) takes priority over missing-file. */}
+      {(needsResumeReupload || resumeFileMissing) && (
         <div style={{ margin: '0 0 16px', padding: '14px 18px', borderRadius: '12px', background: '#FEF3C7', border: '1px solid #FCD34D', color: '#78350F', fontSize: '14px', lineHeight: 1.5 }}>
-          <strong>Резюме не распозналось.</strong> Мы не смогли вытащить из него навыки и языки, поэтому авто-отклики не отправляются.{' '}
-          <a href="/dashboard/settings#profile" style={{ color: '#92400E', fontWeight: 600, textDecoration: 'underline' }}>Перезалейте резюме (PDF с текстом) →</a>
+          {needsResumeReupload ? (
+            <><strong>Резюме не распозналось.</strong> Мы не смогли вытащить из него навыки и языки, поэтому авто-отклики не отправляются.{' '}
+            <a href="/dashboard/settings#profile" style={{ color: '#92400E', fontWeight: 600, textDecoration: 'underline' }}>Перезалейте резюме (PDF с текстом) →</a></>
+          ) : (
+            <><strong>Файл резюме не сохранён.</strong> Ваше резюме загружалось до обновления и не хранится у нас — поэтому мы не можем прикладывать его к откликам и ответам рекрутёрам (а они постоянно просят CV).{' '}
+            <a href="/dashboard/settings#profile" style={{ color: '#92400E', fontWeight: 600, textDecoration: 'underline' }}>Перезалейте резюме, чтобы оно прикреплялось →</a></>
+          )}
         </div>
       )}
 
