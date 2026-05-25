@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/email';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { escapeHtml } from '@/lib/html-escape';
 import { isScamReply } from '@/lib/scam-filter';
+import { sendTelegramNotification, formatReplyNotification } from '@/lib/telegram-notify';
 import OpenAI from 'openai';
 import { replyNotificationEmail, replyTeaserEmail } from '@/lib/email-templates';
 
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
         jobTitle: true,
         companyName: true,
         appliedToEmail: true,
-        user: { select: { email: true, name: true, plan: true, notifySlackUrl: true, notifyOnReply: true } },
+        user: { select: { email: true, name: true, plan: true, notifySlackUrl: true, notifyOnReply: true, telegramChatId: true } },
       },
     });
 
@@ -180,79 +181,101 @@ export async function POST(request: NextRequest) {
       }).catch(() => {});
     }
 
-    // Forward reply to user's email
-    // TODO: When paywall is enabled, FREE users get teaser instead of full reply
-    // For now, forward to everyone
+    // Tiered notifications — kill fatigue, amplify hot leads:
+    //  • INTERVIEW (hot)  → email + Telegram (if connected) + Slack
+    //  • REPLIED (actionable: "send your CV", rate, etc.) → email (+ Slack)
+    //  • REJECTED (cold)  → SILENT: status is updated, but no interruption
+    // (analysis: users were notified on every reply incl. rejections → tuned out →
+    //  63% never even opened genuine interview invites)
+    const notify = app.user.notifyOnReply !== false;
+    const isHot = newStatus === 'INTERVIEW';
+    const isCold = newStatus === 'REJECTED';
     const isPro = app.user.plan !== 'FREE';
     const paywallEnabled = false; // Set to true when ready to enable paywall
 
-    if (!paywallEnabled || isPro) {
-      // PRO: branded reply notification with full content
+    if (notify && !isCold) {
+      // Email (branded full reply, or teaser once paywall is on)
       try {
-        const branded = replyNotificationEmail({
-          userName: app.user.name || 'there',
-          recruiterName: from.split('<')[0].trim() || app.companyName,
-          company: app.companyName,
-          jobTitle: app.jobTitle,
-          replyPreview: replyText.slice(0, 200),
-          replySignal: signal,
-          category: newStatus,
-          sentAgo: 'just now',
-          appId,
-          userId: app.userId,
-        });
-        await sendEmail({ to: app.user.email, subject: branded.subject, html: branded.html, text: branded.text, replyTo: `reply+${appId}@reply.freelanly.com` });
-        console.log(`[InboundReply] Branded reply email sent to ${app.user.email}`);
-        await prisma.activityLog.create({
-          data: { userId: app.userId, action: 'EMAIL_SENT', details: { applicationId: appId, kind: 'reply_notification', variant: 'branded' } },
-        }).catch(() => {});
+        if (!paywallEnabled || isPro) {
+          const branded = replyNotificationEmail({
+            userName: app.user.name || 'there',
+            recruiterName: from.split('<')[0].trim() || app.companyName,
+            company: app.companyName,
+            jobTitle: app.jobTitle,
+            replyPreview: replyText.slice(0, 200),
+            replySignal: signal,
+            category: newStatus,
+            sentAgo: 'just now',
+            appId,
+            userId: app.userId,
+          });
+          await sendEmail({ to: app.user.email, subject: branded.subject, html: branded.html, text: branded.text, replyTo: `reply+${appId}@reply.freelanly.com` });
+          await prisma.activityLog.create({
+            data: { userId: app.userId, action: 'EMAIL_SENT', details: { applicationId: appId, kind: 'reply_notification', variant: 'branded', hot: isHot } },
+          }).catch(() => {});
+        } else {
+          const teaser = replyTeaserEmail({
+            userName: app.user.name || 'there',
+            recruiterName: from.split('<')[0].trim() || app.companyName,
+            company: app.companyName,
+            jobTitle: app.jobTitle,
+            replySignal: signal,
+            category: newStatus,
+            appId,
+            userId: app.userId,
+          });
+          await sendEmail({ to: app.user.email, subject: teaser.subject, html: teaser.html, text: teaser.text });
+          await prisma.activityLog.create({
+            data: { userId: app.userId, action: 'EMAIL_SENT', details: { applicationId: appId, kind: 'reply_notification', variant: 'teaser', hot: isHot } },
+          }).catch(() => {});
+        }
+        console.log(`[InboundReply] Reply email sent to ${app.user.email} (${newStatus})`);
       } catch (fwdErr) {
         console.error(`[InboundReply] Forward failed:`, fwdErr);
       }
+
+      // Telegram — HOT interview leads only. Higher open rate than email and pulls the
+      // hot lead out of the inbox noise (where 63% of invites currently go unseen).
+      if (isHot && app.user.telegramChatId) {
+        try {
+          const tg = formatReplyNotification({
+            userName: app.user.name || 'there',
+            companyName: app.companyName,
+            jobTitle: app.jobTitle,
+            replyPreview: replyText,
+            category: newStatus,
+          });
+          await sendTelegramNotification(app.user.telegramChatId, tg.text, tg.markup);
+          console.log(`[InboundReply] Telegram (hot lead) sent to ${app.user.email}`);
+        } catch (tgErr) {
+          console.error(`[InboundReply] Telegram failed:`, tgErr);
+        }
+      }
+
+      // Slack
+      if (app.user.notifySlackUrl) {
+        try {
+          await fetch(app.user.notifySlackUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              blocks: [
+                { type: 'section', text: { type: 'mrkdwn', text: `${isHot ? '🔥 *Interview request*' : '*New reply*'} from ${app.companyName} — ${app.jobTitle}` } },
+                { type: 'section', text: { type: 'mrkdwn', text: signal ? `> ${signal}` : `> ${replyText.slice(0, 100)}...` } },
+                { type: 'actions', elements: [{ type: 'button', text: { type: 'plain_text', text: 'Open in Freelanly' }, url: 'https://freelanly.com/dashboard?tab=inbox' }] },
+              ],
+            }),
+          });
+          console.log(`[InboundReply] Slack notified for ${app.user.email}`);
+        } catch (slackErr) {
+          console.error(`[InboundReply] Slack failed:`, slackErr);
+        }
+      }
     } else {
-      // FREE: branded teaser (no full text)
-      try {
-        const teaser = replyTeaserEmail({
-          userName: app.user.name || 'there',
-          recruiterName: from.split('<')[0].trim() || app.companyName,
-          company: app.companyName,
-          jobTitle: app.jobTitle,
-          replySignal: signal,
-          category: newStatus,
-          appId,
-          userId: app.userId,
-        });
-        await sendEmail({ to: app.user.email, subject: teaser.subject, html: teaser.html, text: teaser.text });
-        console.log(`[InboundReply] Branded teaser sent to FREE user ${app.user.email}`);
-        await prisma.activityLog.create({
-          data: { userId: app.userId, action: 'EMAIL_SENT', details: { applicationId: appId, kind: 'reply_notification', variant: 'teaser' } },
-        }).catch(() => {});
-      } catch (fwdErr) {
-        console.error(`[InboundReply] Teaser failed:`, fwdErr);
-      }
+      console.log(`[InboundReply] ${appId} → ${newStatus} — notification suppressed (${isCold ? 'rejection, kept quiet' : 'user opted out'})`);
     }
 
-    // Slack notification
-    if (app.user.notifySlackUrl && app.user.notifyOnReply) {
-      try {
-        await fetch(app.user.notifySlackUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            blocks: [
-              { type: 'section', text: { type: 'mrkdwn', text: `*New reply from ${app.companyName}* — ${app.jobTitle}` } },
-              { type: 'section', text: { type: 'mrkdwn', text: signal ? `> ${signal}` : `> ${replyText.slice(0, 100)}...` } },
-              { type: 'actions', elements: [{ type: 'button', text: { type: 'plain_text', text: 'Open in Freelanly' }, url: 'https://freelanly.com/dashboard?tab=inbox' }] },
-            ],
-          }),
-        });
-        console.log(`[InboundReply] Slack notified for ${app.user.email}`);
-      } catch (slackErr) {
-        console.error(`[InboundReply] Slack failed:`, slackErr);
-      }
-    }
-
-    return NextResponse.json({ ok: true, appId, forwarded: !paywallEnabled || isPro });
+    return NextResponse.json({ ok: true, appId, notified: notify && !isCold, hot: isHot });
   } catch (error) {
     console.error('[InboundReply] Error:', error);
     return NextResponse.json({ ok: true }); // Always 200 to prevent Postal retries
