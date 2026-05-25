@@ -20,6 +20,27 @@ const BRAND = {
   warn: '#B45309',
 };
 
+const TRACK_BASE = 'https://freelanly.com/api/track';
+
+/** Invisible open-tracking pixel for reply notification emails. */
+function replyTrackPixel(appId?: string, userId?: string): string {
+  if (!appId && !userId) return '';
+  const q = new URLSearchParams();
+  if (appId) q.set('app', appId);
+  if (userId) q.set('u', userId);
+  return `<img src="${TRACK_BASE}/reply-open?${q.toString()}" width="1" height="1" alt="" style="display:none;width:1px;height:1px;" />`;
+}
+
+/** Wrap a same-site dashboard link in a tracked redirect (logs the click). */
+function replyClickUrl(dest: string, appId?: string, userId?: string): string {
+  if (!appId && !userId) return `https://freelanly.com${dest}`;
+  const q = new URLSearchParams();
+  if (appId) q.set('app', appId);
+  if (userId) q.set('u', userId);
+  q.set('to', dest);
+  return `${TRACK_BASE}/reply-click?${q.toString()}`;
+}
+
 function emailShell(stamp: string, content: string): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Freelanly</title></head>
 <body style="margin:0;padding:0;background:${BRAND.bg};font-family:'Geist',-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;color:${BRAND.ink};-webkit-font-smoothing:antialiased;">
@@ -78,8 +99,11 @@ export function replyNotificationEmail(params: {
   replySignal: string;
   category: string;
   sentAgo: string;
+  appId?: string;
+  userId?: string;
 }): { subject: string; html: string; text: string } {
-  const { userName, recruiterName, company, jobTitle, replyPreview, replySignal, category, sentAgo } = params;
+  const { userName, recruiterName, company, jobTitle, replyPreview, replySignal, category, sentAgo, appId, userId } = params;
+  const ctaUrl = replyClickUrl('/dashboard?tab=inbox', appId, userId);
   const firstName = userName?.split(' ')[0] || 'there';
   const initials = recruiterName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
@@ -106,11 +130,12 @@ export function replyNotificationEmail(params: {
       ${replyPreview ? `<div style="margin-top:10px;font-size:13px;color:${BRAND.ink3};font-style:italic;">"${replyPreview.slice(0, 100)}${replyPreview.length > 100 ? '...' : ''}"</div>` : ''}
     </div>
     <div style="display:flex;gap:10px;">
-      <a href="https://freelanly.com/dashboard?tab=inbox" style="display:inline-block;padding:12px 22px;background:${BRAND.acid};color:#000;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;">Open in Freelanly →</a>
+      <a href="${ctaUrl}" style="display:inline-block;padding:12px 22px;background:${BRAND.acid};color:#000;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;">Open in Freelanly →</a>
     </div>
     <p style="margin-top:22px;font-size:12.5px;color:${BRAND.ink3};">Reply quickly — early responses get 38% more bookings.</p>
+    ${replyTrackPixel(appId, userId)}
   `);
-  const text = `${recruiterName} at ${company} replied to your ${jobTitle} application: ${replySignal || replyPreview?.slice(0, 100)}. Open: https://freelanly.com/dashboard?tab=inbox`;
+  const text = `${recruiterName} at ${company} replied to your ${jobTitle} application: ${replySignal || replyPreview?.slice(0, 100)}. Open: ${ctaUrl}`;
   return { subject, html, text };
 }
 
@@ -124,10 +149,13 @@ export function replyTeaserEmail(params: {
   jobTitle: string;
   replySignal: string;
   category: string;
+  appId?: string;
+  userId?: string;
 }): { subject: string; html: string; text: string } {
-  const { userName, recruiterName, company, jobTitle, replySignal, category } = params;
+  const { userName, recruiterName, company, jobTitle, replySignal, category, appId, userId } = params;
   const firstName = userName?.split(' ')[0] || 'there';
   const categoryLabel = category === 'INTERVIEW' ? 'wants to schedule a call 🟢' : category === 'REPLIED' ? 'is interested 🟢' : 'replied';
+  const ctaUrl = replyClickUrl('/pricing', appId, userId);
 
   const subject = `🔔 ${recruiterName} at ${company} ${categoryLabel}!`;
   const html = emailShell('New reply', `
@@ -136,11 +164,12 @@ export function replyTeaserEmail(params: {
     ${replySignal ? `<p style="color:${BRAND.ink3};font-size:13px;margin-top:8px;">AI Signal: ${replySignal}</p>` : ''}
     <div style="background:${BRAND.bg2};border-radius:12px;padding:20px;margin:20px 0;text-align:center;">
       <p style="color:${BRAND.ink4};font-size:14px;margin:0 0 8px;">Full reply is available for Pro members</p>
-      <a href="https://freelanly.com/pricing" style="display:inline-block;padding:12px 24px;background:${BRAND.acid};color:#000;border-radius:8px;text-decoration:none;font-weight:600;">Read reply — Upgrade to Pro →</a>
+      <a href="${ctaUrl}" style="display:inline-block;padding:12px 24px;background:${BRAND.acid};color:#000;border-radius:8px;text-decoration:none;font-weight:600;">Read reply — Upgrade to Pro →</a>
     </div>
     <p style="color:${BRAND.ink4};font-size:13px;">Freelanly Pro: read all replies, auto follow-ups, unlimited applies — €15/mo</p>
+    ${replyTrackPixel(appId, userId)}
   `);
-  const text = `${recruiterName} at ${company} replied to your ${jobTitle} application! Upgrade to Pro to read: https://freelanly.com/pricing`;
+  const text = `${recruiterName} at ${company} replied to your ${jobTitle} application! Upgrade to Pro to read: ${ctaUrl}`;
   return { subject, html, text };
 }
 

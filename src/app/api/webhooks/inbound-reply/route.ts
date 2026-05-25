@@ -153,9 +153,14 @@ export async function POST(request: NextRequest) {
           replySignal: signal,
           category: newStatus,
           sentAgo: 'just now',
+          appId,
+          userId: app.userId,
         });
         await sendEmail({ to: app.user.email, subject: branded.subject, html: branded.html, text: branded.text, replyTo: from });
         console.log(`[InboundReply] Branded reply email sent to ${app.user.email}`);
+        await prisma.activityLog.create({
+          data: { userId: app.userId, action: 'EMAIL_SENT', details: { applicationId: appId, kind: 'reply_notification', variant: 'branded' } },
+        }).catch(() => {});
       } catch (fwdErr) {
         console.error(`[InboundReply] Forward failed:`, fwdErr);
       }
@@ -169,9 +174,14 @@ export async function POST(request: NextRequest) {
           jobTitle: app.jobTitle,
           replySignal: signal,
           category: newStatus,
+          appId,
+          userId: app.userId,
         });
         await sendEmail({ to: app.user.email, subject: teaser.subject, html: teaser.html, text: teaser.text });
         console.log(`[InboundReply] Branded teaser sent to FREE user ${app.user.email}`);
+        await prisma.activityLog.create({
+          data: { userId: app.userId, action: 'EMAIL_SENT', details: { applicationId: appId, kind: 'reply_notification', variant: 'teaser' } },
+        }).catch(() => {});
       } catch (fwdErr) {
         console.error(`[InboundReply] Teaser failed:`, fwdErr);
       }

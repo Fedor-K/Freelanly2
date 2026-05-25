@@ -395,8 +395,9 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
       });
       const firstName = user.name?.split(' ')[0] || 'there';
       const trackBase = `https://freelanly.com/api/track`;
-      const dashUrl = `${trackBase}/click?uid=${userId}&type=reply_notification&url=${encodeURIComponent('https://freelanly.com/dashboard/inbox')}`;
-      const openPixel = `<img src="${trackBase}/open?uid=${userId}&aid=reply_notify_${Date.now()}" width="1" height="1" style="display:none" alt="" />`;
+      const firstAppId = apps[0]?.id || '';
+      const dashUrl = `${trackBase}/reply-click?u=${encodeURIComponent(userId)}&app=${encodeURIComponent(firstAppId)}&to=${encodeURIComponent('/dashboard?tab=inbox')}`;
+      const openPixel = `<img src="${trackBase}/reply-open?u=${encodeURIComponent(userId)}&app=${encodeURIComponent(firstAppId)}" width="1" height="1" style="display:none" alt="" />`;
 
       const replyList = apps.map(a => {
         const preview = a.replyText ? a.replyText.replace(/<[^>]+>/g, '').replace(/â€™/g, "'").replace(/â€œ/g, '"').replace(/â€/g, '"').replace(/â€"/g, '—').replace(/â€"/g, '–').replace(/Â/g, '').slice(0, 100) : '';
@@ -420,7 +421,13 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
           ${openPixel}
         </div>`,
         text: `Hey ${firstName}, you got ${repliedCount} new ${repliedCount === 1 ? 'reply' : 'replies'}! View and reply: https://freelanly.com/dashboard`,
-      }).catch(e => console.error(`[ReplyChecker] Failed to send notification to ${user.email}:`, e));
+      })
+        .then(() =>
+          prisma.activityLog.create({
+            data: { userId, action: 'EMAIL_SENT', details: { applicationId: firstAppId, kind: 'reply_notification', variant: 'digest', count: repliedCount } },
+          }).catch(() => {})
+        )
+        .catch(e => console.error(`[ReplyChecker] Failed to send notification to ${user.email}:`, e));
     }
 
     return repliedCount;
