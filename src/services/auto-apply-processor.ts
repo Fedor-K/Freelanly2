@@ -5,6 +5,7 @@ import { generateCoverLetter, generateSubjectLine, generateFollowUp } from '@/se
 import { generateTailoredResume } from '@/services/resume-pdf-generator';
 import { AutoApplyStatus } from '@prisma/client';
 import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
+import { escapeHtml } from '@/lib/html-escape';
 
 /**
  * Process the auto-apply queue:
@@ -893,11 +894,11 @@ export function buildApplicationEmailHtml(params: {
   const { coverLetter, userName, recruiterName, applicationId } = params;
   const greeting = recruiterName ? `Hi ${recruiterName}` : 'Hi there';
 
-  // Convert newlines to paragraphs
+  // Convert newlines to paragraphs (escape content — AI/scraped text must not inject HTML)
   const paragraphs = coverLetter
     .split('\n')
     .filter((p) => p.trim())
-    .map((p) => `<p style="margin: 0 0 12px; line-height: 1.6;">${p}</p>`)
+    .map((p) => `<p style="margin: 0 0 12px; line-height: 1.6;">${escapeHtml(p)}</p>`)
     .join('');
 
   const trackingPixel = applicationId

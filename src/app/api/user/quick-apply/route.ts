@@ -5,6 +5,7 @@ import { generateCoverLetter, generateSubjectLine } from '@/services/cover-lette
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT } from '@/lib/apply-quota';
+import { escapeHtml } from '@/lib/html-escape';
 
 const FREE_DAILY_LIMIT = 20;
 
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6;">
-  ${finalText.split('\n').filter((p: string) => p.trim()).map((p: string) => `<p style="margin: 0 0 12px; line-height: 1.6;">${p}</p>`).join('')}
+  ${finalText.split('\n').filter((p: string) => p.trim()).map((p: string) => `<p style="margin: 0 0 12px; line-height: 1.6;">${escapeHtml(p)}</p>`).join('')}
 </body>
 </html>`.trim();
 
