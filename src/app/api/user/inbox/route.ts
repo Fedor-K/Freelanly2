@@ -103,12 +103,12 @@ export async function POST(request: NextRequest) {
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { applicationId, action, message, attachmentBase64, attachmentFilename } = await request.json();
+    const { applicationId, action, message, attachmentBase64, attachmentFilename, attachResume } = await request.json();
 
     const app = await prisma.autoApplication.findFirst({
       where: { id: applicationId, userId: session.user.id },
       include: {
-        user: { select: { name: true, email: true, userSmtp: true } },
+        user: { select: { name: true, email: true, userSmtp: true, resumeUrl: true, resumeFileName: true } },
       },
     });
 
@@ -151,6 +151,26 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, sentTo: app.appliedToEmail, note: 'already_sent' });
       }
 
+      // Resolve attachment: an explicit base64 from the client, or — for the common
+      // "send me your CV" reply — the user's stored résumé, fetched & encoded server-side
+      // (no CORS / huge request body). Recruiters ask for the CV constantly; this makes
+      // it one click instead of users pasting file paths or giving up to email.
+      let attBase64: string | undefined = attachmentBase64;
+      let attFilename: string | undefined = attachmentFilename;
+      if (!attBase64 && attachResume && app.user.resumeUrl && /^https?:\/\//.test(app.user.resumeUrl)) {
+        try {
+          const resp = await fetch(app.user.resumeUrl);
+          if (resp.ok) {
+            attBase64 = Buffer.from(await resp.arrayBuffer()).toString('base64');
+            attFilename = app.user.resumeFileName || 'resume.pdf';
+          } else {
+            console.error(`[Inbox] résumé fetch ${resp.status} for ${app.user.resumeUrl}`);
+          }
+        } catch (e) {
+          console.error('[Inbox] résumé fetch failed:', e);
+        }
+      }
+
       const subject = `Re: ${app.subject}`;
       const html = `<div style="font-family: sans-serif; font-size: 15px; line-height: 1.6; color: #333;">
         ${message.split('\n').map((p: string) => `<p style="margin: 0 0 12px;">${p}</p>`).join('')}
@@ -163,7 +183,7 @@ export async function POST(request: NextRequest) {
         const smtp = app.user.userSmtp!;
         result = await sendEmailViaSMTP(
           { host: smtp.host, port: smtp.port, email: smtp.email, password: smtp.password },
-          { from: `${app.user.name} <${smtp.email}>`, to: app.appliedToEmail, replyTo: smtp.email, subject, html, text: message, attachmentBase64, attachmentFilename }
+          { from: `${app.user.name} <${smtp.email}>`, to: app.appliedToEmail, replyTo: smtp.email, subject, html, text: message, attachmentBase64: attBase64, attachmentFilename: attFilename }
         );
       } else {
         result = await sendAutoApplyViaPostal({
@@ -174,18 +194,18 @@ export async function POST(request: NextRequest) {
           html,
           text: message,
           applicationId: app.id,
-          attachmentBase64,
-          attachmentFilename,
+          attachmentBase64: attBase64,
+          attachmentFilename: attFilename,
         });
       }
 
       if (result.success) {
         await Promise.all([
           prisma.activityLog.create({
-            data: { userId: session.user.id, action: 'INBOX_REPLY_SENT', details: { applicationId, to: app.appliedToEmail, company: app.companyName, viaSMTP: hasSmtp, message: message.slice(0, 500), hasAttachment: !!attachmentBase64 } },
+            data: { userId: session.user.id, action: 'INBOX_REPLY_SENT', details: { applicationId, to: app.appliedToEmail, company: app.companyName, viaSMTP: hasSmtp, message: message.slice(0, 500), hasAttachment: !!attBase64 } },
           }),
           prisma.message.create({
-            data: { applicationId, from: 'user', text: message.slice(0, 2000), attachmentUrl: attachmentFilename || null },
+            data: { applicationId, from: 'user', text: message.slice(0, 2000), attachmentUrl: attFilename || null },
           }),
         ]).catch(() => {});
         return NextResponse.json({ success: true, sentTo: app.appliedToEmail });

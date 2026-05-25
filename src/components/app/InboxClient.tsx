@@ -74,7 +74,7 @@ const RATINGS = [
   { emoji: '💬', label: 'Other', value: 'other' },
 ];
 
-export function InboxClient({ replies }: { replies: Reply[] }) {
+export function InboxClient({ replies, resumeAttachable = false, resumeFileName = null }: { replies: Reply[]; resumeAttachable?: boolean; resumeFileName?: string | null }) {
   const [activeId, setActiveId] = useState(replies[0]?.id || null);
   const [filter, setFilter] = useState<string>('all');
   const [replyText, setReplyText] = useState('');
@@ -82,6 +82,8 @@ export function InboxClient({ replies }: { replies: Reply[] }) {
   const [ratings, setRatings] = useState<Record<string, string>>({});
   const [sendResult, setSendResult] = useState<string | null>(null);
   const [suggestLoading, setSuggestLoading] = useState(false);
+  // Recruiters ask for the CV constantly — default the attach toggle ON when a résumé exists.
+  const [attachResume, setAttachResume] = useState(resumeAttachable);
 
   async function handleSend(appId: string) {
     if (!replyText.trim() || sending) return;
@@ -91,7 +93,7 @@ export function InboxClient({ replies }: { replies: Reply[] }) {
       const res = await fetch('/api/user/inbox', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applicationId: appId, action: 'send', message: replyText }),
+        body: JSON.stringify({ applicationId: appId, action: 'send', message: replyText, attachResume: attachResume && resumeAttachable }),
       });
       if (res.ok) {
         setSendResult('Sent!');
@@ -315,6 +317,14 @@ export function InboxClient({ replies }: { replies: Reply[] }) {
                 <button className="btn btn-primary btn-sm" onClick={() => handleSend(active.id)} disabled={sending || !replyText.trim()}>
                   {sending ? 'Sending...' : 'Send reply'}
                 </button>
+                {resumeAttachable ? (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--ink-3)', cursor: 'pointer', marginLeft: 'auto' }}>
+                    <input type="checkbox" checked={attachResume} onChange={e => setAttachResume(e.target.checked)} />
+                    📎 Attach résumé{resumeFileName ? ` · ${resumeFileName}` : ''}
+                  </label>
+                ) : (
+                  <a href="/dashboard/settings#profile" style={{ fontSize: '12px', color: 'var(--ink-4)', marginLeft: 'auto', textDecoration: 'underline' }}>Upload résumé to attach</a>
+                )}
                 {sendResult && <span style={{ fontSize: '12px', color: sendResult === 'Sent!' ? 'var(--good)' : '#DC2626' }}>{sendResult}</span>}
               </div>
             </div>

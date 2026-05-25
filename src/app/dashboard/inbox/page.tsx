@@ -27,6 +27,12 @@ export default async function InboxPage() {
     },
   });
 
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { resumeUrl: true, resumeFileName: true },
+  });
+  const resumeAttachable = !!(me?.resumeUrl && /^https?:\/\//.test(me.resumeUrl));
+
   const serialized = replies.map(r => ({
     id: r.id,
     companyName: r.companyName,
@@ -52,7 +58,7 @@ export default async function InboxPage() {
         </div>
       </div>
 
-      <InboxClient replies={serialized} />
+      <InboxClient replies={serialized} resumeAttachable={resumeAttachable} resumeFileName={me?.resumeFileName || null} />
     </div>
   );
 }
