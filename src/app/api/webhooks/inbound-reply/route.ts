@@ -194,7 +194,12 @@ export async function POST(request: NextRequest) {
     const paywallEnabled = false; // Set to true when ready to enable paywall
 
     if (notify && !isCold) {
-      // Email (branded full reply, or teaser once paywall is on)
+      // Email (branded full reply, or teaser once paywall is on). Capture the send
+      // outcome and ALWAYS log it (ok/error/threw) so we can tell "didn't deliver" from
+      // "didn't open" — reply EMAIL_SENT was mysteriously 0 despite replies flowing.
+      let res: { success: boolean; messageId?: string; error?: string } | null = null;
+      let variant = 'branded';
+      let threw: string | null = null;
       try {
         if (!paywallEnabled || isPro) {
           const branded = replyNotificationEmail({
@@ -209,11 +214,9 @@ export async function POST(request: NextRequest) {
             appId,
             userId: app.userId,
           });
-          await sendEmail({ to: app.user.email, subject: branded.subject, html: branded.html, text: branded.text, replyTo: `reply+${appId}@reply.freelanly.com` });
-          await prisma.activityLog.create({
-            data: { userId: app.userId, action: 'EMAIL_SENT', details: { applicationId: appId, kind: 'reply_notification', variant: 'branded', hot: isHot } },
-          }).catch(() => {});
+          res = await sendEmail({ to: app.user.email, subject: branded.subject, html: branded.html, text: branded.text, replyTo: `reply+${appId}@reply.freelanly.com` });
         } else {
+          variant = 'teaser';
           const teaser = replyTeaserEmail({
             userName: app.user.name || 'there',
             recruiterName: from.split('<')[0].trim() || app.companyName,
@@ -224,15 +227,16 @@ export async function POST(request: NextRequest) {
             appId,
             userId: app.userId,
           });
-          await sendEmail({ to: app.user.email, subject: teaser.subject, html: teaser.html, text: teaser.text });
-          await prisma.activityLog.create({
-            data: { userId: app.userId, action: 'EMAIL_SENT', details: { applicationId: appId, kind: 'reply_notification', variant: 'teaser', hot: isHot } },
-          }).catch(() => {});
+          res = await sendEmail({ to: app.user.email, subject: teaser.subject, html: teaser.html, text: teaser.text });
         }
-        console.log(`[InboundReply] Reply email sent to ${app.user.email} (${newStatus})`);
       } catch (fwdErr) {
-        console.error(`[InboundReply] Forward failed:`, fwdErr);
+        threw = (fwdErr as Error)?.message || String(fwdErr);
+        console.error(`[InboundReply] Forward threw:`, fwdErr);
       }
+      await prisma.activityLog.create({
+        data: { userId: app.userId, action: 'EMAIL_SENT', details: { applicationId: appId, kind: 'reply_notification', variant, hot: isHot, ok: !!res?.success, msgId: res?.messageId || null, err: threw || res?.error || null } },
+      }).catch(() => {});
+      console.log(`[InboundReply] Reply email to ${app.user.email} (${newStatus}) ok=${!!res?.success} err=${threw || res?.error || ''}`);
 
       // Telegram — HOT interview leads only. Higher open rate than email and pulls the
       // hot lead out of the inbox noise (where 63% of invites currently go unseen).
