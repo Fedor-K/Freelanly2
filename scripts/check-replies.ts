@@ -29,7 +29,7 @@ async function categorizeReply(replyText: string): Promise<{ category: string; s
       temperature: 0.1,
       max_tokens: 50,
       messages: [
-        { role: 'system', content: 'Categorize this recruiter reply to a job application. Return ONLY one word:\n- INTERESTED = recruiter asks for resume, CV, portfolio, details, or shows any positive interest\n- INTERVIEW = recruiter wants to schedule a call, meeting, or interview\n- REJECTION = explicit rejection ("unfortunately", "not a fit", "position filled")\n- OTHER = automated reply, out of office, or unrelated' },
+        { role: 'system', content: 'Categorize this recruiter reply to a job application. Return ONLY one word:\n- INTERVIEW = recruiter CONCRETELY moves to a call/interview: proposes a specific time, asks for your availability, or says to book/schedule a call or interview. NOT for "thank you for applying", a vague "we will be in touch" / "let us discuss", or just "share your CV".\n- INTERESTED = asks for resume/CV/portfolio/details, or positive interest WITHOUT concretely proposing a call.\n- REJECTION = explicit rejection ("unfortunately", "not a fit", "position filled")\n- OTHER = automated reply, out of office, or unrelated.\nWhen unsure between INTERVIEW and INTERESTED, choose INTERESTED.' },
         { role: 'user', content: replyText.slice(0, 500) },
       ],
     });

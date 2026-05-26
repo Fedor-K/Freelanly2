@@ -29,8 +29,11 @@ const SCAM_DOMAINS = new Set<string>([
 // a genuine recruiter reply won't contain them.
 const SCAM_TEXT_PATTERNS: RegExp[] = [
   /potential alignment with several opportunities/i,
-  /high chance it may not move forward/i,
+  /may not move forward/i,                                  // broadened from "high chance it may not move forward"
   /confirm a few details to ensure the best/i,
+  /based on your (experience|background)[\s\S]{0,40}\bpotential\b/i, // the scam opener variants
+  /i want to be transparent with you/i,                     // the resume-rewrite pivot line
+  /(this service|the service|it) (typically )?involves a fee/i, // the upsell ask (recruiters never charge candidates)
 ];
 
 function bareEmail(from: string): string {
