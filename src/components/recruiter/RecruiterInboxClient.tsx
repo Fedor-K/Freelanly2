@@ -60,15 +60,24 @@ export function RecruiterInboxClient({ token, candidates }: { token: string; can
     }
   }
 
+  function track(event: string, appId?: string) {
+    fetch('/api/recruiter/track', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, event, appId }),
+    }).catch(() => {});
+  }
+
   function toggle(appId: string) {
     const next = openId === appId ? null : appId;
     setOpenId(next);
+    track(next ? 'open_chat' : 'close_chat', appId);
     if (next) loadThread(appId);
   }
 
   async function send(appId: string) {
     const message = (draft[appId] || '').trim();
     if (!message) return;
+    track('send_click', appId);
     setSending(appId);
     setErr((e) => ({ ...e, [appId]: '' }));
     try {
@@ -128,7 +137,7 @@ export function RecruiterInboxClient({ token, candidates }: { token: string; can
             {/* Action bar */}
             <div style={{ display: 'flex', gap: '6px', marginTop: '10px', alignItems: 'center' }}>
               <button className="btn btn-primary btn-sm" onClick={() => toggle(c.appId)}>💬 {open ? 'Hide' : 'Open chat'}</button>
-              {c.cvUrl && <a href={c.cvUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">📄 CV</a>}
+              {c.cvUrl && <a href={c.cvUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" onClick={() => track('view_cv', c.appId)}>📄 CV</a>}
             </div>
 
             {/* Expanded: profile + chat + compose */}
