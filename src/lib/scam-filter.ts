@@ -34,6 +34,18 @@ const SCAM_TEXT_PATTERNS: RegExp[] = [
   /based on your (experience|background)[\s\S]{0,40}\bpotential\b/i, // the scam opener variants
   /i want to be transparent with you/i,                     // the resume-rewrite pivot line
   /(this service|the service|it) (typically )?involves a fee/i, // the upsell ask (recruiters never charge candidates)
+  // Web3/crypto "earn tokens for your activity" recruiting — a platform harvesting users
+  // with crypto rewards, not a real client hiring. Kept specific so a genuine crypto job
+  // (paid in salary) still passes; only the reward/token-for-activity framing trips it.
+  /\bHIVE tokens?\b/i,
+  /cryptocurrency rewards?/i,
+  /earn (crypto|cryptocurrency|hive)\w*\s+(rewards?|tokens?)/i,
+  // Off-platform pull: "your application came through an aggregator — let me route you
+  // directly into our official/internal system" (drags the user off-platform; the example
+  // user naively overshared their personal email). NOTE: may also catch a few legit ATS
+  // redirects — acceptable per product call to stop the off-platform leak.
+  /processed through (a |an )?(partner )?aggregator/i,
+  /route you (directly )?(in)?to (our )?(official|internal|main)\b/i,
 ];
 
 function bareEmail(from: string): string {

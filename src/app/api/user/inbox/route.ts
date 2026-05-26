@@ -13,6 +13,32 @@ function getAIClient() {
 }
 
 /**
+ * Strip AI "here's what you could send" meta-framing that the suggest model sometimes
+ * emits and that has leaked VERBATIM to recruiters (real case: "You can reply like this
+ * after receiving the 'Please share updated resume' email: Hi …"). Matches whether it
+ * leads the message OR sits after a greeting (NOT anchored to ^), and runs at BOTH suggest
+ * and send time. High-signal instruction phrases only (reply/respond/say + here's-a-draft
+ * + leading labels), each requiring a trailing colon, so genuine applicant prose is left
+ * intact ("you can reach me", "here's my availability:" etc. are not touched).
+ */
+function stripMetaFraming(input: string): string {
+  if (!input) return input;
+  let s = input;
+  // Each requires a trailing colon and a high-signal instruction phrase. "Sure" is only an
+  // optional lead-in to the framing (never stripped on its own — "Sure, my availability:"
+  // is legit prose, must survive).
+  const patterns: RegExp[] = [
+    /(sure[,!.]?\s+)?here(?:'|’|`)?s?\s+(is\s+)?(a\s+)?(draft|suggested?|possible)?\s*(reply|response|message)\b[^:\n]{0,80}:\s*/i,
+    /(sure[,!.]?\s+)?\byou (can|could|might|may|should)\s+(reply|respond|say|answer)\b[^:\n]{0,140}:\s*/i,
+    /(sure[,!.]?\s+)?\b(feel free to|simply)\s+(reply|respond|say|answer|copy|paste)\b[^:\n]{0,140}:\s*/i,
+    /^\s*(draft|suggested reply|suggestion|example reply|response)\s*:\s*/i,
+  ];
+  for (const re of patterns) s = s.replace(re, '');
+  s = s.replace(/^\s*["'“”]+|["'“”]+\s*$/g, '').trim();
+  return s;
+}
+
+/**
  * GET /api/user/inbox — list replied applications with thread data
  * POST /api/user/inbox — send reply to recruiter
  */
@@ -130,15 +156,9 @@ export async function POST(request: NextRequest) {
         ],
       });
 
-      // Defensive: strip meta-framing the model sometimes prepends (it once shipped
+      // Defensive: strip meta-framing the model sometimes prepends/embeds (it once shipped
       // "You can reply like this after receiving … : Hi …" verbatim to a recruiter).
-      let suggested = (response.choices[0]?.message?.content || '').trim();
-      suggested = suggested
-        .replace(/^(sure[,!.]?\s*)?(here(?:'|’|`)?s?\s+(is\s+)?(a\s+)?(draft|suggest\w*|reply|response|possible (reply|response))[^:\n]*:\s*)/i, '')
-        .replace(/^you (can|could|might|may)\s+(reply|respond|say|send|use)[^:\n]*:\s*/i, '')
-        .replace(/^(draft|suggested reply|suggestion|reply|response)\s*:\s*/i, '')
-        .replace(/^["'“”]+|["'“”]+$/g, '')
-        .trim();
+      let suggested = stripMetaFraming((response.choices[0]?.message?.content || '').trim());
       if (!suggested || suggested.length < 3) suggested = 'Thank you for your response. I would be happy to discuss further.';
 
       await prisma.activityLog.create({
@@ -153,9 +173,14 @@ export async function POST(request: NextRequest) {
 
     // Send Reply
     if (action === 'send' && message) {
+      // Belt-and-suspenders: strip AI meta-framing at SEND time too (the suggest-time strip
+      // only protects fresh suggestions — users edit, paste, or the preamble sits after the
+      // greeting; this is what actually reaches the recruiter, so sanitize it here).
+      const outgoing = stripMetaFraming(message).slice(0, 2000) || message.slice(0, 2000);
+
       // Dedup: check if same message was sent in last 60 seconds
       const recentDupe = await prisma.message.findFirst({
-        where: { applicationId, from: 'user', text: message.slice(0, 2000), createdAt: { gte: new Date(Date.now() - 60000) } },
+        where: { applicationId, from: 'user', text: outgoing, createdAt: { gte: new Date(Date.now() - 60000) } },
       });
       if (recentDupe) {
         return NextResponse.json({ success: true, sentTo: app.appliedToEmail, note: 'already_sent' });
@@ -174,7 +199,7 @@ export async function POST(request: NextRequest) {
 
       const subject = `Re: ${app.subject}`;
       const html = `<div style="font-family: sans-serif; font-size: 15px; line-height: 1.6; color: #333;">
-        ${message.split('\n').map((p: string) => `<p style="margin: 0 0 12px;">${p}</p>`).join('')}
+        ${outgoing.split('\n').map((p: string) => `<p style="margin: 0 0 12px;">${p}</p>`).join('')}
       </div>`;
 
       let result;
@@ -184,7 +209,7 @@ export async function POST(request: NextRequest) {
         const smtp = app.user.userSmtp!;
         result = await sendEmailViaSMTP(
           { host: smtp.host, port: smtp.port, email: smtp.email, password: smtp.password },
-          { from: `${app.user.name} <${smtp.email}>`, to: app.appliedToEmail, replyTo: smtp.email, subject, html, text: message, attachmentBase64: attBase64, attachmentFilename: attFilename }
+          { from: `${app.user.name} <${smtp.email}>`, to: app.appliedToEmail, replyTo: smtp.email, subject, html, text: outgoing, attachmentBase64: attBase64, attachmentFilename: attFilename }
         );
       } else {
         result = await sendAutoApplyViaPostal({
@@ -193,7 +218,7 @@ export async function POST(request: NextRequest) {
           to: app.appliedToEmail,
           subject,
           html,
-          text: message,
+          text: outgoing,
           applicationId: app.id,
           attachmentBase64: attBase64,
           attachmentFilename: attFilename,
@@ -203,10 +228,10 @@ export async function POST(request: NextRequest) {
       if (result.success) {
         await Promise.all([
           prisma.activityLog.create({
-            data: { userId: session.user.id, action: 'INBOX_REPLY_SENT', details: { applicationId, to: app.appliedToEmail, company: app.companyName, viaSMTP: hasSmtp, message: message.slice(0, 500), hasAttachment: !!attBase64 } },
+            data: { userId: session.user.id, action: 'INBOX_REPLY_SENT', details: { applicationId, to: app.appliedToEmail, company: app.companyName, viaSMTP: hasSmtp, message: outgoing.slice(0, 500), hasAttachment: !!attBase64 } },
           }),
           prisma.message.create({
-            data: { applicationId, from: 'user', text: message.slice(0, 2000), attachmentUrl: attFilename || null },
+            data: { applicationId, from: 'user', text: outgoing, attachmentUrl: attFilename || null },
           }),
         ]).catch(() => {});
         return NextResponse.json({ success: true, sentTo: app.appliedToEmail });
