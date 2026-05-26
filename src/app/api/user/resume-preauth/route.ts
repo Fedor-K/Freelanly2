@@ -61,7 +61,8 @@ export async function POST(request: NextRequest) {
     let parsedProfile: Record<string, unknown> | null = null;
     let buffer: Uint8Array | null = null;
 
-    // Option 1: PDF resume
+    // 1) Résumé PDF → text + AI-structured profile (the rich, authoritative BASE).
+    let resumeProfile: Record<string, unknown> | null = null;
     if (file) {
       buffer = new Uint8Array(await file.arrayBuffer());
       try {
@@ -72,9 +73,32 @@ export async function POST(request: NextRequest) {
       } catch {
         // Continue — LinkedIn might still work
       }
+      if (pdfText) {
+        try {
+          const client = getAIClient();
+          const response = await client.chat.completions.create({
+            model: getModel(),
+            messages: [
+              { role: 'system', content: `You extract structured data from resumes. Return ONLY valid JSON, no markdown.
+Format: {"name":"string","email":"string or null","phone":"string or null","skills":["skill1","skill2"],"experience_years":number,"current_title":"string","field":"string","summary":"1-2 sentence summary","languages":["English"]}
+Extract up to 20 skills. If not found, use null.` },
+              { role: 'user', content: `Extract profile data:\n\n${pdfText.substring(0, 5000)}` },
+            ],
+            temperature: 0.1,
+            max_tokens: 700,
+          });
+          const m = (response.choices[0]?.message?.content || '').match(/\{[\s\S]*\}/);
+          if (m) resumeProfile = JSON.parse(m[0]);
+        } catch (e) {
+          console.error('[ResumePreAuth] résumé AI parse failed:', e);
+        }
+      }
     }
 
-    // Option 2: LinkedIn profile scraping
+    // 2) LinkedIn → structured profile (ENRICHMENT). NOTE: the actor's input field is
+    // `urls` (NOT `profileUrls`) and skills come back as `topSkills` — the old code used
+    // the wrong names, so this scrape silently returned nothing for ~everyone.
+    let liProfile: Record<string, unknown> | null = null;
     if (linkedinUrl && linkedinUrl.includes('linkedin.com/in/')) {
       try {
         const apifyToken = process.env.APIFY_API_TOKEN;
@@ -84,28 +108,44 @@ export async function POST(request: NextRequest) {
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ profileUrls: [linkedinUrl] }),
-              signal: AbortSignal.timeout(30000),
+              body: JSON.stringify({ urls: [linkedinUrl] }),
+              signal: AbortSignal.timeout(35000),
             }
           );
           if (runRes.ok) {
             const items = await runRes.json();
-            const profile = items[0];
-            if (profile) {
-              parsedProfile = {
-                name: profile.fullName || profile.firstName + ' ' + profile.lastName,
-                email: email,
-                current_title: profile.headline || null,
-                field: profile.headline || null,
-                skills: (profile.skills || []).map((s: { name?: string }) => s.name || s).filter(Boolean).slice(0, 15),
-                summary: profile.about || profile.summary || '',
-                experience_years: profile.experience?.length || 0,
-                languages: (profile.languages || []).map((l: { name?: string }) => l.name || l).filter(Boolean),
+            const pr = Array.isArray(items) ? items[0] : null;
+            if (pr) {
+              const liName = `${pr.firstName || ''} ${pr.lastName || ''}`.trim() || pr.fullName || null;
+              // The actor returns BOTH topSkills (highlighted 3-5) and skills (full list) —
+              // union them so we don't lose the full set (esp. for LinkedIn-only users).
+              const liSkills = [...new Set([
+                ...(Array.isArray(pr.topSkills) ? pr.topSkills : []),
+                ...(Array.isArray(pr.skills) ? pr.skills : []),
+              ].map((s: { name?: string } | string) => (typeof s === 'object' && s ? s.name : s))
+                .filter(Boolean)
+                .map((s) => String(s).trim()))].slice(0, 20);
+              const liLangs = (Array.isArray(pr.languages) ? pr.languages : [])
+                .map((l: { name?: string } | string) => (typeof l === 'object' && l ? l.name : l))
+                .filter(Boolean);
+              const liLoc = typeof pr.location === 'string' ? pr.location : (pr.location?.linkedinText || pr.location?.text || null);
+              liProfile = {
+                name: liName,
+                email,
+                current_title: pr.headline || null,
+                field: pr.headline || null,
+                skills: liSkills,
+                summary: pr.about || '',
+                experience_years: 0,
+                languages: liLangs,
+                location: liLoc,
               };
-              if (!pdfText && profile.about) {
-                pdfText = `${profile.fullName}\n${profile.headline}\n\n${profile.about}\n\nSkills: ${(parsedProfile.skills as string[]).join(', ')}`;
+              if (!pdfText && pr.about) {
+                pdfText = `${liName || ''}\n${pr.headline || ''}\n\n${pr.about}\n\nSkills: ${(liSkills as string[]).join(', ')}`;
               }
-              console.log(`[ResumePreAuth] LinkedIn parsed for ${email}: ${parsedProfile.name}`);
+              console.log(`[ResumePreAuth] LinkedIn scraped for ${email}: ${liName}, ${(liSkills as string[]).length} skills`);
+            } else {
+              console.warn(`[ResumePreAuth] LinkedIn returned no items for ${email}`);
             }
           }
         }
@@ -114,35 +154,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!pdfText && !parsedProfile) {
-      return NextResponse.json({ error: 'Could not extract profile data' }, { status: 400 });
+    // 3) MERGE — résumé is the base (richer/authoritative); LinkedIn enriches: union
+    // skills + languages, prefer the LinkedIn headline as the current title. Never drops
+    // résumé detail. Falls back to whichever single source exists.
+    const uniq = (arr: unknown[]) => [...new Set(arr.filter(Boolean).map((s) => String(s).trim()).filter((s) => s.length > 0))];
+    if (resumeProfile && liProfile) {
+      parsedProfile = {
+        name: resumeProfile.name || liProfile.name,
+        email: resumeProfile.email || liProfile.email || email,
+        phone: (resumeProfile.phone as string) || null,
+        current_title: liProfile.current_title || resumeProfile.current_title,
+        field: resumeProfile.field || liProfile.field,
+        skills: uniq([...((resumeProfile.skills as unknown[]) || []), ...((liProfile.skills as unknown[]) || [])]).slice(0, 25),
+        languages: uniq([...((resumeProfile.languages as unknown[]) || []), ...((liProfile.languages as unknown[]) || [])]),
+        experience_years: (resumeProfile.experience_years as number) || (liProfile.experience_years as number) || 0,
+        summary: ((liProfile.summary as string) || '').length > ((resumeProfile.summary as string) || '').length ? liProfile.summary : (resumeProfile.summary || liProfile.summary),
+        location: resumeProfile.location || liProfile.location || null,
+      };
+    } else {
+      parsedProfile = resumeProfile || liProfile;
     }
 
-    // Parse PDF with AI (if we have text but no profile yet)
-    if (pdfText && !parsedProfile) {
-      try {
-        const client = getAIClient();
-        const response = await client.chat.completions.create({
-          model: getModel(),
-          messages: [
-            {
-              role: 'system',
-              content: `You extract structured data from resumes. Return ONLY valid JSON, no markdown.
-Format: {"name":"string","email":"string or null","phone":"string or null","skills":["skill1","skill2"],"experience_years":number,"current_title":"string","field":"string","summary":"1-2 sentence summary","languages":["English"]}
-Extract up to 15 skills. If not found, use null.`,
-            },
-            { role: 'user', content: `Extract profile data:\n\n${pdfText.substring(0, 5000)}` },
-          ],
-          temperature: 0.1,
-          max_tokens: 600,
-        });
-
-        const content = response.choices[0]?.message?.content?.trim() || '';
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) parsedProfile = JSON.parse(jsonMatch[0]);
-      } catch (e) {
-        console.error('[ResumePreAuth] AI parsing failed:', e);
-      }
+    if (!pdfText && !parsedProfile) {
+      return NextResponse.json({ error: 'Could not extract profile data' }, { status: 400 });
     }
 
     // Upload original PDF to Vercel Blob
