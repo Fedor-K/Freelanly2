@@ -39,6 +39,20 @@ function stripMetaFraming(input: string): string {
 }
 
 /**
+ * Drop any sentence where the model wrongly claims the applicant / the platform CANNOT
+ * attach or share files. This line was killing interviews ("the platform does not currently
+ * support attaching files directly" sent when the recruiter had asked for a mandatory CV).
+ * We DO support attachments — never tell a recruiter otherwise.
+ */
+function dropAttachExcuses(input: string): string {
+  if (!input) return input;
+  const bad = /(can(?:not|'t|’t)|unable|won'?t|do(?:es)?(?:n'?t| not)).{0,40}(attach|upload|share|send|provide).{0,30}(file|document|cv|résumé|resume|attachment)|(platform|system|site|portal|here)\b.{0,35}(does(?:n'?t| not)|not|no longer|cannot|can'?t).{0,30}(support|allow|let|enable|permit).{0,25}(attach|upload|file|document|sharing)/i;
+  const kept = input.split(/(?<=[.!?])\s+/).filter((p) => !bad.test(p));
+  const out = kept.join(' ').replace(/\s{2,}/g, ' ').trim();
+  return out.length >= 3 ? out : input;
+}
+
+/**
  * GET /api/user/inbox — list replied applications with thread data
  * POST /api/user/inbox — send reply to recruiter
  */
@@ -146,19 +160,20 @@ export async function POST(request: NextRequest) {
       const replyText = app.replyText || '';
       const { client, model } = getAIClient();
 
+      const hasResume = !!app.user.resumeUrl && app.user.resumeUrl.includes('blob.vercel-storage');
       const response = await client.chat.completions.create({
         model,
         temperature: 0.6,
         max_tokens: 200,
         messages: [
-          { role: 'system', content: 'You are drafting the reply a job applicant will send to a recruiter. Output ONLY the message body the applicant sends — first person (I/my/me), 2-3 sentences, ready to paste as-is. Do NOT add any preamble, framing, or instructions: never write "You can reply like this", "Here is a draft", "You could say", and do not restate or quote the recruiter message. Do NOT add a greeting or signature (those are added separately). NEVER use third person or the applicant name. Return just the reply text, nothing else.' },
-          { role: 'user', content: `Recruiter message: "${replyText.slice(0, 300)}"\nOriginal application was for: ${app.jobTitle} at ${app.companyName}\nI am: ${app.user.name}` },
+          { role: 'system', content: 'You are drafting the reply a job applicant will send to a recruiter. Output ONLY the message body the applicant sends — first person (I/my/me), 2-3 sentences, ready to paste as-is. Do NOT add any preamble, framing, or instructions: never write "You can reply like this", "Here is a draft", "You could say", and do not restate or quote the recruiter message. Do NOT add a greeting or signature (those are added separately). NEVER use third person or the applicant name. If the recruiter asks for a CV, résumé, portfolio, or documents, reply positively that you are sharing/attaching it (e.g. "I have attached my résumé." or "I would be glad to share my résumé."). NEVER claim you cannot attach files or that the platform does not support attachments — the applicant CAN attach their résumé. Return just the reply text, nothing else.' },
+          { role: 'user', content: `Recruiter message: "${replyText.slice(0, 300)}"\nOriginal application was for: ${app.jobTitle} at ${app.companyName}\nI am: ${app.user.name}${hasResume ? '\nI have a résumé I can attach to this reply.' : ''}` },
         ],
       });
 
       // Defensive: strip meta-framing the model sometimes prepends/embeds (it once shipped
       // "You can reply like this after receiving … : Hi …" verbatim to a recruiter).
-      let suggested = stripMetaFraming((response.choices[0]?.message?.content || '').trim());
+      let suggested = dropAttachExcuses(stripMetaFraming((response.choices[0]?.message?.content || '').trim()));
       if (!suggested || suggested.length < 3) suggested = 'Thank you for your response. I would be happy to discuss further.';
 
       await prisma.activityLog.create({
