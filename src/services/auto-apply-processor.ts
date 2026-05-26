@@ -7,6 +7,7 @@ import { AutoApplyStatus } from '@prisma/client';
 import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
 import { isScamRecipient } from '@/lib/scam-filter';
+import { getRecruiterPortalUrl } from '@/lib/recruiter-token';
 
 // Anti-spam: max emails to the same recruiter per UTC day. Used by the sender as the
 // hard cap AND at match time to skip already-saturated recruiters (so we don't queue
@@ -356,6 +357,8 @@ export async function processAutoApplyQueue(): Promise<{
         companyName: app.companyName,
         recruiterName,
         applicationId: app.id,
+        // Recruiter-portal footer only on apply@ (Postal) sends, not the user's own SMTP.
+        recruiterEmail: hasSmtp ? undefined : app.appliedToEmail,
       });
 
       // AI now generates complete email with greeting + signature
@@ -980,9 +983,12 @@ export function buildApplicationEmailHtml(params: {
   companyName: string;
   recruiterName?: string;
   applicationId?: string;
+  /** When set, append a subtle "see all your candidates" footer linking to the recruiter
+   *  portal (/r/[token]). Pass ONLY for Postal (apply@) sends — not for a candidate's own
+   *  SMTP, where a Freelanly footer would be out of place. */
+  recruiterEmail?: string;
 }): string {
-  const { coverLetter, userName, recruiterName, applicationId } = params;
-  const greeting = recruiterName ? `Hi ${recruiterName}` : 'Hi there';
+  const { coverLetter, userName, applicationId, recruiterEmail } = params;
 
   // Convert newlines to paragraphs (escape content — AI/scraped text must not inject HTML)
   const paragraphs = coverLetter
@@ -990,6 +996,15 @@ export function buildApplicationEmailHtml(params: {
     .filter((p) => p.trim())
     .map((p) => `<p style="margin: 0 0 12px; line-height: 1.6;">${escapeHtml(p)}</p>`)
     .join('');
+
+  const portalCta = recruiterEmail
+    ? `<table role="presentation" width="100%" style="margin-top: 22px; border-collapse: collapse;">
+    <tr><td style="padding-top: 16px; border-top: 1px solid #ebe9e3;">
+      <a href="${getRecruiterPortalUrl(recruiterEmail)}" style="color: #0B0C0F; font-weight: 600; font-size: 14px; text-decoration: none;">See ${escapeHtml(userName)} &amp; all candidates who applied to your roles &rarr;</a>
+      <div style="font-size: 11px; color: #9a9a9a; margin-top: 6px;">via Freelanly</div>
+    </td></tr>
+  </table>`
+    : '';
 
   const trackingPixel = applicationId
     ? `<img src="https://freelanly.com/api/track/auto-apply-open?id=${applicationId}" width="1" height="1" style="display:block;width:1px;height:1px;border:0;" alt="" />`
@@ -1001,6 +1016,7 @@ export function buildApplicationEmailHtml(params: {
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6;">
   ${paragraphs}
+  ${portalCta}
   ${trackingPixel}
 </body>
 </html>

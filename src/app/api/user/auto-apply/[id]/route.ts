@@ -313,6 +313,7 @@ export async function POST(
         subject = await generateSubjectLine({ jobTitle: app.jobTitle, userName: fullUser.name || 'Applicant' });
       }
 
+      const hasSmtp = !!fullUser.userSmtp?.verified;
       const html = buildApplicationEmailHtml({
         coverLetter,
         userName: fullUser.name || 'Applicant',
@@ -320,9 +321,9 @@ export async function POST(
         companyName: app.companyName,
         recruiterName: '',
         applicationId: id,
+        recruiterEmail: hasSmtp ? undefined : app.appliedToEmail,
       });
 
-      const hasSmtp = !!fullUser.userSmtp?.verified;
       let result: { success: boolean; messageId?: string; error?: string };
 
       if (hasSmtp) {
