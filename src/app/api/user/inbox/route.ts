@@ -125,12 +125,21 @@ export async function POST(request: NextRequest) {
         temperature: 0.6,
         max_tokens: 200,
         messages: [
-          { role: 'system', content: 'Write a short, professional reply to a recruiter from FIRST PERSON perspective (I/my/me). 2-3 sentences max. No greeting or signature. NEVER use third person or refer to the applicant by name.' },
+          { role: 'system', content: 'You are drafting the reply a job applicant will send to a recruiter. Output ONLY the message body the applicant sends — first person (I/my/me), 2-3 sentences, ready to paste as-is. Do NOT add any preamble, framing, or instructions: never write "You can reply like this", "Here is a draft", "You could say", and do not restate or quote the recruiter message. Do NOT add a greeting or signature (those are added separately). NEVER use third person or the applicant name. Return just the reply text, nothing else.' },
           { role: 'user', content: `Recruiter message: "${replyText.slice(0, 300)}"\nOriginal application was for: ${app.jobTitle} at ${app.companyName}\nI am: ${app.user.name}` },
         ],
       });
 
-      const suggested = response.choices[0]?.message?.content?.trim() || 'Thank you for your response. I would be happy to discuss further.';
+      // Defensive: strip meta-framing the model sometimes prepends (it once shipped
+      // "You can reply like this after receiving … : Hi …" verbatim to a recruiter).
+      let suggested = (response.choices[0]?.message?.content || '').trim();
+      suggested = suggested
+        .replace(/^(sure[,!.]?\s*)?(here(?:'|’|`)?s?\s+(is\s+)?(a\s+)?(draft|suggest\w*|reply|response|possible (reply|response))[^:\n]*:\s*)/i, '')
+        .replace(/^you (can|could|might|may)\s+(reply|respond|say|send|use)[^:\n]*:\s*/i, '')
+        .replace(/^(draft|suggested reply|suggestion|reply|response)\s*:\s*/i, '')
+        .replace(/^["'“”]+|["'“”]+$/g, '')
+        .trim();
+      if (!suggested || suggested.length < 3) suggested = 'Thank you for your response. I would be happy to discuss further.';
 
       await prisma.activityLog.create({
         data: { userId: session.user.id, action: 'INBOX_AI_SUGGEST', details: { applicationId, company: app.companyName } },
@@ -138,7 +147,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         suggested,
-        full: `Dear ${app.companyName.split(' ')[0]},\n\n${suggested}\n\nBest regards,\n${app.user.name}\n${app.user.email}`,
+        full: `Dear ${app.companyName.split(' ')[0]},\n\n${suggested}\n\nBest regards,\n${app.user.name}`,
       });
     }
 
