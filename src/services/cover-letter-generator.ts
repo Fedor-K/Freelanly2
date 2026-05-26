@@ -125,7 +125,7 @@ export async function generateCoverLetter(input: CoverLetterInput): Promise<stri
 YOUR JOB:
 1. Figure out who to address — look at the recruiter email and job description. If you can tell the person's first name, use "Hi [Name],". Otherwise "Hi there,".
 2. Figure out the company — from the description, email domain, poster info, anything. Mention it.
-3. Open by referencing something specific from the job post (shows it was actually read).
+3. VARY THE OPENING LINE — do NOT default to "I saw the [role] at [company] and was interested" / "I noticed your post for". Open differently each time: lead with the applicant's most relevant achievement or a number, OR react to one specific detail of the post, OR a direct statement of fit. The first sentence should feel hand-written, not templated.
 4. Give 1-2 CONCRETE proof points from the applicant's real background — a relevant project, result, or number. ONLY real things from the profile — NEVER invent.
 5. End with a soft call to action.
 6. Sign off with the applicant's name.

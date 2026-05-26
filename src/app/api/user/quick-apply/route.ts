@@ -157,9 +157,12 @@ export async function POST(request: NextRequest) {
     // NEVER include the user's email in the body — replies must route through us
     // (apply@ From + reply+{appId}@ Reply-To), so exposing it would let recruiters
     // contact the user directly, off-platform.
-    const greeting = recruiterName ? `Hi ${recruiterName},` : 'Hi there,';
+    // The AI-generated letter already opens with a greeting; only prepend one when the
+    // body lacks it (e.g. user-pasted text) — otherwise we get "Hi X,\nHi there," dupes.
+    const hasGreeting = /^\s*(hi|hello|dear|hey)\b/i.test(coverLetter);
+    const greeting = hasGreeting ? '' : (recruiterName ? `Hi ${recruiterName},\n\n` : 'Hi there,\n\n');
     const signature = `Best regards,\n${user.name || 'Applicant'}`;
-    const fullLetter = `${greeting}\n\n${coverLetter}\n\n${signature}`;
+    const fullLetter = `${greeting}${coverLetter}\n\n${signature}`;
 
     // Draft-only mode: return full letter as user will see it
     if (draftOnly) {
