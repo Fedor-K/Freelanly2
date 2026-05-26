@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyRecruiterToken } from '@/lib/recruiter-token';
+import { cleanReplyText } from '@/lib/clean-reply';
 
 /**
  * GET /api/recruiter/thread?token=&appId= — full conversation for one application, for the
@@ -28,13 +29,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    let thread = app.messages.map((m) => ({ from: m.from, text: m.text, at: m.createdAt.toISOString() }));
+    // Clean inbound-email cruft (quoted history, signatures) so each message reads like a
+    // chat bubble. No-op on composed/portal messages.
+    let thread = app.messages.map((m) => ({ from: m.from, text: cleanReplyText(m.text), at: m.createdAt.toISOString() }));
     // Fallback for apps that predate the Message log: synthesize from cover letter + reply.
     if (thread.length === 0) {
-      if (app.coverLetter) thread.push({ from: 'user', text: app.coverLetter, at: (app.sentAt || new Date()).toISOString() });
-      if (app.replyText) thread.push({ from: 'recruiter', text: app.replyText, at: (app.repliedAt || new Date()).toISOString() });
+      if (app.coverLetter) thread.push({ from: 'user', text: cleanReplyText(app.coverLetter), at: (app.sentAt || new Date()).toISOString() });
+      if (app.replyText) thread.push({ from: 'recruiter', text: cleanReplyText(app.replyText), at: (app.repliedAt || new Date()).toISOString() });
     }
-    return NextResponse.json({ thread });
+    return NextResponse.json({ thread: thread.filter((m) => m.text) });
   } catch (e) {
     console.error('[RecruiterThread] error:', e);
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
