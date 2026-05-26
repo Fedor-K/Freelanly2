@@ -1,8 +1,37 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { prisma } from '@/lib/db';
 import { verifyRecruiterToken } from '@/lib/recruiter-token';
 import { RecruiterInboxClient, type RecruiterCandidate } from '@/components/recruiter/RecruiterInboxClient';
 import '../../design-app.css';
+
+// Fire-and-forget visit log (top of the demand funnel) — deduped per recruiter ~5 min so
+// email link-scanners / double renders don't inflate the count. Never blocks the page.
+async function logVisit(email: string, candidateCount: number) {
+  try {
+    const recent = await prisma.activityLog.findFirst({
+      where: {
+        action: 'RECRUITER_PORTAL_VISIT',
+        details: { path: ['recruiterEmail'], equals: email },
+        createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) },
+      },
+      select: { id: true },
+    });
+    if (recent) return;
+    const h = await headers();
+    await prisma.activityLog.create({
+      data: {
+        action: 'RECRUITER_PORTAL_VISIT',
+        details: { recruiterEmail: email, candidateCount },
+        ipAddress: h.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+        userAgent: h.get('user-agent') || null,
+        country: h.get('x-vercel-ip-country') || null,
+      },
+    });
+  } catch {
+    /* logging must never break the page */
+  }
+}
 
 export const metadata: Metadata = {
   title: 'Your Candidates — Freelanly',
@@ -37,6 +66,8 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
       user: { select: { name: true, parsedProfile: true, resumeUrl: true } },
     },
   });
+
+  await logVisit(email, apps.length);
 
   const candidates: RecruiterCandidate[] = apps.map((a) => {
     const p = (a.user.parsedProfile ?? {}) as Record<string, unknown>;
