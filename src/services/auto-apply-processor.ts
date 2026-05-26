@@ -998,10 +998,12 @@ export function buildApplicationEmailHtml(params: {
     .join('');
 
   const portalCta = recruiterEmail
-    ? `<table role="presentation" width="100%" style="margin-top: 22px; border-collapse: collapse;">
-    <tr><td style="padding-top: 16px; border-top: 1px solid #ebe9e3;">
-      <a href="${getRecruiterPortalUrl(recruiterEmail)}" style="color: #0B0C0F; font-weight: 600; font-size: 14px; text-decoration: none;">See ${escapeHtml(userName)} &amp; all candidates who applied to your roles &rarr;</a>
-      <div style="font-size: 11px; color: #9a9a9a; margin-top: 6px;">via Freelanly</div>
+    ? `<table role="presentation" width="100%" style="margin-top: 26px; border-collapse: collapse;">
+    <tr><td style="padding: 22px 0 4px; border-top: 1px solid #ebe9e3; text-align: center;">
+      <div style="font-size: 15px; font-weight: 600; color: #0B0C0F; margin-bottom: 4px;">${escapeHtml(userName)} and your other candidates are in one place</div>
+      <div style="font-size: 13px; color: #666; line-height: 1.5; margin-bottom: 16px;">View profiles &amp; CVs and reply to everyone who applied to your roles.</div>
+      <a href="${getRecruiterPortalUrl(recruiterEmail)}" style="display: inline-block; padding: 13px 32px; background: #C7F94A; color: #000; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px;">View candidates &amp; reply &rarr;</a>
+      <div style="font-size: 11px; color: #9a9a9a; margin-top: 16px;">via Freelanly</div>
     </td></tr>
   </table>`
     : '';
