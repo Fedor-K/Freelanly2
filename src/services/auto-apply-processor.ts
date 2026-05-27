@@ -988,7 +988,8 @@ export function buildApplicationEmailHtml(params: {
    *  SMTP, where a Freelanly footer would be out of place. */
   recruiterEmail?: string;
 }): string {
-  const { coverLetter, userName, applicationId, recruiterEmail } = params;
+  const { coverLetter, userName, jobTitle, applicationId, recruiterEmail } = params;
+  const portalUrl = recruiterEmail ? getRecruiterPortalUrl(recruiterEmail) : '';
 
   // Convert newlines to paragraphs (escape content — AI/scraped text must not inject HTML)
   const paragraphs = coverLetter
@@ -997,12 +998,25 @@ export function buildApplicationEmailHtml(params: {
     .map((p) => `<p style="margin: 0 0 12px; line-height: 1.6;">${escapeHtml(p)}</p>`)
     .join('');
 
+  // Prominent top banner — frames the portal as the recruiter's candidate inbox so they
+  // reply/review there (where we can build paywall + tracking) instead of plain email reply.
+  // Email reply still works (Reply-To unchanged) — this is a soft nudge, no forced redirect.
+  const portalBanner = recruiterEmail
+    ? `<table role="presentation" width="100%" style="margin: 0 0 22px; border-collapse: collapse;">
+    <tr><td style="background: #F4F8E8; border: 1px solid #C7F94A; border-radius: 12px; padding: 16px 20px;">
+      <div style="font-size: 14px; font-weight: 700; color: #0B0C0F; margin-bottom: 3px;">New applicant for ${escapeHtml(jobTitle)}</div>
+      <div style="font-size: 13px; color: #555; line-height: 1.5; margin-bottom: 13px;">Reply, view their CV, and manage everyone who applied to your roles — all in one place.</div>
+      <a href="${portalUrl}" style="display: inline-block; padding: 10px 24px; background: #0B0C0F; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px;">Open your candidates &amp; reply &rarr;</a>
+    </td></tr>
+  </table>`
+    : '';
+
   const portalCta = recruiterEmail
     ? `<table role="presentation" width="100%" style="margin-top: 26px; border-collapse: collapse;">
     <tr><td style="padding: 22px 0 4px; border-top: 1px solid #ebe9e3; text-align: center;">
       <div style="font-size: 15px; font-weight: 600; color: #0B0C0F; margin-bottom: 4px;">${escapeHtml(userName)} and your other candidates are in one place</div>
       <div style="font-size: 13px; color: #666; line-height: 1.5; margin-bottom: 16px;">View profiles &amp; CVs and reply to everyone who applied to your roles.</div>
-      <a href="${getRecruiterPortalUrl(recruiterEmail)}" style="display: inline-block; padding: 13px 32px; background: #C7F94A; color: #000; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px;">View candidates &amp; reply &rarr;</a>
+      <a href="${portalUrl}" style="display: inline-block; padding: 13px 32px; background: #C7F94A; color: #000; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px;">View candidates &amp; reply &rarr;</a>
       <div style="font-size: 11px; color: #9a9a9a; margin-top: 16px;">via Freelanly</div>
     </td></tr>
   </table>`
@@ -1017,6 +1031,7 @@ export function buildApplicationEmailHtml(params: {
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6;">
+  ${portalBanner}
   ${paragraphs}
   ${portalCta}
   ${trackingPixel}
