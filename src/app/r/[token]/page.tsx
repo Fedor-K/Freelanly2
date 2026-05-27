@@ -58,8 +58,8 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
   }
 
   const apps = await prisma.autoApplication.findMany({
-    where: { appliedToEmail: { equals: email, mode: 'insensitive' }, sentAt: { not: null } },
-    orderBy: [{ matchScore: 'desc' }, { createdAt: 'desc' }],
+    where: { appliedToEmail: { equals: email, mode: 'insensitive' }, sentAt: { not: null }, recruiterHidden: false },
+    orderBy: [{ matchScore: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
     take: 200,
     select: {
       id: true, jobTitle: true, coverLetter: true, matchScore: true, matchLabel: true, createdAt: true,
