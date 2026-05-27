@@ -80,12 +80,12 @@ export async function POST(request: NextRequest) {
             model: getModel(),
             messages: [
               { role: 'system', content: `You extract structured data from resumes. Return ONLY valid JSON, no markdown.
-Format: {"name":"string","email":"string or null","phone":"string or null","skills":["skill1","skill2"],"experience_years":number,"current_title":"string","field":"string","summary":"1-2 sentence summary","languages":["English"]}
-Extract up to 20 skills. If not found, use null.` },
-              { role: 'user', content: `Extract profile data:\n\n${pdfText.substring(0, 5000)}` },
+Format: {"name":"string","email":"string or null","phone":"string or null","skills":["skill1","skill2"],"experience_years":number,"current_title":"string","field":"string","summary":"1-2 sentence summary","languages":["English"],"experience":[{"title":"Job Title","company":"Company Name","dates":"Start - End","description":"1-2 sentences on the role and achievements"}],"education":[{"degree":"Degree","school":"School Name","dates":"Start - End"}]}
+Extract up to 20 skills and ALL experience + education entries. If not found, use null or [].` },
+              { role: 'user', content: `Extract profile data:\n\n${pdfText.substring(0, 6000)}` },
             ],
             temperature: 0.1,
-            max_tokens: 700,
+            max_tokens: 1500,
           });
           const m = (response.choices[0]?.message?.content || '').match(/\{[\s\S]*\}/);
           if (m) resumeProfile = JSON.parse(m[0]);
@@ -99,6 +99,7 @@ Extract up to 20 skills. If not found, use null.` },
     // `urls` (NOT `profileUrls`) and skills come back as `topSkills` — the old code used
     // the wrong names, so this scrape silently returned nothing for ~everyone.
     let liProfile: Record<string, unknown> | null = null;
+    let savedLinkedinUrl: string | null = linkedinUrl || null;
     if (linkedinUrl && linkedinUrl.includes('linkedin.com/in/')) {
       try {
         const apifyToken = process.env.APIFY_API_TOKEN;
@@ -129,6 +130,42 @@ Extract up to 20 skills. If not found, use null.` },
                 .map((l: { name?: string } | string) => (typeof l === 'object' && l ? l.name : l))
                 .filter(Boolean);
               const liLoc = typeof pr.location === 'string' ? pr.location : (pr.location?.linkedinText || pr.location?.text || null);
+              // Work history — actor returns experience[]: {position, companyName, duration,
+              // startDate:{year,text}, endDate:{text}, description}. duration is often null, so
+              // fall back to "<start> – <end>". This is what makes a LinkedIn-only candidate's
+              // generated CV have a real Experience section.
+              const dateRange = (e: Record<string, unknown>): string => {
+                if (typeof e.duration === 'string' && e.duration) return e.duration;
+                const s = (e.startDate as { text?: string })?.text;
+                const en = (e.endDate as { text?: string })?.text;
+                return [s, en].filter(Boolean).join(' – ');
+              };
+              const liExperience = (Array.isArray(pr.experience) ? pr.experience : [])
+                .slice(0, 8)
+                .map((e: Record<string, unknown>) => ({
+                  title: String(e.position || e.title || '').trim(),
+                  company: String(e.companyName || e.company || '').trim(),
+                  dates: dateRange(e),
+                  description: String(e.description || '').trim(),
+                }))
+                .filter((e: { title: string; company: string }) => e.title || e.company);
+              const liEducation = (Array.isArray(pr.education) ? pr.education : [])
+                .slice(0, 5)
+                .map((e: Record<string, unknown>) => ({
+                  degree: [e.degree, e.fieldOfStudy].filter(Boolean).join(', ') || String(e.title || ''),
+                  school: String(e.schoolName || e.school || '').trim(),
+                  dates: String(e.period || dateRange(e) || ''),
+                }))
+                .filter((e: { degree: string; school: string }) => e.degree || e.school);
+              const liCerts = (Array.isArray(pr.certifications) ? pr.certifications : [])
+                .slice(0, 10)
+                .map((c: { name?: string; title?: string } | string) => (typeof c === 'string' ? c : (c?.name || c?.title || '')))
+                .filter(Boolean);
+              // Estimate years from the earliest experience start year (résumé value wins later).
+              const startYears = (Array.isArray(pr.experience) ? pr.experience : [])
+                .map((e: { startDate?: { year?: number } }) => e.startDate?.year)
+                .filter((y: unknown): y is number => typeof y === 'number' && y > 1950);
+              const liExpYears = startYears.length ? Math.max(0, new Date().getFullYear() - Math.min(...startYears)) : 0;
               liProfile = {
                 name: liName,
                 email,
@@ -136,10 +173,17 @@ Extract up to 20 skills. If not found, use null.` },
                 field: pr.headline || null,
                 skills: liSkills,
                 summary: pr.about || '',
-                experience_years: 0,
+                experience_years: liExpYears,
+                experience: liExperience,
+                education: liEducation,
+                certifications: liCerts,
                 languages: liLangs,
                 location: liLoc,
               };
+              // Persist the canonical profile URL the actor resolved (cleaner than raw input).
+              if (typeof pr.linkedinUrl === 'string' && pr.linkedinUrl.includes('linkedin.com')) {
+                savedLinkedinUrl = pr.linkedinUrl;
+              }
               if (!pdfText && pr.about) {
                 pdfText = `${liName || ''}\n${pr.headline || ''}\n\n${pr.about}\n\nSkills: ${(liSkills as string[]).join(', ')}`;
               }
@@ -158,6 +202,8 @@ Extract up to 20 skills. If not found, use null.` },
     // skills + languages, prefer the LinkedIn headline as the current title. Never drops
     // résumé detail. Falls back to whichever single source exists.
     const uniq = (arr: unknown[]) => [...new Set(arr.filter(Boolean).map((s) => String(s).trim()).filter((s) => s.length > 0))];
+    // Prefer the résumé's structured array (richer) when it has entries, else take LinkedIn's.
+    const richer = (a: unknown, b: unknown) => (Array.isArray(a) && a.length ? a : (Array.isArray(b) ? b : []));
     if (resumeProfile && liProfile) {
       parsedProfile = {
         name: resumeProfile.name || liProfile.name,
@@ -170,6 +216,10 @@ Extract up to 20 skills. If not found, use null.` },
         experience_years: (resumeProfile.experience_years as number) || (liProfile.experience_years as number) || 0,
         summary: ((liProfile.summary as string) || '').length > ((resumeProfile.summary as string) || '').length ? liProfile.summary : (resumeProfile.summary || liProfile.summary),
         location: resumeProfile.location || liProfile.location || null,
+        // Keep work history / education / certs (previously dropped on merge) — résumé wins.
+        experience: richer(resumeProfile.experience, liProfile.experience),
+        education: richer(resumeProfile.education, liProfile.education),
+        certifications: richer(resumeProfile.certifications, liProfile.certifications),
       };
     } else {
       parsedProfile = resumeProfile || liProfile;
@@ -211,6 +261,7 @@ Extract up to 20 skills. If not found, use null.` },
         resumeFileName: file?.name || undefined,
         parsedProfile: parsedProfile || undefined,
         name: parsedProfile?.name || undefined,
+        linkedinUrl: savedLinkedinUrl || undefined,
       },
     });
 

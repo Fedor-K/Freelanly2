@@ -4,7 +4,7 @@
 // open; recruiters can Cmd/Ctrl+P → "Save as PDF" from their browser.
 
 type CvExperience = { title?: string; company?: string; dates?: string; description?: string };
-type CvEducation = { degree?: string; title?: string; school?: string; dates?: string; year?: string };
+type CvEducation = { degree?: string; title?: string; school?: string; institution?: string; dates?: string; year?: string };
 
 export type CvProfile = {
   name?: string;
@@ -66,9 +66,14 @@ export function buildResumeHtml(profile: CvProfile, fallbackName?: string): stri
   const edu = arr(p.education)
     .map((raw) => {
       const e = (raw || {}) as CvEducation;
-      const head = e.degree || e.title || '';
-      if (!head && !e.school) return '';
-      return `<div class="exp"><div class="exp-head"><div><span class="exp-title">${esc(head)}</span>${e.school ? ` <span class="exp-co">· ${esc(e.school)}</span>` : ''}</div><div class="exp-dates">${esc(e.dates || e.year || '')}</div></div></div>`;
+      const degree = e.degree || e.title || '';
+      const school = e.school || e.institution || '';
+      // When there's no degree (common from LinkedIn), promote the school to the title
+      // so we never render a dangling "· School" with an empty heading.
+      const head = degree || school || '';
+      if (!head) return '';
+      const sub = degree && school ? ` <span class="exp-co">· ${esc(school)}</span>` : '';
+      return `<div class="exp"><div class="exp-head"><div><span class="exp-title">${esc(head)}</span>${sub}</div><div class="exp-dates">${esc(e.dates || e.year || '')}</div></div></div>`;
     })
     .join('');
 

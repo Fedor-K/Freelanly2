@@ -40,6 +40,7 @@ model User {
   resumeBase64   String?   // PDF file as base64 for email attachment
   resumeFileName String?   // Original filename
   parsedProfile  Json?     // AI-extracted: {name, skills, current_title, field, experience_years, summary}
+  linkedinUrl    String?   // Candidate's LinkedIn profile URL (collected at apply; used for enrichment + recruiter view)
 
   // Profile (used in outreach personalization)
   workPreference String?   // "What kind of work do you want?" — free text, guides AI cover letters
