@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { prisma } from '@/lib/db';
 import { verifyRecruiterToken } from '@/lib/recruiter-token';
 import { RecruiterInboxClient, type RecruiterCandidate } from '@/components/recruiter/RecruiterInboxClient';
+import { hasRenderableCv, type CvProfile } from '@/lib/recruiter-cv';
 import '../../design-app.css';
 
 // Fire-and-forget visit log (top of the demand funnel) — deduped per recruiter ~5 min so
@@ -78,6 +79,11 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
   const candidates: RecruiterCandidate[] = apps.map((a) => {
     const p = (a.user.parsedProfile ?? {}) as Record<string, unknown>;
     const arr = (v: unknown) => (Array.isArray(v) ? (v as unknown[]).map(String) : []);
+    // Always serve the CV through the token-gated route: it redirects to the original PDF
+    // (Blob) when stored, or renders an HTML résumé from the parsed profile for legacy
+    // candidates whose original file was never persisted. null only when there's nothing.
+    const hasBlob = !!a.user.resumeUrl && a.user.resumeUrl.includes('blob.vercel-storage');
+    const cvUrl = hasBlob || hasRenderableCv(p as CvProfile) ? `/r/${token}/cv/${a.id}` : null;
     return {
       appId: a.id,
       name: a.user.name || 'Candidate',
@@ -85,7 +91,7 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
       createdAt: a.createdAt.toISOString(),
       fit: a.matchLabel || (a.matchScore != null ? `${a.matchScore}% match` : null),
       coverLetter: a.coverLetter || '',
-      cvUrl: a.user.resumeUrl && a.user.resumeUrl.includes('blob.vercel-storage') ? a.user.resumeUrl : null,
+      cvUrl,
       profile: {
         current_title: typeof p.current_title === 'string' ? p.current_title : undefined,
         experience_years: typeof p.experience_years === 'number' ? p.experience_years : undefined,
