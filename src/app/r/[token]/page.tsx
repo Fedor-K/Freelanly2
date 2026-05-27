@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { prisma } from '@/lib/db';
 import { verifyRecruiterToken } from '@/lib/recruiter-token';
 import { RecruiterInboxClient, type RecruiterCandidate } from '@/components/recruiter/RecruiterInboxClient';
+import { RecruiterFeedback } from '@/components/recruiter/RecruiterFeedback';
 import { hasRenderableCv, type CvProfile } from '@/lib/recruiter-cv';
 import '../../design-app.css';
 
@@ -117,6 +118,8 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
           {candidates.length} candidate{candidates.length === 1 ? '' : 's'} applied to your roles
         </h1>
         <p className="meta" style={{ margin: '0 0 24px' }}>Sorted by match. Click a candidate to see their profile, CV, and reply.</p>
+
+        {candidates.length > 0 && <RecruiterFeedback token={token} />}
 
         {candidates.length === 0 ? (
           <div className="card" style={{ padding: '32px', textAlign: 'center' }}>
