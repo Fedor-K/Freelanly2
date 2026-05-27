@@ -45,15 +45,15 @@ export function RecruiterFeedback({ token }: { token: string }) {
   }
 
   return (
-    <div className="card" style={{ padding: '14px 16px', marginBottom: '16px' }}>
-      <div style={{ fontSize: '13.5px', fontWeight: 600, marginBottom: '10px' }}>What would make Freelanly more useful for you?</div>
+    <div style={{ padding: '16px 18px', marginBottom: '18px', background: '#F4F8E8', border: '1px solid #C7F94A', borderRadius: '14px' }}>
+      <div style={{ fontSize: '14.5px', fontWeight: 700, marginBottom: '12px', color: '#0B0C0F' }}>💬&nbsp; What would make Freelanly more useful for you?</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
         {OPTIONS.map((o) => (
           <button
             key={o.value}
             onClick={() => pick(o.value)}
-            className="btn btn-ghost btn-sm"
-            style={{ fontSize: '12.5px', whiteSpace: 'nowrap' }}
+            className="btn btn-sm"
+            style={{ fontSize: '12.5px', whiteSpace: 'nowrap', background: '#fff', border: '1px solid #d9e3c4', color: '#0B0C0F' }}
           >
             {o.label}
           </button>
