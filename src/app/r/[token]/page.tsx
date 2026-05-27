@@ -38,6 +38,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Only show candidates from AFTER the matcher-quality fix went live. Pre-fix (legacy)
+// applications were scored by the old buggy matcher (e.g. a Java dev shown for a
+// "Medical Interpreter" role) — rather than re-score that backlog, we simply don't show it.
+// Move this date earlier to surface more history once the legacy backlog is trustworthy.
+const MATCHER_FIX_CUTOFF = new Date('2026-05-26T00:00:00Z');
+
 interface Props {
   params: Promise<{ token: string }>;
 }
@@ -58,7 +64,7 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
   }
 
   const apps = await prisma.autoApplication.findMany({
-    where: { appliedToEmail: { equals: email, mode: 'insensitive' }, sentAt: { not: null }, recruiterHidden: false },
+    where: { appliedToEmail: { equals: email, mode: 'insensitive' }, sentAt: { not: null }, recruiterHidden: false, createdAt: { gte: MATCHER_FIX_CUTOFF } },
     orderBy: [{ matchScore: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
     take: 200,
     select: {
