@@ -566,7 +566,7 @@ export async function queueAutoApplyForJob(jobId: string): Promise<number> {
  * AI-powered match verification for borderline cases.
  * Returns whether to apply and a refined score.
  */
-async function aiMatchCheck(
+export async function aiMatchCheck(
   listing: ListingData,
   userSkills: string[],
   resumeText: string,
