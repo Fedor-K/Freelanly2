@@ -24,6 +24,7 @@ import {
   TrendingDown,
   MessageCircle,
   Send,
+  Link2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,7 @@ const mainNavigation = [
   { name: 'Chat', href: '/admin/chat', icon: MessageCircle },
   { name: 'Conversions', href: '/admin/conversions', icon: CreditCard },
   { name: 'Auto-Apply', href: '/admin/auto-apply', icon: Send },
+  { name: 'Connections', href: '/admin/connections', icon: Link2 },
 ];
 
 // More — hidden behind expandable section
