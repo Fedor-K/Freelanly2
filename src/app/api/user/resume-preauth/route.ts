@@ -179,18 +179,26 @@ Extract up to 20 skills. If not found, use null.` },
       return NextResponse.json({ error: 'Could not extract profile data' }, { status: 400 });
     }
 
-    // Upload original PDF to Vercel Blob
+    // Upload original PDF to Vercel Blob. allowOverwrite:true is REQUIRED — @vercel/blob v2
+    // throws on an existing pathname by default, and our pathname is deterministic
+    // (resumes/{userId}/{filename}). The inline-apply flow can call this more than once per
+    // registration (form retry, applying to a second role); without allowOverwrite the second
+    // put() throws and clobbers the first (good) Blob URL with an "uploaded:" placeholder.
     let blobUrl = file ? `uploaded:${file.name}` : linkedinUrl || undefined;
     if (file && buffer) {
       try {
         const blob = await put(`resumes/${user.id}/${file.name}`, buffer, {
           access: 'public',
           contentType: 'application/pdf',
+          allowOverwrite: true,
         });
         blobUrl = blob.url;
         console.log(`[ResumePreAuth] Uploaded to Blob: ${blob.url}`);
       } catch (blobErr) {
         console.warn('[ResumePreAuth] Blob upload failed:', blobErr);
+        // Never downgrade an already-stored PDF to a placeholder on a transient failure.
+        const existing = await prisma.user.findUnique({ where: { id: user.id }, select: { resumeUrl: true } });
+        if (existing?.resumeUrl?.includes('blob.vercel-storage')) blobUrl = existing.resumeUrl;
       }
     }
 
