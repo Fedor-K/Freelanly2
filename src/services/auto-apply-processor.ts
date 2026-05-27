@@ -8,6 +8,7 @@ import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
 import { isScamRecipient } from '@/lib/scam-filter';
 import { getRecruiterPortalUrl } from '@/lib/recruiter-token';
+import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
 
 // Anti-spam: max emails to the same recruiter per UTC day. Used by the sender as the
 // hard cap AND at match time to skip already-saturated recruiters (so we don't queue
@@ -219,6 +220,14 @@ export async function processAutoApplyQueue(): Promise<{
           continue;
         }
       }
+    }
+
+    // Global blocklist: never send to a blocked apply domain (safety net — import
+    // already drops these, this covers anything already queued).
+    if (isBlockedApplyEmail(app.appliedToEmail)) {
+      await markFailed(app.id, 'Blocked apply domain');
+      skipped++;
+      continue;
     }
 
     // Per-recipient limit within this batch

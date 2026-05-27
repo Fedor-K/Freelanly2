@@ -5,6 +5,7 @@ import { slugify, extractDomainFromEmail, cleanEmail } from '@/lib/utils';
 import { ensureSalaryData } from '@/lib/salary-estimation';
 import { notifySearchEngines } from '@/lib/indexing';
 import { shouldSkipJob } from '@/lib/job-filter';
+import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
 import { assessContentQuality, isFreeEmailProvider, isPersonalAnnouncement } from '@/lib/content-quality';
 import { siteConfig } from '@/config/site';
 import type { TranslationType, Level } from '@prisma/client';
@@ -317,6 +318,13 @@ export async function POST(request: NextRequest) {
 
     // Clean and validate email (handles AI-extracted emails with extra text)
     const validatedEmail = cleanEmail(extracted.contactEmail);
+
+    // Hard block: refuse posts whose apply email is on the global blocklist.
+    if (isBlockedApplyEmail(validatedEmail)) {
+      console.log(`[LinkedInPosts] Blocked apply domain: ${validatedEmail}`);
+      logSkip('blocked_domain', extracted.title);
+      return NextResponse.json({ success: true, status: 'skipped', reason: 'blocked_domain' });
+    }
 
     // Track quality signals (soft signals, NOT hard filters)
     const isAnnouncement = isPersonalAnnouncement(extracted.title, postContent);
