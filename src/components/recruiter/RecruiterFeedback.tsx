@@ -46,15 +46,7 @@ export function RecruiterFeedback({ token }: { token: string }) {
 
   return (
     <div className="card" style={{ padding: '14px 16px', marginBottom: '16px' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px', marginBottom: '10px' }}>
-        <span style={{ fontSize: '13.5px', fontWeight: 600 }}>What would make Freelanly more useful for you?</span>
-        <button
-          onClick={() => { try { localStorage.setItem('rfb_v1', '1'); } catch {} setDone(true); }}
-          className="meta"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px' }}
-          aria-label="Dismiss"
-        >Skip</button>
-      </div>
+      <div style={{ fontSize: '13.5px', fontWeight: 600, marginBottom: '10px' }}>What would make Freelanly more useful for you?</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
         {OPTIONS.map((o) => (
           <button
