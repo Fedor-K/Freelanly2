@@ -1868,6 +1868,8 @@ enum ActivityAction {
   LOOP_SETTINGS_CHANGED
   ONBOARDING_STEP
   FUNNEL_STEP
+
+  IMPORT_SKIP
 }
 
 // ============================================

@@ -172,9 +172,19 @@ export async function POST(request: NextRequest) {
     const clientType = body['author.type'] || body.authorType || body.author?.type || 'profile';
     const clientAvatar = body['author.avatar.url'] || body.authorAvatarUrl || body.author?.avatar?.url || null;
 
+    // Fire-and-forget skip logging — lets us see WHAT/why posts get rejected at import
+    // (reason breakdown + the actual title for whitelist skips) without storing the post.
+    // Never awaited; must never slow or break the n8n flow.
+    const logSkip = (reason: string, title?: string | null) => {
+      prisma.activityLog.create({
+        data: { action: 'IMPORT_SKIP', details: { source: 'linkedin', reason, title: title || null } },
+      }).catch(() => {});
+    };
+
     // Validate required fields - return 200 OK but skip if empty (don't break n8n flow)
     if (!postUrl || !postContent) {
       console.log('[LinkedInPosts] Skipping post with empty data');
+      logSkip('empty_data');
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -184,6 +194,7 @@ export async function POST(request: NextRequest) {
 
     if (!clientLinkedIn) {
       console.log('[LinkedInPosts] Skipping post without author LinkedIn URL');
+      logSkip('no_client_linkedin');
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -205,6 +216,7 @@ export async function POST(request: NextRequest) {
       FREELANLY_LINKEDIN_PATTERNS.some(pattern => clientLinkedIn?.includes(pattern))
     ) {
       console.log(`[LinkedInPosts] Skipping Freelanly own post: ${postUrl}`);
+      logSkip('own_platform');
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -227,6 +239,7 @@ export async function POST(request: NextRequest) {
 
     if (existingOpportunity) {
       console.log(`[LinkedInPosts] Duplicate opportunity, skipping: ${postId}`);
+      logSkip('duplicate');
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -254,6 +267,7 @@ export async function POST(request: NextRequest) {
     const selfPromoMatch = selfPromoPatterns.find(pattern => pattern.test(contentLower));
     if (selfPromoMatch) {
       console.log(`[LinkedInPosts] Self-promotion detected by keyword filter: ${selfPromoMatch}`);
+      logSkip('self_promo');
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -270,6 +284,7 @@ export async function POST(request: NextRequest) {
 
     if (!validationResult.isJob) {
       console.log(`[LinkedInPosts] Not a job posting: ${validationResult.reason}`);
+      logSkip('not_job_posting');
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -292,6 +307,7 @@ export async function POST(request: NextRequest) {
 
     if (!extracted || !extracted.title) {
       console.log(`[LinkedInPosts] Could not extract job title`);
+      logSkip('no_title');
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -325,6 +341,7 @@ export async function POST(request: NextRequest) {
     });
     if (filterResult.skip) {
       console.log(`[LinkedInPosts] Filtered out: ${extracted.title} (${filterResult.reason})`);
+      logSkip(filterResult.reason || 'profession_filter', extracted.title);
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -344,6 +361,7 @@ export async function POST(request: NextRequest) {
 
     if (duplicateByClient) {
       console.log(`[LinkedInPosts] Duplicate opportunity by client+title, skipping`);
+      logSkip('duplicate_title', extracted.title);
       return NextResponse.json({
         success: true,
         status: 'skipped',
