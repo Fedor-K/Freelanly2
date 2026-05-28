@@ -29,9 +29,17 @@ function looseHit(members: string[], cvTokens: Set<string>): string | null {
 function span(text: string, needle: string): string {
   if (!text || !needle) return '∅';
   const i = text.toLowerCase().indexOf(needle.toLowerCase());
-  if (i === -1) return '∅ (collapsed/variant — not literal)';
-  const s = Math.max(0, i - 35), e = Math.min(text.length, i + needle.length + 35);
-  return (s > 0 ? '…' : '') + text.slice(s, e).replace(/\s+/g, ' ').trim() + (e < text.length ? '…' : '');
+  if (i !== -1) { const s = Math.max(0, i - 35), e = Math.min(text.length, i + needle.length + 35); return (s > 0 ? '…' : '') + text.slice(s, e).replace(/\s+/g, ' ').trim() + (e < text.length ? '…' : ''); }
+  // collapse fallback: locate the token (or adjacent pair) whose collapsed form == collapsed needle
+  const cn = needle.toLowerCase().replace(/[.\-/ ]/g, '');
+  const words = text.replace(/\s+/g, ' ').trim().split(' ');
+  const clean = (w: string) => w.toLowerCase().replace(/[^a-z0-9+#./\-]/g, '');
+  const ctx = (k: number, n: number) => { const s = Math.max(0, k - 6), e = Math.min(words.length, k + n + 6); return '⟦collapse⟧ ' + (s > 0 ? '…' : '') + words.slice(s, e).join(' ') + (e < words.length ? '…' : ''); };
+  for (let k = 0; k < words.length; k++) {
+    if (clean(words[k]).replace(/[.\-/]/g, '') === cn) return ctx(k, 1);
+    if (k + 1 < words.length && (clean(words[k]) + clean(words[k + 1])).replace(/[.\-/]/g, '') === cn) return ctx(k, 2);
+  }
+  return '∅ (NOT located in CV — investigate)';
 }
 
 async function load(ids: string[]) {

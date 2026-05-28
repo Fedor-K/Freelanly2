@@ -7,18 +7,20 @@
 
 // Canonical skill -> safe variants. Only ADD an alias if it can't collide inside other words.
 // k8s↔kubernetes is safe; short/ambiguous names are handled by AMBIGUOUS below (no aliasing).
+// NOTE: alias VALUES must never be short/ambiguous (js, ts, ml, go, r, c…). The AMBIGUOUS
+// guard below protects ambiguous INPUT skills, but an ambiguous alias VALUE is a backdoor:
+// e.g. javascript:['js'] would assert JavaScript off a bare "js" token inside "React js".
+// Pass B caught exactly that. So: no short tokens as alias values — accept the false-neg.
 const ALIASES: Record<string, string[]> = {
   kubernetes: ['k8s'],
-  javascript: ['js'],
-  typescript: ['ts'],
   postgresql: ['postgres', 'psql'],
   'react': ['reactjs', 'react.js'],
   'react native': ['reactnative'],
   'node.js': ['nodejs', 'node js'],
   'ci/cd': ['cicd', 'ci cd'],
   'rest api': ['restful api', 'rest apis', 'restful'],
-  'machine learning': ['ml'],
-  golang: ['go'], // only via the canonical "golang"; bare "go" stays ambiguous (see below)
+  // javascript/typescript/machine learning still match via their full token or space-collapse
+  // ("java script"→javascript); golang matches the "golang" token. No ambiguous-short aliases.
 };
 
 // Short / ambiguous skill names = false-positive mines ("Go" in "going", "R"/"C" everywhere).
