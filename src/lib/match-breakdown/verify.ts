@@ -52,7 +52,7 @@ function tokenSet(norm: string): Set<string> {
   return set;
 }
 
-export type VerifyResult = { found: boolean; matched?: string };
+export type VerifyResult = { found: boolean; matched?: string; via?: 'exact' | 'collapse' };
 
 /**
  * Does `skill` lexically appear in the candidate's CV text (+ optional parsed skills list)?
@@ -65,20 +65,19 @@ export function verifySkill(skill: string, cvText: string, candidateSkills: stri
   const haystack = normText(`${cvText} ${candidateSkills.join(' , ')}`);
   const tokens = tokenSet(haystack);
 
-  // Ambiguous/short → exact standalone token only. No alias, no phrase.
+  // Ambiguous/short → exact standalone token only. No alias, no phrase, no collapse.
   if (AMBIGUOUS.has(s)) {
-    return tokens.has(s) ? { found: true, matched: s } : { found: false };
+    return tokens.has(s) ? { found: true, matched: s, via: 'exact' } : { found: false };
   }
 
   const variants = [s, ...(ALIASES[s] || [])];
   for (const v of variants) {
     if (v.includes(' ')) {
-      // multi-word → phrase match OR collapsed token-boundary form ("react native"→reactnative)
-      if (haystack.includes(' ' + v + ' ') || tokens.has(collapse(v))) return { found: true, matched: v };
+      if (haystack.includes(' ' + v + ' ')) return { found: true, matched: v, via: 'exact' };
+      if (tokens.has(collapse(v))) return { found: true, matched: v, via: 'collapse' }; // "react native"→reactnative
     } else {
-      // single token → exact OR punctuation/space-collapsed token (node.js≡nodejs≡"node js"),
-      // never substring-in-word (java still ≠ javascript; c# still ≠ c).
-      if (tokens.has(v) || tokens.has(collapse(v))) return { found: true, matched: v };
+      if (tokens.has(v)) return { found: true, matched: v, via: 'exact' };
+      if (tokens.has(collapse(v))) return { found: true, matched: v, via: 'collapse' }; // node.js≡nodejs≡"node js"
     }
   }
   return { found: false };
