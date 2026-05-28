@@ -47,7 +47,9 @@ function freshness(iso: string | null): { label: string; color: string } | null 
   const h = (Date.now() - new Date(iso).getTime()) / 3600000;
   if (h > 24 * 7) return null; // dormant → hide
   const ago = h < 1 ? 'just now' : h < 24 ? `${Math.round(h)}h ago` : `${Math.round(h / 24)}d ago`;
-  return { label: `Actively job-seeking · active ${ago}`, color: h < 24 ? '#2e7d32' : '#b07d00' };
+  // "actively job-seeking" only ≤72h — claiming "actively now" on a 6-day-old login is a stretch.
+  if (h <= 72) return { label: `Actively job-seeking · active ${ago}`, color: h < 24 ? '#2e7d32' : '#b07d00' };
+  return { label: `Active ${ago}`, color: '#6b7280' }; // 3-7d: neutral liveness, no "actively" claim
 }
 
 export function RecruiterInboxClient({ token, candidates }: { token: string; candidates: RecruiterCandidate[] }) {
