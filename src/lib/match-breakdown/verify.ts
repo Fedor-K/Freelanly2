@@ -36,8 +36,20 @@ function normText(s: string): string {
     .trim() + ' ';
 }
 
+// Strip ONLY . - / and spaces (NOT # or +, else C#→C and C++→C collapse). This unifies
+// node.js / nodejs / "node js" / NodeJS and express.js / ExpressJS, while java≠javascript and
+// c#≠c hold — because we collapse at TOKEN/adjacent-token boundaries, never substring-in-word.
+const collapse = (s: string) => s.toLowerCase().replace(/[.\-/ ]/g, '');
+
 function tokenSet(norm: string): Set<string> {
-  return new Set(norm.trim().split(' ').filter(Boolean));
+  const toks = norm.trim().split(' ').filter(Boolean);
+  const set = new Set<string>();
+  for (let i = 0; i < toks.length; i++) {
+    set.add(toks[i]);                                   // raw token (keeps #, +)
+    set.add(toks[i].replace(/[.\-/]/g, ''));            // punctuation-stripped token (node.js→nodejs)
+    if (i + 1 < toks.length) set.add(collapse(toks[i] + ' ' + toks[i + 1])); // adjacent pair ("node js"→nodejs)
+  }
+  return set;
 }
 
 export type VerifyResult = { found: boolean; matched?: string };
@@ -61,11 +73,12 @@ export function verifySkill(skill: string, cvText: string, candidateSkills: stri
   const variants = [s, ...(ALIASES[s] || [])];
   for (const v of variants) {
     if (v.includes(' ')) {
-      // multi-word → phrase match with surrounding spaces (token boundaries)
-      if (haystack.includes(' ' + v + ' ')) return { found: true, matched: v };
+      // multi-word → phrase match OR collapsed token-boundary form ("react native"→reactnative)
+      if (haystack.includes(' ' + v + ' ') || tokens.has(collapse(v))) return { found: true, matched: v };
     } else {
-      // single token → exact token membership (no substring-inside-word)
-      if (tokens.has(v)) return { found: true, matched: v };
+      // single token → exact OR punctuation/space-collapsed token (node.js≡nodejs≡"node js"),
+      // never substring-in-word (java still ≠ javascript; c# still ≠ c).
+      if (tokens.has(v) || tokens.has(collapse(v))) return { found: true, matched: v };
     }
   }
   return { found: false };
