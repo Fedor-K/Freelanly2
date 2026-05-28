@@ -89,7 +89,7 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
     take: 200,
     select: {
       id: true, jobTitle: true, coverLetter: true, matchScore: true, matchLabel: true, createdAt: true,
-      user: { select: { name: true, parsedProfile: true, resumeUrl: true, lastActiveAt: true } },
+      user: { select: { name: true, parsedProfile: true, resumeUrl: true, lastActiveAt: true, availableFrom: true, portfolioUrl: true } },
     },
   });
 
@@ -137,6 +137,8 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
         location: typeof p.location === 'string' ? p.location : undefined,
         languages: arr(p.languages),
         skills: arr(p.skills).slice(0, 25),
+        availableFrom: a.user.availableFrom || undefined,   // "when can you start" — top recruiter re-ask
+        portfolioUrl: a.user.portfolioUrl || undefined,     // portfolio / GitHub / site
       },
     };
   });

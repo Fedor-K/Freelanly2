@@ -52,6 +52,7 @@ model User {
   rateFloorProject Int?    // Minimum $/project — auto-skip below
   salaryExpectation   String?   // candidate-stated expected pay (post-submit, SELF-REPORTED) — soft context in the breakdown, never a verified/statused line
   salaryExpectationAt DateTime? // when stated — render must de-emphasize / decay stale self-reports (same freshness discipline as everywhere)
+  portfolioUrl   String?   // candidate-entered portfolio / GitHub / personal site — recruiters ask for it (14%); shown on the application card
   caseStudies    Json?     // ["notion-sync", "crdt-merge"] — AI picks best per outreach
 
   // Voice training (3 sample emails for AI to match writing style)

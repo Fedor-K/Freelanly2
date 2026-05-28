@@ -81,6 +81,24 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       if (r.ok) setSalarySaved(true);
     } catch { /* optional step — never block */ } finally { setSalarySaving(false); }
   };
+
+  // Same post-submit pattern: two fields recruiters re-ask for (start date 27%, portfolio 14%).
+  const NOTICE_OPTIONS = ['Immediately', 'Within 2 weeks', 'Within a month', 'More than a month'];
+  const [noticeFrom, setNoticeFrom] = useState('');
+  const [portfolio, setPortfolio] = useState('');
+  const [extraSaved, setExtraSaved] = useState(false);
+  const [extraSaving, setExtraSaving] = useState(false);
+  const saveExtra = async () => {
+    if (!noticeFrom && !portfolio.trim()) return;
+    setExtraSaving(true);
+    try {
+      const r = await fetch('/api/user/profile-extra', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ availableFrom: noticeFrom || undefined, portfolioUrl: portfolio.trim() || undefined }),
+      });
+      if (r.ok) setExtraSaved(true);
+    } catch { /* optional step — never block */ } finally { setExtraSaving(false); }
+  };
   useEffect(() => {
     const hasApplyFlag = new URLSearchParams(window.location.search).get('apply') === '1';
 
@@ -594,6 +612,29 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             </div>
           ) : (
             <p style={{ fontSize: '13px', color: '#047857', margin: '0 0 16px' }}>✓ Saved — recruiters will see your expected rate.</p>
+          )}
+
+          {/* Two more fields recruiters ask for most after the CV — start date & portfolio. Optional. */}
+          {!extraSaved ? (
+            <div style={{ background: '#FFFFFF', border: '1px solid #E8E5DC', borderRadius: '12px', padding: '14px', margin: '0 0 16px', textAlign: 'left' }}>
+              <div style={{ fontSize: '13px', fontWeight: 600 }}>When can you start? + portfolio</div>
+              <div style={{ fontSize: '12px', color: '#8A8780', margin: '2px 0 10px' }}>The next things recruiters ask — answer once, they’ll see it. Optional.</div>
+              <select value={noticeFrom} onChange={e => setNoticeFrom(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', border: '1px solid #E8E5DC', borderRadius: '8px', fontSize: '13px', marginBottom: '8px', background: '#fff' }}>
+                <option value="">When can you start?</option>
+                {NOTICE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input value={portfolio} onChange={e => setPortfolio(e.target.value)} placeholder="Portfolio / GitHub / site (optional)"
+                  style={{ flex: 1, minWidth: 0, padding: '9px 11px', border: '1px solid #E8E5DC', borderRadius: '8px', fontSize: '13px' }} />
+                <button onClick={saveExtra} disabled={extraSaving || (!noticeFrom && !portfolio.trim())}
+                  style={{ padding: '9px 14px', background: '#0B0C0F', color: '#fff', border: 0, borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: extraSaving || (!noticeFrom && !portfolio.trim()) ? 'default' : 'pointer', opacity: extraSaving || (!noticeFrom && !portfolio.trim()) ? 0.5 : 1 }}>
+                  {extraSaving ? '…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p style={{ fontSize: '13px', color: '#047857', margin: '0 0 16px' }}>✓ Saved — recruiters will see when you can start.</p>
           )}
 
           <a href="/dashboard" style={{

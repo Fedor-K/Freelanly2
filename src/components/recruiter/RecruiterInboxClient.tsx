@@ -18,6 +18,8 @@ export type RecruiterCandidate = {
     location?: string;
     languages?: string[];
     skills?: string[];
+    availableFrom?: string;   // "when can you start" — candidate-stated
+    portfolioUrl?: string;    // portfolio / GitHub / site
   };
 };
 
@@ -169,6 +171,8 @@ export function RecruiterInboxClient({ token, candidates }: { token: string; can
                   {typeof c.profile.experience_years === 'number' && c.profile.experience_years > 0 && <div><div className="meta" style={{ fontSize: '10px' }}>Experience</div>{c.profile.experience_years} yrs</div>}
                   {c.profile.location && <div><div className="meta" style={{ fontSize: '10px' }}>Location</div>{c.profile.location}</div>}
                   {c.profile.languages && c.profile.languages.length > 0 && <div><div className="meta" style={{ fontSize: '10px' }}>Languages</div>{c.profile.languages.join(', ')}</div>}
+                  {c.profile.availableFrom && <div><div className="meta" style={{ fontSize: '10px' }}>Can start</div>{c.profile.availableFrom}</div>}
+                  {c.profile.portfolioUrl && <div><div className="meta" style={{ fontSize: '10px' }}>Portfolio</div><a href={c.profile.portfolioUrl} target="_blank" rel="noopener noreferrer" onClick={() => track('view_cv', c.appId)} style={{ color: '#2563eb' }}>Link ↗</a></div>}
                 </div>
                 {c.profile.summary && <p style={{ fontSize: '12.5px', lineHeight: 1.55, margin: '0 0 12px', color: '#444' }}>{c.profile.summary}</p>}
 
