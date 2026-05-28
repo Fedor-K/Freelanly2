@@ -2052,6 +2052,7 @@ model AutoApplication {
   // Match quality
   matchScore      Int?     // 0-100 match score
   matchLabel      String?  // "Strong", "Good", "Weak"
+  matchBreakdown  Json?    // frozen verified breakdown {matched,total,wouldGate,bucket,lines,...} — shadow/gate/render
 
   // Status tracking
   status          AutoApplyStatus @default(PENDING)

@@ -9,6 +9,7 @@ import { escapeHtml } from '@/lib/html-escape';
 import { isScamRecipient } from '@/lib/scam-filter';
 import { getRecruiterPortalUrl } from '@/lib/recruiter-token';
 import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
+import { parseJD, buildBreakdown, type ParsedJD } from '@/lib/match-breakdown/generate';
 
 // Anti-spam: max emails to the same recruiter per UTC day. Used by the sender as the
 // hard cap AND at match time to skip already-saturated recruiters (so we don't queue
@@ -191,6 +192,9 @@ export async function processAutoApplyQueue(): Promise<{
   // Track per-recipient sends within this batch
   const recipientSendsThisBatch = new Map<string, number>();
 
+  // Per-batch cache: parse each JD once (LLM), reuse across candidates sharing the opportunity.
+  const jdCache = new Map<string, ParsedJD>();
+
   for (const app of pendingApps) {
     processed++;
 
@@ -306,6 +310,39 @@ export async function processAutoApplyQueue(): Promise<{
       const parsedProfile = app.user.parsedProfile as Record<string, unknown> | null;
       const userSkillsList = (parsedProfile?.skills as string[]) || [];
       const userLangsList = (parsedProfile?.languages as string[]) || [];
+
+      // ── SHADOW match-breakdown: compute + freeze, but DO NOT gate (send everything). ──
+      // FAIL-OPEN: any failure here must never drop a recruiter touch. Threshold is runtime
+      // config; wouldGate=true means "would be CUT once enforced". We later compare reply-rate
+      // of wouldGate vs passed cohorts — that (not low X/Y) proves the threshold is right.
+      let matchBreakdown: Record<string, unknown> | null = null;
+      try {
+        if (jobDescription.trim()) {
+          const jdText = `${app.jobTitle}\n${jobDescription}`;
+          const jdKey = app.opportunityId || app.jobId || jdText.slice(0, 80);
+          let parsed = jdCache.get(jdKey);
+          const t0 = Date.now();
+          if (!parsed) { parsed = await parseJD(jdText); jdCache.set(jdKey, parsed); }
+          const bd = buildBreakdown(parsed, {
+            jdText, cvText: app.user.resumeText || '', candidateSkills: userSkillsList, candidateLanguages: userLangsList,
+            candidateYears: typeof parsedProfile?.experience_years === 'number' ? parsedProfile.experience_years as number : null,
+            candidateLocation: typeof parsedProfile?.location === 'string' ? parsedProfile.location as string : null,
+          });
+          const ratio = bd.total ? bd.matched / bd.total : 0;
+          const minMatched = Number(process.env.MATCH_GATE_MIN_MATCHED || 2);
+          const minRatio = Number(process.env.MATCH_GATE_MIN_RATIO || 0.40);
+          const wouldGate = bd.total === 0 ? false : !(bd.matched >= minMatched && ratio >= minRatio);
+          matchBreakdown = {
+            v: 1, matched: bd.matched, total: bd.total, ratio: Math.round(ratio * 100) / 100,
+            wouldGate, threshold: { minMatched, minRatio }, lines: bd.lines,
+            yearsContext: bd.yearsContext, locationContext: bd.locationContext, rejected: bd.rejected,
+            fallback: bd.fallback, latencyMs: Date.now() - t0, shadow: true,
+          };
+        }
+      } catch (e) {
+        matchBreakdown = { error: String(e).slice(0, 200), shadow: true };
+        console.error(`[AutoApply] matchBreakdown failed for ${app.id} (fail-open, sending anyway):`, e);
+      }
 
       // Skip if profile is too sparse (no skills = likely not a real resume)
       if (userSkillsList.length === 0 && userLangsList.length === 0) {
@@ -447,6 +484,7 @@ export async function processAutoApplyQueue(): Promise<{
               coverLetter,
               subject,
               sentAt: now,
+              matchBreakdown: matchBreakdown ?? undefined, // shadow: frozen, joinable to reply outcome
             },
           }),
           prisma.message.create({

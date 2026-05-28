@@ -18,7 +18,7 @@ function aiClient(): OpenAI {
 const MODEL = AI_PROVIDER === 'zai' ? 'glm-4-32b-0414-128k' : 'deepseek-chat';
 
 type SkillReq = { display: string; anyOf: string[] }; // anyOf = atomic tool names; match ANY = full
-type ParsedJD = { skills: SkillReq[]; languages: string[]; years?: number | null; location?: string | null };
+export type ParsedJD = { skills: SkillReq[]; languages: string[]; years?: number | null; location?: string | null };
 export type Line = { label: string; type: 'skill' | 'language'; status: 'full' | 'missing'; evidence: string | null; source: 'cv' | 'profile' | null; viaAlias?: boolean; viaCollapse?: boolean; anyOfSize?: number; member?: string; searched?: string[] };
 export type Rejected = { side: 'jd'; type: string; label: string };
 export type Breakdown = {
@@ -32,7 +32,8 @@ export type Breakdown = {
 };
 
 // (1) LLM → typed requirements. Atomic tokens, any-of for "or equivalent", no invented reqs.
-async function parseJD(jdText: string): Promise<ParsedJD> {
+// Exported so the send-path can parse a JD ONCE per opportunity and reuse across candidates.
+export async function parseJD(jdText: string): Promise<ParsedJD> {
   const r = await aiClient().chat.completions.create({
     model: MODEL,
     messages: [
@@ -85,9 +86,15 @@ export type GenInput = {
 };
 
 export async function generateBreakdown(inp: GenInput): Promise<Breakdown> {
+  const jd = await parseJD(inp.jdText);
+  return buildBreakdown(jd, inp);
+}
+
+// Pure, synchronous, no LLM — code-only verification. Safe to call per-candidate with a JD
+// parsed once per opportunity (the LLM cost lives in parseJD).
+export function buildBreakdown(jd: ParsedJD, inp: GenInput): Breakdown {
   const rejected: Rejected[] = [];
   const lines: Line[] = [];
-  const jd = await parseJD(inp.jdText);
   const haystackSkills = `${inp.cvText} ${inp.candidateSkills.join(' , ')}`;
 
   // SKILLS — any-of group, token-identity (no paraphrase → no #3)
