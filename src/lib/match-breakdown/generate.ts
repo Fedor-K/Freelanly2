@@ -19,7 +19,7 @@ const MODEL = AI_PROVIDER === 'zai' ? 'glm-4-32b-0414-128k' : 'deepseek-chat';
 
 type SkillReq = { display: string; anyOf: string[] }; // anyOf = atomic tool names; match ANY = full
 type ParsedJD = { skills: SkillReq[]; languages: string[]; years?: number | null; location?: string | null };
-export type Line = { label: string; type: 'skill' | 'language'; status: 'full' | 'missing'; evidence: string | null; source: 'cv' | 'profile' | null; viaAlias?: boolean; anyOfSize?: number };
+export type Line = { label: string; type: 'skill' | 'language'; status: 'full' | 'missing'; evidence: string | null; source: 'cv' | 'profile' | null; viaAlias?: boolean; anyOfSize?: number; member?: string; searched?: string[] };
 export type Rejected = { side: 'jd'; type: string; label: string };
 export type Breakdown = {
   lines: Line[];
@@ -100,9 +100,9 @@ export async function generateBreakdown(inp: GenInput): Promise<Breakdown> {
     }
     if (hit) {
       lines.push({ label: req.display, type: 'skill', status: 'full', evidence: hit.matched || hitMember, source: 'cv',
-        viaAlias: (hit.matched || '').toLowerCase() !== hitMember.toLowerCase(), anyOfSize: req.anyOf.length });
+        viaAlias: (hit.matched || '').toLowerCase() !== hitMember.toLowerCase(), anyOfSize: req.anyOf.length, member: hitMember, searched: req.anyOf });
     } else {
-      lines.push({ label: req.display, type: 'skill', status: 'missing', evidence: null, source: null, anyOfSize: req.anyOf.length });
+      lines.push({ label: req.display, type: 'skill', status: 'missing', evidence: null, source: null, anyOfSize: req.anyOf.length, searched: req.anyOf });
     }
   }
 
@@ -112,7 +112,7 @@ export async function generateBreakdown(inp: GenInput): Promise<Breakdown> {
     if (!label) continue;
     if (!anyInJD([label], inp.jdText)) { rejected.push({ side: 'jd', type: 'language', label }); continue; }
     const v = verifySkill(label, inp.candidateLanguages.join(' , '), inp.candidateLanguages);
-    lines.push({ label, type: 'language', status: v.found ? 'full' : 'missing', evidence: v.found ? (v.matched || label) : null, source: v.found ? 'profile' : null });
+    lines.push({ label, type: 'language', status: v.found ? 'full' : 'missing', evidence: v.found ? (v.matched || label) : null, source: v.found ? 'profile' : null, member: v.found ? label : undefined, searched: [label] });
   }
 
   const matched = lines.filter((l) => l.status === 'full').length;
