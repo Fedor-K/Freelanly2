@@ -823,6 +823,30 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
   // Never queue more than the recruiter can actually receive today.
   const budget = Math.min(fanoutBudget, recipientHeadroom);
 
+  // FAIRNESS: a listing's slots are scarce (budget) but many loops match. Without an order,
+  // loops were taken in arbitrary DB order, so the SAME users won contested slots run after
+  // run while others' apps queued then expired (measured: ~245 active loops sent 0 in 7d
+  // DESPITE matching — every one of their queued apps expired). Order the matching loops
+  // LEAST-SERVED-FIRST (fewest sends in the last 7d) so the scarce slots rotate to the
+  // starved instead of the same winners. Random tie-break so equal-served users don't
+  // re-acquire a fixed order. The match threshold below still gates quality; this only
+  // decides WHO among qualified candidates gets the limited slots. Distribution lever, not
+  // volume — total sends are unchanged, they're just shared fairly.
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+  const sentRecentlyByUser = new Map<string, number>();
+  {
+    const groups = await prisma.autoApplication.groupBy({
+      by: ['userId'],
+      where: { userId: { in: activeLoops.map((l) => l.userId) }, sentAt: { gte: sevenDaysAgo, not: null } },
+      _count: { _all: true },
+    });
+    for (const g of groups) sentRecentlyByUser.set(g.userId, g._count._all);
+  }
+  activeLoops.sort((a, b) => {
+    const d = (sentRecentlyByUser.get(a.userId) || 0) - (sentRecentlyByUser.get(b.userId) || 0);
+    return d !== 0 ? d : Math.random() - 0.5;
+  });
+
   let queued = 0;
   const titleLower = listing.title.toLowerCase();
   const descLower = listing.description.toLowerCase();
