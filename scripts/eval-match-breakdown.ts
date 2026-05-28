@@ -15,7 +15,25 @@ const DIST_N = parseInt(process.argv[2] || '60', 10);
 const MINE_N = parseInt(process.argv[3] || '40', 10);
 const SHORT = new Set(['go', 'r', 'c', 'd', 'js', 'ts', 'ai', 'ml', 'qa', 'bi', 'c#', 'c++']);
 const arr = (v: unknown) => (Array.isArray(v) ? (v as unknown[]).map(String) : []);
-const loose = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9+#. ]+/g, ' ').replace(/\s+/g, ' ');
+
+// Token set for the Pass C probe: each token + a punctuation-stripped form (node.js→nodejs,
+// ci/cd→cicd). Used for TOKEN-equality, NOT substring — so java⊄javascript noise is killed,
+// while real punctuation-variant alias gaps stay visible.
+function tokSet(text: string): Set<string> {
+  const norm = (text || '').toLowerCase().replace(/[^a-z0-9+#./\- ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const set = new Set<string>();
+  for (const t of norm.split(' ')) { if (!t) continue; set.add(t); set.add(t.replace(/[.\-/]/g, '')); }
+  return set;
+}
+// looser than the strict judge (catches alias-map GAPS) but still token-boundary, never substring.
+function looseHit(members: string[], cvTokens: Set<string>): string | null {
+  for (const s of members) {
+    const m = s.toLowerCase().trim();
+    if (m.length < 4 || SHORT.has(m)) continue;           // short stratum is unmeasured by policy
+    if (cvTokens.has(m) || cvTokens.has(m.replace(/[.\-/]/g, ''))) return s;
+  }
+  return null;
+}
 
 function span(text: string, needle: string): string {
   if (!text || !needle) return '∅';
@@ -69,17 +87,16 @@ async function main() {
   console.log('\n══════ PASS C — FALSE-NEG AUDIT (missing lines loosely re-found in CV → suspect) ══════');
   let suspected = 0;
   for (const m of missingRecs) {
-    const hay = loose(`${m.cv} ${m.skills.join(' ')}`);
-    // only probe members that are long & non-ambiguous (short ones false-flag constantly)
-    const hitMember = m.searched.find((s) => { const ls = loose(s); return ls.length >= 4 && !SHORT.has(ls) && hay.includes(ls); });
+    const hitMember = looseHit(m.searched, tokSet(`${m.cv} ${m.skills.join(' ')}`));
     if (hitMember) {
       suspected++;
-      console.log(`  ⚠️ «${m.label}» помечен MISSING, но в CV есть «${hitMember}» → ${m.name} / ${m.job}`);
+      console.log(`  ⚠️ «${m.label}» помечен MISSING, но в CV есть токен «${hitMember}» → ${m.name} / ${m.job}`);
       console.log(`     CV: ${span(m.cv + ' ' + m.skills.join(', '), hitMember)}`);
     }
   }
-  console.log(`  suspected false-neg: ${suspected} из ${missingRecs.length} missing-строк  (${missingRecs.length ? (100 * suspected / missingRecs.length).toFixed(0) : 0}%)`);
-  console.log('  ↑ глазами: реально нет в CV → вина матчера (Pass A валиден). Есть → false-neg разбора, чинить до рендера.');
+  console.log(`  suspected false-neg (token-boundary, верхняя граница): ${suspected} из ${missingRecs.length} missing-строк  (${missingRecs.length ? (100 * suspected / missingRecs.length).toFixed(0) : 0}%)`);
+  console.log('  ↑ это WORKLIST, не метрика. Классифицируй каждый: alias-пробел (вариант есть → чинить алиас-карту, НЕ substring) / verifier прав (игнор) / реальный промах.');
+  console.log('  NB: short/ambiguous члены (Go/R/C…) Pass C НЕ меряет (политика «на коротких принимаем false-neg») — страта не измерена, а не доказанно чиста.');
 
   // ---------- PASS B: mines (false-POS gate) — suspect filter on MEMBER, not display ----------
   const MINE = ['k8s', 'restful', 'postgres', 'node.js', 'nodejs', 'golang', ' go ', 'c++', 'c#', ' r,', 'react.js'];
