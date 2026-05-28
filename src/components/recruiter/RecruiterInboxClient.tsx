@@ -10,6 +10,7 @@ export type RecruiterCandidate = {
   fit: string | null;
   coverLetter: string;
   cvUrl: string | null;
+  lastActiveAt: string | null;
   profile: {
     current_title?: string;
     experience_years?: number;
@@ -36,6 +37,17 @@ function shortTime(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
     d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+// Honest liveness badge: ONLY when the candidate genuinely logged in recently (lastActiveAt).
+// Dormant (>7d or never) → null → hide the badge entirely (a bare "matched" is table-stakes
+// noise — every candidate here was matched). No "actively seeking" claim on a stale account.
+function freshness(iso: string | null): { label: string; color: string } | null {
+  if (!iso) return null;
+  const h = (Date.now() - new Date(iso).getTime()) / 3600000;
+  if (h > 24 * 7) return null; // dormant → hide
+  const ago = h < 1 ? 'just now' : h < 24 ? `${Math.round(h)}h ago` : `${Math.round(h / 24)}d ago`;
+  return { label: `Actively job-seeking · active ${ago}`, color: h < 24 ? '#2e7d32' : '#b07d00' };
 }
 
 export function RecruiterInboxClient({ token, candidates }: { token: string; candidates: RecruiterCandidate[] }) {
@@ -109,6 +121,7 @@ export function RecruiterInboxClient({ token, candidates }: { token: string; can
         const extra = skills.length - shown.length;
         const thread = threads[c.appId] || [];
         const firstName = c.name.split(' ')[0];
+        const fr = freshness(c.lastActiveAt);
         return (
           <div key={c.appId} className="card" style={{ padding: '11px 14px' }}>
             {/* Compact header */}
@@ -123,6 +136,11 @@ export function RecruiterInboxClient({ token, candidates }: { token: string; can
                   <span className="meta" style={{ fontSize: '11px', marginLeft: 'auto', flexShrink: 0 }}>{timeAgo(c.createdAt)}</span>
                 </div>
                 <div className="meta" style={{ fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.jobTitle}</div>
+                {fr && (
+                  <div style={{ marginTop: '4px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#fff', background: fr.color, borderRadius: '5px', padding: '2px 7px', whiteSpace: 'nowrap' }}>{fr.label}</span>
+                  </div>
+                )}
               </div>
             </div>
 

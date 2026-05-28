@@ -71,7 +71,7 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
     take: 200,
     select: {
       id: true, jobTitle: true, coverLetter: true, matchScore: true, matchLabel: true, createdAt: true,
-      user: { select: { name: true, parsedProfile: true, resumeUrl: true } },
+      user: { select: { name: true, parsedProfile: true, resumeUrl: true, lastActiveAt: true } },
     },
   });
 
@@ -93,6 +93,9 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
       fit: a.matchLabel || (a.matchScore != null ? `${a.matchScore}% match` : null),
       coverLetter: a.coverLetter || '',
       cvUrl,
+      // Genuine candidate liveness — auth.ts updates lastActiveAt on real login (throttled),
+      // NOT system events. Drives the honest "actively job-seeking" badge (hidden when dormant).
+      lastActiveAt: a.user.lastActiveAt ? a.user.lastActiveAt.toISOString() : null,
       profile: {
         current_title: typeof p.current_title === 'string' ? p.current_title : undefined,
         experience_years: typeof p.experience_years === 'number' ? p.experience_years : undefined,
