@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { SalaryPrompt } from './SalaryPrompt';
 import { redirect } from 'next/navigation';
 import { ApplicationsTable } from '@/components/app/ApplicationsTable';
 import { WelcomeOnboarding } from '@/components/app/WelcomeOnboarding';
@@ -34,7 +35,7 @@ export default async function DashboardOverviewPage() {
   if (!onboardCheck?.resumeUrl) redirect('/dashboard/settings#profile');
 
   const [user, today, yesterday, month, applications, repliesTodayCount, followUps, dailyActivity, loop, queuedCount] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true, parsedProfile: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true, parsedProfile: true, salaryExpectation: true } }),
     prisma.autoApplication.groupBy({
       by: ['status'],
       where: { userId, sentAt: { gte: todayStart } },
@@ -227,6 +228,9 @@ export default async function DashboardOverviewPage() {
           )}
         </div>
       )}
+
+      {/* Salary prompt — existing users who never stated a rate (inline step only catches new applicants). */}
+      {!user?.salaryExpectation && <SalaryPrompt />}
 
       {/* PAGE HEADER */}
       <div className="page-header">
