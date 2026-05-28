@@ -1,91 +1,103 @@
-// Offline eval harness for the recruiter match breakdown. Runs the engine over historical
-// SENT applications and prints a TRIPLE TRACE per line so a human can audit all three
-// false-positive surfaces at a glance:
-//   requirement → JD-span (is the requirement real? #1) → evidence → CV-span (is it real? #2)
-//   → status (does it cover the requirement? #3 — collapsed by token-identity).
-// Run on the worker (has AI keys + DB): npx tsx scripts/eval-match-breakdown.ts [N]
+// Offline eval harness for the recruiter match breakdown. Two passes:
+//   A) DISTRIBUTION — matched-ratio per send over a representative sample = a free proxy for
+//      matcher accuracy (high missing-rate ⇒ matcher sends junk, fix targeting before render).
+//   B) MINES — targeted pull of sends whose JD/CV contain alias pairs (k8s/restful/postgres…)
+//      or short/ambiguous tokens (go/c#/c++…); prints triple-trace focused on those suspect
+//      lines for the false-positive gate (random samples leave these strata empty).
+// Run on the worker (AI keys + DB): npx tsx scripts/eval-match-breakdown.ts [distN] [mineN]
 import { PrismaClient } from '@prisma/client';
 import { generateBreakdown } from '../src/lib/match-breakdown/generate';
 
 const prisma = new PrismaClient();
-const N = parseInt(process.argv[2] || '12', 10);
+const DIST_N = parseInt(process.argv[2] || '60', 10);
+const MINE_N = parseInt(process.argv[3] || '40', 10);
 
-const AMBIG = new Set(['go', 'r', 'c', 'd', 'js', 'ts', 'ai', 'ml', 'qa', 'bi']);
-
-// context window around the first occurrence of `needle` (case-insensitive) in `text`
 function span(text: string, needle: string): string {
-  if (!text || !needle) return '∅ (not located)';
+  if (!text || !needle) return '∅';
   const i = text.toLowerCase().indexOf(needle.toLowerCase());
   if (i === -1) return '∅ (alias/variant — not literal)';
   const s = Math.max(0, i - 35), e = Math.min(text.length, i + needle.length + 35);
   return (s > 0 ? '…' : '') + text.slice(s, e).replace(/\s+/g, ' ').trim() + (e < text.length ? '…' : '');
 }
 
-async function main() {
+const arr = (v: unknown) => (Array.isArray(v) ? (v as unknown[]).map(String) : []);
+
+async function load(ids: string[]) {
   const apps = await prisma.autoApplication.findMany({
-    where: { sentAt: { not: null }, opportunityId: { not: null } },
-    orderBy: { sentAt: 'desc' },
-    take: N,
+    where: { id: { in: ids } },
     select: { id: true, jobTitle: true, opportunityId: true, appliedToEmail: true,
       user: { select: { name: true, resumeText: true, parsedProfile: true } } },
   });
-  const oppIds = apps.map((a) => a.opportunityId!).filter(Boolean);
-  const opps = await prisma.opportunity.findMany({ where: { id: { in: oppIds } }, select: { id: true, description: true, title: true } });
-  const oppMap = new Map(opps.map((o) => [o.id, o]));
+  const opps = await prisma.opportunity.findMany({ where: { id: { in: apps.map((a) => a.opportunityId!).filter(Boolean) } }, select: { id: true, description: true, title: true } });
+  const om = new Map(opps.map((o) => [o.id, o]));
+  return apps.map((a) => ({ a, opp: om.get(a.opportunityId!) }));
+}
 
-  let stats = { apps: 0, fallback: 0, lines: 0, full: 0, missing: 0, aliasMatched: 0, shortTok: 0, rejJD: 0, withYears: 0 };
+async function run(app: any, opp: any) {
+  const jd = `${opp?.title || app.jobTitle || ''}\n${opp?.description || ''}`;
+  const pp = (app.user.parsedProfile || {}) as Record<string, unknown>;
+  const cv = (app.user.resumeText as string) || '';
+  if (!jd.trim() || !cv.trim()) return null;
+  const bd = await generateBreakdown({
+    jdText: jd, cvText: cv,
+    candidateSkills: arr(pp.skills), candidateLanguages: arr(pp.languages),
+    candidateYears: typeof pp.experience_years === 'number' ? pp.experience_years : null,
+    candidateLocation: typeof pp.location === 'string' ? pp.location : null,
+  });
+  return { bd, jd, cv, pp };
+}
 
-  for (const a of apps) {
-    const opp = oppMap.get(a.opportunityId!);
-    const jd = `${opp?.title || a.jobTitle || ''}\n${opp?.description || ''}`;
-    const pp = (a.user.parsedProfile || {}) as Record<string, unknown>;
-    const cv = (a.user.resumeText as string) || '';
-    if (!jd.trim() || !cv.trim()) continue;
-    const arr = (v: unknown) => (Array.isArray(v) ? (v as unknown[]).map(String) : []);
+async function main() {
+  // ---------- PASS A: distribution (matcher-accuracy proxy) ----------
+  const distApps = await prisma.autoApplication.findMany({
+    where: { sentAt: { not: null }, opportunityId: { not: null } },
+    orderBy: { sentAt: 'desc' }, take: DIST_N, select: { id: true },
+  });
+  const distRows = await load(distApps.map((a) => a.id));
+  const ratios: number[] = []; let dThin = 0;
+  for (const { a, opp } of distRows) {
+    const r = await run(a, opp); if (!r) continue;
+    if (r.bd.fallback || r.bd.total === 0) { dThin++; continue; }
+    ratios.push(r.bd.matched / r.bd.total);
+  }
+  ratios.sort((x, y) => x - y);
+  const median = ratios.length ? ratios[Math.floor(ratios.length / 2)] : 0;
+  const bucket = (lo: number, hi: number) => ratios.filter((r) => r >= lo && r < hi).length;
+  console.log('\n══════ PASS A — MATCHED-RATIO DISTRIBUTION (matcher-accuracy proxy) ══════');
+  console.log(`  оценено: ${ratios.length} | тонких(fallback): ${dThin}`);
+  console.log(`  медиана matched-ratio: ${(median * 100).toFixed(0)}%   (missing медиана ≈ ${(100 - median * 100).toFixed(0)}%)`);
+  console.log(`  гистограмма matched-ratio:`);
+  console.log(`    0%      : ${ratios.filter((r) => r === 0).length}`);
+  console.log(`    1-25%   : ${bucket(0.001, 0.25)}`);
+  console.log(`    26-50%  : ${bucket(0.25, 0.5)}`);
+  console.log(`    51-75%  : ${bucket(0.5, 0.75)}`);
+  console.log(`    76-99%  : ${bucket(0.75, 1)}`);
+  console.log(`    100%    : ${ratios.filter((r) => r === 1).length}`);
 
-    const bd = await generateBreakdown({
-      jdText: jd, cvText: cv,
-      candidateSkills: arr(pp.skills),
-      candidateLanguages: arr(pp.languages),
-      candidateYears: typeof pp.experience_years === 'number' ? pp.experience_years : null,
-      candidateLocation: typeof pp.location === 'string' ? pp.location : null,
-    });
-
-    stats.apps++;
-    if (bd.fallback) stats.fallback++;
-    if (bd.yearsContext) stats.withYears++;
-    stats.rejJD += bd.rejected.length;
-
-    console.log('\n' + '═'.repeat(78));
-    console.log(`${a.user.name || 'Candidate'}  →  «${a.jobTitle}»  (${a.appliedToEmail})`);
-    console.log(`   X/Y: ${bd.matched}/${bd.total}${bd.fallback ? '   ⚠️ FALLBACK → show cover letter (too thin)' : ''}`);
-    if (bd.yearsContext) console.log(`   ~years (soft, no status): ${bd.yearsContext}`);
-    if (bd.locationContext) console.log(`   location (soft): ${bd.locationContext}`);
-    if (bd.rejected.length) console.log(`   ⊘ rejected (verify-on-JD #1): ${bd.rejected.map((r) => `${r.label}[${r.type}]`).join(', ')}`);
-
-    for (const l of bd.lines) {
-      stats.lines++;
-      if (l.status === 'full') stats.full++; else stats.missing++;
-      const isShort = AMBIG.has(l.label.toLowerCase());
-      const isAlias = l.status === 'full' && l.evidence ? l.evidence.toLowerCase() !== l.label.toLowerCase() : false;
-      if (isAlias) stats.aliasMatched++;
-      if (isShort) stats.shortTok++;
-      const flags = [isAlias ? '🔶ALIAS' : '', isShort ? '🔻SHORT' : ''].filter(Boolean).join(' ');
-      const icon = l.status === 'full' ? '✅' : '⚪';
-      console.log(`   ${icon} [${l.type}] «${l.label}» ${flags}`);
-      console.log(`        JD : ${span(jd, l.label)}`);
-      if (l.status === 'full') console.log(`        CV : ${span(cv + ' ' + arr(pp.skills).join(', '), l.evidence || l.label)}   (matched: ${l.evidence})`);
-      else console.log(`        CV : — not found —`);
+  // ---------- PASS B: targeted mines (false-pos audit strata) ----------
+  const MINE = ['k8s', 'restful', 'postgres', 'node.js', 'nodejs', 'golang', ' go ', 'c++', 'c#', ' r,', 'react.js'];
+  const ors = MINE.map((m) => `(lower(o.description) LIKE '%${m}%' OR lower(u."resumeText") LIKE '%${m}%')`).join(' OR ');
+  const mineRowsRaw = await prisma.$queryRawUnsafe<{ id: string }[]>(
+    `SELECT a.id FROM "AutoApplication" a JOIN "Opportunity" o ON o.id=a."opportunityId" JOIN "User" u ON u.id=a."userId"
+     WHERE a."sentAt" IS NOT NULL AND (${ors}) ORDER BY a."sentAt" DESC LIMIT ${MINE_N}`);
+  const mineRows = await load(mineRowsRaw.map((r) => r.id));
+  console.log(`\n══════ PASS B — MINE STRATA (alias / short tokens) — ${mineRows.length} sends, suspect lines only ══════`);
+  let aliasLines = 0, shortLines = 0;
+  const SHORT = new Set(['go', 'r', 'c', 'd', 'js', 'ts', 'ai', 'ml', 'qa', 'bi', 'c#', 'c++']);
+  for (const { a, opp } of mineRows) {
+    const r = await run(a, opp); if (!r) continue;
+    const suspect = r.bd.lines.filter((l) => l.status === 'full' && (l.viaAlias || SHORT.has(l.label.toLowerCase())));
+    if (!suspect.length) continue;
+    console.log(`\n— ${a.user.name || 'Candidate'} → «${a.jobTitle}» (${a.appliedToEmail})`);
+    for (const l of suspect) {
+      if (l.viaAlias) aliasLines++; if (SHORT.has(l.label.toLowerCase())) shortLines++;
+      console.log(`  ✅ «${l.label}» ${l.viaAlias ? '🔶ALIAS→' + l.evidence : ''} ${SHORT.has(l.label.toLowerCase()) ? '🔻SHORT' : ''}`);
+      console.log(`     JD: ${span(r.jd, l.label)}`);
+      console.log(`     CV: ${span(r.cv + ' ' + arr(r.pp.skills).join(', '), l.evidence || l.label)}`);
     }
   }
-
-  console.log('\n' + '━'.repeat(78));
-  console.log('СВОДКА:', JSON.stringify(stats, null, 0));
-  console.log(`  fallback rate: ${(100 * stats.fallback / Math.max(1, stats.apps)).toFixed(0)}%`);
-  console.log(`  строк всего: ${stats.lines} | full: ${stats.full} | missing: ${stats.missing}`);
-  console.log(`  🔶 alias-matched (страта на false-pos аудит): ${stats.aliasMatched}`);
-  console.log(`  🔻 short/ambiguous токены (страта): ${stats.shortTok}`);
-  console.log(`  ⊘ rejected verify-on-JD #1 (страта/лог): ${stats.rejJD}`);
+  console.log(`\n  страта alias-matched строк: ${aliasLines} | short-token строк: ${shortLines}`);
+  console.log('  ↑ КАЖДУЮ из этих строк проверь глазами: совпадение JD↔CV настоящее? Гейт = 0 false-pos здесь.');
 }
 
 main().catch((e) => { console.error('ERR', e); process.exit(1); }).finally(() => prisma.$disconnect());
