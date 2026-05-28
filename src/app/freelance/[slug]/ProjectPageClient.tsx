@@ -64,6 +64,23 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
   // Check if already authenticated + auto-apply on ?apply=1
   const [isAuthed, setIsAuthed] = useState(false);
+
+  // Post-submit (optional, off the critical path): expected pay → fills the breakdown's salary line.
+  const [salaryAmt, setSalaryAmt] = useState('');
+  const [salaryPer, setSalaryPer] = useState('mo');
+  const [salarySaved, setSalarySaved] = useState(false);
+  const [salarySaving, setSalarySaving] = useState(false);
+  const saveSalary = async () => {
+    if (!salaryAmt.trim()) return;
+    setSalarySaving(true);
+    try {
+      const r = await fetch('/api/user/salary-expectation', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: salaryAmt, period: salaryPer }),
+      });
+      if (r.ok) setSalarySaved(true);
+    } catch { /* optional step — never block */ } finally { setSalarySaving(false); }
+  };
   useEffect(() => {
     const hasApplyFlag = new URLSearchParams(window.location.search).get('apply') === '1';
 
@@ -556,6 +573,29 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '6px' }}>Application sent!</h2>
           {sendTo && <p style={{ fontSize: '13px', color: '#8A8780', marginBottom: '16px' }}>Sent to {sendTo}</p>}
           {genError && <p style={{ fontSize: '13px', color: '#8A8780', marginBottom: '16px' }}>{genError}</p>}
+
+          {/* Optional, OFF the critical path — expected rate fills the recruiter breakdown's salary line. */}
+          {!salarySaved ? (
+            <div style={{ background: '#FFFFFF', border: '1px solid #E8E5DC', borderRadius: '12px', padding: '14px', margin: '0 0 16px', textAlign: 'left' }}>
+              <div style={{ fontSize: '13px', fontWeight: 600 }}>Add your expected rate</div>
+              <div style={{ fontSize: '12px', color: '#8A8780', margin: '2px 0 10px' }}>Recruiters prioritize candidates who state it — optional.</div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input value={salaryAmt} onChange={e => setSalaryAmt(e.target.value)} inputMode="numeric" placeholder="e.g. 1500"
+                  style={{ flex: 1, minWidth: 0, padding: '9px 11px', border: '1px solid #E8E5DC', borderRadius: '8px', fontSize: '13px' }} />
+                <select value={salaryPer} onChange={e => setSalaryPer(e.target.value)}
+                  style={{ padding: '9px', border: '1px solid #E8E5DC', borderRadius: '8px', fontSize: '13px' }}>
+                  <option value="mo">/ month</option><option value="hr">/ hour</option><option value="yr">/ year</option>
+                </select>
+                <button onClick={saveSalary} disabled={salarySaving || !salaryAmt.trim()}
+                  style={{ padding: '9px 14px', background: '#0B0C0F', color: '#fff', border: 0, borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: salarySaving || !salaryAmt.trim() ? 'default' : 'pointer', opacity: salarySaving || !salaryAmt.trim() ? 0.5 : 1 }}>
+                  {salarySaving ? '…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p style={{ fontSize: '13px', color: '#047857', margin: '0 0 16px' }}>✓ Saved — recruiters will see your expected rate.</p>
+          )}
+
           <a href="/dashboard" style={{
             display: 'inline-block', padding: '12px 24px', background: '#C7F94A', color: '#000',
             borderRadius: '10px', fontSize: '14px', fontWeight: 600, textDecoration: 'none',

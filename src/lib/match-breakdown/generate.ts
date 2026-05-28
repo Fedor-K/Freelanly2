@@ -29,6 +29,7 @@ export type Breakdown = {
   summary: string | null;
   rejected: Rejected[];
   fallback: boolean;
+  salaryContext: string | null;   // SOFT (self-reported), no status, not in X/Y; decayed if stale
 };
 
 // (1) LLM → typed requirements. Atomic tokens, any-of for "or equivalent", no invented reqs.
@@ -83,6 +84,7 @@ export type GenInput = {
   jdText: string; cvText: string;
   candidateSkills: string[]; candidateLanguages: string[];
   candidateYears?: number | null; candidateLocation?: string | null;
+  candidateSalary?: string | null; candidateSalaryAt?: string | null; // self-reported "1500/mo" + when
 };
 
 export async function generateBreakdown(inp: GenInput): Promise<Breakdown> {
@@ -131,8 +133,16 @@ export function buildBreakdown(jd: ParsedJD, inp: GenInput): Breakdown {
   let locationContext: string | null = null;
   if (inp.candidateLocation && jd.location) locationContext = `${inp.candidateLocation} · role: ${jd.location}`;
 
+  // SALARY — soft, self-reported. Never statused, never in X/Y. Decay stale self-reports (>90d).
+  let salaryContext: string | null = null;
+  if (inp.candidateSalary) {
+    const ageMs = inp.candidateSalaryAt ? Date.now() - new Date(inp.candidateSalaryAt).getTime() : Infinity;
+    const stale = ageMs > 90 * 24 * 3600 * 1000;
+    salaryContext = `expects $${inp.candidateSalary}` + (stale ? ' (stated earlier — may be outdated)' : '');
+  }
+
   // Fallback ONLY for thin data (nothing verifiable) — NEVER to hide a weak-but-honest match.
   const fallback = total < 1;
 
-  return { lines, matched, total, yearsContext, locationContext, summary: null, rejected, fallback };
+  return { lines, matched, total, yearsContext, locationContext, salaryContext, summary: null, rejected, fallback };
 }

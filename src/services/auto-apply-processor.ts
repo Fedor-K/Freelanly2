@@ -140,6 +140,8 @@ export async function processAutoApplyQueue(): Promise<{
           resumeUrl: true,
           resumeBase64: true,
           resumeFileName: true,
+          salaryExpectation: true,
+          salaryExpectationAt: true,
           workPreference: true,
           bookingUrl: true,
           caseStudies: true,
@@ -327,6 +329,8 @@ export async function processAutoApplyQueue(): Promise<{
             jdText, cvText: app.user.resumeText || '', candidateSkills: userSkillsList, candidateLanguages: userLangsList,
             candidateYears: typeof parsedProfile?.experience_years === 'number' ? parsedProfile.experience_years as number : null,
             candidateLocation: typeof parsedProfile?.location === 'string' ? parsedProfile.location as string : null,
+            candidateSalary: app.user.salaryExpectation || null,
+            candidateSalaryAt: app.user.salaryExpectationAt ? app.user.salaryExpectationAt.toISOString() : null,
           });
           const ratio = bd.total ? bd.matched / bd.total : 0;
           const minMatched = Number(process.env.MATCH_GATE_MIN_MATCHED || 2);
