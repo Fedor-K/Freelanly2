@@ -2104,6 +2104,22 @@ model Message {
   @@index([applicationId, createdAt])
 }
 
+// Demand-side account. A recruiter exists implicitly as AutoApplication.appliedToEmail; this
+// row is created when they register through the /r/[token] portal (token already proves inbox
+// control, so no OTP). Turns an anonymous email into a known, measurable account: who they are,
+// what they hire for (need), and engagement (lastSeenAt). Keyed by email = the token identity.
+model Recruiter {
+  id            String    @id @default(cuid())
+  email         String    @unique   // == AutoApplication.appliedToEmail (lowercased)
+  name          String?
+  company       String?
+  hiringFor     String?             // need Q1 — free text role(s) they're hiring for
+  hiringVolume  String?             // need Q2 — "1" | "2-5" | "6-20" | "20+" (budget/volume proxy)
+  plan          String    @default("free")
+  registeredAt  DateTime  @default(now())
+  lastSeenAt    DateTime?            // bumped on each portal visit once registered = engagement signal
+}
+
 enum AutoApplyStatus {
   PENDING     // Queued, waiting to send
   REVIEW      // Semi-auto mode, waiting for user approval

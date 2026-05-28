@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { verifyRecruiterToken } from '@/lib/recruiter-token';
 import { RecruiterInboxClient, type RecruiterCandidate } from '@/components/recruiter/RecruiterInboxClient';
 import { RecruiterFeedback } from '@/components/recruiter/RecruiterFeedback';
+import { RecruiterRegisterForm } from '@/components/recruiter/RecruiterRegisterForm';
 import { hasRenderableCv, type CvProfile } from '@/lib/recruiter-cv';
 import '../../design-app.css';
 
@@ -39,6 +40,23 @@ export const metadata: Metadata = {
   title: 'Your Candidates — Freelanly',
   robots: { index: false, follow: false },
 };
+
+// Pre-fill the registration form from what we already know, so it's near-zero effort.
+const FREE_EMAIL = new Set(['gmail.com', 'googlemail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'aol.com', 'zohomail.com', 'proton.me', 'gmx.com', 'mail.com', 'yandex.ru']);
+function guessCompany(email: string): string {
+  const domain = (email.split('@')[1] || '').toLowerCase();
+  if (!domain || FREE_EMAIL.has(domain)) return '';
+  const label = domain.split('.')[0] || '';
+  return label ? label.charAt(0).toUpperCase() + label.slice(1) : '';
+}
+function topJobTitle(apps: { jobTitle: string }[]): string {
+  const counts = new Map<string, number>();
+  for (const a of apps) if (a.jobTitle) counts.set(a.jobTitle, (counts.get(a.jobTitle) || 0) + 1);
+  let best = '';
+  let max = 0;
+  for (const [title, n] of counts) if (n > max) { max = n; best = title; }
+  return best;
+}
 
 // Only show candidates from AFTER the matcher-quality fix went live. Pre-fix (legacy)
 // applications were scored by the old buggy matcher (e.g. a Java dev shown for a
@@ -76,6 +94,22 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
   });
 
   await logVisit(email, apps.length);
+
+  // First touch → registration. The token already proves control of the inbox, so this is a
+  // 3-field, no-OTP form. Once a Recruiter row exists we skip straight to the list and just
+  // bump lastSeenAt (engagement signal). The list itself is unchanged below.
+  const recruiter = await prisma.recruiter.findUnique({ where: { email }, select: { id: true } });
+  if (!recruiter) {
+    return (
+      <RecruiterRegisterForm
+        token={token}
+        email={email}
+        candidateCount={apps.length}
+        prefill={{ company: guessCompany(email), hiringFor: topJobTitle(apps) }}
+      />
+    );
+  }
+  await prisma.recruiter.update({ where: { email }, data: { lastSeenAt: new Date() } }).catch(() => {});
 
   const candidates: RecruiterCandidate[] = apps.map((a) => {
     const p = (a.user.parsedProfile ?? {}) as Record<string, unknown>;
