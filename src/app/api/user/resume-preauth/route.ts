@@ -4,7 +4,7 @@ import { extractText } from 'unpdf';
 import OpenAI from 'openai';
 import { put } from '@vercel/blob';
 
-const AI_PROVIDER = process.env.AI_PROVIDER || 'deepseek';
+const AI_PROVIDER = process.env.AI_PROVIDER || 'zai';
 
 function getAIClient() {
   if (AI_PROVIDER === 'zai') {
@@ -14,13 +14,13 @@ function getAIClient() {
     });
   }
   return new OpenAI({
-    baseURL: 'https://api.deepseek.com/v1',
-    apiKey: process.env.DEEPSEEK_API_KEY || '',
+    baseURL: 'https://api.z.ai/api/paas/v4',
+    apiKey: process.env.ZAI_API_KEY || '',
   });
 }
 
 function getModel() {
-  return AI_PROVIDER === 'zai' ? 'glm-4-32b-0414-128k' : 'deepseek-chat';
+  return AI_PROVIDER === 'zai' ? 'glm-4-32b-0414-128k' : 'glm-4-32b-0414-128k';
 }
 
 /**
@@ -277,8 +277,8 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
         const p = process.env.AI_PROVIDER?.toLowerCase();
         const client = p === 'zai'
           ? new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' })
-          : new OpenAI({ baseURL: 'https://api.deepseek.com/v1', apiKey: process.env.DEEPSEEK_API_KEY || '' });
-        const model = p === 'zai' ? 'glm-4-32b-0414-128k' : 'deepseek-chat';
+          : new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' });
+        const model = p === 'zai' ? 'glm-4-32b-0414-128k' : 'glm-4-32b-0414-128k';
         const r = await client.chat.completions.create({
           model, temperature: 0.3, max_tokens: 100,
           messages: [

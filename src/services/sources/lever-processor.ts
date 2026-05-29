@@ -19,7 +19,7 @@ import { ensureSalaryData } from '@/lib/salary-estimation';
 import { queueCompanyEnrichmentBySlug, queueCompanyEnrichmentByWebsite } from '@/services/company-enrichment';
 import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
-import { getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
+import { getAIUsageStats, resetAIUsageStats } from '@/lib/ai';
 // Note: Social queue is only for Opportunities (freelance), not regular Jobs
 // Job alerts disabled - only sending alerts for Opportunities (freelance)
 import { isPhysicalLocation } from '@/lib/job-filter';
@@ -116,8 +116,8 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
     createdJobIds: [],
   };
 
-  // Reset DeepSeek usage stats for this run
-  resetDeepSeekUsageStats();
+  // Reset Z.ai usage stats for this run
+  resetAIUsageStats();
 
   // Get the data source
   const dataSource = await prisma.dataSource.findUnique({
@@ -326,10 +326,10 @@ export async function processLeverSource(context: ProcessorContext): Promise<Pro
     await cleanupOrphanedCompanies();
     await cleanupOldParsingLogs();
 
-    // Log DeepSeek usage stats
-    const aiStats = getDeepSeekUsageStats();
+    // Log Z.ai usage stats
+    const aiStats = getAIUsageStats();
     if (aiStats.calls > 0) {
-      console.log(`[Lever] DeepSeek usage: ${aiStats.calls} calls, ${aiStats.inputTokens} input tokens, ${aiStats.outputTokens} output tokens, estimated cost: $${aiStats.estimatedCostUSD.toFixed(4)}`);
+      console.log(`[Lever] Z.ai usage: ${aiStats.calls} calls, ${aiStats.inputTokens} input tokens, ${aiStats.outputTokens} output tokens, estimated cost: $${aiStats.estimatedCostUSD.toFixed(4)}`);
     }
 
     return stats;

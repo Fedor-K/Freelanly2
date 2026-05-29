@@ -80,25 +80,15 @@ function getSystemPromptWithUserStatus(status?: string): string {
 }
 
 function getAIClient() {
-  // Try Z.ai first, fallback to DeepSeek
-  if (process.env.ZAI_API_KEY) {
-    return {
-      client: new OpenAI({
-        apiKey: process.env.ZAI_API_KEY,
-        baseURL: 'https://api.z.ai/api/paas/v4',
-        timeout: 15000,
-        maxRetries: 1,
-      }),
-      model: 'glm-4-32b-0414-128k',
-    };
-  }
+  // Z.ai GLM-4-32B
   return {
     client: new OpenAI({
-      apiKey: process.env.DEEPSEEK_API_KEY || '',
-      baseURL: 'https://api.deepseek.com/v1',
+      apiKey: process.env.ZAI_API_KEY || '',
+      baseURL: 'https://api.z.ai/api/paas/v4',
       timeout: 15000,
+      maxRetries: 1,
     }),
-    model: 'deepseek-chat',
+    model: 'glm-4-32b-0414-128k',
   };
 }
 

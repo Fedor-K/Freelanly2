@@ -1,46 +1,22 @@
 import OpenAI from 'openai';
 
-type AIProvider = 'deepseek' | 'zai';
-
-function getAIProvider(): AIProvider {
-  const provider = process.env.AI_PROVIDER?.toLowerCase();
-  if (provider === 'zai') return 'zai';
-  return 'deepseek';
-}
-
-let _deepseek: OpenAI | null = null;
+// AI Provider — Z.ai (GLM-4-32B) only
 let _zai: OpenAI | null = null;
-
-function getDeepSeekClient(): OpenAI {
-  if (!_deepseek) {
-    _deepseek = new OpenAI({
-      apiKey: process.env.DEEPSEEK_API_KEY || 'dummy-key-for-build',
-      baseURL: 'https://api.deepseek.com/v1',
-      timeout: 30000,
-      maxRetries: 2,
-    });
-  }
-  return _deepseek;
-}
 
 function getZaiClient(): OpenAI {
   if (!_zai) {
     _zai = new OpenAI({
       apiKey: process.env.ZAI_API_KEY || 'dummy-key-for-build',
       baseURL: 'https://api.z.ai/api/paas/v4',
-      timeout: 15000,
-      maxRetries: 1,
+      timeout: 30000,
+      maxRetries: 2,
     });
   }
   return _zai;
 }
 
-function getAIClient(): { client: OpenAI; model: string; provider: AIProvider } {
-  const provider = getAIProvider();
-  if (provider === 'zai') {
-    return { client: getZaiClient(), model: 'glm-4-32b-0414-128k', provider: 'zai' };
-  }
-  return { client: getDeepSeekClient(), model: 'deepseek-chat', provider: 'deepseek' };
+function getAIClient(): { client: OpenAI; model: string } {
+  return { client: getZaiClient(), model: 'glm-4-32b-0414-128k' };
 }
 
 // =========================================================================

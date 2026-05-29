@@ -20,7 +20,7 @@ import { ensureSalaryData } from '@/lib/salary-estimation';
 import { queueCompanyEnrichmentBySlug } from '@/services/company-enrichment';
 import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
-import { getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
+import { getAIUsageStats, resetAIUsageStats } from '@/lib/ai';
 // Job alerts disabled - only sending alerts for Opportunities (freelance)
 // Note: Social queue is only for Opportunities (freelance), not regular Jobs
 import { isPhysicalLocation, shouldSkipJob } from '@/lib/job-filter';
@@ -60,8 +60,8 @@ export async function processGreenhouseSource(context: ProcessorContext): Promis
     createdJobIds: [],
   };
 
-  // Reset DeepSeek usage stats for this run
-  resetDeepSeekUsageStats();
+  // Reset Z.ai usage stats for this run
+  resetAIUsageStats();
 
   // Get the data source
   const dataSource = await prisma.dataSource.findUnique({
@@ -291,9 +291,9 @@ export async function processGreenhouseSource(context: ProcessorContext): Promis
     await cleanupOldParsingLogs();
 
     // Log AI usage
-    const aiStats = getDeepSeekUsageStats();
+    const aiStats = getAIUsageStats();
     if (aiStats.calls > 0) {
-      console.log(`[Greenhouse] DeepSeek usage: ${aiStats.calls} calls, $${aiStats.estimatedCostUSD.toFixed(4)}`);
+      console.log(`[Greenhouse] Z.ai usage: ${aiStats.calls} calls, $${aiStats.estimatedCostUSD.toFixed(4)}`);
     }
 
     return stats;

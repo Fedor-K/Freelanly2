@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { extractJobData, classifyJobCategory, isJobPosting, detectCountry, type ExtractedJobData } from '@/lib/deepseek';
+import { extractJobData, classifyJobCategory, isJobPosting, detectCountry, type ExtractedJobData } from '@/lib/ai';
 import { slugify, extractDomainFromEmail, cleanEmail } from '@/lib/utils';
 import { ensureSalaryData } from '@/lib/salary-estimation';
 import { notifySearchEngines } from '@/lib/indexing';
@@ -302,7 +302,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Extract job data using DeepSeek
+    // Extract job data using Z.ai
     console.log(`[LinkedInPosts] Extracting data from post...`);
     const extracted = await extractJobData(postContent);
 

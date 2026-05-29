@@ -9,7 +9,7 @@
  * - AgeFilterStage: Filter jobs older than MAX_JOB_AGE_DAYS
  * - DuplicateFilterStage: Filter jobs that already exist in database
  * - WhitelistFilterStage: Filter jobs not matching target professions
- * - AIFilterStage: AI-based second level filter (Z.ai/DeepSeek)
+ * - AIFilterStage: AI-based second level filter (Z.ai)
  *
  * Usage:
  *   this.addStage(new AgeFilterStage());
@@ -21,7 +21,7 @@
 
 import { getMaxJobAgeDate } from '@/lib/utils';
 import { shouldImportByProfession } from '@/config/target-professions';
-import { isTargetRemoteJob } from '@/lib/deepseek';
+import { isTargetRemoteJob } from '@/lib/ai';
 import type { FilterStage, FilterableJob, FilterContext, FilterStageResult } from './filter-stage';
 import type { FilterReason } from '@prisma/client';
 
@@ -116,7 +116,7 @@ export class WhitelistFilterStage<T extends FilterableJob> implements FilterStag
  * AI Filter Stage
  *
  * Second-level AI verification for jobs that passed whitelist.
- * Uses Z.ai/DeepSeek to verify job relevance.
+ * Uses Z.ai to verify job relevance.
  * Uses AI_REJECTED as the filter reason.
  *
  * Enable via: AI_FILTER_ENABLED=true

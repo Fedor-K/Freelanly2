@@ -629,11 +629,11 @@ export async function aiMatchCheck(
 ): Promise<{ shouldApply: boolean; score: number; reason: string }> {
   // Use same AI provider as cover letter generator (respects AI_PROVIDER env)
   const OpenAI = (await import('openai')).default;
-  const provider = (process.env.AI_PROVIDER || 'deepseek').toLowerCase();
+  const provider = (process.env.AI_PROVIDER || 'zai').toLowerCase();
   const client = provider === 'zai'
     ? new OpenAI({ apiKey: process.env.ZAI_API_KEY || '', baseURL: 'https://api.z.ai/api/paas/v4', timeout: 10000 })
-    : new OpenAI({ apiKey: process.env.DEEPSEEK_API_KEY || '', baseURL: 'https://api.deepseek.com/v1', timeout: 10000 });
-  const model = provider === 'zai' ? 'glm-4-32b-0414-128k' : 'deepseek-chat';
+    : new OpenAI({ apiKey: process.env.ZAI_API_KEY || '', baseURL: 'https://api.z.ai/api/paas/v4', timeout: 10000 });
+  const model = provider === 'zai' ? 'glm-4-32b-0414-128k' : 'glm-4-32b-0414-128k';
 
   const response = await client.chat.completions.create({
     model,

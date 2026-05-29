@@ -22,7 +22,7 @@ import { ensureSalaryData } from '@/lib/salary-estimation';
 import { queueCompanyEnrichmentBySlug } from '@/services/company-enrichment';
 import { cleanupOldJobs, cleanupOldParsingLogs, cleanupOrphanedCompanies } from '@/services/job-cleanup';
 import { buildJobUrl, notifySearchEngines } from '@/lib/indexing';
-import { getDeepSeekUsageStats, resetDeepSeekUsageStats } from '@/lib/deepseek';
+import { getAIUsageStats, resetAIUsageStats } from '@/lib/ai';
 import { isPhysicalLocation, shouldSkipJob } from '@/lib/job-filter';
 import { isBlockedCompany } from '@/config/company-blacklist';
 import type { ProcessingStats, ProcessorContext, SmartRecruitersJob, SmartRecruitersApiResponse } from './types';
@@ -59,7 +59,7 @@ export async function processSmartRecruitersSource(context: ProcessorContext): P
     createdJobIds: [],
   };
 
-  resetDeepSeekUsageStats();
+  resetAIUsageStats();
 
   const dataSource = await prisma.dataSource.findUnique({
     where: { id: dataSourceId },
@@ -275,9 +275,9 @@ export async function processSmartRecruitersSource(context: ProcessorContext): P
     await cleanupOrphanedCompanies();
     await cleanupOldParsingLogs();
 
-    const aiStats = getDeepSeekUsageStats();
+    const aiStats = getAIUsageStats();
     if (aiStats.calls > 0) {
-      console.log(`[SmartRecruiters] DeepSeek usage: ${aiStats.calls} calls, $${aiStats.estimatedCostUSD.toFixed(4)}`);
+      console.log(`[SmartRecruiters] Z.ai usage: ${aiStats.calls} calls, $${aiStats.estimatedCostUSD.toFixed(4)}`);
     }
 
     return stats;

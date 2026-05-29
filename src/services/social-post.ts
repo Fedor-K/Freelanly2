@@ -1,28 +1,8 @@
 import { prisma } from '@/lib/db';
 import OpenAI from 'openai';
 
-// AI Provider configuration (same as deepseek.ts)
-type AIProvider = 'deepseek' | 'zai';
-
-function getAIProvider(): AIProvider {
-  const provider = process.env.AI_PROVIDER?.toLowerCase();
-  if (provider === 'zai') return 'zai';
-  return 'deepseek';
-}
-
-// Lazy initialization
-let _deepseek: OpenAI | null = null;
+// AI Provider — Z.ai (GLM-4-32B) only
 let _zai: OpenAI | null = null;
-
-function getDeepSeekClient(): OpenAI {
-  if (!_deepseek) {
-    _deepseek = new OpenAI({
-      apiKey: process.env.DEEPSEEK_API_KEY || 'dummy-key-for-build',
-      baseURL: 'https://api.deepseek.com/v1',
-    });
-  }
-  return _deepseek;
-}
 
 function getZaiClient(): OpenAI {
   if (!_zai) {
@@ -34,20 +14,8 @@ function getZaiClient(): OpenAI {
   return _zai;
 }
 
-function getAIClient(): { client: OpenAI; model: string; provider: AIProvider } {
-  const provider = getAIProvider();
-  if (provider === 'zai') {
-    return {
-      client: getZaiClient(),
-      model: 'glm-4-32b-0414-128k',
-      provider: 'zai',
-    };
-  }
-  return {
-    client: getDeepSeekClient(),
-    model: 'deepseek-chat',
-    provider: 'deepseek',
-  };
+function getAIClient(): { client: OpenAI; model: string } {
+  return { client: getZaiClient(), model: 'glm-4-32b-0414-128k' };
 }
 
 const SOCIAL_POST_PROMPT = `You are a social media copywriter for a freelance platform. Create an URGENT post for a direct freelance project.
@@ -127,12 +95,12 @@ interface OpportunityForSocialPost {
 }
 
 /**
- * Generate social media post text using AI (DeepSeek or Z.ai based on AI_PROVIDER)
+ * Generate social media post text using AI (Z.ai GLM-4-32B)
  */
 export async function generateSocialPost(opp: OpportunityForSocialPost): Promise<string> {
   try {
-    const { client, model, provider } = getAIClient();
-    const providerName = provider === 'zai' ? 'Z.ai' : 'DeepSeek';
+    const { client, model } = getAIClient();
+    const providerName = 'Z.ai';
 
     // Build context for AI
     const oppContext = `
@@ -179,8 +147,7 @@ ${opp.originalContent || opp.description}
     console.log(`[SocialPost] ${providerName} generated post: ${postText.substring(0, 150)}...`);
     return postText;
   } catch (error) {
-    const provider = getAIProvider();
-    console.error(`[SocialPost] ${provider} generation error:`, error);
+    console.error('[SocialPost] Z.ai generation error:', error);
     return generateFallbackPost(opp);
   }
 }

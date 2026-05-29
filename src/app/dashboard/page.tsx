@@ -165,8 +165,8 @@ export default async function DashboardOverviewPage() {
         const p = process.env.AI_PROVIDER?.toLowerCase();
         const client = p === 'zai'
           ? new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' })
-          : new OpenAI({ baseURL: 'https://api.deepseek.com/v1', apiKey: process.env.DEEPSEEK_API_KEY || '' });
-        const model = p === 'zai' ? 'glm-4-32b-0414-128k' : 'deepseek-chat';
+          : new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' });
+        const model = p === 'zai' ? 'glm-4-32b-0414-128k' : 'glm-4-32b-0414-128k';
         const r = await client.chat.completions.create({
           model, temperature: 0.3, max_tokens: 80,
           messages: [

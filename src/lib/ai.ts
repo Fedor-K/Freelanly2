@@ -36,59 +36,34 @@ function normalizeCurrencyCode(code: string | null): string | null {
   return CURRENCY_CODE_MAP[trimmed] || CURRENCY_CODE_MAP[upper] || 'USD';
 }
 
-// AI Provider configuration
-// Set AI_PROVIDER=zai to use Z.ai, default is deepseek
-type AIProvider = 'deepseek' | 'zai';
+// AI Provider — Z.ai (GLM-4-32B) is the only provider on this project.
+type AIProvider = 'zai';
 
 function getAIProvider(): AIProvider {
-  // Switch: 'zai' (cheaper) or 'deepseek' (faster/more reliable)
-  const provider = process.env.AI_PROVIDER?.toLowerCase();
-  if (provider === 'zai') return 'zai';
-  return 'deepseek'; // default
+  return 'zai';
 }
 
 // Lazy initialization to avoid build-time errors
-let _deepseek: OpenAI | null = null;
 let _zai: OpenAI | null = null;
-
-function getDeepSeekClient(): OpenAI {
-  if (!_deepseek) {
-    _deepseek = new OpenAI({
-      apiKey: process.env.DEEPSEEK_API_KEY || 'dummy-key-for-build',
-      baseURL: 'https://api.deepseek.com/v1',
-      timeout: 30000, // 30 second timeout
-      maxRetries: 2,
-    });
-  }
-  return _deepseek;
-}
 
 function getZaiClient(): OpenAI {
   if (!_zai) {
     _zai = new OpenAI({
       apiKey: process.env.ZAI_API_KEY || 'dummy-key-for-build',
       baseURL: 'https://api.z.ai/api/paas/v4',
-      timeout: 15000, // 15 second timeout (faster fail)
-      maxRetries: 1,  // 1 retry only
+      timeout: 30000, // 30 second timeout
+      maxRetries: 2,
     });
   }
   return _zai;
 }
 
-// Get the active AI client based on AI_PROVIDER env var
+// Get the active AI client (Z.ai GLM-4-32B)
 function getAIClient(): { client: OpenAI; model: string; provider: AIProvider } {
-  const provider = getAIProvider();
-  if (provider === 'zai') {
-    return {
-      client: getZaiClient(),
-      model: 'glm-4-32b-0414-128k', // $0.10/$0.10 per 1M tokens
-      provider: 'zai',
-    };
-  }
   return {
-    client: getDeepSeekClient(),
-    model: 'deepseek-chat',
-    provider: 'deepseek',
+    client: getZaiClient(),
+    model: 'glm-4-32b-0414-128k', // $0.10/$0.10 per 1M tokens
+    provider: 'zai',
   };
 }
 
@@ -392,15 +367,8 @@ Benefits
 Be conservative - only extract what is explicitly stated. Don't infer or guess.
 Return ONLY valid JSON, no markdown or explanation.`;
 
-// Pricing per 1M tokens (as of Jan 2025)
-const PRICING = {
-  deepseek: { input: 0.28, output: 0.42 },  // DeepSeek V3.2
-  zai: { input: 0.10, output: 0.10 },       // GLM-4-32B
-};
-
-function getPricing(provider: AIProvider) {
-  return PRICING[provider];
-}
+// Pricing per 1M tokens — Z.ai GLM-4-32B
+const PRICING = { input: 0.10, output: 0.10 };
 
 // Track cumulative usage for monitoring
 let cumulativeUsage = {
@@ -408,16 +376,11 @@ let cumulativeUsage = {
   outputTokens: 0,
   calls: 0,
   estimatedCostUSD: 0,
-  provider: 'deepseek' as AIProvider,
+  provider: 'zai' as AIProvider,
 };
 
 export function getAIUsageStats() {
   return { ...cumulativeUsage };
-}
-
-// Legacy alias
-export function getDeepSeekUsageStats() {
-  return getAIUsageStats();
 }
 
 export function resetAIUsageStats() {
@@ -426,36 +389,28 @@ export function resetAIUsageStats() {
     outputTokens: 0,
     calls: 0,
     estimatedCostUSD: 0,
-    provider: getAIProvider(),
+    provider: 'zai',
   };
 }
 
-// Legacy alias
-export function resetDeepSeekUsageStats() {
-  resetAIUsageStats();
-}
-
-function trackUsage(usage: { prompt_tokens: number; completion_tokens: number } | undefined, provider: AIProvider) {
+function trackUsage(usage: { prompt_tokens: number; completion_tokens: number } | undefined) {
   if (!usage) return;
 
-  const pricing = getPricing(provider);
-  const inputCost = (usage.prompt_tokens / 1_000_000) * pricing.input;
-  const outputCost = (usage.completion_tokens / 1_000_000) * pricing.output;
+  const inputCost = (usage.prompt_tokens / 1_000_000) * PRICING.input;
+  const outputCost = (usage.completion_tokens / 1_000_000) * PRICING.output;
   const totalCost = inputCost + outputCost;
 
   cumulativeUsage.inputTokens += usage.prompt_tokens;
   cumulativeUsage.outputTokens += usage.completion_tokens;
   cumulativeUsage.calls++;
   cumulativeUsage.estimatedCostUSD += totalCost;
-  cumulativeUsage.provider = provider;
 
-  const providerName = provider === 'zai' ? 'Z.ai' : 'DeepSeek';
-  console.log(`[${providerName}] Tokens: ${usage.prompt_tokens} in / ${usage.completion_tokens} out | Cost: $${totalCost.toFixed(5)} | Cumulative: $${cumulativeUsage.estimatedCostUSD.toFixed(4)}`);
+  console.log(`[Z.ai] Tokens: ${usage.prompt_tokens} in / ${usage.completion_tokens} out | Cost: $${totalCost.toFixed(5)} | Cumulative: $${cumulativeUsage.estimatedCostUSD.toFixed(4)}`);
 }
 
 export async function extractJobData(postText: string): Promise<ExtractedJobData | null> {
   try {
-    const { client, model, provider } = getAIClient();
+    const { client, model } = getAIClient();
     const response = await client.chat.completions.create({
       model,
       response_format: { type: 'json_object' },
@@ -467,7 +422,7 @@ export async function extractJobData(postText: string): Promise<ExtractedJobData
       max_tokens: 2000,
     });
 
-    trackUsage(response.usage, provider);
+    trackUsage(response.usage);
 
     const content = response.choices[0]?.message?.content;
     if (!content) return null;
@@ -598,7 +553,7 @@ export async function classifyJobCategory(
   skills: string[]
 ): Promise<string> {
   try {
-    const { client, model, provider } = getAIClient();
+    const { client, model } = getAIClient();
     const response = await client.chat.completions.create({
       model,
       messages: [
@@ -609,7 +564,7 @@ export async function classifyJobCategory(
       max_tokens: 50,
     });
 
-    trackUsage(response.usage, provider);
+    trackUsage(response.usage);
 
     const category = response.choices[0]?.message?.content?.trim().toLowerCase().replace(/[^a-z-]/g, '');
     const validCategories = [
@@ -710,7 +665,7 @@ export async function isTargetRemoteJob(title: string, company?: string): Promis
   }
 
   try {
-    const { client, model, provider } = getAIClient();
+    const { client, model } = getAIClient();
     const response = await client.chat.completions.create({
       model,
       messages: [
@@ -722,7 +677,7 @@ export async function isTargetRemoteJob(title: string, company?: string): Promis
       max_tokens: 100,
     });
 
-    trackUsage(response.usage, provider);
+    trackUsage(response.usage);
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
@@ -730,7 +685,7 @@ export async function isTargetRemoteJob(title: string, company?: string): Promis
     }
 
     const result = JSON.parse(content) as { import: boolean; reason: string };
-    const providerName = provider === 'zai' ? 'Z.ai' : 'DeepSeek';
+    const providerName = 'Z.ai';
     console.log(`[${providerName} Filter] "${title}" → ${result.import ? 'IMPORT' : 'SKIP'}: ${result.reason}`);
     return result;
   } catch (error) {
@@ -781,7 +736,7 @@ export async function isJobPosting(postContent: string, retryCount = 0): Promise
   const MAX_RETRIES = 2;
 
   try {
-    const { client, model, provider } = getAIClient();
+    const { client, model } = getAIClient();
 
     // Truncate to save tokens (first 1500 chars is enough to determine post type)
     const truncatedContent = postContent.length > 1500
@@ -799,7 +754,7 @@ export async function isJobPosting(postContent: string, retryCount = 0): Promise
       max_tokens: 100,
     });
 
-    trackUsage(response.usage, provider);
+    trackUsage(response.usage);
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
@@ -807,7 +762,7 @@ export async function isJobPosting(postContent: string, retryCount = 0): Promise
     }
 
     const result = JSON.parse(content) as { isJob: boolean; reason: string };
-    const providerName = provider === 'zai' ? 'Z.ai' : 'DeepSeek';
+    const providerName = 'Z.ai';
     console.log(`[${providerName}] Post validation: ${result.isJob ? 'JOB' : 'NOT_JOB'} - ${result.reason}`);
     return result;
   } catch (error) {
@@ -828,4 +783,3 @@ export async function isJobPosting(postContent: string, retryCount = 0): Promise
 }
 
 // Legacy exports for backwards compatibility
-export { getDeepSeekClient as deepseek };

@@ -9,13 +9,13 @@
 import OpenAI from 'openai';
 import { verifySkill, type VerifyResult } from './verify';
 
-const AI_PROVIDER = (process.env.AI_PROVIDER || 'deepseek').toLowerCase();
+const AI_PROVIDER = (process.env.AI_PROVIDER || 'zai').toLowerCase();
 function aiClient(): OpenAI {
   return AI_PROVIDER === 'zai'
     ? new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' })
-    : new OpenAI({ baseURL: 'https://api.deepseek.com/v1', apiKey: process.env.DEEPSEEK_API_KEY || '' });
+    : new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' });
 }
-const MODEL = AI_PROVIDER === 'zai' ? 'glm-4-32b-0414-128k' : 'deepseek-chat';
+const MODEL = AI_PROVIDER === 'zai' ? 'glm-4-32b-0414-128k' : 'glm-4-32b-0414-128k';
 
 type SkillReq = { display: string; anyOf: string[] }; // anyOf = atomic tool names; match ANY = full
 export type ParsedJD = { skills: SkillReq[]; languages: string[]; years?: number | null; location?: string | null };
