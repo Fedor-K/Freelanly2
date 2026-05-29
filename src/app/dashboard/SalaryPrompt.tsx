@@ -7,9 +7,11 @@ import { useEffect, useState } from 'react';
 // catches new applicants — this catches everyone else, in one place (no separate popups). Optional,
 // dismissible (persisted). Candidate-side → contact-neutral. Posts to the salary + profile-extra endpoints.
 const NOTICE_OPTIONS = ['Immediately', 'Within 2 weeks', 'Within a month', 'More than a month'];
+const CURRENCIES = ['USD', 'EUR', 'GBP', 'INR', 'PKR', 'PHP', 'IDR', 'NGN', 'BDT', 'BRL', 'EGP', 'AED', 'CAD', 'AUD'];
 
 export function SalaryPrompt() {
   const [amt, setAmt] = useState('');
+  const [cur, setCur] = useState('USD');
   const [per, setPer] = useState('mo');
   const [noticeFrom, setNoticeFrom] = useState('');
   const [portfolio, setPortfolio] = useState('');
@@ -29,7 +31,7 @@ export function SalaryPrompt() {
       const reqs: Promise<Response>[] = [];
       if (hasSalary) reqs.push(fetch('/api/user/salary-expectation', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: amt, period: per }),
+        body: JSON.stringify({ amount: amt, period: per, currency: cur }),
       }));
       if (hasExtra) reqs.push(fetch('/api/user/profile-extra', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -60,7 +62,10 @@ export function SalaryPrompt() {
       </div>
       <div style={{ fontSize: '12.5px', color: '#8A8780', margin: '2px 0 10px' }}>The few things recruiters ask for most. All optional — fill what you like.</div>
 
-      <div style={{ display: 'flex', gap: '6px', maxWidth: '360px', marginBottom: '8px' }}>
+      <div style={{ display: 'flex', gap: '6px', maxWidth: '420px', marginBottom: '8px' }}>
+        <select value={cur} onChange={e => setCur(e.target.value)} style={inputStyle} aria-label="Currency">
+          {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
         <input value={amt} onChange={e => setAmt(e.target.value)} inputMode="numeric" placeholder="Expected rate, e.g. 1500"
           style={{ ...inputStyle, flex: 1, minWidth: 0 }} />
         <select value={per} onChange={e => setPer(e.target.value)} style={inputStyle}>

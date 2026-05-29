@@ -66,7 +66,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [isAuthed, setIsAuthed] = useState(false);
 
   // Post-submit (optional, off the critical path): expected pay → fills the breakdown's salary line.
+  const SALARY_CURRENCIES = ['USD', 'EUR', 'GBP', 'INR', 'PKR', 'PHP', 'IDR', 'NGN', 'BDT', 'BRL', 'EGP', 'AED', 'CAD', 'AUD'];
   const [salaryAmt, setSalaryAmt] = useState('');
+  const [salaryCur, setSalaryCur] = useState('USD');
   const [salaryPer, setSalaryPer] = useState('mo');
   const [salarySaved, setSalarySaved] = useState(false);
   const [salarySaving, setSalarySaving] = useState(false);
@@ -76,7 +78,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     try {
       const r = await fetch('/api/user/salary-expectation', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: salaryAmt, period: salaryPer }),
+        body: JSON.stringify({ amount: salaryAmt, period: salaryPer, currency: salaryCur }),
       });
       if (r.ok) setSalarySaved(true);
     } catch { /* optional step — never block */ } finally { setSalarySaving(false); }
@@ -598,6 +600,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
               <div style={{ fontSize: '13px', fontWeight: 600 }}>Add your expected rate</div>
               <div style={{ fontSize: '12px', color: '#8A8780', margin: '2px 0 10px' }}>Recruiters prioritize candidates who state it — optional.</div>
               <div style={{ display: 'flex', gap: '6px' }}>
+                <select value={salaryCur} onChange={e => setSalaryCur(e.target.value)} aria-label="Currency"
+                  style={{ padding: '9px', border: '1px solid #E8E5DC', borderRadius: '8px', fontSize: '13px' }}>
+                  {SALARY_CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
                 <input value={salaryAmt} onChange={e => setSalaryAmt(e.target.value)} inputMode="numeric" placeholder="e.g. 1500"
                   style={{ flex: 1, minWidth: 0, padding: '9px 11px', border: '1px solid #E8E5DC', borderRadius: '8px', fontSize: '13px' }} />
                 <select value={salaryPer} onChange={e => setSalaryPer(e.target.value)}

@@ -20,6 +20,8 @@ export type RecruiterCandidate = {
     skills?: string[];
     availableFrom?: string;   // "when can you start" — candidate-stated
     portfolioUrl?: string;    // portfolio / GitHub / site
+    salaryExpectation?: string;     // candidate-stated expected pay (SELF-REPORTED, e.g. "USD 1,500/mo")
+    salaryExpectationAt?: string;   // when stated — de-emphasize / flag if stale
   };
 };
 
@@ -173,6 +175,18 @@ export function RecruiterInboxClient({ token, candidates }: { token: string; can
                   {c.profile.languages && c.profile.languages.length > 0 && <div><div className="meta" style={{ fontSize: '10px' }}>Languages</div>{c.profile.languages.join(', ')}</div>}
                   {c.profile.availableFrom && <div><div className="meta" style={{ fontSize: '10px' }}>Can start</div>{c.profile.availableFrom}</div>}
                   {c.profile.portfolioUrl && <div><div className="meta" style={{ fontSize: '10px' }}>Portfolio</div><a href={c.profile.portfolioUrl} target="_blank" rel="noopener noreferrer" onClick={() => track('view_cv', c.appId)} style={{ color: '#2563eb' }}>Link ↗</a></div>}
+                  {c.profile.salaryExpectation && (() => {
+                    // Self-reported expected pay. Labelled "stated", never presented as verified.
+                    // Stale self-reports (>90d) get an age suffix + muting (same freshness discipline as elsewhere).
+                    const stale = c.profile.salaryExpectationAt && (Date.now() - new Date(c.profile.salaryExpectationAt).getTime()) > 90 * 86400000;
+                    return (
+                      <div title="Candidate-stated, self-reported — not verified">
+                        <div className="meta" style={{ fontSize: '10px' }}>Wants (stated)</div>
+                        <span style={{ opacity: stale ? 0.55 : 1 }}>{c.profile.salaryExpectation}</span>
+                        {stale && c.profile.salaryExpectationAt && <span style={{ color: '#8A8780' }}> · {timeAgo(c.profile.salaryExpectationAt)} ago</span>}
+                      </div>
+                    );
+                  })()}
                 </div>
                 {c.profile.summary && <p style={{ fontSize: '12.5px', lineHeight: 1.55, margin: '0 0 12px', color: '#444' }}>{c.profile.summary}</p>}
 

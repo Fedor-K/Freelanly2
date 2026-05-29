@@ -89,7 +89,7 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
     take: 200,
     select: {
       id: true, jobTitle: true, coverLetter: true, matchScore: true, matchLabel: true, createdAt: true,
-      user: { select: { name: true, parsedProfile: true, resumeUrl: true, lastActiveAt: true, availableFrom: true, portfolioUrl: true } },
+      user: { select: { name: true, parsedProfile: true, resumeUrl: true, lastActiveAt: true, availableFrom: true, portfolioUrl: true, salaryExpectation: true, salaryExpectationAt: true } },
     },
   });
 
@@ -139,6 +139,10 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
         skills: arr(p.skills).slice(0, 25),
         availableFrom: a.user.availableFrom || undefined,   // "when can you start" — top recruiter re-ask
         portfolioUrl: a.user.portfolioUrl || undefined,     // portfolio / GitHub / site
+        // Candidate-stated expected pay — SELF-REPORTED. Pass the timestamp too so the card
+        // labels it as stated, never verified, and de-emphasizes stale values.
+        salaryExpectation: a.user.salaryExpectation || undefined,
+        salaryExpectationAt: a.user.salaryExpectationAt ? a.user.salaryExpectationAt.toISOString() : undefined,
       },
     };
   });
