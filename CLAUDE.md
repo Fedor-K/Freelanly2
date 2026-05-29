@@ -20,7 +20,7 @@
 
 ## Quick Summary
 
-Платформа AI auto-apply для фрилансеров. Агрегация из LinkedIn (Apify) и ATS (Lever/Greenhouse/Ashby/SmartRecruiters/Workable). AI extraction и cover letters через DeepSeek или Z.ai (переключается через `AI_PROVIDER` env var).
+Платформа AI auto-apply для фрилансеров. Агрегация из LinkedIn (Apify) и ATS (Lever/Greenhouse/Ashby/SmartRecruiters/Workable). AI extraction и cover letters через Z.ai или Z.ai (переключается через `AI_PROVIDER` env var).
 
 ## Tech Stack
 
@@ -28,7 +28,7 @@
 - Tailwind CSS v4 + shadcn/ui
 - PostgreSQL (Neon) + Prisma 5
 - **AI Providers** (switchable via `AI_PROVIDER` env var):
-  - DeepSeek API (default) — $0.28/$0.42 per 1M tokens
+  - Z.ai API (default) — $0.28/$0.42 per 1M tokens
   - Z.ai GLM-4-32B — $0.10/$0.10 per 1M tokens (64% cheaper)
 - Apify (LinkedIn scraping)
 - Apollo.io (company enrichment)
@@ -259,10 +259,10 @@ Other: support, education, research, consulting
 ```
 
 ### Job Categorization
-- AI classification via DeepSeek with full category list
+- AI classification via Z.ai with full category list
 - Local keyword fallback if AI fails
 - Default category: `support` (NOT engineering!)
-- File: `src/lib/deepseek.ts` → `classifyJobCategory()`
+- File: `src/lib/ai.ts` → `classifyJobCategory()`
 
 ### Deduplication
 - **Companies**: Search by slug OR name (case-insensitive), normalize name
@@ -303,7 +303,7 @@ Sources: Cache → BLS (US) → Adzuna (19 countries) → Formula estimation.
 ### AI Post Validation
 Перед обработкой постов из социальных сетей проверяем что это действительно вакансия.
 
-**Function:** `isJobPosting(postContent)` в `src/lib/deepseek.ts`
+**Function:** `isJobPosting(postContent)` в `src/lib/ai.ts`
 
 **Фильтруются (NOT_JOB):**
 - Event invitations (вебинары, конференции, митапы)
@@ -373,7 +373,7 @@ npx tsx scripts/migrate-content-quality.ts
 
 ## Key Files
 
-**Core:** `src/lib/deepseek.ts` (AI), `src/lib/utils.ts`, `src/lib/auth.ts`, `src/lib/stripe.ts`
+**Core:** `src/lib/ai.ts` (AI), `src/lib/utils.ts`, `src/lib/auth.ts`, `src/lib/stripe.ts`
 **Services:** `src/services/linkedin-processor.ts`, `src/services/sources/*.ts`, `src/services/alert-notifications.ts`, `src/services/salary-insights.ts`
 **API crons:** `src/app/api/cron/fetch-sources|fetch-linkedin|send-alerts|process-instant-alerts|send-trial-emails|send-winback-emails`
 **Config:** `src/config/site.ts`, `src/config/salary-base.ts`, `src/config/salary-coefficients.ts`
@@ -418,7 +418,7 @@ npx prisma db push --force-reset   # DANGEROUS: deletes ALL data!
 
 ### Adding new category
 1. Add to `src/config/site.ts` → `categories`
-2. Add to `src/lib/deepseek.ts` → `classifyJobCategory()` prompt + `localClassifyJob()`
+2. Add to `src/lib/ai.ts` → `classifyJobCategory()` prompt + `localClassifyJob()`
 3. Add to `src/services/sources/lever-processor.ts` → `mapDepartmentToCategory()`
 4. Run `npm run db:seed` to create in DB
 
@@ -524,9 +524,9 @@ DATABASE_URL=postgresql://user:pass@host.neon.tech/db?sslmode=require
 AUTH_SECRET=xxx
 AUTH_URL=https://freelanly.com  # ОБЯЗАТЕЛЬНО с https://
 CRON_SECRET=xxx
-DEEPSEEK_API_KEY=xxx
+ZAI_API_KEY=xxx
 ZAI_API_KEY=xxx  # Z.ai API key (optional, for AI_PROVIDER=zai)
-AI_PROVIDER=deepseek  # or "zai" to use Z.ai GLM-4-32B (64% cheaper)
+AI_PROVIDER=zai  # or "zai" to use Z.ai GLM-4-32B (64% cheaper)
 APIFY_API_TOKEN=xxx
 APOLLO_API_KEY1=xxx
 # Email — ТОЛЬКО Postal (self-hosted, Hetzner). DashaMail/Resend/SES/SMTP2GO/Elastic — отменены.

@@ -5,7 +5,7 @@
  */
 
 import { prisma } from '../src/lib/db';
-import { extractJobData } from '../src/lib/deepseek';
+import { extractJobData } from '../src/lib/ai';
 
 async function main() {
   console.log('=== Re-extracting languages from translation jobs ===\n');
@@ -58,7 +58,7 @@ async function main() {
       const extracted = await extractJobData(job.originalContent);
 
       if (!extracted) {
-        console.log(`  -> DeepSeek extraction failed`);
+        console.log(`  -> Z.ai extraction failed`);
         failed++;
         continue;
       }

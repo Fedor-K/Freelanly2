@@ -2,7 +2,7 @@
  * Migration script: Add AI-generated cleanDescription to existing Lever jobs
  *
  * This script processes all Lever jobs that don't have a cleanDescription
- * through DeepSeek AI to generate structured, SEO-friendly descriptions.
+ * through Z.ai AI to generate structured, SEO-friendly descriptions.
  *
  * Usage:
  *   npx tsx scripts/migrate-lever-descriptions.ts
@@ -11,7 +11,7 @@
  */
 
 import { prisma } from '../src/lib/db';
-import { extractJobData } from '../src/lib/deepseek';
+import { extractJobData } from '../src/lib/ai';
 
 const BATCH_SIZE = 5; // Process 5 jobs at a time to avoid rate limits
 const DELAY_BETWEEN_BATCHES = 2000; // 2 seconds between batches
@@ -107,7 +107,7 @@ async function migrateLeverDescriptions(options: {
       try {
         console.log(`${progress} 🔄 Processing: ${job.title}`);
 
-        // Call DeepSeek API
+        // Call Z.ai API
         const aiData = await extractJobData(job.description);
 
         if (!aiData?.cleanDescription) {

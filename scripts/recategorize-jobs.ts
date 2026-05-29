@@ -3,9 +3,9 @@ import OpenAI from 'openai';
 
 const prisma = new PrismaClient();
 
-const deepseek = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY,
-  baseURL: 'https://api.deepseek.com/v1',
+const ai = new OpenAI({
+  apiKey: process.env.ZAI_API_KEY,
+  baseURL: 'https://api.z.ai/api/paas/v4',
 });
 
 const validCategories = [
@@ -46,8 +46,8 @@ function classifyLocally(title: string): string {
 
 async function classifyWithAI(title: string, skills: string[]): Promise<string> {
   try {
-    const response = await deepseek.chat.completions.create({
-      model: 'deepseek-chat',
+    const response = await ai.chat.completions.create({
+      model: 'glm-4-32b-0414-128k',
       messages: [
         {
           role: 'system',

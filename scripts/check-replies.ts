@@ -13,12 +13,12 @@ config({ path: '.env' });
 
 const prisma = new PrismaClient();
 
-const AI_PROVIDER = process.env.AI_PROVIDER || 'deepseek';
+const AI_PROVIDER = process.env.AI_PROVIDER || 'zai';
 function getAIClient() {
   if (AI_PROVIDER === 'zai') {
     return { client: new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' }), model: 'glm-4-32b-0414-128k' };
   }
-  return { client: new OpenAI({ baseURL: 'https://api.deepseek.com/v1', apiKey: process.env.DEEPSEEK_API_KEY || '' }), model: 'deepseek-chat' };
+  return { client: new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' }), model: 'glm-4-32b-0414-128k' };
 }
 
 async function categorizeReply(replyText: string): Promise<{ category: string; status: string }> {

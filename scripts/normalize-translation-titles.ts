@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { normalizeTranslationTitle } from '../src/lib/deepseek';
+import { normalizeTranslationTitle } from '../src/lib/ai';
 
 const prisma = new PrismaClient();
 
