@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { RecruiterLoginForm } from '@/components/recruiter/RecruiterLoginForm';
 import { RecruiterTrustPanel } from '@/components/recruiter/RecruiterTrustPanel';
 import '../auth/signin/signup-design.css';
@@ -16,10 +17,10 @@ export default function RecruiterSignInPage() {
   return (
     <div className="auth-wrap">
       <div className="auth-form-side">
-        <a href="/" className="auth-logo">
+        <Link href="/" className="auth-logo">
           <span className="auth-logo-mark">F</span>
           <span>Freelanly</span>
-        </a>
+        </Link>
 
         <div className="auth-form">
           <div className="auth-eyebrow">— For recruiters · no password</div>
