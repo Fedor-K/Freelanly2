@@ -1,50 +1,17 @@
-// Email provider: switchable via EMAIL_PROVIDER env var
-// Supported: 'resend' (default), 'ses', 'smtp2go', 'postal', 'elasticemail'
+// Email provider: POSTAL ONLY (self-hosted on Hetzner). Resend / SES / SMTP2GO /
+// ElasticEmail are cancelled — do NOT reintroduce them (see CLAUDE.md "Email — ТОЛЬКО Postal").
+// Their modules remain in this folder only for their inbound webhook routes; nothing sends
+// through them. EMAIL_PROVIDER / POSTAL_WARMING_PERCENT env vars are no longer read.
 
-import * as resend from './resend';
-import * as ses from './ses';
-import * as smtp2go from './smtp2go';
 import * as postal from './postal';
-import * as elasticemail from './elasticemail';
 import { prisma } from '@/lib/db';
 import { ActivityAction } from '@prisma/client';
 
-const provider = process.env.EMAIL_PROVIDER || 'resend';
-
-function getProvider() {
-  if (provider === 'elasticemail') return elasticemail;
-  if (provider === 'postal') return postal;
-  if (provider === 'ses') return ses;
-  if (provider === 'smtp2go') return smtp2go;
-  return resend;
-}
-
-// IP warming: route a percentage of emails through Postal
-// Increase POSTAL_WARMING_PERCENT in Vercel env to ramp up (0-100)
-const postalWarmingPercent = parseInt(process.env.POSTAL_WARMING_PERCENT || '5', 10);
-
 export async function sendEmail(params: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  // IP warming split: route some emails through Postal
-  const usePostal = postalWarmingPercent > 0
-    && postal.isConfigured()
-    && provider !== 'postal' // don't double-send if already Postal
-    && Math.random() * 100 < postalWarmingPercent;
-
-  if (usePostal) {
-    const result = await postal.sendEmail(params);
-    if (result.success) {
-      return result;
-    }
-    // Postal failed — fall through to main provider
-    console.warn(`[Email] Postal warming failed, falling back: ${result.error}`);
-  }
-
-  const result = await getProvider().sendEmail(params);
-
+  const result = await postal.sendEmail(params);
   if (!result.success) {
-    console.warn(`[Email] Provider (${provider}) failed: ${result.error}`);
+    console.warn(`[Email] Postal send failed: ${result.error}`);
   }
-
   return result;
 }
 
@@ -153,15 +120,14 @@ export async function getTransactionalStats(_days: number = 30): Promise<Transac
  * Check if email provider is configured
  */
 export async function testConnection(): Promise<boolean> {
-  return getProvider().isConfigured();
+  return postal.isConfigured();
 }
 
 /**
  * Get provider info for debugging
  */
 export function getProviderInfo() {
-  const p = getProvider();
-  return { provider, config: p.getConfig(), fallback: smtp2go.isConfigured() ? 'smtp2go' : 'none' };
+  return { provider: 'postal', config: postal.getConfig(), fallback: 'none' };
 }
 
 // ============================================
