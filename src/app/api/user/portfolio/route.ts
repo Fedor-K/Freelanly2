@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { safeFetch } from '@/lib/ssrf';
 import OpenAI from 'openai';
 
 function getAIClient() {
@@ -19,14 +20,14 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { url } = await request.json();
-    if (!url || !url.includes('.')) {
+    if (!url || typeof url !== 'string') {
       return NextResponse.json({ error: 'Valid URL required' }, { status: 400 });
     }
 
     // Scrape the portfolio page
     let pageText = '';
     try {
-      const resp = await fetch(url, {
+      const resp = await safeFetch(url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Freelanly/1.0)' },
         signal: AbortSignal.timeout(10000),
       });
