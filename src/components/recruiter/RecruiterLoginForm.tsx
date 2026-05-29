@@ -2,11 +2,18 @@
 
 import { useState } from 'react';
 
-// Passwordless recruiter sign-in. Reuses the candidate auth design tokens (signup-design.css:
-// field-label / text-input / primary-btn). Response is generic — never reveals whether the
-// email is a known recruiter.
+// Recruiter sign-in + registration in one (passwordless). Collects the profile up front
+// (name/company, what they hire for, volume) — not hidden inside — and emails a link to the
+// portal. Email is required; the rest is a quick optional profile so a returning recruiter can
+// just type email + submit. Reuses the candidate auth design tokens (signup-design.css).
+const VOLUMES = ['1', '2-5', '6-20', '20+'] as const;
+
 export function RecruiterLoginForm() {
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [company, setCompany] = useState('');
+  const [hiringFor, setHiringFor] = useState('');
+  const [hiringVolume, setHiringVolume] = useState('');
   const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle');
 
   async function submit() {
@@ -16,7 +23,7 @@ export function RecruiterLoginForm() {
       await fetch('/api/recruiter/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), name, company, hiringFor, hiringVolume }),
       });
     } catch { /* ignore — same generic state */ }
     setState('sent');
@@ -48,14 +55,47 @@ export function RecruiterLoginForm() {
           className="text-input"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
           placeholder="you@company.com"
           autoFocus
         />
         <p className="helper">The address candidates’ applications arrive at.</p>
       </div>
-      <button className="primary-btn" onClick={submit} disabled={state === 'sending' || !email.trim()} style={{ marginTop: 0 }}>
-        {state === 'sending' ? 'Sending…' : 'Email me my inbox link →'}
+
+      <div className="field-row-2">
+        <div>
+          <label className="field-label">Your name <span className="optional">(optional)</span></label>
+          <input type="text" className="text-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane" />
+        </div>
+        <div>
+          <label className="field-label">Company <span className="optional">(optional)</span></label>
+          <input type="text" className="text-input" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Acme" />
+        </div>
+      </div>
+
+      <div>
+        <label className="field-label">What are you hiring for? <span className="optional">(optional)</span></label>
+        <input type="text" className="text-input" value={hiringFor} onChange={(e) => setHiringFor(e.target.value)} placeholder="e.g. React developer, Interpreter" />
+      </div>
+
+      <div>
+        <label className="field-label">How many to hire? <span className="optional">(optional)</span></label>
+        <div className="cat-grid">
+          {VOLUMES.map((v) => (
+            <button
+              key={v}
+              type="button"
+              className={`cat-chip${hiringVolume === v ? ' on' : ''}`}
+              style={{ justifyContent: 'center' }}
+              onClick={() => setHiringVolume(hiringVolume === v ? '' : v)}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <button className="primary-btn" onClick={submit} disabled={state === 'sending' || !email.trim()} style={{ marginTop: '6px' }}>
+        {state === 'sending' ? 'Sending…' : 'Get my candidate inbox →'}
       </button>
     </div>
   );

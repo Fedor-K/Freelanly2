@@ -25,7 +25,7 @@ export default function RecruiterSignInPage() {
           <div className="auth-eyebrow">— For recruiters · no password</div>
           <h1 className="auth-title">See who applied<br />to your roles.</h1>
           <p className="auth-sub">
-            Enter your email and we’ll send a link to your candidate inbox — matched applicants, their CVs, and replies in one place.
+            A few quick details and we’ll email a link to your candidate inbox — matched applicants, their CVs, and replies in one place.
           </p>
 
           <RecruiterLoginForm />

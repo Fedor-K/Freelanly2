@@ -28,6 +28,15 @@ export async function POST(request: NextRequest) {
       (await prisma.recruiter.findUnique({ where: { email }, select: { id: true } }));
 
     if (known) {
+      // Save whatever profile fields they filled on the /r registration screen.
+      const clip = (s: unknown, n: number) => (typeof s === 'string' && s.trim() ? s.trim().slice(0, n) : undefined);
+      const data: { lastSeenAt: Date; name?: string; company?: string; hiringFor?: string; hiringVolume?: string } = { lastSeenAt: new Date() };
+      const nm = clip(body.name, 120); if (nm) data.name = nm;
+      const co = clip(body.company, 120); if (co) data.company = co;
+      const hf = clip(body.hiringFor, 160); if (hf) data.hiringFor = hf;
+      if (['1', '2-5', '6-20', '20+'].includes(body.hiringVolume)) data.hiringVolume = body.hiringVolume;
+      await prisma.recruiter.upsert({ where: { email }, create: { email, ...data }, update: data }).catch(() => {});
+
       // DB-based per-email rate limit (serverless-safe).
       const recent = await prisma.$queryRaw<{ n: number }[]>`
         SELECT COUNT(*)::int AS n FROM "ActivityLog"
