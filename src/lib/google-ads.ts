@@ -1136,7 +1136,8 @@ export async function uploadOfflineConversion(params: {
     const now = new Date();
     const conversionDateTime = now.toISOString().replace('T', ' ').replace('Z', '+00:00').slice(0, 25);
 
-    await customer.uploadClickConversions({
+    // uploadClickConversions exists at runtime but isn't in google-ads-api's Customer types.
+    await (customer as unknown as { uploadClickConversions: (req: { conversions: unknown[]; partial_failure?: boolean }) => Promise<unknown> }).uploadClickConversions({
       conversions: [
         {
           gclid: params.gclid,

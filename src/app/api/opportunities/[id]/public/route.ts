@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
+// Opportunity/Job store salary as min/max/currency/period (no denormalized text column),
+// so build the display string here.
+const PERIOD_SUFFIX: Record<string, string> = { HOUR: '/hr', DAY: '/day', WEEK: '/wk', MONTH: '/mo', YEAR: '/yr' };
+function formatSalary(min: number | null, max: number | null, currency: string | null, period: string | null): string | null {
+  if (min == null && max == null) return null;
+  const cur = currency || 'USD';
+  const suffix = period ? PERIOD_SUFFIX[period] || '' : '';
+  const fmt = (n: number) => n.toLocaleString();
+  if (min != null && max != null && min !== max) return `${cur} ${fmt(min)}–${fmt(max)}${suffix}`;
+  return `${cur} ${fmt((min ?? max) as number)}${suffix}`;
+}
+
 /**
  * GET /api/opportunities/[id]/public — Public project page data
  * No auth required. Used by the public project page for conversion.
@@ -35,12 +47,9 @@ export async function GET(
         id: true,
         title: true,
         description: true,
-        companyName: true,
-        source: true,
         sourceUrl: true,
         skills: true,
         locationType: true,
-        salary: true,
         level: true,
         createdAt: true,
         clientName: true,
@@ -50,11 +59,29 @@ export async function GET(
         posterTitle: true,
         posterCompany: true,
         posterFollowers: true,
+        company: { select: { name: true } },
+        salaryMin: true,
+        salaryMax: true,
+        salaryCurrency: true,
+        salaryPeriod: true,
       },
     });
 
     if (opp) {
-      project = { ...opp, type: 'opportunity', skills: opp.skills || [] };
+      project = {
+        id: opp.id,
+        title: opp.title,
+        description: opp.description || '',
+        companyName: opp.company?.name || opp.posterCompany || opp.clientName || 'Unknown',
+        source: 'linkedin',
+        sourceUrl: opp.sourceUrl || null,
+        skills: opp.skills || [],
+        locationType: opp.locationType,
+        salary: formatSalary(opp.salaryMin, opp.salaryMax, opp.salaryCurrency, opp.salaryPeriod),
+        level: opp.level,
+        createdAt: opp.createdAt,
+        type: 'opportunity',
+      };
     } else {
       const job = await prisma.job.findUnique({
         where: { id },
@@ -62,7 +89,11 @@ export async function GET(
           id: true,
           title: true,
           description: true,
-          salaryText: true,
+          salaryMin: true,
+          salaryMax: true,
+          salaryCurrency: true,
+          salaryPeriod: true,
+          skills: true,
           level: true,
           locationType: true,
           sourceUrl: true,
@@ -80,9 +111,9 @@ export async function GET(
           companyName: job.company?.name || 'Unknown',
           source: 'career_page',
           sourceUrl: job.sourceUrl || null,
-          skills: [],
+          skills: job.skills || [],
           locationType: job.locationType,
-          salary: job.salaryText,
+          salary: formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency, job.salaryPeriod),
           level: job.level,
           createdAt: job.createdAt,
           type: 'job',
@@ -118,7 +149,7 @@ export async function GET(
         id: { not: project.id },
         createdAt: { gte: new Date(Date.now() - 7 * 86400000) },
       },
-      select: { id: true, title: true, companyName: true, salary: true, skills: true, createdAt: true },
+      select: { id: true, title: true, clientName: true, company: { select: { name: true } }, salaryMin: true, salaryMax: true, salaryCurrency: true, salaryPeriod: true, skills: true, createdAt: true },
       take: 3,
       orderBy: { createdAt: 'desc' },
     });
@@ -163,8 +194,8 @@ export async function GET(
       similar: similar.map((s, i) => ({
         id: s.id,
         title: s.title,
-        companyName: s.companyName,
-        salary: s.salary,
+        companyName: s.company?.name || s.clientName || 'Unknown',
+        salary: formatSalary(s.salaryMin, s.salaryMax, s.salaryCurrency, s.salaryPeriod),
         skills: (s.skills || []).slice(0, 3),
         locked: i > 0, // first one visible, rest locked
       })),

@@ -104,12 +104,11 @@ export async function GET(req: NextRequest) {
 
     const counts: Record<string, number> = {};
     for (const v of votes) {
-      try {
-        const data = JSON.parse(v.details || '{}');
-        if (data.survey === SURVEY_ID && data.choice) {
-          counts[data.choice] = (counts[data.choice] || 0) + 1;
-        }
-      } catch {}
+      // details is a Prisma Json column — already an object, not a string to parse.
+      const data = (v.details && typeof v.details === 'object' ? v.details : {}) as { survey?: string; choice?: string };
+      if (data.survey === SURVEY_ID && data.choice) {
+        counts[data.choice] = (counts[data.choice] || 0) + 1;
+      }
     }
 
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);

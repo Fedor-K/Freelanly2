@@ -11,7 +11,6 @@ import { prisma } from '@/lib/db';
 // Note: puppeteer is not available on Vercel serverless - this only works locally
 async function getPuppeteer() {
   try {
-    // @ts-expect-error - puppeteer may not be installed
     const puppeteer = await import('puppeteer');
     return puppeteer.default;
   } catch {

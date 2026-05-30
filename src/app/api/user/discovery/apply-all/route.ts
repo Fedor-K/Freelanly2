@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     const opportunities = await prisma.opportunity.findMany({
       where: where as any,
-      select: { id: true, title: true, companyName: true, applyEmail: true, skills: true },
+      select: { id: true, title: true, clientName: true, company: { select: { name: true } }, applyEmail: true, skills: true },
       take: Math.min(limit, 100),
       orderBy: { createdAt: 'desc' },
     });
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
             userId,
             loopId: loop.id,
             opportunityId: opp.id,
-            companyName: opp.companyName,
+            companyName: opp.company?.name || opp.clientName,
             jobTitle: opp.title,
             appliedToEmail: opp.applyEmail!,
             coverLetter: '',

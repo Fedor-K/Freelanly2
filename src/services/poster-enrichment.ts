@@ -100,7 +100,7 @@ export async function enrichPosterProfiles(limit = 10): Promise<number> {
         await prisma.opportunity.update({
           where: { id: opp.id },
           data: {
-            authorName: profile.name || opp.clientName,
+            clientName: profile.name || opp.clientName,
             posterTitle: profile.headline,
             posterCompany: profile.company,
             posterFollowers: profile.followers,

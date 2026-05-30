@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 
 /**
  * Elastic Email webhook endpoint
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
           type: eventType as any,
           to,
           subject,
-          metadata: Object.keys(metadata).length > 0 ? metadata : null,
+          metadata: Object.keys(metadata).length > 0 ? (metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
           timestamp: event.date ? new Date(event.date) : new Date(),
         },
       });

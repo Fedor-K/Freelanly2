@@ -62,7 +62,8 @@ export async function GET(
     const categoryApplies = await prisma.autoApplication.count({
       where: {
         createdAt: { gte: todayStart },
-        opportunity: { categoryId: opportunity.category?.slug ? undefined : undefined },
+        // AutoApplication has no Opportunity relation (only opportunityId); the previous
+        // `opportunity: { categoryId: … }` filter was a no-op (both branches undefined).
       },
     });
 

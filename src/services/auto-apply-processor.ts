@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { generateCoverLetter, generateSubjectLine, generateFollowUp } from '@/services/cover-letter-generator';
 import { fetchResumeAttachment } from '@/lib/resume-attachment';
-import { AutoApplyStatus } from '@prisma/client';
+import { AutoApplyStatus, Prisma } from '@prisma/client';
 import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
 import { isScamRecipient } from '@/lib/scam-filter';
@@ -459,7 +459,7 @@ export async function processAutoApplyQueue(): Promise<{
               coverLetter,
               subject,
               sentAt: now,
-              matchBreakdown: matchBreakdown ?? undefined, // shadow: frozen, joinable to reply outcome
+              matchBreakdown: matchBreakdown == null ? undefined : (matchBreakdown as Prisma.InputJsonValue), // shadow: frozen, joinable to reply outcome
             },
           }),
           prisma.message.create({

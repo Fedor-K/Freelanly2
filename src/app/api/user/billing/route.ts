@@ -63,8 +63,9 @@ export async function GET() {
       plans: Object.entries(PRICE_INFO).map(([key, info]) => ({
         key,
         ...info,
-        limits: PLAN_LIMITS[info.plan] || PLAN_LIMITS.PRO,
-        features: PLAN_FEATURES[info.plan === 'AGENCY' ? 'agency' : 'pro'],
+        // PRICE_INFO holds only the legacy monthly/quarterly/annual plans — all PRO tier.
+        limits: PLAN_LIMITS.PRO,
+        features: PLAN_FEATURES.pro,
       })),
       subscription: {
         endsAt: user.subscriptionEndsAt,

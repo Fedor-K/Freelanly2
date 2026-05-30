@@ -69,6 +69,10 @@ export type AnalyticsEvent =
   | { name: 'company_view'; params: { company_id: string; company_name: string } }
   | { name: 'salary_insights_view'; params: { job_id: string } }
 
+  // Cross-sell events
+  | { name: 'cross_sell_dismissed'; params: { currentType: string; categorySlug: string } }
+  | { name: 'cross_sell_click'; params: { currentType: string; targetType: string; itemId: string; categorySlug: string } }
+
   // Error events
   | { name: 'error'; params: { type: string; message: string; page: string } };
 
@@ -277,7 +281,11 @@ export function trackSignupComplete(data: {
   source: string;
   categories?: string[];
 }): void {
-  vercelTrack('signup_complete', data);
+  // Vercel Analytics props must be primitives — flatten the categories array to a string.
+  vercelTrack('signup_complete', {
+    source: data.source,
+    ...(data.categories?.length ? { categories: data.categories.join(',') } : {}),
+  });
 }
 
 /**

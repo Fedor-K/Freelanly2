@@ -121,7 +121,7 @@ Extract as many skills as you can find (up to 20). Extract ALL experience roles,
     // silently drop the PDF (the user ends up with an "uploaded:" placeholder).
     let blobUrl = `uploaded:${file.name}`;
     try {
-      const blob = await put(`resumes/${session.user.id}/${file.name}`, buffer, {
+      const blob = await put(`resumes/${session.user.id}/${file.name}`, Buffer.from(buffer), {
         access: 'public',
         contentType: 'application/pdf',
         allowOverwrite: true,
