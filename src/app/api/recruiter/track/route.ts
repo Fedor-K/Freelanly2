@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import { verifyRecruiterToken } from '@/lib/recruiter-token';
 
 // Whitelist of recruiter-portal interactions we track. Keeps the data clean / bounded.
-const EVENTS = new Set(['open_chat', 'close_chat', 'view_cv', 'open_profile', 'send_click', 'list_view']);
+const EVENTS = new Set(['open_chat', 'close_chat', 'view_cv', 'open_profile', 'send_click', 'list_view', 'reveal_contact']);
 
 /**
  * POST /api/recruiter/track — log a recruiter-portal interaction (every button/function).
