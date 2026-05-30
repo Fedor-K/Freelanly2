@@ -37,3 +37,9 @@ export function getRecruiterPortalUrl(email: string): string {
   const base = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url;
   return `${base}/r/${signRecruiterToken(email)}`;
 }
+
+/** One-click List-Unsubscribe target (RFC 8058). Same signed token encodes the email. */
+export function getRecruiterUnsubscribeUrl(email: string): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL || siteConfig.url;
+  return `${base}/api/recruiter/unsubscribe?t=${signRecruiterToken(email)}`;
+}

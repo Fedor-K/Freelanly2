@@ -192,6 +192,17 @@ export async function processAutoApplyQueue(): Promise<{
   // Track per-recipient sends within this batch
   const recipientSendsThisBatch = new Map<string, number>();
 
+  // Honor recruiter one-click unsubscribes (List-Unsubscribe). Preload once for the batch's
+  // recipients; fail OPEN if the table isn't migrated yet so a pending migration never blocks sends.
+  const suppressedEmails = new Set<string>();
+  try {
+    const recipientEmails = [...new Set(pendingApps.map((a) => a.appliedToEmail.toLowerCase().trim()))];
+    const sup = await prisma.recruiterSuppression.findMany({ where: { email: { in: recipientEmails } }, select: { email: true } });
+    for (const s of sup) suppressedEmails.add(s.email);
+  } catch (e) {
+    console.warn('[AutoApply] suppression preload skipped (migration pending?):', (e as Error)?.message);
+  }
+
   // Per-batch cache: parse each JD once (LLM), reuse across candidates sharing the opportunity.
   const jdCache = new Map<string, ParsedJD>();
 
@@ -228,6 +239,13 @@ export async function processAutoApplyQueue(): Promise<{
     // already drops these, this covers anything already queued).
     if (isBlockedApplyEmail(app.appliedToEmail)) {
       await markFailed(app.id, 'Blocked apply domain');
+      skipped++;
+      continue;
+    }
+
+    // Recruiter opted out via one-click List-Unsubscribe — stop all outreach to them.
+    if (suppressedEmails.has(app.appliedToEmail.toLowerCase().trim())) {
+      await markFailed(app.id, 'Recruiter unsubscribed');
       skipped++;
       continue;
     }
@@ -1256,10 +1274,22 @@ export async function processFollowUps(): Promise<{ sent: number; failed: number
 
   console.log(`[AutoApply] Processing ${candidates.length} follow-ups`);
 
+  // Honor recruiter unsubscribes for follow-ups too (fail open if the table isn't migrated).
+  const fuSuppressed = new Set<string>();
+  try {
+    const emails = [...new Set(candidates.map((a) => a.appliedToEmail.toLowerCase().trim()))];
+    const sup = await prisma.recruiterSuppression.findMany({ where: { email: { in: emails } }, select: { email: true } });
+    for (const s of sup) fuSuppressed.add(s.email);
+  } catch { /* fail open */ }
+
   for (const app of candidates) {
     // Follow-ups stay PRO-only, but no longer require a personal SMTP — they now
     // go through Postal like the initial send (brokered, replies → portal).
     if (app.user.plan !== 'PRO' || !app.loop.isActive) {
+      continue;
+    }
+    // Recruiter opted out via List-Unsubscribe — no follow-ups either.
+    if (fuSuppressed.has(app.appliedToEmail.toLowerCase().trim())) {
       continue;
     }
 
