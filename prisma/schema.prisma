@@ -2193,3 +2193,15 @@ model RecruiterSuppression {
   reason    String   @default("optout") // "optout" | "bounce" | "complaint"
   createdAt DateTime @default(now())
 }
+
+// Short-lived OTP for recruiter passwordless login (email + 6-digit code → session cookie).
+// Lets recruiters re-enter their portal without hunting for the email link. Code is stored
+// hashed; one active row per email (upsert). Standalone, additive migration.
+model RecruiterOtp {
+  email     String   @id // lowercased recruiter email
+  codeHash  String   // sha256 of the 6-digit code (never store the code itself)
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
