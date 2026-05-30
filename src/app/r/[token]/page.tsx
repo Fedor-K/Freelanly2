@@ -184,7 +184,7 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
         <h1 style={{ fontSize: '22px', margin: '0 0 4px' }}>
           {candidates.length} candidate{candidates.length === 1 ? '' : 's'} applied to your roles
         </h1>
-        <p className="meta" style={{ margin: '0 0 24px' }}>Sorted by match. Click a candidate to see their profile, CV, and reply.</p>
+        <p className="meta" style={{ margin: '0 0 24px' }}>Sorted by match. Open a candidate to view their profile and CV, reply, or reveal their email to reach them directly.</p>
 
         {candidates.length > 0 && <RecruiterFeedback token={token} />}
 
