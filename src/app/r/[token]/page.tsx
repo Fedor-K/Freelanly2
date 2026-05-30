@@ -4,7 +4,6 @@ import { prisma } from '@/lib/db';
 import { verifyRecruiterToken } from '@/lib/recruiter-token';
 import { RecruiterInboxClient, type RecruiterCandidate } from '@/components/recruiter/RecruiterInboxClient';
 import { RecruiterFeedback } from '@/components/recruiter/RecruiterFeedback';
-import { RecruiterRegisterForm } from '@/components/recruiter/RecruiterRegisterForm';
 import { hasRenderableCv, type CvProfile } from '@/lib/recruiter-cv';
 import '../../design-app.css';
 
@@ -95,21 +94,16 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
 
   await logVisit(email, apps.length);
 
-  // First touch → registration. The token already proves control of the inbox, so this is a
-  // 3-field, no-OTP form. Once a Recruiter row exists we skip straight to the list and just
-  // bump lastSeenAt (engagement signal). The list itself is unchanged below.
+  // Value-first funnel: show the candidate list immediately (the token already proves inbox
+  // control). Registration is deferred to the first ACTION (reply) via an inline form in the
+  // client — this fixes the old drop-off where a form gated the list on the very first visit.
+  // We only bump lastSeenAt for an already-registered recruiter and never create a row on a
+  // mere visit, so "registered" stays a genuine engagement signal captured at reply time.
   const recruiter = await prisma.recruiter.findUnique({ where: { email }, select: { id: true } });
-  if (!recruiter) {
-    return (
-      <RecruiterRegisterForm
-        token={token}
-        email={email}
-        candidateCount={apps.length}
-        prefill={{ company: guessCompany(email), hiringFor: topJobTitle(apps) }}
-      />
-    );
+  const needsRegistration = !recruiter;
+  if (recruiter) {
+    await prisma.recruiter.update({ where: { email }, data: { lastSeenAt: new Date() } }).catch(() => {});
   }
-  await prisma.recruiter.update({ where: { email }, data: { lastSeenAt: new Date() } }).catch(() => {});
 
   const candidates: RecruiterCandidate[] = apps.map((a) => {
     const p = (a.user.parsedProfile ?? {}) as Record<string, unknown>;
@@ -169,7 +163,13 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
             <p className="meta">No applications yet. They’ll appear here as candidates apply to your posts.</p>
           </div>
         ) : (
-          <RecruiterInboxClient token={token} candidates={candidates} />
+          <RecruiterInboxClient
+            token={token}
+            candidates={candidates}
+            needsRegistration={needsRegistration}
+            email={email}
+            prefill={{ company: guessCompany(email), hiringFor: topJobTitle(apps) }}
+          />
         )}
       </div>
     </div>
