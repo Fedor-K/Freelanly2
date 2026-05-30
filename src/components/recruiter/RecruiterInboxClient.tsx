@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 
 export type RecruiterCandidate = {
   appId: string;
@@ -29,6 +29,11 @@ type Msg = { from: string; text: string; at: string };
 
 const AV_COLORS = ['#FF6B6B', '#A8E024', '#6EE7FF', '#FFB951', '#A78BFA', '#34D399', '#F87171', '#818CF8'];
 
+// Inline registration (shown at first reply, value-first funnel).
+const REG_VOLUMES = ['1', '2-5', '6-20', '20+'] as const;
+const REG_LABEL: CSSProperties = { display: 'block', fontSize: '13px', fontWeight: 600, margin: '0 0 5px', color: '#0B0C0F' };
+const REG_INPUT: CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1px solid #E8E5DC', borderRadius: '9px', fontSize: '14px' };
+
 function timeAgo(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
   if (days <= 0) return 'today';
@@ -56,13 +61,38 @@ function freshness(iso: string | null): { label: string; color: string } | null 
   return { label: `Active ${ago}`, color: '#6b7280' }; // 3-7d: neutral liveness, no "actively" claim
 }
 
-export function RecruiterInboxClient({ token, candidates }: { token: string; candidates: RecruiterCandidate[] }) {
+export function RecruiterInboxClient({
+  token,
+  candidates,
+  needsRegistration = false,
+  email = '',
+  prefill = { company: '', hiringFor: '' },
+}: {
+  token: string;
+  candidates: RecruiterCandidate[];
+  needsRegistration?: boolean;
+  email?: string;
+  prefill?: { company: string; hiringFor: string };
+}) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [sending, setSending] = useState<string | null>(null);
   const [err, setErr] = useState<Record<string, string>>({});
   const [threads, setThreads] = useState<Record<string, Msg[]>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
+
+  // Value-first funnel: an unregistered recruiter sees the candidate list immediately and is
+  // asked to register only when they take an action (reply). `registered` flips after the inline
+  // form succeeds, after which the pending reply is sent automatically.
+  const [registered, setRegistered] = useState(false);
+  const [regOpen, setRegOpen] = useState(false);
+  const [pendingReplyAppId, setPendingReplyAppId] = useState<string | null>(null);
+  const [regName, setRegName] = useState('');
+  const [regCompany, setRegCompany] = useState(prefill.company);
+  const [regHiringFor, setRegHiringFor] = useState(prefill.hiringFor);
+  const [regVol, setRegVol] = useState('');
+  const [regSaving, setRegSaving] = useState(false);
+  const [regErr, setRegErr] = useState('');
 
   async function loadThread(appId: string) {
     if (threads[appId] || loading[appId]) return;
@@ -92,7 +122,21 @@ export function RecruiterInboxClient({ token, candidates }: { token: string; can
     if (next) loadThread(appId);
   }
 
-  async function send(appId: string) {
+  // Gate the reply on registration only at action time (value-first). Viewing the profile/CV
+  // stays free — the recruiter has already seen the value before being asked to register.
+  function send(appId: string) {
+    const message = (draft[appId] || '').trim();
+    if (!message) return;
+    if (needsRegistration && !registered) {
+      setPendingReplyAppId(appId);
+      setRegErr('');
+      setRegOpen(true);
+      return;
+    }
+    void doSend(appId);
+  }
+
+  async function doSend(appId: string) {
     const message = (draft[appId] || '').trim();
     if (!message) return;
     track('send_click', appId);
@@ -118,7 +162,33 @@ export function RecruiterInboxClient({ token, candidates }: { token: string; can
     }
   }
 
+  // First-touch registration, asked at reply time. Token already proves inbox control → no OTP.
+  // On success, immediately send the reply the recruiter was trying to send.
+  async function completeRegistration() {
+    if (regSaving) return;
+    setRegSaving(true);
+    setRegErr('');
+    try {
+      const r = await fetch('/api/recruiter/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, name: regName, company: regCompany, hiringFor: regHiringFor, hiringVolume: regVol }),
+      });
+      if (!r.ok) throw new Error();
+      setRegistered(true);
+      setRegOpen(false);
+      const pid = pendingReplyAppId;
+      setPendingReplyAppId(null);
+      if (pid) void doSend(pid);
+    } catch {
+      setRegErr('Something went wrong — try again.');
+    } finally {
+      setRegSaving(false);
+    }
+  }
+
   return (
+    <>
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {candidates.map((c, i) => {
         const open = openId === c.appId;
@@ -244,5 +314,36 @@ export function RecruiterInboxClient({ token, candidates }: { token: string; can
         );
       })}
     </div>
+
+    {regOpen && (
+      <div onClick={() => { if (!regSaving) setRegOpen(false); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 50 }}>
+        <div className="card" onClick={(e) => e.stopPropagation()} style={{ padding: '22px', maxWidth: '420px', width: '100%' }}>
+          <h3 style={{ margin: '0 0 4px', fontSize: '18px' }}>One quick step to reply</h3>
+          <p className="meta" style={{ margin: '0 0 16px', fontSize: '13px' }}>A few details and your message goes straight to the candidate. No password needed.</p>
+          <div style={{ marginBottom: '12px' }}>
+            <span style={REG_LABEL}>Your email</span>
+            <input value={email} readOnly disabled style={{ ...REG_INPUT, background: '#F6F5F1', color: '#8A8780' }} />
+          </div>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+            <div style={{ flex: 1 }}><label style={REG_LABEL}>Your name</label><input value={regName} onChange={(e) => setRegName(e.target.value)} placeholder="Jane" style={REG_INPUT} /></div>
+            <div style={{ flex: 1 }}><label style={REG_LABEL}>Company</label><input value={regCompany} onChange={(e) => setRegCompany(e.target.value)} placeholder="Acme" style={REG_INPUT} /></div>
+          </div>
+          <div style={{ marginBottom: '12px' }}><label style={REG_LABEL}>What are you hiring for?</label><input value={regHiringFor} onChange={(e) => setRegHiringFor(e.target.value)} placeholder="e.g. React developer, Interpreter" style={REG_INPUT} /></div>
+          <div style={{ marginBottom: '18px' }}>
+            <label style={REG_LABEL}>How many people are you looking to hire?</label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {REG_VOLUMES.map((v) => (
+                <button key={v} onClick={() => setRegVol(v)} style={{ flex: 1, padding: '8px 0', borderRadius: '9px', fontSize: '14px', cursor: 'pointer', border: regVol === v ? '1.5px solid #0B0C0F' : '1px solid #E8E5DC', background: regVol === v ? '#0B0C0F' : '#fff', color: regVol === v ? '#fff' : '#0B0C0F', fontWeight: regVol === v ? 600 : 400 }}>{v}</button>
+              ))}
+            </div>
+          </div>
+          <button onClick={completeRegistration} disabled={regSaving} className="btn" style={{ width: '100%', padding: '12px', fontSize: '15px', fontWeight: 600, background: '#0B0C0F', color: '#fff', border: 0, borderRadius: '10px', cursor: regSaving ? 'default' : 'pointer', opacity: regSaving ? 0.6 : 1 }}>
+            {regSaving ? 'Sending…' : 'Save & send message →'}
+          </button>
+          {regErr && <p style={{ color: '#c0392b', fontSize: '13px', margin: '10px 0 0', textAlign: 'center' }}>{regErr}</p>}
+        </div>
+      </div>
+    )}
+    </>
   );
 }
