@@ -613,6 +613,13 @@ model Opportunity {
   applyEmail      String?
   applyUrl        String?
 
+  // NOTE: column "matchedAt" (TIMESTAMP, nullable) also exists on this table in the DB.
+  // It is intentionally NOT declared here and is managed via idempotent raw SQL in
+  // src/services/auto-apply-processor.ts (ensureMatcherSchema). Declaring it would make
+  // the generated Prisma client SELECT it in every Opportunity read, 500-ing the app on
+  // any deploy that lands before the column exists. Do NOT add it here; if you run
+  // `prisma db push` it may try to drop it — the matcher re-creates it (one-time re-scan).
+
   // === SOURCE ===
   sourceUrl       String              // LinkedIn post URL
   sourceId        String?             // LinkedIn post ID

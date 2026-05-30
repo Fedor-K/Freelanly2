@@ -1115,6 +1115,37 @@ export function buildApplicationEmailHtml(params: {
   `.trim();
 }
 
+// Bootstrap the matcher's processed-marker column once per process. It is kept OUT of the
+// Prisma schema on purpose: declaring it would make the generated client SELECT "matchedAt"
+// in every Opportunity read across the app (public pages, sitemap, other crons), which would
+// 500 on any deploy that lands before the column exists in the DB. Managing it via idempotent
+// raw DDL here means this change needs no migration and breaks no other code path; the cron
+// (which runs on prod, where DB access exists) applies it on its first run and self-heals.
+let matcherSchemaReady = false;
+async function ensureMatcherSchema(): Promise<void> {
+  if (matcherSchemaReady) return;
+  // Additive + nullable => instant, no table rewrite. IF NOT EXISTS => idempotent and safe
+  // under concurrent cold-start instances.
+  await prisma.$executeRawUnsafe(
+    `ALTER TABLE "Opportunity" ADD COLUMN IF NOT EXISTS "matchedAt" TIMESTAMP(3)`
+  );
+  await prisma.$executeRawUnsafe(
+    `CREATE INDEX IF NOT EXISTS "Opportunity_matchedAt_createdAt_idx" ON "Opportunity" ("matchedAt", "createdAt" DESC)`
+  );
+  // One-time backfill so the first runs don't re-evaluate the entire history: mark rows that
+  // already produced applications, or that are older than the matching window. Rows within
+  // 3 days with no applications stay NULL — that's the genuine backlog, which then drains.
+  await prisma.$executeRawUnsafe(
+    `UPDATE "Opportunity" SET "matchedAt" = "createdAt"
+     WHERE "matchedAt" IS NULL
+       AND (
+         id IN (SELECT DISTINCT "opportunityId" FROM "AutoApplication" WHERE "opportunityId" IS NOT NULL)
+         OR "createdAt" < NOW() - INTERVAL '3 days'
+       )`
+  );
+  matcherSchemaReady = true;
+}
+
 /**
  * Pull-model: find recent opportunities/jobs with applyEmail
  * and match them against active auto-apply loops.
@@ -1124,28 +1155,46 @@ export function buildApplicationEmailHtml(params: {
 export async function matchAndQueueAutoApplies(): Promise<number> {
   let totalQueued = 0;
 
-  // Find recent opportunities with applyEmail (last 3 days, not already processed)
-  const recentOpportunities = await prisma.opportunity.findMany({
-    where: {
-      isActive: true,
-      applyEmail: { not: null },
-      createdAt: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
-    },
-    select: { id: true },
-    take: 100,
-    orderBy: { createdAt: 'desc' },
-  });
+  // Self-bootstrap the matchedAt marker. If it fails (transient DB error), bail and retry
+  // next run rather than query a column that may not exist yet.
+  try {
+    await ensureMatcherSchema();
+  } catch (e) {
+    console.error('[AutoApply] matcher schema bootstrap failed, retrying next run:', e);
+    return 0;
+  }
 
-  for (const opp of recentOpportunities) {
+  // Recent UNPROCESSED opportunities (matchedAt IS NULL), freshest first. matchedAt is what
+  // turns this into a draining queue instead of a sliding window: previously this took the
+  // newest 100 by createdAt every run with no processed-marker, so it re-scanned the same
+  // top rows (~245 dedup queries per opportunity wasted re-confirming "already done") and
+  // never reached opportunities that scrolled past the limit — at higher inflow those older
+  // ones were abandoned unprocessed (the growing backlog). Raw query because matchedAt is
+  // intentionally not in the Prisma model (see ensureMatcherSchema).
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT id FROM "Opportunity"
+    WHERE "isActive" = true
+      AND "applyEmail" IS NOT NULL
+      AND "matchedAt" IS NULL
+      AND "createdAt" >= NOW() - INTERVAL '3 days'
+    ORDER BY "createdAt" DESC
+    LIMIT 150
+  `;
+
+  for (const opp of rows) {
     try {
       const queued = await queueAutoApplyForOpportunity(opp.id);
       totalQueued += queued;
+      // Mark processed only on a clean return (including 0 matches — a niche gig nobody
+      // matches is still "done"). On a thrown error leave matchedAt NULL so transient
+      // failures retry next run instead of being silently abandoned.
+      await prisma.$executeRaw`UPDATE "Opportunity" SET "matchedAt" = NOW() WHERE id = ${opp.id}`;
     } catch (e) {
       console.error(`[AutoApply] Error queuing opportunity ${opp.id}:`, e);
     }
   }
 
-  console.log(`[AutoApply] Matched ${recentOpportunities.length} opportunities, queued ${totalQueued} applications`);
+  console.log(`[AutoApply] Matched ${rows.length} opportunities, queued ${totalQueued} applications`);
   return totalQueued;
 }
 
