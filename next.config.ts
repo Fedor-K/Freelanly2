@@ -25,9 +25,10 @@ const nextConfig: NextConfig = {
   // /company/x/jobs/y/ → 301 → /company/x/jobs/y
   trailingSlash: false,
 
-  // Skip type checking during build (faster, less memory)
+  // Type errors fail the build (tsc is clean as of the 58-error cleanup). This is the
+  // guardrail that catches regressions; flip back to true only as a temporary unblock.
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 
   // Allowed dev origins (Vercel handles this automatically in production)
