@@ -956,7 +956,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
   // loop — the dominant cost: ~18 min/opportunity at thousands of loops). Stop launching
   // chunks once we have enough matches to fill the listing's budget. Decisions are identical
   // to the sequential version (same cache, same shouldApply gate), just concurrent.
-  const AI_CONCURRENCY = 8;
+  const AI_CONCURRENCY = 20;
   const matched: { cand: Cand; matchScore: number; matchLabel: string }[] = [];
   for (let i = 0; i < candidates.length && matched.length < budget; i += AI_CONCURRENCY) {
     const chunk = candidates.slice(i, i + AI_CONCURRENCY);
