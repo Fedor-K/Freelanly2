@@ -162,6 +162,11 @@ const BLACKLIST_PHYSICAL_ENGINEERING = [
   'solidworks engineer', 'autocad',
   // Physical process engineering
   'energetics', 'energetic', 'propulsion', 'combustion',
+  // Avionics/Hardware tech (v2.2 addition)
+  'avionics technician', 'avionics engineer', 'avionics',
+  'asic', 'dft engineer', 'cdc constraints',
+  'pcb design engineer', 'pcb engineer',
+  'building automation systems',
 ];
 
 const BLACKLIST_ACCOUNTING = [
@@ -561,6 +566,76 @@ const WHITELIST_CONSULTING = [
   // Removed: 'business consultant' - too generic, catches pharma/life sciences
 ];
 
+// v2.2 — Enterprise tech platforms: if mentioned in title, it's IT.
+// Captures broad set of titles like "ServiceNow Architect", "SAP APO Consultant",
+// "Salesforce Integration Lead", "MuleSoft Architect", "Oracle Field Service Consultant"
+// that previous narrow patterns missed due to word-boundary regex (multi-word gaps).
+const WHITELIST_ENTERPRISE_TECH = [
+  // Enterprise platforms (standalone = IT in 99% of cases)
+  'salesforce', 'servicenow', 'workday', 'mulesoft', 'peoplesoft',
+  'sharepoint', 'dynamics 365', 'd365 ',
+  // SAP variants
+  'sap ', 'sap fico', 'sap mm', 'sap sd', 'sap hcm', 'sap apo', 'sap ibp',
+  'sap basis', 'sap hana', 'sap successfactors', 'sap ariba',
+  // Oracle variants (in addition to existing "oracle consultant")
+  'oracle cloud', 'oracle fusion', 'oracle epm', 'oracle hcm', 'oracle ebs',
+  'oracle apex', 'oracle integration', 'oracle vbcs', 'oracle field service',
+  // Adobe / CMS / DAM
+  'aem', 'adobe experience manager', 'sitecore', 'optimizely',
+  // Data platforms
+  'snowflake', 'databricks', 'tableau', 'power bi', 'matillion',
+  // Niche IT / Legacy
+  'hp-ux', 'hpux', 'cobol developer', 'mainframe developer', 'siebel',
+  // Architect patterns (gap in v2.1 — only had cloud/solutions/data)
+  'platform architect', 'integration architect', 'enterprise architect',
+  'applications architect', 'technology architect', 'technical architect',
+  'security architect', // also in SECURITY but here for completeness
+  // Lead/Specialist patterns for tech
+  'integration lead', 'platform lead', 'devops lead', 'data lead',
+  'integration specialist', 'platform specialist',
+  // DevSecOps + Cybersec specialist variants (gap)
+  'devsecops', 'devsecops engineer', 'devsecops specialist',
+  'cybersecurity specialist', 'cybersecurity analyst', 'cybersecurity engineer',
+  'identity management', 'iam engineer', 'iam architect', 'sso',
+  // Generic admin (broaden — currently only "systems/system/sysadmin/dba/linux")
+  'cloud administrator', 'aws administrator', 'azure administrator',
+  'oracle administrator', 'sap administrator', 'workday administrator',
+  'servicenow administrator', 'salesforce administrator', 'salesforce admin',
+  'sharepoint administrator', 'unix administrator',
+  // Transformation roles (often IT)
+  'digital transformation', 'cloud transformation',
+  'technology transformation', 'finance transformation', 'hr transformation',
+  // Misc Java/data niche titles seen in real LinkedIn posts
+  'bi consultant', 'analytics consultant', 'reporting consultant',
+  // More platforms missed in first pass
+  'netsuite', 'epic ', 'epicor', 'fircosoft', 'workato',
+  'otm consultant', 'otm lead', 'oracle transportation',
+  'sharepoint architect', 'sharepoint developer', 'sharepoint lead',
+  // Generic IT role variants (with word-boundary-safe forms)
+  'systems engineer', 'systems analyst', 'systems architect',
+  'network analyst', 'network architect', 'network systems',
+  'technical manager', 'technology lead', 'cloud technology',
+  'forward deployment', 'deployment engineer', 'forward-deployed',
+  'testing engineer', 'test analyst', 'qa lead engineer',
+  'red teamer', 'blue teamer', 'purple team',
+  'reporting analyst', 'regulatory reporting', 'compliance reporting',
+  'service cloud', 'sales cloud', 'commerce cloud',
+  // Business development (gap — had BDR/BDM but not executive variants)
+  'business development executive', 'bd executive',
+  // IAM / Identity Governance tools (IT)
+  'sailpoint', 'identitynow', 'iga architect', 'iga engineer',
+  'identity governance', 'okta engineer', 'okta administrator',
+  'one identity', 'cyberark', 'beyondtrust',
+  // APM / Observability (IT)
+  'appdynamics', 'dynatrace', 'datadog engineer', 'splunk engineer',
+  'new relic', 'observability engineer',
+  // Niche IT consultancy
+  'consulting manager', 'analytics consulting', 'ai consulting',
+  'paas consultant', 'saas consultant', 'erp consultant',
+  // Data modeling (gap)
+  'data modeler', 'data modeling',
+];
+
 // Combine all whitelist patterns
 const WHITELIST_PATTERNS = [
   ...WHITELIST_ENGINEERING,
@@ -584,6 +659,7 @@ const WHITELIST_PATTERNS = [
   ...WHITELIST_RESEARCH,
   ...WHITELIST_OPERATIONS,
   ...WHITELIST_CONSULTING,
+  ...WHITELIST_ENTERPRISE_TECH,
 ];
 
 // ============================================================================
