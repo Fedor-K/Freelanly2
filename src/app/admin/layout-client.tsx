@@ -54,6 +54,7 @@ const moreNavigation = [
   { name: 'Parsing', href: '/admin/parsing', icon: RefreshCw },
   { name: 'Keywords', href: '/admin/keywords', icon: Hash },
   { name: 'Import Logs', href: '/admin/logs', icon: FileText },
+  { name: 'Import Feed', href: '/admin/imports', icon: FileText },
   {
     name: 'Sources',
     icon: Database,
