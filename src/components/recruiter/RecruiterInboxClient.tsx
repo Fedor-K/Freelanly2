@@ -14,6 +14,9 @@ export type RecruiterCandidate = {
   profile: {
     current_title?: string;
     experience_years?: number;
+    timezone?: string;
+    availabilityHours?: string;     // "~30 hrs/week"
+    rateFloorHourly?: number;       // candidate's stated minimum $/hr
     summary?: string;
     location?: string;
     languages?: string[];
@@ -240,6 +243,9 @@ export function RecruiterInboxClient({
                 {/* Profile facts */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '12.5px', marginBottom: '10px' }}>
                   {c.profile.current_title && <div><div className="meta" style={{ fontSize: '10px' }}>Title</div>{c.profile.current_title}</div>}
+                  {c.profile.timezone && <div><div className="meta" style={{ fontSize: '10px' }}>Timezone</div>{c.profile.timezone}</div>}
+                  {c.profile.availabilityHours && <div><div className="meta" style={{ fontSize: '10px' }}>Availability</div>{c.profile.availabilityHours}</div>}
+                  {typeof c.profile.rateFloorHourly === 'number' && c.profile.rateFloorHourly > 0 && <div title="Candidate's stated minimum hourly rate"><div className="meta" style={{ fontSize: '10px' }}>Rate (from)</div>${c.profile.rateFloorHourly}/hr</div>}
                   {typeof c.profile.experience_years === 'number' && c.profile.experience_years > 0 && <div><div className="meta" style={{ fontSize: '10px' }}>Experience</div>{c.profile.experience_years} yrs</div>}
                   {c.profile.location && <div><div className="meta" style={{ fontSize: '10px' }}>Location</div>{c.profile.location}</div>}
                   {c.profile.languages && c.profile.languages.length > 0 && <div><div className="meta" style={{ fontSize: '10px' }}>Languages</div>{c.profile.languages.join(', ')}</div>}

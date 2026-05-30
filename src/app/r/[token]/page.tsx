@@ -88,7 +88,7 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
     take: 200,
     select: {
       id: true, jobTitle: true, coverLetter: true, matchScore: true, matchLabel: true, createdAt: true,
-      user: { select: { name: true, parsedProfile: true, resumeUrl: true, lastActiveAt: true, availableFrom: true, portfolioUrl: true, salaryExpectation: true, salaryExpectationAt: true } },
+      user: { select: { name: true, parsedProfile: true, resumeUrl: true, lastActiveAt: true, availableFrom: true, portfolioUrl: true, salaryExpectation: true, salaryExpectationAt: true, timezone: true, availability: true, rateFloorHourly: true } },
     },
   });
 
@@ -127,6 +127,10 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
       profile: {
         current_title: typeof p.current_title === 'string' ? p.current_title : undefined,
         experience_years: typeof p.experience_years === 'number' ? p.experience_years : undefined,
+        // Contract/remote recruiters rank timezone + rate above experience (TZ §2.2).
+        timezone: a.user.timezone || undefined,
+        availabilityHours: a.user.availability || undefined,   // "~30 hrs/week"
+        rateFloorHourly: typeof a.user.rateFloorHourly === 'number' ? a.user.rateFloorHourly : undefined,
         summary: typeof p.summary === 'string' ? p.summary : undefined,
         location: typeof p.location === 'string' ? p.location : undefined,
         languages: arr(p.languages),
