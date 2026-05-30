@@ -285,7 +285,12 @@ export async function POST(request: NextRequest) {
 
     if (!validationResult.isJob) {
       console.log(`[LinkedInPosts] Not a job posting: ${validationResult.reason}`);
-      logSkip('not_job_posting');
+      // Capture the AI's SPECIFIC reason (e.g. "looks like a webinar invite", "candidate seeking work",
+      // "vague — no specific role") so a histogram on details->>'aiReason' tells us whether the filter
+      // is rejecting real noise or grey-zone jobs. Without this we only know the bucket, not the why.
+      prisma.activityLog.create({
+        data: { action: 'IMPORT_SKIP', details: { source: 'linkedin', reason: 'not_job_posting', aiReason: validationResult.reason } },
+      }).catch(() => {});
       return NextResponse.json({
         success: true,
         status: 'skipped',
