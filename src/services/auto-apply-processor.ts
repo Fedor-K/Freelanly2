@@ -203,6 +203,23 @@ export async function processAutoApplyQueue(): Promise<{
     console.warn('[AutoApply] suppression preload skipped (migration pending?):', (e as Error)?.message);
   }
 
+  // Per-recruiter candidate totals — powers a concrete "N candidates for your roles" CTA in the
+  // email (a real reason to open the portal; only ~4% do today). Best-effort; keyed on the exact
+  // stored appliedToEmail. Counts all sent applications, so it's stable across this batch.
+  const candidateCountByEmail = new Map<string, number>();
+  try {
+    const recipientEmailsExact = [...new Set(pendingApps.map((a) => a.appliedToEmail))];
+    const grouped = await prisma.autoApplication.groupBy({
+      by: ['appliedToEmail'],
+      where: { appliedToEmail: { in: recipientEmailsExact }, sentAt: { not: null } },
+      _count: { _all: true },
+    });
+    // +1 so the freshly-sent application in this batch is included in the recruiter's total.
+    for (const g of grouped) candidateCountByEmail.set(g.appliedToEmail, g._count._all + 1);
+  } catch (e) {
+    console.warn('[AutoApply] candidate-count preload skipped:', (e as Error)?.message);
+  }
+
   // Per-batch cache: parse each JD once (LLM), reuse across candidates sharing the opportunity.
   const jdCache = new Map<string, ParsedJD>();
 
@@ -423,6 +440,7 @@ export async function processAutoApplyQueue(): Promise<{
         applicationId: app.id,
         // All sends are brokered via apply@ (Postal), so the recruiter-portal footer always applies.
         recruiterEmail: app.appliedToEmail,
+        candidateCount: candidateCountByEmail.get(app.appliedToEmail) || 1,
       });
 
       // AI now generates complete email with greeting + signature
@@ -1097,8 +1115,10 @@ export function buildApplicationEmailHtml(params: {
    *  portal (/r/[token]). Pass ONLY for Postal (apply@) sends — not for a candidate's own
    *  SMTP, where a Freelanly footer would be out of place. */
   recruiterEmail?: string;
+  /** Total candidates this recruiter has (incl. this one) — drives a concrete portal CTA. */
+  candidateCount?: number;
 }): string {
-  const { coverLetter, userName, jobTitle, applicationId, recruiterEmail } = params;
+  const { coverLetter, userName, jobTitle, applicationId, recruiterEmail, candidateCount } = params;
   const portalUrl = recruiterEmail ? getRecruiterPortalUrl(recruiterEmail) : '';
 
   // Convert newlines to paragraphs (escape content — AI/scraped text must not inject HTML)
@@ -1111,12 +1131,18 @@ export function buildApplicationEmailHtml(params: {
   // Prominent top banner — frames the portal as the recruiter's candidate inbox so they
   // reply/review there (where we can build paywall + tracking) instead of plain email reply.
   // Email reply still works (Reply-To unchanged) — this is a soft nudge, no forced redirect.
+  // Concrete CTA when the recruiter has more than one candidate — a real reason to open the portal.
+  const hasMany = typeof candidateCount === 'number' && candidateCount > 1;
+  const bannerSub = hasMany
+    ? `You now have ${candidateCount} candidates for your roles. Reply, view CVs, and manage them all in one place.`
+    : `Reply, view their CV, and manage everyone who applied to your roles — all in one place.`;
+  const bannerCta = hasMany ? `View all ${candidateCount} candidates &rarr;` : `Open your candidates &amp; reply &rarr;`;
   const portalBanner = recruiterEmail
     ? `<table role="presentation" width="100%" style="margin: 0 0 22px; border-collapse: collapse;">
     <tr><td style="background: #F4F8E8; border: 1px solid #C7F94A; border-radius: 12px; padding: 16px 20px;">
       <div style="font-size: 14px; font-weight: 700; color: #0B0C0F; margin-bottom: 3px;">New applicant for ${escapeHtml(jobTitle)}</div>
-      <div style="font-size: 13px; color: #555; line-height: 1.5; margin-bottom: 13px;">Reply, view their CV, and manage everyone who applied to your roles — all in one place.</div>
-      <a href="${portalUrl}" style="display: inline-block; padding: 10px 24px; background: #0B0C0F; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px;">Open your candidates &amp; reply &rarr;</a>
+      <div style="font-size: 13px; color: #555; line-height: 1.5; margin-bottom: 13px;">${bannerSub}</div>
+      <a href="${portalUrl}" style="display: inline-block; padding: 10px 24px; background: #0B0C0F; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px;">${bannerCta}</a>
     </td></tr>
   </table>`
     : '';
