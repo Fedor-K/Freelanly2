@@ -88,7 +88,8 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
     take: 200,
     select: {
       id: true, jobTitle: true, coverLetter: true, matchScore: true, matchLabel: true, createdAt: true,
-      user: { select: { name: true, parsedProfile: true, resumeUrl: true, lastActiveAt: true, availableFrom: true, portfolioUrl: true, salaryExpectation: true, salaryExpectationAt: true } },
+      jobId: true, opportunityId: true, matchBreakdown: true,
+      user: { select: { name: true, parsedProfile: true, resumeUrl: true, lastActiveAt: true, availableFrom: true, portfolioUrl: true, salaryExpectation: true, salaryExpectationAt: true, timezone: true, availability: true, rateFloorHourly: true } },
     },
   });
 
@@ -117,6 +118,31 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
       appId: a.id,
       name: a.user.name || 'Candidate',
       jobTitle: a.jobTitle,
+      // §2.1 — same vacancy groups together. Prefer the stable listing id; fall back to title.
+      listingKey: a.jobId || a.opportunityId || a.jobTitle,
+      // §3 — surface the frozen structural breakdown only when it has real lines
+      // (skip null / error / empty / fallback). Shape mirrors buildBreakdown's Line.
+      matchBreakdown: (() => {
+        const b = a.matchBreakdown as Record<string, unknown> | null;
+        if (!b || typeof b !== 'object' || b.error) return undefined;
+        const rawLines = Array.isArray(b.lines) ? b.lines : [];
+        if (rawLines.length === 0) return undefined;
+        const lines = rawLines.map((l) => {
+          const ln = (l ?? {}) as Record<string, unknown>;
+          return {
+            label: String(ln.label ?? ''),
+            type: ln.type === 'language' ? ('language' as const) : ('skill' as const),
+            status: ln.status === 'full' ? ('full' as const) : ('missing' as const),
+            evidence: typeof ln.evidence === 'string' ? ln.evidence : null,
+          };
+        }).filter((l) => l.label);
+        if (lines.length === 0) return undefined;
+        return {
+          matched: typeof b.matched === 'number' ? b.matched : lines.filter((l) => l.status === 'full').length,
+          total: typeof b.total === 'number' ? b.total : lines.length,
+          lines,
+        };
+      })(),
       createdAt: a.createdAt.toISOString(),
       fit: a.matchLabel || (a.matchScore != null ? `${a.matchScore}% match` : null),
       coverLetter: a.coverLetter || '',
@@ -127,6 +153,10 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
       profile: {
         current_title: typeof p.current_title === 'string' ? p.current_title : undefined,
         experience_years: typeof p.experience_years === 'number' ? p.experience_years : undefined,
+        // Contract/remote recruiters rank timezone + rate above experience (TZ §2.2).
+        timezone: a.user.timezone || undefined,
+        availabilityHours: a.user.availability || undefined,   // "~30 hrs/week"
+        rateFloorHourly: typeof a.user.rateFloorHourly === 'number' ? a.user.rateFloorHourly : undefined,
         summary: typeof p.summary === 'string' ? p.summary : undefined,
         location: typeof p.location === 'string' ? p.location : undefined,
         languages: arr(p.languages),
