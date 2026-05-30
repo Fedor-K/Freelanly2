@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/db';
-import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { generateCoverLetter, generateSubjectLine, generateFollowUp } from '@/services/cover-letter-generator';
 import { fetchResumeAttachment } from '@/lib/resume-attachment';
@@ -134,7 +133,6 @@ export async function processAutoApplyQueue(): Promise<{
           name: true,
           email: true,
           plan: true,
-          userSmtp: true,
           resumeText: true,
           parsedProfile: true,
           resumeUrl: true,
@@ -199,8 +197,6 @@ export async function processAutoApplyQueue(): Promise<{
 
   for (const app of pendingApps) {
     processed++;
-
-    const hasSmtp = !!app.user.userSmtp?.verified;
 
     if (!app.loop.isActive) {
       await markFailed(app.id, 'Auto-apply loop is paused');
@@ -407,8 +403,8 @@ export async function processAutoApplyQueue(): Promise<{
         companyName: app.companyName,
         recruiterName,
         applicationId: app.id,
-        // Recruiter-portal footer only on apply@ (Postal) sends, not the user's own SMTP.
-        recruiterEmail: hasSmtp ? undefined : app.appliedToEmail,
+        // All sends are brokered via apply@ (Postal), so the recruiter-portal footer always applies.
+        recruiterEmail: app.appliedToEmail,
       });
 
       // AI now generates complete email with greeting + signature
@@ -429,48 +425,23 @@ export async function processAutoApplyQueue(): Promise<{
       // Send via user's SMTP or Postal (Freelanly domain)
       let result: { success: boolean; messageId?: string; error?: string };
 
-      if (hasSmtp) {
-        // User has SMTP configured — send from their Gmail
-        const smtpConfig = app.user.userSmtp!;
-        const smtpArgs = [
-          {
-            host: smtpConfig.host,
-            port: smtpConfig.port,
-            email: smtpConfig.email,
-            password: smtpConfig.password,
-          },
-          {
-            from: `${app.user.name || 'Applicant'} <${smtpConfig.email}>`,
-            to: app.appliedToEmail,
-            replyTo: smtpConfig.email,
-            subject,
-            html,
-            text,
-            resumeUrl: app.resumeUrl || app.loop.resumeUrl || undefined,
-            attachmentBase64: resumeAttachment?.base64,
-            attachmentFilename: resumeAttachment?.filename,
-          },
-        ] as const;
-
-        result = await sendEmailViaSMTP(smtpArgs[0], smtpArgs[1]);
-        if (!result.success && result.error?.includes('EBUSY')) {
-          await new Promise((r) => setTimeout(r, 2000));
-          result = await sendEmailViaSMTP(smtpArgs[0], smtpArgs[1]);
-        }
-      } else {
-        // No SMTP — send via Postal (Freelanly domain)
-        result = await sendAutoApplyViaPostal({
-          userName: app.user.name || 'Applicant',
-          userEmail: app.user.email,
-          to: app.appliedToEmail,
-          subject,
-          html,
-          text,
-          applicationId: app.id,
-          attachmentBase64: resumeAttachment?.base64,
-          attachmentFilename: resumeAttachment?.filename,
-        });
-      }
+      // All outreach is brokered through Postal (apply@freelanly.com), never the
+      // candidate's own mailbox. sendAutoApplyViaPostal sets replyTo to
+      // reply+{appId}@reply.freelanly.com (replies return via inbound → portal) and
+      // strips the candidate's real address from the body. Hiding the contact by
+      // default is what makes "sell contact reveal" possible — if the recruiter
+      // already had the reply-to, there'd be nothing to reveal.
+      result = await sendAutoApplyViaPostal({
+        userName: app.user.name || 'Applicant',
+        userEmail: app.user.email,
+        to: app.appliedToEmail,
+        subject,
+        html,
+        text,
+        applicationId: app.id,
+        attachmentBase64: resumeAttachment?.base64,
+        attachmentFilename: resumeAttachment?.filename,
+      });
 
       if (result.success) {
         // Track first send for funnel
@@ -484,7 +455,7 @@ export async function processAutoApplyQueue(): Promise<{
             where: { id: app.id },
             data: {
               status: AutoApplyStatus.SENT,
-              sentVia: hasSmtp ? 'smtp' : 'postal',
+              sentVia: 'postal',
               coverLetter,
               subject,
               sentAt: now,
@@ -1267,8 +1238,8 @@ export async function processFollowUps(): Promise<{ sent: number; failed: number
         select: {
           id: true,
           name: true,
+          email: true,
           plan: true,
-          userSmtp: true,
         },
       },
       loop: {
@@ -1286,7 +1257,9 @@ export async function processFollowUps(): Promise<{ sent: number; failed: number
   console.log(`[AutoApply] Processing ${candidates.length} follow-ups`);
 
   for (const app of candidates) {
-    if (app.user.plan !== 'PRO' || !app.user.userSmtp?.verified || !app.loop.isActive) {
+    // Follow-ups stay PRO-only, but no longer require a personal SMTP — they now
+    // go through Postal like the initial send (brokered, replies → portal).
+    if (app.user.plan !== 'PRO' || !app.loop.isActive) {
       continue;
     }
 
@@ -1311,23 +1284,15 @@ export async function processFollowUps(): Promise<{ sent: number; failed: number
       });
       const text = `${followUpBody}\n\nBest regards,\n${app.user.name || 'Applicant'}`;
 
-      const smtpConfig = app.user.userSmtp!;
-      const result = await sendEmailViaSMTP(
-        {
-          host: smtpConfig.host,
-          port: smtpConfig.port,
-          email: smtpConfig.email,
-          password: smtpConfig.password,
-        },
-        {
-          from: `${app.user.name || 'Applicant'} <${smtpConfig.email}>`,
-          to: app.appliedToEmail,
-          replyTo: smtpConfig.email,
-          subject,
-          html,
-          text,
-        }
-      );
+      const result = await sendAutoApplyViaPostal({
+        userName: app.user.name || 'Applicant',
+        userEmail: app.user.email,
+        to: app.appliedToEmail,
+        subject,
+        html,
+        text,
+        applicationId: app.id,
+      });
 
       if (result.success) {
         await prisma.autoApplication.update({
