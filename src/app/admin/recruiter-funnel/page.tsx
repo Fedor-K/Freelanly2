@@ -17,6 +17,39 @@ export const dynamic = 'force-dynamic';
 const num = (r: Array<{ n: number | bigint }>): number => Number(r?.[0]?.n ?? 0);
 const pct = (a: number, b: number): string => (b > 0 ? `${Math.round((a / b) * 100)}%` : '—');
 
+// Shared funnel renderer. base = denominator for the "% of base" figure (contacted for the main
+// funnel, portal-visitors for the sub-funnel). accentFrom = stage index from which bars turn lime.
+function Funnel({ stages, base, accentFrom, muted }: {
+  stages: { label: string; desc: string; value: number }[];
+  base: number;
+  accentFrom: number;
+  muted: React.CSSProperties;
+}) {
+  const maxVal = Math.max(stages[0]?.value ?? 1, 1);
+  return (
+    <>
+      {stages.map((s, i) => {
+        const widthPct = Math.max((s.value / maxVal) * 100, s.value > 0 ? 4 : 0);
+        const prev = i === 0 ? null : stages[i - 1].value;
+        return (
+          <div key={s.label} style={{ marginBottom: i === stages.length - 1 ? 0 : 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{s.label} <span style={{ ...muted, fontWeight: 400 }}>· {s.desc}</span></span>
+              <span style={{ fontSize: 13 }}>
+                <strong>{s.value}</strong>
+                <span style={muted}> · {pct(s.value, base)}{prev !== null && prev > 0 ? ` · ${pct(s.value, prev)} step` : ''}</span>
+              </span>
+            </div>
+            <div style={{ height: 22, background: 'var(--bg-2, #F5F3EE)', borderRadius: 6, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${widthPct}%`, background: i >= accentFrom ? '#C7F94A' : '#A8B5FF', transition: 'width .2s' }} />
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 type RevealRow = {
   recruiterEmail: string;
   revealedAt: Date;
@@ -28,11 +61,13 @@ type TopRow = { recruiterEmail: string; actions: number | bigint };
 
 export default async function RecruiterFunnelPage() {
   const [
-    contacted, visited, engaged, revealedRecruiters, revealsTotal, replied, registered, since7dReveals,
+    contacted, opened, visited, engaged, revealedRecruiters, revealsTotal, replied, portalReplied, registered, since7dReveals,
     recentReveals, topRecruiters, quality,
   ] = await Promise.all([
     // 1. Contacted — distinct recruiter inboxes we've actually sent an application to.
     prisma.$queryRawUnsafe<Array<{ n: number }>>(`SELECT CAST(COUNT(DISTINCT lower("appliedToEmail")) AS INTEGER) n FROM "AutoApplication" WHERE "sentAt" IS NOT NULL`),
+    // 1b. Opened the email (tracking pixel sets status=OPENED; REPLIED/INTERVIEW/OFFER imply it).
+    prisma.$queryRawUnsafe<Array<{ n: number }>>(`SELECT CAST(COUNT(DISTINCT lower("appliedToEmail")) AS INTEGER) n FROM "AutoApplication" WHERE "sentAt" IS NOT NULL AND status IN ('OPENED','REPLIED','INTERVIEW','OFFER')`),
     // 2. Visited the portal at least once.
     prisma.$queryRawUnsafe<Array<{ n: number }>>(`SELECT CAST(COUNT(DISTINCT lower(details->>'recruiterEmail')) AS INTEGER) n FROM "ActivityLog" WHERE action = 'RECRUITER_PORTAL_VISIT'`),
     // 3. Engaged — opened a profile/chat or viewed a CV (active interest, not just a pageview).
@@ -41,8 +76,15 @@ export default async function RecruiterFunnelPage() {
     prisma.$queryRawUnsafe<Array<{ n: number }>>(`SELECT CAST(COUNT(DISTINCT lower("recruiterEmail")) AS INTEGER) n FROM "ContactReveal"`),
     // 4b. Total reveals (intensity — repeat reveals = stronger demand).
     prisma.$queryRawUnsafe<Array<{ n: number }>>(`SELECT CAST(COUNT(*) AS INTEGER) n FROM "ContactReveal"`),
-    // 5. Replied to a candidate (portal reply or inbound email).
+    // 5. Replied to a candidate — ANY channel (portal reply or inbound email).
     prisma.$queryRawUnsafe<Array<{ n: number }>>(`SELECT CAST(COUNT(DISTINCT lower("appliedToEmail")) AS INTEGER) n FROM "AutoApplication" WHERE "repliedAt" IS NOT NULL OR status IN ('REPLIED','INTERVIEW','OFFER')`),
+    // 5b. Replied IN the portal specifically (ActivityLog marks source=recruiter_portal; no
+    //     recruiter email stored there, so join applicationId → appliedToEmail).
+    prisma.$queryRawUnsafe<Array<{ n: number }>>(`
+      SELECT CAST(COUNT(DISTINCT lower(aa."appliedToEmail")) AS INTEGER) n
+      FROM "ActivityLog" al
+      JOIN "AutoApplication" aa ON aa.id = (al.details->>'applicationId')
+      WHERE al.action = 'RECRUITER_REPLIED' AND al.details->>'source' = 'recruiter_portal'`),
     // 6. Registered as a recruiter (asked at first reply).
     prisma.$queryRawUnsafe<Array<{ n: number }>>(`SELECT CAST(COUNT(*) AS INTEGER) n FROM "Recruiter"`),
     // Reveals in the last 7 days (momentum).
@@ -81,18 +123,26 @@ export default async function RecruiterFunnelPage() {
 
   const q = quality?.[0] ?? { total: 0, with_skills: 0, skills3: 0, with_title: 0, with_cv: 0 };
 
-  const nContacted = num(contacted), nVisited = num(visited), nEngaged = num(engaged);
-  const nRevealed = num(revealedRecruiters), nReplied = num(replied), nRegistered = num(registered);
+  const nContacted = num(contacted), nOpened = num(opened), nVisited = num(visited), nEngaged = num(engaged);
+  const nRevealed = num(revealedRecruiters), nReplied = num(replied), nPortalReplied = num(portalReplied), nRegistered = num(registered);
+  const nEmailReplied = Math.max(nReplied - nPortalReplied, 0);
 
-  const stages = [
-    { label: 'Contacted', desc: 'distinct recruiter inboxes we applied to', value: nContacted, base: nContacted },
-    { label: 'Visited portal', desc: 'opened the candidate list', value: nVisited, base: nContacted },
-    { label: 'Engaged', desc: 'opened a profile/chat or viewed a CV', value: nEngaged, base: nContacted },
-    { label: 'Revealed contact', desc: 'unlocked a candidate’s real email', value: nRevealed, base: nContacted },
-    { label: 'Replied', desc: 'messaged a candidate back', value: nReplied, base: nContacted },
-    { label: 'Registered', desc: 'created a recruiter account', value: nRegistered, base: nContacted },
+  // Main funnel — strictly monotonic stages over ALL channels, so it reads honestly top→bottom
+  // (the old version mixed a portal-only "visited" above an all-channel "replied", inverting it).
+  const mainStages = [
+    { label: 'Contacted', desc: 'distinct recruiter inboxes we applied to', value: nContacted },
+    { label: 'Opened email', desc: 'opened the application (tracking pixel)', value: nOpened },
+    { label: 'Replied', desc: 'messaged a candidate back — any channel', value: nReplied },
+    { label: 'Registered', desc: 'created a recruiter account', value: nRegistered },
   ];
-  const maxVal = Math.max(nContacted, 1);
+  // Portal sub-funnel — the in-product path where reveal lives. Separate base (portal visitors),
+  // so a low reveal rate is read against people who actually entered the portal.
+  const portalStages = [
+    { label: 'Visited portal', desc: 'opened the candidate list', value: nVisited },
+    { label: 'Engaged', desc: 'opened a profile/chat or viewed a CV', value: nEngaged },
+    { label: 'Revealed contact', desc: 'unlocked a candidate’s real email', value: nRevealed },
+    { label: 'Replied in portal', desc: 'replied from the portal (vs plain email)', value: nPortalReplied },
+  ];
 
   const card: React.CSSProperties = { background: 'var(--bg-1, #fff)', border: '1px solid var(--line, #E8E5DC)', borderRadius: 12, padding: 20 };
   const muted: React.CSSProperties = { color: '#8A8780', fontSize: 12 };
@@ -101,30 +151,38 @@ export default async function RecruiterFunnelPage() {
     <div style={{ maxWidth: 920, margin: '0 auto', padding: '24px 8px 64px', fontFamily: 'system-ui, sans-serif' }}>
       <h1 style={{ fontSize: 22, margin: '0 0 4px' }}>Recruiter demand funnel</h1>
       <p style={{ ...muted, margin: '0 0 20px' }}>
-        The validation instrument. Each row = distinct recruiters reaching that step.
+        The validation instrument. Each row = distinct recruiters. Split into the overall funnel
+        (any channel) and the in-portal path, since most recruiters reply by plain email and never
+        enter the portal — mixing the two inverted the old single funnel.
         {' '}<strong>{num(revealsTotal)}</strong> reveals total · <strong>{num(since7dReveals)}</strong> in the last 7 days. Monetization off — reveals are free + logged.
       </p>
 
-      {/* Funnel */}
+      {/* Main funnel — all channels, monotonic. */}
+      <div style={{ ...card, marginBottom: 16 }}>
+        <h2 style={{ fontSize: 15, margin: '0 0 12px' }}>Overall <span style={{ ...muted, fontWeight: 400 }}>· every recruiter, any channel</span></h2>
+        <Funnel stages={mainStages} base={nContacted} accentFrom={99} muted={muted} />
+      </div>
+
+      {/* Reply-channel split — most replies come by email, not the portal; this makes that explicit. */}
+      <div style={{ ...card, marginBottom: 16 }}>
+        <h2 style={{ fontSize: 15, margin: '0 0 4px' }}>Where recruiters reply</h2>
+        <p style={{ ...muted, margin: '0 0 12px' }}>Of <strong>{nReplied}</strong> recruiters who replied, how many used the portal vs plain email.</p>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ flex: 1, background: 'var(--bg-2, #F5F3EE)', borderRadius: 8, padding: '12px 14px' }}>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>{nEmailReplied} <span style={{ ...muted, fontWeight: 400, fontSize: 13 }}>{pct(nEmailReplied, nReplied)}</span></div>
+            <div style={muted}>Plain email reply</div>
+          </div>
+          <div style={{ flex: 1, background: '#F4F8E8', borderRadius: 8, padding: '12px 14px' }}>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>{nPortalReplied} <span style={{ ...muted, fontWeight: 400, fontSize: 13 }}>{pct(nPortalReplied, nReplied)}</span></div>
+            <div style={muted}>Replied in portal</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Portal sub-funnel — the in-product path where reveal lives, measured against portal visitors. */}
       <div style={{ ...card, marginBottom: 20 }}>
-        {stages.map((s, i) => {
-          const widthPct = Math.max((s.value / maxVal) * 100, s.value > 0 ? 4 : 0);
-          const prev = i === 0 ? null : stages[i - 1].value;
-          return (
-            <div key={s.label} style={{ marginBottom: i === stages.length - 1 ? 0 : 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{s.label} <span style={{ ...muted, fontWeight: 400 }}>· {s.desc}</span></span>
-                <span style={{ fontSize: 13 }}>
-                  <strong>{s.value}</strong>
-                  <span style={muted}> · {pct(s.value, nContacted)} of contacted{prev !== null && prev > 0 ? ` · ${pct(s.value, prev)} step` : ''}</span>
-                </span>
-              </div>
-              <div style={{ height: 22, background: 'var(--bg-2, #F5F3EE)', borderRadius: 6, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${widthPct}%`, background: i >= 3 ? '#C7F94A' : '#A8B5FF', transition: 'width .2s' }} />
-              </div>
-            </div>
-          );
-        })}
+        <h2 style={{ fontSize: 15, margin: '0 0 12px' }}>In the portal <span style={{ ...muted, fontWeight: 400 }}>· of the {nVisited} who entered it</span></h2>
+        <Funnel stages={portalStages} base={Math.max(nVisited, 1)} accentFrom={2} muted={muted} />
       </div>
 
       {/* Card data quality — thin cards (no skills/title/CV) give recruiters nothing to act on. */}
