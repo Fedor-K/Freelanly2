@@ -288,14 +288,15 @@ export function RecruiterInboxClient({
             )}
 
             {/* Action bar */}
-            <div style={{ display: 'flex', gap: '6px', marginTop: '10px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px', alignItems: 'center' }}>
               <button className="btn btn-primary btn-sm" onClick={() => toggle(c.appId)}>💬 {open ? 'Hide' : 'Open chat'}</button>
               {c.cvUrl && <a href={c.cvUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" onClick={() => track('view_cv', c.appId)}>📄 CV</a>}
+              {/* Reveal is the key measured action — make it pop (was a buried ghost button → 0 reveals). */}
               {revealed[c.appId] ? (
-                <a href={`mailto:${revealed[c.appId]}`} className="btn btn-ghost btn-sm" style={{ fontWeight: 600 }} title="Candidate's real email">✉️ {revealed[c.appId]}</a>
+                <a href={`mailto:${revealed[c.appId]}`} className="btn btn-sm" style={{ fontWeight: 700, background: '#C7F94A', color: '#000', border: '1px solid #C7F94A' }} title="Candidate's real email — click to email them directly">✉️ {revealed[c.appId]}</a>
               ) : (
-                <button className="btn btn-ghost btn-sm" onClick={() => reveal(c.appId)} disabled={revealing === c.appId} title="Reveal the candidate's real email to contact them directly">
-                  {revealing === c.appId ? 'Revealing…' : '🔓 Reveal contact'}
+                <button className="btn btn-sm" onClick={() => reveal(c.appId)} disabled={revealing === c.appId} style={{ fontWeight: 700, background: '#F4F8E8', color: '#0B0C0F', border: '1px solid #C7F94A' }} title={`See ${firstName}'s real email to contact them directly (free)`}>
+                  {revealing === c.appId ? 'Revealing…' : '🔓 Reveal email'}
                 </button>
               )}
             </div>
