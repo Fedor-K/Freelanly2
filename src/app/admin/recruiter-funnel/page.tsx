@@ -29,7 +29,7 @@ type TopRow = { recruiterEmail: string; actions: number | bigint };
 export default async function RecruiterFunnelPage() {
   const [
     contacted, visited, engaged, revealedRecruiters, revealsTotal, replied, registered, since7dReveals,
-    recentReveals, topRecruiters,
+    recentReveals, topRecruiters, quality,
   ] = await Promise.all([
     // 1. Contacted — distinct recruiter inboxes we've actually sent an application to.
     prisma.$queryRawUnsafe<Array<{ n: number }>>(`SELECT CAST(COUNT(DISTINCT lower("appliedToEmail")) AS INTEGER) n FROM "AutoApplication" WHERE "sentAt" IS NOT NULL`),
@@ -59,7 +59,27 @@ export default async function RecruiterFunnelPage() {
       SELECT lower(details->>'recruiterEmail') AS "recruiterEmail", CAST(COUNT(*) AS INTEGER) AS actions
       FROM "ActivityLog" WHERE action = 'RECRUITER_PORTAL_ACTION' AND details->>'recruiterEmail' IS NOT NULL
       GROUP BY 1 ORDER BY actions DESC LIMIT 15`),
+    // Card data quality among candidates we've actually applied for — thin cards (no skills/
+    // title/CV) give recruiters nothing to act on, so this gates the whole funnel.
+    prisma.$queryRawUnsafe<Array<{ total: number; with_skills: number; skills3: number; with_title: number; with_cv: number }>>(`
+      SELECT
+        CAST(COUNT(*) AS INTEGER) AS total,
+        CAST(COUNT(*) FILTER (WHERE skills_n >= 1) AS INTEGER) AS with_skills,
+        CAST(COUNT(*) FILTER (WHERE skills_n >= 3) AS INTEGER) AS skills3,
+        CAST(COUNT(*) FILTER (WHERE has_title) AS INTEGER) AS with_title,
+        CAST(COUNT(*) FILTER (WHERE has_cv) AS INTEGER) AS with_cv
+      FROM (
+        SELECT u.id,
+          COALESCE(CASE WHEN jsonb_typeof((u."parsedProfile")::jsonb -> 'skills') = 'array'
+                        THEN jsonb_array_length((u."parsedProfile")::jsonb -> 'skills') ELSE 0 END, 0) AS skills_n,
+          (NULLIF((u."parsedProfile")::jsonb ->> 'current_title', '') IS NOT NULL) AS has_title,
+          (u."resumeUrl" IS NOT NULL) AS has_cv
+        FROM "User" u
+        WHERE EXISTS (SELECT 1 FROM "AutoApplication" aa WHERE aa."userId" = u.id AND aa."sentAt" IS NOT NULL)
+      ) q`),
   ]);
+
+  const q = quality?.[0] ?? { total: 0, with_skills: 0, skills3: 0, with_title: 0, with_cv: 0 };
 
   const nContacted = num(contacted), nVisited = num(visited), nEngaged = num(engaged);
   const nRevealed = num(revealedRecruiters), nReplied = num(replied), nRegistered = num(registered);
@@ -105,6 +125,27 @@ export default async function RecruiterFunnelPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* Card data quality — thin cards (no skills/title/CV) give recruiters nothing to act on. */}
+      <div style={{ ...card, marginBottom: 20 }}>
+        <h2 style={{ fontSize: 15, margin: '0 0 4px' }}>Candidate card quality</h2>
+        <p style={{ ...muted, margin: '0 0 14px' }}>
+          Among <strong>{q.total}</strong> candidates we’ve sent applications for. Low bars = thin cards = recruiters have little to act on (a likely cause of low reveal/reply).
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+          {[
+            { label: 'Has skills', value: q.with_skills },
+            { label: '3+ skills', value: q.skills3 },
+            { label: 'Has title', value: q.with_title },
+            { label: 'Has CV', value: q.with_cv },
+          ].map((m) => (
+            <div key={m.label} style={{ background: 'var(--bg-2, #F5F3EE)', borderRadius: 8, padding: '12px 14px' }}>
+              <div style={{ fontSize: 20, fontWeight: 700 }}>{pct(m.value, q.total)}</div>
+              <div style={muted}>{m.label} · {m.value}/{q.total}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
