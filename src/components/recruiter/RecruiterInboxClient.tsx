@@ -91,6 +91,9 @@ export function RecruiterInboxClient({
   const [bdExcluded, setBdExcluded] = useState<Record<string, string[]>>({});
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [sending, setSending] = useState<string | null>(null);
+  // §2 contact reveal (shadow paywall). revealed[appId] = the candidate's real email once shown.
+  const [revealed, setRevealed] = useState<Record<string, string>>({});
+  const [revealing, setRevealing] = useState<string | null>(null);
   const [err, setErr] = useState<Record<string, string>>({});
   const [threads, setThreads] = useState<Record<string, Msg[]>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
@@ -173,6 +176,28 @@ export function RecruiterInboxClient({
       setErr((e) => ({ ...e, [appId]: 'Network error' }));
     } finally {
       setSending(null);
+    }
+  }
+
+  // Reveal the candidate's real contact. Ungated (the signed token already identifies the
+  // recruiter for the ContactReveal log, so we get the full demand signal without friction).
+  // Free during validation; the payment gate goes server-side when monetization flips on.
+  async function reveal(appId: string) {
+    if (revealed[appId] || revealing) return;
+    track('reveal_contact', appId);
+    setRevealing(appId);
+    try {
+      const res = await fetch('/api/recruiter/reveal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, applicationId: appId }),
+      });
+      const data = await res.json();
+      if (res.ok && data.email) setRevealed((r) => ({ ...r, [appId]: data.email }));
+    } catch {
+      /* swallow — recruiter can retry */
+    } finally {
+      setRevealing(null);
     }
   }
 
@@ -266,6 +291,13 @@ export function RecruiterInboxClient({
             <div style={{ display: 'flex', gap: '6px', marginTop: '10px', alignItems: 'center' }}>
               <button className="btn btn-primary btn-sm" onClick={() => toggle(c.appId)}>💬 {open ? 'Hide' : 'Open chat'}</button>
               {c.cvUrl && <a href={c.cvUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" onClick={() => track('view_cv', c.appId)}>📄 CV</a>}
+              {revealed[c.appId] ? (
+                <a href={`mailto:${revealed[c.appId]}`} className="btn btn-ghost btn-sm" style={{ fontWeight: 600 }} title="Candidate's real email">✉️ {revealed[c.appId]}</a>
+              ) : (
+                <button className="btn btn-ghost btn-sm" onClick={() => reveal(c.appId)} disabled={revealing === c.appId} title="Reveal the candidate's real email to contact them directly">
+                  {revealing === c.appId ? 'Revealing…' : '🔓 Reveal contact'}
+                </button>
+              )}
             </div>
 
             {/* Expanded: profile + chat + compose */}

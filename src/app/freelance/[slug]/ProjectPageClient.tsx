@@ -46,6 +46,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
+  // §4 opt-in scaffold — explicit consent (default off) to future job-alert emails; sending suspended.
+  const [jobAlertOptIn, setJobAlertOptIn] = useState(false);
 
   // OTP state
   const [otpCode, setOtpCode] = useState('');
@@ -220,6 +222,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
               categories: selectedCategories,
               languages: selectedCategories.includes('translation') ? selectedLanguages : undefined,
               agreedToTerms: true,
+              jobAlertOptIn,
             }),
           });
           if (!regRes.ok) {
@@ -504,6 +507,12 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           )}
 
           {authError && <div style={{ fontSize: '13px', color: '#B91C1C', padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', marginBottom: '8px' }}>{authError}</div>}
+
+          {/* §4 opt-in scaffold — explicit consent, default off. Alert sending is suspended. */}
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '12px', color: '#8A8780', marginTop: '10px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={jobAlertOptIn} onChange={(e) => setJobAlertOptIn(e.target.checked)} style={{ marginTop: '2px', flexShrink: 0 }} />
+            <span>Email me new gigs that match my profile (optional — you can change this anytime).</span>
+          </label>
 
           <button
             onClick={handleSendCode}

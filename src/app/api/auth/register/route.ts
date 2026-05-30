@@ -18,6 +18,7 @@ interface RegisterRequest {
   utmCampaign?: string;
   utmContent?: string;
   source?: string; // Registration traffic source (utm_source)
+  jobAlertOptIn?: boolean; // §4 scaffold — consent to future job-alert emails (sending suspended)
 }
 
 /**
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: RegisterRequest = await request.json();
-    const { email, name, categories, country, countries, languages, jobId, agreedToTerms, gclid, source, utmMedium, utmCampaign, utmContent } = body;
+    const { email, name, categories, country, countries, languages, jobId, agreedToTerms, gclid, source, utmMedium, utmCampaign, utmContent, jobAlertOptIn } = body;
 
     // Rate limit by email: 1 request per 10 minutes (prevent email bombing)
     const normalizedEmailForLimit = sanitizeEmail(email || '');
@@ -165,6 +166,14 @@ export async function POST(request: NextRequest) {
         utmContent: utmContent || null,
       },
     });
+
+    // §4 opt-in scaffold — captured via guarded raw SQL (column lives in DB, not the Prisma
+    // model) so a not-yet-applied migration degrades to "opt-in skipped" instead of breaking
+    // registration. Only write on explicit consent; sending stays suspended either way.
+    if (jobAlertOptIn) {
+      await prisma.$executeRaw`UPDATE "User" SET "jobAlertOptIn" = true, "jobAlertOptInAt" = NOW() WHERE "id" = ${user.id}`
+        .catch((e) => console.warn('[register] jobAlertOptIn not persisted (migration pending?):', e?.message));
+    }
 
     console.log(`[Register] Created new user: ${normalizedEmail}`);
 
