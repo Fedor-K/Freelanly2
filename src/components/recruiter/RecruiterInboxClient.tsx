@@ -11,6 +11,14 @@ export type RecruiterCandidate = {
   coverLetter: string;
   cvUrl: string | null;
   lastActiveAt: string | null;
+  // §2.1 grouping key — same vacancy = same key (jobId/opportunityId, else title).
+  listingKey: string;
+  // §3 structural breakdown — deterministic skill/requirement overlap frozen at apply time (no LLM).
+  matchBreakdown?: {
+    matched: number;
+    total: number;
+    lines: { label: string; type: 'skill' | 'language'; status: 'full' | 'missing'; evidence: string | null }[];
+  };
   profile: {
     current_title?: string;
     experience_years?: number;
@@ -78,6 +86,9 @@ export function RecruiterInboxClient({
   prefill?: { company: string; hiringFor: string };
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  // §3 — per-candidate set of breakdown requirements the recruiter excluded; matched/total
+  // recomputes instantly over the remaining lines (deterministic, client-side, no refetch).
+  const [bdExcluded, setBdExcluded] = useState<Record<string, string[]>>({});
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [sending, setSending] = useState<string | null>(null);
   const [err, setErr] = useState<Record<string, string>>({});
@@ -190,10 +201,31 @@ export function RecruiterInboxClient({
     }
   }
 
+  // §2.1 — group candidates by vacancy, preserving the global match-sorted order (the
+  // group whose strongest candidate ranks highest comes first). colorIdx keeps each
+  // avatar colour tied to the candidate's position in the original sorted list.
+  const colorIdx: Record<string, number> = {};
+  const groupOrder: string[] = [];
+  const groupMap: Record<string, RecruiterCandidate[]> = {};
+  candidates.forEach((c, i) => {
+    colorIdx[c.appId] = i;
+    if (!groupMap[c.listingKey]) { groupMap[c.listingKey] = []; groupOrder.push(c.listingKey); }
+    groupMap[c.listingKey].push(c);
+  });
+  const groups = groupOrder.map((k) => ({ key: k, jobTitle: groupMap[k][0].jobTitle, items: groupMap[k] }));
+
   return (
     <>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      {candidates.map((c, i) => {
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+      {groups.map((g) => (
+      <div key={g.key} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {/* §2.1 vacancy header — replaces the per-card job title below */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+          <h2 style={{ fontSize: '14px', fontWeight: 700, margin: 0, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.jobTitle}</h2>
+          <span className="meta" style={{ fontSize: '12px', flexShrink: 0 }}>{g.items.length} candidate{g.items.length === 1 ? '' : 's'}</span>
+        </div>
+        {g.items.map((c) => {
+        const i = colorIdx[c.appId];
         const open = openId === c.appId;
         const skills = c.profile.skills || [];
         const shown = skills.slice(0, 4);
@@ -214,7 +246,6 @@ export function RecruiterInboxClient({
                   {c.fit && <span className="chip" style={{ height: '17px', padding: '0 7px', fontSize: '9.5px', flexShrink: 0 }}>{c.fit}</span>}
                   <span className="meta" style={{ fontSize: '11px', marginLeft: 'auto', flexShrink: 0 }}>{timeAgo(c.createdAt)}</span>
                 </div>
-                <div className="meta" style={{ fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.jobTitle}</div>
                 {fr && (
                   <div style={{ marginTop: '4px' }}>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: '#fff', background: fr.color, borderRadius: '5px', padding: '2px 7px', whiteSpace: 'nowrap' }}>{fr.label}</span>
@@ -264,6 +295,62 @@ export function RecruiterInboxClient({
                     );
                   })()}
                 </div>
+                {/* §3 — structural match breakdown. Deterministic skill/requirement overlap
+                    frozen at apply time (no LLM): each required item is shown as matched (with
+                    the evidence that satisfied it) or missing. Recruiters weight requirements
+                    differently, so any line can be excluded — matched/total recomputes instantly. */}
+                {c.matchBreakdown && c.matchBreakdown.lines.length > 0 && (() => {
+                  const excluded = bdExcluded[c.appId] || [];
+                  const active = c.matchBreakdown.lines.filter((l) => !excluded.includes(l.label));
+                  const matched = active.filter((l) => l.status === 'full').length;
+                  const total = active.length;
+                  return (
+                    <div style={{ marginBottom: '12px', padding: '10px 12px', background: 'var(--bg-2)', borderRadius: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700 }}>Match breakdown</span>
+                        <span className="meta" style={{ fontSize: '11px' }}>
+                          {matched} of {total} requirement{total === 1 ? '' : 's'}{excluded.length > 0 ? ' · adjusted' : ''}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {c.matchBreakdown.lines.map((l, j) => {
+                          const off = excluded.includes(l.label);
+                          const full = l.status === 'full';
+                          return (
+                            <button
+                              key={j}
+                              type="button"
+                              onClick={() => setBdExcluded((prev) => {
+                                const cur = prev[c.appId] || [];
+                                return { ...prev, [c.appId]: off ? cur.filter((x) => x !== l.label) : [...cur, l.label] };
+                              })}
+                              title={off
+                                ? 'Excluded from the count — click to include'
+                                : full
+                                  ? (l.evidence ? `Matched: ${l.evidence}` : 'Matched')
+                                  : 'Not found in profile/CV — click to ignore this requirement'}
+                              style={{
+                                cursor: 'pointer', height: '21px', padding: '0 8px', borderRadius: '11px',
+                                fontSize: '10.5px', fontWeight: 600, lineHeight: '21px', whiteSpace: 'nowrap',
+                                border: '1px solid', opacity: off ? 0.4 : 1,
+                                textDecoration: off ? 'line-through' : 'none',
+                                background: full ? 'rgba(34,197,94,0.12)' : 'transparent',
+                                borderColor: full ? 'rgba(34,197,94,0.45)' : 'var(--line-2)',
+                                color: full ? '#15803d' : '#8A8780',
+                              }}
+                            >
+                              {full ? '✓' : '·'} {l.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="meta" style={{ fontSize: '10px', marginTop: '6px' }}>
+                        Structural match, computed at apply time — click a requirement to exclude it from the count.
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {c.profile.summary && <p style={{ fontSize: '12.5px', lineHeight: 1.55, margin: '0 0 12px', color: '#444' }}>{c.profile.summary}</p>}
 
                 {/* Chat thread */}
@@ -318,7 +405,9 @@ export function RecruiterInboxClient({
             )}
           </div>
         );
-      })}
+        })}
+      </div>
+      ))}
     </div>
 
     {regOpen && (
