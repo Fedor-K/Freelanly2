@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 import { extractText } from 'unpdf';
 import OpenAI from 'openai';
 import { put } from '@vercel/blob';
@@ -237,7 +238,7 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
     let blobUrl = file ? `uploaded:${file.name}` : linkedinUrl || undefined;
     if (file && buffer) {
       try {
-        const blob = await put(`resumes/${user.id}/${file.name}`, buffer, {
+        const blob = await put(`resumes/${user.id}/${file.name}`, Buffer.from(buffer), {
           access: 'public',
           contentType: 'application/pdf',
           allowOverwrite: true,
@@ -259,7 +260,7 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
         resumeUrl: blobUrl,
         resumeText: pdfText ? pdfText.substring(0, 10000) : undefined,
         resumeFileName: file?.name || undefined,
-        parsedProfile: parsedProfile || undefined,
+        parsedProfile: parsedProfile == null ? undefined : (parsedProfile as Prisma.InputJsonValue),
         name: parsedProfile?.name || undefined,
         linkedinUrl: savedLinkedinUrl || undefined,
       },
@@ -289,12 +290,12 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
         const parsed = JSON.parse(r.choices[0]?.message?.content?.trim() || '[]');
         if (Array.isArray(parsed) && parsed.length > 0) titles = parsed.slice(0, 5);
       } catch {
-        if (parsedProfile.current_title) titles.push(parsedProfile.current_title);
-        if (parsedProfile.field) titles.push(parsedProfile.field);
+        if (parsedProfile.current_title) titles.push(String(parsedProfile.current_title));
+        if (parsedProfile.field) titles.push(String(parsedProfile.field));
       }
       if (titles.length === 0) {
-        if (parsedProfile.current_title) titles.push(parsedProfile.current_title);
-        if (parsedProfile.field) titles.push(parsedProfile.field);
+        if (parsedProfile.current_title) titles.push(String(parsedProfile.current_title));
+        if (parsedProfile.field) titles.push(String(parsedProfile.field));
       }
 
       await Promise.all([

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import type { CoverLetterTemplate } from '@prisma/client';
 
 const TEMPLATE_LIBRARY = [
   {
@@ -90,7 +91,7 @@ export async function POST(request: Request) {
       ? indices.filter((i: number) => i >= 0 && i < TEMPLATE_LIBRARY.length).map((i: number) => TEMPLATE_LIBRARY[i])
       : TEMPLATE_LIBRARY; // import all if no indices
 
-    const created = [];
+    const created: CoverLetterTemplate[] = [];
     for (const tpl of toImport) {
       const existing = await prisma.coverLetterTemplate.findFirst({
         where: { userId: session.user.id, name: tpl.name },

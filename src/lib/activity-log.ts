@@ -7,7 +7,7 @@
 
 import { prisma } from '@/lib/db';
 import { headers } from 'next/headers';
-import { ActivityAction } from '@prisma/client';
+import { ActivityAction, Prisma } from '@prisma/client';
 
 export { ActivityAction };
 
@@ -21,8 +21,8 @@ interface LogActivityParams {
 /**
  * Get client IP address from request headers
  */
-export function getClientIP(): string | null {
-  const headersList = headers();
+export async function getClientIP(): Promise<string | null> {
+  const headersList = await headers();
 
   // Try various headers in order of preference
   const forwardedFor = headersList.get('x-forwarded-for');
@@ -47,16 +47,16 @@ export function getClientIP(): string | null {
 /**
  * Get user agent from request headers
  */
-export function getUserAgent(): string | null {
-  const headersList = headers();
+export async function getUserAgent(): Promise<string | null> {
+  const headersList = await headers();
   return headersList.get('user-agent');
 }
 
 /**
  * Get country from Vercel/Cloudflare headers
  */
-export function getCountry(): string | null {
-  const headersList = headers();
+export async function getCountry(): Promise<string | null> {
+  const headersList = await headers();
 
   // Vercel
   const vercelCountry = headersList.get('x-vercel-ip-country');
@@ -72,8 +72,8 @@ export function getCountry(): string | null {
 /**
  * Get city from Vercel/Cloudflare headers
  */
-export function getCity(): string | null {
-  const headersList = headers();
+export async function getCity(): Promise<string | null> {
+  const headersList = await headers();
 
   // Vercel
   const vercelCity = headersList.get('x-vercel-ip-city');
@@ -107,11 +107,11 @@ export async function logActivity({
       data: {
         userId: userId || null,
         action,
-        details: details || null,
-        ipAddress: getClientIP(),
-        userAgent: getUserAgent(),
-        country: getCountry(),
-        city: getCity(),
+        details: details == null ? Prisma.JsonNull : (details as Prisma.InputJsonValue),
+        ipAddress: await getClientIP(),
+        userAgent: await getUserAgent(),
+        country: await getCountry(),
+        city: await getCity(),
         sessionId: sessionId || null,
       },
     });

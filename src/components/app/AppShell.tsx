@@ -25,7 +25,8 @@ function SvgIcon({ name, size = 18 }: { name: string; size?: number }) {
   );
 }
 
-const NAV = [
+type NavItem = { id: string; href: string; label: string; icon: string; count?: number };
+const NAV: { label: string; items: NavItem[] }[] = [
   { label: 'PRIMARY', items: [
     { id: 'dashboard', href: '/dashboard',            label: 'Dashboard',  icon: 'home' },
     { id: 'discovery', href: '/dashboard/discovery',   label: 'Discovery', icon: 'compass' },
@@ -51,7 +52,7 @@ function SearchBar() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };

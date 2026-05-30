@@ -86,7 +86,7 @@ export async function GET(
     const similar = app.jobId
       ? await prisma.job.findMany({
           where: { id: { not: app.jobId }, title: { contains: app.jobTitle.split(' ')[0], mode: 'insensitive' } },
-          select: { id: true, title: true, company: { select: { name: true } }, salaryText: true },
+          select: { id: true, title: true, company: { select: { name: true } }, salaryMin: true, salaryMax: true, salaryCurrency: true },
           take: 3,
           orderBy: { createdAt: 'desc' },
         })
@@ -125,7 +125,7 @@ export async function GET(
       replyText: cleanReplyText(app.replyText),
       description,
       originalUrl,
-      similar: similar.map(s => ({ id: s.id, title: s.title, company: s.company?.name, salary: s.salaryText })),
+      similar: similar.map(s => ({ id: s.id, title: s.title, company: s.company?.name, salary: s.salaryMin ? `${s.salaryCurrency || 'USD'} ${s.salaryMin.toLocaleString()}${s.salaryMax ? '–' + s.salaryMax.toLocaleString() : ''}` : null })),
       followUpSchedule,
       whyMatched: matchReasons,
     });

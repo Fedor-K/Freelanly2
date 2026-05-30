@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 import crypto from 'crypto';
 
 // Resend webhook event types
@@ -160,7 +161,7 @@ export async function POST(request: NextRequest) {
         type: eventType as any,
         to,
         subject: data.subject,
-        metadata: Object.keys(metadata).length > 0 ? metadata : null,
+        metadata: Object.keys(metadata).length > 0 ? (metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
         timestamp: new Date(created_at),
       },
     });

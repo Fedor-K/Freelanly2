@@ -45,7 +45,7 @@ export async function GET() {
     const hasResume = !!user.resumeText;
     const hasLinkedIn = !!profile?.linkedin;
     const hasSmtp = !!user.userSmtp?.verified;
-    const categories = user.jobAlerts.map(a => a.category).filter(Boolean);
+    const categories = user.jobAlerts.map(a => a.category).filter((c): c is string => Boolean(c));
     const skills = (profile?.skills as string[]) || [];
     const roleType = (profile?.current_title as string) || (profile?.field as string) || null;
     const hasLoop = user.autoApplyLoops.length > 0;
