@@ -744,6 +744,45 @@ interface ListingData {
 // Cache AI match results per listing+skills combo (within one run)
 const aiMatchCache = new Map<string, { shouldApply: boolean; score: number; reason: string }>();
 
+/**
+ * Cheap targeting pre-filter: decide whether a loop is even plausibly relevant to a listing
+ * BEFORE spending an LLM call on it. Uses the loop's OWN declared intent (jobTitles +
+ * keywords) plus the user's top skills as relevance terms, and passes if any term surfaces
+ * in the listing text or skills. Loose by design (high recall): a loop with no usable terms
+ * falls through to the LLM, and the LLM's profession gate still makes the final call. This is
+ * what makes a listing with thousands of active loops affordable — cross-profession loops
+ * (whose terms never appear) are dropped without an LLM call.
+ */
+function loopMatchesTargeting(
+  loop: { jobTitles: string[]; keywords: string | null },
+  userSkills: string[],
+  haystack: string,
+  listingSkillsLower: string[],
+): boolean {
+  const terms = new Set<string>();
+  for (const t of loop.jobTitles || []) {
+    for (const tok of t.toLowerCase().split(/[^a-z0-9+#]+/)) {
+      if (tok.length >= 2) terms.add(tok);
+    }
+  }
+  if (loop.keywords) {
+    for (const k of loop.keywords.toLowerCase().split(',')) {
+      const kk = k.trim();
+      if (kk.length >= 2) terms.add(kk);
+    }
+  }
+  for (const s of userSkills.slice(0, 8)) {
+    const ss = s.toLowerCase().trim();
+    if (ss.length >= 3) terms.add(ss);
+  }
+  if (terms.size === 0) return true; // nothing to filter on → let the LLM decide
+  for (const term of terms) {
+    if (haystack.includes(term)) return true;
+    if (listingSkillsLower.some((ls) => ls.includes(term) || term.includes(ls))) return true;
+  }
+  return false;
+}
+
 async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
   // Phase 1.3: skip listings whose apply address is dead/garbage — sending there is pure waste.
   if (!isSendableRecipient(listing.applyEmail)) {
@@ -847,102 +886,109 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     return d !== 0 ? d : Math.random() - 0.5;
   });
 
-  let queued = 0;
   const titleLower = listing.title.toLowerCase();
   const descLower = listing.description.toLowerCase();
+  const haystack = `${titleLower} ${descLower}`;
+  const listingSkillsLower = (listing.skills || []).map((s) => s.toLowerCase());
 
+  // Batch the per-listing dedup lookups into two queries instead of two per loop (was
+  // ~2 DB round-trips × every active loop = thousands per opportunity).
+  const existingUserIds = new Set<string>();
+  for (const r of await prisma.autoApplication.findMany({
+    where: listing.type === 'job' ? { jobId: listing.id } : { opportunityId: listing.id },
+    select: { userId: true },
+  })) existingUserIds.add(r.userId);
+
+  const sentToRecruiterUserIds = new Set<string>();
+  for (const r of await prisma.autoApplication.findMany({
+    where: {
+      appliedToEmail: listing.applyEmail,
+      jobTitle: { equals: listing.title, mode: 'insensitive' },
+      userId: { in: activeLoops.map((l) => l.userId) },
+    },
+    select: { userId: true },
+  })) sentToRecruiterUserIds.add(r.userId);
+
+  // CHEAP-GATE PASS: reject everything we can without the LLM (dedup, blacklist, exclude
+  // keywords, full pending queue, empty profile) plus a targeting pre-filter. With thousands
+  // of active loops this is what makes one opportunity affordable — only plausible candidates
+  // reach the (expensive) AI step. Preserves the fairness order set above.
+  type Cand = {
+    loop: (typeof activeLoops)[number];
+    userSkills: string[];
+    userLangs: string[] | undefined;
+    userLoc: string | undefined;
+    userTitle: string;
+    userField: string;
+  };
+  const candidates: Cand[] = [];
   for (const loop of activeLoops) {
-    // Check if already applied to this listing by this user
-    const existingWhere =
-      listing.type === 'job'
-        ? { userId_jobId: { userId: loop.userId, jobId: listing.id } }
-        : { userId_opportunityId: { userId: loop.userId, opportunityId: listing.id } };
-
-    const existing = await prisma.autoApplication.findUnique({
-      where: existingWhere,
-      select: { id: true },
-    });
-
-    if (existing) continue; // Deduplication: already applied to this exact listing
-
-    // Deduplication: skip if already applied to same recruiter email for similar job title
-    const alreadySentToRecruiter = await prisma.autoApplication.findFirst({
-      where: {
-        userId: loop.userId,
-        appliedToEmail: listing.applyEmail,
-        jobTitle: { equals: listing.title, mode: 'insensitive' },
-      },
-      select: { id: true },
-    });
-    if (alreadySentToRecruiter) continue;
-
-    // Check blacklisted companies
-    if (
-      loop.blacklistCompanies.some(
-        (bc) => bc.toLowerCase() === listing.companyName.toLowerCase()
-      )
-    ) {
-      continue;
-    }
-
-    // Exclude keywords — skip if any excluded keyword found in title or description
+    if (existingUserIds.has(loop.userId)) continue; // already applied to this listing
+    if (sentToRecruiterUserIds.has(loop.userId)) continue; // same recruiter+title already
+    if (loop.blacklistCompanies.some((bc) => bc.toLowerCase() === listing.companyName.toLowerCase())) continue;
     if (loop.excludeKeywords) {
-      const excludes = loop.excludeKeywords
-        .toLowerCase()
-        .split(',')
-        .map((k) => k.trim())
-        .filter((k) => k);
-      const searchText = `${titleLower} ${descLower}`;
-      const hasExcluded = excludes.some((ex) => searchText.includes(ex));
-      if (hasExcluded) continue;
+      const excludes = loop.excludeKeywords.toLowerCase().split(',').map((k) => k.trim()).filter(Boolean);
+      if (excludes.some((ex) => haystack.includes(ex))) continue;
     }
-
-    // Phase 1.1: don't queue past the user's drainable backlog — extra PENDING just
-    // expires unsent. Checked before the AI match call, so it also saves AI evals.
-    if ((pendingByUser.get(loop.userId) || 0) >= MAX_PENDING_PER_USER) {
-      continue;
-    }
+    // Don't queue past the user's drainable backlog — extra PENDING just expires unsent.
+    if ((pendingByUser.get(loop.userId) || 0) >= MAX_PENDING_PER_USER) continue;
 
     const userProfile = loop.user.parsedProfile as Record<string, unknown> | null;
     const userSkills = (userProfile?.skills as string[]) || [];
     const userLangsList = (userProfile?.languages as string[]) || [];
+    // Skip invalid/sparse profiles (no skills + no languages = not a real resume).
+    if (userSkills.length === 0 && userLangsList.length === 0) continue;
 
-    // Skip invalid/sparse profiles at MATCH time (no skills + no languages = not a real
-    // resume). Previously this was only caught at send time after wasting a queue slot,
-    // an AI match call and a generated cover letter — the dominant non-expiry FAILED cause.
-    if (userSkills.length === 0 && userLangsList.length === 0) {
-      continue;
-    }
+    // Targeting pre-filter — skip the LLM for loops with no surface overlap with the listing.
+    if (!loopMatchesTargeting(loop, userSkills, haystack, listingSkillsLower)) continue;
 
-    // AI matching — AI decides if user is a good match (skills, role, location, language)
-    let matchScore = 0;
-    let matchLabel = 'Weak';
-    {
-      const userLoc = (userProfile?.location as string) || undefined;
-      const userTitle = (userProfile?.current_title as string) || '';
-      const userField = (userProfile?.field as string) || '';
-      const skillHash = userSkills.slice(0, 5).sort().join(',') + ':' + (userLoc || '') + ':' + userTitle;
-      const cacheKey = `${listing.id}:${skillHash}`;
-      let aiResult = aiMatchCache.get(cacheKey);
+    candidates.push({
+      loop,
+      userSkills,
+      userLangs: userLangsList.length ? userLangsList : undefined,
+      userLoc: (userProfile?.location as string) || undefined,
+      userTitle: (userProfile?.current_title as string) || '',
+      userField: (userProfile?.field as string) || '',
+    });
+  }
 
-      if (!aiResult) {
+  // PARALLEL AI PASS: evaluate candidates in concurrent chunks (was one sequential await per
+  // loop — the dominant cost: ~18 min/opportunity at thousands of loops). Stop launching
+  // chunks once we have enough matches to fill the listing's budget. Decisions are identical
+  // to the sequential version (same cache, same shouldApply gate), just concurrent.
+  const AI_CONCURRENCY = 8;
+  const matched: { cand: Cand; matchScore: number; matchLabel: string }[] = [];
+  for (let i = 0; i < candidates.length && matched.length < budget; i += AI_CONCURRENCY) {
+    const chunk = candidates.slice(i, i + AI_CONCURRENCY);
+    const results = await Promise.all(
+      chunk.map(async (c): Promise<{ shouldApply: boolean; score: number; reason: string } | null> => {
+        const skillHash = c.userSkills.slice(0, 5).sort().join(',') + ':' + (c.userLoc || '') + ':' + c.userTitle;
+        const cacheKey = `${listing.id}:${skillHash}`;
+        const cached = aiMatchCache.get(cacheKey);
+        if (cached) return cached;
         try {
-          const userLangs = (userProfile?.languages as string[]) || undefined;
-          aiResult = await aiMatchCheck(listing, userSkills, (loop.user as any).resumeText || '', (loop.user as any).name || 'Applicant', userLangs, userLoc, userTitle, userField);
-          aiMatchCache.set(cacheKey, aiResult);
+          const r = await aiMatchCheck(listing, c.userSkills, (c.loop.user as any).resumeText || '', (c.loop.user as any).name || 'Applicant', c.userLangs, c.userLoc, c.userTitle, c.userField);
+          aiMatchCache.set(cacheKey, r);
+          return r;
         } catch {
-          aiResult = null;
+          return null; // AI failed — skip rather than send bad match
         }
-      }
-
-      if (aiResult) {
-        if (!aiResult.shouldApply) continue;
-        matchScore = aiResult.score;
-        matchLabel = matchScore >= 80 ? 'Strong' : matchScore >= 50 ? 'Good' : 'Weak';
-      } else {
-        continue; // AI failed — skip rather than send bad match
+      })
+    );
+    for (let j = 0; j < chunk.length; j++) {
+      const r = results[j];
+      if (r && r.shouldApply) {
+        matched.push({ cand: chunk[j], matchScore: r.score, matchLabel: r.score >= 80 ? 'Strong' : r.score >= 50 ? 'Good' : 'Weak' });
       }
     }
+  }
+
+  // CREATE PASS: queue applications for matched candidates up to budget (fairness order).
+  let queued = 0;
+  for (const m of matched) {
+    if (queued >= budget) break;
+    const loop = m.cand.loop;
+    if ((pendingByUser.get(loop.userId) || 0) >= MAX_PENDING_PER_USER) continue;
 
     // Determine status based on loop mode
     const status =
@@ -1006,8 +1052,8 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           companyName: realCompanyName,
           jobTitle: listing.title,
           appliedToEmail: listing.applyEmail,
-          matchScore,
-          matchLabel,
+          matchScore: m.matchScore,
+          matchLabel: m.matchLabel,
           coverLetter,
           subject,
           resumeUrl: loop.resumeUrl,
