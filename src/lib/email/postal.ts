@@ -1,5 +1,6 @@
 // Postal self-hosted mail server client
 // API docs: https://docs.postalserver.io/developer/api
+import { getRecruiterUnsubscribeUrl } from '@/lib/recruiter-token';
 
 interface PostalConfig {
   apiUrl: string;
@@ -126,6 +127,10 @@ export async function sendAutoApplyViaPostal(params: {
   };
 
   try {
+    // One-click List-Unsubscribe (RFC 8058). Required by Gmail/Yahoo bulk-sender rules and a
+    // strong inbox-placement signal — apply@ sends at volume, so this matters. The target honors
+    // the opt-out server-side (see /api/recruiter/unsubscribe + RecruiterSuppression).
+    const unsubUrl = getRecruiterUnsubscribeUrl(params.to);
     const body: Record<string, unknown> = {
       to: [params.to.toLowerCase().trim()],
       from: `${fromName} <${fromEmail}>`,
@@ -133,6 +138,10 @@ export async function sendAutoApplyViaPostal(params: {
       subject: params.subject,
       html_body: stripUserEmail(params.html),
       plain_body: stripUserEmail(params.text),
+      headers: {
+        'List-Unsubscribe': `<${unsubUrl}>, <mailto:unsubscribe@freelanly.com?subject=unsubscribe>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
     };
 
     if (params.attachmentBase64 && params.attachmentFilename) {

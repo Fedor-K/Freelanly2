@@ -2182,3 +2182,14 @@ model ContactReveal {
   @@index([recruiterEmail])
   @@index([applicationId])
 }
+
+// Recruiter addresses we must stop sending auto-apply outreach to: one-click List-Unsubscribe
+// opt-outs (RFC 8058) and, later, hard bounces. Honoring unsubscribe + suppressing dead
+// addresses protects the apply@ domain reputation so legitimate applications keep landing.
+// Standalone (string ref, no FK) → purely additive migration; the send loop fails OPEN if the
+// table isn't there yet, so a pending migration never blocks outreach.
+model RecruiterSuppression {
+  email     String   @id // lowercased recruiter email
+  reason    String   @default("optout") // "optout" | "bounce" | "complaint"
+  createdAt DateTime @default(now())
+}
