@@ -94,6 +94,9 @@ model User {
   // Email preferences
   unsubscribedFromMarketing Boolean @default(false)  // User opted out of marketing emails
   unsubscribedAt            DateTime?                 // When they unsubscribed
+  // NOTE: job-alert opt-in (jobAlertOptIn / jobAlertOptInAt) lives in the DB (see
+  // scripts/wave2-migrate.sql) but is intentionally NOT in this model. It's written via guarded
+  // raw SQL in the register route so a not-yet-applied migration can't break site-wide User reads.
 
   // Legal compliance (for dispute evidence)
   agreedToTermsAt           DateTime?                 // When user agreed to ToS
@@ -2163,4 +2166,19 @@ model SavedFeed {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+// Shadow paywall (Wave 2). Logs every time a recruiter reveals a candidate's real contact
+// from the portal. During validation reveal is FREE but recorded here, so when monetization
+// flips on we already know demand (who reveals, how often) and can gate it behind payment.
+// Standalone (string refs, no FK) to keep the migration purely additive.
+model ContactReveal {
+  id             String   @id @default(cuid())
+  applicationId  String   // AutoApplication whose candidate was revealed
+  recruiterEmail String   // == AutoApplication.appliedToEmail (lowercased)
+  revealedAt     DateTime @default(now())
+
+  @@unique([applicationId, recruiterEmail])
+  @@index([recruiterEmail])
+  @@index([applicationId])
 }
