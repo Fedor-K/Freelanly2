@@ -203,6 +203,22 @@ export async function processAutoApplyQueue(): Promise<{
     console.warn('[AutoApply] suppression preload skipped (migration pending?):', (e as Error)?.message);
   }
 
+  // Per-recruiter candidate count — powers a concrete "N candidates for your roles" CTA in the
+  // email, giving recruiters a reason to open the portal (only 4% do today). Best-effort; keyed
+  // on the exact stored appliedToEmail to avoid case-mismatch within our own data.
+  const candidateCountByEmail = new Map<string, number>();
+  try {
+    const recipientEmailsExact = [...new Set(pendingApps.map((a) => a.appliedToEmail))];
+    const grouped = await prisma.autoApplication.groupBy({
+      by: ['appliedToEmail'],
+      where: { appliedToEmail: { in: recipientEmailsExact }, sentAt: { not: null } },
+      _count: { _all: true },
+    });
+    for (const g of grouped) candidateCountByEmail.set(g.appliedToEmail, g._count._all);
+  } catch (e) {
+    console.warn('[AutoApply] candidate-count preload skipped:', (e as Error)?.message);
+  }
+
   // Per-batch cache: parse each JD once (LLM), reuse across candidates sharing the opportunity.
   const jdCache = new Map<string, ParsedJD>();
 
@@ -1097,8 +1113,10 @@ export function buildApplicationEmailHtml(params: {
    *  portal (/r/[token]). Pass ONLY for Postal (apply@) sends — not for a candidate's own
    *  SMTP, where a Freelanly footer would be out of place. */
   recruiterEmail?: string;
+  /** Total candidates this recruiter has (incl. this one) — drives a concrete portal CTA. */
+  candidateCount?: number;
 }): string {
-  const { coverLetter, userName, jobTitle, applicationId, recruiterEmail } = params;
+  const { coverLetter, userName, jobTitle, applicationId, recruiterEmail, candidateCount } = params;
   const portalUrl = recruiterEmail ? getRecruiterPortalUrl(recruiterEmail) : '';
 
   // Convert newlines to paragraphs (escape content — AI/scraped text must not inject HTML)
