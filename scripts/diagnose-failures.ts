@@ -72,6 +72,24 @@ async function main() {
       console.log(`  ${String(n).padStart(7)}  ${String(p + '%').padStart(6)}  ${reason}`);
     }
   }
+
+  // Daily trend for the dominant cause — proves the matcher fix on data, not vibes.
+  console.log('\n=== EXPIRED — DAILY TREND (last 14 days) ===');
+  const days = new Map<string, number>();
+  for (const f of failed) {
+    if (bucket(f.errorMessage) !== 'Expired (not sent within 24h)') continue;
+    const age = now - new Date(f.createdAt).getTime();
+    if (age > 14 * 864e5) continue;
+    const day = new Date(f.createdAt).toISOString().slice(0, 10);
+    days.set(day, (days.get(day) || 0) + 1);
+  }
+  const maxDay = Math.max(1, ...days.values());
+  for (let i = 13; i >= 0; i--) {
+    const day = new Date(now - i * 864e5).toISOString().slice(0, 10);
+    const c = days.get(day) || 0;
+    const bar = '█'.repeat(Math.round((c / maxDay) * 40));
+    console.log(`  ${day}  ${String(c).padStart(5)}  ${bar}`);
+  }
   console.log('');
 }
 

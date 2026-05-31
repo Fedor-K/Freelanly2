@@ -232,24 +232,14 @@ export async function processAutoApplyQueue(): Promise<{
       continue;
     }
 
-    // Language check for interpreter/translator jobs (catches old PENDING apps pre-fix)
-    const titleLowerSend = app.jobTitle.toLowerCase();
-    if (/interpret|translat|linguist/i.test(titleLowerSend)) {
-      const userProfile = app.user.parsedProfile as Record<string, unknown> | null;
-      const userLangs = ((userProfile?.languages as string[]) || []).map(l => l.toLowerCase());
-      const langPattern = /\b(uzbek|arabic|chinese|mandarin|cantonese|japanese|korean|thai|vietnamese|hindi|urdu|bengali|tamil|turkish|persian|farsi|russian|portuguese|french|spanish|german|italian|dutch|polish|czech|swedish|norwegian|danish|finnish|greek|hebrew|indonesian|malay|tagalog|swahili|amharic|haitian|creole|tongan|somali)\b/gi;
-      const jobLangs = [...titleLowerSend.matchAll(langPattern)].map(m => m[0]);
-      const nonEnglishJobLangs = jobLangs.filter(l => l !== 'english');
-      if (nonEnglishJobLangs.length > 0) {
-        const userKnowsLang = nonEnglishJobLangs.some(jl =>
-          userLangs.some(ul => ul.includes(jl) || jl.includes(ul))
-        );
-        if (!userKnowsLang) {
-          await markFailed(app.id, `User doesn't speak ${nonEnglishJobLangs.join(', ')}`);
-          skipped++;
-          continue;
-        }
-      }
+    // Language gate for interpreter/translator jobs. Primary enforcement is now in the matcher
+    // (before we spend an AI call generating a cover letter), but keep this safety net for
+    // pre-existing PENDING apps queued before that gate shipped.
+    const langMiss = missingRequiredLanguage(app.jobTitle, app.user.parsedProfile);
+    if (langMiss) {
+      await markFailed(app.id, `User doesn't speak ${langMiss}`);
+      skipped++;
+      continue;
     }
 
     // Global blocklist: never send to a blocked apply domain (safety net — import
@@ -615,6 +605,24 @@ export async function queueAutoApplyForJob(jobId: string): Promise<number> {
     level: job.level,
     skills: job.skills,
   });
+}
+
+// Detects an interpreter/translator listing that names a non-English language the candidate
+// doesn't have. Returns the missing language(s) string, or null if the candidate qualifies (or
+// the listing isn't language-gated). Single source of truth for both the matcher (skip before
+// the AI cover-letter call) and the send-loop safety net.
+const LANG_TITLE_RE = /interpret|translat|linguist/i;
+const LANG_PATTERN = /\b(uzbek|arabic|chinese|mandarin|cantonese|japanese|korean|thai|vietnamese|hindi|urdu|bengali|tamil|turkish|persian|farsi|russian|portuguese|french|spanish|german|italian|dutch|polish|czech|swedish|norwegian|danish|finnish|greek|hebrew|indonesian|malay|tagalog|swahili|amharic|haitian|creole|tongan|somali)\b/gi;
+
+export function missingRequiredLanguage(jobTitle: string, parsedProfile: unknown): string | null {
+  const title = (jobTitle || '').toLowerCase();
+  if (!LANG_TITLE_RE.test(title)) return null;
+  const jobLangs = [...title.matchAll(LANG_PATTERN)].map((m) => m[0]).filter((l) => l !== 'english');
+  if (jobLangs.length === 0) return null;
+  const profile = parsedProfile as Record<string, unknown> | null;
+  const userLangs = ((profile?.languages as string[]) || []).map((l) => l.toLowerCase());
+  const knows = jobLangs.some((jl) => userLangs.some((ul) => ul.includes(jl) || jl.includes(ul)));
+  return knows ? null : jobLangs.join(', ');
 }
 
 /**
@@ -996,6 +1004,11 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     if (queued >= budget) break;
     const loop = m.cand.loop;
     if ((pendingByUser.get(loop.userId) || 0) >= MAX_PENDING_PER_USER) continue;
+
+    // Language gate BEFORE the AI cover-letter call: an interpreter/translator listing in a
+    // language the candidate doesn't have would only be marked FAILED at send time anyway, after
+    // we'd already paid for a generated letter. Skip it here so we never spend that AI call.
+    if (missingRequiredLanguage(listing.title, loop.user.parsedProfile)) continue;
 
     // Determine status based on loop mode
     const status =
