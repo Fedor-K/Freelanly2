@@ -62,7 +62,7 @@ type TopRow = { recruiterEmail: string; actions: number | bigint };
 export default async function RecruiterFunnelPage() {
   const [
     contacted, opened, visited, engaged, revealedRecruiters, revealsTotal, replied, portalReplied, registered, since7dReveals,
-    recentReveals, topRecruiters, quality,
+    recentReveals, topRecruiters, quality, appVolume,
   ] = await Promise.all([
     // 1. Contacted — distinct recruiter inboxes we've actually sent an application to.
     prisma.$queryRawUnsafe<Array<{ n: number }>>(`SELECT CAST(COUNT(DISTINCT lower("appliedToEmail")) AS INTEGER) n FROM "AutoApplication" WHERE "sentAt" IS NOT NULL`),
@@ -119,7 +119,26 @@ export default async function RecruiterFunnelPage() {
         FROM "User" u
         WHERE EXISTS (SELECT 1 FROM "AutoApplication" aa WHERE aa."userId" = u.id AND aa."sentAt" IS NOT NULL)
       ) q`),
+    // Application volume — counts APPLICATION ROWS (not distinct recruiters), exposing the two
+    // leaks the recruiter-distinct funnel hides: how many applies never leave the send queue
+    // (caps), and how many sent applies the portal cutoff still hides. "visible" mirrors the
+    // exact gate in src/app/r/[token]/page.tsx (sent + createdAt >= 2026-05-26 + not hidden).
+    prisma.$queryRawUnsafe<Array<{ created: number; sent: number; visible: number; replied: number }>>(`
+      SELECT
+        CAST(COUNT(*) AS INTEGER) AS created,
+        CAST(COUNT(*) FILTER (WHERE "sentAt" IS NOT NULL) AS INTEGER) AS sent,
+        CAST(COUNT(*) FILTER (WHERE "sentAt" IS NOT NULL AND "createdAt" >= '2026-05-26' AND "recruiterHidden" = false) AS INTEGER) AS visible,
+        CAST(COUNT(*) FILTER (WHERE "repliedAt" IS NOT NULL OR status IN ('REPLIED','INTERVIEW','OFFER')) AS INTEGER) AS replied
+      FROM "AutoApplication"`),
   ]);
+
+  const av = appVolume?.[0] ?? { created: 0, sent: 0, visible: 0, replied: 0 };
+  const appStages = [
+    { label: 'Created', desc: 'applications generated (matches)', value: av.created },
+    { label: 'Sent', desc: 'left the queue — caps: 10/recruiter, 20/user, 250/hr', value: av.sent },
+    { label: 'Visible in portal', desc: 'sent + after 26 May cutoff + not hidden', value: av.visible },
+    { label: 'Got a reply', desc: 'recruiter messaged the candidate back', value: av.replied },
+  ];
 
   const q = quality?.[0] ?? { total: 0, with_skills: 0, skills3: 0, with_title: 0, with_cv: 0 };
 
@@ -161,6 +180,16 @@ export default async function RecruiterFunnelPage() {
       <div style={{ ...card, marginBottom: 16 }}>
         <h2 style={{ fontSize: 15, margin: '0 0 12px' }}>Overall <span style={{ ...muted, fontWeight: 400 }}>· every recruiter, any channel</span></h2>
         <Funnel stages={mainStages} base={nContacted} accentFrom={99} muted={muted} />
+      </div>
+
+      {/* Application volume — by application ROW, not recruiter. Surfaces the queue + cutoff leaks. */}
+      <div style={{ ...card, marginBottom: 16 }}>
+        <h2 style={{ fontSize: 15, margin: '0 0 4px' }}>Application volume <span style={{ ...muted, fontWeight: 400 }}>· by application, not recruiter</span></h2>
+        <p style={{ ...muted, margin: '0 0 12px' }}>
+          Where applications themselves drop off. The two big leaks: <strong>{pct(av.created - av.sent, av.created)}</strong> never leave the send queue,
+          and the 26 May portal cutoff hides <strong>{pct(av.sent - av.visible, av.sent)}</strong> of what was sent.
+        </p>
+        <Funnel stages={appStages} base={Math.max(av.created, 1)} accentFrom={99} muted={muted} />
       </div>
 
       {/* Reply-channel split — most replies come by email, not the portal; this makes that explicit. */}
