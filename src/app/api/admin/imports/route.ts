@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   const reason = url.searchParams.get('reason') || 'all'; // all | not_job_posting | non-target profession | duplicate | etc
   const search = url.searchParams.get('search')?.toLowerCase() || '';
   const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
-  const limit = Math.min(200, Math.max(10, parseInt(url.searchParams.get('limit') || '50', 10)));
+  const limit = Math.min(250, Math.max(10, parseInt(url.searchParams.get('limit') || '50', 10)));
 
   const hours = PERIOD_HOURS[period] ?? 6;
   const since = new Date(Date.now() - hours * 60 * 60 * 1000);

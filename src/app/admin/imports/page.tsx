@@ -79,7 +79,7 @@ export default function AdminImportsPage() {
       const params = new URLSearchParams({
         period, status, reason, search,
         page: String(page),
-        limit: '50',
+        limit: '250',
       });
       const r = await fetch(`/api/admin/imports?${params.toString()}`);
       const d = await r.json();
