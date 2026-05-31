@@ -76,6 +76,9 @@ export async function GET(request: NextRequest) {
     contentQuality: string | null;
     qualityScore: number | null;
     slug: string | null;
+    excerpt: string | null;
+    postUrl: string | null;
+    author: string | null;
   };
 
   let createdRows: Row[] = [];
@@ -117,6 +120,9 @@ export async function GET(request: NextRequest) {
       contentQuality: o.contentQuality,
       qualityScore: o.qualityScore,
       slug: o.slug,
+      excerpt: null,
+      postUrl: null,
+      author: null,
     }));
   }
 
@@ -132,12 +138,18 @@ export async function GET(request: NextRequest) {
         reason: string | null;
         aiReason: string | null;
         title: string | null;
+        excerpt: string | null;
+        postUrl: string | null;
+        author: string | null;
       }>
     >(
       `SELECT id, "createdAt",
               details->>'reason' as reason,
               details->>'aiReason' as "aiReason",
-              details->>'title' as title
+              details->>'title' as title,
+              details->>'excerpt' as excerpt,
+              details->>'postUrl' as "postUrl",
+              details->>'author' as author
        FROM "ActivityLog"
        WHERE action='IMPORT_SKIP' AND "createdAt" >= $1${reasonClause}${searchClause}
        ORDER BY "createdAt" DESC LIMIT $2`,
@@ -155,6 +167,9 @@ export async function GET(request: NextRequest) {
       contentQuality: null,
       qualityScore: null,
       slug: null,
+      excerpt: s.excerpt,
+      postUrl: s.postUrl,
+      author: s.author,
     }));
   }
 

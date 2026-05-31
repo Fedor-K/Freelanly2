@@ -21,6 +21,9 @@ type Row = {
   contentQuality: string | null;
   qualityScore: number | null;
   slug: string | null;
+  excerpt: string | null;
+  postUrl: string | null;
+  author: string | null;
 };
 
 type Summary = {
@@ -289,6 +292,18 @@ export default function AdminImportsPage() {
                             <div><span className="font-mono">status:</span> {row.status}</div>
                             {row.reason && <div><span className="font-mono">reason bucket:</span> {row.reason}</div>}
                             {row.aiReason && <div><span className="font-mono">AI:</span> {row.aiReason}</div>}
+                            {row.author && <div><span className="font-mono">author:</span> {row.author}</div>}
+                            {row.postUrl && (
+                              <div>
+                                <span className="font-mono">post:</span>{' '}
+                                <a href={row.postUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{row.postUrl}</a>
+                              </div>
+                            )}
+                            {row.excerpt && (
+                              <div className="mt-1 p-2 bg-white border rounded text-gray-700 whitespace-pre-wrap max-w-2xl">
+                                <span className="font-mono text-gray-400">excerpt:</span> {row.excerpt}
+                              </div>
+                            )}
                             {row.qualityScore !== null && <div><span className="font-mono">qualityScore:</span> {row.qualityScore}</div>}
                           </div>
                         </td>

@@ -173,12 +173,25 @@ export async function POST(request: NextRequest) {
     const clientType = body['author.type'] || body.authorType || body.author?.type || 'profile';
     const clientAvatar = body['author.avatar.url'] || body.authorAvatarUrl || body.author?.avatar?.url || null;
 
-    // Fire-and-forget skip logging — lets us see WHAT/why posts get rejected at import
-    // (reason breakdown + the actual title for whitelist skips) without storing the post.
+    // Fire-and-forget skip logging — lets us see WHAT/why posts get rejected at import.
+    // Stores enough to JUDGE the call later: reason, title (when known), a short content
+    // excerpt, the post URL (open the original) and author. Excerpt capped at 280 chars so
+    // ActivityLog stays small. `extra` carries reason-specific fields (e.g. aiReason).
     // Never awaited; must never slow or break the n8n flow.
-    const logSkip = (reason: string, title?: string | null) => {
+    const logSkip = (reason: string, title?: string | null, extra?: Record<string, unknown>) => {
       prisma.activityLog.create({
-        data: { action: 'IMPORT_SKIP', details: { source: 'linkedin', reason, title: title || null } },
+        data: {
+          action: 'IMPORT_SKIP',
+          details: {
+            source: 'linkedin',
+            reason,
+            title: title || null,
+            excerpt: typeof postContent === 'string' ? postContent.slice(0, 280) : null,
+            postUrl: postUrl || null,
+            author: clientName || null,
+            ...extra,
+          },
+        },
       }).catch(() => {});
     };
 
@@ -287,10 +300,9 @@ export async function POST(request: NextRequest) {
       console.log(`[LinkedInPosts] Not a job posting: ${validationResult.reason}`);
       // Capture the AI's SPECIFIC reason (e.g. "looks like a webinar invite", "candidate seeking work",
       // "vague — no specific role") so a histogram on details->>'aiReason' tells us whether the filter
-      // is rejecting real noise or grey-zone jobs. Without this we only know the bucket, not the why.
-      prisma.activityLog.create({
-        data: { action: 'IMPORT_SKIP', details: { source: 'linkedin', reason: 'not_job_posting', aiReason: validationResult.reason } },
-      }).catch(() => {});
+      // is rejecting real noise or grey-zone jobs. logSkip also stores the excerpt + post URL, so we
+      // can read the actual post the AI rejected and judge whether the call was right.
+      logSkip('not_job_posting', null, { aiReason: validationResult.reason });
       return NextResponse.json({
         success: true,
         status: 'skipped',
