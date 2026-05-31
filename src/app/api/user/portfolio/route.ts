@@ -73,7 +73,8 @@ export async function POST(request: NextRequest) {
       where: { id: session.user.id },
       data: {
         caseStudies: projects.length > 0 ? projects : undefined,
-        resumeUrl: url, // Also update portfolio URL
+        portfolioUrl: url, // store the portfolio link in its OWN field — must NOT clobber resumeUrl
+        // (that broke the CV email attachment: fetchResumeAttachment needs a Blob PDF, not a site URL).
       },
     });
 
