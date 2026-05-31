@@ -84,8 +84,8 @@ async function main() {
 
   // ---- Recruiter side (the new surface) ----
   const [recruiters, reveals, otp] = await Promise.all([
-    prisma.recruiter.count(),
-    prisma.contactReveal.count().catch(() => 0),
+    N(await q(`SELECT COUNT(*)::int n FROM "Recruiter"`).catch(() => [{ n: 0 }])),
+    N(await q(`SELECT COUNT(*)::int n FROM "ContactReveal"`).catch(() => [{ n: 0 }])),
     N(await q(`SELECT COUNT(*)::int n FROM "ActivityLog" WHERE action='RECRUITER_PORTAL_ACTION' AND details->>'event'='otp_login'`).catch(() => [{ n: 0 }])),
   ]);
   const recruiterInboxes = N(await q(`SELECT COUNT(DISTINCT lower("appliedToEmail"))::int n FROM "AutoApplication" WHERE "sentAt" IS NOT NULL`));
