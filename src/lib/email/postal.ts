@@ -111,7 +111,7 @@ export async function sendAutoApplyViaPostal(params: {
   }
 
   const fromEmail = 'apply@freelanly.com';
-  const fromName = `${params.userName} via Freelanly`;
+  const fromName = params.userName;
   // Reply routing: replies go to reply+{appId}@reply.freelanly.com → webhook → forward to user
   const replyTo = params.applicationId
     ? `reply+${params.applicationId}@reply.freelanly.com`
