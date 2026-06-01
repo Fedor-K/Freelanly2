@@ -38,6 +38,7 @@ const mainNavigation = [
   { name: 'Chat', href: '/admin/chat', icon: MessageCircle },
   { name: 'Conversions', href: '/admin/conversions', icon: CreditCard },
   { name: 'Auto-Apply', href: '/admin/auto-apply', icon: Send },
+  { name: 'Отправленные заявки', href: '/admin/sent-applications', icon: FileText },
   { name: 'Connections', href: '/admin/connections', icon: Link2 },
 ];
 
