@@ -1180,8 +1180,8 @@ export function buildApplicationEmailHtml(params: {
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6;">
-  ${portalBanner}
   ${paragraphs}
+  ${portalBanner}
   ${portalCta}
   ${trackingPixel}
 </body>
