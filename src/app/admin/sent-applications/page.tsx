@@ -21,6 +21,7 @@ type Row = {
   };
   jobTitle: string | null;
   jobSlug: string | null;
+  jobDescription: string | null;
   recruiterEmail: string | null;
   matchScore: number | null;
   matchLabel: string | null;
@@ -225,10 +226,16 @@ export default function SentApplicationsPage() {
                             </div>
                           </div>
 
-                          {/* The actual application text */}
-                          <div>
-                            <div className="text-xs font-semibold mb-1.5 uppercase text-muted-foreground">Текст отклика (cover letter)</div>
-                            <div className="text-xs text-gray-700 whitespace-pre-wrap bg-white border rounded p-2 max-h-72 overflow-auto">{r.coverLetter || '—'}</div>
+                          {/* Vacancy text + the actual application text */}
+                          <div className="space-y-3">
+                            <div>
+                              <div className="text-xs font-semibold mb-1.5 uppercase text-muted-foreground">Текст вакансии{r.jobSlug && <Link href={`/freelance/${r.jobSlug}`} target="_blank" className="text-blue-600 hover:underline normal-case ml-2 font-normal">открыть →</Link>}</div>
+                              <div className="text-xs text-gray-700 whitespace-pre-wrap bg-amber-50 border border-amber-200 rounded p-2 max-h-72 overflow-auto">{r.jobDescription || '—'}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs font-semibold mb-1.5 uppercase text-muted-foreground">Текст отклика (cover letter)</div>
+                              <div className="text-xs text-gray-700 whitespace-pre-wrap bg-white border rounded p-2 max-h-72 overflow-auto">{r.coverLetter || '—'}</div>
+                            </div>
                           </div>
                         </div>
                       </td>
