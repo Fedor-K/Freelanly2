@@ -26,6 +26,7 @@ type Row = {
   matchScore: number | null;
   matchLabel: string | null;
   match: { matched: number; total: number; lines: Line[] } | null;
+  caveats: { strength: 'Strong' | 'Good' | 'Weak'; items: string[] } | null;
   coverLetter: string | null;
 };
 
@@ -211,6 +212,15 @@ export default function SentApplicationsPage() {
                               </>
                             ) : (
                               <div className="text-xs text-muted-foreground">Нет сохранённого breakdown (старый отклик или матч без verifier). Оценка: {r.matchLabel || '—'} {r.matchScore ?? ''}.</div>
+                            )}
+
+                            {r.caveats && (
+                              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${r.caveats.strength === 'Strong' ? 'bg-green-100 text-green-700' : r.caveats.strength === 'Good' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-700'}`}>{r.caveats.strength}</span>
+                                {r.caveats.items.map((cv, i) => (
+                                  <span key={i} className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">⚠️ {cv}</span>
+                                ))}
+                              </div>
                             )}
 
                             <div className="text-xs font-semibold mt-3 mb-1.5 uppercase text-muted-foreground">Профиль кандидата</div>

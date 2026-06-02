@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { prisma } from '@/lib/db';
+import { computeCaveats } from '@/lib/match-caveats';
 import { verifyRecruiterToken } from '@/lib/recruiter-token';
 import { RecruiterInboxClient, type RecruiterCandidate } from '@/components/recruiter/RecruiterInboxClient';
 import { RecruiterFeedback } from '@/components/recruiter/RecruiterFeedback';
@@ -145,6 +146,7 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
       })(),
       createdAt: a.createdAt.toISOString(),
       fit: a.matchLabel || (a.matchScore != null ? `${a.matchScore}% match` : null),
+      ...(() => { const cv = computeCaveats(a.matchBreakdown); return { strength: cv?.strength ?? null, caveats: cv?.items ?? [] }; })(),
       coverLetter: a.coverLetter || '',
       cvUrl,
       // Genuine candidate liveness — auth.ts updates lastActiveAt on real login (throttled),

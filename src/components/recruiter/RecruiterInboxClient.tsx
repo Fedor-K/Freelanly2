@@ -8,6 +8,8 @@ export type RecruiterCandidate = {
   jobTitle: string;
   createdAt: string;
   fit: string | null;
+  strength?: 'Strong' | 'Good' | 'Weak' | null;
+  caveats?: string[];
   coverLetter: string;
   cvUrl: string | null;
   lastActiveAt: string | null;
@@ -268,6 +270,7 @@ export function RecruiterInboxClient({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0 }}>
                   <span className="name" style={{ fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+                  {c.strength && <span style={{ height: '17px', lineHeight: '17px', padding: '0 7px', fontSize: '9.5px', fontWeight: 700, borderRadius: '5px', flexShrink: 0, background: c.strength === 'Strong' ? '#dcfce7' : c.strength === 'Good' ? '#fef9c3' : '#fee2e2', color: c.strength === 'Strong' ? '#166534' : c.strength === 'Good' ? '#854d0e' : '#991b1b' }}>{c.strength}</span>}
                   {c.fit && <span className="chip" style={{ height: '17px', padding: '0 7px', fontSize: '9.5px', flexShrink: 0 }}>{c.fit}</span>}
                   <span className="meta" style={{ fontSize: '11px', marginLeft: 'auto', flexShrink: 0 }}>{timeAgo(c.createdAt)}</span>
                 </div>
@@ -278,6 +281,15 @@ export function RecruiterInboxClient({
                 )}
               </div>
             </div>
+
+            {/* Honest caveats — the borderline signals, shown openly so the recruiter judges */}
+            {c.caveats && c.caveats.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '8px' }}>
+                {c.caveats.map((cv, j) => (
+                  <span key={j} style={{ fontSize: '10px', color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '5px', padding: '2px 7px' }}>⚠️ {cv}</span>
+                ))}
+              </div>
+            )}
 
             {/* Skills line */}
             {shown.length > 0 && (

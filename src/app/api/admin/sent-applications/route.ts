@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { computeCaveats } from '@/lib/match-caveats';
 
 const ADMIN_EMAILS = ['fedor.hatla@gmail.com'];
 
@@ -120,6 +121,7 @@ export async function GET(request: NextRequest) {
           }
         : null,
       coverLetter: a.coverLetter ? a.coverLetter.slice(0, 2000) : null,
+      caveats: computeCaveats(a.matchBreakdown),   // { strength, items[] } | null — honest borderline flags
     };
   });
 
