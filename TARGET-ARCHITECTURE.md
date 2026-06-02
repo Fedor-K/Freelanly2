@@ -84,7 +84,7 @@
 │  — отдельно от старого /opt)    │◄──┤ pg-boss/pgmq | SQS    │
 │  consumers: ingest, match,      │   │ (atomic claim, DLQ)   │
 │  send, follow-up, reply,        │   └──────────────────────┘
-│  recap, cv-generate             │
+│  recap                          │
 │  в репозитории, CI-деплой       │
 └───────────────┬────────────────┘
                 │
@@ -272,7 +272,7 @@ apps/
 ```
 ingest.listing.created
   └─► match.listing      (gates + score + fairness/cap → MatchDecision[])
-        └─► outreach.queue (AutoApplication=PENDING, генерит cover+CV)
+        └─► outreach.queue (AutoApplication=PENDING, генерит cover letter, прикрепляет реальный CV)
               └─► outreach.send    (атомарный claim PENDING→SENDING,
                                     consumeApplyQuota, outreach-port, → SENT, DLQ при фейле)
                     └─► outreach.followup (через N дней без ответа)
