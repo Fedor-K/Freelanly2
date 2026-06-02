@@ -17,15 +17,21 @@ export function computeCaveats(bd: unknown): Caveats | null {
   const hardDetail = typeof b.hard_detail === 'string' ? b.hard_detail : '';
   const locationFlag = b.location_flag === true;
   const locationDetail = typeof b.location_detail === 'string' ? b.location_detail : '';
-  const missing = lines.filter((l) => l?.status !== 'full').map((l) => String(l?.label ?? '')).filter(Boolean);
+  const missingLines = lines.filter((l) => l?.status !== 'full');
+  // Layer 2 — a missing CORE requirement (defines the role: in the title / mandatory) outweighs
+  // a decent numerator: it's flagged separately and is severe (drops strength to Weak).
+  const coreMissing = missingLines.filter((l) => l?.core === true).map((l) => String(l?.label ?? '')).filter(Boolean);
+  const otherMissing = missingLines.filter((l) => l?.core !== true).map((l) => String(l?.label ?? '')).filter(Boolean);
 
   const items: string[] = [];
   // Hard, checkable requirement the candidate fails (education / cert / minimum-years) — most severe.
   if (hardFail) items.push(`Hard requirement not met: ${hardDetail || 'see job requirements'}`);
+  // Missing a CORE/defining skill of the role (Layer 2) — severe even if other skills matched.
+  if (coreMissing.length) items.push(`Missing CORE requirement: ${coreMissing.join(', ')}`);
   // Geographic mismatch — job tied to a place, remote unclear, candidate elsewhere (soft, verify).
   if (locationFlag) items.push(`Location mismatch: ${locationDetail || 'job and candidate in different countries'} — on-site/remote unclear`);
   if (profession === 'adjacent') items.push('Adjacent role — not an exact occupation match');
-  if (total > 0 && missing.length) items.push(`Missing: ${missing.join(', ')}`);
+  if (total > 0 && otherMissing.length) items.push(`Missing: ${otherMissing.join(', ')}`);
   if (total === 0) items.push('No explicit requirements in the post — matched on profession only');
   // #2 — language caveat ONLY on an explicitly weak level (b1/low), never on "unknown" (avoids
   // spamming a low-signal badge across the 68% of candidates who don't state their English level).
@@ -33,6 +39,6 @@ export function computeCaveats(bd: unknown): Caveats | null {
   if (engRisk) items.push('English may be below what this role needs — worth verifying');
 
   if (items.length === 0) return { strength: 'Strong', items };
-  const severe = hardFail || engRisk || (profession === 'adjacent' && total >= 3 && matched < 2);
+  const severe = hardFail || coreMissing.length > 0 || engRisk || (profession === 'adjacent' && total >= 3 && matched < 2);
   return { strength: items.length >= 2 || severe ? 'Weak' : 'Good', items };
 }
