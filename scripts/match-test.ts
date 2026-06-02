@@ -21,11 +21,8 @@ import OpenAI from 'openai';
 import { buildBreakdown, type ParsedJD } from '../src/lib/match-breakdown/generate';
 
 const prisma = new PrismaClient();
-// Калибровано на реальных прогонах через z.ai (tech/translation/design/marketing):
-//  • total≥3 требований → жёсткий порог matched≥K, ratio≥R (режет «1 навык из 5»).
-//  • total≤2 → решают ГЕЙТЫ (профессия/язык/локация/сениорность); доказательства не гейтят,
-//    иначе идеальный по профессии кандидат отсекается из-за одного отсутствующего тула
-//    (наблюдалось: Social Media Manager отклонён от Social-Media роли из-за «video editing»).
+// Пороги доказательной базы для ADJACENT-профессии при ≥3 требованиях (см. decide()).
+// Откалибровано на широких z.ai-прогонах: matched≥K и ratio≥R режут «1 generic-навык из 5».
 const K = Number(process.env.MATCH_MIN_MATCHED || 2);
 const R = Number(process.env.MATCH_MIN_RATIO || 0.34);
 
@@ -64,13 +61,13 @@ Do NOT invent requirements. No soft traits (leadership, team player). JSON only.
   return { skills, languages: (Array.isArray(jd.languages) ? jd.languages : []).map(String), years: typeof jd.years === 'number' ? jd.years : null, location: typeof jd.location === 'string' ? jd.location : null };
 }
 
-// ── L2: жёсткие гейты (профессия / язык / локация / сениорность), один LLM-вызов ──
-type Gates = { profession_ok: boolean; profession_reason: string; language_ok: boolean; location_ok: boolean; seniority_ok: boolean };
+// ── L2: гейты с ГРАНУЛЯРНОСТЬЮ профессии (exact|adjacent|different) ────────────────
+type Gates = { profession: 'exact' | 'adjacent' | 'different'; reason: string; language_ok: boolean; location_ok: boolean; seniority_ok: boolean };
 async function gateCheck(listing: any, cand: any): Promise<Gates> {
   return chatJSON(
     `You apply on a candidate's behalf — applying burns quota and emails a real recruiter, so be STRICT. Return ONLY JSON:
-{"profession_ok":bool,"profession_reason":"<=12 words","language_ok":bool,"location_ok":bool,"seniority_ok":bool}
-- profession_ok=false if the candidate practices a DIFFERENT profession family from the job. Merely SPEAKING a language is NOT being a translator/interpreter. Treat translation/interpreting/localization/subtitling as ONE family.
+{"profession":"exact|adjacent|different","reason":"<=8 words","language_ok":bool,"location_ok":bool,"seniority_ok":bool}
+- profession: "exact"=the candidate's own occupation IS this job's occupation (e.g. Social Media Manager↔Social Media Account Manager; Graphic Designer↔Graphic Designer; both translate↔translation role). "adjacent"=same family/transferable but a different specialization (e.g. Backend Developer↔Java/AWS Engineer; Full-Stack↔Frontend; Motion Designer↔Video Editor). "different"=different profession family (developer/marketer/HR↔translator, etc.). Merely SPEAKING a language is NOT being a translator. Treat translation/interpreting/localization/subtitling as ONE family.
 - language_ok: for translation/interpreting roles, false ONLY if the candidate clearly works in different languages than the job needs; true otherwise and for non-language roles.
 - location_ok: false ONLY if job is onsite/hybrid in a specific country AND the candidate is clearly elsewhere. Remote, or unknown country/location => true.
 - seniority_ok: false ONLY if job needs 5+ years and candidate is a student/intern/0-1y.`,
@@ -91,31 +88,46 @@ function loadCand(u: any) {
   };
 }
 
-// ── одна пара: гейты + доказательства + решение ─────────────────────────────────
+// ── ФИНАЛЬНОЕ правило (откалибровано на широких z.ai-прогонах). 3 исхода. ─────────
+// NO     — гейт не прошёл (другая профессия / язык / локация / сениорность).
+// MATCH  — авто-отправка. REVIEW — полу-авто (статус AutoApplyStatus.REVIEW), человек глянет.
+type Outcome = 'MATCH' | 'REVIEW' | 'NO';
+function decide(g: Gates, matched: number, total: number, topFull: boolean): { res: Outcome; why: string } {
+  if (g.profession === 'different' || !g.language_ok || !g.location_ok || !g.seniority_ok) return { res: 'NO', why: 'gate' };
+  const ratio = total ? matched / total : 0;
+  if (g.profession === 'exact') {
+    // занятие кандидата = роль. Но если требования есть, а не совпало НИ одного — на ручной взгляд.
+    if (total >= 1 && matched === 0) return { res: 'REVIEW', why: 'exact-but-zero-evidence' };
+    return { res: 'MATCH', why: 'exact-occupation' };
+  }
+  // adjacent: нужна доказательная база
+  if (total === 0) return { res: 'REVIEW', why: 'adjacent-no-requirements' };   // без требований по профессии — только REVIEW
+  if (topFull && (total < 3 || (matched >= K && ratio >= R))) return { res: 'MATCH', why: 'adjacent+core-skill' };
+  if (matched === 0) return { res: 'NO', why: 'adjacent-wrong-stack' };
+  return { res: 'REVIEW', why: 'adjacent-partial' };
+}
+
 async function evaluate(listing: any, jd: ParsedJD, cand: any) {
   const gates = await gateCheck(listing, cand);
-  const gatesPass = gates.profession_ok && gates.language_ok && gates.location_ok && gates.seniority_ok;
   const bd = buildBreakdown(jd, {
     jdText: `${listing.title}\n${listing.description || ''}`, cvText: cand.cvText,
     candidateSkills: cand.skills, candidateLanguages: cand.languages,
     candidateYears: cand.years, candidateLocation: cand.location,
   });
-  const ratio = bd.total ? bd.matched / bd.total : 0;
-  // Жёсткий порог доказательств — только когда вакансия дала ≥3 конкретных требования.
-  // При total≤2 решают гейты; доказательства лишь ранжируют (см. калибровку у K/R выше).
-  const evidenceOk = bd.total >= 3 ? (bd.matched >= K && ratio >= R) : true;
-  const apply = gatesPass && evidenceOk;
-  return { gates, gatesPass, bd, ratio, apply };
+  const topFull = bd.lines.length > 0 && bd.lines[0].status === 'full'; // топ-требование (most-important-first)
+  const d = decide(gates, bd.matched, bd.total, topFull);
+  return { gates, bd, ...d };
 }
 
 function printVerdict(cand: any, r: any) {
   const g = r.gates;
-  const gLine = `profession=${g.profession_ok ? 'PASS' : 'FAIL'}${g.profession_ok ? '' : ` (${g.profession_reason})`} | language=${g.language_ok ? 'PASS' : 'FAIL'} | location=${g.location_ok ? 'PASS' : 'FAIL'} | seniority=${g.seniority_ok ? 'PASS' : 'FAIL'}`;
+  const gLine = `profession=${g.profession} | language=${g.language_ok ? 'Y' : 'N'} | location=${g.location_ok ? 'Y' : 'N'} | seniority=${g.seniority_ok ? 'Y' : 'N'}`;
   const ev = r.bd.lines.map((l: any) => `${l.label}${l.status === 'full' ? '✓' : '✗'}`).join(', ');
+  const icon = r.res === 'MATCH' ? '✅ MATCH' : r.res === 'REVIEW' ? '🟡 REVIEW' : '❌ NO';
   console.log(`\n  CANDIDATE  ${cand.email}  "${cand.title}"  (field: ${cand.field || '-'}, ${cand.years ?? '?'}y)`);
-  console.log(`    GATES:    ${gLine}`);
-  console.log(`    EVIDENCE: ${r.bd.matched}/${r.bd.total} matched  [${ev || '— no parseable requirements —'}]`);
-  console.log(`    => ${r.apply ? '✅ MATCH' : '❌ NO-MATCH'}  (ratio ${r.ratio.toFixed(2)}; K=${K} R=${R})`);
+  console.log(`    GATES:    ${gLine}${g.profession === 'different' ? `  (${g.reason})` : ''}`);
+  console.log(`    EVIDENCE: ${r.bd.matched}/${r.bd.total}  [${ev || '— нет извлечённых требований —'}]`);
+  console.log(`    => ${icon}  (${r.why})`);
 }
 
 // ── cheap pre-filter (term overlap) — высокий recall, без LLM ────────────────────
@@ -151,9 +163,9 @@ async function main() {
     const haystack = `${listing.title} ${listing.description || ''}`.toLowerCase();
     const cands = pool.map(loadCand).filter(c => c.skills.length > 0 && termPlausible(c, haystack)).slice(0, 10);
     console.log(`\n  Evaluating ${cands.length} term-plausible candidates (of ${pool.length} sampled)…`);
-    let matched = 0;
-    for (const c of cands) { const r = await evaluate(listing, jd, c); printVerdict(c, r); if (r.apply) matched++; }
-    console.log(`\n  SUMMARY: ${matched}/${cands.length} matched this listing.`);
+    const tally = { MATCH: 0, REVIEW: 0, NO: 0 };
+    for (const c of cands) { const r = await evaluate(listing, jd, c); printVerdict(c, r); tally[r.res as 'MATCH' | 'REVIEW' | 'NO']++; }
+    console.log(`\n  SUMMARY: MATCH=${tally.MATCH}  REVIEW=${tally.REVIEW}  NO=${tally.NO}  (of ${cands.length})`);
   }
 }
 
