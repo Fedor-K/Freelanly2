@@ -24,6 +24,16 @@ const SYN_GROUPS: string[][] = [
   ['rest api', 'restful api', 'rest apis', 'restful apis', 'restful', 'rest services', 'restful web services'],
   ['javascript', 'java script'],
   ['typescript', 'type script'],
+  // SPOKEN LANGUAGES (translation vertical). A "Chinese" requirement must match a candidate who
+  // lists "Mandarin"; etc. ASCII-only members — normText strips accents (español→"espa ol"), so
+  // accented spellings can't be members here. Native-speaker phrasing ("native Spanish") already
+  // matches because the language name is literally present; this only closes the synonym gap.
+  ['chinese', 'mandarin', 'putonghua'],
+  ['spanish', 'castilian', 'castellano'],
+  ['german', 'deutsch'],
+  ['dutch', 'flemish'],
+  ['persian', 'farsi'],
+  ['filipino', 'tagalog'],
 ];
 // member -> its full group (so any phrasing of a skill expands to all phrasings)
 const SYN = new Map<string, string[]>();
