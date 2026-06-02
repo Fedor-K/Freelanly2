@@ -15,6 +15,11 @@
 6. **`consumeApplyQuota`/`refundApplyQuota`/`FREE_DAILY_APPLY_LIMIT=20` уже существуют** в `src/lib/apply-quota.ts` — единый квота-шлюз §7 **переиспользует их**, а не вводит заново (нужно лишь сделать списание атомарным).
 7. `vercel.json` уже содержит больше кронов, чем CLAUDE.md (`hot-lead-reminders`, `generate-cvs`) — подтверждает разрастание кронов, которое §9-Фаза 9 сводит в очередь.
 
+**Корректировки по продукту (от владельца, не из кода):**
+8. **SEO-индексация листингов не нужна** — проекты не индексируются. `content-quality` сохраняется не как SEO-gate (THIN→noindex), а как gate «годности к отклику» в Ingestion; SEO-потребители (sitemap/IndexNow для листингов) уходят в kill-list. См. §4 шаг 5, §3 (Content/SEO), §5.4.
+9. **CV — только реальный, загруженный кандидатом.** Генерация CV из профиля (`generate-cvs` cron, `generate-cv-pdf.ts`, `resumeGenerated`) удаляется: резюме обязательно при apply (§4.1), генерация избыточна. См. §4 шаг 11, §5.4.
+10. **Добавлен §4.1 (Intake)** — гэп исходного драфта: что предоставляют кандидат (обязательный PDF→AI-профиль) и рекрутер (прогрессивный захват `hiringFor`/`hiringVolume` при заходе в портал) и как эти данные обрабатываются.
+
 ---
 
 ## Context
@@ -110,14 +115,14 @@
 | Домен | Ответственность | Главные сущности |
 |---|---|---|
 | **Ingestion** | Скрап → нормализация → дедуп → фильтр → один `Listing`. **Только LinkedIn (Apify/n8n).** | `Listing`, `KeywordRun`, `RejectedListing` |
-| **Profiles** | Кандидат: резюме→профиль, LinkedIn-обогащение, CV-генерация, навыки/языки/локация. | `User`(auth-only), `CandidateProfile`, `Resume` |
+| **Profiles** | Кандидат: **реальное резюме (PDF)** → AI-профиль, LinkedIn-обогащение, навыки/языки/локация. **Без CV-генерации** — только загруженный юзером PDF. | `User`(auth-only), `CandidateProfile`, `Resume` |
 | **Matching** | Гейты профессии/языка/локации/seniority + скоринг; fairness/cap/quota; постановка в очередь. **Один матчер.** | `AutoApplyLoop`, `MatchDecision`, `MatchBreakdown` |
 | **Outreach** | Cover letter, attach CV, отправка через outreach-port, status-машина, follow-up. Идемпотентно. | **`AutoApplication`** (каноническая), `OutreachEvent` |
 | **Conversations** | Inbound-ответы (только webhook), единый категоризатор, тред, нотификации. | `Message`, `ReplyClassification` |
 | **Recruiter/Demand** | Портал `/r`, токен/OTP-сессия, contact-reveal (paywall), suppression/unsubscribe. | `Recruiter`, `ContactReveal`, `RecruiterSuppression` |
 | **Billing** | Подписки/платежи за один интерфейс (Stripe+PayPro адаптеры), квоты, paywall-enforcement. | `Subscription`, `Entitlement`, `RevenueEvent` |
 | **Analytics** | Event-log, воронки, KPI, CEO-алерты. | `ActivityEvent`, `DailyMetric` |
-| **Content/SEO** | Блог, sitemap, indexing, content-quality. | `BlogPost`, `IndexingLog` |
+| **Content/SEO** | **Только блог/маркетинг** (sitemap, indexing). Листинги (`/freelance/*`) — noindex, не индексируются; content-quality живёт не здесь, а в Ingestion как gate годности (см. §4 шаг 5). | `BlogPost`, `IndexingLog` |
 | **Notifications** | Кросс-канальная доставка (email/TG/Slack) — общий сервис. | — |
 
 **Правило межсервисного общения:** домен ходит в другой домен **только через его application-сервис**, не в чужие таблицы.
@@ -134,13 +139,13 @@
 | 2 | «Это вообще вакансия?» — отсев вебинаров, новостей, «ищу работу», саморекламы | LLM-проверка (`isJobPosting` в `src/lib/ai.ts`) | 🟣 |
 | 3 | Достаём суть: должность, навыки, зарплата, язык, email/ссылка, локация | LLM-извлечение полей | 🟣 |
 | 4 | Чистим и проверяем: нормализация email, чёрные списки, дедуп | Регэкспы, списки, `sourceId`+fuzzy | 🔵 |
-| 5 | Оценка качества (SEO: индексировать/нет) | `src/lib/content-quality.ts`, формула | 🔵 |
+| 5 | Оценка «годности к отклику»: отсев THIN/junk-постов (без скилов, объявления). **НЕ для SEO** — проекты не индексируются; это gate перед матчингом (THIN не уходит в отклик) | `src/lib/content-quality.ts`, формула; gate в `auto-apply-processor.ts:545` | 🔵 |
 | 6 | Сохраняем как `Listing`, кладём событие «новый listing» | INSERT + enqueue | 🔵 |
 | 7 | Грубый отсев кандидатов из тысяч лупов | Сравнение слов/навыков лупа (без ИИ) | 🔵 |
 | 8 | Справедливая очередь: слоты — сначала тем, кто давно не слал | least-served-first + cap’ы | 🔵 |
 | 9 | Точный матчинг: профессия/язык/локация/уровень + балл | LLM с жёсткими гейтами, пачками | 🟣 |
 | 10 | Пишем cover letter (рандомный стиль/длина) + subject | LLM | 🟣 |
-| 11 | Прикрепляем CV (реальный PDF или сгенерированный) | Сборка PDF, Blob | 🔵 |
+| 11 | Прикрепляем **реальный** CV кандидата (загруженный при apply PDF). Генерация CV из профиля **не нужна** — резюме обязательно на регистрации | Чтение `resumeUrl` из Blob | 🔵 |
 | 12 | Ставим в очередь `AutoApplication=PENDING` | INSERT + enqueue | 🔵 |
 | 13 | Отправляем: атомарный claim, списание квоты, Postal | claim + `consumeApplyQuota` + SMTP + экранирование | 🔵 |
 | 14 | Подмена адреса: отправитель `apply@`, ответ на `reply+{id}@` | Переписывание заголовков | 🔵 |
@@ -155,6 +160,43 @@
 | 22 | Регистрируется при первом ответе | запись `Recruiter` | 🔵 |
 
 **ИИ ровно в 5 точках:** (2) это джоба?, (3) извлечение, (9) матчинг, (10) cover letter, (16) классификация. Всё остальное — детерминированный код.
+
+---
+
+## 4.1 Intake: что предоставляют стороны и как это обрабатывается
+
+Две асимметричные точки входа. **Кандидат регистрируется явной формой при apply; рекрутер не регистрируется заранее — его «регистрация» снимается в момент первого захода в портал** по токену из outreach-письма. Это важно для домена Recruiter: данные рекрутера копятся прогрессивно, а не одним signup-шагом.
+
+### Кандидат (inline apply на `/freelance/[slug]`)
+
+| Поле | Обяз. | Источник / обработка |
+|---|---|---|
+| `email` | ✅ | rate-limit по IP+email, валидация, нормализация → identity `User` после OTP |
+| **Résumé (PDF, ≤5MB)** | ✅ | **главный вход.** `resume-preauth/route.ts`: `unpdf.extractText` → текст → AI (Z.ai/GLM) извлекает `parsedProfile` `{name, skills, current_title, field, experience_years, summary}`. Файл кладётся в Blob (`resumeUrl`) — он же прикрепляется к outreach (§4 шаг 11). Это **authoritative base** профиля. |
+| LinkedIn URL | — | слой обогащения поверх резюме |
+| Portfolio / GitHub | — | опц., в профиль |
+| categories / countries / languages | — | через `register/route.ts`; languages → языковые пары (для translation-гейтов матчинга) |
+| `agreedToTerms`, UTM/gclid | — | dispute-evidence + атрибуция |
+
+**Обработка:** PDF → текст → AI-`parsedProfile` (🟣 единственный ИИ-шаг intake) → нормализуется в `CandidateProfile` (§5.2). Матчер и cover-letter читают **только** этот профиль через `CandidateProfileRepository`-фасад, не сырой PDF. Резюме обязательно ⇒ **генерация CV из профиля не нужна** (kill-list, §5.4).
+
+> ⚠️ В текущем `register/route.ts` всё ещё создаются `JobAlert`-ы (alerts приостановлены) — это legacy-хвост; в целевой схеме intake создаёт `User`+`CandidateProfile`, без alert-записей (§5.4).
+
+### Рекрутер (портал `/r`, прогрессивный захват)
+
+Рекрутер появляется не через signup, а потому что **получил отклик**. Точки входа: токенизированная ссылка `/r/[token]` в outreach-письме **или** вход по email+OTP (`send-otp`/`verify-otp`). `Recruiter` создаётся/обогащается при первом заходе (`recruiter/register`, `verify-otp`).
+
+| Поле | Когда снимается | Смысл |
+|---|---|---|
+| `email` | из токена / OTP | `== AutoApplication.appliedToEmail` (lowercased) — связь рекрутера с его откликами |
+| `name`, `company` | при регистрации в портале | идентификация |
+| `hiringFor` (free text) | need-Q1 | какие роли нанимает |
+| `hiringVolume` (`1`/`2-5`/`6-20`/`20+`) | need-Q2 | proxy спроса/бюджета — demand-сигнал для монетизации |
+| `plan` (`free` default), `lastSeenAt` | портал | биллинг + engagement (bump на каждый визит) |
+
+**Auth:** `RecruiterOtp` — 6-значный код, хранится только `sha256(code)`, с `attempts`/`expiresAt`. Плюс подписанный токен (`recruiter-token.ts` — см. §8 про fail-fast секрета). **Отдельный auth-контекст от кандидата** (NextAuth), выносится в `application/recruiter`.
+
+**Обработка/действия:** рекрутер видит откликнувшихся, отсортированных по совпадению, и замороженный `MatchBreakdown` (§4 шаг 20); reveal контакта (`reveal`, paywall/entitlement), reply (`reply` → `Message` + статус `REPLIED`, не понижая INTERVIEW/OFFER — §5.5), feedback, unsubscribe (`RecruiterSuppression`). Никакого ИИ на стороне рекрутера — всё детерминировано.
 
 ---
 
@@ -175,7 +217,7 @@ ATS вырезается, остаётся **один `Listing`** (бывш. `Op
 - `NotificationPrefs` — TG/Slack/каналы.
 
 ### 5.3 JSON → таблицы / типизация
-- `User.parsedProfile` → нормализованные поля `CandidateProfile` (+ опц. `rawProfile`, Zod).
+- `User.parsedProfile` → нормализованные поля `CandidateProfile` (+ опц. `rawProfile`, Zod). Источник — AI-разбор **реального** резюме при apply (§4.1), не генерация.
 - `AutoApplication.matchBreakdown` → таблица `MatchBreakdown` (matched/total/ratio/lines) **с версией алгоритма** — аудит-трейл остаётся интерпретируем после смены матчера. (Поле уже несёт `{matched,total,wouldGate,bucket,lines}` и используется в shadow/gate/render — нормализуем без потери семантики.)
 - `ActivityLog.details` → дискриминированный union по `action` (Zod per action).
 - `Settings.value` → типизированные key-схемы.
@@ -184,6 +226,8 @@ ATS вырезается, остаётся **один `Listing`** (бывш. `Op
 **Весь ATS-стек:** `Job` + `ImportedJob`; процессоры `src/services/sources/*` + `filters`; discovery-кроны/вебхуки (`discover-lever`, `discover-greenhouse`, `run-lever-discovery`…); `DataSource`, `ImportLog`, `ImportTask`, `FilteredJob`; `/api/cron/fetch-sources`; `Company` (нужна была только под ATS — LinkedIn-клиент в полях `Listing`).
 **Job-board наследие:** `LandingPage`, **legacy `Application`** (3 ссылки → слить семантику в `AutoApplication`), `JobAlert`+`AlertLanguagePair`+`AlertNotification`+`AlertEmailFeedback` (алерты приостановлены), `SavedFeed` (дубль `AutoApplyLoop`), `VideoPostQueue` — по факту использования.
 **Email-провайдеры:** удалить `src/lib/email/{resend,ses,smtp2go,elasticemail}.ts` + их мёртвые вебхуки.
+**CV-генерация:** удалить `/api/cron/generate-cvs`, `src/lib/generate-cv-pdf.ts` и флаг `User.resumeGenerated` — CV прикрепляется только реальный (резюме обязательно при apply, §4.1). Убрать `generate-cvs` из `vercel.json`.
+**Content-quality для SEO:** убрать SEO/indexing-путь (THIN→noindex, sitemap-исключения, IndexNow для листингов) из `linkedin-posts`-ingestion и `indexing.ts` — листинги не индексируются. **`content-quality.ts` НЕ удаляется целиком** — функция оценки остаётся, но переезжает в Ingestion как gate «годности к отклику» (`auto-apply-processor.ts:545`, §4 шаг 5). Удаляются только индексирующие потребители (admin/indexing-status для листингов и т.п.).
 Каждое удаление — отдельная strangler-миграция с архивом; ATS-удаление даёт самое большое сокращение поверхности.
 
 > ⚠️ **`Job` — НЕ чистое мёртвое удаление: живая `AutoApplication` ссылается на него.** `AutoApplication.jobId` — loose `String?` **без `@relation`/FK** (так что DROP `Job` не упадёт на DB-уровне — осиротение чисто логическое, констрейнт не защитит, нужна data-проверка), и часть **реальных, не-legacy** откликов привязана к `Job`-листингу, а не к `Opportunity`. Это меняет оценку риска Фазы 5 с «в основном удаление» на **«зависит от данных»** (симметрично null-sourceId). Предусловие Фазы 5 — снять на проде долю `AutoApplication WHERE jobId IS NOT NULL AND opportunityId IS NULL` (отклики, существующие **только** через ATS-листинг). Если доля ненулевая — для этих строк нужна стратегия **до** DROP: либо мигрировать соответствующий `Job`-листинг в `Listing` с сохранением связи (перепривязать `jobId`→`opportunityId`/`listingId`), либо архивировать отклик. См. §9-Фаза 5.
