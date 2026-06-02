@@ -97,9 +97,10 @@ function decide(g: Gates, matched: number, total: number, topFull: boolean): { r
   if (g.profession === 'different' || !g.language_ok || !g.location_ok || !g.seniority_ok) return { res: 'NO', why: 'gate' };
   const ratio = total ? matched / total : 0;
   if (g.profession === 'exact') {
-    // занятие кандидата = роль. Но если требования есть, а не совпало НИ одного — на ручной взгляд.
-    if (total >= 1 && matched === 0) return { res: 'REVIEW', why: 'exact-but-zero-evidence' };
-    return { res: 'MATCH', why: 'exact-occupation' };
+    // Занятие кандидата = роль. Но «exact + 1 из 5 навыков» = слишком тонко (стек не тот) → REVIEW.
+    // MATCH: нет требований; ≤2 требований и есть хоть одно; ≥3 требований и matched≥K, ratio≥R.
+    if (total === 0 || (total <= 2 && matched >= 1) || (total >= 3 && matched >= K && ratio >= R)) return { res: 'MATCH', why: 'exact-occupation' };
+    return { res: 'REVIEW', why: 'exact-thin-evidence' };
   }
   // adjacent: нужна доказательная база
   if (total === 0) return { res: 'REVIEW', why: 'adjacent-no-requirements' };   // без требований по профессии — только REVIEW
