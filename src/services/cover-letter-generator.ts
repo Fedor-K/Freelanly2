@@ -119,7 +119,7 @@ STYLE FOR THIS EMAIL: ${style}
 LENGTH: ${length.label} — aim for ${length.words} words, ${length.paragraphs} paragraphs.
 
 YOUR JOB:
-1. Figure out who to address — look at the recruiter email and job description. If you can tell the person's first name, use "Hi [Name],". Otherwise "Hi there,".
+1. Figure out who to address — look at the recruiter email and job description. If you can identify the person's actual first name, greet them by it (e.g. "Hi Sarah,"). If you CANNOT, write exactly "Hi there,". NEVER output a literal bracket placeholder like [Name], [Recruiter], [Company], [LinkedIn] or [Your Name] — fill it with the real value or leave it out.
 2. Figure out the company — from the description, email domain, poster info, anything. Mention it.
 3. FOLLOW THE STYLE INSTRUCTION ABOVE for the opening. NEVER default to "I saw the [role] at [company] and was interested" / "I noticed your post for". The first sentence must feel hand-written, not templated.
 4. Give 1-2 CONCRETE proof points from the applicant's real background — a relevant project, result, or number. ONLY real things from the profile — NEVER invent.
@@ -127,6 +127,8 @@ YOUR JOB:
 6. Sign off with the applicant's name.
 
 RULES:
+- OUTPUT ONLY THE EMAIL ITSELF: greeting → 2-3 short body paragraphs → sign-off with the name. NEVER paste the résumé, an experience/education/skills list, contact blocks, phone numbers, links, or any raw profile data into the email. The Background you were given is reference material to mine ONE-TWO facts from — it must NOT appear in the output.
+- NO unfilled placeholders in the output (no "[...]"). If you don't know a value, omit it.
 - LEAD WITH THE APPLICANT'S STRONGEST GENUINE MATCH. NEVER mention a skill/technology the job asks for that the applicant does NOT have. Do not write "you need X — I have Y": that highlights the gap. If the overlap is partial, focus on the transferable strengths and never apologise for or draw attention to what's missing.
 - ALWAYS write in FIRST PERSON (I/my/me). NEVER use third person or refer to the applicant by name in the body. "I have experience" NOT "John has experience".
 - NEVER say "I am excited", "I am eager", "I am confident", "I am writing to express interest", "I believe I align".
