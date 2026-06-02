@@ -21,8 +21,10 @@ import OpenAI from 'openai';
 import { buildBreakdown, type ParsedJD } from '../src/lib/match-breakdown/generate';
 
 const prisma = new PrismaClient();
-const K = Number(process.env.MATCH_MIN_MATCHED || 1);
-const R = Number(process.env.MATCH_MIN_RATIO || 0.2);
+// Калибровано на реальном срезе (Java/React Developer × 7 живых профилей):
+// K=1 пропускал Ruby-дева по одному React; K=2/R=0.34 даёт 7/7 верных вердиктов.
+const K = Number(process.env.MATCH_MIN_MATCHED || 2);
+const R = Number(process.env.MATCH_MIN_RATIO || 0.34);
 
 // ── AI client — ТОЛЬКО z.ai (как в проде). Других провайдеров нет. ───────────────
 function ai(): { client: OpenAI; model: string } {
@@ -96,7 +98,9 @@ async function evaluate(listing: any, jd: ParsedJD, cand: any) {
     candidateYears: cand.years, candidateLocation: cand.location,
   });
   const ratio = bd.total ? bd.matched / bd.total : 0;
-  const evidenceOk = bd.total === 0 ? true : (bd.matched >= K && ratio >= R);
+  // need ≥K совпадений, но не больше, чем требований у вакансии (иначе листинги с total<K не матчились бы)
+  const needMatched = Math.min(K, bd.total);
+  const evidenceOk = bd.total === 0 ? true : (bd.matched >= needMatched && ratio >= R);
   const apply = gatesPass && evidenceOk;
   return { gates, gatesPass, bd, ratio, apply };
 }
