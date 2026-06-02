@@ -109,26 +109,37 @@ function loadCand(u: any) {
   };
 }
 
-// ── ФИНАЛЬНОЕ правило (откалибровано на широких z.ai-прогонах). 3 исхода. ─────────
-// NO     — гейт не прошёл (другая профессия / язык / локация / сениорность).
-// MATCH  — авто-отправка. REVIEW — полу-авто (статус AutoApplyStatus.REVIEW), человек глянет.
-type Outcome = 'MATCH' | 'REVIEW' | 'NO';
-function decide(g: Gates, matched: number, total: number, topFull: boolean): { res: Outcome; why: string } {
-  if (g.profession === 'different' || !g.language_ok || !g.location_ok || !g.seniority_ok) return { res: 'NO', why: 'gate' };
-  const ratio = total ? matched / total : 0;
-  if (g.profession === 'exact') {
-    // Занятие кандидата = роль. Но «exact + 1 из 5 навыков» = слишком тонко (стек не тот) → REVIEW.
-    // MATCH: нет требований; ≤2 требований и есть хоть одно; ≥3 требований и matched≥K, ratio≥R.
-    if (total === 0 || (total <= 2 && matched >= 1) || (total >= 3 && matched >= K && ratio >= R)) return { res: 'MATCH', why: 'exact-occupation' };
-    return { res: 'REVIEW', why: 'exact-thin-evidence' };
-  }
-  // adjacent: нужна доказательная база
-  if (total === 0) return { res: 'REVIEW', why: 'adjacent-no-requirements' };   // без требований по профессии — только REVIEW
-  // ≤2 требований: MATCH только если совпали ВСЕ (1 из 2 = не хватает специализации → REVIEW, напр. Figma✓ но Email-design✗).
-  // ≥3 требований: топ-навык + ≥K совпадений и ratio≥R.
-  if (topFull && ((total <= 2 && matched === total) || (total >= 3 && matched >= K && ratio >= R))) return { res: 'MATCH', why: 'adjacent+core-skill' };
-  if (matched === 0) return { res: 'NO', why: 'adjacent-wrong-stack' };
-  return { res: 'REVIEW', why: 'adjacent-partial' };
+// ── МОДЕЛЬ: NO (жёсткий гейт) | SEND + caveats[]. Рекрутер — судья. ───────────────
+// Жёсткие гейты режут очевидные не-фиты. Всё, что прошло, ИДЁТ рекрутеру, но с
+// честными оговорками (caveats), которые подсвечиваются в портале /r. Сила (strength)
+// = насколько серьёзны оговорки → по ней сортируем выдачу рекрутеру.
+type Outcome = 'SEND' | 'NO';
+type Assessment = { res: Outcome; strength: 'Strong' | 'Good' | 'Weak' | null; caveats: string[]; reason: string };
+
+function assess(g: Gates, bd: any, engLvl: string, isLangRole: boolean): Assessment {
+  // 1) Жёсткие гейты → NO (рекрутеру не показываем)
+  if (g.profession === 'different') return { res: 'NO', strength: null, caveats: [], reason: `другая профессия (${g.reason})` };
+  if (!g.language_ok) return { res: 'NO', strength: null, caveats: [], reason: 'чужая языковая пара' };
+  if (!g.location_ok) return { res: 'NO', strength: null, caveats: [], reason: 'локация: onsite в другой стране' };
+  if (!g.seniority_ok) return { res: 'NO', strength: null, caveats: [], reason: 'джун на роль 5+' };
+  // Минимальный порог: смежная профессия И ноль совпавших навыков на роли с ≥3 требований = нет точек соприкосновения
+  if (g.profession === 'adjacent' && bd.total >= 3 && bd.matched === 0)
+    return { res: 'NO', strength: null, caveats: [], reason: 'смежная профессия + ноль совпавших навыков' };
+
+  // 2) Прошёл гейты → SEND, собираем честные оговорки
+  const caveats: string[] = [];
+  const missing = bd.lines.filter((l: any) => l.status !== 'full').map((l: any) => l.label);
+  const engRisk = !isLangRole && englishDowngrade(g.english_req, engLvl);
+
+  if (g.profession === 'adjacent') caveats.push('⚠️ Смежная профессия — не точное совпадение роли');
+  if (bd.total > 0 && missing.length) caveats.push(`⚠️ Нет ключевых навыков: ${missing.join(', ')} (совпало ${bd.matched}/${bd.total})`);
+  if (bd.total === 0) caveats.push('⚠️ В вакансии нет явных требований — матч только по профессии');
+  if (engRisk) caveats.push(`⚠️ Английский не подтверждён для англоязычной роли (требование=${g.english_req}, уровень=${engLvl})`);
+
+  // 3) Сила = серьёзность оговорок
+  const severe = engRisk || (g.profession === 'adjacent' && bd.total >= 3 && bd.matched < 2);
+  const strength: 'Strong' | 'Good' | 'Weak' = caveats.length === 0 ? 'Strong' : (caveats.length >= 2 || severe) ? 'Weak' : 'Good';
+  return { res: 'SEND', strength, caveats, reason: 'отправлено с оговорками' };
 }
 
 async function evaluate(listing: any, jd: ParsedJD, cand: any) {
@@ -138,26 +149,21 @@ async function evaluate(listing: any, jd: ParsedJD, cand: any) {
     candidateSkills: cand.skills, candidateLanguages: cand.languages,
     candidateYears: cand.years, candidateLocation: cand.location,
   });
-  const topFull = bd.lines.length > 0 && bd.lines[0].status === 'full'; // топ-требование (most-important-first)
-  const d = decide(gates, bd.matched, bd.total, topFull);
-  // Working-English fit: downgrade a MATCH to REVIEW for English-critical NON-translation roles
-  // when the candidate has no proven B2+ English (translation roles are handled by language_ok).
   const engLvl = englishLevel(cand.cvText);
-  if (d.res === 'MATCH' && !isLanguageRole(listing.title) && englishDowngrade(gates.english_req, engLvl)) {
-    return { gates, bd, res: 'REVIEW' as Outcome, why: `language-fit(req=${gates.english_req},eng=${engLvl})` };
-  }
-  return { gates, bd, ...d };
+  const a = assess(gates, bd, engLvl, isLanguageRole(listing.title));
+  return { gates, bd, engLvl, ...a };
 }
 
 function printVerdict(cand: any, r: any) {
   const g = r.gates;
-  const gLine = `profession=${g.profession} | language=${g.language_ok ? 'Y' : 'N'} | location=${g.location_ok ? 'Y' : 'N'} | seniority=${g.seniority_ok ? 'Y' : 'N'} | eng-req=${g.english_req}`;
+  const gLine = `profession=${g.profession} | language=${g.language_ok ? 'Y' : 'N'} | location=${g.location_ok ? 'Y' : 'N'} | seniority=${g.seniority_ok ? 'Y' : 'N'} | eng-req=${g.english_req}/${r.engLvl}`;
   const ev = r.bd.lines.map((l: any) => `${l.label}${l.status === 'full' ? '✓' : '✗'}`).join(', ');
-  const icon = r.res === 'MATCH' ? '✅ MATCH' : r.res === 'REVIEW' ? '🟡 REVIEW' : '❌ NO';
+  const icon = r.res === 'SEND' ? `✅ SEND [${r.strength}]` : '❌ NO';
   console.log(`\n  CANDIDATE  ${cand.email}  "${cand.title}"  (field: ${cand.field || '-'}, ${cand.years ?? '?'}y)`);
-  console.log(`    GATES:    ${gLine}${g.profession === 'different' ? `  (${g.reason})` : ''}`);
+  console.log(`    GATES:    ${gLine}`);
   console.log(`    EVIDENCE: ${r.bd.matched}/${r.bd.total}  [${ev || '— нет извлечённых требований —'}]`);
-  console.log(`    => ${icon}  (${r.why})`);
+  console.log(`    => ${icon}${r.res === 'NO' ? `  (${r.reason})` : ''}`);
+  for (const c of r.caveats) console.log(`       ${c}`);
 }
 
 // ── cheap pre-filter (term overlap) — высокий recall, без LLM ────────────────────
@@ -193,9 +199,9 @@ async function main() {
     const haystack = `${listing.title} ${listing.description || ''}`.toLowerCase();
     const cands = pool.map(loadCand).filter(c => c.skills.length > 0 && termPlausible(c, haystack)).slice(0, 10);
     console.log(`\n  Evaluating ${cands.length} term-plausible candidates (of ${pool.length} sampled)…`);
-    const tally = { MATCH: 0, REVIEW: 0, NO: 0 };
-    for (const c of cands) { const r = await evaluate(listing, jd, c); printVerdict(c, r); tally[r.res as 'MATCH' | 'REVIEW' | 'NO']++; }
-    console.log(`\n  SUMMARY: MATCH=${tally.MATCH}  REVIEW=${tally.REVIEW}  NO=${tally.NO}  (of ${cands.length})`);
+    const tally = { Strong: 0, Good: 0, Weak: 0, NO: 0 };
+    for (const c of cands) { const r = await evaluate(listing, jd, c); printVerdict(c, r); tally[r.res === 'NO' ? 'NO' : (r.strength as 'Strong' | 'Good' | 'Weak')]++; }
+    console.log(`\n  SUMMARY: SEND → Strong=${tally.Strong} Good=${tally.Good} Weak=${tally.Weak}  |  NO=${tally.NO}  (of ${cands.length})`);
   }
 }
 
