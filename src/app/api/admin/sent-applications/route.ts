@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
   // AutoApplication has no `opportunity` relation (only opportunityId) — fetch titles/slugs in one go.
   const oppIds = [...new Set(apps.map((a) => a.opportunityId).filter((x): x is string => !!x))];
   const opps = oppIds.length
-    ? await prisma.opportunity.findMany({ where: { id: { in: oppIds } }, select: { id: true, title: true, slug: true } })
+    ? await prisma.opportunity.findMany({ where: { id: { in: oppIds } }, select: { id: true, title: true, slug: true, description: true } })
     : [];
   const oppMap = new Map(opps.map((o) => [o.id, o]));
 
@@ -103,6 +103,7 @@ export async function GET(request: NextRequest) {
       },
       jobTitle: opp?.title || a.jobTitle || null,
       jobSlug: opp?.slug || null,
+      jobDescription: opp?.description ? opp.description.slice(0, 1500) : null,
       recruiterEmail: a.appliedToEmail || null,
       matchScore: a.matchScore,
       matchLabel: a.matchLabel,
