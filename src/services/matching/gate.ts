@@ -76,21 +76,34 @@ export function englishLevel(cv: string | null | undefined): 'ok' | 'b1' | 'low'
 }
 export const isLanguageRole = (title: string) => /interpret|translat|linguist/i.test(title || '');
 
-// Final decision: NO (hard gate fail) | SEND. Soft signals become caveats (computeCaveats),
-// not blockers — the recruiter is the judge. Returns the decision + the matchBreakdown extras
-// (profession/english_req/english_level) that callers should merge so caveats render.
-export function assess(g: Gate, breakdown: { matched: number; total: number }, cvText: string | null | undefined, title: string): {
+// Final decision: NO (gate fail / below bar) | SEND. Soft signals that survive the bar become
+// caveats (computeCaveats), not blockers — the recruiter is the judge. Bar (per owner decision):
+// require a REAL CV, and cut the weakest — zero skill evidence, or an adjacent profession with
+// fewer than 2 matched skills. Keeps Strong/Good + light Weak.
+export function assess(
+  g: Gate,
+  breakdown: { matched: number; total: number },
+  cvText: string | null | undefined,
+  title: string,
+  candidateHasRealCV: boolean,
+): {
   decision: 'NO' | 'SEND';
   reason: string;
   extras: { profession: Gate['profession']; english_req: Gate['english_req']; english_level: ReturnType<typeof englishLevel> };
 } {
   const english_level = englishLevel(cvText);
   const extras = { profession: g.profession, english_req: g.english_req, english_level };
+  // Hard gates
   if (g.profession === 'different') return { decision: 'NO', reason: `different profession (${g.reason})`, extras };
   if (!g.language_ok) return { decision: 'NO', reason: 'wrong language pair', extras };
   if (!g.location_ok) return { decision: 'NO', reason: 'location mismatch', extras };
   if (!g.seniority_ok) return { decision: 'NO', reason: 'seniority mismatch', extras };
-  if (g.profession === 'adjacent' && breakdown.total >= 3 && breakdown.matched === 0)
-    return { decision: 'NO', reason: 'adjacent + zero skill overlap', extras };
+  // Real CV required — never send a generated/fabricated or missing résumé to a recruiter.
+  if (!candidateHasRealCV) return { decision: 'NO', reason: 'no real CV (generated/none)', extras };
+  // Raised evidence bar
+  const { matched, total } = breakdown;
+  if (total === 0) return g.profession === 'exact' ? { decision: 'SEND', reason: 'exact occupation, no listed requirements', extras } : { decision: 'NO', reason: 'no requirements + not exact occupation', extras };
+  if (matched === 0) return { decision: 'NO', reason: 'zero skill evidence', extras };
+  if (g.profession === 'adjacent' && matched < 2) return { decision: 'NO', reason: 'adjacent + fewer than 2 matched skills', extras };
   return { decision: 'SEND', reason: 'sent with caveats', extras };
 }
