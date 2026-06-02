@@ -62,19 +62,39 @@ Do NOT invent requirements. No soft traits (leadership, team player). JSON only.
 }
 
 // ── L2: гейты с ГРАНУЛЯРНОСТЬЮ профессии (exact|adjacent|different) ────────────────
-type Gates = { profession: 'exact' | 'adjacent' | 'different'; reason: string; language_ok: boolean; location_ok: boolean; seniority_ok: boolean };
+type Gates = { profession: 'exact' | 'adjacent' | 'different'; reason: string; language_ok: boolean; location_ok: boolean; seniority_ok: boolean; english_req: 'strong' | 'weak' | 'none' };
 async function gateCheck(listing: any, cand: any): Promise<Gates> {
   return chatJSON(
     `You apply on a candidate's behalf — applying burns quota and emails a real recruiter, so be STRICT. Return ONLY JSON:
-{"profession":"exact|adjacent|different","reason":"<=8 words","language_ok":bool,"location_ok":bool,"seniority_ok":bool}
+{"profession":"exact|adjacent|different","reason":"<=8 words","language_ok":bool,"location_ok":bool,"seniority_ok":bool,"english_req":"strong|weak|none"}
 - profession: "exact"=the candidate's own occupation IS this job's occupation (e.g. Social Media Manager↔Social Media Account Manager; Graphic Designer↔Graphic Designer; both translate↔translation role). "adjacent"=same family/transferable but a different specialization (e.g. Backend Developer↔Java/AWS Engineer; Full-Stack↔Frontend; Motion Designer↔Video Editor). "different"=different profession family (developer/marketer/HR↔translator, etc.). Merely SPEAKING a language is NOT being a translator. Treat translation/interpreting/localization/subtitling as ONE family.
 - CRITICAL — a tool or a title is not a profession: using a design TOOL (Figma, Canva, Sketch) or having "UX/UI" in a developer's title does NOT make a software developer a graphic/visual/email/brand designer — that craft is evidenced by real visual-design work/portfolio, exactly like merely SPEAKING a language does not make someone a translator. A developer applying to a visual/graphic/email/brand-design role => "different". A designer applying to a software-engineering role => "different".
 - language_ok: for translation/interpreting roles, false ONLY if the candidate clearly works in different languages than the job needs; true otherwise and for non-language roles.
 - location_ok: false ONLY if job is onsite/hybrid in a specific country AND the candidate is clearly elsewhere. Remote, or unknown country/location => true.
-- seniority_ok: false ONLY if job needs 5+ years and candidate is a student/intern/0-1y.`,
+- seniority_ok: false ONLY if job needs 5+ years and candidate is a student/intern/0-1y.
+- english_req: how critical is WORKING English? "strong" ONLY if English is literally the work product/medium (customer support, sales/account mgmt, content/copywriting/editing in English, teaching English, client-facing comms as core duty) OR an explicit "fluent/native/excellent English required"/"C1". "weak"=technical/build/design role where English merely helps ("international team","remote","communicate in English"). "none"=no English signal. When unsure between strong/weak, choose "weak".`,
     `JOB title: ${listing.title}\nJOB country: ${listing.country || 'not specified'}\nJOB description: ${(listing.description || '').slice(0, 600)}\n\nCANDIDATE title: ${cand.title || '?'}\nCANDIDATE field: ${cand.field || '?'}\nCANDIDATE years: ${cand.years ?? '?'}\nCANDIDATE location: ${cand.location || 'unknown'}\nCANDIDATE languages: ${(cand.languages || []).join(', ') || '?'}\nCANDIDATE skills: ${(cand.skills || []).join(', ')}`,
     250,
   );
+}
+
+// ── Working-English fit (deterministic level from CV; gate only NON-translation roles) ─
+const ENG_OK = /(english|ingl[eé]s)[^.\n]{0,25}(b2|c1|c2|fluent|fluid|advanced|avanzad|native|nativ|bilingual|biling[üu]e|proficient|full professional)|(b2|c1|c2|fluent|advanced|native|bilingual|proficient)[^.\n]{0,25}(english|ingl[eé]s)/i;
+const ENG_B1 = /(english|ingl[eé]s)[^.\n]{0,25}(b1|intermediate|intermedi|pre-intermediate)|(b1|intermediate|intermedi)[^.\n]{0,18}(english|ingl[eé]s)/i;
+const ENG_LOW = /(english|ingl[eé]s)[^.\n]{0,25}(a1|a2|basic|b[aá]sic|elementary)|(a1|a2|basic|elementary)[^.\n]{0,18}(english|ingl[eé]s)/i;
+function englishLevel(cv: string): 'ok' | 'b1' | 'low' | 'unknown' {
+  if (!cv) return 'unknown';
+  if (ENG_OK.test(cv)) return 'ok';
+  if (ENG_B1.test(cv)) return 'b1';
+  if (ENG_LOW.test(cv)) return 'low';
+  return 'unknown';
+}
+const isLanguageRole = (title: string) => /interpret|translat|linguist/i.test(title || '');
+// returns true if a would-be MATCH should drop to REVIEW on working-English risk
+function englishDowngrade(req: string, level: string): boolean {
+  if (req === 'strong') return level === 'low' || level === 'b1' || level === 'unknown';
+  if (req === 'weak') return level === 'low';
+  return false; // none / B2+ → no downgrade
 }
 
 // ── профиль → нормализованные поля ──────────────────────────────────────────────
@@ -120,12 +140,18 @@ async function evaluate(listing: any, jd: ParsedJD, cand: any) {
   });
   const topFull = bd.lines.length > 0 && bd.lines[0].status === 'full'; // топ-требование (most-important-first)
   const d = decide(gates, bd.matched, bd.total, topFull);
+  // Working-English fit: downgrade a MATCH to REVIEW for English-critical NON-translation roles
+  // when the candidate has no proven B2+ English (translation roles are handled by language_ok).
+  const engLvl = englishLevel(cand.cvText);
+  if (d.res === 'MATCH' && !isLanguageRole(listing.title) && englishDowngrade(gates.english_req, engLvl)) {
+    return { gates, bd, res: 'REVIEW' as Outcome, why: `language-fit(req=${gates.english_req},eng=${engLvl})` };
+  }
   return { gates, bd, ...d };
 }
 
 function printVerdict(cand: any, r: any) {
   const g = r.gates;
-  const gLine = `profession=${g.profession} | language=${g.language_ok ? 'Y' : 'N'} | location=${g.location_ok ? 'Y' : 'N'} | seniority=${g.seniority_ok ? 'Y' : 'N'}`;
+  const gLine = `profession=${g.profession} | language=${g.language_ok ? 'Y' : 'N'} | location=${g.location_ok ? 'Y' : 'N'} | seniority=${g.seniority_ok ? 'Y' : 'N'} | eng-req=${g.english_req}`;
   const ev = r.bd.lines.map((l: any) => `${l.label}${l.status === 'full' ? '✓' : '✗'}`).join(', ');
   const icon = r.res === 'MATCH' ? '✅ MATCH' : r.res === 'REVIEW' ? '🟡 REVIEW' : '❌ NO';
   console.log(`\n  CANDIDATE  ${cand.email}  "${cand.title}"  (field: ${cand.field || '-'}, ${cand.years ?? '?'}y)`);
