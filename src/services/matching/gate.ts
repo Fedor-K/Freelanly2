@@ -38,17 +38,21 @@ export type Gate = {
   hard_fail: boolean;
   hard_kind: 'education' | 'certification' | 'license' | 'work_auth' | 'years' | 'none';
   hard_detail: string;
+  // Soft geographic mismatch: job tied to a city/country, remote not explicit, candidate elsewhere.
+  location_flag: boolean;
+  location_detail: string;
 };
 
 const SYSTEM = `You apply on a candidate's behalf — applying burns quota and emails a real recruiter, so be STRICT. Return ONLY JSON:
-{"profession":"exact|adjacent|different","reason":"<=8 words","language_ok":bool,"location_ok":bool,"seniority_ok":bool,"english_req":"strong|weak|none","hard_fail":bool,"hard_kind":"education|certification|license|work_auth|years|none","hard_detail":"<=14 words"}
+{"profession":"exact|adjacent|different","reason":"<=8 words","language_ok":bool,"location_ok":bool,"seniority_ok":bool,"english_req":"strong|weak|none","hard_fail":bool,"hard_kind":"education|certification|license|work_auth|years|none","hard_detail":"<=14 words","location_flag":bool,"location_detail":"<=12 words"}
 - profession: "exact"=the candidate's own occupation IS this job's occupation. "adjacent"=same family/transferable but a different specialization (Backend↔Java/AWS Engineer; Full-Stack↔Frontend; Motion Designer↔Video Editor). "different"=different profession family. Merely SPEAKING a language is NOT being a translator; treat translation/interpreting/localization/subtitling as ONE family.
 - CRITICAL — a tool or a title is not a profession: using a design TOOL (Figma, Canva, Sketch) or having "UX/UI" in a developer's title does NOT make a software developer a graphic/visual/email/brand designer — that craft is evidenced by real visual-design work/portfolio. Developer→visual/graphic/email-design role => "different". Designer→software-engineering role => "different".
 - language_ok: for translation/interpreting roles, false ONLY if the candidate clearly works in different languages than needed; true otherwise and for non-language roles.
 - location_ok: false ONLY if job is onsite/hybrid in a specific country AND the candidate is clearly elsewhere. Remote/unknown => true.
 - seniority_ok: false ONLY if job needs 5+ years and candidate is a student/intern/0-1y.
 - english_req: "strong" ONLY if English is literally the work product/medium (customer support, sales/account mgmt, content/copywriting/editing in English, teaching English, client-facing comms as core duty) OR an explicit "fluent/native/excellent English required". "weak"=technical/build/design role where English merely helps. "none"=no English signal. When unsure between strong/weak, choose "weak".
-- hard_fail: true ONLY if the requirements state an EXPLICIT, binary, checkable must-have that the candidate CLEARLY does not meet — a specific university/school or required degree/major, a mandatory certification/license, work authorization/citizenship, or an explicit "minimum N years". Set hard_kind + a short hard_detail. Do NOT flag skills (handled by profession/overlap), nor vague/aspirational wording ("preferred", "nice to have", "bonus"). If none clearly fails, hard_fail=false, hard_kind="none".`;
+- hard_fail: true ONLY if the requirements state an EXPLICIT, binary, checkable must-have that the candidate CLEARLY does not meet — a specific university/school or required degree/major, a mandatory certification/license, work authorization/citizenship, or an explicit "minimum N years". Set hard_kind + a short hard_detail. Do NOT flag skills (handled by profession/overlap), nor vague/aspirational wording ("preferred", "nice to have", "bonus"). If none clearly fails, hard_fail=false, hard_kind="none".
+- location_flag: SOFT geographic-fit signal (NOT a blocker). true when the job is tied to a specific city/country AND the post does NOT explicitly say remote/worldwide AND the candidate is in a DIFFERENT country — i.e. on-site vs remote is unclear and there's a geography/market gap worth a human glance. location_detail = "job: <city/country>; candidate: <country>". If the job is clearly remote/worldwide, or location is unknown, or candidate is in the same country, location_flag=false.`;
 
 export async function runGate(inp: GateInput): Promise<Gate> {
   const user = `JOB title: ${inp.jobTitle}\nJOB country: ${inp.jobCountry || 'not specified'}\nJOB description: ${(inp.jobDescription || '').slice(0, 700)}\n\nCANDIDATE title: ${inp.candidateTitle || '?'}\nCANDIDATE field: ${inp.candidateField || '?'}\nCANDIDATE years: ${inp.candidateYears ?? '?'}\nCANDIDATE location: ${inp.candidateLocation || 'unknown'}\nCANDIDATE languages: ${(inp.candidateLanguages || []).join(', ') || '?'}\nCANDIDATE skills: ${(inp.candidateSkills || []).join(', ')}\nCANDIDATE résumé (for education/cert/work-auth checks): ${(inp.candidateCv || '').slice(0, 900)}`;
@@ -69,6 +73,8 @@ export async function runGate(inp: GateInput): Promise<Gate> {
     hard_fail: p.hard_fail === true,
     hard_kind: ['education', 'certification', 'license', 'work_auth', 'years'].includes(p.hard_kind) ? p.hard_kind : 'none',
     hard_detail: String(p.hard_detail || ''),
+    location_flag: p.location_flag === true,
+    location_detail: String(p.location_detail || ''),
   };
 }
 
@@ -98,10 +104,10 @@ export function assess(
 ): {
   decision: 'NO' | 'SEND';
   reason: string;
-  extras: { profession: Gate['profession']; english_req: Gate['english_req']; english_level: ReturnType<typeof englishLevel>; hard_fail: boolean; hard_kind: Gate['hard_kind']; hard_detail: string };
+  extras: { profession: Gate['profession']; english_req: Gate['english_req']; english_level: ReturnType<typeof englishLevel>; hard_fail: boolean; hard_kind: Gate['hard_kind']; hard_detail: string; location_flag: boolean; location_detail: string };
 } {
   const english_level = englishLevel(cvText);
-  const extras = { profession: g.profession, english_req: g.english_req, english_level, hard_fail: g.hard_fail, hard_kind: g.hard_kind, hard_detail: g.hard_detail };
+  const extras = { profession: g.profession, english_req: g.english_req, english_level, hard_fail: g.hard_fail, hard_kind: g.hard_kind, hard_detail: g.hard_detail, location_flag: g.location_flag, location_detail: g.location_detail };
   // Hard gates
   if (g.profession === 'different') return { decision: 'NO', reason: `different profession (${g.reason})`, extras };
   // Language gate applies ONLY to translation/interpreting roles — for any other role the

@@ -15,11 +15,15 @@ export function computeCaveats(bd: unknown): Caveats | null {
   const englishLevel = typeof b.english_level === 'string' ? b.english_level : null; // ok | b1 | low | unknown
   const hardFail = b.hard_fail === true;
   const hardDetail = typeof b.hard_detail === 'string' ? b.hard_detail : '';
+  const locationFlag = b.location_flag === true;
+  const locationDetail = typeof b.location_detail === 'string' ? b.location_detail : '';
   const missing = lines.filter((l) => l?.status !== 'full').map((l) => String(l?.label ?? '')).filter(Boolean);
 
   const items: string[] = [];
   // Hard, checkable requirement the candidate fails (education / cert / minimum-years) — most severe.
   if (hardFail) items.push(`Hard requirement not met: ${hardDetail || 'see job requirements'}`);
+  // Geographic mismatch — job tied to a place, remote unclear, candidate elsewhere (soft, verify).
+  if (locationFlag) items.push(`Location mismatch: ${locationDetail || 'job and candidate in different countries'} — on-site/remote unclear`);
   if (profession === 'adjacent') items.push('Adjacent role — not an exact occupation match');
   if (total > 0 && missing.length) items.push(`Missing: ${missing.join(', ')}`);
   if (total === 0) items.push('No explicit requirements in the post — matched on profession only');
