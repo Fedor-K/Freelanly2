@@ -68,6 +68,7 @@ async function gateCheck(listing: any, cand: any): Promise<Gates> {
     `You apply on a candidate's behalf — applying burns quota and emails a real recruiter, so be STRICT. Return ONLY JSON:
 {"profession":"exact|adjacent|different","reason":"<=8 words","language_ok":bool,"location_ok":bool,"seniority_ok":bool}
 - profession: "exact"=the candidate's own occupation IS this job's occupation (e.g. Social Media Manager↔Social Media Account Manager; Graphic Designer↔Graphic Designer; both translate↔translation role). "adjacent"=same family/transferable but a different specialization (e.g. Backend Developer↔Java/AWS Engineer; Full-Stack↔Frontend; Motion Designer↔Video Editor). "different"=different profession family (developer/marketer/HR↔translator, etc.). Merely SPEAKING a language is NOT being a translator. Treat translation/interpreting/localization/subtitling as ONE family.
+- CRITICAL — a tool or a title is not a profession: using a design TOOL (Figma, Canva, Sketch) or having "UX/UI" in a developer's title does NOT make a software developer a graphic/visual/email/brand designer — that craft is evidenced by real visual-design work/portfolio, exactly like merely SPEAKING a language does not make someone a translator. A developer applying to a visual/graphic/email/brand-design role => "different". A designer applying to a software-engineering role => "different".
 - language_ok: for translation/interpreting roles, false ONLY if the candidate clearly works in different languages than the job needs; true otherwise and for non-language roles.
 - location_ok: false ONLY if job is onsite/hybrid in a specific country AND the candidate is clearly elsewhere. Remote, or unknown country/location => true.
 - seniority_ok: false ONLY if job needs 5+ years and candidate is a student/intern/0-1y.`,
@@ -102,7 +103,9 @@ function decide(g: Gates, matched: number, total: number, topFull: boolean): { r
   }
   // adjacent: нужна доказательная база
   if (total === 0) return { res: 'REVIEW', why: 'adjacent-no-requirements' };   // без требований по профессии — только REVIEW
-  if (topFull && (total < 3 || (matched >= K && ratio >= R))) return { res: 'MATCH', why: 'adjacent+core-skill' };
+  // ≤2 требований: MATCH только если совпали ВСЕ (1 из 2 = не хватает специализации → REVIEW, напр. Figma✓ но Email-design✗).
+  // ≥3 требований: топ-навык + ≥K совпадений и ratio≥R.
+  if (topFull && ((total <= 2 && matched === total) || (total >= 3 && matched >= K && ratio >= R))) return { res: 'MATCH', why: 'adjacent+core-skill' };
   if (matched === 0) return { res: 'NO', why: 'adjacent-wrong-stack' };
   return { res: 'REVIEW', why: 'adjacent-partial' };
 }
