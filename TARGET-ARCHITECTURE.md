@@ -18,7 +18,8 @@
 **Корректировки по продукту (от владельца, не из кода):**
 8. **SEO-индексация листингов не нужна** — проекты не индексируются. `content-quality` сохраняется не как SEO-gate (THIN→noindex), а как gate «годности к отклику» в Ingestion; SEO-потребители (sitemap/IndexNow для листингов) уходят в kill-list. См. §4 шаг 5, §3 (Content/SEO), §5.4.
 9. **CV — только реальный, загруженный кандидатом.** Генерация CV из профиля (`generate-cvs` cron, `generate-cv-pdf.ts`, `resumeGenerated`) удаляется: резюме обязательно при apply (§4.1), генерация избыточна. См. §4 шаг 11, §5.4.
-10. **Добавлен §4.1 (Intake)** — гэп исходного драфта: что предоставляют кандидат (обязательный PDF→AI-профиль) и рекрутер (прогрессивный захват `hiringFor`/`hiringVolume` при заходе в портал) и как эти данные обрабатываются.
+10. **Добавлен §4.1 (Intake)** — гэп исходного драфта: что предоставляют кандидат (обязательный PDF→AI-профиль) и рекрутер (дозаполнение `hiringFor`/`hiringVolume`) и как эти данные обрабатываются.
+11. **Recruiter-auth унифицирован с кандидатским** — рекрутер логинится тем же OTP/magic-link (NextAuth), «рекрутер» = роль на `User`, а не отдельный auth-стек. Самописный `recruiter-token.ts`/`RecruiterOtp`/параллельные otp-роуты → kill-list; это **структурно закрывает security-долг §8** (вечные токены + общий секрет). Вход по ссылке из письма = одноразовый короткоживущий magic-link сразу в ЛК (zero-friction сохранён). См. §4.1, §3, §5.2/5.4, §8, §9-Фаза 1b.
 
 ---
 
@@ -119,7 +120,7 @@
 | **Matching** | Гейты профессии/языка/локации/seniority + скоринг; fairness/cap/quota; постановка в очередь. **Один матчер.** | `AutoApplyLoop`, `MatchDecision`, `MatchBreakdown` |
 | **Outreach** | Cover letter, attach CV, отправка через outreach-port, status-машина, follow-up. Идемпотентно. | **`AutoApplication`** (каноническая), `OutreachEvent` |
 | **Conversations** | Inbound-ответы (только webhook), единый категоризатор, тред, нотификации. | `Message`, `ReplyClassification` |
-| **Recruiter/Demand** | Портал `/r`, токен/OTP-сессия, contact-reveal (paywall), suppression/unsubscribe. | `Recruiter`, `ContactReveal`, `RecruiterSuppression` |
+| **Recruiter/Demand** | Портал `/r`; **рекрутер = роль на `User` + общий OTP/magic-link** (НЕ отдельный auth-стек); contact-reveal (paywall), suppression/unsubscribe. | `User`(role=recruiter), `RecruiterProfile`, `ContactReveal`, `RecruiterSuppression` |
 | **Billing** | Подписки/платежи за один интерфейс (Stripe+PayPro адаптеры), квоты, paywall-enforcement. | `Subscription`, `Entitlement`, `RevenueEvent` |
 | **Analytics** | Event-log, воронки, KPI, CEO-алерты. | `ActivityEvent`, `DailyMetric` |
 | **Content/SEO** | **Только блог/маркетинг** (sitemap, indexing). Листинги (`/freelance/*`) — noindex, не индексируются; content-quality живёт не здесь, а в Ingestion как gate годности (см. §4 шаг 5). | `BlogPost`, `IndexingLog` |
@@ -182,19 +183,23 @@
 
 > ⚠️ В текущем `register/route.ts` всё ещё создаются `JobAlert`-ы (alerts приостановлены) — это legacy-хвост; в целевой схеме intake создаёт `User`+`CandidateProfile`, без alert-записей (§5.4).
 
-### Рекрутер (портал `/r`, прогрессивный захват)
+### Рекрутер (тот же ЛК + OTP, что у кандидата — НЕ отдельная auth-вселенная)
 
-Рекрутер появляется не через signup, а потому что **получил отклик**. Точки входа: токенизированная ссылка `/r/[token]` в outreach-письме **или** вход по email+OTP (`send-otp`/`verify-otp`). `Recruiter` создаётся/обогащается при первом заходе (`recruiter/register`, `verify-otp`).
+⚠️ **Целевое состояние, отличается от текущего кода.** Сейчас рекрутер = отдельный auth-стек (`RecruiterOtp` + самописный вечный токен `recruiter-token.ts` + свои `send-otp`/`verify-otp`) — это **накопленный долг**, дублирующий кандидатский OTP и порождающий security-проблему §8. **Цель: один auth-примитив на всех** — OTP/magic-link + одна сессионная система (NextAuth v5), а «рекрутер» — это **роль** на `User` (`candidate | recruiter`, можно обе сразу: кто и нанимает, и откликается), не вторая таблица-юзер.
 
-| Поле | Когда снимается | Смысл |
+- **Вход:** ссылка из outreach-письма = **одноразовый короткоживущий magic-link**, логинит рекрутера прямо в ЛК **без ввода кода** (zero-friction первого касания сохранён). Протух link → обычная OTP-форма, как у кандидата. Никаких вечных подписанных токенов.
+- **Anonymous-first остаётся, но как профиль, не как auth:** запись о рекрутере заводится из `AutoApplication.appliedToEmail` (shadow-профиль) **до** логина; при первом входе через magic-link она привязывается к `User` с ролью `recruiter`.
+- **«Прогрессивный захват» = дозаполнение профиля после логина** (ровно как кандидат дозаполняет свой), а не отдельный signup-флоу:
+
+| Поле | Когда | Смысл |
 |---|---|---|
-| `email` | из токена / OTP | `== AutoApplication.appliedToEmail` (lowercased) — связь рекрутера с его откликами |
-| `name`, `company` | при регистрации в портале | идентификация |
-| `hiringFor` (free text) | need-Q1 | какие роли нанимает |
-| `hiringVolume` (`1`/`2-5`/`6-20`/`20+`) | need-Q2 | proxy спроса/бюджета — demand-сигнал для монетизации |
-| `plan` (`free` default), `lastSeenAt` | портал | биллинг + engagement (bump на каждый визит) |
+| `email` | shadow-профиль из `appliedToEmail`, подтверждается при magic-link/OTP | связь рекрутера с его откликами |
+| `name`, `company` | дозаполнение в ЛК | идентификация |
+| `hiringFor` (free text) | дозаполнение (need-Q1) | какие роли нанимает |
+| `hiringVolume` (`1`/`2-5`/`6-20`/`20+`) | дозаполнение (need-Q2) | proxy спроса/бюджета — demand-сигнал |
+| `plan`, `lastSeenAt` | биллинг/engagement | bump на каждый визит |
 
-**Auth:** `RecruiterOtp` — 6-значный код, хранится только `sha256(code)`, с `attempts`/`expiresAt`. Плюс подписанный токен (`recruiter-token.ts` — см. §8 про fail-fast секрета). **Отдельный auth-контекст от кандидата** (NextAuth), выносится в `application/recruiter`.
+**Auth (целевой):** общий с кандидатом OTP/magic-link через NextAuth, database-сессии, **роль** различает доступ к `/dashboard` vs `/r`. Самописные `RecruiterOtp`/`recruiter-token.ts`/`recruiter/send-otp`/`verify-otp` → kill-list (§5.4). Это **убирает** §8-долг (вечные токены + общий секрет) сам собой: magic-link короткоживущий и одноразовый, отдельный `RECRUITER_TOKEN_SECRET` не нужен.
 
 **Обработка/действия:** рекрутер видит откликнувшихся, отсортированных по совпадению, и замороженный `MatchBreakdown` (§4 шаг 20); reveal контакта (`reveal`, paywall/entitlement), reply (`reply` → `Message` + статус `REPLIED`, не понижая INTERVIEW/OFFER — §5.5), feedback, unsubscribe (`RecruiterSuppression`). Никакого ИИ на стороне рекрутера — всё детерминировано.
 
@@ -210,8 +215,9 @@ ATS вырезается, остаётся **один `Listing`** (бывш. `Op
 - **`KeywordRun`** — единственная ingestion-tracking-сущность после выреза ATS: фиксирует прогон LinkedIn-keyword-скрапа. Заменяет ATS-овые `ImportLog`/`ImportTask`/`DataSource`, которые удаляются.
 
 ### 5.2 Разбор `User` god-model (~85 полей)
-- `User` — только identity/auth (email, OAuth, session-связи, флаги верификации).
+- `User` — только identity/auth (email, OAuth, session-связи, флаги верификации) + **`roles` (`candidate`/`recruiter`, можно обе)** — различает доступ `/dashboard` vs `/r`, но auth-механизм один (см. §4.1).
 - `CandidateProfile` — **нормализованные** `skills`, `languages`, `experienceYears`, `currentTitle`, `field`, `location`, `workPreference`, `bookingUrl`, `portfolioUrl`.
+- `RecruiterProfile` — `company`, `hiringFor`, `hiringVolume`, `plan`, `lastSeenAt` (бывш. таблица `Recruiter`, теперь профиль при `User`, симметрично `CandidateProfile`).
 - `Subscription`/`Entitlement` — план, провайдер, лимиты, период.
 - `EmailCampaignState` — все `*EmailsSent`/`*SentAt`/nurture-трекеры (сейчас разбросаны по `User` + моделям `TrialEmail`/`WinbackEmail`/`ReengagementEmail`/`AbandonedCheckoutEmail`).
 - `NotificationPrefs` — TG/Slack/каналы.
@@ -226,6 +232,7 @@ ATS вырезается, остаётся **один `Listing`** (бывш. `Op
 **Весь ATS-стек:** `Job` + `ImportedJob`; процессоры `src/services/sources/*` + `filters`; discovery-кроны/вебхуки (`discover-lever`, `discover-greenhouse`, `run-lever-discovery`…); `DataSource`, `ImportLog`, `ImportTask`, `FilteredJob`; `/api/cron/fetch-sources`; `Company` (нужна была только под ATS — LinkedIn-клиент в полях `Listing`).
 **Job-board наследие:** `LandingPage`, **legacy `Application`** (3 ссылки → слить семантику в `AutoApplication`), `JobAlert`+`AlertLanguagePair`+`AlertNotification`+`AlertEmailFeedback` (алерты приостановлены), `SavedFeed` (дубль `AutoApplyLoop`), `VideoPostQueue` — по факту использования.
 **Email-провайдеры:** удалить `src/lib/email/{resend,ses,smtp2go,elasticemail}.ts` + их мёртвые вебхуки.
+**Параллельный recruiter-auth:** удалить самописный `src/lib/recruiter-token.ts` (вечный токен), таблицу `RecruiterOtp` и роуты `recruiter/{send-otp,verify-otp,register,login,logout}` — рекрутер логинится тем же OTP/magic-link, что и кандидат (NextAuth, §4.1). Таблица `Recruiter` → профиль `RecruiterProfile` при `User` (не отдельная сущность-юзер). Это **закрывает security-долг §8** (вечные токены + общий секрет).
 **CV-генерация:** удалить `/api/cron/generate-cvs`, `src/lib/generate-cv-pdf.ts` и флаг `User.resumeGenerated` — CV прикрепляется только реальный (резюме обязательно при apply, §4.1). Убрать `generate-cvs` из `vercel.json`.
 **Content-quality для SEO:** убрать SEO/indexing-путь (THIN→noindex, sitemap-исключения, IndexNow для листингов) из `linkedin-posts`-ingestion и `indexing.ts` — листинги не индексируются. **`content-quality.ts` НЕ удаляется целиком** — функция оценки остаётся, но переезжает в Ingestion как gate «годности к отклику» (`auto-apply-processor.ts:545`, §4 шаг 5). Удаляются только индексирующие потребители (admin/indexing-status для листингов и т.п.).
 Каждое удаление — отдельная strangler-миграция с архивом; ATS-удаление даёт самое большое сокращение поверхности.
@@ -297,8 +304,9 @@ recap (cron-trigger)    ─► digest.build         ─► notify
   - **`OutreachEmailPort`** (отклики рекрутерам): высокий объём с **прогретых доменов**. Fallback ≠ «второй провайдер» (сжигает домен). Правильная деградация при недоступности Postal — **отложить отправку (requeue), а не слать с холодного домена.**
   - Экранирование тела/subject (XSS/header-injection) + проверка List-Unsubscribe/suppression **перед** отправкой — в обоих адаптерах. (Сейчас письма не экранируются.)
 - **Секреты:** SMTP-пароли (`UserSmtp`) — шифровать at-rest (KMS/libsodium), не plaintext. Хардкод Logo.dev-токена и пр. — в secret-store. Inbound-webhook — **обязательная** подпись (сейчас `POSTAL_WEBHOOK_SECRET` опционален, при незаданном — no-op). **IMAP `reply-checker.ts` использует `rejectUnauthorized:false`** — при ретайре IMAP проблема уходит, но до этого момента включить валидацию сертификата.
-- **Разделение `AUTH_SECRET`:** сейчас один секрет на три назначения — `lib/recruiter-token.ts`, `lib/unsubscribe.ts`, NextAuth-сессии. **Доп. находка:** `recruiter-token.ts` делает `AUTH_SECRET || randomBytes(32)`. Сегодня, скорее всего, проблемы нет — раз сессии работают, `AUTH_SECRET` в проде задан, и fallback не срабатывает. Но это **тихая ловушка ровно в момент разнесения секретов (Фаза 1):** введёшь `RECRUITER_TOKEN_SECRET`, забудешь проставить его в одном окружении (Vercel preview, worker-хост) — и код молча свалится на `randomBytes`, начнёт штамповать токены, не проходящие верификацию в другом окружении. То есть само разнесение станет источником протухших рекрутер-ссылок — того, что эта правка чинит. **Правило: убрать random-fallback на fail-fast (throw при отсутствии секрета) нужно РАНЬШЕ или ОДНОВРЕМЕННО с введением нового секрета, и проверить наличие во всех окружениях (prod, preview, worker).** До любой ротации разнести на `SESSION_SECRET`/`RECRUITER_TOKEN_SECRET`/`UNSUBSCRIBE_SECRET`. После — вводить ротацию/ревокацию рекрутер-токенов (сейчас вечные).
-- **Auth:** кандидат — NextAuth v5 (Google + OTP); рекрутер — отдельный токен/OTP-контекст (`RecruiterOtp`) — вынести в `application/recruiter`.
+- **Разделение `AUTH_SECRET`:** сейчас один секрет на три назначения — `lib/recruiter-token.ts`, `lib/unsubscribe.ts`, NextAuth-сессии. **Целевое: `recruiter-token.ts` УДАЛЯЕТСЯ** (унификация auth, §4.1/§5.4), поэтому третье назначение исчезает — остаётся разнести `SESSION_SECRET` / `UNSUBSCRIBE_SECRET`. Magic-link рекрутера короткоживущий и одноразовый (NextAuth), вечных подписанных токенов нет → отдельный `RECRUITER_TOKEN_SECRET` не нужен, ротация рекрутер-токенов как проблема снимается.
+  - ⚠️ **Интерим (пока унификация §4.1 не выкачена):** вечный токен `recruiter-token.ts` ещё жив и делает `AUTH_SECRET || randomBytes(32)`. Если в этот период трогать секреты — убрать random-fallback на **fail-fast** (throw при отсутствии), иначе молчаливый `randomBytes` в одном окружении (preview/worker) протухит все рекрутер-ссылки. Если унификация выкатывается раньше любой возни с секретами — этот интерим-шаг не нужен, долг уходит вместе с файлом.
+- **Auth:** **один механизм для обеих ролей** — NextAuth v5 (Google + OTP/magic-link), database-сессии; «рекрутер» vs «кандидат» = роль на `User`, не вторая auth-система (§4.1). Логика портала — в `application/recruiter`, но не свой логин.
 - **Config-in-DB:** `target-professions`, `company-blacklist`, чёрные списки доменов — в таблицы (рантайм без редеплоя) с кэшем.
 - **Observability:** структурные JSON-логи с correlation-id через всю очередь; метрики (AI-латентность/ошибки, dedup-hit, send-throughput, reply-rate по cohort’ам); алерты на падение Postal/Apify/AI (skill `health` уже частично это покрывает).
 - **Идемпотентность ingestion:** ключ `sourceId` + транзакция вокруг dedup→insert.
@@ -313,6 +321,7 @@ recap (cron-trigger)    ─► digest.build         ─► notify
 flowchart TD
     P0["Фаза 0: каркас packages/ + порты + worker-в-репо + очередь<br/>(решение очередь+хостинг ЗДЕСЬ)"]
     P1["Фаза 1: безопасность + tx-SPOF<br/>(SMTP-шифр, экранирование, подпись webhook,<br/>fallback-OTP, split AUTH_SECRET)"]
+    P1b["Фаза 1b: унификация recruiter-auth<br/>(magic-link + роль на User,<br/>убрать recruiter-token/RecruiterOtp)"]
     P2["Фаза 2: outreach.send на очередь + cutover<br/>(атомарный claim, DLQ, единая квота)"]
     P3["Фаза 3: matching как use-case<br/>(один путь, MatchBreakdown→таблица, фасад профиля)"]
     P4["Фаза 4: conversations webhook-only<br/>(единый категоризатор, ретайр IMAP, actor-status)"]
@@ -322,7 +331,7 @@ flowchart TD
     P8["Фаза 8: billing-абстракция + config-in-DB"]
     P9["Фаза 9: все cron→очередь + observability,<br/>вывод Hetzner из ручного режима"]
 
-    P0 --> P1 --> P2 --> P3 --> P4
+    P0 --> P1 --> P1b --> P2 --> P3 --> P4
     P0 -.->|"швы готовы"| P5
     P3 --> P6
     P4 --> P5 --> P7
@@ -331,7 +340,9 @@ flowchart TD
 
 **Фаза 0 — Каркас и швы.** Завести `packages/domain|application|infra` и порты как фасады поверх текущего кода. Подключить durable-очередь. Завести worker в репозитории + CI-деплой. ⚠️ Новый worker **физически отделён** от старого `/opt/worker` и **пока без рабочего `OutreachEmailPort`** (матчит и пишет в БД, но не шлёт). **Решение по очереди+хостингу принимается здесь.**
 
-**Фаза 1 — Безопасность и transactional-SPOF** (низкий риск, высокая ценность; рефактора не ждёт). Шифрование SMTP-паролей; экранирование email (тело+subject); обязательная подпись inbound-webhook; резервный transactional-провайдер для OTP; разнесение `AUTH_SECRET` на три секрета. ⚠️ **Порядок внутри фазы критичен:** убрать random-fallback в `recruiter-token.ts` на fail-fast **раньше/одновременно** с введением `RECRUITER_TOKEN_SECRET`, и подтвердить наличие секрета во **всех** окружениях (prod, Vercel preview, worker-хост) до выката — иначе разнесение само протухит рекрутер-ссылки (§8).
+**Фаза 1 — Безопасность и transactional-SPOF** (низкий риск, высокая ценность; рефактора не ждёт). Шифрование SMTP-паролей; экранирование email (тело+subject); обязательная подпись inbound-webhook; резервный transactional-провайдер для OTP; разнесение `AUTH_SECRET` на `SESSION_SECRET` / `UNSUBSCRIBE_SECRET`. ⚠️ **Третье назначение (`recruiter-token.ts`) убирается не разнесением секрета, а унификацией recruiter-auth** (см. ниже) — отдельный `RECRUITER_TOKEN_SECRET` в целевой схеме не нужен. **Интерим:** если секреты трогаются раньше унификации — убрать random-fallback в `recruiter-token.ts` на fail-fast и проверить наличие во всех окружениях (prod/preview/worker), иначе молчаливый `randomBytes` протухит рекрутер-ссылки (§8).
+
+**Фаза 1b — Унификация recruiter-auth** (закрывает security-долг §8 структурно, не заплаткой). Перевести рекрутера на тот же NextAuth-механизм, что и кандидата: ссылка из письма → одноразовый короткоживущий magic-link → нормальный ЛК; роль `recruiter` на `User`; `Recruiter`→`RecruiterProfile`. Удалить `recruiter-token.ts` / `RecruiterOtp` / параллельные otp-роуты (§5.4). ⚠️ Миграция: существующие shadow-`Recruiter` по `appliedToEmail` слить в `User`+роль (expand-contract — завести роль/профиль, привязать по email, переключить портал на сессию, потом удалить старый стек); живые рекрутер-ссылки из уже отправленных писем — либо дожить TTL на старом токене (grace-период), либо разослать новые. Решить grace vs hard-cut по объёму активных токенов.
 
 **Фаза 2 — Outreach на очередь + безопасный cutover** (самый опасный момент). Перенести `send` в `outreach.send`-consumer с атомарным claim + DLQ + единой квотой.
 - *Риск дабл-сенда — в момент cutover, не в коде.* Split-brain (старый off-repo движок + новый worker) видит одну БД. Атомарный claim не спасает, если старый его не уважает.
