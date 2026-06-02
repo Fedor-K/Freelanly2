@@ -1163,7 +1163,7 @@ model DailyMetric {
   importRuns       Int @default(0)
   importSuccesses  Int @default(0)
   importFailures   Int @default(0)
-  apiCostsCents    Int @default(0)  // Apify, DeepSeek, etc.
+  apiCostsCents    Int @default(0)  // Apify, Z.ai, etc.
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
