@@ -25,6 +25,7 @@ export type GateInput = {
   candidateLocation?: string;
   candidateLanguages?: string[];
   candidateSkills: string[];
+  candidateCv?: string;   // résumé text — needed to check hard disqualifiers (education etc.)
 };
 export type Gate = {
   profession: 'exact' | 'adjacent' | 'different';
@@ -33,19 +34,24 @@ export type Gate = {
   location_ok: boolean;
   seniority_ok: boolean;
   english_req: 'strong' | 'weak' | 'none';
+  // Hard, binary, checkable disqualifier the candidate clearly FAILS (education/license/etc.).
+  hard_fail: boolean;
+  hard_kind: 'education' | 'certification' | 'license' | 'work_auth' | 'years' | 'none';
+  hard_detail: string;
 };
 
 const SYSTEM = `You apply on a candidate's behalf — applying burns quota and emails a real recruiter, so be STRICT. Return ONLY JSON:
-{"profession":"exact|adjacent|different","reason":"<=8 words","language_ok":bool,"location_ok":bool,"seniority_ok":bool,"english_req":"strong|weak|none"}
+{"profession":"exact|adjacent|different","reason":"<=8 words","language_ok":bool,"location_ok":bool,"seniority_ok":bool,"english_req":"strong|weak|none","hard_fail":bool,"hard_kind":"education|certification|license|work_auth|years|none","hard_detail":"<=14 words"}
 - profession: "exact"=the candidate's own occupation IS this job's occupation. "adjacent"=same family/transferable but a different specialization (Backend↔Java/AWS Engineer; Full-Stack↔Frontend; Motion Designer↔Video Editor). "different"=different profession family. Merely SPEAKING a language is NOT being a translator; treat translation/interpreting/localization/subtitling as ONE family.
 - CRITICAL — a tool or a title is not a profession: using a design TOOL (Figma, Canva, Sketch) or having "UX/UI" in a developer's title does NOT make a software developer a graphic/visual/email/brand designer — that craft is evidenced by real visual-design work/portfolio. Developer→visual/graphic/email-design role => "different". Designer→software-engineering role => "different".
 - language_ok: for translation/interpreting roles, false ONLY if the candidate clearly works in different languages than needed; true otherwise and for non-language roles.
 - location_ok: false ONLY if job is onsite/hybrid in a specific country AND the candidate is clearly elsewhere. Remote/unknown => true.
 - seniority_ok: false ONLY if job needs 5+ years and candidate is a student/intern/0-1y.
-- english_req: "strong" ONLY if English is literally the work product/medium (customer support, sales/account mgmt, content/copywriting/editing in English, teaching English, client-facing comms as core duty) OR an explicit "fluent/native/excellent English required". "weak"=technical/build/design role where English merely helps. "none"=no English signal. When unsure between strong/weak, choose "weak".`;
+- english_req: "strong" ONLY if English is literally the work product/medium (customer support, sales/account mgmt, content/copywriting/editing in English, teaching English, client-facing comms as core duty) OR an explicit "fluent/native/excellent English required". "weak"=technical/build/design role where English merely helps. "none"=no English signal. When unsure between strong/weak, choose "weak".
+- hard_fail: true ONLY if the requirements state an EXPLICIT, binary, checkable must-have that the candidate CLEARLY does not meet — a specific university/school or required degree/major, a mandatory certification/license, work authorization/citizenship, or an explicit "minimum N years". Set hard_kind + a short hard_detail. Do NOT flag skills (handled by profession/overlap), nor vague/aspirational wording ("preferred", "nice to have", "bonus"). If none clearly fails, hard_fail=false, hard_kind="none".`;
 
 export async function runGate(inp: GateInput): Promise<Gate> {
-  const user = `JOB title: ${inp.jobTitle}\nJOB country: ${inp.jobCountry || 'not specified'}\nJOB description: ${(inp.jobDescription || '').slice(0, 600)}\n\nCANDIDATE title: ${inp.candidateTitle || '?'}\nCANDIDATE field: ${inp.candidateField || '?'}\nCANDIDATE years: ${inp.candidateYears ?? '?'}\nCANDIDATE location: ${inp.candidateLocation || 'unknown'}\nCANDIDATE languages: ${(inp.candidateLanguages || []).join(', ') || '?'}\nCANDIDATE skills: ${(inp.candidateSkills || []).join(', ')}`;
+  const user = `JOB title: ${inp.jobTitle}\nJOB country: ${inp.jobCountry || 'not specified'}\nJOB description: ${(inp.jobDescription || '').slice(0, 700)}\n\nCANDIDATE title: ${inp.candidateTitle || '?'}\nCANDIDATE field: ${inp.candidateField || '?'}\nCANDIDATE years: ${inp.candidateYears ?? '?'}\nCANDIDATE location: ${inp.candidateLocation || 'unknown'}\nCANDIDATE languages: ${(inp.candidateLanguages || []).join(', ') || '?'}\nCANDIDATE skills: ${(inp.candidateSkills || []).join(', ')}\nCANDIDATE résumé (for education/cert/work-auth checks): ${(inp.candidateCv || '').slice(0, 900)}`;
   const r = await zai().chat.completions.create({
     model: MODEL, temperature: 0, max_tokens: 220,
     messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: user }],
@@ -60,6 +66,9 @@ export async function runGate(inp: GateInput): Promise<Gate> {
     location_ok: p.location_ok !== false,
     seniority_ok: p.seniority_ok !== false,
     english_req: p.english_req === 'strong' || p.english_req === 'none' ? p.english_req : 'weak',
+    hard_fail: p.hard_fail === true,
+    hard_kind: ['education', 'certification', 'license', 'work_auth', 'years'].includes(p.hard_kind) ? p.hard_kind : 'none',
+    hard_detail: String(p.hard_detail || ''),
   };
 }
 
@@ -89,10 +98,10 @@ export function assess(
 ): {
   decision: 'NO' | 'SEND';
   reason: string;
-  extras: { profession: Gate['profession']; english_req: Gate['english_req']; english_level: ReturnType<typeof englishLevel> };
+  extras: { profession: Gate['profession']; english_req: Gate['english_req']; english_level: ReturnType<typeof englishLevel>; hard_fail: boolean; hard_kind: Gate['hard_kind']; hard_detail: string };
 } {
   const english_level = englishLevel(cvText);
-  const extras = { profession: g.profession, english_req: g.english_req, english_level };
+  const extras = { profession: g.profession, english_req: g.english_req, english_level, hard_fail: g.hard_fail, hard_kind: g.hard_kind, hard_detail: g.hard_detail };
   // Hard gates
   if (g.profession === 'different') return { decision: 'NO', reason: `different profession (${g.reason})`, extras };
   if (!g.language_ok) return { decision: 'NO', reason: 'wrong language pair', extras };
@@ -100,6 +109,10 @@ export function assess(
   if (!g.seniority_ok) return { decision: 'NO', reason: 'seniority mismatch', extras };
   // Real CV required — never send a generated/fabricated or missing résumé to a recruiter.
   if (!candidateHasRealCV) return { decision: 'NO', reason: 'no real CV (generated/none)', extras };
+  // Hard disqualifier: legally-binary ones (license / work-auth) → NO. Education/years/cert →
+  // SEND but flagged as a severe caveat (see computeCaveats) so the recruiter/owner judges.
+  if (g.hard_fail && (g.hard_kind === 'license' || g.hard_kind === 'work_auth'))
+    return { decision: 'NO', reason: `hard requirement failed: ${g.hard_kind} (${g.hard_detail})`, extras };
   // Raised evidence bar
   const { matched, total } = breakdown;
   if (total === 0) return g.profession === 'exact' ? { decision: 'SEND', reason: 'exact occupation, no listed requirements', extras } : { decision: 'NO', reason: 'no requirements + not exact occupation', extras };

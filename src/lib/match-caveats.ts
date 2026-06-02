@@ -13,9 +13,13 @@ export function computeCaveats(bd: unknown): Caveats | null {
   const profession = typeof b.profession === 'string' ? b.profession : null;   // exact | adjacent (different never reaches the recruiter)
   const englishReq = typeof b.english_req === 'string' ? b.english_req : null;  // strong | weak | none
   const englishLevel = typeof b.english_level === 'string' ? b.english_level : null; // ok | b1 | low | unknown
+  const hardFail = b.hard_fail === true;
+  const hardDetail = typeof b.hard_detail === 'string' ? b.hard_detail : '';
   const missing = lines.filter((l) => l?.status !== 'full').map((l) => String(l?.label ?? '')).filter(Boolean);
 
   const items: string[] = [];
+  // Hard, checkable requirement the candidate fails (education / cert / minimum-years) — most severe.
+  if (hardFail) items.push(`Hard requirement not met: ${hardDetail || 'see job requirements'}`);
   if (profession === 'adjacent') items.push('Adjacent role — not an exact occupation match');
   if (total > 0 && missing.length) items.push(`Missing: ${missing.join(', ')}`);
   if (total === 0) items.push('No explicit requirements in the post — matched on profession only');
@@ -25,6 +29,6 @@ export function computeCaveats(bd: unknown): Caveats | null {
   if (engRisk) items.push('English may be below what this role needs — worth verifying');
 
   if (items.length === 0) return { strength: 'Strong', items };
-  const severe = engRisk || (profession === 'adjacent' && total >= 3 && matched < 2);
+  const severe = hardFail || engRisk || (profession === 'adjacent' && total >= 3 && matched < 2);
   return { strength: items.length >= 2 || severe ? 'Weak' : 'Good', items };
 }
