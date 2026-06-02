@@ -17,9 +17,9 @@ function aiClient(): OpenAI {
 }
 const MODEL = AI_PROVIDER === 'zai' ? 'glm-4-32b-0414-128k' : 'glm-4-32b-0414-128k';
 
-type SkillReq = { display: string; anyOf: string[] }; // anyOf = atomic tool names; match ANY = full
+type SkillReq = { display: string; anyOf: string[]; core?: boolean }; // anyOf = atomic tool names; match ANY = full. core = defines the role (Layer 2)
 export type ParsedJD = { skills: SkillReq[]; languages: string[]; years?: number | null; location?: string | null };
-export type Line = { label: string; type: 'skill' | 'language'; status: 'full' | 'missing'; evidence: string | null; source: 'cv' | 'profile' | null; viaAlias?: boolean; viaCollapse?: boolean; anyOfSize?: number; member?: string; searched?: string[] };
+export type Line = { label: string; type: 'skill' | 'language'; status: 'full' | 'missing'; evidence: string | null; source: 'cv' | 'profile' | null; core?: boolean; viaAlias?: boolean; viaCollapse?: boolean; anyOfSize?: number; member?: string; searched?: string[] };
 export type Rejected = { side: 'jd'; type: string; label: string };
 export type Breakdown = {
   lines: Line[];
@@ -39,9 +39,10 @@ export async function parseJD(jdText: string): Promise<ParsedJD> {
     model: MODEL,
     messages: [
       { role: 'system', content: `Extract ONLY explicit must-have requirements from this job post. Return JSON:
-{"skills":[{"display":"string","anyOf":["atomic tool name", ...]}],"languages":["English"],"years":number|null,"location":"string|null"}
+{"skills":[{"display":"string","anyOf":["atomic tool name", ...],"core":true|false}],"languages":["English"],"years":number|null,"location":"string|null"}
 RULES:
 - Each skill = ONE concrete tool/technology/competency literally named in the post. SPLIT lists ("Python, pandas, scikit-learn" → three separate skills). Max 5 skills, most important first.
+- "core": set true ONLY for the 1-2 skills that DEFINE the role — named in the job TITLE, or explicitly "mandatory"/"must-have"/"required", or the dominant theme of the responsibilities. Everything else core=false. (e.g. for "Senior Software Engineer with AI/ML", AI/ML is core; for "Java Full Stack", Java is core. A generic supporting tool like Git is never core.)
 - "anyOf" = atomic tool names (each a single tool, never a phrase/clause). For a plain skill, anyOf is just [that skill].
 - For "X or equivalent / or similar" requirements: set anyOf to the concrete equivalents you are CONFIDENT are real (e.g. {"display":"experiment tracking","anyOf":["MLflow","Weights & Biases","Neptune","Comet"]}). If you cannot name real equivalents, OMIT the requirement entirely. NEVER reduce "X or equivalent" to just X.
 - "languages" = spoken languages ONLY if the post explicitly requires them. Do NOT add English by default.
@@ -59,10 +60,10 @@ RULES:
     const skills: SkillReq[] = (Array.isArray(p.skills) ? p.skills : [])
       .map((s: unknown): SkillReq | null => {
         if (typeof s === 'string') return { display: s, anyOf: [s] };
-        const o = s as { display?: string; anyOf?: unknown };
+        const o = s as { display?: string; anyOf?: unknown; core?: unknown };
         const anyOf = (Array.isArray(o.anyOf) ? o.anyOf : []).map(String).map((x) => x.trim()).filter(Boolean).slice(0, 5);
         if (!anyOf.length) return null;
-        return { display: (o.display || anyOf[0]).trim(), anyOf };
+        return { display: (o.display || anyOf[0]).trim(), anyOf, core: o.core === true };
       })
       .filter((s: SkillReq | null): s is SkillReq => !!s)
       .slice(0, 5);
@@ -108,10 +109,10 @@ export function buildBreakdown(jd: ParsedJD, inp: GenInput): Breakdown {
       if (v.found) { hit = v; hitMember = member; break; }
     }
     if (hit) {
-      lines.push({ label: req.display, type: 'skill', status: 'full', evidence: hit.matched || hitMember, source: 'cv',
+      lines.push({ label: req.display, type: 'skill', status: 'full', evidence: hit.matched || hitMember, source: 'cv', core: req.core === true,
         viaAlias: (hit.matched || '').toLowerCase() !== hitMember.toLowerCase(), viaCollapse: hit.via === 'collapse', anyOfSize: req.anyOf.length, member: hitMember, searched: req.anyOf });
     } else {
-      lines.push({ label: req.display, type: 'skill', status: 'missing', evidence: null, source: null, anyOfSize: req.anyOf.length, searched: req.anyOf });
+      lines.push({ label: req.display, type: 'skill', status: 'missing', evidence: null, source: null, core: req.core === true, anyOfSize: req.anyOf.length, searched: req.anyOf });
     }
   }
 
