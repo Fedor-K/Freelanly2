@@ -104,7 +104,9 @@ export function assess(
   const extras = { profession: g.profession, english_req: g.english_req, english_level, hard_fail: g.hard_fail, hard_kind: g.hard_kind, hard_detail: g.hard_detail };
   // Hard gates
   if (g.profession === 'different') return { decision: 'NO', reason: `different profession (${g.reason})`, extras };
-  if (!g.language_ok) return { decision: 'NO', reason: 'wrong language pair', extras };
+  // Language gate applies ONLY to translation/interpreting roles — for any other role the
+  // candidate's spoken languages are irrelevant and must never block (the LLM over-flags this).
+  if (isLanguageRole(title) && !g.language_ok) return { decision: 'NO', reason: 'wrong language pair', extras };
   if (!g.location_ok) return { decision: 'NO', reason: 'location mismatch', extras };
   if (!g.seniority_ok) return { decision: 'NO', reason: 'seniority mismatch', extras };
   // Real CV required — never send a generated/fabricated or missing résumé to a recruiter.
