@@ -11,17 +11,61 @@
 // guard below protects ambiguous INPUT skills, but an ambiguous alias VALUE is a backdoor:
 // e.g. javascript:['js'] would assert JavaScript off a bare "js" token inside "React js".
 // Pass B caught exactly that. So: no short tokens as alias values — accept the false-neg.
-const ALIASES: Record<string, string[]> = {
-  kubernetes: ['k8s'],
-  postgresql: ['postgres', 'psql'],
-  'react': ['reactjs', 'react.js'],
-  'react native': ['reactnative'],
-  'node.js': ['nodejs', 'node js'],
-  'ci/cd': ['cicd', 'ci cd'],
-  'rest api': ['restful api', 'rest apis', 'restful'],
-  // javascript/typescript/machine learning still match via their full token or space-collapse
-  // ("java script"→javascript); golang matches the "golang" token. No ambiguous-short aliases.
+// SYNONYM GROUPS — every member is equivalent (BIDIRECTIONAL): verifying any member matches any
+// other present in the candidate. Fixes the one-directional-alias bug where requirement "RESTful
+// API" missed candidate "REST APIs". Keep members safe (no short/ambiguous tokens as members).
+const SYN_GROUPS: string[][] = [
+  ['kubernetes', 'k8s'],
+  ['postgresql', 'postgres', 'psql'],
+  ['react', 'reactjs', 'react.js'],
+  ['react native', 'reactnative'],
+  ['node.js', 'nodejs', 'node js'],
+  ['ci/cd', 'cicd', 'ci cd', 'continuous integration'],
+  ['rest api', 'restful api', 'rest apis', 'restful apis', 'restful', 'rest services', 'restful web services'],
+  ['javascript', 'java script'],
+  ['typescript', 'type script'],
+];
+// member -> its full group (so any phrasing of a skill expands to all phrasings)
+const SYN = new Map<string, string[]>();
+for (const g of SYN_GROUPS) for (const m of g) SYN.set(m, g);
+
+// IMPLICATIONS — a candidate who has KEY provably has each VALUE (one-directional). e.g. Flutter
+// ⇒ Dart, Spring Boot ⇒ Java. Lets a required skill match when the candidate lists only the
+// framework that necessarily includes it. Values must be safe (non-ambiguous) tokens.
+const IMPLIES: Record<string, string[]> = {
+  'flutter': ['dart'],
+  'spring boot': ['java', 'spring'],
+  'spring': ['java'],
+  'spring mvc': ['java', 'spring'],
+  'hibernate': ['java'],
+  'j2ee': ['java'],
+  'jsp': ['java'],
+  'react native': ['react'],
+  'next.js': ['react'],
+  'nextjs': ['react'],
+  'nestjs': ['node.js'],
+  'express': ['node.js'],
+  'express.js': ['node.js'],
+  'django': ['python'],
+  'flask': ['python'],
+  'fastapi': ['python'],
+  'pandas': ['python'],
+  'numpy': ['python'],
+  'laravel': ['php'],
+  'symfony': ['php'],
+  'rails': ['ruby'],
+  'ruby on rails': ['ruby'],
+  'asp.net': ['.net'],
+  'asp.net core': ['.net'],
+  '.net core': ['.net'],
+  'entity framework': ['.net'],
+  'angular': ['typescript'],
 };
+// implied skill -> [keys that prove it]
+const IMPLIED_BY = new Map<string, string[]>();
+for (const [k, vals] of Object.entries(IMPLIES)) for (const v of vals) {
+  const a = IMPLIED_BY.get(v) || []; a.push(k); IMPLIED_BY.set(v, a);
+}
 
 // Short / ambiguous skill names = false-positive mines ("Go" in "going", "R"/"C" everywhere).
 // Matched ONLY as an exact standalone token, never aliased, never as a substring/phrase.
@@ -54,11 +98,12 @@ function tokenSet(norm: string): Set<string> {
   return set;
 }
 
-export type VerifyResult = { found: boolean; matched?: string; via?: 'exact' | 'collapse' };
+export type VerifyResult = { found: boolean; matched?: string; via?: 'exact' | 'collapse' | 'synonym' | 'implies' };
 
 /**
  * Does `skill` lexically appear in the candidate's CV text (+ optional parsed skills list)?
- * Deterministic. Returns the exact form found for use as the displayed evidence.
+ * Deterministic. Matches across (1) exact/collapse, (2) bidirectional synonym groups, and
+ * (3) skill implications (a framework that necessarily includes the skill). Returns the form found.
  */
 export function verifySkill(skill: string, cvText: string, candidateSkills: string[] = []): VerifyResult {
   const s = (skill || '').toLowerCase().trim();
@@ -67,19 +112,28 @@ export function verifySkill(skill: string, cvText: string, candidateSkills: stri
   const haystack = normText(`${cvText} ${candidateSkills.join(' , ')}`);
   const tokens = tokenSet(haystack);
 
-  // Ambiguous/short → exact standalone token only. No alias, no phrase, no collapse.
+  // Is `term` present in the candidate? (ambiguous = exact token only; phrase = phrase or collapse)
+  const present = (term: string): boolean => {
+    if (AMBIGUOUS.has(term)) return tokens.has(term);
+    if (term.includes(' ')) return haystack.includes(' ' + term + ' ') || tokens.has(collapse(term));
+    return tokens.has(term) || tokens.has(collapse(term));
+  };
+
+  // Ambiguous/short required skill → exact standalone token only. No alias/phrase/synonym/implies.
   if (AMBIGUOUS.has(s)) {
     return tokens.has(s) ? { found: true, matched: s, via: 'exact' } : { found: false };
   }
 
-  const variants = [s, ...(ALIASES[s] || [])];
-  for (const v of variants) {
-    if (v.includes(' ')) {
-      if (haystack.includes(' ' + v + ' ')) return { found: true, matched: v, via: 'exact' };
-      if (tokens.has(collapse(v))) return { found: true, matched: v, via: 'collapse' }; // "react native"→reactnative
-    } else {
-      if (tokens.has(v)) return { found: true, matched: v, via: 'exact' };
-      if (tokens.has(collapse(v))) return { found: true, matched: v, via: 'collapse' }; // node.js≡nodejs≡"node js"
+  // (1)+(2) direct + bidirectional synonym group
+  const group = SYN.get(s) || [s];
+  for (const v of group) {
+    if (present(v)) return { found: true, matched: v, via: v === s ? 'exact' : 'synonym' };
+  }
+
+  // (3) implication: the candidate has a framework that necessarily includes s (or a synonym of s)
+  for (const target of group) {
+    for (const impl of (IMPLIED_BY.get(target) || [])) {
+      if (present(impl)) return { found: true, matched: impl, via: 'implies' };
     }
   }
   return { found: false };
