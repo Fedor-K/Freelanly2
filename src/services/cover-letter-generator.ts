@@ -71,6 +71,22 @@ interface CoverLetterInput {
   styleOverride?: string;
 }
 
+// Deterministic backstop for over-promising. The prompt forbids global fitness claims, but a
+// high-temperature model still occasionally opens with "I'm a strong fit for the X role" — an
+// inflated verdict on a weak/adjacent match. This neutralises the worst literal constructions
+// into a neutral opener that references interest, not a self-graded fit, without rewriting the
+// rest of the sentence. Asymmetric: only softens claims, never adds them.
+export function softenOverpromise(text: string): string {
+  return (text || '')
+    // "I'm a strong fit for [the] X" / "I am a perfect match for X" → "I'm reaching out about [the] X"
+    .replace(/\bI(?:'m|’m| am)\s+(?:a\s+)?(?:strong|perfect|ideal|great|excellent|natural)\s+(?:fit|match|candidate)\s+for\b/gi, "I’m reaching out about")
+    // standalone "a strong/perfect/ideal fit/match" → "a good match"
+    .replace(/\b(?:a\s+)?(?:strong|perfect|ideal)\s+(fit|match)\b/gi, 'a good $1')
+    .replace(/\b(?:the\s+)?ideal candidate\b/gi, 'an interested candidate')
+    .replace(/\bexactly what (?:you(?:'re|’re| are)|your team is) looking for\b/gi, 'keen to contribute')
+    .replace(/[ \t]{2,}/g, ' ');
+}
+
 // =========================================================================
 // MAIN: Generate complete application email
 // =========================================================================
@@ -130,7 +146,7 @@ RULES:
 - OUTPUT ONLY THE EMAIL ITSELF: greeting → 2-3 short body paragraphs → sign-off with the name. NEVER paste the résumé, an experience/education/skills list, contact blocks, phone numbers, links, or any raw profile data into the email. The Background you were given is reference material to mine ONE-TWO facts from — it must NOT appear in the output.
 - NO unfilled placeholders in the output (no "[...]"). If you don't know a value, omit it.
 - LEAD WITH THE APPLICANT'S STRONGEST GENUINE MATCH. NEVER mention a skill/technology the job asks for that the applicant does NOT have. Do not write "you need X — I have Y": that highlights the gap. If the overlap is partial, focus on the transferable strengths and never apologise for or draw attention to what's missing.
-- NO OVER-PROMISING. Do NOT claim to be a "strong/perfect/ideal fit", "exactly what you're looking for", or assert mastery of the role's core domain unless the applicant's real Background/Skills clearly demonstrate it. Never assert experience or proficiency in a tool, domain, or industry that is NOT present in the applicant's Background/Skills — describe only what they have actually done and let it stand on its own. Honest and specific beats confident and inflated.
+- NO OVER-PROMISING. NEVER use the phrases "strong fit", "perfect fit", "ideal fit/candidate", "exactly what you're looking for", "I'm a great match", or any global self-assessment of fitness. Do NOT assert mastery of the role's core domain, nor experience/proficiency in any tool, domain, or industry that is NOT present in the applicant's Background/Skills. Open by referencing real work the applicant has DONE (not a verdict on how well they fit) — describe what they've built and let it stand on its own. Honest and specific beats confident and inflated.
 - ALWAYS write in FIRST PERSON (I/my/me). NEVER use third person or refer to the applicant by name in the body. "I have experience" NOT "John has experience".
 - NEVER say "I am excited", "I am eager", "I am confident", "I am writing to express interest", "I believe I align".
 - Sound like a real person writing a confident, specific note to someone they want to work with — not a template.
@@ -161,7 +177,7 @@ Write the complete email now.`,
 
     const content = response.choices[0]?.message?.content?.trim();
     if (!content) throw new Error('Empty AI response');
-    return content;
+    return softenOverpromise(content);
   } catch (error) {
     console.error('[CoverLetterGenerator] AI generation failed:', error);
     // Minimal fallback
