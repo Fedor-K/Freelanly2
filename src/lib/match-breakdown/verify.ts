@@ -68,11 +68,36 @@ const IMPLIES: Record<string, string[]> = {
   'symfony': ['php'],
   'rails': ['ruby'],
   'ruby on rails': ['ruby'],
-  'asp.net': ['.net'],
-  'asp.net core': ['.net'],
+  'asp.net': ['.net', 'c#'],
+  'asp.net core': ['.net', 'c#'],
   '.net core': ['.net'],
   'entity framework': ['.net'],
-  'angular': ['typescript'],
+  'angular': ['typescript', 'javascript'],
+  // TypeScript is a strict superset of JavaScript, and these run ON JavaScript — having any of
+  // them proves JS (one-directional: a JS-only candidate does NOT imply TypeScript). Fixes the
+  // false "Missing CORE: JavaScript" for a TS/React/Node candidate.
+  'typescript': ['javascript'],
+  'react': ['javascript'],
+  'reactjs': ['javascript'],
+  'react.js': ['javascript'],
+  'node.js': ['javascript'],
+  'nodejs': ['javascript'],
+  'vue': ['javascript'],
+  'vue.js': ['javascript'],
+  'jquery': ['javascript'],
+  // Any concrete SQL database proves SQL (one-directional). Fixes false "Missing CORE: SQL" for
+  // candidates who list MySQL/PostgreSQL/Oracle/etc. but not the bare token "SQL".
+  'mysql': ['sql'],
+  'postgresql': ['sql'],
+  'postgres': ['sql'],
+  'oracle': ['sql'],
+  'sql server': ['sql'],
+  'mssql': ['sql'],
+  't-sql': ['sql'],
+  'pl/sql': ['sql'],
+  'plsql': ['sql'],
+  'mariadb': ['sql'],
+  'sqlite': ['sql'],
 };
 // implied skill -> [keys that prove it]
 const IMPLIED_BY = new Map<string, string[]>();
