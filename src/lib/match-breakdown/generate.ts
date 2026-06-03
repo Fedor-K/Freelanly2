@@ -28,6 +28,11 @@ const INFRA_TOOLS = new Set([
   'docker', 'kubernetes', 'k8s', 'git', 'github', 'gitlab', 'bitbucket', 'linux', 'unix', 'bash',
   'shell', 'jenkins', 'ci/cd', 'cicd', 'jira', 'confluence', 'agile', 'scrum', 'maven', 'gradle',
   'npm', 'yarn', 'webpack', 'nginx', 'apache', 'vim', 'vs code', 'postman', 'yaml', 'json', 'xml',
+  // IaC / config-mgmt / observability tooling — generic across cloud roles, core ONLY when named
+  // in the title (title-anchor re-adds it). Demoting these stops e.g. Terraform being marked the
+  // core of an "AWS Support Engineer" role whose real core is AWS + CI/CD.
+  'terraform', 'terragrunt', 'ansible', 'puppet', 'chef', 'helm', 'cloudformation', 'pulumi',
+  'prometheus', 'grafana', 'datadog', 'splunk',
 ]);
 const isInfra = (req: SkillReq): boolean =>
   req.anyOf.every((m) => INFRA_TOOLS.has(m.toLowerCase().trim())) ||
