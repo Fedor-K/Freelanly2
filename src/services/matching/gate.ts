@@ -36,7 +36,7 @@ export type Gate = {
   english_req: 'strong' | 'weak' | 'none';
   // Hard, binary, checkable disqualifier the candidate clearly FAILS (education/license/etc.).
   hard_fail: boolean;
-  hard_kind: 'education' | 'certification' | 'license' | 'work_auth' | 'years' | 'none';
+  hard_kind: 'education' | 'certification' | 'license' | 'work_auth' | 'years' | 'native_language' | 'none';
   hard_detail: string;
   // Soft geographic mismatch: job tied to a city/country, remote not explicit, candidate elsewhere.
   location_flag: boolean;
@@ -44,14 +44,15 @@ export type Gate = {
 };
 
 const SYSTEM = `You apply on a candidate's behalf — applying burns quota and emails a real recruiter, so be STRICT. Return ONLY JSON:
-{"profession":"exact|adjacent|different","reason":"<=8 words","language_ok":bool,"location_ok":bool,"seniority_ok":bool,"english_req":"strong|weak|none","hard_fail":bool,"hard_kind":"education|certification|license|work_auth|years|none","hard_detail":"<=14 words","location_flag":bool,"location_detail":"<=12 words"}
+{"profession":"exact|adjacent|different","reason":"<=8 words","language_ok":bool,"location_ok":bool,"seniority_ok":bool,"english_req":"strong|weak|none","hard_fail":bool,"hard_kind":"education|certification|license|work_auth|years|native_language|none","hard_detail":"<=14 words","location_flag":bool,"location_detail":"<=12 words"}
 - profession: "exact"=the candidate's own occupation IS this job's occupation. "adjacent"=same family/transferable but a different specialization (Backend↔Java/AWS Engineer; Full-Stack↔Frontend; Motion Designer↔Video Editor). "different"=different profession family. Merely SPEAKING a language is NOT being a translator; treat translation/interpreting/localization/subtitling as ONE family.
 - CRITICAL — a tool or a title is not a profession: using a design TOOL (Figma, Canva, Sketch) or having "UX/UI" in a developer's title does NOT make a software developer a graphic/visual/email/brand designer — that craft is evidenced by real visual-design work/portfolio. Developer→visual/graphic/email-design role => "different". Designer→software-engineering role => "different".
-- language_ok: for translation/interpreting roles, false ONLY if the candidate clearly works in different languages than needed; true otherwise and for non-language roles.
+- language_ok: about the LANGUAGE PAIR ONLY. For translation/interpreting roles, false ONLY if the candidate clearly works in different languages than needed; true otherwise and for non-language roles. Do NOT use this for native-speaker fitness — that is hard_fail/native_language below.
 - location_ok: false ONLY if job is onsite/hybrid in a specific country AND the candidate is clearly elsewhere. Remote/unknown => true.
 - seniority_ok: false ONLY if job needs 5+ years and candidate is a student/intern/0-1y.
 - english_req: "strong" ONLY if English is literally the work product/medium (customer support, sales/account mgmt, content/copywriting/editing in English, teaching English, client-facing comms as core duty) OR an explicit "fluent/native/excellent English required". "weak"=technical/build/design role where English merely helps. "none"=no English signal. When unsure between strong/weak, choose "weak".
-- hard_fail: true ONLY if the requirements state an EXPLICIT, binary, checkable must-have that the candidate CLEARLY does not meet — a specific university/school or required degree/major, a mandatory certification/license, work authorization/citizenship, or an explicit "minimum N years". Set hard_kind + a short hard_detail. Do NOT flag skills (handled by profession/overlap), nor vague/aspirational wording ("preferred", "nice to have", "bonus"). If none clearly fails, hard_fail=false, hard_kind="none".
+- hard_fail: true ONLY if the requirements state an EXPLICIT, binary, checkable must-have that the candidate CLEARLY does not meet — a specific university/school or required degree/major, a mandatory certification/license, work authorization/citizenship, an explicit "minimum N years", or an explicit NATIVE/mother-tongue language the candidate clearly lacks. Set hard_kind + a short hard_detail. Do NOT flag skills (handled by profession/overlap), nor vague/aspirational wording ("preferred", "nice to have", "bonus"). If none clearly fails, hard_fail=false, hard_kind="none".
+- native_language: use hard_kind="native_language" when the post EXPLICITLY requires a NATIVE / mother-tongue speaker of a language (e.g. "native English speaker", "mother-tongue German") AND the candidate is CLEARLY not native in it — they merely TEACH/translate/learned it as a second language, or their own background points to a different native tongue. Be strict and asymmetric: if nativeness is plausible or merely unstated, hard_fail=false. (This is separate from language_ok, which is only about the language PAIR.)
 - location_flag: SOFT geographic-fit signal (NOT a blocker). true when the job is tied to a specific city/country AND the post does NOT explicitly say remote/worldwide AND the candidate is in a DIFFERENT country — i.e. on-site vs remote is unclear and there's a geography/market gap worth a human glance. location_detail = "job: <city/country>; candidate: <country>". If the job is clearly remote/worldwide, or location is unknown, or candidate is in the same country, location_flag=false.`;
 
 export async function runGate(inp: GateInput): Promise<Gate> {
@@ -71,7 +72,7 @@ export async function runGate(inp: GateInput): Promise<Gate> {
     seniority_ok: p.seniority_ok !== false,
     english_req: p.english_req === 'strong' || p.english_req === 'none' ? p.english_req : 'weak',
     hard_fail: p.hard_fail === true,
-    hard_kind: ['education', 'certification', 'license', 'work_auth', 'years'].includes(p.hard_kind) ? p.hard_kind : 'none',
+    hard_kind: ['education', 'certification', 'license', 'work_auth', 'years', 'native_language'].includes(p.hard_kind) ? p.hard_kind : 'none',
     hard_detail: String(p.hard_detail || ''),
     location_flag: p.location_flag === true,
     location_detail: String(p.location_detail || ''),
@@ -117,9 +118,11 @@ export function assess(
   if (!g.seniority_ok) return { decision: 'NO', reason: 'seniority mismatch', extras };
   // Real CV required — never send a generated/fabricated or missing résumé to a recruiter.
   if (!candidateHasRealCV) return { decision: 'NO', reason: 'no real CV (generated/none)', extras };
-  // Hard disqualifier: legally-binary ones (license / work-auth) → NO. Education/years/cert →
-  // SEND but flagged as a severe caveat (see computeCaveats) so the recruiter/owner judges.
-  if (g.hard_fail && (g.hard_kind === 'license' || g.hard_kind === 'work_auth'))
+  // Hard disqualifier: binary, non-negotiable ones (license / work-auth / native-language) → NO.
+  // For a "native X required" role a clear non-native is a real fail (cultural adaptation, tone) —
+  // sending burns quota and annoys the recruiter. Education/years/cert → SEND but flagged as a
+  // severe caveat (see computeCaveats) so the recruiter/owner judges.
+  if (g.hard_fail && (g.hard_kind === 'license' || g.hard_kind === 'work_auth' || g.hard_kind === 'native_language'))
     return { decision: 'NO', reason: `hard requirement failed: ${g.hard_kind} (${g.hard_detail})`, extras };
   // Raised evidence bar
   const { matched, total } = breakdown;
