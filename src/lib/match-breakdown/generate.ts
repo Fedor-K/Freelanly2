@@ -32,6 +32,13 @@ const INFRA_TOOLS = new Set([
 const isInfra = (req: SkillReq): boolean =>
   req.anyOf.every((m) => INFRA_TOOLS.has(m.toLowerCase().trim())) ||
   INFRA_TOOLS.has(req.display.toLowerCase().trim());
+
+// TITLE-ANCHOR — a skill literally named in the job TITLE IS the role, so it is core by definition,
+// and this OVERRIDES infra-demotion (Kubernetes on "Kubernetes Platform Engineer" / Azure DevOps on
+// its own title must stay core; the blanket infra guard would wrongly strip them). Lexical, same
+// deterministic verifier used everywhere — no LLM, asymmetric (only PROMOTES, never invents).
+const inTitle = (req: SkillReq, title: string): boolean =>
+  !!title && (verifySkill(req.display, title).found || req.anyOf.some((m) => verifySkill(m, title).found));
 export type ParsedJD = { skills: SkillReq[]; languages: string[]; years?: number | null; location?: string | null };
 export type Line = { label: string; type: 'skill' | 'language'; status: 'full' | 'missing'; evidence: string | null; source: 'cv' | 'profile' | null; core?: boolean; viaAlias?: boolean; viaCollapse?: boolean; anyOfSize?: number; member?: string; searched?: string[] };
 export type Rejected = { side: 'jd'; type: string; label: string };
@@ -48,7 +55,11 @@ export type Breakdown = {
 
 // (1) LLM → typed requirements. Atomic tokens, any-of for "or equivalent", no invented reqs.
 // Exported so the send-path can parse a JD ONCE per opportunity and reuse across candidates.
-export async function parseJD(jdText: string): Promise<ParsedJD> {
+export async function parseJD(jdText: string, title?: string): Promise<ParsedJD> {
+  // Title drives the deterministic core-anchor. Caller may pass it; else take the first non-empty
+  // line of the post (job posts lead with the title). Bounded so a wall-of-text first line can't
+  // turn every skill core.
+  const titleLine = (title || jdText.split('\n').map((l) => l.trim()).find(Boolean) || '').slice(0, 140);
   const r = await aiClient().chat.completions.create({
     model: MODEL,
     messages: [
@@ -79,7 +90,8 @@ RULES:
         const anyOf = (Array.isArray(o.anyOf) ? o.anyOf : []).map(String).map((x) => x.trim()).filter(Boolean).slice(0, 5);
         if (!anyOf.length) return null;
         const req: SkillReq = { display: (o.display || anyOf[0]).trim(), anyOf, core: o.core === true };
-        if (req.core && isInfra(req)) req.core = false; // deterministic backstop: infra/tooling is never role-defining
+        if (req.core && isInfra(req)) req.core = false;     // demote generic infra/tooling…
+        if (inTitle(req, titleLine)) req.core = true;       // …unless it IS the role (named in the title) — title wins
         return req;
       })
       .filter((s: SkillReq | null): s is SkillReq => !!s)
@@ -99,14 +111,14 @@ function anyInJD(tokens: string[], jdText: string): boolean {
 }
 
 export type GenInput = {
-  jdText: string; cvText: string;
+  jdText: string; cvText: string; jobTitle?: string; // jobTitle drives the deterministic core-anchor
   candidateSkills: string[]; candidateLanguages: string[];
   candidateYears?: number | null; candidateLocation?: string | null;
   candidateSalary?: string | null; candidateSalaryAt?: string | null; // self-reported "1500/mo" + when
 };
 
 export async function generateBreakdown(inp: GenInput): Promise<Breakdown> {
-  const jd = await parseJD(inp.jdText);
+  const jd = await parseJD(inp.jdText, inp.jobTitle);
   return buildBreakdown(jd, inp);
 }
 

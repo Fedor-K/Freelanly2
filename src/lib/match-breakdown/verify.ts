@@ -17,9 +17,12 @@
 const SYN_GROUPS: string[][] = [
   ['kubernetes', 'k8s'],
   ['postgresql', 'postgres', 'psql'],
-  ['react', 'reactjs', 'react.js'],
+  ['react', 'reactjs', 'react.js', 'react js'],
   ['react native', 'reactnative'],
+  ['vue', 'vue.js', 'vuejs', 'vue js'],
+  ['angular', 'angularjs', 'angular.js', 'angular js'],
   ['node.js', 'nodejs', 'node js'],
+  ['express', 'express.js', 'expressjs', 'express js'],
   ['ci/cd', 'cicd', 'ci cd', 'continuous integration'],
   ['rest api', 'restful api', 'rest apis', 'restful apis', 'restful', 'rest services', 'restful web services'],
   ['javascript', 'java script'],
