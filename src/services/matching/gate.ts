@@ -65,6 +65,20 @@ export async function runGate(inp: GateInput): Promise<Gate> {
   const m = (r.choices[0]?.message?.content || '').match(/\{[\s\S]*\}/);
   if (!m) throw new Error('gate: no JSON');
   const p = JSON.parse(m[0]);
+  let hardFail = p.hard_fail === true;
+  let hardKind = ['education', 'certification', 'license', 'work_auth', 'years', 'native_language'].includes(p.hard_kind) ? p.hard_kind : 'none';
+  let hardDetail = String(p.hard_detail || '');
+  // Deterministic YEARS guard: the LLM keeps flagging a years hard_fail even when the candidate
+  // MEETS the range (e.g. "requires 6-10, candidate has 7 — this meets the requirement"). Trust
+  // the wording / the number, not the flag. Clear the fail when the detail itself says the
+  // candidate qualifies, or when the candidate's known years are not below the stated minimum.
+  if (hardFail && hardKind === 'years') {
+    const meets = /\b(meets?|satisf(?:y|ies)|qualif(?:y|ies)|within|exceeds?|enough|sufficient|not? below|above)\b/i.test(hardDetail);
+    let below = false;
+    const reqMin = (hardDetail.match(/(\d+(?:\.\d+)?)\s*\+?\s*(?:-\s*\d+\s*)?years?/i) || [])[1];
+    if (inp.candidateYears != null && reqMin != null) below = inp.candidateYears < parseFloat(reqMin);
+    if (meets || !below) { hardFail = false; hardKind = 'none'; hardDetail = ''; }
+  }
   return {
     profession: p.profession === 'exact' || p.profession === 'adjacent' ? p.profession : p.profession === 'different' ? 'different' : 'adjacent',
     reason: String(p.reason || ''),
@@ -72,9 +86,9 @@ export async function runGate(inp: GateInput): Promise<Gate> {
     location_ok: p.location_ok !== false,
     seniority_ok: p.seniority_ok !== false,
     english_req: p.english_req === 'strong' || p.english_req === 'none' ? p.english_req : 'weak',
-    hard_fail: p.hard_fail === true,
-    hard_kind: ['education', 'certification', 'license', 'work_auth', 'years', 'native_language'].includes(p.hard_kind) ? p.hard_kind : 'none',
-    hard_detail: String(p.hard_detail || ''),
+    hard_fail: hardFail,
+    hard_kind: hardKind,
+    hard_detail: hardDetail,
     location_flag: p.location_flag === true,
     location_detail: String(p.location_detail || ''),
   };

@@ -243,8 +243,12 @@ Write the complete email now.`;
     if (!content) throw new Error('Empty AI response');
     // Deterministic verdict consumption (the "wire"): a missing skill must not appear positively.
     // One hard-ban regeneration, then a last-resort sentence strip — enforced by CODE reading the
-    // matched/missing lists, not merely handed to the model.
-    if (honest && forbidden.length) {
+    // matched/missing lists. Runs on EVERY letter with a non-empty missing list (forbidden =
+    // missingCore ∪ missing), NOT only in honest mode: a Good match can still falsely claim a
+    // missing non-core skill (e.g. "designing distributed systems" when Distributed Systems is
+    // missing), and honest mode (Weak/coreMissing only) would never catch it. Tone is gated on
+    // honest; the strip is universal.
+    if (forbidden.length) {
       const hit = mentionsAny(content, forbidden);
       if (hit.length) {
         const retry = await gen(`\n\nCRITICAL: your previous draft mentioned ${hit.join(', ')}, which the applicant does NOT have. Rewrite the entire email WITHOUT referencing ${hit.join(', ')} in any form.`);
