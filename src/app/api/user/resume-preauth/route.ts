@@ -307,7 +307,7 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
             keywords: (parsedProfile.skills as string[])?.slice(0, 5).join(', ') || null,
             dailyLimit: 20,
             mode: 'AUTO',
-            isActive: true,
+            isActive: false, // TEMP PAUSE: auto-apply loop creation disabled for new users (flip back to true to restore autonomous sends)
           },
         }),
         prisma.user.update({

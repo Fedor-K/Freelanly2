@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
               keywords: ((profile?.skills as string[]) || []).slice(0, 5).join(', ') || null,
               dailyLimit: 10,
               mode: 'AUTO',
-              isActive: true,
+              isActive: false, // TEMP PAUSE: auto-apply loop creation disabled for new users (flip back to true to restore autonomous sends)
             },
           });
         }
