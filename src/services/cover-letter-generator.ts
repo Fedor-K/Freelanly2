@@ -240,7 +240,18 @@ Write the complete email now.`;
 
   try {
     let content = await gen('');
-    if (!content) throw new Error('Empty AI response');
+    // Substantive-output guard on the PRIMARY path. The model occasionally returns a degenerate
+    // fragment instead of a letter — a bare headline/résumé line like "Quality control manual with
+    // 3 years of experience" or "Hola Mi nombre es Edwin Plaza DBA Senior". Empty was the only thing
+    // caught before; the isSubstantiveLetter check lived solely in the missing-skill strip branch,
+    // so any clean Good/Strong match (empty forbidden list) shipped the stub verbatim. Retry once
+    // demanding the full email, then fall back to a real honest stub rather than send a fragment.
+    if (!isSubstantiveLetter(content)) {
+      const retry = await gen('\n\nIMPORTANT: Output the COMPLETE email — a greeting line, 2-3 body paragraphs grounded in the applicant\'s real background, and a sign-off with the name. Do NOT output a single sentence, a headline, a résumé line, or a profile fragment.');
+      content = isSubstantiveLetter(retry)
+        ? retry
+        : `Hi there,\n\nI'd welcome the chance to be considered for the ${jobTitle} role — my background in ${(matchedSkills.length ? matchedSkills : userProfile.skills).slice(0, 3).join(', ') || 'closely related work'} lines up well, and I'd be glad to share how it could help your team.\n\n${userProfile.name}`;
+    }
     // Deterministic verdict consumption (the "wire"): a missing skill must not appear positively.
     // One hard-ban regeneration, then a last-resort sentence strip — enforced by CODE reading the
     // matched/missing lists. Runs on EVERY letter with a non-empty missing list (forbidden =
