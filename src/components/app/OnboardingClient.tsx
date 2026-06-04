@@ -53,12 +53,13 @@ export function OnboardingClient({ firstName, hasResume }: { firstName: string; 
         body: JSON.stringify({ role: selectedRole }),
       });
 
-      // Import LinkedIn if URL provided
+      // Import LinkedIn if URL provided — scrape + merge into the profile (enriches the résumé),
+      // and store the URL. (Was wrongly hitting /api/user/portfolio, which never read LinkedIn.)
       if (linkedinUrl.trim()) {
-        await fetch('/api/user/portfolio', {
+        await fetch('/api/user/linkedin', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: linkedinUrl }),
+          body: JSON.stringify({ url: linkedinUrl.trim() }),
         });
       }
 
