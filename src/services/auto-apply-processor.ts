@@ -9,6 +9,7 @@ import { isScamRecipient } from '@/lib/scam-filter';
 import { getRecruiterPortalUrl } from '@/lib/recruiter-token';
 import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
 import { parseJD, buildBreakdown, type ParsedJD } from '@/lib/match-breakdown/generate';
+import { computeCaveats, breakdownToVerdict } from '@/lib/match-caveats';
 
 // Anti-spam: max emails to the same recruiter per UTC day. Used by the sender as the
 // hard cap AND at match time to skip already-saturated recruiters (so we don't queue
@@ -397,6 +398,7 @@ export async function processAutoApplyQueue(): Promise<{
           jobDescription: jobDescription.slice(0, 800),
           companyName: app.companyName,
           userProfile: { ...userProfile, recruiterEmail: app.appliedToEmail } as any,
+          verdict: breakdownToVerdict(matchBreakdown), // honest-mode + missing-strip now driven by the real breakdown
         });
       }
 
@@ -486,6 +488,9 @@ export async function processAutoApplyQueue(): Promise<{
               subject,
               sentAt: now,
               matchBreakdown: matchBreakdown == null ? undefined : (matchBreakdown as Prisma.InputJsonValue), // shadow: frozen, joinable to reply outcome
+              // Keep the STORED label in sync with what the card renders (computeCaveats) — stops
+              // the "Strong 85 / Good" column-vs-card divergence on real records.
+              ...(matchBreakdown ? { matchLabel: computeCaveats(matchBreakdown)?.strength ?? undefined } : {}),
             },
           }),
           prisma.message.create({
@@ -1000,6 +1005,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
 
   // CREATE PASS: queue applications for matched candidates up to budget (fairness order).
   let queued = 0;
+  let qParsedJD: ParsedJD | undefined; // parse the JD once per listing, reuse per candidate
   for (const m of matched) {
     if (queued >= budget) break;
     const loop = m.cand.loop;
@@ -1034,8 +1040,30 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     // Generate cover letter + subject at queue time
     let coverLetter = '';
     let subject = '';
+    let qBreakdown: Record<string, unknown> | null = null; // breakdown drives the verdict-aware letter + the honest label
     try {
       const parsedProfile = loop.user.parsedProfile as Record<string, unknown> | null;
+      // Verdict from the SAME breakdown the recruiter will see — so honest-mode/missing-strip
+      // actually run on the queued letter (not just shadow). FAIL-OPEN: any failure → no verdict,
+      // letter still generates (as before).
+      let qVerdict: ReturnType<typeof breakdownToVerdict>;
+      try {
+        const jdText = `${listing.title}\n${listing.description}`;
+        if (!qParsedJD) qParsedJD = await parseJD(jdText);
+        const bd = buildBreakdown(qParsedJD, {
+          jdText, cvText: loop.user.resumeText || '',
+          candidateSkills: (parsedProfile?.skills as string[]) || [],
+          candidateLanguages: (parsedProfile?.languages as string[]) || [],
+          candidateYears: typeof parsedProfile?.experience_years === 'number' ? parsedProfile.experience_years as number : null,
+          candidateLocation: typeof parsedProfile?.location === 'string' ? parsedProfile.location as string : null,
+        });
+        const ratio = bd.total ? bd.matched / bd.total : 0;
+        qBreakdown = {
+          v: 1, matched: bd.matched, total: bd.total, ratio: Math.round(ratio * 100) / 100, lines: bd.lines,
+          yearsContext: bd.yearsContext, locationContext: bd.locationContext, rejected: bd.rejected, fallback: bd.fallback, shadow: true,
+        };
+        qVerdict = breakdownToVerdict(qBreakdown);
+      } catch { /* fail-open: no verdict, letter still generated */ }
       // Phase 2.4: feed the generator the full profile (was just 300 chars → generic letters).
       const userProfile = {
         name: loop.user.name || 'Applicant',
@@ -1054,6 +1082,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           jobDescription: listing.description.slice(0, 800),
           companyName: realCompanyName,
           userProfile,
+          verdict: qVerdict,
         }),
         generateSubjectLine({ jobTitle: listing.title, userName: loop.user.name || 'Applicant' }),
       ]);
@@ -1073,7 +1102,10 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           jobTitle: listing.title,
           appliedToEmail: listing.applyEmail,
           matchScore: m.matchScore,
-          matchLabel: m.matchLabel,
+          // Label from the breakdown's caveats (same source as the card) when available, else the
+          // score tier. Also store the breakdown now, so queued records aren't "—" no-breakdown.
+          matchLabel: (qBreakdown ? computeCaveats(qBreakdown)?.strength : undefined) ?? m.matchLabel,
+          matchBreakdown: qBreakdown ? (qBreakdown as Prisma.InputJsonValue) : undefined,
           coverLetter,
           subject,
           resumeUrl: loop.resumeUrl,
