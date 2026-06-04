@@ -11,9 +11,10 @@ const ROLES = [
   { id: 'other', ico: '+', title: 'Something else', desc: "We'll ask you a few questions to build a custom profile.", tags: [] },
 ];
 
-export function OnboardingClient({ firstName, hasResume }: { firstName: string; hasResume: boolean }) {
+export function OnboardingClient({ firstName, hasResume, hasLinkedin }: { firstName: string; hasResume: boolean; hasLinkedin: boolean }) {
   const [selectedRole, setSelectedRole] = useState('engineer');
   const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [linkedinError, setLinkedinError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -44,6 +45,13 @@ export function OnboardingClient({ firstName, hasResume }: { firstName: string; 
   }
 
   async function handleContinue() {
+    // LinkedIn is REQUIRED (complement to the résumé) unless the user already has one on file.
+    const liVal = linkedinUrl.trim();
+    if (!hasLinkedin && !/linkedin\.com\/in\//i.test(liVal)) {
+      setLinkedinError('Add your LinkedIn profile URL (e.g. linkedin.com/in/yourname)');
+      return;
+    }
+    setLinkedinError(null);
     setSaving(true);
     try {
       // Save role preference
@@ -53,14 +61,19 @@ export function OnboardingClient({ firstName, hasResume }: { firstName: string; 
         body: JSON.stringify({ role: selectedRole }),
       });
 
-      // Import LinkedIn if URL provided — scrape + merge into the profile (enriches the résumé),
-      // and store the URL. (Was wrongly hitting /api/user/portfolio, which never read LinkedIn.)
-      if (linkedinUrl.trim()) {
-        await fetch('/api/user/linkedin', {
+      // Import LinkedIn — scrape + merge into the profile (enriches the résumé) + store the URL.
+      // Required: if the import call fails, don't complete onboarding.
+      if (!hasLinkedin && liVal) {
+        const liRes = await fetch('/api/user/linkedin', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: linkedinUrl.trim() }),
+          body: JSON.stringify({ url: liVal }),
         });
+        if (!liRes.ok) {
+          setSaving(false);
+          setLinkedinError('Could not import that LinkedIn URL — please check it and try again.');
+          return;
+        }
       }
 
       // Mark onboarding complete
@@ -126,19 +139,20 @@ export function OnboardingClient({ firstName, hasResume }: { firstName: string; 
         </div>
 
         <div style={{ marginTop: '36px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 500, margin: '0 0 10px' }}>Or import from your résumé / LinkedIn so we can auto-fill</h3>
+          <h3 style={{ fontSize: '14px', fontWeight: 500, margin: '0 0 10px' }}>Add your résumé <b>and</b> LinkedIn — both are required to build your profile</h3>
           <div className="grid grid-2" style={{ gap: '12px' }}>
             <div className="import-card">
               <div className="ico">in</div>
-              <div style={{ fontSize: '13.5px', fontWeight: 500, marginBottom: '4px' }}>LinkedIn URL</div>
+              <div style={{ fontSize: '13.5px', fontWeight: 500, marginBottom: '4px' }}>LinkedIn URL <span style={{ color: '#B91C1C' }}>*</span>{hasLinkedin && <span style={{ color: 'var(--good, #047857)' }}> ✓ on file</span>}</div>
               <div className="meta">We&apos;ll pull skills, experience, and headline</div>
               <input
                 className="field"
-                placeholder="linkedin.com/in/yourname"
+                placeholder={hasLinkedin ? 'Already linked — leave blank to keep it' : 'linkedin.com/in/yourname'}
                 value={linkedinUrl}
-                onChange={e => setLinkedinUrl(e.target.value)}
+                onChange={e => { setLinkedinUrl(e.target.value); if (linkedinError) setLinkedinError(null); }}
                 style={{ marginTop: '12px', padding: '7px 10px', fontSize: '12px', width: '100%' }}
               />
+              {linkedinError && <div style={{ fontSize: '12px', marginTop: '6px', color: '#B91C1C' }}>{linkedinError}</div>}
             </div>
             <div className="import-card" onClick={() => fileRef.current?.click()}>
               <div className="ico">↑</div>
@@ -156,10 +170,17 @@ export function OnboardingClient({ firstName, hasResume }: { firstName: string; 
         <div className="onboard-actions">
           <div></div>
           <div className="row gap-3">
-            <button className="btn btn-acid" onClick={handleContinue} disabled={saving || (!hasResume && !uploadResult?.includes('!'))}>
-              {saving ? 'Saving...' : (!hasResume && !uploadResult?.includes('!')) ? 'Upload résumé to continue' : 'Continue → Dashboard'}
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-            </button>
+            {(() => {
+              const resumeOk = hasResume || !!uploadResult?.includes('!');
+              const linkedinOk = hasLinkedin || /linkedin\.com\/in\//i.test(linkedinUrl.trim());
+              const label = saving ? 'Saving...' : !resumeOk ? 'Upload résumé to continue' : !linkedinOk ? 'Add LinkedIn to continue' : 'Continue → Dashboard';
+              return (
+                <button className="btn btn-acid" onClick={handleContinue} disabled={saving || !resumeOk || !linkedinOk}>
+                  {label}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                </button>
+              );
+            })()}
           </div>
         </div>
 
