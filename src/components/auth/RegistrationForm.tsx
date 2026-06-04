@@ -240,8 +240,13 @@ export function RegistrationForm({
 
     // Validate required fields when onboarding fields are shown
     if (hasResume === false) {
-      if (!resumeFile && !linkedinUrl) {
-        setError('Please upload your resume or provide LinkedIn URL');
+      // LinkedIn complements the résumé — both are required (résumé is the base, LinkedIn enriches).
+      if (!resumeFile) {
+        setError('Please upload your résumé (PDF)');
+        return;
+      }
+      if (!linkedinUrl) {
+        setError('Please add your LinkedIn profile URL');
         return;
       }
       if (selectedCategories.length === 0) {
@@ -376,26 +381,6 @@ export function RegistrationForm({
 
   const removeLanguage = (code: string) => {
     setSelectedLanguages((prev) => prev.filter((l) => l !== code));
-  };
-
-  // Google Sign In
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-
-    // For new users, save registration data
-    if (step === 'register' && selectedCategories.length > 0) {
-      sessionStorage.setItem(
-        'pendingRegistration',
-        JSON.stringify({
-          name,
-          categories: selectedCategories,
-          countries: selectedCountries,
-          languages: showTranslationFields ? selectedLanguages : [],
-        })
-      );
-    }
-
-    await signIn('google', { callbackUrl: callbackUrl || '/dashboard' });
   };
 
   // Magic Link Sign In (for existing users)
@@ -678,7 +663,7 @@ export function RegistrationForm({
           <>
             {/* LinkedIn URL */}
             <div>
-              <label className="field-label">LinkedIn URL <span className="optional">— optional, used as a credibility signal</span></label>
+              <label className="field-label">LinkedIn URL <span className="required" style={{ color: '#B91C1C' }}>*</span> <span className="optional">— required, enriches your résumé + credibility signal</span></label>
               <input className="text-input" type="url" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/in/yourname" />
             </div>
 

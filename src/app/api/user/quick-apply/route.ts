@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { generateCoverLetter, generateSubjectLine } from '@/services/cover-letter-generator';
+import { assessPairing } from '@/services/matching/assess-pairing';
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT } from '@/lib/apply-quota';
@@ -128,12 +130,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Assess the pairing with the SAME verifier + gate + verdict as the autonomous matcher, so a
+    // self-apply gets an honest cover + a stored breakdown (no more "—" record, no over-promising).
+    const profile = user.parsedProfile as Record<string, unknown> | null;
+    const pairing = await assessPairing({
+      jobTitle: opportunity.title, jobDescription: opportunity.description, jobCountry: null,
+      profile, cvText: user.resumeText || '', hasRealCV: !!user.resumeText,
+    });
+    // Gate: block an actual SEND (not a draft preview) when the verdict is NO.
+    const enforceGate = process.env.MATCH_GATE_ENFORCE !== '0';
+    if (!draftOnly && enforceGate && pairing.decision === 'NO') {
+      return NextResponse.json({ error: 'poor_match', message: `This role isn't a strong enough match for your profile (${pairing.reason}).` }, { status: 422 });
+    }
+
     // Use provided text or generate new
     let coverLetter: string;
     if (providedCoverLetter || editedCoverLetter) {
       coverLetter = providedCoverLetter || editedCoverLetter;
     } else {
-      const profile = user.parsedProfile as Record<string, unknown> | null;
       coverLetter = await generateCoverLetter({
         jobTitle: opportunity.title,
         jobDescription: opportunity.description.slice(0, 800),
@@ -145,6 +159,7 @@ export async function POST(request: NextRequest) {
           resumeText: user.resumeText || undefined,
           recruiterEmail: opportunity.applyEmail,
         } as any,
+        verdict: pairing.verdict, // honest mode + missing-strip
       });
     }
 
@@ -224,6 +239,8 @@ export async function POST(request: NextRequest) {
           companyName: opportunity.clientName, jobTitle: opportunity.title,
           appliedToEmail: opportunity.applyEmail, coverLetter, subject,
           status: 'SENDING', sentVia: 'postal',
+          matchLabel: pairing.label ?? undefined,
+          matchBreakdown: pairing.matchBreakdown ? (pairing.matchBreakdown as Prisma.InputJsonValue) : undefined,
         },
       });
 
@@ -290,6 +307,8 @@ export async function POST(request: NextRequest) {
         status: 'SENT',
         sentVia: 'smtp',
         sentAt: new Date(),
+        matchLabel: pairing.label ?? undefined,
+        matchBreakdown: pairing.matchBreakdown ? (pairing.matchBreakdown as Prisma.InputJsonValue) : undefined,
       },
     });
 

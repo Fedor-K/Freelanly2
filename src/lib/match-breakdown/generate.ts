@@ -18,6 +18,32 @@ function aiClient(): OpenAI {
 const MODEL = AI_PROVIDER === 'zai' ? 'glm-4-32b-0414-128k' : 'glm-4-32b-0414-128k';
 
 type SkillReq = { display: string; anyOf: string[]; core?: boolean }; // anyOf = atomic tool names; match ANY = full. core = defines the role (Layer 2)
+
+// INFRA / GENERIC TOOLING — present in almost every modern role, so NEVER role-defining. The LLM
+// is told this in the prompt but violates it (marked Docker core on a Full Stack role, collapsing
+// two different candidates to an identical Weak). This deterministic guard is the backstop: any
+// member here is force-demoted to core=false regardless of what parseJD returned. Match is on the
+// atomic anyOf members (lowercased), so "Docker" the requirement is caught, "Dockerized X" isn't.
+const INFRA_TOOLS = new Set([
+  'docker', 'kubernetes', 'k8s', 'git', 'github', 'gitlab', 'bitbucket', 'linux', 'unix', 'bash',
+  'shell', 'jenkins', 'ci/cd', 'cicd', 'jira', 'confluence', 'agile', 'scrum', 'maven', 'gradle',
+  'npm', 'yarn', 'webpack', 'nginx', 'apache', 'vim', 'vs code', 'postman', 'yaml', 'json', 'xml',
+  // IaC / config-mgmt / observability tooling — generic across cloud roles, core ONLY when named
+  // in the title (title-anchor re-adds it). Demoting these stops e.g. Terraform being marked the
+  // core of an "AWS Support Engineer" role whose real core is AWS + CI/CD.
+  'terraform', 'terragrunt', 'ansible', 'puppet', 'chef', 'helm', 'cloudformation', 'pulumi',
+  'prometheus', 'grafana', 'datadog', 'splunk',
+]);
+const isInfra = (req: SkillReq): boolean =>
+  req.anyOf.every((m) => INFRA_TOOLS.has(m.toLowerCase().trim())) ||
+  INFRA_TOOLS.has(req.display.toLowerCase().trim());
+
+// TITLE-ANCHOR — a skill literally named in the job TITLE IS the role, so it is core by definition,
+// and this OVERRIDES infra-demotion (Kubernetes on "Kubernetes Platform Engineer" / Azure DevOps on
+// its own title must stay core; the blanket infra guard would wrongly strip them). Lexical, same
+// deterministic verifier used everywhere — no LLM, asymmetric (only PROMOTES, never invents).
+const inTitle = (req: SkillReq, title: string): boolean =>
+  !!title && (verifySkill(req.display, title).found || req.anyOf.some((m) => verifySkill(m, title).found));
 export type ParsedJD = { skills: SkillReq[]; languages: string[]; years?: number | null; location?: string | null };
 export type Line = { label: string; type: 'skill' | 'language'; status: 'full' | 'missing'; evidence: string | null; source: 'cv' | 'profile' | null; core?: boolean; viaAlias?: boolean; viaCollapse?: boolean; anyOfSize?: number; member?: string; searched?: string[] };
 export type Rejected = { side: 'jd'; type: string; label: string };
@@ -34,7 +60,11 @@ export type Breakdown = {
 
 // (1) LLM → typed requirements. Atomic tokens, any-of for "or equivalent", no invented reqs.
 // Exported so the send-path can parse a JD ONCE per opportunity and reuse across candidates.
-export async function parseJD(jdText: string): Promise<ParsedJD> {
+export async function parseJD(jdText: string, title?: string): Promise<ParsedJD> {
+  // Title drives the deterministic core-anchor. Caller may pass it; else take the first non-empty
+  // line of the post (job posts lead with the title). Bounded so a wall-of-text first line can't
+  // turn every skill core.
+  const titleLine = (title || jdText.split('\n').map((l) => l.trim()).find(Boolean) || '').slice(0, 140);
   const r = await aiClient().chat.completions.create({
     model: MODEL,
     messages: [
@@ -42,7 +72,8 @@ export async function parseJD(jdText: string): Promise<ParsedJD> {
 {"skills":[{"display":"string","anyOf":["atomic tool name", ...],"core":true|false}],"languages":["English"],"years":number|null,"location":"string|null"}
 RULES:
 - Each skill = ONE concrete tool/technology/competency literally named in the post. SPLIT lists ("Python, pandas, scikit-learn" → three separate skills). Max 5 skills, most important first.
-- "core": set true ONLY for the 1-2 skills that DEFINE the role — named in the job TITLE, or explicitly "mandatory"/"must-have"/"required", or the dominant theme of the responsibilities. Everything else core=false. (e.g. for "Senior Software Engineer with AI/ML", AI/ML is core; for "Java Full Stack", Java is core. A generic supporting tool like Git is never core.)
+- PRIORITIZE the role-defining stack (the language/framework/domain the job is ABOUT — usually named in the TITLE or the dominant theme) OVER generic tooling. If the post lists both a stack (e.g. React, Node.js) and tooling (Docker, Git, Linux, CI/CD, Jira), the stack comes first and the tooling must NOT crowd it out of the 5 slots. A "Full Stack" / "Software Engineer" title with no concrete stack in the body → extract whatever stack IS named; do NOT pad the list with tooling alone.
+- "core": set true ONLY for the 1-2 skills that DEFINE the role — named in the job TITLE, or explicitly "mandatory"/"must-have"/"required", or the dominant theme of the responsibilities. Everything else core=false. (e.g. for "Senior Software Engineer with AI/ML", AI/ML is core; for "Java Full Stack", Java is core.) NEVER mark generic infra/tooling as core — Docker, Kubernetes, Git, Linux, Bash, CI/CD, Jenkins, Jira, YAML, npm/maven/gradle, nginx are present in almost every role and are NEVER role-defining, even if a thin post mentions only them.
 - "anyOf" = atomic tool names (each a single tool, never a phrase/clause). For a plain skill, anyOf is just [that skill].
 - For "X or equivalent / or similar" requirements: set anyOf to the concrete equivalents you are CONFIDENT are real (e.g. {"display":"experiment tracking","anyOf":["MLflow","Weights & Biases","Neptune","Comet"]}). If you cannot name real equivalents, OMIT the requirement entirely. NEVER reduce "X or equivalent" to just X.
 - "languages" = spoken languages ONLY if the post explicitly requires them. Do NOT add English by default.
@@ -63,7 +94,10 @@ RULES:
         const o = s as { display?: string; anyOf?: unknown; core?: unknown };
         const anyOf = (Array.isArray(o.anyOf) ? o.anyOf : []).map(String).map((x) => x.trim()).filter(Boolean).slice(0, 5);
         if (!anyOf.length) return null;
-        return { display: (o.display || anyOf[0]).trim(), anyOf, core: o.core === true };
+        const req: SkillReq = { display: (o.display || anyOf[0]).trim(), anyOf, core: o.core === true };
+        if (req.core && isInfra(req)) req.core = false;     // demote generic infra/tooling…
+        if (inTitle(req, titleLine)) req.core = true;       // …unless it IS the role (named in the title) — title wins
+        return req;
       })
       .filter((s: SkillReq | null): s is SkillReq => !!s)
       .slice(0, 5);
@@ -82,14 +116,14 @@ function anyInJD(tokens: string[], jdText: string): boolean {
 }
 
 export type GenInput = {
-  jdText: string; cvText: string;
+  jdText: string; cvText: string; jobTitle?: string; // jobTitle drives the deterministic core-anchor
   candidateSkills: string[]; candidateLanguages: string[];
   candidateYears?: number | null; candidateLocation?: string | null;
   candidateSalary?: string | null; candidateSalaryAt?: string | null; // self-reported "1500/mo" + when
 };
 
 export async function generateBreakdown(inp: GenInput): Promise<Breakdown> {
-  const jd = await parseJD(inp.jdText);
+  const jd = await parseJD(inp.jdText, inp.jobTitle);
   return buildBreakdown(jd, inp);
 }
 

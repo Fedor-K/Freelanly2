@@ -16,14 +16,15 @@ export default async function OnboardingPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { name: true, resumeText: true, parsedProfile: true, needsOnboarding: true },
+    select: { name: true, resumeText: true, parsedProfile: true, needsOnboarding: true, linkedinUrl: true },
   });
 
   // Already completed onboarding → go to dashboard
   if (user?.needsOnboarding === false) redirect('/dashboard');
 
   const hasResume = !!(user?.resumeText || user?.parsedProfile);
+  const hasLinkedin = !!user?.linkedinUrl;
   const firstName = user?.name?.split(' ')[0] || 'there';
 
-  return <OnboardingClient firstName={firstName} hasResume={hasResume} />;
+  return <OnboardingClient firstName={firstName} hasResume={hasResume} hasLinkedin={hasLinkedin} />;
 }

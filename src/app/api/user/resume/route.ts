@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { extractText } from 'unpdf';
 import OpenAI from 'openai';
 import { put } from '@vercel/blob';
+import { mergeCandidateProfiles } from '@/lib/linkedin-profile';
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'zai';
 
@@ -135,6 +136,14 @@ Extract as many skills as you can find (up to 20). Extract ALL experience roles,
       if (existing?.resumeUrl?.includes('blob.vercel-storage')) blobUrl = existing.resumeUrl;
     }
 
+    // Merge the résumé profile with whatever's already on the user (e.g. LinkedIn-derived data) —
+    // a résumé upload must ENRICH, never WIPE, the LinkedIn part. Résumé is the authoritative base.
+    const existingUser = await prisma.user.findUnique({ where: { id: session.user.id }, select: { parsedProfile: true, email: true } });
+    const existingProfile = (existingUser?.parsedProfile as Record<string, unknown> | null) || null;
+    const mergedProfile = parsedProfile
+      ? mergeCandidateProfiles(parsedProfile, existingProfile, existingUser?.email || '')
+      : existingProfile;
+
     // Store resume data + parsed profile on user
     await prisma.user.update({
       where: { id: session.user.id },
@@ -142,7 +151,7 @@ Extract as many skills as you can find (up to 20). Extract ALL experience roles,
         resumeUrl: blobUrl,
         resumeText: pdfText.substring(0, 10000),
         resumeFileName: file.name,
-        parsedProfile: parsedProfile || undefined,
+        parsedProfile: (mergedProfile as object) || undefined,
         name: parsedProfile?.name || undefined,
       },
     });

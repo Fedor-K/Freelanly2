@@ -2,7 +2,7 @@
 # https://freelanly.com
 
 ## About
-Freelanly is a remote job aggregation platform that collects job postings from LinkedIn, Lever ATS, RemoteOK, WeWorkRemotely, and HackerNews. We use AI (DeepSeek) to extract structured job information from unstructured posts.
+Freelanly is an AI auto-apply platform for freelancers that collects freelance gigs from LinkedIn posts. We use AI (Z.ai) to extract structured job information from unstructured posts.
 
 ## What We Do
 - Aggregate remote job postings from multiple sources

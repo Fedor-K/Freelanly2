@@ -42,3 +42,19 @@ export function computeCaveats(bd: unknown): Caveats | null {
   const severe = hardFail || coreMissing.length > 0 || engRisk || (profession === 'adjacent' && total >= 3 && matched < 2);
   return { strength: items.length >= 2 || severe ? 'Weak' : 'Good', items };
 }
+
+// Verdict for the cover-letter generator, derived from the SAME frozen breakdown the recruiter
+// sees — so the letter's honest-mode/missing-strip and the stored label all agree with the card.
+export type MatchVerdict = { label?: 'Strong' | 'Good' | 'Weak'; matchedSkills: string[]; missingCore: string[]; missing: string[] };
+export function breakdownToVerdict(bd: unknown): MatchVerdict | undefined {
+  if (!bd || typeof bd !== 'object') return undefined;
+  const b = bd as Record<string, unknown>;
+  if (b.error) return undefined;
+  const lines = Array.isArray(b.lines) ? (b.lines as Array<Record<string, unknown>>) : [];
+  if (!lines.length) return undefined;
+  const lbl = (l: Record<string, unknown>) => String(l?.label ?? '').trim();
+  const matchedSkills = lines.filter((l) => l?.status === 'full').map(lbl).filter(Boolean);
+  const missingCore = lines.filter((l) => l?.status !== 'full' && l?.core === true).map(lbl).filter(Boolean);
+  const missing = lines.filter((l) => l?.status !== 'full' && l?.core !== true).map(lbl).filter(Boolean);
+  return { label: computeCaveats(bd)?.strength, matchedSkills, missingCore, missing };
+}

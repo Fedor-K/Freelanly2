@@ -1,6 +1,5 @@
 import NextAuth from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
-import Google from 'next-auth/providers/google';
 import Resend from 'next-auth/providers/resend';
 import { prisma } from '@/lib/db';
 import { sendMagicLinkEmail } from '@/lib/auth-email';
@@ -10,13 +9,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
 
   providers: [
-    // Google OAuth
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      allowDangerousEmailAccountLinking: true,
-    }),
-
+    // Google OAuth removed — all sign-up now goes through email (which requires résumé + LinkedIn).
     // Magic Link via Email — uses Resend provider shell but actual sending
     // goes through our email system (Elastic Email / SMTP2GO / etc.)
     // via the sendVerificationRequest override. The apiKey is a dummy value
@@ -82,21 +75,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
 
-    // Allow linking accounts with same email
-    async signIn({ user, account }) {
-      // Allow OAuth sign in even if user exists with same email
-      if (account?.provider === 'google') {
-        const existingUser = await prisma.user.findUnique({
-          where: { email: user.email! },
-        });
-        if (existingUser && !existingUser.emailVerified) {
-          // Mark email as verified since Google verified it
-          await prisma.user.update({
-            where: { id: existingUser.id },
-            data: { emailVerified: new Date() },
-          });
-        }
-      }
+    async signIn() {
       return true;
     },
   },
@@ -119,7 +98,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
     },
 
-    // Set emailVerified for Google OAuth users
     async signIn({ user, account }) {
       console.log(`[Auth Event] signIn: provider=${account?.provider}, email=${user.email}, userId=${user.id}`);
 
@@ -136,29 +114,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         console.error('[Auth] Failed to log login:', e);
       }
 
-      // Verify email for Google users (Google already verified it)
-      if (account?.provider === 'google' && user.id) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: { emailVerified: true },
-        });
-
-        if (dbUser && !dbUser.emailVerified) {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { emailVerified: new Date() },
-          });
-          // Track email verification
-          await prisma.activityLog.create({
-            data: {
-              userId: user.id,
-              action: ActivityAction.EMAIL_VERIFIED,
-              details: { provider: 'google', email: user.email },
-            },
-          }).catch(() => {});
-          console.log(`[Auth Event] Verified email for Google user ${user.email}`);
-        }
-      }
     },
   },
 

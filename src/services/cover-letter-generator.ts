@@ -69,6 +69,82 @@ interface CoverLetterInput {
   companyName: string;
   userProfile: UserProfile;
   styleOverride?: string;
+  // The matcher's verdict for THIS pairing. When present, the generator writes in a tone
+  // consistent with it (honest/transferable on a weak/partial match) and a deterministic
+  // post-filter (below) guarantees no missing skill is positively referenced — so the verdict
+  // is consumed by CODE, not merely handed to the model.
+  verdict?: { label?: 'Strong' | 'Good' | 'Weak'; matchedSkills?: string[]; missingCore?: string[]; missing?: string[] };
+}
+
+// Deterministic backstop for over-promising. The prompt forbids global fitness claims, but a
+// high-temperature model still occasionally opens with "I'm a strong fit for the X role" — an
+// inflated verdict on a weak/adjacent match. This neutralises the worst literal constructions
+// into a neutral opener that references interest, not a self-graded fit, without rewriting the
+// rest of the sentence. Asymmetric: only softens claims, never adds them.
+export function softenOverpromise(text: string): string {
+  return (text || '')
+    // "I'm a strong fit for [the] X" / "I am a perfect match for X" → "I'm reaching out about [the] X"
+    .replace(/\bI(?:'m|’m| am)\s+(?:a\s+)?(?:strong|perfect|ideal|great|excellent|natural)\s+(?:fit|match|candidate)\s+for\b/gi, "I’m reaching out about")
+    // standalone "a strong/perfect/ideal fit/match" → "a good match"
+    .replace(/\b(?:a\s+)?(?:strong|perfect|ideal)\s+(fit|match)\b/gi, 'a good $1')
+    .replace(/\b(?:the\s+)?ideal candidate\b/gi, 'an interested candidate')
+    .replace(/\bexactly what (?:you(?:'re|’re| are)|your team is) looking for\b/gi, 'keen to contribute')
+    .replace(/[ \t]{2,}/g, ' ');
+}
+
+// Deterministic verdict consumption. These read the matcher's matched/missing lists in CODE —
+// the "wire" the generator was missing. A TECH-TOKEN boundary is used instead of \b, because \b
+// does NOT work around punctuation skills (.NET, C#, C++ — '.', '#', '+' are not word chars, so
+// \bC#\b / \b.NET\b never match). Here a skill must not be flanked by another token-forming char
+// (letter, digit, '.', '#', '+'): "C#" matches in "deep C# work" but not inside "C#Sharp", and
+// ".NET" matches alone but not inside "ASP.NET". stripSentencesWith removes any sentence that
+// references a forbidden (missing) skill — the last-resort guarantee even if the model ignores
+// the prompt (e.g. "transitioning to Golang"/"deep C# experience" on a role missing that core).
+const escapeRx = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const skillRx = (skills: string[], flags = 'i') =>
+  new RegExp(`(?<![A-Za-z0-9.#+])(?:${skills.filter((s) => s && s.trim().length >= 2).map((s) => escapeRx(s.trim())).join('|')})(?![A-Za-z0-9.#+])`, flags);
+function mentionsAny(text: string, skills: string[]): string[] {
+  return skills.filter((s) => s && s.trim().length >= 2 && skillRx([s]).test(text));
+}
+function stripSentencesWith(text: string, skills: string[]): string {
+  const bad = skills.filter((s) => s && s.trim().length >= 2);
+  if (!bad.length) return text;
+  const rx = skillRx(bad);
+  // Operate per line so greeting/sign-off/paragraph breaks survive; within a line drop only the
+  // offending sentence(s).
+  return text
+    .split('\n')
+    .map((line) => line.split(/(?<=[.!?])\s+/).filter((sent) => !rx.test(sent)).join(' '))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+// Integrity guard: after a strip, the email must still read as a real letter (a greeting/sign-off
+// plus at least two substantive body sentences). If the strip gutted it, we must NOT ship a
+// dangling fragment — the caller falls back to a safe honest stub.
+function isSubstantiveLetter(text: string): boolean {
+  const sentences = (text || '').replace(/\n+/g, ' ').split(/(?<=[.!?])\s+/).filter((s) => s.trim().split(/\s+/).length >= 4);
+  return sentences.length >= 2 && (text || '').trim().length >= 80;
+}
+
+// Pure verdict → honest-mode derivation. Exported so the EXACT prod logic is unit-testable.
+// honest is true ONLY for a Weak label or a non-empty missingCore — so a Strong/Good verdict (or
+// no verdict at all) yields honest=false, an empty honestBlock, and the generator runs its
+// original path unchanged (no extra prompt, no strip).
+export function buildHonestMode(verdict?: CoverLetterInput['verdict']): { honest: boolean; honestBlock: string; matchedSkills: string[]; forbidden: string[] } {
+  const v = verdict;
+  const missingCore = (v?.missingCore || []).map((s) => (s || '').trim()).filter(Boolean);
+  const forbidden = Array.from(new Set([...missingCore, ...(v?.missing || []).map((s) => (s || '').trim()).filter(Boolean)]));
+  const matchedSkills = (v?.matchedSkills || []).map((s) => (s || '').trim()).filter(Boolean);
+  const honest = !!(v && (v.label === 'Weak' || missingCore.length > 0));
+  const honestBlock = honest ? `
+
+HONEST MODE — this is a PARTIAL / STRETCH match. Write truthfully; do NOT inflate:
+- The applicant's VERIFIED skills relevant to this role are: ${matchedSkills.join(', ') || 'general transferable background only'}. Ground every role-specific technical claim in THESE and the applicant's real background — nothing else.
+- The applicant does NOT have: ${forbidden.join(', ') || "the role's core requirements"}. NEVER name, claim, imply, or positively reference ANY of these — not even as "transitioning to", "a foundation for", "eager/keen to learn", "familiar with", or "exposure to". Do not mention them at all.
+- No fitness verdicts. Lead with genuinely transferable strengths and let them stand on their own.` : '';
+  return { honest, honestBlock, matchedSkills, forbidden };
 }
 
 // =========================================================================
@@ -105,15 +181,10 @@ export async function generateCoverLetter(input: CoverLetterInput): Promise<stri
   const style = STYLES[Math.floor(Math.random() * STYLES.length)];
   const length = LENGTHS[Math.floor(Math.random() * LENGTHS.length)];
 
-  try {
-    const response = await client.chat.completions.create({
-      model,
-      temperature: 0.85,
-      max_tokens: 500,
-      messages: [
-        {
-          role: 'system',
-          content: styleOverride || `You are writing a job application email on behalf of someone. You receive ALL raw data about the job and the applicant. Write the COMPLETE email ready to send.
+  // Verdict-aware honest mode + deterministic missing-skill guarantee (the "wire").
+  const { honest, honestBlock, matchedSkills, forbidden } = buildHonestMode(input.verdict);
+
+  const buildSystem = (extra: string) => (styleOverride || `You are writing a job application email on behalf of someone. You receive ALL raw data about the job and the applicant. Write the COMPLETE email ready to send.
 
 STYLE FOR THIS EMAIL: ${style}
 LENGTH: ${length.label} — aim for ${length.words} words, ${length.paragraphs} paragraphs.
@@ -130,15 +201,14 @@ RULES:
 - OUTPUT ONLY THE EMAIL ITSELF: greeting → 2-3 short body paragraphs → sign-off with the name. NEVER paste the résumé, an experience/education/skills list, contact blocks, phone numbers, links, or any raw profile data into the email. The Background you were given is reference material to mine ONE-TWO facts from — it must NOT appear in the output.
 - NO unfilled placeholders in the output (no "[...]"). If you don't know a value, omit it.
 - LEAD WITH THE APPLICANT'S STRONGEST GENUINE MATCH. NEVER mention a skill/technology the job asks for that the applicant does NOT have. Do not write "you need X — I have Y": that highlights the gap. If the overlap is partial, focus on the transferable strengths and never apologise for or draw attention to what's missing.
+- NO OVER-PROMISING. NEVER use the phrases "strong fit", "perfect fit", "ideal fit/candidate", "exactly what you're looking for", "I'm a great match", or any global self-assessment of fitness. Do NOT assert mastery of the role's core domain, nor experience/proficiency in any tool, domain, or industry that is NOT present in the applicant's Background/Skills. Open by referencing real work the applicant has DONE (not a verdict on how well they fit) — describe what they've built and let it stand on its own. Honest and specific beats confident and inflated.
 - ALWAYS write in FIRST PERSON (I/my/me). NEVER use third person or refer to the applicant by name in the body. "I have experience" NOT "John has experience".
 - NEVER say "I am excited", "I am eager", "I am confident", "I am writing to express interest", "I believe I align".
 - Sound like a real person writing a confident, specific note to someone they want to work with — not a template.
 - Follow the LENGTH instruction above (${length.label}: ${length.words} words, ${length.paragraphs} paragraphs). Never pad with filler.
-- Include line breaks between greeting, body paragraphs, and sign-off.`,
-        },
-        {
-          role: 'user',
-          content: `=== JOB POST ===
+- Include line breaks between greeting, body paragraphs, and sign-off.`) + honestBlock + extra;
+
+  const userContent = `=== JOB POST ===
 Title: ${jobTitle}
 Description: ${jobDescription.slice(0, 800)}
 Recruiter email: ${(userProfile as any).recruiterEmail || 'unknown'}
@@ -153,14 +223,48 @@ ${userProfile.workPreference ? `Work preference: ${userProfile.workPreference}` 
 ${userProfile.bookingUrl ? `Booking: ${userProfile.bookingUrl}` : ''}
 ${userProfile.caseStudies?.length ? `Portfolio: ${userProfile.caseStudies.map(p => `${p.title}${p.url ? ` (${p.url})` : ''}`).join(', ')}` : ''}
 
-Write the complete email now.`,
-        },
+Write the complete email now.`;
+
+  const gen = async (extra: string): Promise<string> => {
+    const response = await client.chat.completions.create({
+      model,
+      temperature: 0.85,
+      max_tokens: 500,
+      messages: [
+        { role: 'system', content: buildSystem(extra) },
+        { role: 'user', content: userContent },
       ],
     });
+    return (response.choices[0]?.message?.content || '').trim();
+  };
 
-    const content = response.choices[0]?.message?.content?.trim();
+  try {
+    let content = await gen('');
     if (!content) throw new Error('Empty AI response');
-    return content;
+    // Deterministic verdict consumption (the "wire"): a missing skill must not appear positively.
+    // One hard-ban regeneration, then a last-resort sentence strip — enforced by CODE reading the
+    // matched/missing lists. Runs on EVERY letter with a non-empty missing list (forbidden =
+    // missingCore ∪ missing), NOT only in honest mode: a Good match can still falsely claim a
+    // missing non-core skill (e.g. "designing distributed systems" when Distributed Systems is
+    // missing), and honest mode (Weak/coreMissing only) would never catch it. Tone is gated on
+    // honest; the strip is universal.
+    if (forbidden.length) {
+      const hit = mentionsAny(content, forbidden);
+      if (hit.length) {
+        const retry = await gen(`\n\nCRITICAL: your previous draft mentioned ${hit.join(', ')}, which the applicant does NOT have. Rewrite the entire email WITHOUT referencing ${hit.join(', ')} in any form.`);
+        if (retry && !mentionsAny(retry, forbidden).length) {
+          content = retry; // clean rewrite — keep it whole
+        } else {
+          // Model still leaked: strip the offending sentence(s). If that guts the letter, fall
+          // back to a safe honest stub rather than ship a dangling fragment.
+          const stripped = stripSentencesWith(retry || content, forbidden);
+          content = isSubstantiveLetter(stripped)
+            ? stripped
+            : `Hi there,\n\nI'd welcome the chance to be considered for the ${jobTitle} role — my background in ${matchedSkills.slice(0, 3).join(', ') || 'closely related work'} lines up well, and I'd be glad to share how it could help your team.\n\n${userProfile.name}`;
+        }
+      }
+    }
+    return softenOverpromise(content);
   } catch (error) {
     console.error('[CoverLetterGenerator] AI generation failed:', error);
     // Minimal fallback

@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { extractText } from 'unpdf';
 import OpenAI from 'openai';
 import { put } from '@vercel/blob';
+import { scrapeLinkedInProfile, mergeCandidateProfiles } from '@/lib/linkedin-profile';
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'zai';
 
@@ -44,8 +45,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'PDF under 5MB required' }, { status: 400 });
     }
 
-    if (!file && !linkedinUrl) {
-      return NextResponse.json({ error: 'Resume or LinkedIn URL required' }, { status: 400 });
+    // LinkedIn is a COMPLEMENT to the résumé, not a substitute: require BOTH. The résumé is the
+    // authoritative base; the LinkedIn URL is the credibility signal + enrichment source.
+    if (!file) {
+      return NextResponse.json({ error: 'Résumé (PDF) is required' }, { status: 400 });
+    }
+    if (!linkedinUrl) {
+      return NextResponse.json({ error: 'LinkedIn URL is required' }, { status: 400 });
     }
 
     // Find user by email
@@ -96,135 +102,13 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
       }
     }
 
-    // 2) LinkedIn → structured profile (ENRICHMENT). NOTE: the actor's input field is
-    // `urls` (NOT `profileUrls`) and skills come back as `topSkills` — the old code used
-    // the wrong names, so this scrape silently returned nothing for ~everyone.
-    let liProfile: Record<string, unknown> | null = null;
-    let savedLinkedinUrl: string | null = linkedinUrl || null;
-    if (linkedinUrl && linkedinUrl.includes('linkedin.com/in/')) {
-      try {
-        const apifyToken = process.env.APIFY_API_TOKEN;
-        if (apifyToken) {
-          const runRes = await fetch(
-            `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-scraper/run-sync-get-dataset-items?token=${apifyToken}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ urls: [linkedinUrl] }),
-              signal: AbortSignal.timeout(35000),
-            }
-          );
-          if (runRes.ok) {
-            const items = await runRes.json();
-            const pr = Array.isArray(items) ? items[0] : null;
-            if (pr) {
-              const liName = `${pr.firstName || ''} ${pr.lastName || ''}`.trim() || pr.fullName || null;
-              // The actor returns BOTH topSkills (highlighted 3-5) and skills (full list) —
-              // union them so we don't lose the full set (esp. for LinkedIn-only users).
-              const liSkills = [...new Set([
-                ...(Array.isArray(pr.topSkills) ? pr.topSkills : []),
-                ...(Array.isArray(pr.skills) ? pr.skills : []),
-              ].map((s: { name?: string } | string) => (typeof s === 'object' && s ? s.name : s))
-                .filter(Boolean)
-                .map((s) => String(s).trim()))].slice(0, 20);
-              const liLangs = (Array.isArray(pr.languages) ? pr.languages : [])
-                .map((l: { name?: string } | string) => (typeof l === 'object' && l ? l.name : l))
-                .filter(Boolean);
-              const liLoc = typeof pr.location === 'string' ? pr.location : (pr.location?.linkedinText || pr.location?.text || null);
-              // Work history — actor returns experience[]: {position, companyName, duration,
-              // startDate:{year,text}, endDate:{text}, description}. duration is often null, so
-              // fall back to "<start> – <end>". This is what makes a LinkedIn-only candidate's
-              // generated CV have a real Experience section.
-              const dateRange = (e: Record<string, unknown>): string => {
-                if (typeof e.duration === 'string' && e.duration) return e.duration;
-                const s = (e.startDate as { text?: string })?.text;
-                const en = (e.endDate as { text?: string })?.text;
-                return [s, en].filter(Boolean).join(' – ');
-              };
-              const liExperience = (Array.isArray(pr.experience) ? pr.experience : [])
-                .slice(0, 8)
-                .map((e: Record<string, unknown>) => ({
-                  title: String(e.position || e.title || '').trim(),
-                  company: String(e.companyName || e.company || '').trim(),
-                  dates: dateRange(e),
-                  description: String(e.description || '').trim(),
-                }))
-                .filter((e: { title: string; company: string }) => e.title || e.company);
-              const liEducation = (Array.isArray(pr.education) ? pr.education : [])
-                .slice(0, 5)
-                .map((e: Record<string, unknown>) => ({
-                  degree: [e.degree, e.fieldOfStudy].filter(Boolean).join(', ') || String(e.title || ''),
-                  school: String(e.schoolName || e.school || '').trim(),
-                  dates: String(e.period || dateRange(e) || ''),
-                }))
-                .filter((e: { degree: string; school: string }) => e.degree || e.school);
-              const liCerts = (Array.isArray(pr.certifications) ? pr.certifications : [])
-                .slice(0, 10)
-                .map((c: { name?: string; title?: string } | string) => (typeof c === 'string' ? c : (c?.name || c?.title || '')))
-                .filter(Boolean);
-              // Estimate years from the earliest experience start year (résumé value wins later).
-              const startYears = (Array.isArray(pr.experience) ? pr.experience : [])
-                .map((e: { startDate?: { year?: number } }) => e.startDate?.year)
-                .filter((y: unknown): y is number => typeof y === 'number' && y > 1950);
-              const liExpYears = startYears.length ? Math.max(0, new Date().getFullYear() - Math.min(...startYears)) : 0;
-              liProfile = {
-                name: liName,
-                email,
-                current_title: pr.headline || null,
-                field: pr.headline || null,
-                skills: liSkills,
-                summary: pr.about || '',
-                experience_years: liExpYears,
-                experience: liExperience,
-                education: liEducation,
-                certifications: liCerts,
-                languages: liLangs,
-                location: liLoc,
-              };
-              // Persist the canonical profile URL the actor resolved (cleaner than raw input).
-              if (typeof pr.linkedinUrl === 'string' && pr.linkedinUrl.includes('linkedin.com')) {
-                savedLinkedinUrl = pr.linkedinUrl;
-              }
-              if (!pdfText && pr.about) {
-                pdfText = `${liName || ''}\n${pr.headline || ''}\n\n${pr.about}\n\nSkills: ${(liSkills as string[]).join(', ')}`;
-              }
-              console.log(`[ResumePreAuth] LinkedIn scraped for ${email}: ${liName}, ${(liSkills as string[]).length} skills`);
-            } else {
-              console.warn(`[ResumePreAuth] LinkedIn returned no items for ${email}`);
-            }
-          }
-        }
-      } catch (e) {
-        console.error('[ResumePreAuth] LinkedIn scraping failed:', e);
-      }
-    }
+    // 2) LinkedIn → structured profile (ENRICHMENT, shared module). Complement, not replacement.
+    const { liProfile, resolvedUrl, aboutText } = await scrapeLinkedInProfile(linkedinUrl, email);
+    const savedLinkedinUrl = resolvedUrl;
+    if (!pdfText && aboutText) pdfText = aboutText;
 
-    // 3) MERGE — résumé is the base (richer/authoritative); LinkedIn enriches: union
-    // skills + languages, prefer the LinkedIn headline as the current title. Never drops
-    // résumé detail. Falls back to whichever single source exists.
-    const uniq = (arr: unknown[]) => [...new Set(arr.filter(Boolean).map((s) => String(s).trim()).filter((s) => s.length > 0))];
-    // Prefer the résumé's structured array (richer) when it has entries, else take LinkedIn's.
-    const richer = (a: unknown, b: unknown) => (Array.isArray(a) && a.length ? a : (Array.isArray(b) ? b : []));
-    if (resumeProfile && liProfile) {
-      parsedProfile = {
-        name: resumeProfile.name || liProfile.name,
-        email: resumeProfile.email || liProfile.email || email,
-        phone: (resumeProfile.phone as string) || null,
-        current_title: liProfile.current_title || resumeProfile.current_title,
-        field: resumeProfile.field || liProfile.field,
-        skills: uniq([...((resumeProfile.skills as unknown[]) || []), ...((liProfile.skills as unknown[]) || [])]).slice(0, 25),
-        languages: uniq([...((resumeProfile.languages as unknown[]) || []), ...((liProfile.languages as unknown[]) || [])]),
-        experience_years: (resumeProfile.experience_years as number) || (liProfile.experience_years as number) || 0,
-        summary: ((liProfile.summary as string) || '').length > ((resumeProfile.summary as string) || '').length ? liProfile.summary : (resumeProfile.summary || liProfile.summary),
-        location: resumeProfile.location || liProfile.location || null,
-        // Keep work history / education / certs (previously dropped on merge) — résumé wins.
-        experience: richer(resumeProfile.experience, liProfile.experience),
-        education: richer(resumeProfile.education, liProfile.education),
-        certifications: richer(resumeProfile.certifications, liProfile.certifications),
-      };
-    } else {
-      parsedProfile = resumeProfile || liProfile;
-    }
+    // 3) MERGE — résumé is the authoritative base; LinkedIn enriches (union skills/langs, gaps).
+    parsedProfile = mergeCandidateProfiles(resumeProfile, liProfile, email);
 
     if (!pdfText && !parsedProfile) {
       return NextResponse.json({ error: 'Could not extract profile data' }, { status: 400 });

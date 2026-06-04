@@ -17,13 +17,26 @@
 const SYN_GROUPS: string[][] = [
   ['kubernetes', 'k8s'],
   ['postgresql', 'postgres', 'psql'],
-  ['react', 'reactjs', 'react.js'],
+  ['react', 'reactjs', 'react.js', 'react js'],
   ['react native', 'reactnative'],
+  ['vue', 'vue.js', 'vuejs', 'vue js'],
+  ['angular', 'angularjs', 'angular.js', 'angular js'],
   ['node.js', 'nodejs', 'node js'],
+  ['express', 'express.js', 'expressjs', 'express js'],
   ['ci/cd', 'cicd', 'ci cd', 'continuous integration'],
   ['rest api', 'restful api', 'rest apis', 'restful apis', 'restful', 'rest services', 'restful web services'],
   ['javascript', 'java script'],
   ['typescript', 'type script'],
+  // SPOKEN LANGUAGES (translation vertical). A "Chinese" requirement must match a candidate who
+  // lists "Mandarin"; etc. ASCII-only members — normText strips accents (español→"espa ol"), so
+  // accented spellings can't be members here. Native-speaker phrasing ("native Spanish") already
+  // matches because the language name is literally present; this only closes the synonym gap.
+  ['chinese', 'mandarin', 'putonghua'],
+  ['spanish', 'castilian', 'castellano'],
+  ['german', 'deutsch'],
+  ['dutch', 'flemish'],
+  ['persian', 'farsi'],
+  ['filipino', 'tagalog'],
 ];
 // member -> its full group (so any phrasing of a skill expands to all phrasings)
 const SYN = new Map<string, string[]>();
@@ -55,11 +68,36 @@ const IMPLIES: Record<string, string[]> = {
   'symfony': ['php'],
   'rails': ['ruby'],
   'ruby on rails': ['ruby'],
-  'asp.net': ['.net'],
-  'asp.net core': ['.net'],
+  'asp.net': ['.net', 'c#'],
+  'asp.net core': ['.net', 'c#'],
   '.net core': ['.net'],
   'entity framework': ['.net'],
-  'angular': ['typescript'],
+  'angular': ['typescript', 'javascript'],
+  // TypeScript is a strict superset of JavaScript, and these run ON JavaScript — having any of
+  // them proves JS (one-directional: a JS-only candidate does NOT imply TypeScript). Fixes the
+  // false "Missing CORE: JavaScript" for a TS/React/Node candidate.
+  'typescript': ['javascript'],
+  'react': ['javascript'],
+  'reactjs': ['javascript'],
+  'react.js': ['javascript'],
+  'node.js': ['javascript'],
+  'nodejs': ['javascript'],
+  'vue': ['javascript'],
+  'vue.js': ['javascript'],
+  'jquery': ['javascript'],
+  // Any concrete SQL database proves SQL (one-directional). Fixes false "Missing CORE: SQL" for
+  // candidates who list MySQL/PostgreSQL/Oracle/etc. but not the bare token "SQL".
+  'mysql': ['sql'],
+  'postgresql': ['sql'],
+  'postgres': ['sql'],
+  'oracle': ['sql'],
+  'sql server': ['sql'],
+  'mssql': ['sql'],
+  't-sql': ['sql'],
+  'pl/sql': ['sql'],
+  'plsql': ['sql'],
+  'mariadb': ['sql'],
+  'sqlite': ['sql'],
 };
 // implied skill -> [keys that prove it]
 const IMPLIED_BY = new Map<string, string[]>();
