@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
         matchScore: true, matchLabel: true, matchBreakdown: true, coverLetter: true, status: true,
         user: {
           select: {
-            name: true, parsedProfile: true, resumeUrl: true, resumeFileName: true, resumeGenerated: true,
+            name: true, parsedProfile: true, resumeUrl: true, resumeFileName: true, resumeGenerated: true, linkedinUrl: true,
             resumeText: true,
           },
         },
@@ -97,6 +97,17 @@ export async function GET(request: NextRequest) {
         location: (prof.location as string) || null,
         experienceYears: typeof prof.experience_years === 'number' ? prof.experience_years : null,
         skills: arr(prof.skills).slice(0, 25),
+        // LinkedIn/résumé-derived profile fields (from the apply-time scrape + merge)
+        languages: arr(prof.languages).slice(0, 8),
+        summary: (prof.summary as string) || null,
+        linkedinUrl: a.user?.linkedinUrl || null,
+        experience: (Array.isArray(prof.experience) ? (prof.experience as Array<Record<string, unknown>>) : []).slice(0, 8).map((e) => ({
+          title: String(e?.title || ''), company: String(e?.company || ''), dates: String(e?.dates || ''), description: String(e?.description || ''),
+        })).filter((e) => e.title || e.company),
+        education: (Array.isArray(prof.education) ? (prof.education as Array<Record<string, unknown>>) : []).slice(0, 5).map((e) => ({
+          degree: String(e?.degree || ''), school: String(e?.school || e?.institution || ''), dates: String(e?.dates || ''),
+        })).filter((e) => e.degree || e.school),
+        certifications: arr(prof.certifications).slice(0, 10),
         cvUrl: hasBlobCv ? resumeUrl : null,
         cvName: a.user?.resumeFileName || null,
         cvGenerated: !!a.user?.resumeGenerated,

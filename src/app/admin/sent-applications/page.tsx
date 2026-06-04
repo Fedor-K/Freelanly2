@@ -18,6 +18,10 @@ type Row = {
   candidate: {
     name: string; title: string | null; location: string | null; experienceYears: number | null;
     skills: string[]; cvUrl: string | null; cvName: string | null; cvGenerated: boolean; hasResumeText: boolean;
+    languages: string[]; summary: string | null; linkedinUrl: string | null;
+    experience: { title: string; company: string; dates: string; description: string }[];
+    education: { degree: string; school: string; dates: string }[];
+    certifications: string[];
   };
   jobTitle: string | null;
   jobSlug: string | null;
@@ -226,7 +230,28 @@ export default function SentApplicationsPage() {
                             <div className="text-xs font-semibold mt-3 mb-1.5 uppercase text-muted-foreground">Профиль кандидата</div>
                             <div className="text-xs text-muted-foreground space-y-0.5">
                               <div>Title: {r.candidate.title || '—'} · {r.candidate.location || '—'} · {r.candidate.experienceYears ? `${r.candidate.experienceYears} лет` : 'опыт ?'}</div>
+                              {r.candidate.languages.length > 0 && <div className="mt-1">Языки: <span className="text-foreground">{r.candidate.languages.join(', ')}</span></div>}
                               <div className="flex flex-wrap gap-1 mt-1">{r.candidate.skills.map((s, i) => <span key={i} className="bg-gray-100 rounded px-1.5 py-0.5 text-[10px]">{s}</span>)}</div>
+                              {r.candidate.experience.length > 0 && (
+                                <div className="mt-2">
+                                  <div className="font-semibold text-[10px] uppercase text-muted-foreground">Опыт работы (LinkedIn / резюме)</div>
+                                  {r.candidate.experience.map((e, i) => (
+                                    <div key={i} className="ml-1 mt-0.5">• <span className="text-foreground">{e.title || '—'}</span>{e.company ? ` @ ${e.company}` : ''}{e.dates ? ` · ${e.dates}` : ''}</div>
+                                  ))}
+                                </div>
+                              )}
+                              {r.candidate.education.length > 0 && (
+                                <div className="mt-2">
+                                  <div className="font-semibold text-[10px] uppercase text-muted-foreground">Образование</div>
+                                  {r.candidate.education.map((e, i) => (
+                                    <div key={i} className="ml-1 mt-0.5">• <span className="text-foreground">{e.degree || '—'}</span>{e.school ? ` — ${e.school}` : ''}{e.dates ? ` · ${e.dates}` : ''}</div>
+                                  ))}
+                                </div>
+                              )}
+                              {r.candidate.certifications.length > 0 && <div className="mt-2">Сертификаты: <span className="text-foreground">{r.candidate.certifications.join(', ')}</span></div>}
+                              {r.candidate.linkedinUrl && (
+                                <div className="mt-1">LinkedIn: <a href={r.candidate.linkedinUrl.startsWith('http') ? r.candidate.linkedinUrl : `https://${r.candidate.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{r.candidate.linkedinUrl.replace(/^https?:\/\//, '')}</a></div>
+                              )}
                               <div className="mt-1">
                                 CV: {r.candidate.cvUrl
                                   ? <a href={r.candidate.cvUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{r.candidate.cvName || 'resume.pdf'}</a>
