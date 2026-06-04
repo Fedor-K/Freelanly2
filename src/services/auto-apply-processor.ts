@@ -10,6 +10,11 @@ import { getRecruiterPortalUrl } from '@/lib/recruiter-token';
 import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
 import { parseJD, buildBreakdown, type ParsedJD } from '@/lib/match-breakdown/generate';
 import { computeCaveats, breakdownToVerdict } from '@/lib/match-caveats';
+import { runGate, assess } from '@/services/matching/gate';
+
+// Hard gate (assess) enforcement. ON by default; set MATCH_GATE_ENFORCE=0 to fall back to
+// shadow-only (compute + render caveats, but don't block) — the kill switch for cutover.
+const ENFORCE_GATE = process.env.MATCH_GATE_ENFORCE !== '0';
 
 // Anti-spam: max emails to the same recruiter per UTC day. Used by the sender as the
 // hard cap AND at match time to skip already-saturated recruiters (so we don't queue
@@ -822,6 +827,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           email: true,
           parsedProfile: true,
           resumeText: true,
+          resumeGenerated: true,
           workPreference: true,
           bookingUrl: true,
           caseStudies: true,
@@ -1005,6 +1011,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
 
   // CREATE PASS: queue applications for matched candidates up to budget (fairness order).
   let queued = 0;
+  let gated = 0; // blocked by the hard gate (assess === NO)
   let qParsedJD: ParsedJD | undefined; // parse the JD once per listing, reuse per candidate
   for (const m of matched) {
     if (queued >= budget) break;
@@ -1047,6 +1054,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
       // actually run on the queued letter (not just shadow). FAIL-OPEN: any failure → no verdict,
       // letter still generates (as before).
       let qVerdict: ReturnType<typeof breakdownToVerdict>;
+      let gateBlocked = false;
       try {
         const jdText = `${listing.title}\n${listing.description}`;
         if (!qParsedJD) qParsedJD = await parseJD(jdText);
@@ -1062,8 +1070,32 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           v: 1, matched: bd.matched, total: bd.total, ratio: Math.round(ratio * 100) / 100, lines: bd.lines,
           yearsContext: bd.yearsContext, locationContext: bd.locationContext, rejected: bd.rejected, fallback: bd.fallback, shadow: true,
         };
+        // HARD GATE — profession / language / location / seniority / work-auth / native-language +
+        // evidence bar. A NO blocks the send; its signals are merged into the breakdown so caveats
+        // render on a SEND too. FAIL-OPEN: any gate error -> no block, send exactly as before.
+        try {
+          const g = await runGate({
+            jobTitle: listing.title, jobDescription: listing.description, jobCountry: listing.country,
+            candidateTitle: typeof parsedProfile?.current_title === 'string' ? parsedProfile.current_title as string : undefined,
+            candidateField: typeof parsedProfile?.field === 'string' ? parsedProfile.field as string : undefined,
+            candidateYears: typeof parsedProfile?.experience_years === 'number' ? parsedProfile.experience_years as number : null,
+            candidateLocation: typeof parsedProfile?.location === 'string' ? parsedProfile.location as string : undefined,
+            candidateLanguages: (parsedProfile?.languages as string[]) || [],
+            candidateSkills: (parsedProfile?.skills as string[]) || [],
+            candidateCv: loop.user.resumeText || '',
+          });
+          const hasRealCV = !!loop.resumeUrl && !loop.user.resumeGenerated;
+          const decision = assess(g, { matched: bd.matched, total: bd.total }, loop.user.resumeText || '', listing.title, hasRealCV);
+          Object.assign(qBreakdown, {
+            profession: decision.extras.profession, english_req: decision.extras.english_req, english_level: decision.extras.english_level,
+            hard_fail: decision.extras.hard_fail, hard_kind: decision.extras.hard_kind, hard_detail: decision.extras.hard_detail,
+            location_flag: decision.extras.location_flag, location_detail: decision.extras.location_detail, gateReason: decision.reason,
+          });
+          if (ENFORCE_GATE && decision.decision === 'NO') gateBlocked = true;
+        } catch { /* gate failed -> fail-open, no block */ }
         qVerdict = breakdownToVerdict(qBreakdown);
       } catch { /* fail-open: no verdict, letter still generated */ }
+      if (gateBlocked) { gated++; continue; } // hard gate said NO — do not queue/send this pairing
       // Phase 2.4: feed the generator the full profile (was just 300 chars → generic letters).
       const userProfile = {
         name: loop.user.name || 'Applicant',
@@ -1124,9 +1156,9 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     }
   }
 
-  if (queued > 0) {
+  if (queued > 0 || gated > 0) {
     console.log(
-      `[AutoApply] Queued ${queued} applications for ${listing.type} "${listing.title}"`
+      `[AutoApply] Queued ${queued}${gated > 0 ? `, gated ${gated} (assess=NO${ENFORCE_GATE ? '' : ', shadow'})` : ''} for ${listing.type} "${listing.title}"`
     );
   }
 
