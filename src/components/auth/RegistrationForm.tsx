@@ -383,26 +383,6 @@ export function RegistrationForm({
     setSelectedLanguages((prev) => prev.filter((l) => l !== code));
   };
 
-  // Google Sign In
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-
-    // For new users, save registration data
-    if (step === 'register' && selectedCategories.length > 0) {
-      sessionStorage.setItem(
-        'pendingRegistration',
-        JSON.stringify({
-          name,
-          categories: selectedCategories,
-          countries: selectedCountries,
-          languages: showTranslationFields ? selectedLanguages : [],
-        })
-      );
-    }
-
-    await signIn('google', { callbackUrl: callbackUrl || '/dashboard' });
-  };
-
   // Magic Link Sign In (for existing users)
   const handleMagicLinkLogin = async () => {
     setIsLoading(true);
