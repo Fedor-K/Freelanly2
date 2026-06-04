@@ -42,7 +42,17 @@ export async function scrapeLinkedInProfile(linkedinUrl: string | null, email: s
     const LANG_NAMES = new Set(['english', 'spanish', 'french', 'german', 'chinese', 'mandarin', 'cantonese', 'russian', 'arabic', 'portuguese', 'japanese', 'korean', 'italian', 'hindi', 'dutch', 'turkish', 'polish', 'ukrainian', 'vietnamese', 'thai', 'indonesian', 'persian', 'farsi', 'hebrew', 'swedish', 'norwegian', 'danish', 'finnish', 'greek', 'czech', 'romanian', 'hungarian', 'serbian', 'croatian', 'bulgarian', 'urdu', 'bengali', 'tagalog', 'filipino', 'malay', 'swahili', 'punjabi', 'tamil', 'telugu']);
     const langsFromSkills = (liSkills as string[]).filter((s: string) => LANG_NAMES.has(String(s).toLowerCase().trim()));
     const allLangs = [...new Set([...liLangs.map(String).map((s: string) => s.trim()), ...langsFromSkills])].filter(Boolean);
-    const liLoc = typeof pr.location === 'string' ? pr.location : (pr.location?.linkedinText || pr.location?.text || null);
+    // Location feeds the deterministic-ish location gate as a freeform string. The actor's
+    // `linkedinText` is human-readable but often city/region-only ("San Francisco Bay Area") with
+    // NO country word — which makes country-level gating unreliable. The actor also resolves a
+    // normalized `location.parsed.country` / `countryCode`; append it when the text doesn't already
+    // name the country, so the gate always sees a country even for city-only strings.
+    const locObj = (pr.location && typeof pr.location === 'object') ? pr.location : null;
+    const locText = typeof pr.location === 'string' ? pr.location : (locObj?.linkedinText || locObj?.text || null);
+    const locCountry = locObj?.parsed?.country || locObj?.parsed?.countryFull || null;
+    const liLoc = locText
+      ? (locCountry && !String(locText).toLowerCase().includes(String(locCountry).toLowerCase()) ? `${locText}, ${locCountry}` : locText)
+      : locCountry;
     const dateRange = (e: Record<string, unknown>): string => {
       if (typeof e.duration === 'string' && e.duration) return e.duration;
       const s = (e.startDate as { text?: string })?.text;
