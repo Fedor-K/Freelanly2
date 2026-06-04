@@ -37,6 +37,11 @@ export async function scrapeLinkedInProfile(linkedinUrl: string | null, email: s
       .map((s) => String(s).trim()))].slice(0, 20);
     const liLangs = (Array.isArray(pr.languages) ? pr.languages : [])
       .map((l: { name?: string } | string) => (typeof l === 'object' && l ? l.name : l)).filter(Boolean);
+    // The actor often returns languages:[] and lists a spoken language ("English") under skills
+    // instead — pull those out so the languages field isn't empty for translation matching.
+    const LANG_NAMES = new Set(['english', 'spanish', 'french', 'german', 'chinese', 'mandarin', 'cantonese', 'russian', 'arabic', 'portuguese', 'japanese', 'korean', 'italian', 'hindi', 'dutch', 'turkish', 'polish', 'ukrainian', 'vietnamese', 'thai', 'indonesian', 'persian', 'farsi', 'hebrew', 'swedish', 'norwegian', 'danish', 'finnish', 'greek', 'czech', 'romanian', 'hungarian', 'serbian', 'croatian', 'bulgarian', 'urdu', 'bengali', 'tagalog', 'filipino', 'malay', 'swahili', 'punjabi', 'tamil', 'telugu']);
+    const langsFromSkills = (liSkills as string[]).filter((s: string) => LANG_NAMES.has(String(s).toLowerCase().trim()));
+    const allLangs = [...new Set([...liLangs.map(String).map((s: string) => s.trim()), ...langsFromSkills])].filter(Boolean);
     const liLoc = typeof pr.location === 'string' ? pr.location : (pr.location?.linkedinText || pr.location?.text || null);
     const dateRange = (e: Record<string, unknown>): string => {
       if (typeof e.duration === 'string' && e.duration) return e.duration;
@@ -68,7 +73,7 @@ export async function scrapeLinkedInProfile(linkedinUrl: string | null, email: s
       name: liName, email, current_title: pr.headline || null, field: pr.headline || null,
       skills: liSkills, summary: pr.about || '', experience_years: liExpYears,
       experience: liExperience, education: liEducation, certifications: liCerts,
-      languages: liLangs, location: liLoc,
+      languages: allLangs, location: liLoc,
     };
     const resolvedUrl = (typeof pr.linkedinUrl === 'string' && pr.linkedinUrl.includes('linkedin.com')) ? pr.linkedinUrl : linkedinUrl;
     const aboutText = pr.about ? `${liName || ''}\n${pr.headline || ''}\n\n${pr.about}\n\nSkills: ${(liSkills as string[]).join(', ')}` : '';
