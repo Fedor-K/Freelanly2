@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { generateCoverLetter, generateSubjectLine } from '@/services/cover-letter-generator';
+import { assessPairing } from '@/services/matching/assess-pairing';
 
 /**
  * POST /api/user/draft-apply
@@ -55,6 +56,13 @@ export async function POST(request: NextRequest) {
     const profile = user.parsedProfile as Record<string, unknown> | null;
     const recruiterFirstName = opportunity.clientName.split(' ')[0];
 
+    // Same verifier + gate + verdict as the matcher → the draft is honest (no over-promising on a
+    // missing/weak requirement). Draft is a preview, so the gate decision is surfaced, not enforced.
+    const pairing = await assessPairing({
+      jobTitle: opportunity.title, jobDescription: opportunity.description, jobCountry: null,
+      profile, cvText: user.resumeText || '', hasRealCV: !!user.resumeText,
+    });
+
     // Style-specific prompt override
     const stylePrompts: Record<string, string> = {
       professional: 'Write a 3-5 sentence professional cover letter body. Mention relevant skills and experience. No greeting or signature.',
@@ -73,6 +81,7 @@ export async function POST(request: NextRequest) {
         resumeText: user.resumeText || undefined,
       },
       styleOverride: stylePrompts[style || 'professional'],
+      verdict: pairing.verdict, // honest mode + missing-strip
     });
 
     const subject = await generateSubjectLine({
@@ -90,6 +99,7 @@ export async function POST(request: NextRequest) {
       subject,
       recruiterName: opportunity.clientName,
       applyEmail: opportunity.applyEmail,
+      match: { label: pairing.label ?? null, decision: pairing.decision, reason: pairing.reason },
     });
   } catch (error) {
     console.error('[DraftApply] Error:', error);
