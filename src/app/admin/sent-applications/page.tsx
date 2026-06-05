@@ -31,6 +31,7 @@ type Row = {
   matchLabel: string | null;
   match: { matched: number; total: number; lines: Line[] } | null;
   caveats: { strength: 'Strong' | 'Good' | 'Weak'; items: string[] } | null;
+  reasoning: { kind: 'ok' | 'warn' | 'final'; text: string }[];
   coverLetter: string | null;
 };
 
@@ -224,6 +225,21 @@ export default function SentApplicationsPage() {
                                 {r.caveats.items.map((cv, i) => (
                                   <span key={i} className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">⚠️ {cv}</span>
                                 ))}
+                              </div>
+                            )}
+
+                            {/* HOW the gate decided to send — step-by-step reasoning trail */}
+                            {r.reasoning && r.reasoning.length > 0 && (
+                              <div className="mt-3">
+                                <div className="text-xs font-semibold mb-1 uppercase text-muted-foreground">Как система решила</div>
+                                <ol className="space-y-0.5">
+                                  {r.reasoning.map((s, i) => (
+                                    <li key={i} className={`text-[11px] flex gap-1.5 ${s.kind === 'final' ? 'font-semibold text-foreground mt-0.5' : s.kind === 'warn' ? 'text-amber-800' : 'text-muted-foreground'}`}>
+                                      <span>{s.kind === 'final' ? '→' : s.kind === 'warn' ? '⚠️' : '✓'}</span>
+                                      <span>{s.text}</span>
+                                    </li>
+                                  ))}
+                                </ol>
                               </div>
                             )}
 
