@@ -105,10 +105,11 @@ export function softenTemplate(text: string): string {
     .replace(/^\s*(?:Dear\s+(?:Hiring\s+Manager|Hiring\s+Team|Recruiter|Sir(?:\s+or\s+Madam)?|Madam)|To\s+Whom\s+It\s+May\s+Concern)\s*[,:]/i, 'Hi there,')
     // Pure-filler opener — adds nothing, screams template. Drop the whole sentence.
     .replace(/\bI(?:'m|’m| am)\s+writing\s+to\s+(?:express\s+(?:my\s+)?interest\s+in|apply\s+for)\b[^.!?]*[.!?]\s*/gi, '')
-    // Banned enthusiasm verbs (prompt: never "I am excited/eager/confident") → neutral phrasing
-    .replace(/\bI(?:'m|’m| am)\s+excited\s+to\b/gi, 'I’d be glad to')
-    .replace(/\bI(?:'m|’m| am)\s+excited\s+(?:about|by|for)\b/gi, 'I’m keen on')
-    .replace(/\bI(?:'m|’m| am)\s+eager\s+to\b/gi, 'I’d be glad to')
+    // Banned enthusiasm verbs (prompt: never "I am excited/eager/confident") → neutral phrasing.
+    // Covers present AND past tense (the model dodges "I am excited" with "I was excited to see…").
+    .replace(/\bI\s+(?:was|have been)\s+(?:excited|thrilled|delighted)\s+to\s+(?:see|find|read|learn|come\s+across|discover)\b/gi, 'I noticed')
+    .replace(/\bI(?:'m|’m| am| was| have been)\s+(?:excited|thrilled|delighted|eager)\s+to\b/gi, (m) => /\bwas\b|have been/i.test(m) ? 'I was glad to' : 'I’d be glad to')
+    .replace(/\bI(?:'m|’m| am| was| have been)\s+(?:excited|thrilled|delighted|passionate)\s+(?:about|by|for)\b/gi, (m) => /\bwas\b|have been/i.test(m) ? 'I was drawn to' : 'I’m keen on')
     .replace(/\beager\s+to\b/gi, 'ready to')
     .replace(/\bI\s+believe\s+I\s+align\b/gi, 'my background aligns')
     .replace(/[ \t]{2,}/g, ' ')
