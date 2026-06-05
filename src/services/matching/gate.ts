@@ -145,14 +145,14 @@ export function assess(
   const { matched, total, missingCore, coreMatched } = breakdown;
   if (total === 0) return g.profession === 'exact' ? { decision: 'SEND', reason: 'exact occupation, no listed requirements', extras } : { decision: 'NO', reason: 'no requirements + not exact occupation', extras };
   if (matched === 0) return { decision: 'NO', reason: 'zero skill evidence', extras };
-  // Missing a CORE (role-defining) requirement → not a real candidate; an honest cover has no
-  // substance to stand on. Exception: an EXACT occupation match where AT LEAST ONE core IS met —
-  // the candidate plainly does the job and lacks one specific (learnable) tool. But if EVERY core
-  // is missing (zero core overlap), the "exact" label is too coarse to trust (e.g. a Java dev for a
-  // niche "Universe Developer" role — both occupations are "developer" but it's a total mismatch),
-  // so gate it regardless. Closes the case where the system sends what its own reasoning calls "pass".
-  if (missingCore && missingCore > 0 && (g.profession !== 'exact' || (coreMatched ?? 0) < 1))
-    return { decision: 'NO', reason: 'missing core requirement', extras };
+  // Missing a CORE (role-defining) requirement → not a real candidate for this role; an honest cover
+  // has no substance to stand on, so DON'T send and DON'T generate one. By this point the breakdown
+  // has already passed the semantic backstop (promoteSemanticMatches) — so a core that is STILL
+  // missing is a GENUINE gap (the skill is truly absent, not just named differently), not a lexical
+  // miss. No exact-occupation leniency here: lacking a role-defining feature = a Weak we skip.
+  // `coreMatched` retained for callers/telemetry.
+  void coreMatched;
+  if (missingCore && missingCore > 0) return { decision: 'NO', reason: 'missing core requirement', extras };
   // Below-floor overlap: with 3+ requirements and under 40% matched, the application is noise.
   if (total >= 3 && matched / total < 0.4) return { decision: 'NO', reason: `below match floor (${matched}/${total})`, extras };
   if (g.profession === 'adjacent' && matched < 2) return { decision: 'NO', reason: 'adjacent + fewer than 2 matched skills', extras };

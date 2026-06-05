@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { generateCoverLetter, generateSubjectLine, generateFollowUp } from '@/services/cover-letter-generator';
 import { generateRecruiterRationale } from '@/services/matching/recruiter-rationale';
+import { promoteSemanticMatches } from '@/services/matching/semantic-verify';
 import { fetchResumeAttachment } from '@/lib/resume-attachment';
 import { AutoApplyStatus, Prisma } from '@prisma/client';
 import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
@@ -361,6 +362,12 @@ export async function processAutoApplyQueue(): Promise<{
             candidateSalary: app.user.salaryExpectation || null,
             candidateSalaryAt: app.user.salaryExpectationAt ? app.user.salaryExpectationAt.toISOString() : null,
           });
+          // Semantic backstop so the stored breakdown + the honest-mode cover agree with the gate.
+          await promoteSemanticMatches(bd.lines, {
+            candidateTitle: typeof parsedProfile?.current_title === 'string' ? parsedProfile.current_title as string : null,
+            candidateSkills: userSkillsList, candidateBackground: app.user.resumeText || '',
+          });
+          bd.matched = bd.lines.filter((l) => l.status === 'full').length;
           const ratio = bd.total ? bd.matched / bd.total : 0;
           const minMatched = Number(process.env.MATCH_GATE_MIN_MATCHED || 2);
           const minRatio = Number(process.env.MATCH_GATE_MIN_RATIO || 0.40);
@@ -1083,6 +1090,14 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           candidateYears: typeof parsedProfile?.experience_years === 'number' ? parsedProfile.experience_years as number : null,
           candidateLocation: typeof parsedProfile?.location === 'string' ? parsedProfile.location as string : null,
         });
+        // Semantic backstop before the gate: a core lexically missing but genuinely demonstrated by
+        // the candidate's background is promoted; what stays missing is a REAL gap → the gate skips it.
+        await promoteSemanticMatches(bd.lines, {
+          candidateTitle: typeof parsedProfile?.current_title === 'string' ? parsedProfile.current_title as string : null,
+          candidateSkills: (parsedProfile?.skills as string[]) || [],
+          candidateBackground: loop.user.resumeText || '',
+        });
+        bd.matched = bd.lines.filter((l) => l.status === 'full').length;
         const ratio = bd.total ? bd.matched / bd.total : 0;
         const qLines = (bd.lines as Array<{ core?: boolean; status?: string }>) || [];
         const qMissingCore = qLines.filter((l) => l.core === true && l.status !== 'full').length;
