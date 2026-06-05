@@ -45,6 +45,10 @@ const SYN_GROUPS: string[][] = [
   // Spanish; an English requirement must match the Spanish form. Members are accent-folded.
   ['data visualization', 'data visualisation', 'visualizacion de datos', 'data viz'],
   ['data analysis', 'analisis de datos'],
+  // UX research / user-centered design — the same competency under many labels; a "User Research"
+  // candidate must match a "UX Research & User-Centered Design" requirement.
+  ['ux research', 'user research', 'user research & analysis', 'user-centered design', 'user centered design', 'user-centred design', 'user centric design', 'user-centric design', 'user centered'],
+  ['oracle dba', 'oracle database administrator', 'oracle database administration', 'administracion de bases de datos oracle', 'dba oracle'],
   // VENDOR-PREFIXED PRODUCTS — a requirement "AWS Redshift" must match a candidate who lists the
   // bare product "Redshift". Only UNAMBIGUOUS product names (no other meaning) — NOT "AWS Lambda"
   // (lambda is ambiguous) or "Azure DevOps" (DevOps is generic), which would cause false matches.
@@ -186,6 +190,11 @@ export function verifySkill(skill: string, cvText: string, candidateSkills: stri
   if (AMBIGUOUS.has(s)) {
     return tokens.has(s) ? { found: true, matched: s, via: 'exact' } : { found: false };
   }
+
+  // Framework acronyms that collide with a common English word — assert ONLY in a disambiguating
+  // context, never off the bare word: "SAFe" (Scaled Agile Framework) vs "safe" the adjective.
+  const QUALIFIED: Record<string, RegExp> = { safe: /safe agile|scaled agile|safe (?:framework|practitioner|certified|scrum|facilitat)|\bssm\b/ };
+  if (QUALIFIED[s]) return QUALIFIED[s].test(haystack) ? { found: true, matched: s, via: 'exact' } : { found: false };
 
   // (1)+(2) direct + bidirectional synonym group
   const group = SYN.get(s) || [s];

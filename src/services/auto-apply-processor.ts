@@ -355,6 +355,7 @@ export async function processAutoApplyQueue(): Promise<{
           if (!parsed) { parsed = await parseJD(jdText); jdCache.set(jdKey, parsed); }
           const bd = buildBreakdown(parsed, {
             jdText, cvText: app.user.resumeText || '', candidateSkills: userSkillsList, candidateLanguages: userLangsList,
+            candidateTitle: typeof parsedProfile?.current_title === 'string' ? parsedProfile.current_title as string : null,
             candidateYears: typeof parsedProfile?.experience_years === 'number' ? parsedProfile.experience_years as number : null,
             candidateLocation: typeof parsedProfile?.location === 'string' ? parsedProfile.location as string : null,
             candidateSalary: app.user.salaryExpectation || null,
@@ -1078,6 +1079,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           jdText, cvText: loop.user.resumeText || '',
           candidateSkills: (parsedProfile?.skills as string[]) || [],
           candidateLanguages: (parsedProfile?.languages as string[]) || [],
+          candidateTitle: typeof parsedProfile?.current_title === 'string' ? parsedProfile.current_title as string : null,
           candidateYears: typeof parsedProfile?.experience_years === 'number' ? parsedProfile.experience_years as number : null,
           candidateLocation: typeof parsedProfile?.location === 'string' ? parsedProfile.location as string : null,
         });
