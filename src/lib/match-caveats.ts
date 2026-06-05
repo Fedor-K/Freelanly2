@@ -56,7 +56,6 @@ export function explainDecision(bd: unknown): DecisionStep[] {
   const lines = Array.isArray(b.lines) ? (b.lines as Array<Record<string, unknown>>) : [];
   const total = typeof b.total === 'number' ? b.total : lines.length;
   const matched = typeof b.matched === 'number' ? b.matched : lines.filter((l) => l?.status === 'full').length;
-  const profession = typeof b.profession === 'string' ? b.profession : null;
   const lbl = (l: Record<string, unknown>) => String(l?.label ?? '').trim();
   const has = (l: Record<string, unknown>) => l?.status === 'full';
   const core = (l: Record<string, unknown>) => l?.core === true;
@@ -90,7 +89,7 @@ export function explainDecision(bd: unknown): DecisionStep[] {
     const name = lbl(l);
     if (!name) continue;
     if (core(l) && has(l)) steps.push({ kind: 'ok', text: `${name} — есть у кандидата. Это ключевое требование роли, и оно закрыто.` });
-    else if (core(l)) steps.push({ kind: 'warn', text: `${name} — нет. Это ключевое требование${profession === 'exact' ? ', но кандидат и так работает в этой профессии — инструмент осваивается, не блокер' : ''}.` });
+    else if (core(l)) steps.push({ kind: 'warn', text: `${name} — нет. Это ключевое требование роли.` });
     else if (has(l)) steps.push({ kind: 'ok', text: `${name} — есть.` });
     else steps.push({ kind: 'warn', text: `${name} — нет, но это не ключевое требование (не критично).` });
   }
@@ -105,10 +104,9 @@ export function explainDecision(bd: unknown): DecisionStep[] {
     verdict = 'Явных требований нет, профессия подходит — отправляем.';
   } else if (!coreMissing.length) {
     verdict = `Итог: все ключевые требования закрыты, совпадение ${matched} из ${total}${ratio !== null ? ` (${ratio}%)` : ''}. Кандидат подходит — отправляем.`;
-  } else if (profession === 'exact') {
-    verdict = `Итог: не хватает ключевого (${coreMissing.join(', ')}), НО кандидат реально работает в этой профессии — недостающий инструмент осваивается, это не дисквалификация. Совпадение ${matched} из ${total}. Отправляем с оговоркой, чтобы рекрутер видел пробел.`;
   } else {
-    verdict = `Итог: не хватает ключевого (${coreMissing.join(', ')}) и профессия не точная — слишком слабо. Такое не отправляем.`;
+    // A genuine missing CORE (it survived the semantic backstop) → gated. Don't narrate a send.
+    verdict = `Итог: не хватает ключевого требования роли (${coreMissing.join(', ')}) — этого нет в реальном опыте кандидата. Не отправляем.`;
   }
   steps.push({ kind: 'final', text: verdict });
   return steps;
