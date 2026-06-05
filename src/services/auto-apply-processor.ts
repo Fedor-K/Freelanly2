@@ -1118,7 +1118,30 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
         } catch { /* gate failed -> fail-open, no block */ }
         qVerdict = breakdownToVerdict(qBreakdown);
       } catch { /* fail-open: no verdict, letter still generated */ }
-      if (gateBlocked) { gated++; continue; } // hard gate said NO — do not queue/send this pairing
+      if (gateBlocked) {
+        gated++;
+        // Persist the REJECTED decision so the admin audit shows EVERY processed pairing, not just
+        // the sends. Mirror of the create below: status REJECTED, no cover, gateReason in the
+        // breakdown. Unique (userId, opportunityId) → re-evaluations of the same pair are deduped.
+        try {
+          await prisma.autoApplication.create({
+            data: {
+              userId: loop.userId, loopId: loop.id,
+              jobId: listing.type === 'job' ? listing.id : null,
+              opportunityId: listing.type === 'opportunity' ? listing.id : null,
+              companyName: realCompanyName, jobTitle: listing.title, appliedToEmail: listing.applyEmail,
+              matchScore: m.matchScore,
+              matchLabel: (qBreakdown ? computeCaveats(qBreakdown)?.strength : undefined) ?? m.matchLabel,
+              matchBreakdown: qBreakdown ? (qBreakdown as Prisma.InputJsonValue) : undefined,
+              coverLetter: '', subject: '', resumeUrl: loop.resumeUrl,
+              status: AutoApplyStatus.REJECTED,
+            },
+          });
+        } catch (error) {
+          if (!String(error).includes('Unique constraint')) console.error(`[AutoApply] Error logging rejected pairing for loop ${loop.id}:`, error);
+        }
+        continue; // hard gate said NO — do not queue/send this pairing
+      }
       // Phase 2.4: feed the generator the full profile (was just 300 chars → generic letters).
       const userProfile = {
         name: loop.user.name || 'Applicant',
