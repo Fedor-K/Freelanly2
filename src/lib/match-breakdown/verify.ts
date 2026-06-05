@@ -49,6 +49,7 @@ const SYN_GROUPS: string[][] = [
   // candidate must match a "UX Research & User-Centered Design" requirement.
   ['ux research', 'user research', 'user research & analysis', 'user-centered design', 'user centered design', 'user-centred design', 'user centric design', 'user-centric design', 'user centered'],
   ['oracle dba', 'oracle database administrator', 'oracle database administration', 'administracion de bases de datos oracle', 'dba oracle'],
+  ['spring framework', 'spring boot', 'springboot', 'spring', 'spring mvc', 'spring web mvc', 'spring data'],
   // VENDOR-PREFIXED PRODUCTS — a requirement "AWS Redshift" must match a candidate who lists the
   // bare product "Redshift". Only UNAMBIGUOUS product names (no other meaning) — NOT "AWS Lambda"
   // (lambda is ambiguous) or "Azure DevOps" (DevOps is generic), which would cause false matches.
