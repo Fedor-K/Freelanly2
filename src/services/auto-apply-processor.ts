@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { generateCoverLetter, generateSubjectLine, generateFollowUp } from '@/services/cover-letter-generator';
+import { generateRecruiterRationale } from '@/services/matching/recruiter-rationale';
 import { fetchResumeAttachment } from '@/lib/resume-attachment';
 import { AutoApplyStatus, Prisma } from '@prisma/client';
 import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
@@ -405,6 +406,21 @@ export async function processAutoApplyQueue(): Promise<{
           userProfile: { ...userProfile, recruiterEmail: app.appliedToEmail } as any,
           verdict: breakdownToVerdict(matchBreakdown), // honest-mode + missing-strip now driven by the real breakdown
         });
+      }
+
+      // Recruiter-voice rationale for the admin audit card — frozen into the stored breakdown.
+      if (matchBreakdown && !matchBreakdown.error) {
+        const rv = breakdownToVerdict(matchBreakdown);
+        const rr = await generateRecruiterRationale({
+          jobTitle: app.jobTitle, jobDescription,
+          candidateTitle: (parsedProfile?.current_title as string) || null,
+          candidateYears: typeof parsedProfile?.experience_years === 'number' ? (parsedProfile.experience_years as number) : null,
+          candidateSkills: userSkillsList, candidateBackground: app.user.resumeText || '',
+          matched: rv?.matchedSkills || [], missingCore: rv?.missingCore || [], missing: rv?.missing || [],
+          profession: (matchBreakdown.profession as string) || null,
+          matchedN: (matchBreakdown.matched as number) ?? 0, totalN: (matchBreakdown.total as number) ?? 0,
+        });
+        if (rr) matchBreakdown.recruiterReasoning = rr;
       }
 
       // Reject cover letters that admit unsuitability

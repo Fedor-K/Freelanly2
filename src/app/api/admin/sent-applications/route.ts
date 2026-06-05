@@ -133,7 +133,9 @@ export async function GET(request: NextRequest) {
         : null,
       coverLetter: a.coverLetter ? a.coverLetter.slice(0, 2000) : null,
       caveats: computeCaveats(a.matchBreakdown),   // { strength, items[] } | null — honest borderline flags
-      reasoning: explainDecision(a.matchBreakdown), // step-by-step gate decision trail (how we decided to send)
+      reasoning: explainDecision(a.matchBreakdown), // deterministic gate trail (fallback for records w/o LLM rationale)
+      recruiterReasoning: (typeof (a.matchBreakdown as Record<string, unknown> | null)?.recruiterReasoning === 'string'
+        ? (a.matchBreakdown as Record<string, string>).recruiterReasoning : null), // recruiter-voice judgement (send-time LLM)
     };
   });
 

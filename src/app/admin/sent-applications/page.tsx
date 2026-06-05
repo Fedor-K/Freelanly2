@@ -32,6 +32,7 @@ type Row = {
   match: { matched: number; total: number; lines: Line[] } | null;
   caveats: { strength: 'Strong' | 'Good' | 'Weak'; items: string[] } | null;
   reasoning: { kind: 'info' | 'ok' | 'warn' | 'final'; text: string }[];
+  recruiterReasoning: string | null;
   coverLetter: string | null;
 };
 
@@ -228,18 +229,23 @@ export default function SentApplicationsPage() {
                               </div>
                             )}
 
-                            {/* HOW the gate decided to send — step-by-step reasoning trail */}
-                            {r.reasoning && r.reasoning.length > 0 && (
+                            {/* HOW we decided to send. Recruiter-voice judgement (LLM, send-time) when
+                                available; otherwise the deterministic gate trail (older records). */}
+                            {(r.recruiterReasoning || (r.reasoning && r.reasoning.length > 0)) && (
                               <div className="mt-3">
                                 <div className="text-xs font-semibold mb-1 uppercase text-muted-foreground">Как система решила</div>
-                                <ol className="space-y-0.5">
-                                  {r.reasoning.map((s, i) => (
-                                    <li key={i} className={`text-[11px] flex gap-1.5 ${s.kind === 'final' ? 'font-semibold text-foreground mt-1 pt-1 border-t border-dashed' : s.kind === 'warn' ? 'text-amber-800' : s.kind === 'ok' ? 'text-emerald-700' : 'text-muted-foreground'}`}>
-                                      <span className="shrink-0">{s.kind === 'final' ? '→' : s.kind === 'warn' ? '⚠️' : s.kind === 'ok' ? '✓' : '·'}</span>
-                                      <span>{s.text}</span>
-                                    </li>
-                                  ))}
-                                </ol>
+                                {r.recruiterReasoning ? (
+                                  <p className="text-[12px] leading-relaxed text-foreground bg-muted/40 rounded p-2 whitespace-pre-line">{r.recruiterReasoning}</p>
+                                ) : (
+                                  <ol className="space-y-0.5">
+                                    {r.reasoning.map((s, i) => (
+                                      <li key={i} className={`text-[11px] flex gap-1.5 ${s.kind === 'final' ? 'font-semibold text-foreground mt-1 pt-1 border-t border-dashed' : s.kind === 'warn' ? 'text-amber-800' : s.kind === 'ok' ? 'text-emerald-700' : 'text-muted-foreground'}`}>
+                                        <span className="shrink-0">{s.kind === 'final' ? '→' : s.kind === 'warn' ? '⚠️' : s.kind === 'ok' ? '✓' : '·'}</span>
+                                        <span>{s.text}</span>
+                                      </li>
+                                    ))}
+                                  </ol>
+                                )}
                               </div>
                             )}
 
