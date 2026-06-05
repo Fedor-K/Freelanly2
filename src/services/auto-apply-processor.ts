@@ -1002,6 +1002,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
   // to the sequential version (same cache, same shouldApply gate), just concurrent.
   const AI_CONCURRENCY = 20;
   const matched: { cand: Cand; matchScore: number; matchLabel: string }[] = [];
+  const aiRejects: { cand: Cand; reason: string; score: number }[] = []; // AI-match said NO — logged for the audit (mirror of the test batches: every considered pairing shows a decision)
   for (let i = 0; i < candidates.length && matched.length < budget; i += AI_CONCURRENCY) {
     const chunk = candidates.slice(i, i + AI_CONCURRENCY);
     const results = await Promise.all(
@@ -1023,6 +1024,8 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
       const r = results[j];
       if (r && r.shouldApply) {
         matched.push({ cand: chunk[j], matchScore: r.score, matchLabel: r.score >= 80 ? 'Strong' : r.score >= 50 ? 'Good' : 'Weak' });
+      } else if (r) {
+        aiRejects.push({ cand: chunk[j], reason: r.reason || 'не подходит по AI-оценке', score: r.score });
       }
     }
   }
@@ -1202,9 +1205,45 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     }
   }
 
-  if (queued > 0 || gated > 0) {
+  // Log AI-match rejections (every considered candidate that the AI judged not a fit) so the admin
+  // audit shows the SAME full picture as the test batches — not just sends + the rare hard-gate cut.
+  // Deterministic breakdown (reuses the once-per-listing parsed JD → no extra LLM). Best-effort: any
+  // failure here must never touch the live send flow above.
+  if (aiRejects.length) {
+    try {
+      const jdText = `${listing.title}\n${listing.description}`;
+      qParsedJD = qParsedJD ?? (await parseJD(jdText));
+      const rows = aiRejects.map((ar) => {
+        let bd: Record<string, unknown> | undefined;
+        try {
+          const b = buildBreakdown(qParsedJD!, {
+            jdText, cvText: ar.cand.loop.user.resumeText || '', candidateSkills: ar.cand.userSkills,
+            candidateLanguages: ar.cand.userLangs || [], candidateTitle: ar.cand.userTitle || null,
+            candidateYears: typeof (ar.cand.loop.user.parsedProfile as any)?.experience_years === 'number' ? (ar.cand.loop.user.parsedProfile as any).experience_years : null,
+            candidateLocation: ar.cand.userLoc || null,
+          });
+          bd = { v: 1, matched: b.matched, total: b.total, ratio: b.total ? Math.round((b.matched / b.total) * 100) / 100 : 0, lines: b.lines, yearsContext: b.yearsContext, locationContext: b.locationContext, rejected: b.rejected, fallback: b.fallback, decision: 'NO', gateReason: 'не прошёл AI-match' };
+        } catch { /* breakdown failed — log the reject without skill lines */ }
+        return {
+          userId: ar.cand.loop.userId, loopId: ar.cand.loop.id,
+          jobId: listing.type === 'job' ? listing.id : null,
+          opportunityId: listing.type === 'opportunity' ? listing.id : null,
+          companyName: listing.companyName, jobTitle: listing.title, appliedToEmail: listing.applyEmail,
+          matchScore: ar.score, matchLabel: bd ? (computeCaveats(bd)?.strength ?? null) : null,
+          matchBreakdown: bd ? (bd as Prisma.InputJsonValue) : undefined,
+          coverLetter: '', subject: '', resumeUrl: ar.cand.loop.resumeUrl,
+          status: AutoApplyStatus.REJECTED,
+        };
+      });
+      await prisma.autoApplication.createMany({ data: rows, skipDuplicates: true });
+    } catch (e) {
+      console.error('[AutoApply] ai-reject audit log failed (non-fatal):', e);
+    }
+  }
+
+  if (queued > 0 || gated > 0 || aiRejects.length > 0) {
     console.log(
-      `[AutoApply] Queued ${queued}${gated > 0 ? `, gated ${gated} (assess=NO${ENFORCE_GATE ? '' : ', shadow'})` : ''} for ${listing.type} "${listing.title}"`
+      `[AutoApply] Queued ${queued}${gated > 0 ? `, gated ${gated}` : ''}${aiRejects.length ? `, ai-rejected ${aiRejects.length}` : ''} (assess=NO${ENFORCE_GATE ? '' : ', shadow'}) for ${listing.type} "${listing.title}"`
     );
   }
 
