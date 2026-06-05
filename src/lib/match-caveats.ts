@@ -43,11 +43,12 @@ export function computeCaveats(bd: unknown): Caveats | null {
   return { strength: items.length >= 2 || severe ? 'Weak' : 'Good', items };
 }
 
-// Human-readable decision trail for the admin audit card — explains HOW the gate decided to send
-// THIS pairing, derived from the SAME frozen breakdown (no extra compute, works retroactively for
-// every stored record). Mirrors the gate's order: occupation → skills → missing-core (+ why it was
-// still allowed) → coverage floor → soft flags → final. Narration only — it does not re-decide.
-export type DecisionStep = { kind: 'ok' | 'warn' | 'final'; text: string };
+// Human-readable, point-by-point REASONING for the admin audit card — explains, in plain language,
+// what the role asks for, what the candidate has vs lacks (leading with the role-DEFINING skills),
+// how critical each gap is, and how that adds up to the send decision. Derived from the SAME frozen
+// breakdown (no extra compute, works retroactively on every stored record). Narration only — it
+// reports the decision the gate already made, it does not re-decide.
+export type DecisionStep = { kind: 'info' | 'ok' | 'warn' | 'final'; text: string };
 export function explainDecision(bd: unknown): DecisionStep[] {
   if (!bd || typeof bd !== 'object') return [];
   const b = bd as Record<string, unknown>;
@@ -57,30 +58,59 @@ export function explainDecision(bd: unknown): DecisionStep[] {
   const matched = typeof b.matched === 'number' ? b.matched : lines.filter((l) => l?.status === 'full').length;
   const profession = typeof b.profession === 'string' ? b.profession : null;
   const lbl = (l: Record<string, unknown>) => String(l?.label ?? '').trim();
-  const matchedLabels = lines.filter((l) => l?.status === 'full').map(lbl).filter(Boolean);
-  const coreMissing = lines.filter((l) => l?.status !== 'full' && l?.core === true).map(lbl).filter(Boolean);
+  const has = (l: Record<string, unknown>) => l?.status === 'full';
+  const core = (l: Record<string, unknown>) => l?.core === true;
+  const coreReqs = lines.filter(core).map(lbl).filter(Boolean);
+  const coreMissing = lines.filter((l) => !has(l) && core(l)).map(lbl).filter(Boolean);
   const ratio = total ? Math.round((matched / total) * 100) : null;
+  const locationFlag = b.location_flag === true;
+  const locationDetail = typeof b.location_detail === 'string' ? b.location_detail : '';
   const hardFail = b.hard_fail === true;
   const hardKind = typeof b.hard_kind === 'string' ? b.hard_kind : '';
   const hardDetail = typeof b.hard_detail === 'string' ? b.hard_detail : '';
-  const locationFlag = b.location_flag === true;
-  const locationDetail = typeof b.location_detail === 'string' ? b.location_detail : '';
-  const gateReason = typeof b.gateReason === 'string' ? b.gateReason : '';
 
-  const PROF: Record<string, string> = { exact: 'точное', adjacent: 'смежное', different: 'другое' };
   const steps: DecisionStep[] = [];
-  if (profession) steps.push({ kind: profession === 'different' ? 'warn' : 'ok', text: `Профессия: ${PROF[profession] || profession} совпадение` });
-  if (total > 0) steps.push({ kind: 'ok', text: `Навыки: совпало ${matched} из ${total}${matchedLabels.length ? ` — ${matchedLabels.join(', ')}` : ''}` });
-  else steps.push({ kind: 'ok', text: 'В посте нет явных требований — матч по профессии' });
-  if (coreMissing.length) {
-    steps.push(profession === 'exact'
-      ? { kind: 'warn', text: `Нет CORE: ${coreMissing.join(', ')} — но отправлено: профессия совпадает точно, недостающий инструмент обучаем (не дисквалификация)` }
-      : { kind: 'warn', text: `Нет CORE: ${coreMissing.join(', ')}` });
+
+  // 1. What the role asks for (flagging the role-defining ones).
+  if (total > 0) {
+    const reqList = lines.map(lbl).filter(Boolean).join(', ');
+    steps.push({ kind: 'info', text: `Вакансия требует: ${reqList}.${coreReqs.length ? ` Ключевое для роли: ${coreReqs.join(', ')}.` : ''}` });
+  } else {
+    steps.push({ kind: 'info', text: 'В посте нет явных требований — оцениваем по профессии.' });
   }
-  if (total >= 3 && ratio !== null) steps.push({ kind: ratio >= 40 ? 'ok' : 'warn', text: `Порог покрытия: ${ratio}% (минимум 40%)` });
-  if (locationFlag) steps.push({ kind: 'warn', text: `Локация: ${locationDetail || 'возможное несоответствие'} — уточнить remote/on-site` });
-  if (hardFail) steps.push({ kind: 'warn', text: `Жёсткое требование (${hardKind}): ${hardDetail || 'см. требования'}` });
-  steps.push({ kind: 'final', text: `Решение: ОТПРАВЛЕНО${gateReason ? ` — ${gateReason}` : ''}` });
+
+  // 2. Walk the requirements, MOST IMPORTANT FIRST: core-have → core-missing → other-have → other-missing.
+  const order = [
+    ...lines.filter((l) => core(l) && has(l)),
+    ...lines.filter((l) => core(l) && !has(l)),
+    ...lines.filter((l) => !core(l) && has(l)),
+    ...lines.filter((l) => !core(l) && !has(l)),
+  ];
+  for (const l of order) {
+    const name = lbl(l);
+    if (!name) continue;
+    if (core(l) && has(l)) steps.push({ kind: 'ok', text: `${name} — есть у кандидата. Это ключевое требование роли, и оно закрыто.` });
+    else if (core(l)) steps.push({ kind: 'warn', text: `${name} — нет. Это ключевое требование${profession === 'exact' ? ', но кандидат и так работает в этой профессии — инструмент осваивается, не блокер' : ''}.` });
+    else if (has(l)) steps.push({ kind: 'ok', text: `${name} — есть.` });
+    else steps.push({ kind: 'warn', text: `${name} — нет, но это не ключевое требование (не критично).` });
+  }
+
+  // 3. Soft flags worth the recruiter's eye.
+  if (locationFlag) steps.push({ kind: 'warn', text: `Локация: ${locationDetail || 'кандидат, похоже, в другой стране'} — стоит уточнить remote/on-site.` });
+  if (hardFail) steps.push({ kind: 'warn', text: `Жёсткое требование (${hardKind}): ${hardDetail || 'см. требования'} — под вопросом.` });
+
+  // 4. The verdict, tying it together.
+  let verdict: string;
+  if (total === 0) {
+    verdict = 'Явных требований нет, профессия подходит — отправляем.';
+  } else if (!coreMissing.length) {
+    verdict = `Итог: все ключевые требования закрыты, совпадение ${matched} из ${total}${ratio !== null ? ` (${ratio}%)` : ''}. Кандидат подходит — отправляем.`;
+  } else if (profession === 'exact') {
+    verdict = `Итог: не хватает ключевого (${coreMissing.join(', ')}), НО кандидат реально работает в этой профессии — недостающий инструмент осваивается, это не дисквалификация. Совпадение ${matched} из ${total}. Отправляем с оговоркой, чтобы рекрутер видел пробел.`;
+  } else {
+    verdict = `Итог: не хватает ключевого (${coreMissing.join(', ')}) и профессия не точная — слишком слабо. Такое не отправляем.`;
+  }
+  steps.push({ kind: 'final', text: verdict });
   return steps;
 }
 // sees — so the letter's honest-mode/missing-strip and the stored label all agree with the card.
