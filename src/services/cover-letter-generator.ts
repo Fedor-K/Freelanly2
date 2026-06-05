@@ -92,6 +92,30 @@ export function softenOverpromise(text: string): string {
     .replace(/[ \t]{2,}/g, ' ');
 }
 
+// Deterministic backstop for templated / banned-phrase openings. The prompt forbids "Dear Hiring
+// Manager", "I am writing to express my interest", "I am excited/eager", etc., but a model will
+// occasionally ignore it and emit a generic cover (observed: a thin-profile applicant got a full
+// "Dear Hiring Manager, I am writing to express my interest… I am excited about…" template). This
+// neutralizes the worst literal constructions deterministically — drops the pure-filler opener
+// sentence and rewrites the banned enthusiasm verbs — so the rules are enforced by CODE, not just
+// requested in the prompt. Asymmetric: only removes/softens, never adds claims.
+export function softenTemplate(text: string): string {
+  return (text || '')
+    // Templated salutations → our neutral greeting
+    .replace(/^\s*(?:Dear\s+(?:Hiring\s+Manager|Hiring\s+Team|Recruiter|Sir(?:\s+or\s+Madam)?|Madam)|To\s+Whom\s+It\s+May\s+Concern)\s*[,:]/i, 'Hi there,')
+    // Pure-filler opener — adds nothing, screams template. Drop the whole sentence.
+    .replace(/\bI(?:'m|’m| am)\s+writing\s+to\s+(?:express\s+(?:my\s+)?interest\s+in|apply\s+for)\b[^.!?]*[.!?]\s*/gi, '')
+    // Banned enthusiasm verbs (prompt: never "I am excited/eager/confident") → neutral phrasing
+    .replace(/\bI(?:'m|’m| am)\s+excited\s+to\b/gi, 'I’d be glad to')
+    .replace(/\bI(?:'m|’m| am)\s+excited\s+(?:about|by|for)\b/gi, 'I’m keen on')
+    .replace(/\bI(?:'m|’m| am)\s+eager\s+to\b/gi, 'I’d be glad to')
+    .replace(/\beager\s+to\b/gi, 'ready to')
+    .replace(/\bI\s+believe\s+I\s+align\b/gi, 'my background aligns')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 // Deterministic verdict consumption. These read the matcher's matched/missing lists in CODE —
 // the "wire" the generator was missing. A TECH-TOKEN boundary is used instead of \b, because \b
 // does NOT work around punctuation skills (.NET, C#, C++ — '.', '#', '+' are not word chars, so
@@ -275,7 +299,7 @@ Write the complete email now.`;
         }
       }
     }
-    return softenOverpromise(content);
+    return softenTemplate(softenOverpromise(content));
   } catch (error) {
     console.error('[CoverLetterGenerator] AI generation failed:', error);
     // Minimal fallback

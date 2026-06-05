@@ -28,15 +28,27 @@ const SYN_GROUPS: string[][] = [
   ['javascript', 'java script'],
   ['typescript', 'type script'],
   // SPOKEN LANGUAGES (translation vertical). A "Chinese" requirement must match a candidate who
-  // lists "Mandarin"; etc. ASCII-only members — normText strips accents (español→"espa ol"), so
-  // accented spellings can't be members here. Native-speaker phrasing ("native Spanish") already
-  // matches because the language name is literally present; this only closes the synonym gap.
+  // lists "Mandarin"; etc. normText now FOLDS accents (español→espanol, inglés→ingles), so the
+  // localized spellings below ARE valid members (previously español→"espa ol" broke them).
+  // Native-speaker phrasing ("native Spanish") already matches; this closes the synonym gap.
   ['chinese', 'mandarin', 'putonghua'],
-  ['spanish', 'castilian', 'castellano'],
-  ['german', 'deutsch'],
+  ['english', 'ingles'],
+  ['spanish', 'castilian', 'castellano', 'espanol'],
+  ['german', 'deutsch', 'aleman'],
+  ['french', 'francais'],
+  ['portuguese', 'portugues'],
+  ['italian', 'italiano'],
   ['dutch', 'flemish'],
   ['persian', 'farsi'],
   ['filipino', 'tagalog'],
+  // CROSS-LANGUAGE SKILL SYNONYMS. The candidate pool is heavily LATAM and lists skills in
+  // Spanish; an English requirement must match the Spanish form. Members are accent-folded.
+  ['data visualization', 'data visualisation', 'visualizacion de datos', 'data viz'],
+  ['data analysis', 'analisis de datos'],
+  ['project management', 'gestion de proyectos'],
+  ['databases', 'bases de datos'],
+  ['software development', 'desarrollo de software'],
+  ['web development', 'desarrollo web'],
 ];
 // member -> its full group (so any phrasing of a skill expands to all phrasings)
 const SYN = new Map<string, string[]>();
@@ -109,10 +121,16 @@ for (const [k, vals] of Object.entries(IMPLIES)) for (const v of vals) {
 // Matched ONLY as an exact standalone token, never aliased, never as a substring/phrase.
 const AMBIGUOUS = new Set(['go', 'r', 'c', 'd', 'js', 'ts', 'ai', 'ml', 'qa', 'bi']);
 
-// Normalize for phrase search: lowercase, NBSP→space, keep + # . / - inside tokens
+// Fold diacritics so localized skill/language spellings match their ASCII form: visualización→
+// visualizacion, español→espanol, inglés→ingles. Without this the accent became a word break
+// (visualización→"visualizaci n"), silently dropping every accented skill — a systematic
+// undercount for the (large) LATAM candidate pool. ó/ñ/é → o/n/e; never collapses tokens.
+const fold = (s: string) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+// Normalize for phrase search: fold accents, lowercase, NBSP→space, keep + # . / - inside tokens
 // (c++, c#, node.js, ci/cd, asp.net), turn other punctuation into spaces, pad with spaces.
 function normText(s: string): string {
-  return ' ' + (s || '')
+  return ' ' + fold(s || '')
     .toLowerCase()
     .replace(/ /g, ' ')
     .replace(/[^a-z0-9+#./\- ]+/g, ' ')
@@ -144,7 +162,7 @@ export type VerifyResult = { found: boolean; matched?: string; via?: 'exact' | '
  * (3) skill implications (a framework that necessarily includes the skill). Returns the form found.
  */
 export function verifySkill(skill: string, cvText: string, candidateSkills: string[] = []): VerifyResult {
-  const s = (skill || '').toLowerCase().trim();
+  const s = fold((skill || '').toLowerCase().trim()); // fold so accented inputs hit the folded haystack/groups
   if (!s) return { found: false };
 
   const haystack = normText(`${cvText} ${candidateSkills.join(' , ')}`);
