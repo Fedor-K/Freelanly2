@@ -5,6 +5,7 @@ import { extractText } from 'unpdf';
 import OpenAI from 'openai';
 import { put } from '@vercel/blob';
 import { mergeCandidateProfiles } from '@/lib/linkedin-profile';
+import { deriveCategorySlugs } from '@/lib/loop-routing';
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'zai';
 
@@ -200,6 +201,7 @@ Extract as many skills as you can find (up to 20). Extract ALL experience roles,
             userId: session.user.id,
             name: `${titles[0] || 'Auto'} — Auto-Apply`,
             jobTitles: titles,
+            categorySlugs: deriveCategorySlugs({ jobTitles: titles, currentTitle: parsedProfile?.current_title, field: parsedProfile?.field, skills: parsedProfile?.skills as string[] }),
             keywords: keywords || null,
             dailyLimit: 20,
             mode: 'AUTO',

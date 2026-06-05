@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { deriveCategorySlugs } from '@/lib/loop-routing';
 
 /**
  * GET /api/user/onboarding — get current onboarding state
@@ -151,6 +152,7 @@ export async function POST(request: NextRequest) {
               userId: session.user.id,
               name: `${titles[0]} — Auto-Apply`,
               jobTitles: titles,
+              categorySlugs: deriveCategorySlugs({ jobTitles: titles, currentTitle: profile?.current_title as string, field: profile?.field as string, skills: profile?.skills as string[] }),
               keywords: ((profile?.skills as string[]) || []).slice(0, 5).join(', ') || null,
               dailyLimit: 10,
               mode: 'AUTO',

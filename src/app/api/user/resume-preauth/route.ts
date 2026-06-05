@@ -5,6 +5,7 @@ import { extractText } from 'unpdf';
 import OpenAI from 'openai';
 import { put } from '@vercel/blob';
 import { scrapeLinkedInProfile, mergeCandidateProfiles } from '@/lib/linkedin-profile';
+import { deriveCategorySlugs } from '@/lib/loop-routing';
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'zai';
 
@@ -188,6 +189,7 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
             userId: user.id,
             name: `${titles[0] || 'Auto'} — Auto-Apply`,
             jobTitles: titles,
+            categorySlugs: deriveCategorySlugs({ jobTitles: titles, currentTitle: parsedProfile.current_title as string, field: parsedProfile.field as string, skills: parsedProfile.skills as string[] }),
             keywords: (parsedProfile.skills as string[])?.slice(0, 5).join(', ') || null,
             dailyLimit: 20,
             mode: 'AUTO',

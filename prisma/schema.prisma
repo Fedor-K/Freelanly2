@@ -1964,6 +1964,10 @@ model AutoApplyLoop {
 
   name            String   // "Frontend Remote EU"
   jobTitles       String[] // ["React Developer", "Frontend Engineer"]
+  // Professional directions this loop belongs to (1..n of the 21 category slugs). The matcher only
+  // considers a loop whose directions match the listing's category (or an adjacent one) — see
+  // src/lib/loop-routing.ts. Empty = unclassified → matcher fails open (old "consider everyone").
+  categorySlugs   String[] @default([])
   keywords        String?  // comma-separated additional keywords
   country         String?  // ISO country code
   level           String?  // JUNIOR, MID, SENIOR
