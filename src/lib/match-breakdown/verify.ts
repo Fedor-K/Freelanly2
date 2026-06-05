@@ -24,7 +24,9 @@ const SYN_GROUPS: string[][] = [
   ['node.js', 'nodejs', 'node js'],
   ['express', 'express.js', 'expressjs', 'express js'],
   ['ci/cd', 'cicd', 'ci cd', 'continuous integration'],
-  ['rest api', 'restful api', 'rest apis', 'restful apis', 'restful', 'rest services', 'restful web services'],
+  ['rest api', 'restful api', 'rest apis', 'restful apis', 'restful', 'rest services', 'restful web services', 'apis rest', 'api rest'],
+  ['microservices', 'microservices architecture', 'micro-services', 'microservice', 'arquitectura de microservicios'],
+  ['asp.net core', 'asp.net', 'aspnet core', 'aspnet', 'asp net core', 'asp net'],
   ['javascript', 'java script'],
   ['typescript', 'type script'],
   // SPOKEN LANGUAGES (translation vertical). A "Chinese" requirement must match a candidate who
