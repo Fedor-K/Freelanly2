@@ -73,7 +73,7 @@ export async function parseJD(jdText: string, title?: string): Promise<ParsedJD>
 RULES:
 - ALTERNATIVES vs CHECKLIST — read the conjunction, it changes everything:
   • ALTERNATIVES (candidate needs only ONE) — items joined by "or"/"either" ("Node.js, Java, or Python"; "AWS, GCP or Azure"), OR a parenthetical/example list after a category ("enterprise platforms (SAP, Oracle, Microsoft Dynamics)", "AWS (Lambda, S3, RDS)", "a relational DB (Postgres, MySQL)"). Emit ONE skill: display = the category or "A/B/C", anyOf = [every alternative]. NEVER split these — splitting invents requirements the post didn't make (and falsely marks the unchosen alternative as missing). CRITICAL: when the CATEGORY itself is a concrete named technology ("AWS (Lambda, S3)", "Azure (Functions)"), INCLUDE the category in anyOf too → anyOf:["AWS","Lambda","S3"], so a candidate who lists the platform generically still matches. Only when the category is a generic noun ("platforms", "a database", "a language") is it left out of anyOf.
-  • CHECKLIST (all are needed) — distinct tools joined by "and" or a plain comma list of a required stack ("Python, pandas, scikit-learn"; "React and Node.js"). SPLIT into separate skills.
+  • CHECKLIST (all are needed) — distinct tools/competencies joined by "and"/"&" or a plain comma list of a required stack ("Python, pandas, scikit-learn"; "React and Node.js"; "UX Research & User-Centered Design" → "UX Research" + "User-Centered Design"). SPLIT into separate skills so each is matched on its own.
   • The tell: "or"/"either"/a category-then-examples parenthetical ⇒ anyOf; "and"/plain required stack ⇒ split.
 - Each CHECKLIST skill = ONE concrete tool/technology/competency literally named. Max 5 skills, most important first.
 - PRIORITIZE the role-defining stack (the language/framework/domain the job is ABOUT — usually named in the TITLE or the dominant theme) OVER generic tooling. If the post lists both a stack (e.g. React, Node.js) and tooling (Docker, Git, Linux, CI/CD, Jira), the stack comes first and the tooling must NOT crowd it out of the 5 slots. A "Full Stack" / "Software Engineer" title with no concrete stack in the body → extract whatever stack IS named; do NOT pad the list with tooling alone.
@@ -82,6 +82,7 @@ RULES:
 - For "X or equivalent / or similar" requirements: set anyOf to the concrete equivalents you are CONFIDENT are real (e.g. {"display":"experiment tracking","anyOf":["MLflow","Weights & Biases","Neptune","Comet"]}). If you cannot name real equivalents, OMIT the requirement entirely. NEVER reduce "X or equivalent" to just X.
 - "languages" = spoken languages ONLY if the post explicitly requires them. Do NOT add English by default.
 - "years" = minimum years if explicitly stated, else null. "location" = required country/timezone if stated, else null.
+- Do NOT extract the bare JOB TITLE / role name itself as a skill — it is the occupation, matched separately, not a verifiable competency. For an "Oracle DBA" role extract the concrete skills (Oracle, RAC, Data Guard, RMAN, performance tuning), NOT "Oracle DBA"; for a "Scrum Master" role extract Scrum, SAFe, Jira — NOT "Scrum Master". Extracting the role label as a skill falsely marks a candidate who clearly IS that role as missing it.
 - Do NOT invent or infer requirements not in the text. Do NOT include soft/vague traits (leadership, team player, fast learner). JSON only.` },
       { role: 'user', content: jdText.slice(0, 4000) },
     ],
@@ -122,6 +123,7 @@ function anyInJD(tokens: string[], jdText: string): boolean {
 export type GenInput = {
   jdText: string; cvText: string; jobTitle?: string; // jobTitle drives the deterministic core-anchor
   candidateSkills: string[]; candidateLanguages: string[];
+  candidateTitle?: string | null; // candidate headline/role ("SAFe Agile Facilitator", "… | DBA") — keyword-dense, verifiable evidence
   candidateYears?: number | null; candidateLocation?: string | null;
   candidateSalary?: string | null; candidateSalaryAt?: string | null; // self-reported "1500/mo" + when
 };
@@ -136,7 +138,10 @@ export async function generateBreakdown(inp: GenInput): Promise<Breakdown> {
 export function buildBreakdown(jd: ParsedJD, inp: GenInput): Breakdown {
   const rejected: Rejected[] = [];
   const lines: Line[] = [];
-  const haystackSkills = `${inp.cvText} ${inp.candidateSkills.join(' , ')}`;
+  // Search the candidate's headline/title too — it's keyword-dense and often states the very skill
+  // the JD names ("SAFe Agile Facilitator" → SAFe, "Senior Database Specialist | DBA" → DBA) that
+  // the skills array omits. Legitimate, grounded evidence (the candidate's own self-description).
+  const haystackSkills = `${inp.cvText} ${inp.candidateSkills.join(' , ')} ${inp.candidateTitle || ''}`;
 
   // SKILLS — any-of group, token-identity (no paraphrase → no #3)
   for (const req of jd.skills) {

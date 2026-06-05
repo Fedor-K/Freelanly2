@@ -34,6 +34,7 @@ export async function assessPairing(inp: PairingInput): Promise<Pairing> {
       jdText, cvText: inp.cvText,
       candidateSkills: (p.skills as string[]) || [],
       candidateLanguages: (p.languages as string[]) || [],
+      candidateTitle: typeof p.current_title === 'string' ? (p.current_title as string) : null,
       candidateYears: typeof p.experience_years === 'number' ? (p.experience_years as number) : null,
       candidateLocation: typeof p.location === 'string' ? (p.location as string) : null,
     });
