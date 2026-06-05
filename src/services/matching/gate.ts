@@ -115,7 +115,7 @@ export const isLanguageRole = (title: string) => /interpret|translat|linguist/i.
 // nothing honest to write, so the cover would have to fabricate — don't send, don't generate it.
 export function assess(
   g: Gate,
-  breakdown: { matched: number; total: number; missingCore?: number },
+  breakdown: { matched: number; total: number; missingCore?: number; coreMatched?: number },
   cvText: string | null | undefined,
   title: string,
   candidateHasRealCV: boolean,
@@ -142,13 +142,17 @@ export function assess(
   if (g.hard_fail && (g.hard_kind === 'license' || g.hard_kind === 'work_auth' || g.hard_kind === 'native_language'))
     return { decision: 'NO', reason: `hard requirement failed: ${g.hard_kind} (${g.hard_detail})`, extras };
   // Raised evidence bar
-  const { matched, total, missingCore } = breakdown;
+  const { matched, total, missingCore, coreMatched } = breakdown;
   if (total === 0) return g.profession === 'exact' ? { decision: 'SEND', reason: 'exact occupation, no listed requirements', extras } : { decision: 'NO', reason: 'no requirements + not exact occupation', extras };
   if (matched === 0) return { decision: 'NO', reason: 'zero skill evidence', extras };
   // Missing a CORE (role-defining) requirement → not a real candidate; an honest cover has no
-  // substance to stand on. Exception: an EXACT occupation match — the candidate plainly does the
-  // job, a missing specific tool is a learnable gap, not a disqualifier.
-  if (missingCore && missingCore > 0 && g.profession !== 'exact') return { decision: 'NO', reason: 'missing core requirement', extras };
+  // substance to stand on. Exception: an EXACT occupation match where AT LEAST ONE core IS met —
+  // the candidate plainly does the job and lacks one specific (learnable) tool. But if EVERY core
+  // is missing (zero core overlap), the "exact" label is too coarse to trust (e.g. a Java dev for a
+  // niche "Universe Developer" role — both occupations are "developer" but it's a total mismatch),
+  // so gate it regardless. Closes the case where the system sends what its own reasoning calls "pass".
+  if (missingCore && missingCore > 0 && (g.profession !== 'exact' || (coreMatched ?? 0) < 1))
+    return { decision: 'NO', reason: 'missing core requirement', extras };
   // Below-floor overlap: with 3+ requirements and under 40% matched, the application is noise.
   if (total >= 3 && matched / total < 0.4) return { decision: 'NO', reason: `below match floor (${matched}/${total})`, extras };
   if (g.profession === 'adjacent' && matched < 2) return { decision: 'NO', reason: 'adjacent + fewer than 2 matched skills', extras };
