@@ -45,7 +45,7 @@ const isInfra = (req: SkillReq): boolean =>
 const inTitle = (req: SkillReq, title: string): boolean =>
   !!title && (verifySkill(req.display, title).found || req.anyOf.some((m) => verifySkill(m, title).found));
 export type ParsedJD = { skills: SkillReq[]; languages: string[]; years?: number | null; location?: string | null };
-export type Line = { label: string; type: 'skill' | 'language'; status: 'full' | 'missing'; evidence: string | null; source: 'cv' | 'profile' | null; core?: boolean; viaAlias?: boolean; viaCollapse?: boolean; anyOfSize?: number; member?: string; searched?: string[] };
+export type Line = { label: string; type: 'skill' | 'language'; status: 'full' | 'missing'; evidence: string | null; source: 'cv' | 'profile' | 'inferred' | null; core?: boolean; viaAlias?: boolean; viaCollapse?: boolean; viaSemantic?: boolean; anyOfSize?: number; member?: string; searched?: string[] };
 export type Rejected = { side: 'jd'; type: string; label: string };
 export type Breakdown = {
   lines: Line[];
@@ -83,6 +83,7 @@ RULES:
 - "languages" = spoken languages ONLY if the post explicitly requires them. Do NOT add English by default.
 - "years" = minimum years if explicitly stated, else null. "location" = required country/timezone if stated, else null.
 - Do NOT extract the bare JOB TITLE / role name itself as a skill — it is the occupation, matched separately, not a verifiable competency. For an "Oracle DBA" role extract the concrete skills (Oracle, RAC, Data Guard, RMAN, performance tuning), NOT "Oracle DBA"; for a "Scrum Master" role extract Scrum, SAFe, Jira — NOT "Scrum Master". Extracting the role label as a skill falsely marks a candidate who clearly IS that role as missing it.
+- Do NOT extract VAGUE / GENERIC competencies as verifiable skills — "understanding of X", "knowledge of X", "X methodologies / principles / fundamentals / best practices / concepts", "familiarity with X". These aren't concrete tools and aren't lexically verifiable; they're implied by doing the job, so extracting them falsely marks an experienced candidate as missing the basics (e.g. an 11-year QA "missing software testing methodologies"). Extract the CONCRETE skill if one is named ("manual testing", "Selenium"); otherwise drop the requirement.
 - Do NOT invent or infer requirements not in the text. Do NOT include soft/vague traits (leadership, team player, fast learner). JSON only.` },
       { role: 'user', content: jdText.slice(0, 4000) },
     ],

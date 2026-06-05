@@ -5,6 +5,7 @@
 import { parseJD, buildBreakdown } from '@/lib/match-breakdown/generate';
 import { runGate, assess } from '@/services/matching/gate';
 import { computeCaveats, breakdownToVerdict, type MatchVerdict } from '@/lib/match-caveats';
+import { promoteSemanticMatches } from '@/services/matching/semantic-verify';
 
 export type PairingInput = {
   jobTitle: string;
@@ -38,6 +39,17 @@ export async function assessPairing(inp: PairingInput): Promise<Pairing> {
       candidateYears: typeof p.experience_years === 'number' ? (p.experience_years as number) : null,
       candidateLocation: typeof p.location === 'string' ? (p.location as string) : null,
     });
+    // Semantic backstop: before declaring a CORE skill missing, confirm it against the candidate's
+    // real background (catches a competency stated under a different name — "software testing
+    // methodologies" for an 11-yr QA with STLC/Agile/regression). Only runs when a core is lexically
+    // missing (rare), and only PROMOTES a genuine match; what stays missing is a real gap → gated.
+    await promoteSemanticMatches(bd.lines, {
+      candidateTitle: typeof p.current_title === 'string' ? (p.current_title as string) : null,
+      candidateSkills: (p.skills as string[]) || [],
+      candidateBackground: inp.cvText,
+    });
+    bd.matched = bd.lines.filter((l) => l.status === 'full').length;
+
     const ratio = bd.total ? bd.matched / bd.total : 0;
     const bdLines = (bd.lines as Array<{ core?: boolean; status?: string }>) || [];
     const missingCore = bdLines.filter((l) => l.core === true && l.status !== 'full').length;
