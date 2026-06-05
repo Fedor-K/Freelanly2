@@ -1066,6 +1066,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           candidateLocation: typeof parsedProfile?.location === 'string' ? parsedProfile.location as string : null,
         });
         const ratio = bd.total ? bd.matched / bd.total : 0;
+        const qMissingCore = (bd.lines as Array<{ core?: boolean; status?: string }> || []).filter((l) => l.core === true && l.status !== 'full').length;
         qBreakdown = {
           v: 1, matched: bd.matched, total: bd.total, ratio: Math.round(ratio * 100) / 100, lines: bd.lines,
           yearsContext: bd.yearsContext, locationContext: bd.locationContext, rejected: bd.rejected, fallback: bd.fallback, shadow: true,
@@ -1085,7 +1086,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
             candidateCv: loop.user.resumeText || '',
           });
           const hasRealCV = !!loop.resumeUrl && !loop.user.resumeGenerated;
-          const decision = assess(g, { matched: bd.matched, total: bd.total }, loop.user.resumeText || '', listing.title, hasRealCV);
+          const decision = assess(g, { matched: bd.matched, total: bd.total, missingCore: qMissingCore }, loop.user.resumeText || '', listing.title, hasRealCV);
           Object.assign(qBreakdown, {
             profession: decision.extras.profession, english_req: decision.extras.english_req, english_level: decision.extras.english_level,
             hard_fail: decision.extras.hard_fail, hard_kind: decision.extras.hard_kind, hard_detail: decision.extras.hard_detail,
