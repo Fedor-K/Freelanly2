@@ -31,7 +31,7 @@ type Row = {
   matchLabel: string | null;
   match: { matched: number; total: number; lines: Line[] } | null;
   caveats: { strength: 'Strong' | 'Good' | 'Weak'; items: string[] } | null;
-  reasoning: { kind: 'ok' | 'warn' | 'final'; text: string }[];
+  reasoning: { kind: 'info' | 'ok' | 'warn' | 'final'; text: string }[];
   coverLetter: string | null;
 };
 
@@ -234,8 +234,8 @@ export default function SentApplicationsPage() {
                                 <div className="text-xs font-semibold mb-1 uppercase text-muted-foreground">Как система решила</div>
                                 <ol className="space-y-0.5">
                                   {r.reasoning.map((s, i) => (
-                                    <li key={i} className={`text-[11px] flex gap-1.5 ${s.kind === 'final' ? 'font-semibold text-foreground mt-0.5' : s.kind === 'warn' ? 'text-amber-800' : 'text-muted-foreground'}`}>
-                                      <span>{s.kind === 'final' ? '→' : s.kind === 'warn' ? '⚠️' : '✓'}</span>
+                                    <li key={i} className={`text-[11px] flex gap-1.5 ${s.kind === 'final' ? 'font-semibold text-foreground mt-1 pt-1 border-t border-dashed' : s.kind === 'warn' ? 'text-amber-800' : s.kind === 'ok' ? 'text-emerald-700' : 'text-muted-foreground'}`}>
+                                      <span className="shrink-0">{s.kind === 'final' ? '→' : s.kind === 'warn' ? '⚠️' : s.kind === 'ok' ? '✓' : '·'}</span>
                                       <span>{s.text}</span>
                                     </li>
                                   ))}
