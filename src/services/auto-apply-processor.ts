@@ -145,6 +145,7 @@ export async function processAutoApplyQueue(): Promise<{
           resumeUrl: true,
           resumeBase64: true,
           resumeFileName: true,
+          resumeGenerated: true,
           salaryExpectation: true,
           salaryExpectationAt: true,
           workPreference: true,
@@ -443,7 +444,12 @@ export async function processAutoApplyQueue(): Promise<{
       // Attach the user's actual résumé (Blob PDF) to the application. Recruiters
       // constantly reply "send me your CV" — sending it up front cuts that round-trip.
       // null when the user has no real stored résumé (placeholder) → send without one.
-      const resumeAttachment = await fetchResumeAttachment(app.user.resumeUrl, app.user.resumeFileName);
+      // CV-from-profile generation was retired: never attach a machine-built PDF
+      // (resumeGenerated=true). Those users send without an attachment until they
+      // upload a real résumé (a real upload flips the flag back to false).
+      const resumeAttachment = app.user.resumeGenerated
+        ? null
+        : await fetchResumeAttachment(app.user.resumeUrl, app.user.resumeFileName);
 
       // Build email HTML
       const html = buildApplicationEmailHtml({

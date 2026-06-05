@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Search, ChevronDown, ChevronRight, FileText, FileWarning, CheckCircle2, XCircle } from 'lucide-react';
+import { RefreshCw, Search, ChevronDown, ChevronRight, FileText, CheckCircle2, XCircle } from 'lucide-react';
 
 // Feed of SENT applications + the WHY: who applied, their CV, and the match reasoning
 // (matchScore/label + per-skill breakdown of what the candidate has vs the listing needs).
@@ -21,7 +21,7 @@ type Row = {
   status: string;
   candidate: {
     name: string; title: string | null; location: string | null; experienceYears: number | null;
-    skills: string[]; cvUrl: string | null; cvName: string | null; cvGenerated: boolean; hasResumeText: boolean;
+    skills: string[]; cvUrl: string | null; cvName: string | null; hasResumeText: boolean;
     languages: string[]; summary: string | null; linkedinUrl: string | null;
     experience: { title: string; company: string; dates: string; description: string }[];
     education: { degree: string; school: string; dates: string }[];
@@ -211,7 +211,7 @@ export default function SentApplicationsPage() {
                     </td>
                     <td className="py-2 px-2">
                       {r.candidate.cvUrl
-                        ? <span className="inline-flex items-center gap-1 text-green-600 text-xs">{r.candidate.cvGenerated ? <FileWarning className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}{r.candidate.cvGenerated ? 'gen' : 'CV'}</span>
+                        ? <span className="inline-flex items-center gap-1 text-green-600 text-xs"><FileText className="h-3.5 w-3.5" />CV</span>
                         : <span className="text-xs text-red-400">нет</span>}
                     </td>
                   </tr>
@@ -300,7 +300,6 @@ export default function SentApplicationsPage() {
                                 CV: {r.candidate.cvUrl
                                   ? <a href={r.candidate.cvUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{r.candidate.cvName || 'resume.pdf'}</a>
                                   : <span className="text-red-400">не приложено</span>}
-                                {r.candidate.cvGenerated && <span className="text-amber-600 ml-1">(сгенерировано из профиля)</span>}
                               </div>
                             </div>
                           </div>
