@@ -8,6 +8,7 @@ import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
 import { isScamRecipient } from '@/lib/scam-filter';
 import { getRecruiterPortalUrl } from '@/lib/recruiter-token';
+import { routeAllows } from '@/lib/loop-routing';
 import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
 import { parseJD, buildBreakdown, type ParsedJD } from '@/lib/match-breakdown/generate';
 import { computeCaveats, breakdownToVerdict } from '@/lib/match-caveats';
@@ -973,6 +974,10 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
   };
   const candidates: Cand[] = [];
   for (const loop of activeLoops) {
+    // Direction routing (cheapest cut, before dedup/targeting/AI): only consider a loop whose
+    // professional directions match the listing's category (or an adjacent one). Fail-open when the
+    // loop is unclassified (categorySlugs empty) so we never silently drop an un-categorised user.
+    if (!routeAllows(loop.categorySlugs, listing.categorySlug)) continue;
     if (existingUserIds.has(loop.userId)) continue; // already applied to this listing
     if (sentToRecruiterUserIds.has(loop.userId)) continue; // same recruiter+title already
     if (loop.blacklistCompanies.some((bc) => bc.toLowerCase() === listing.companyName.toLowerCase())) continue;

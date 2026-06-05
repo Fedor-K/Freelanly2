@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { AutoApplyMode } from '@prisma/client';
+import { deriveCategorySlugs } from '@/lib/loop-routing';
 
 // GET /api/user/auto-apply — List user's auto-apply loops with stats
 export async function GET() {
@@ -107,11 +108,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid mode' }, { status: 400 });
     }
 
+    const cleanTitles = jobTitles.map((t) => t.trim()).filter((t) => t);
     const loop = await prisma.autoApplyLoop.create({
       data: {
         userId: session.user.id,
         name: name.trim(),
-        jobTitles: jobTitles.map((t) => t.trim()).filter((t) => t),
+        jobTitles: cleanTitles,
+        categorySlugs: deriveCategorySlugs({ jobTitles: cleanTitles, skills: keywords ? keywords.split(',') : [] }),
         keywords: keywords?.trim() || null,
         country: country || null,
         level: level || null,
@@ -188,6 +191,12 @@ export async function PATCH(request: NextRequest) {
     if (updates.name !== undefined) data.name = updates.name.trim();
     if (updates.jobTitles !== undefined) data.jobTitles = updates.jobTitles.map((t) => t.trim()).filter((t) => t);
     if (updates.keywords !== undefined) data.keywords = updates.keywords?.trim() || null;
+    // Recompute directions whenever the loop's stated intent changes, so routing stays in sync.
+    if (updates.jobTitles !== undefined || updates.keywords !== undefined) {
+      const titles = data.jobTitles ?? existing.jobTitles;
+      const kw = data.keywords !== undefined ? data.keywords : existing.keywords;
+      data.categorySlugs = deriveCategorySlugs({ jobTitles: titles, skills: kw ? kw.split(',') : [] });
+    }
     if (updates.country !== undefined) data.country = updates.country || null;
     if (updates.level !== undefined) data.level = updates.level || null;
     if (updates.salaryMin !== undefined) data.salaryMin = updates.salaryMin || null;
