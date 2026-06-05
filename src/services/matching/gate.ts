@@ -48,7 +48,7 @@ const SYSTEM = `You apply on a candidate's behalf — applying burns quota and e
 - profession: "exact"=the candidate's own occupation IS this job's occupation. "adjacent"=same family/transferable but a different specialization (Backend↔Java/AWS Engineer; Full-Stack↔Frontend; Motion Designer↔Video Editor). "different"=different profession family. Merely SPEAKING a language is NOT being a translator; treat translation/interpreting/localization/subtitling as ONE family.
 - CRITICAL — a tool or a title is not a profession: using a design TOOL (Figma, Canva, Sketch) or having "UX/UI" in a developer's title does NOT make a software developer a graphic/visual/email/brand designer — that craft is evidenced by real visual-design work/portfolio. Developer→visual/graphic/email-design role => "different". Designer→software-engineering role => "different".
 - language_ok: about the LANGUAGE PAIR ONLY. For translation/interpreting roles, false ONLY if the candidate clearly works in different languages than needed; true otherwise and for non-language roles. Do NOT use this for native-speaker fitness — that is hard_fail/native_language below.
-- location_ok: false ONLY if job is onsite/hybrid in a specific country AND the candidate is clearly elsewhere. Remote/unknown => true.
+- location_ok: This is a global REMOTE-FREELANCE platform — geography is NOT a blocker. KEYWORD-GATED, do not infer: set location_ok=FALSE ONLY if the post literally contains one of these on-site/work-auth signals — "on-site"/"onsite", "in-office"/"in office", "in person"/"in-person", "relocate"/"relocation", "must reside"/"must live in", "local candidates", "hybrid", "authorized to work in", "work authorization", "citizens only", "no visa sponsorship", "security clearance" — AND the candidate is clearly elsewhere/ineligible. If NONE of those exact signals appears, location_ok=TRUE — EVEN IF a city/state/country is named ("join our team in Charlotte, NC", "based in <city>", "<role> in <city>" are NOT on-site). Naming where the company is ≠ requiring presence. The geography gap still surfaces as a caveat via location_flag; it is NEVER a blocker on its own.
 - seniority_ok: false ONLY if job needs 5+ years and candidate is a student/intern/0-1y.
 - english_req: "strong" ONLY if English is literally the work product/medium (customer support, sales/account mgmt, content/copywriting/editing in English, teaching English, client-facing comms as core duty) OR an explicit "fluent/native/excellent English required". "weak"=technical/build/design role where English merely helps. "none"=no English signal. When unsure between strong/weak, choose "weak".
 - hard_fail: true ONLY if the requirements state an EXPLICIT, binary, checkable must-have that the candidate CLEARLY does not meet — a specific university/school or required degree/major, a mandatory certification/license, work authorization/citizenship, an explicit "minimum N years", or an explicit NATIVE/mother-tongue language the candidate clearly lacks. Set hard_kind + a short hard_detail. Do NOT flag skills (handled by profession/overlap), nor vague/aspirational wording ("preferred", "nice to have", "bonus"). If none clearly fails, hard_fail=false, hard_kind="none".
@@ -79,11 +79,19 @@ export async function runGate(inp: GateInput): Promise<Gate> {
     if (inp.candidateYears != null && reqMin != null) below = inp.candidateYears < parseFloat(reqMin);
     if (meets || !below) { hardFail = false; hardKind = 'none'; hardDetail = ''; }
   }
+  // Deterministic LOCATION guard (global remote-freelance platform): location only BLOCKS when the
+  // JD literally states an on-site / work-authorization requirement. The LLM keeps reading "join our
+  // team in <city>" as on-site, so we don't trust its location_ok — if the JD text contains NO
+  // on-site/work-auth signal, location never blocks (the geography gap survives only as a caveat via
+  // location_flag). With a signal present, defer to the LLM's call (it weighs candidate eligibility).
+  const ONSITE_RE = /\b(on-?site|in[\s-]?office|in[\s-]?person|relocat\w*|must reside|must live in|local candidates|hybrid|authoriz\w* to work in|work authoriz\w*|citizens? only|no visa sponsorship|security clearance)\b/i;
+  const onsiteSignal = ONSITE_RE.test(inp.jobDescription || '');
+  const locationOk = onsiteSignal ? (p.location_ok !== false) : true;
   return {
     profession: p.profession === 'exact' || p.profession === 'adjacent' ? p.profession : p.profession === 'different' ? 'different' : 'adjacent',
     reason: String(p.reason || ''),
     language_ok: p.language_ok !== false,
-    location_ok: p.location_ok !== false,
+    location_ok: locationOk,
     seniority_ok: p.seniority_ok !== false,
     english_req: p.english_req === 'strong' || p.english_req === 'none' ? p.english_req : 'weak',
     hard_fail: hardFail,
@@ -131,7 +139,7 @@ export function assess(
   // Language gate applies ONLY to translation/interpreting roles — for any other role the
   // candidate's spoken languages are irrelevant and must never block (the LLM over-flags this).
   if (isLanguageRole(title) && !g.language_ok) return { decision: 'NO', reason: 'wrong language pair', extras };
-  if (!g.location_ok) return { decision: 'NO', reason: 'location mismatch', extras };
+  if (!g.location_ok) return { decision: 'NO', reason: 'on-site / work-auth required', extras };
   if (!g.seniority_ok) return { decision: 'NO', reason: 'seniority mismatch', extras };
   // Real CV required — never send a generated/fabricated or missing résumé to a recruiter.
   if (!candidateHasRealCV) return { decision: 'NO', reason: 'no real CV (generated/none)', extras };
