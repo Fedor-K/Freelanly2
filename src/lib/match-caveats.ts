@@ -49,7 +49,44 @@ export function computeCaveats(bd: unknown): Caveats | null {
 // breakdown (no extra compute, works retroactively on every stored record). Narration only — it
 // reports the decision the gate already made, it does not re-decide.
 export type DecisionStep = { kind: 'info' | 'ok' | 'warn' | 'final'; text: string };
-export function explainDecision(bd: unknown): DecisionStep[] {
+
+// Honest reject verdict — narrates the REAL reason the gate/AI said NO, even when the skill
+// walk-through above shows everything matched (keyword overlap ≠ a genuine fit). Never says
+// "отправляем" for a row that wasn't sent.
+function rejectVerdict(
+  reason: string,
+  s: { matched: number; total: number; ratio: number | null; coreMissing: string[] },
+): string {
+  const skill = s.total > 0 ? `Совпадение по навыкам ${s.matched} из ${s.total}${s.ratio !== null ? ` (${s.ratio}%)` : ''}. ` : '';
+  const r = reason.toLowerCase();
+  if (r.includes('ai-match'))
+    return `Итог: ${skill}Но AI-проверка определила, что это не настоящее соответствие роли — ключевые слова есть в резюме, а по сути профиль/опыт под роль не подходит. Не отправлено, кавер не генерировался.`;
+  if (r.startsWith('different profession'))
+    return `Итог: ${skill}Но это другая профессия (${reason.replace(/^different profession\s*/i, '').replace(/^[(]|[)]$/g, '').trim() || 'роль не совпадает'}). Не отправлено.`;
+  if (r.includes('no real cv'))
+    return `Итог: ${skill}Но у кандидата нет настоящего резюме (сгенерированное/отсутствует) — без него отклик не отправляем. Не отправлено.`;
+  if (r.includes('seniority'))
+    return `Итог: ${skill}Но не совпадает уровень (seniority) — роль требует другого опыта. Не отправлено.`;
+  if (r.includes('work-auth') || r.includes('on-site') || r.includes('on site'))
+    return `Итог: ${skill}Но роль требует присутствия на месте или разрешения на работу. Не отправлено.`;
+  if (r.includes('language'))
+    return `Итог: ${skill}Но не совпадает языковая пара, которую требует роль. Не отправлено.`;
+  if (r.includes('zero skill'))
+    return `Итог: нет подтверждения требуемых навыков. Не отправлено.`;
+  if (r.includes('hard requirement'))
+    return `Итог: ${skill}Но не выполнено жёсткое требование (${reason.replace(/^hard requirement failed:\s*/i, '').trim() || 'см. требования'}). Не отправлено.`;
+  if (s.coreMissing.length)
+    return `Итог: не хватает ключевого требования роли (${s.coreMissing.join(', ')}). Не отправлено.`;
+  return `Итог: ${skill}Отклонено${reason ? ` — ${reason}` : ' AI-проверкой'}. Не отправлено.`;
+}
+
+// `outcome` carries the ACTUAL decision (sent? + reject reason) so the verdict reports what
+// really happened instead of re-deriving a skill-only guess. Without it, falls back to the
+// skill-based narration (legacy callers).
+export function explainDecision(
+  bd: unknown,
+  outcome?: { sent: boolean; gateReason?: string | null },
+): DecisionStep[] {
   if (!bd || typeof bd !== 'object') return [];
   const b = bd as Record<string, unknown>;
   if (b.error) return [];
@@ -98,9 +135,14 @@ export function explainDecision(bd: unknown): DecisionStep[] {
   if (locationFlag) steps.push({ kind: 'warn', text: `Локация: ${locationDetail || 'кандидат, похоже, в другой стране'} — стоит уточнить remote/on-site.` });
   if (hardFail) steps.push({ kind: 'warn', text: `Жёсткое требование (${hardKind}): ${hardDetail || 'см. требования'} — под вопросом.` });
 
-  // 4. The verdict, tying it together.
+  // 4. The verdict, tying it together. If we know the ACTUAL outcome and it was a reject, narrate
+  // the real reason — a row can have every skill matched (Strong) yet be rejected by AI-match /
+  // seniority / no-CV / profession. Never claim "отправляем" for a row that wasn't sent.
+  const reason = (outcome?.gateReason || (typeof b.gateReason === 'string' ? (b.gateReason as string) : '') || '').trim();
   let verdict: string;
-  if (total === 0) {
+  if (outcome && outcome.sent === false) {
+    verdict = rejectVerdict(reason, { matched, total, ratio, coreMissing });
+  } else if (total === 0) {
     verdict = 'Явных требований нет, профессия подходит — отправляем.';
   } else if (!coreMissing.length) {
     verdict = `Итог: все ключевые требования закрыты, совпадение ${matched} из ${total}${ratio !== null ? ` (${ratio}%)` : ''}. Кандидат подходит — отправляем.`;
