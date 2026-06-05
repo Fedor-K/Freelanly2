@@ -14,6 +14,10 @@ type Line = { label: string; status: string; source: string | null; evidence: st
 type Row = {
   id: string;
   sentAt: string | null;
+  at: string | null;
+  sent: boolean;
+  decision: 'SEND' | 'NO';
+  gateReason: string | null;
   status: string;
   candidate: {
     name: string; title: string | null; location: string | null; experienceYears: number | null;
@@ -54,6 +58,11 @@ const CV_OPTS = [
   { value: 'with', label: 'С CV' },
   { value: 'without', label: 'Без CV' },
 ];
+const STATUS_OPTS = [
+  { value: 'all', label: 'Все' },
+  { value: 'sent', label: 'Отправленные' },
+  { value: 'rejected', label: 'Отклонённые' },
+];
 
 function timeAgo(iso: string | null): string {
   if (!iso) return '—';
@@ -75,12 +84,14 @@ export default function SentApplicationsPage() {
   const [period, setPeriod] = useState('24h');
   const [label, setLabel] = useState('all');
   const [cv, setCv] = useState('all');
+  const [statusF, setStatusF] = useState('all');
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
   const [byLabel, setByLabel] = useState<Record<string, number>>({});
+  const [byStatus, setByStatus] = useState<{ sent: number; rejected: number }>({ sent: 0, rejected: 0 });
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const limit = 250;
@@ -88,12 +99,13 @@ export default function SentApplicationsPage() {
   async function fetchData() {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ period, label, cv, search, page: String(page), limit: String(limit) });
+      const params = new URLSearchParams({ period, label, cv, status: statusF, search, page: String(page), limit: String(limit) });
       const r = await fetch(`/api/admin/sent-applications?${params.toString()}`);
       const d = await r.json();
       setRows(d.rows || []);
       setTotal(d.total || 0);
       setByLabel(d.byLabel || {});
+      setByStatus(d.byStatus || { sent: 0, rejected: 0 });
     } catch (e) {
       console.error(e);
     } finally {
@@ -101,7 +113,7 @@ export default function SentApplicationsPage() {
     }
   }
 
-  useEffect(() => { fetchData(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [period, label, cv, search, page]);
+  useEffect(() => { fetchData(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [period, label, cv, statusF, search, page]);
 
   function toggle(id: string) {
     const next = new Set(expanded);
@@ -109,14 +121,12 @@ export default function SentApplicationsPage() {
     setExpanded(next);
   }
 
-  const cvWith = rows.filter((r) => r.candidate.cvUrl).length;
-
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Отправленные заявки</h1>
-          <p className="text-sm text-muted-foreground">Кто, кому и <b>почему</b> — кандидат, его резюме и логика матча по каждому отклику.</p>
+          <h1 className="text-2xl font-bold">Обработанные заявки</h1>
+          <p className="text-sm text-muted-foreground">Все обработанные пары — <b>отправленные</b> и <b>отклонённые</b> (с причиной). Кто, кому и <b>почему</b>.</p>
         </div>
         <button onClick={fetchData} className="flex items-center gap-1 text-sm border rounded-lg px-3 py-1.5 hover:bg-muted">
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Обновить
@@ -124,9 +134,10 @@ export default function SentApplicationsPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card><CardContent className="py-3"><div className="text-2xl font-bold">{total.toLocaleString('ru-RU')}</div><div className="text-xs text-muted-foreground">отправлено за период</div></CardContent></Card>
-        <Card><CardContent className="py-3"><div className="text-2xl font-bold">{rows.length ? Math.round((cvWith / rows.length) * 100) : 0}%</div><div className="text-xs text-muted-foreground">с приложенным CV (на странице)</div></CardContent></Card>
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <Card><CardContent className="py-3"><div className="text-2xl font-bold">{total.toLocaleString('ru-RU')}</div><div className="text-xs text-muted-foreground">обработано за период</div></CardContent></Card>
+        <Card><CardContent className="py-3"><div className="text-2xl font-bold text-emerald-700">{byStatus.sent.toLocaleString('ru-RU')}</div><div className="text-xs text-muted-foreground">отправлено</div></CardContent></Card>
+        <Card><CardContent className="py-3"><div className="text-2xl font-bold text-rose-700">{byStatus.rejected.toLocaleString('ru-RU')}</div><div className="text-xs text-muted-foreground">отклонено</div></CardContent></Card>
         {['Strong', 'Good', 'Weak'].map((l) => (
           <Card key={l}><CardContent className="py-3"><div className="text-2xl font-bold">{(byLabel[l] || 0).toLocaleString('ru-RU')}</div><div className="text-xs text-muted-foreground">{l}</div></CardContent></Card>
         ))}
@@ -136,6 +147,10 @@ export default function SentApplicationsPage() {
       <div className="flex flex-wrap gap-2 items-center">
         {PERIODS.map((p) => (
           <button key={p.value} onClick={() => { setPage(1); setPeriod(p.value); }} className={`text-sm px-3 py-1.5 rounded-lg border ${period === p.value ? 'bg-foreground text-background' : 'hover:bg-muted'}`}>{p.label}</button>
+        ))}
+        <span className="w-px h-6 bg-border mx-1" />
+        {STATUS_OPTS.map((s) => (
+          <button key={s.value} onClick={() => { setPage(1); setStatusF(s.value); }} className={`text-sm px-2.5 py-1.5 rounded-lg border ${statusF === s.value ? 'bg-foreground text-background' : 'hover:bg-muted'}`}>{s.label}</button>
         ))}
         <span className="w-px h-6 bg-border mx-1" />
         {LABELS.map((l) => (
@@ -177,7 +192,7 @@ export default function SentApplicationsPage() {
                 <React.Fragment key={r.id}>
                   <tr className="border-b hover:bg-muted/40 cursor-pointer" onClick={() => toggle(r.id)}>
                     <td className="py-2 px-2 text-gray-400">{expanded.has(r.id) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</td>
-                    <td className="py-2 px-2 text-muted-foreground whitespace-nowrap">{timeAgo(r.sentAt)}</td>
+                    <td className="py-2 px-2 text-muted-foreground whitespace-nowrap">{timeAgo(r.at)}</td>
                     <td className="py-2 px-2">
                       <div className="font-medium">{r.candidate.name}</div>
                       <div className="text-xs text-muted-foreground truncate max-w-[14rem]">{r.candidate.title || '—'}{r.candidate.experienceYears ? ` · ${r.candidate.experienceYears}y` : ''}</div>
@@ -185,8 +200,14 @@ export default function SentApplicationsPage() {
                     <td className="py-2 px-2 max-w-[16rem] truncate">{r.jobSlug ? <Link href={`/freelance/${r.jobSlug}`} target="_blank" className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>{r.jobTitle}</Link> : r.jobTitle || '—'}</td>
                     <td className="py-2 px-2 font-mono text-[11px] text-muted-foreground truncate max-w-[12rem]">{r.recruiterEmail || '—'}</td>
                     <td className="py-2 px-2 whitespace-nowrap">
-                      <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${labelColor(r.matchLabel)}`}>{r.matchLabel || '—'}{r.matchScore != null ? ` ${r.matchScore}` : ''}</span>
-                      {r.match && <span className="text-[11px] text-muted-foreground ml-1.5">{r.match.matched}/{r.match.total} скиллов</span>}
+                      {r.sent ? (
+                        <>
+                          <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${labelColor(r.matchLabel)}`}>{r.matchLabel || '—'}{r.matchScore != null ? ` ${r.matchScore}` : ''}</span>
+                          {r.match && <span className="text-[11px] text-muted-foreground ml-1.5">{r.match.matched}/{r.match.total} скиллов</span>}
+                        </>
+                      ) : (
+                        <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700" title={r.gateReason || ''}>Отклонено{r.gateReason ? `: ${r.gateReason}` : ''}</span>
+                      )}
                     </td>
                     <td className="py-2 px-2">
                       {r.candidate.cvUrl
@@ -201,7 +222,8 @@ export default function SentApplicationsPage() {
                         <div className="grid md:grid-cols-2 gap-4">
                           {/* WHY: match breakdown */}
                           <div>
-                            <div className="text-xs font-semibold mb-1.5 uppercase text-muted-foreground">Почему отправили (матч скиллов)</div>
+                            <div className="text-xs font-semibold mb-1.5 uppercase text-muted-foreground">{r.sent ? 'Почему отправили (матч скиллов)' : 'Решение по матчу скиллов'}</div>
+                            {!r.sent && <div className="text-xs mb-2 inline-block bg-rose-50 border border-rose-200 text-rose-800 rounded px-2 py-1">Не отправлено{r.gateReason ? ` — ${r.gateReason}` : ''}. Кавер-письмо не генерировалось.</div>}
                             {r.match ? (
                               <>
                                 <div className="text-xs text-muted-foreground mb-2">Совпало <b>{r.match.matched}</b> из <b>{r.match.total}</b> требуемых скиллов вакансии.</div>
@@ -291,7 +313,7 @@ export default function SentApplicationsPage() {
                             </div>
                             <div>
                               <div className="text-xs font-semibold mb-1.5 uppercase text-muted-foreground">Текст отклика (cover letter)</div>
-                              <div className="text-xs text-gray-700 whitespace-pre-wrap bg-white border rounded p-2 max-h-72 overflow-auto">{r.coverLetter || '—'}</div>
+                              <div className="text-xs text-gray-700 whitespace-pre-wrap bg-white border rounded p-2 max-h-72 overflow-auto">{r.sent ? (r.coverLetter || '—') : <span className="text-muted-foreground">Не отправлено — кавер не генерировался.</span>}</div>
                             </div>
                           </div>
                         </div>

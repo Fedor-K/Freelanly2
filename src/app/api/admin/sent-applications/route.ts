@@ -28,10 +28,16 @@ export async function GET(request: NextRequest) {
   const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
   const limit = Math.min(250, Math.max(10, parseInt(url.searchParams.get('limit') || '50', 10)));
 
+  const statusFilter = url.searchParams.get('status') || 'all'; // all | sent | rejected
   const hours = PERIOD_HOURS[period] ?? 24;
   const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
-  const where: Record<string, unknown> = { sentAt: { gte: since, not: null } };
+  // The feed is an audit of every PROCESSED pairing — a real send/reject decision was made.
+  // Exclude not-yet-decided queue states. Period anchored on createdAt so rejected rows (no sentAt)
+  // are included alongside sent ones.
+  const where: Record<string, unknown> = { createdAt: { gte: since }, status: { notIn: ['PENDING', 'SENDING', 'REVIEW'] } };
+  if (statusFilter === 'sent') where.sentAt = { not: null };
+  if (statusFilter === 'rejected') where.status = 'REJECTED';
   if (label !== 'all') where.matchLabel = label === 'none' ? null : label;
   if (cv === 'with') where.user = { resumeUrl: { contains: 'blob.vercel-storage' } };
   if (cv === 'without') where.user = { OR: [{ resumeUrl: null }, { NOT: { resumeUrl: { contains: 'blob.vercel-storage' } } }] };
@@ -44,20 +50,25 @@ export async function GET(request: NextRequest) {
     ];
   }
 
-  const [total, byLabelRows, apps] = await Promise.all([
+  const [total, byLabelRows, statusRows, apps] = await Promise.all([
     prisma.autoApplication.count({ where }),
     prisma.$queryRawUnsafe<Array<{ label: string | null; n: number }>>(
       `SELECT "matchLabel" label, CAST(COUNT(*) AS INT) n FROM "AutoApplication"
-       WHERE "sentAt" >= $1 GROUP BY 1 ORDER BY 2 DESC`,
+       WHERE "createdAt" >= $1 AND status NOT IN ('PENDING','SENDING','REVIEW') GROUP BY 1 ORDER BY 2 DESC`,
+      since,
+    ),
+    prisma.$queryRawUnsafe<Array<{ sent: boolean; n: number }>>(
+      `SELECT ("sentAt" IS NOT NULL) sent, CAST(COUNT(*) AS INT) n FROM "AutoApplication"
+       WHERE "createdAt" >= $1 AND status NOT IN ('PENDING','SENDING','REVIEW') GROUP BY 1`,
       since,
     ),
     prisma.autoApplication.findMany({
       where,
-      orderBy: { sentAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
       select: {
-        id: true, sentAt: true, jobTitle: true, appliedToEmail: true, opportunityId: true,
+        id: true, sentAt: true, createdAt: true, jobTitle: true, appliedToEmail: true, opportunityId: true,
         matchScore: true, matchLabel: true, matchBreakdown: true, coverLetter: true, status: true,
         user: {
           select: {
@@ -71,6 +82,8 @@ export async function GET(request: NextRequest) {
 
   const byLabel: Record<string, number> = {};
   for (const r of byLabelRows) byLabel[r.label || 'none'] = r.n;
+  const byStatus = { sent: 0, rejected: 0 };
+  for (const r of statusRows) { if (r.sent) byStatus.sent = r.n; else byStatus.rejected = r.n; }
 
   // AutoApplication has no `opportunity` relation (only opportunityId) — fetch titles/slugs in one go.
   const oppIds = [...new Set(apps.map((a) => a.opportunityId).filter((x): x is string => !!x))];
@@ -87,9 +100,15 @@ export async function GET(request: NextRequest) {
     const resumeUrl = a.user?.resumeUrl || null;
     const hasBlobCv = !!resumeUrl && resumeUrl.includes('blob.vercel-storage');
     const opp = a.opportunityId ? oppMap.get(a.opportunityId) : null;
+    const sent = !!a.sentAt;
+    const bdFull = (a.matchBreakdown ?? {}) as Record<string, unknown>;
     return {
       id: a.id,
       sentAt: a.sentAt?.toISOString() ?? null,
+      at: (a.sentAt ?? a.createdAt)?.toISOString() ?? null,   // display time (sent → sentAt, rejected → createdAt)
+      sent,                                                    // true = applied, false = processed & not sent
+      decision: sent ? 'SEND' : 'NO',
+      gateReason: typeof bdFull.gateReason === 'string' ? bdFull.gateReason : null,  // why (sent w/ caveats | reject reason)
       status: a.status,
       candidate: {
         name: a.user?.name || 'Unknown',
@@ -139,5 +158,5 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  return NextResponse.json({ period, label, cv, search, page, limit, total, byLabel, rows });
+  return NextResponse.json({ period, label, cv, search, status: statusFilter, page, limit, total, byLabel, byStatus, rows });
 }
