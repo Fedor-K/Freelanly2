@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { generateCoverLetter, generateSubjectLine } from '@/services/cover-letter-generator';
 import { assessPairing } from '@/services/matching/assess-pairing';
+import { generateRecruiterRationale } from '@/services/matching/recruiter-rationale';
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT } from '@/lib/apply-quota';
@@ -182,6 +183,21 @@ export async function POST(request: NextRequest) {
     // Draft-only mode: return full letter as user will see it
     if (draftOnly) {
       return NextResponse.json({ ok: true, coverLetter: fullLetter, subject, to: opportunity.applyEmail });
+    }
+
+    // Recruiter-voice rationale for the admin audit card — generated ONLY on a real send (after the
+    // draft-return above, so the inline preview stays fast). Frozen into the stored breakdown.
+    if (pairing.matchBreakdown && pairing.verdict) {
+      const rr = await generateRecruiterRationale({
+        jobTitle: opportunity.title, jobDescription: opportunity.description,
+        candidateTitle: (profile?.current_title as string) || null,
+        candidateYears: typeof profile?.experience_years === 'number' ? (profile.experience_years as number) : null,
+        candidateSkills: (profile?.skills as string[]) || [], candidateBackground: user.resumeText || '',
+        matched: pairing.verdict.matchedSkills || [], missingCore: pairing.verdict.missingCore || [], missing: pairing.verdict.missing || [],
+        profession: (pairing.matchBreakdown.profession as string) || null,
+        matchedN: (pairing.matchBreakdown.matched as number) ?? 0, totalN: (pairing.matchBreakdown.total as number) ?? 0,
+      });
+      if (rr) pairing.matchBreakdown.recruiterReasoning = rr;
     }
 
     // Use user-edited text if provided, otherwise use assembled fullLetter
