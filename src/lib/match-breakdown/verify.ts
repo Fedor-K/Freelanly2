@@ -50,6 +50,11 @@ const SYN_GROUPS: string[][] = [
   ['ux research', 'user research', 'user research & analysis', 'user-centered design', 'user centered design', 'user-centred design', 'user centric design', 'user-centric design', 'user centered'],
   ['oracle dba', 'oracle database administrator', 'oracle database administration', 'administracion de bases de datos oracle', 'dba oracle'],
   ['spring framework', 'spring boot', 'springboot', 'spring', 'spring mvc', 'spring web mvc', 'spring data'],
+  // architecture / integration families — generic competencies named under many forms (caught by the
+  // false-negative audit: a MuleSoft 'API-Led Connectivity / Middleware Integration' dev rejected for
+  // a 'Solution Architecture / Integration' core they clearly do).
+  ['solution architecture', 'solutions architect', 'software architecture', 'enterprise architecture', 'system architecture', 'arquitectura de software'],
+  ['integration', 'system integration', 'systems integration', 'api integration', 'middleware integration', 'api-led connectivity', 'enterprise integration', 'integraciones', '3rd party integration', 'third party integration'],
   // VENDOR-PREFIXED PRODUCTS — a requirement "AWS Redshift" must match a candidate who lists the
   // bare product "Redshift". Only UNAMBIGUOUS product names (no other meaning) — NOT "AWS Lambda"
   // (lambda is ambiguous) or "Azure DevOps" (DevOps is generic), which would cause false matches.
