@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         matchScore: true, matchLabel: true, matchBreakdown: true, coverLetter: true, status: true,
         user: {
           select: {
-            name: true, parsedProfile: true, resumeUrl: true, resumeFileName: true, resumeGenerated: true, linkedinUrl: true,
+            name: true, parsedProfile: true, resumeUrl: true, resumeFileName: true, linkedinUrl: true,
             resumeText: true,
           },
         },
@@ -129,7 +129,6 @@ export async function GET(request: NextRequest) {
         certifications: arr(prof.certifications).slice(0, 10),
         cvUrl: hasBlobCv ? resumeUrl : null,
         cvName: a.user?.resumeFileName || null,
-        cvGenerated: !!a.user?.resumeGenerated,
         hasResumeText: !!(a.user?.resumeText && a.user.resumeText.length > 0),
       },
       jobTitle: opp?.title || a.jobTitle || null,

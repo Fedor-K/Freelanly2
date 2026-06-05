@@ -12,7 +12,6 @@ import {
   TrendingUp,
   XCircle,
   Briefcase,
-  RefreshCw,
   CreditCard,
   BarChart3,
   Zap,
@@ -53,18 +52,10 @@ const moreNavigation = [
   { name: 'Channels', href: '/admin/channels', icon: Share2 },
   { name: 'Clarity', href: '/admin/clarity', icon: BarChart3 },
   { name: 'Jobs', href: '/admin/jobs', icon: Briefcase },
-  { name: 'Parsing', href: '/admin/parsing', icon: RefreshCw },
   { name: 'Keywords', href: '/admin/keywords', icon: Hash },
   { name: 'Import Logs', href: '/admin/logs', icon: FileText },
   { name: 'Import Feed', href: '/admin/imports', icon: FileText },
-  {
-    name: 'Sources',
-    icon: Database,
-    children: [
-      { name: 'Overview', href: '/admin/sources' },
-      { name: 'Apify LinkedIn', href: '/admin/sources/apify' },
-    ],
-  },
+  { name: 'Apify LinkedIn', href: '/admin/sources/apify', icon: Database },
 ];
 
 // Combined for backwards compatibility

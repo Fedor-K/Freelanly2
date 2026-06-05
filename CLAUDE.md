@@ -4,7 +4,8 @@
 
 Продукт **развернулся** из SEO job-board в **AI auto-apply платформу для фрилансеров**. Многие разделы ниже описывают старый job-board и оставлены как историческая справка по pipeline-у скрапинга/качества (он ещё используется для Opportunities). При расхождениях **этот блок и живой код — источник правды**.
 
-- **Продукт:** скрапим **Opportunities** (фриланс-гиги из постов LinkedIn) + **Jobs** (из ATS), юзер откликается через AI-сгенерированный cover letter, отправка с self-hosted Postal.
+- **Продукт:** скрапим **Opportunities** (фриланс-гиги из постов LinkedIn), юзер откликается через AI-сгенерированный cover letter, отправка с self-hosted Postal.
+- **⚠️ ATS-парсинг ПОЛНОСТЬЮ ВЫРЕЗАН (код).** Источник вакансий — **только посты LinkedIn**. Удалены: процессоры `src/services/sources/*` (Lever/Greenhouse/Ashby/SmartRecruiters/Workable), discovery-кроны/вебхуки, configs `*-discovery`, `fetch-sources`/`process-task`/`queue-sources`, admin `Sources`/`Parsing`-страницы и их API. **Таблицы БД (`Job`/`DataSource`/`ImportLog`/`ImportTask`/`ImportedJob`/`Company`) и `Source`-enum оставлены ДОРМАНТНЫМИ** (миграцию на живом проде не делали) — таблица `Job` опустевает сама через 30-дневный cleanup. Матчер обрабатывает только Opportunity (job-ветка мертва, т.к. новых `Job` не создаётся). Финальный DROP — отдельной поздней миграцией после data-проверки осиротевших `AutoApplication.jobId`.
 - **Главная конверсионная точка:** inline apply на `/freelance/[slug]` — регистрация + AI cover letter + отправка на одной странице без редиректов.
 - **Email — ТОЛЬКО Postal** (self-hosted, Hetzner). DashaMail / Resend / SES / SMTP2GO / Elastic Email — **отменены**, файлы под них в `src/lib/email/` мёртвые.
 - **Job alerts ПРИОСТАНОВЛЕНЫ.** Единственные исходящие письма: (1) recap 2×/день, (2) auto-apply outreach + ответы, (3) auth OTP.
@@ -16,7 +17,7 @@
 
 **Crons (2 хоста):**
 - *Hetzner:* `match */5`, `send */2`, `replies */15`, `inbound */1`, `recap 0 5,16 * * *` (UTC → 08:00/19:00 MSK).
-- *Vercel (`vercel.json`):* `fetch-sources`, `post-to-social`, `discover-lever`, `discover-greenhouse`, `submit-to-index`, `cleanup-stale-alerts`, `send-auto-apply-digest`.
+- *Vercel (`vercel.json`):* `post-to-social`, `submit-to-index`, `cleanup-stale-alerts`, `send-auto-apply-digest`, `hot-lead-reminders`. (ATS-кроны `fetch-sources`/`discover-lever`/`discover-greenhouse` удалены.)
 
 ## Quick Summary
 
@@ -552,13 +553,11 @@ STRIPE_WEBHOOK_SECRET=xxx
 ```json
 {
   "crons": [
-    { "path": "/api/cron/fetch-sources",          "schedule": "0 * * * *" },
     { "path": "/api/cron/post-to-social",         "schedule": "*/15 * * * *" },
-    { "path": "/api/cron/discover-lever",         "schedule": "0 3 * * 0,3" },
-    { "path": "/api/cron/discover-greenhouse",    "schedule": "0 4 * * 0,3" },
     { "path": "/api/cron/submit-to-index",        "schedule": "0 */4 * * *" },
     { "path": "/api/cron/cleanup-stale-alerts",   "schedule": "0 5 * * *" },
-    { "path": "/api/cron/send-auto-apply-digest", "schedule": "0 6 * * *" }
+    { "path": "/api/cron/send-auto-apply-digest", "schedule": "0 6 * * *" },
+    { "path": "/api/cron/hot-lead-reminders",     "schedule": "0 */3 * * *" }
   ]
 }
 ```
