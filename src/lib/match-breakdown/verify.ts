@@ -138,7 +138,24 @@ for (const [k, vals] of Object.entries(IMPLIES)) for (const v of vals) {
 
 // Short / ambiguous skill names = false-positive mines ("Go" in "going", "R"/"C" everywhere).
 // Matched ONLY as an exact standalone token, never aliased, never as a substring/phrase.
-const AMBIGUOUS = new Set(['go', 'r', 'c', 'd', 'js', 'ts', 'ai', 'ml', 'qa', 'bi']);
+const AMBIGUOUS = new Set(['go', 'js', 'ts', 'ai', 'ml', 'qa', 'bi']);
+
+// Tokens where even a standalone-token match is a false-positive mine, so they assert ONLY via a
+// disambiguating CONTEXT (regex over the haystack) OR an exact entry in the candidate's parsed
+// skills array — never off the bare token. Single letters (r/c/d) appear in every CV (R&D,
+// initials, section letters) and ".net" hits the TLD in domains/emails + the collapsed bare "net".
+// Measured: graphic designers/recruiters matched Data Scientist via "R"; iOS/Go/Python/QA matched
+// .NET roles via ".net". normText turns commas into spaces, so a bare comma-list "R, Python" can't
+// be told apart from "R&D" in the haystack — the reliable "deliberately listed" signal is an exact
+// skills-array entry (handled separately), not the haystack. " .net" must be space-preceded to
+// exclude "company.net".
+const QUALIFIED: Record<string, RegExp> = {
+  safe: /safe agile|scaled agile|safe (?:framework|practitioner|certified|scrum|facilitat)|\bssm\b/,
+  r: /\brstudio\b|\bggplot|\bdplyr\b|\btidyverse\b|\bcran\b|\brmarkdown\b|\bshiny\b|r programming|r language|python\s*\/\s*r|r\s*\/\s*python|\(r\)/,
+  c: /c programming|embedded c|c language|c\s*\/\s*c\+\+|c and c\+\+/,
+  d: /d programming|\bdlang\b/,
+  '.net': /asp\.net|vb\.net|\bdot ?net\b| \.net\b/,
+};
 
 // Fold diacritics so localized skill/language spellings match their ASCII form: visualización→
 // visualizacion, español→espanol, inglés→ingles. Without this the accent became a word break
@@ -186,9 +203,15 @@ export function verifySkill(skill: string, cvText: string, candidateSkills: stri
 
   const haystack = normText(`${cvText} ${candidateSkills.join(' , ')}`);
   const tokens = tokenSet(haystack);
+  // Exact entries in the parsed skills array — the only reliable "deliberately declared" signal for
+  // a context-gated token (an array entry "R" is a real skill; "R&D" in prose is not). Folded+lowered.
+  const exactSkills = new Set(candidateSkills.map((c) => fold(String(c || '').toLowerCase().trim())).filter(Boolean));
 
-  // Is `term` present in the candidate? (ambiguous = exact token only; phrase = phrase or collapse)
+  // Is `term` present in the candidate? (context-gated = regex or exact-skill; ambiguous = exact
+  // token only; phrase = phrase or collapse). The QUALIFIED guard is first so it also covers
+  // synonym-group / anyOf / implication members, not just a directly-required r/c/d/.net/safe.
   const present = (term: string): boolean => {
+    if (QUALIFIED[term]) return QUALIFIED[term].test(haystack) || exactSkills.has(term);
     if (AMBIGUOUS.has(term)) return tokens.has(term);
     if (term.includes(' ')) return haystack.includes(' ' + term + ' ') || tokens.has(collapse(term));
     return tokens.has(term) || tokens.has(collapse(term));
@@ -199,10 +222,9 @@ export function verifySkill(skill: string, cvText: string, candidateSkills: stri
     return tokens.has(s) ? { found: true, matched: s, via: 'exact' } : { found: false };
   }
 
-  // Framework acronyms that collide with a common English word — assert ONLY in a disambiguating
-  // context, never off the bare word: "SAFe" (Scaled Agile Framework) vs "safe" the adjective.
-  const QUALIFIED: Record<string, RegExp> = { safe: /safe agile|scaled agile|safe (?:framework|practitioner|certified|scrum|facilitat)|\bssm\b/ };
-  if (QUALIFIED[s]) return QUALIFIED[s].test(haystack) ? { found: true, matched: s, via: 'exact' } : { found: false };
+  // Context-gated tokens (SAFe / single-letter langs / .net) assert ONLY via their disambiguating
+  // regex (module-scope QUALIFIED) or an exact skills-array entry, never off the bare token/substring.
+  if (QUALIFIED[s]) return (QUALIFIED[s].test(haystack) || exactSkills.has(s)) ? { found: true, matched: s, via: 'exact' } : { found: false };
 
   // (1)+(2) direct + bidirectional synonym group
   const group = SYN.get(s) || [s];
