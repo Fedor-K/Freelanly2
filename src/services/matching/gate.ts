@@ -79,6 +79,14 @@ export async function runGate(inp: GateInput): Promise<Gate> {
     if (inp.candidateYears != null && reqMin != null) below = inp.candidateYears < parseFloat(reqMin);
     if (meets || !below) { hardFail = false; hardKind = 'none'; hardDetail = ''; }
   }
+  // Deterministic WORK-AUTH guard: the LLM keeps inferring a work-auth hard_fail from "the job is in
+  // the US" alone (no explicit text). Only honor it when the JD literally states a work-authorization
+  // / citizenship / clearance requirement; otherwise it's the same geography over-block via another
+  // channel — clear it (the geography gap still surfaces as a location caveat).
+  if (hardFail && hardKind === 'work_auth' &&
+      !/\b(authoriz\w* to work|work authoriz\w*|citizens? only|citizenship|visa|green card|security clearance|eligible to work|right to work|no sponsorship)\b/i.test(inp.jobDescription || '')) {
+    hardFail = false; hardKind = 'none'; hardDetail = '';
+  }
   // Deterministic LOCATION guard (global remote-freelance platform): location only BLOCKS when the
   // JD literally states an on-site / work-authorization requirement. The LLM keeps reading "join our
   // team in <city>" as on-site, so we don't trust its location_ok — if the JD text contains NO
