@@ -38,7 +38,9 @@ export async function assessPairing(inp: PairingInput): Promise<Pairing> {
       candidateLocation: typeof p.location === 'string' ? (p.location as string) : null,
     });
     const ratio = bd.total ? bd.matched / bd.total : 0;
-    const missingCore = (bd.lines as Array<{ core?: boolean; status?: string }> || []).filter((l) => l.core === true && l.status !== 'full').length;
+    const bdLines = (bd.lines as Array<{ core?: boolean; status?: string }>) || [];
+    const missingCore = bdLines.filter((l) => l.core === true && l.status !== 'full').length;
+    const coreMatched = bdLines.filter((l) => l.core === true && l.status === 'full').length;
     const matchBreakdown: Record<string, unknown> = {
       v: 1, matched: bd.matched, total: bd.total, ratio: Math.round(ratio * 100) / 100, lines: bd.lines,
       yearsContext: bd.yearsContext, locationContext: bd.locationContext, rejected: bd.rejected, fallback: bd.fallback,
@@ -56,7 +58,7 @@ export async function assessPairing(inp: PairingInput): Promise<Pairing> {
         candidateSkills: (p.skills as string[]) || [],
         candidateCv: inp.cvText,
       });
-      const d = assess(g, { matched: bd.matched, total: bd.total, missingCore }, inp.cvText, inp.jobTitle, inp.hasRealCV);
+      const d = assess(g, { matched: bd.matched, total: bd.total, missingCore, coreMatched }, inp.cvText, inp.jobTitle, inp.hasRealCV);
       Object.assign(matchBreakdown, {
         profession: d.extras.profession, english_req: d.extras.english_req, english_level: d.extras.english_level,
         hard_fail: d.extras.hard_fail, hard_kind: d.extras.hard_kind, hard_detail: d.extras.hard_detail,
