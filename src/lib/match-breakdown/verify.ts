@@ -45,6 +45,13 @@ const SYN_GROUPS: string[][] = [
   // Spanish; an English requirement must match the Spanish form. Members are accent-folded.
   ['data visualization', 'data visualisation', 'visualizacion de datos', 'data viz'],
   ['data analysis', 'analisis de datos'],
+  // VENDOR-PREFIXED PRODUCTS — a requirement "AWS Redshift" must match a candidate who lists the
+  // bare product "Redshift". Only UNAMBIGUOUS product names (no other meaning) — NOT "AWS Lambda"
+  // (lambda is ambiguous) or "Azure DevOps" (DevOps is generic), which would cause false matches.
+  ['aws redshift', 'redshift'],
+  ['google bigquery', 'bigquery', 'big query'],
+  ['amazon dynamodb', 'dynamodb'],
+  ['azure synapse', 'synapse analytics', 'synapse'],
   ['project management', 'gestion de proyectos'],
   ['databases', 'bases de datos'],
   ['software development', 'desarrollo de software'],
