@@ -70,22 +70,23 @@ const TRIGGERS: Record<string, (string | RegExp)[]> = {
     'inside sales',
   ],
   finance: [
-    'finance', 'financial', 'accountant', 'accounting', 'bookkeep', 'payroll', 'fp&a', 'controller', 'auditor',
+    'accountant', 'accounting', 'bookkeep', 'payroll', 'fp&a', 'financial analyst', 'financial controller',
+    'financial reporting', 'auditor', 'cfo',
   ],
   hr: [/\bhr\b/, 'recruit', 'talent acquisition', 'people ops', 'human resources', 'sourcer', 'headhunter'],
   operations: [
     'operations', 'ops manager', 'office manager', 'administrative', 'supply chain', 'logistics',
     'business operations',
   ],
-  legal: ['legal', 'lawyer', 'attorney', 'paralegal', 'compliance', 'counsel'],
+  legal: ['lawyer', 'attorney', 'paralegal', 'legal counsel', 'general counsel', 'legal advisor', 'law firm', 'litigation'],
   'project-management': [
     'project manager', 'scrum master', 'agile coach', 'program manager', /\bpmo\b/, /\bpmp\b/, 'safe agilist',
     'delivery manager', 'project management',
   ],
   writing: ['writer', 'copywriter', 'copywriting', 'content writer', 'technical writer', 'journalist', 'editorial'],
   translation: [
-    'translat', 'localiz', 'localis', 'linguist', 'interpret', 'bilingual', 'multilingual', 'subtitl',
-    'caption', 'transcription', 'proofread', 'terminolog',
+    'translat', 'localiz', 'localis', 'linguist', 'interpreter', 'subtitl', 'caption', 'transcription',
+    'proofread', 'terminolog', 'language specialist', 'language expert',
   ],
   creative: [
     'animator', 'animation', 'video editor', 'motion graphic', 'illustrator', /\b2d\b/, /\b3d\b/,
@@ -96,7 +97,7 @@ const TRIGGERS: Record<string, (string | RegExp)[]> = {
     'support engineer', 'support specialist',
   ],
   education: ['teacher', 'tutor', 'instructor', 'lecturer', 'trainer', 'curriculum', 'professor', 'educator', 'e-learning'],
-  research: ['research', 'researcher', /\bscientist\b/, 'r&d', /\bphd\b/],
+  research: ['researcher', 'research scientist', 'research engineer', 'research associate', 'r&d', /\bphd\b/, 'academic research'],
   consulting: ['consultant', 'consulting', 'advisory'],
 };
 
