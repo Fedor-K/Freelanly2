@@ -150,12 +150,11 @@ export function assess(
   if (isLanguageRole(title) && !g.language_ok) return { decision: 'NO', reason: 'wrong language pair', extras };
   if (!g.location_ok) return { decision: 'NO', reason: 'on-site / work-auth required', extras };
   if (!g.seniority_ok) return { decision: 'NO', reason: 'seniority mismatch', extras };
-  // No-CV candidates are NO LONGER hard-blocked (owner decision 2026-06-06): a strong match still
-  // sends, but WITHOUT the résumé attachment — the send path never attaches a generated/missing file
-  // (see auto-apply-processor: attach only when resumeUrl is real & not resumeGenerated). They pass
-  // through the SAME evidence bars below, so only genuinely strong pairings (core matched, above
-  // floor, profession not different) go out attachment-less; the weak ones are still cut.
-  void candidateHasRealCV;
+  // Real CV required — NEVER send an application without a real, user-uploaded résumé. A
+  // generated/fabricated or missing CV is a hard block (owner decision 2026-06-06): no LinkedIn
+  // fallback, no cover-letter-only send. Only a genuine upload (resumeUrl set & not resumeGenerated)
+  // is allowed past this point.
+  if (!candidateHasRealCV) return { decision: 'NO', reason: 'no real CV (generated/none)', extras };
   // Hard disqualifier: binary, non-negotiable ones (license / work-auth / native-language) → NO.
   // For a "native X required" role a clear non-native is a real fail (cultural adaptation, tone) —
   // sending burns quota and annoys the recruiter. Education/years/cert → SEND but flagged as a
