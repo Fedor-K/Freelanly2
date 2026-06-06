@@ -853,6 +853,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           email: true,
           parsedProfile: true,
           resumeText: true,
+          resumeUrl: true,
           resumeGenerated: true,
           workPreference: true,
           bookingUrl: true,
@@ -1122,7 +1123,11 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
             candidateSkills: (parsedProfile?.skills as string[]) || [],
             candidateCv: loop.user.resumeText || '',
           });
-          const hasRealCV = !!loop.resumeUrl && !loop.user.resumeGenerated;
+          // Real CV = the SAME thing the send path actually attaches: a genuine uploaded résumé in
+          // our Blob store, not a machine-generated one. Key off loop.user.resumeUrl (where the CV
+          // really lives + what fetchResumeAttachment uses), NOT loop.resumeUrl — that column is
+          // unpopulated (null for every loop), which silently rejected EVERY real-CV candidate.
+          const hasRealCV = !loop.user.resumeGenerated && !!loop.user.resumeUrl && loop.user.resumeUrl.includes('blob.vercel-storage');
           const decision = assess(g, { matched: bd.matched, total: bd.total, missingCore: qMissingCore, coreMatched: qCoreMatched }, loop.user.resumeText || '', listing.title, hasRealCV);
           Object.assign(qBreakdown, {
             profession: decision.extras.profession, english_req: decision.extras.english_req, english_level: decision.extras.english_level,
