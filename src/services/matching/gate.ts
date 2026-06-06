@@ -10,7 +10,9 @@ import OpenAI from 'openai';
 
 let _zai: OpenAI | null = null;
 function zai(): OpenAI {
-  if (!_zai) _zai = new OpenAI({ apiKey: process.env.ZAI_API_KEY || '', baseURL: 'https://api.z.ai/api/paas/v4', timeout: 12000, maxRetries: 1 });
+  // 20s + 2 retries (was 12s/1): the gate call timed out / rate-limited under matcher load ~95% of
+  // the time and fail-opened, dropping its profession/caveat verdict. More headroom lets it land.
+  if (!_zai) _zai = new OpenAI({ apiKey: process.env.ZAI_API_KEY || '', baseURL: 'https://api.z.ai/api/paas/v4', timeout: 20000, maxRetries: 2 });
   return _zai;
 }
 const MODEL = 'glm-4-32b-0414-128k';
