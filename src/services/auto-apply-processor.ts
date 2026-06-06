@@ -4,6 +4,7 @@ import { generateCoverLetter, generateSubjectLine, generateFollowUp } from '@/se
 import { generateRecruiterRationale } from '@/services/matching/recruiter-rationale';
 import { fetchResumeAttachment } from '@/lib/resume-attachment';
 import { isAiUnavailable } from '@/lib/ai-errors';
+import { looksLikeCompanyBrochure } from '@/lib/resume-quality';
 import { AutoApplyStatus, Prisma } from '@prisma/client';
 import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
@@ -795,6 +796,11 @@ interface ListingData {
  */
 // Cache AI match results per listing+skills combo (within one run)
 const aiMatchCache = new Map<string, { shouldApply: boolean; score: number; reason: string }>();
+// Cache the (separate, uncached) gate LLM call per listing+candidate-profile signature. Without it
+// every matched candidate fires a fresh runGate Z.ai call; under load these time out / rate-limit and
+// fail-open, so the gate's profession/caveat verdict was missing on ~95% of sends. Caching collapses
+// duplicate work (similar profiles → one call) and lifts how often the verdict actually persists.
+const gateCache = new Map<string, Awaited<ReturnType<typeof runGate>>>();
 
 /**
  * Cheap targeting pre-filter: decide whether a loop is even plausibly relevant to a listing
@@ -1050,6 +1056,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
   // CREATE PASS: queue applications for matched candidates up to budget (fairness order).
   let queued = 0;
   let gated = 0; // blocked by the hard gate (assess === NO)
+  let brochureSkipped = 0; // résumé was a company brochure / non-CV, not a personal CV
   let qParsedJD: ParsedJD | undefined; // parse the JD once per listing, reuse per candidate
   for (const m of matched) {
     if (queued >= budget) break;
@@ -1060,6 +1067,11 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     // language the candidate doesn't have would only be marked FAILED at send time anyway, after
     // we'd already paid for a generated letter. Skip it here so we never spend that AI call.
     if (missingRequiredLanguage(listing.title, loop.user.parsedProfile)) continue;
+
+    // Résumé-quality gate: don't apply on a "résumé" that's actually a company brochure / About-Us
+    // page (not a personal CV). The cover letter would be ungrounded and recruiters reply "share
+    // your CV". Runs INDEPENDENT of the AI gate (which frequently fails), so it always applies.
+    if (looksLikeCompanyBrochure(loop.user.resumeText, loop.user.name)) { brochureSkipped++; continue; }
 
     // Determine status based on loop mode
     const status =
@@ -1117,16 +1129,23 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
         // evidence bar. A NO blocks the send; its signals are merged into the breakdown so caveats
         // render on a SEND too. FAIL-OPEN: any gate error -> no block, send exactly as before.
         try {
-          const g = await runGate({
-            jobTitle: listing.title, jobDescription: listing.description, jobCountry: listing.country,
-            candidateTitle: typeof parsedProfile?.current_title === 'string' ? parsedProfile.current_title as string : undefined,
-            candidateField: typeof parsedProfile?.field === 'string' ? parsedProfile.field as string : undefined,
-            candidateYears: typeof parsedProfile?.experience_years === 'number' ? parsedProfile.experience_years as number : null,
-            candidateLocation: typeof parsedProfile?.location === 'string' ? parsedProfile.location as string : undefined,
-            candidateLanguages: (parsedProfile?.languages as string[]) || [],
-            candidateSkills: (parsedProfile?.skills as string[]) || [],
-            candidateCv: loop.user.resumeText || '',
-          });
+          const gTitle = typeof parsedProfile?.current_title === 'string' ? parsedProfile.current_title as string : undefined;
+          const gField = typeof parsedProfile?.field === 'string' ? parsedProfile.field as string : undefined;
+          const gYears = typeof parsedProfile?.experience_years === 'number' ? parsedProfile.experience_years as number : null;
+          const gLoc = typeof parsedProfile?.location === 'string' ? parsedProfile.location as string : undefined;
+          const gSkills = (parsedProfile?.skills as string[]) || [];
+          const gKey = `${listing.id}:${gTitle || ''}:${gField || ''}:${gYears ?? ''}:${gLoc || ''}:${gSkills.slice(0, 8).map((s) => String(s).toLowerCase()).sort().join(',')}`;
+          let g = gateCache.get(gKey);
+          if (!g) {
+            g = await runGate({
+              jobTitle: listing.title, jobDescription: listing.description, jobCountry: listing.country,
+              candidateTitle: gTitle, candidateField: gField, candidateYears: gYears, candidateLocation: gLoc,
+              candidateLanguages: (parsedProfile?.languages as string[]) || [],
+              candidateSkills: gSkills,
+              candidateCv: loop.user.resumeText || '',
+            });
+            gateCache.set(gKey, g);
+          }
           // Real CV = the SAME thing the send path actually attaches: a genuine uploaded résumé in
           // our Blob store, not a machine-generated one. Key off loop.user.resumeUrl (where the CV
           // really lives + what fetchResumeAttachment uses), NOT loop.resumeUrl — that column is
@@ -1265,9 +1284,9 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     }
   }
 
-  if (queued > 0 || gated > 0 || aiRejects.length > 0) {
+  if (queued > 0 || gated > 0 || aiRejects.length > 0 || brochureSkipped > 0) {
     console.log(
-      `[AutoApply] Queued ${queued}${gated > 0 ? `, gated ${gated}` : ''}${aiRejects.length ? `, ai-rejected ${aiRejects.length}` : ''} (assess=NO${ENFORCE_GATE ? '' : ', shadow'}) for ${listing.type} "${listing.title}"`
+      `[AutoApply] Queued ${queued}${gated > 0 ? `, gated ${gated}` : ''}${brochureSkipped > 0 ? `, brochure-skipped ${brochureSkipped}` : ''}${aiRejects.length ? `, ai-rejected ${aiRejects.length}` : ''} (assess=NO${ENFORCE_GATE ? '' : ', shadow'}) for ${listing.type} "${listing.title}"`
     );
   }
 
