@@ -144,9 +144,9 @@ export async function processAutoApplyQueue(): Promise<{
           resumeText: true,
           parsedProfile: true,
           resumeUrl: true,
+          resumeGenerated: true,
           resumeBase64: true,
           resumeFileName: true,
-          resumeGenerated: true,
           salaryExpectation: true,
           salaryExpectationAt: true,
           workPreference: true,
@@ -447,7 +447,8 @@ export async function processAutoApplyQueue(): Promise<{
       // null when the user has no real stored résumé (placeholder) → send without one.
       // CV-from-profile generation was retired: never attach a machine-built PDF
       // (resumeGenerated=true). Those users send without an attachment until they
-      // upload a real résumé (a real upload flips the flag back to false).
+      // upload a real résumé (a real upload flips the flag back to false). Strong no-CV
+      // matches still send as a cover letter with no attachment (owner decision 2026-06-06).
       const resumeAttachment = app.user.resumeGenerated
         ? null
         : await fetchResumeAttachment(app.user.resumeUrl, app.user.resumeFileName);
