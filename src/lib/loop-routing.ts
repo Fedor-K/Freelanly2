@@ -145,18 +145,23 @@ export function deriveCategorySlugs(input: {
   field?: string | null;
   skills?: string[];
 }): string[] {
-  const parts = [
-    ...(input.jobTitles || []),
-    input.currentTitle || '',
-    input.field || '',
-    ...(input.skills || []).slice(0, 15),
-  ];
-  const hay = ' ' + parts.join(' ').toLowerCase().replace(/[^a-z0-9+#./\- ]+/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
+  const norm = (s: string) => ' ' + s.toLowerCase().replace(/[^a-z0-9+#./\- ]+/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
+  // STRONG signal — the person's actual occupation/field (loop job titles + current title + field).
+  const titleHay = norm([...(input.jobTitles || []), input.currentTitle || '', input.field || ''].join(' '));
+  // WEAK signal — skills. A single skill is noisy (a developer lists "Figma"; a graphic designer
+  // lists "HTML"), so a skills-ONLY category needs ≥2 distinct trigger hits before we tag it. This
+  // kills the over-tagging that leaked candidates into wrong directions (a Graphic Designer tagged
+  // "engineering", a Full-Stack dev tagged "design/marketing/qa/security").
+  const skillHay = norm((input.skills || []).slice(0, 15).join(' '));
+  const hit = (t: string | RegExp, hay: string) => (typeof t === 'string' ? hay.includes(t) : t.test(hay));
   const out = new Set<string>();
   for (const [slug, triggers] of Object.entries(TRIGGERS)) {
-    for (const t of triggers) {
-      if (typeof t === 'string' ? hay.includes(t) : t.test(hay)) { out.add(slug); break; }
-    }
+    // Title/field names the direction → tag on a single hit (it IS their occupation).
+    if (triggers.some((t) => hit(t, titleHay))) { out.add(slug); continue; }
+    // Skills only → require two distinct triggers so one stray tool doesn't add a whole profession.
+    let n = 0;
+    for (const t of triggers) { if (hit(t, skillHay)) { n++; if (n >= 2) break; } }
+    if (n >= 2) out.add(slug);
   }
   return [...out];
 }
