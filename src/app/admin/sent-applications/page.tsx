@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { RefreshCw, Search, ChevronDown, ChevronRight, FileText, CheckCircle2, XCircle } from 'lucide-react';
 
-// Feed of SENT applications + the WHY: who applied, their CV, and the match reasoning
-// (matchScore/label + per-skill breakdown of what the candidate has vs the listing needs).
-// Mirror of /admin/imports, but for the outbound side.
+// Audit of processed pairings, GROUPED BY VACANCY. The list paginates by vacancy (jobTitle +
+// recruiter) with sent/rejected counts; a vacancy's individual candidates are lazy-loaded on expand.
 
 type Line = { label: string; status: string; source: string | null; evidence: string | null };
 type Row = {
@@ -41,6 +39,7 @@ type Row = {
   conversation: { from: string; text: string; attachmentUrl: string | null; at: string }[];
   recruiterReplied: boolean;
 };
+type Group = { jobTitle: string | null; recruiterEmail: string | null; sent: number; rejected: number; total: number; lastAt: string | null };
 
 const PERIODS = [
   { value: '6h', label: '6 часов' },
@@ -82,6 +81,8 @@ function labelColor(l: string | null): string {
   return 'bg-gray-100 text-gray-500';
 }
 
+const groupKey = (g: { jobTitle: string | null; recruiterEmail: string | null }) => `${g.jobTitle ?? ''}${g.recruiterEmail ?? ''}`;
+
 export default function SentApplicationsPage() {
   const [period, setPeriod] = useState('24h');
   const [label, setLabel] = useState('all');
@@ -90,42 +91,29 @@ export default function SentApplicationsPage() {
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
-  const [rows, setRows] = useState<Row[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [totalGroups, setTotalGroups] = useState(0);
+  const [groupsPerPage, setGroupsPerPage] = useState(40);
   const [total, setTotal] = useState(0);
   const [byLabel, setByLabel] = useState<Record<string, number>>({});
   const [byStatus, setByStatus] = useState<{ sent: number; rejected: number }>({ sent: 0, rejected: 0 });
   const [loading, setLoading] = useState(false);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
-  const limit = 250;
-
-  // Collapse consecutive REJECTED rows for the same vacancy+recruiter into one foldable group, so a
-  // matcher run's wall of ~80 "не прошёл AI-match" rejections doesn't bury the sent rows. Sent rows
-  // are never grouped. Groups start collapsed.
-  const groupInfo = useMemo(() => {
-    const m = new Map<string, { groupId: string; isFirst: boolean; size: number }>();
-    const keyOf = (r: Row) => `${r.jobTitle || ''}|${r.recruiterEmail || ''}`;
-    let i = 0;
-    while (i < rows.length) {
-      if (rows[i].sent) { i++; continue; }
-      const key = keyOf(rows[i]);
-      let j = i;
-      while (j < rows.length && !rows[j].sent && keyOf(rows[j]) === key) j++;
-      const size = j - i;
-      const groupId = rows[i].id;
-      for (let k = i; k < j; k++) m.set(rows[k].id, { groupId, isFirst: k === i, size });
-      i = j;
-    }
-    return m;
-  }, [rows]);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());        // per-candidate detail
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());     // which vacancy is expanded
+  const [groupRows, setGroupRows] = useState<Record<string, Row[]>>({});    // lazy-loaded candidates per vacancy
+  const [loadingGroups, setLoadingGroups] = useState<Set<string>>(new Set());
 
   async function fetchData() {
     setLoading(true);
+    setOpenGroups(new Set());
+    setGroupRows({});
     try {
-      const params = new URLSearchParams({ period, label, cv, status: statusF, search, page: String(page), limit: String(limit) });
+      const params = new URLSearchParams({ period, label, cv, status: statusF, search, page: String(page) });
       const r = await fetch(`/api/admin/sent-applications?${params.toString()}`);
       const d = await r.json();
-      setRows(d.rows || []);
+      setGroups(d.groups || []);
+      setTotalGroups(d.totalGroups || 0);
+      setGroupsPerPage(d.groupsPerPage || 40);
       setTotal(d.total || 0);
       setByLabel(d.byLabel || {});
       setByStatus(d.byStatus || { sent: 0, rejected: 0 });
@@ -144,18 +132,197 @@ export default function SentApplicationsPage() {
     setExpanded(next);
   }
 
-  function toggleGroup(id: string) {
+  async function fetchGroupRows(g: Group) {
+    const key = groupKey(g);
+    if (groupRows[key] || loadingGroups.has(key)) return;
+    setLoadingGroups((s) => new Set(s).add(key));
+    try {
+      const params = new URLSearchParams({ group: '1', gjt: g.jobTitle ?? '', gem: g.recruiterEmail ?? '', period, label, cv, status: statusF, search });
+      const r = await fetch(`/api/admin/sent-applications?${params.toString()}`);
+      const d = await r.json();
+      setGroupRows((m) => ({ ...m, [key]: d.rows || [] }));
+    } catch (e) {
+      console.error(e);
+      setGroupRows((m) => ({ ...m, [key]: [] }));
+    } finally {
+      setLoadingGroups((s) => { const n = new Set(s); n.delete(key); return n; });
+    }
+  }
+
+  function toggleGroup(g: Group) {
+    const key = groupKey(g);
     const next = new Set(openGroups);
-    if (next.has(id)) next.delete(id); else next.add(id);
+    if (next.has(key)) next.delete(key);
+    else { next.add(key); fetchGroupRows(g); }
     setOpenGroups(next);
   }
+
+  // One candidate row + its expandable detail. Reused for every lazy-loaded vacancy candidate.
+  function renderRow(r: Row) {
+    return (
+      <React.Fragment key={r.id}>
+        <tr className="border-b hover:bg-muted/40 cursor-pointer" onClick={() => toggle(r.id)}>
+          <td className="py-2 px-2 text-gray-400 pl-6">{expanded.has(r.id) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</td>
+          <td className="py-2 px-2 text-muted-foreground whitespace-nowrap">{timeAgo(r.at)}</td>
+          <td className="py-2 px-2">
+            <div className="font-medium">{r.candidate.name}</div>
+            <div className="text-xs text-muted-foreground truncate max-w-[14rem]">{r.candidate.title || '—'}{r.candidate.experienceYears ? ` · ${r.candidate.experienceYears}y` : ''}</div>
+          </td>
+          <td className="py-2 px-2 max-w-[16rem] truncate">{r.jobSlug ? <Link href={`/freelance/${r.jobSlug}`} target="_blank" className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>{r.jobTitle}</Link> : r.jobTitle || '—'}</td>
+          <td className="py-2 px-2 font-mono text-[11px] text-muted-foreground truncate max-w-[12rem]">{r.recruiterEmail || '—'}</td>
+          <td className="py-2 px-2 whitespace-nowrap">
+            {r.sent ? (
+              <>
+                <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${labelColor(r.matchLabel)}`}>{r.matchLabel || '—'}{r.matchScore != null ? ` ${r.matchScore}` : ''}</span>
+                {r.match && <span className="text-[11px] text-muted-foreground ml-1.5">{r.match.matched}/{r.match.total} скиллов</span>}
+              </>
+            ) : (
+              <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700" title={r.gateReason || ''}>Отклонено{r.gateReason ? `: ${r.gateReason}` : ''}</span>
+            )}
+          </td>
+          <td className="py-2 px-2">
+            {r.candidate.cvUrl
+              ? <span className="inline-flex items-center gap-1 text-green-600 text-xs"><FileText className="h-3.5 w-3.5" />CV</span>
+              : <span className="text-xs text-red-400">нет</span>}
+          </td>
+        </tr>
+        {expanded.has(r.id) && (
+          <tr className="bg-muted/30 border-b">
+            <td />
+            <td colSpan={6} className="py-3 px-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* WHY: match breakdown */}
+                <div>
+                  <div className="text-xs font-semibold mb-1.5 uppercase text-muted-foreground">{r.sent ? 'Почему отправили (матч скиллов)' : 'Решение по матчу скиллов'}</div>
+                  {!r.sent && <div className="text-xs mb-2 inline-block bg-rose-50 border border-rose-200 text-rose-800 rounded px-2 py-1">Не отправлено{r.gateReason ? ` — ${r.gateReason}` : ''}. Кавер-письмо не генерировалось.</div>}
+                  {r.match ? (
+                    <>
+                      <div className="text-xs text-muted-foreground mb-2">Совпало <b>{r.match.matched}</b> из <b>{r.match.total}</b> требуемых скиллов вакансии.</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {r.match.lines.map((l, i) => {
+                          const ok = l.status === 'full' || l.status === 'partial';
+                          return (
+                            <span key={i} className={`inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border ${ok ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-500'}`} title={l.evidence ? `evidence: ${l.evidence} (${l.source})` : 'не найдено в профиле/CV'}>
+                              {ok ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}{l.label}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">Нет сохранённого breakdown (старый отклик или матч без verifier). Оценка: {r.matchLabel || '—'} {r.matchScore ?? ''}.</div>
+                  )}
+
+                  {r.caveats && (
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${r.caveats.strength === 'Strong' ? 'bg-green-100 text-green-700' : r.caveats.strength === 'Good' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-700'}`}>{r.caveats.strength}</span>
+                      {r.caveats.items.map((cvIt, i) => (
+                        <span key={i} className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">⚠️ {cvIt}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  {(r.recruiterReasoning || (r.reasoning && r.reasoning.length > 0)) && (
+                    <div className="mt-3">
+                      <div className="text-xs font-semibold mb-1 uppercase text-muted-foreground">Как система решила</div>
+                      {r.recruiterReasoning ? (
+                        <p className="text-[12px] leading-relaxed text-foreground bg-muted/40 rounded p-2 whitespace-pre-line">{r.recruiterReasoning}</p>
+                      ) : (
+                        <ol className="space-y-0.5">
+                          {r.reasoning.map((s, i) => (
+                            <li key={i} className={`text-[11px] flex gap-1.5 ${s.kind === 'final' ? 'font-semibold text-foreground mt-1 pt-1 border-t border-dashed' : s.kind === 'warn' ? 'text-amber-800' : s.kind === 'ok' ? 'text-emerald-700' : 'text-muted-foreground'}`}>
+                              <span className="shrink-0">{s.kind === 'final' ? '→' : s.kind === 'warn' ? '⚠️' : s.kind === 'ok' ? '✓' : '·'}</span>
+                              <span>{s.text}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="text-xs font-semibold mt-3 mb-1.5 uppercase text-muted-foreground">Профиль кандидата</div>
+                  <div className="text-xs text-muted-foreground space-y-0.5">
+                    <div>Title: {r.candidate.title || '—'} · {r.candidate.location || '—'} · {r.candidate.experienceYears ? `${r.candidate.experienceYears} лет` : 'опыт ?'}</div>
+                    {r.candidate.languages.length > 0 && <div className="mt-1">Языки: <span className="text-foreground">{r.candidate.languages.join(', ')}</span></div>}
+                    <div className="flex flex-wrap gap-1 mt-1">{r.candidate.skills.map((s, i) => <span key={i} className="bg-gray-100 rounded px-1.5 py-0.5 text-[10px]">{s}</span>)}</div>
+                    {r.candidate.experience.length > 0 && (
+                      <div className="mt-2">
+                        <div className="font-semibold text-[10px] uppercase text-muted-foreground">Опыт работы (LinkedIn / резюме)</div>
+                        {r.candidate.experience.map((e, i) => (
+                          <div key={i} className="ml-1 mt-0.5">• <span className="text-foreground">{e.title || '—'}</span>{e.company ? ` @ ${e.company}` : ''}{e.dates ? ` · ${e.dates}` : ''}</div>
+                        ))}
+                      </div>
+                    )}
+                    {r.candidate.education.length > 0 && (
+                      <div className="mt-2">
+                        <div className="font-semibold text-[10px] uppercase text-muted-foreground">Образование</div>
+                        {r.candidate.education.map((e, i) => (
+                          <div key={i} className="ml-1 mt-0.5">• <span className="text-foreground">{e.degree || '—'}</span>{e.school ? ` — ${e.school}` : ''}{e.dates ? ` · ${e.dates}` : ''}</div>
+                        ))}
+                      </div>
+                    )}
+                    {r.candidate.certifications.length > 0 && <div className="mt-2">Сертификаты: <span className="text-foreground">{r.candidate.certifications.join(', ')}</span></div>}
+                    {r.candidate.linkedinUrl && (
+                      <div className="mt-1">LinkedIn: <a href={r.candidate.linkedinUrl.startsWith('http') ? r.candidate.linkedinUrl : `https://${r.candidate.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{r.candidate.linkedinUrl.replace(/^https?:\/\//, '')}</a></div>
+                    )}
+                    <div className="mt-1">
+                      CV: {r.candidate.cvUrl
+                        ? <a href={r.candidate.cvUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{r.candidate.cvName || 'resume.pdf'}</a>
+                        : <span className="text-red-400">не приложено</span>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vacancy text + the conversation */}
+                <div className="space-y-3">
+                  <div>
+                    <div className="text-xs font-semibold mb-1.5 uppercase text-muted-foreground">Текст вакансии{r.jobSlug && <Link href={`/freelance/${r.jobSlug}`} target="_blank" className="text-blue-600 hover:underline normal-case ml-2 font-normal">открыть →</Link>}</div>
+                    <div className="text-xs text-gray-700 whitespace-pre-wrap bg-amber-50 border border-amber-200 rounded p-2 max-h-72 overflow-auto">{r.jobDescription || '—'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold mb-1.5 uppercase text-muted-foreground flex items-center gap-2">
+                      Переписка с рекрутером
+                      {r.recruiterReplied
+                        ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700">рекрутер ответил</span>
+                        : r.sent && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">ответа пока нет</span>}
+                    </div>
+                    {r.conversation && r.conversation.length > 0 ? (
+                      <div className="space-y-1.5 max-h-96 overflow-auto pr-1">
+                        {r.conversation.map((m, i) => {
+                          const mine = m.from === 'user';
+                          const sys = m.from === 'system';
+                          return (
+                            <div key={i} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`max-w-[85%] rounded-lg px-2.5 py-1.5 text-xs whitespace-pre-wrap ${sys ? 'bg-gray-100 text-gray-600 italic' : mine ? 'bg-blue-50 border border-blue-200 text-gray-800' : 'bg-green-50 border border-green-200 text-gray-800'}`}>
+                                <div className="text-[9px] font-semibold uppercase mb-0.5 text-muted-foreground">{m.from === 'recruiter' ? 'Рекрутер' : m.from === 'system' ? 'Система' : 'Кандидат'} · {timeAgo(m.at)}</div>
+                                {m.text}
+                                {m.attachmentUrl && <div className="mt-1"><a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>📎 вложение</a></div>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-700 whitespace-pre-wrap bg-white border rounded p-2 max-h-72 overflow-auto">{r.sent ? (r.coverLetter || '—') : <span className="text-muted-foreground">Не отправлено — кавер не генерировался.</span>}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+        )}
+      </React.Fragment>
+    );
+  }
+
+  const totalPages = Math.max(1, Math.ceil(totalGroups / groupsPerPage));
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Обработанные заявки</h1>
-          <p className="text-sm text-muted-foreground">Все обработанные пары — <b>отправленные</b> и <b>отклонённые</b> (с причиной). Кто, кому и <b>почему</b>.</p>
+          <p className="text-sm text-muted-foreground">Сгруппировано <b>по вакансиям</b>. Раскрой вакансию — подгрузятся кандидаты (отправленные и отклонённые с причиной).</p>
         </div>
         <button onClick={fetchData} className="flex items-center gap-1 text-sm border rounded-lg px-3 py-1.5 hover:bg-muted">
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Обновить
@@ -164,7 +331,7 @@ export default function SentApplicationsPage() {
 
       {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        <Card><CardContent className="py-3"><div className="text-2xl font-bold">{total.toLocaleString('ru-RU')}</div><div className="text-xs text-muted-foreground">обработано за период</div></CardContent></Card>
+        <Card><CardContent className="py-3"><div className="text-2xl font-bold">{totalGroups.toLocaleString('ru-RU')}</div><div className="text-xs text-muted-foreground">вакансий</div></CardContent></Card>
         <Card><CardContent className="py-3"><div className="text-2xl font-bold text-emerald-700">{byStatus.sent.toLocaleString('ru-RU')}</div><div className="text-xs text-muted-foreground">отправлено</div></CardContent></Card>
         <Card><CardContent className="py-3"><div className="text-2xl font-bold text-rose-700">{byStatus.rejected.toLocaleString('ru-RU')}</div><div className="text-xs text-muted-foreground">отклонено</div></CardContent></Card>
         {['Strong', 'Good', 'Weak'].map((l) => (
@@ -217,188 +384,39 @@ export default function SentApplicationsPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => {
-                const gi = groupInfo.get(r.id);
-                const grouped = !!gi && gi.size > 1;
-                const groupOpen = grouped ? openGroups.has(gi!.groupId) : true;
-                // Hidden member of a collapsed reject group.
-                if (grouped && !gi!.isFirst && !groupOpen) return null;
+              {groups.map((g) => {
+                const key = groupKey(g);
+                const open = openGroups.has(key);
+                const gr = groupRows[key];
+                const isLoading = loadingGroups.has(key);
                 return (
-                <React.Fragment key={r.id}>
-                  {grouped && gi!.isFirst && (
-                    <tr className="border-b bg-rose-50/60 cursor-pointer hover:bg-rose-100/60" onClick={() => toggleGroup(gi!.groupId)}>
-                      <td className="py-1.5 px-2 text-rose-400">{groupOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</td>
-                      <td colSpan={6} className="py-1.5 px-2 text-xs">
-                        <span className="font-semibold text-rose-700">✕ {gi!.size} отклонено</span>
-                        <span className="text-muted-foreground"> · {r.jobTitle || '—'}</span>
-                        <span className="font-mono text-[10px] text-muted-foreground"> · {r.recruiterEmail || '—'}</span>
-                        <span className="text-muted-foreground ml-1">{groupOpen ? '— свернуть' : '— раскрыть'}</span>
+                  <React.Fragment key={key}>
+                    <tr className="border-b bg-muted/30 cursor-pointer hover:bg-muted/60" onClick={() => toggleGroup(g)}>
+                      <td className="py-2 px-2 text-gray-500">{open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</td>
+                      <td className="py-2 px-2 text-muted-foreground whitespace-nowrap text-xs">{timeAgo(g.lastAt)}</td>
+                      <td colSpan={3} className="py-2 px-2">
+                        <span className="font-semibold">{g.jobTitle || '—'}</span>
+                        <span className="font-mono text-[11px] text-muted-foreground ml-2">{g.recruiterEmail || '—'}</span>
+                      </td>
+                      <td colSpan={2} className="py-2 px-2 whitespace-nowrap">
+                        {g.sent > 0 && <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">✓ {g.sent} отправлено</span>}
+                        {g.rejected > 0 && <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 ml-1.5">✕ {g.rejected} отклонено</span>}
                       </td>
                     </tr>
-                  )}
-                  {(!grouped || groupOpen) && (
-                  <>
-                  <tr className="border-b hover:bg-muted/40 cursor-pointer" onClick={() => toggle(r.id)}>
-                    <td className="py-2 px-2 text-gray-400">{expanded.has(r.id) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</td>
-                    <td className="py-2 px-2 text-muted-foreground whitespace-nowrap">{timeAgo(r.at)}</td>
-                    <td className="py-2 px-2">
-                      <div className="font-medium">{r.candidate.name}</div>
-                      <div className="text-xs text-muted-foreground truncate max-w-[14rem]">{r.candidate.title || '—'}{r.candidate.experienceYears ? ` · ${r.candidate.experienceYears}y` : ''}</div>
-                    </td>
-                    <td className="py-2 px-2 max-w-[16rem] truncate">{r.jobSlug ? <Link href={`/freelance/${r.jobSlug}`} target="_blank" className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>{r.jobTitle}</Link> : r.jobTitle || '—'}</td>
-                    <td className="py-2 px-2 font-mono text-[11px] text-muted-foreground truncate max-w-[12rem]">{r.recruiterEmail || '—'}</td>
-                    <td className="py-2 px-2 whitespace-nowrap">
-                      {r.sent ? (
-                        <>
-                          <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${labelColor(r.matchLabel)}`}>{r.matchLabel || '—'}{r.matchScore != null ? ` ${r.matchScore}` : ''}</span>
-                          {r.match && <span className="text-[11px] text-muted-foreground ml-1.5">{r.match.matched}/{r.match.total} скиллов</span>}
-                        </>
-                      ) : (
-                        <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-rose-100 text-rose-700" title={r.gateReason || ''}>Отклонено{r.gateReason ? `: ${r.gateReason}` : ''}</span>
-                      )}
-                    </td>
-                    <td className="py-2 px-2">
-                      {r.candidate.cvUrl
-                        ? <span className="inline-flex items-center gap-1 text-green-600 text-xs"><FileText className="h-3.5 w-3.5" />CV</span>
-                        : <span className="text-xs text-red-400">нет</span>}
-                    </td>
-                  </tr>
-                  {expanded.has(r.id) && (
-                    <tr className="bg-muted/30 border-b">
-                      <td />
-                      <td colSpan={6} className="py-3 px-4">
-                        <div className="grid md:grid-cols-2 gap-4">
-                          {/* WHY: match breakdown */}
-                          <div>
-                            <div className="text-xs font-semibold mb-1.5 uppercase text-muted-foreground">{r.sent ? 'Почему отправили (матч скиллов)' : 'Решение по матчу скиллов'}</div>
-                            {!r.sent && <div className="text-xs mb-2 inline-block bg-rose-50 border border-rose-200 text-rose-800 rounded px-2 py-1">Не отправлено{r.gateReason ? ` — ${r.gateReason}` : ''}. Кавер-письмо не генерировалось.</div>}
-                            {r.match ? (
-                              <>
-                                <div className="text-xs text-muted-foreground mb-2">Совпало <b>{r.match.matched}</b> из <b>{r.match.total}</b> требуемых скиллов вакансии.</div>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {r.match.lines.map((l, i) => {
-                                    const ok = l.status === 'full' || l.status === 'partial';
-                                    return (
-                                      <span key={i} className={`inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border ${ok ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-500'}`} title={l.evidence ? `evidence: ${l.evidence} (${l.source})` : 'не найдено в профиле/CV'}>
-                                        {ok ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}{l.label}
-                                      </span>
-                                    );
-                                  })}
-                                </div>
-                              </>
-                            ) : (
-                              <div className="text-xs text-muted-foreground">Нет сохранённого breakdown (старый отклик или матч без verifier). Оценка: {r.matchLabel || '—'} {r.matchScore ?? ''}.</div>
-                            )}
-
-                            {r.caveats && (
-                              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${r.caveats.strength === 'Strong' ? 'bg-green-100 text-green-700' : r.caveats.strength === 'Good' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-700'}`}>{r.caveats.strength}</span>
-                                {r.caveats.items.map((cv, i) => (
-                                  <span key={i} className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">⚠️ {cv}</span>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* HOW we decided to send. Recruiter-voice judgement (LLM, send-time) when
-                                available; otherwise the deterministic gate trail (older records). */}
-                            {(r.recruiterReasoning || (r.reasoning && r.reasoning.length > 0)) && (
-                              <div className="mt-3">
-                                <div className="text-xs font-semibold mb-1 uppercase text-muted-foreground">Как система решила</div>
-                                {r.recruiterReasoning ? (
-                                  <p className="text-[12px] leading-relaxed text-foreground bg-muted/40 rounded p-2 whitespace-pre-line">{r.recruiterReasoning}</p>
-                                ) : (
-                                  <ol className="space-y-0.5">
-                                    {r.reasoning.map((s, i) => (
-                                      <li key={i} className={`text-[11px] flex gap-1.5 ${s.kind === 'final' ? 'font-semibold text-foreground mt-1 pt-1 border-t border-dashed' : s.kind === 'warn' ? 'text-amber-800' : s.kind === 'ok' ? 'text-emerald-700' : 'text-muted-foreground'}`}>
-                                        <span className="shrink-0">{s.kind === 'final' ? '→' : s.kind === 'warn' ? '⚠️' : s.kind === 'ok' ? '✓' : '·'}</span>
-                                        <span>{s.text}</span>
-                                      </li>
-                                    ))}
-                                  </ol>
-                                )}
-                              </div>
-                            )}
-
-                            <div className="text-xs font-semibold mt-3 mb-1.5 uppercase text-muted-foreground">Профиль кандидата</div>
-                            <div className="text-xs text-muted-foreground space-y-0.5">
-                              <div>Title: {r.candidate.title || '—'} · {r.candidate.location || '—'} · {r.candidate.experienceYears ? `${r.candidate.experienceYears} лет` : 'опыт ?'}</div>
-                              {r.candidate.languages.length > 0 && <div className="mt-1">Языки: <span className="text-foreground">{r.candidate.languages.join(', ')}</span></div>}
-                              <div className="flex flex-wrap gap-1 mt-1">{r.candidate.skills.map((s, i) => <span key={i} className="bg-gray-100 rounded px-1.5 py-0.5 text-[10px]">{s}</span>)}</div>
-                              {r.candidate.experience.length > 0 && (
-                                <div className="mt-2">
-                                  <div className="font-semibold text-[10px] uppercase text-muted-foreground">Опыт работы (LinkedIn / резюме)</div>
-                                  {r.candidate.experience.map((e, i) => (
-                                    <div key={i} className="ml-1 mt-0.5">• <span className="text-foreground">{e.title || '—'}</span>{e.company ? ` @ ${e.company}` : ''}{e.dates ? ` · ${e.dates}` : ''}</div>
-                                  ))}
-                                </div>
-                              )}
-                              {r.candidate.education.length > 0 && (
-                                <div className="mt-2">
-                                  <div className="font-semibold text-[10px] uppercase text-muted-foreground">Образование</div>
-                                  {r.candidate.education.map((e, i) => (
-                                    <div key={i} className="ml-1 mt-0.5">• <span className="text-foreground">{e.degree || '—'}</span>{e.school ? ` — ${e.school}` : ''}{e.dates ? ` · ${e.dates}` : ''}</div>
-                                  ))}
-                                </div>
-                              )}
-                              {r.candidate.certifications.length > 0 && <div className="mt-2">Сертификаты: <span className="text-foreground">{r.candidate.certifications.join(', ')}</span></div>}
-                              {r.candidate.linkedinUrl && (
-                                <div className="mt-1">LinkedIn: <a href={r.candidate.linkedinUrl.startsWith('http') ? r.candidate.linkedinUrl : `https://${r.candidate.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{r.candidate.linkedinUrl.replace(/^https?:\/\//, '')}</a></div>
-                              )}
-                              <div className="mt-1">
-                                CV: {r.candidate.cvUrl
-                                  ? <a href={r.candidate.cvUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{r.candidate.cvName || 'resume.pdf'}</a>
-                                  : <span className="text-red-400">не приложено</span>}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Vacancy text + the actual application text */}
-                          <div className="space-y-3">
-                            <div>
-                              <div className="text-xs font-semibold mb-1.5 uppercase text-muted-foreground">Текст вакансии{r.jobSlug && <Link href={`/freelance/${r.jobSlug}`} target="_blank" className="text-blue-600 hover:underline normal-case ml-2 font-normal">открыть →</Link>}</div>
-                              <div className="text-xs text-gray-700 whitespace-pre-wrap bg-amber-50 border border-amber-200 rounded p-2 max-h-72 overflow-auto">{r.jobDescription || '—'}</div>
-                            </div>
-                            <div>
-                              <div className="text-xs font-semibold mb-1.5 uppercase text-muted-foreground flex items-center gap-2">
-                                Переписка с рекрутером
-                                {r.recruiterReplied
-                                  ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700">рекрутер ответил</span>
-                                  : r.sent && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">ответа пока нет</span>}
-                              </div>
-                              {r.conversation && r.conversation.length > 0 ? (
-                                <div className="space-y-1.5 max-h-96 overflow-auto pr-1">
-                                  {r.conversation.map((m, i) => {
-                                    const mine = m.from === 'user';
-                                    const sys = m.from === 'system';
-                                    return (
-                                      <div key={i} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[85%] rounded-lg px-2.5 py-1.5 text-xs whitespace-pre-wrap ${sys ? 'bg-gray-100 text-gray-600 italic' : mine ? 'bg-blue-50 border border-blue-200 text-gray-800' : 'bg-green-50 border border-green-200 text-gray-800'}`}>
-                                          <div className="text-[9px] font-semibold uppercase mb-0.5 text-muted-foreground">{m.from === 'recruiter' ? 'Рекрутер' : m.from === 'system' ? 'Система' : 'Кандидат'} · {timeAgo(m.at)}</div>
-                                          {m.text}
-                                          {m.attachmentUrl && <div className="mt-1"><a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>📎 вложение</a></div>}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              ) : (
-                                <div className="text-xs text-gray-700 whitespace-pre-wrap bg-white border rounded p-2 max-h-72 overflow-auto">{r.sent ? (r.coverLetter || '—') : <span className="text-muted-foreground">Не отправлено — кавер не генерировался.</span>}</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                  </>
-                  )}
-                </React.Fragment>
+                    {open && (
+                      isLoading && !gr
+                        ? <tr><td /><td colSpan={6} className="py-3 px-4 text-muted-foreground text-xs">Загрузка кандидатов…</td></tr>
+                        : gr && gr.length
+                          ? gr.map((r) => renderRow(r))
+                          : <tr><td /><td colSpan={6} className="py-3 px-4 text-muted-foreground text-xs">Нет кандидатов</td></tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
-              {!rows.length && !loading && (
-                <tr><td colSpan={7} className="py-10 text-center text-muted-foreground">Нет отправленных заявок за период</td></tr>
+              {!groups.length && !loading && (
+                <tr><td colSpan={7} className="py-10 text-center text-muted-foreground">Нет обработанных вакансий за период</td></tr>
               )}
-              {loading && !rows.length && (
+              {loading && !groups.length && (
                 <tr><td colSpan={7} className="py-10 text-center text-muted-foreground">Загрузка…</td></tr>
               )}
             </tbody>
@@ -406,12 +424,12 @@ export default function SentApplicationsPage() {
         </CardContent>
       </Card>
 
-      {/* Pager */}
-      {total > limit && (
+      {/* Pager — by vacancy */}
+      {totalGroups > groupsPerPage && (
         <div className="flex items-center justify-center gap-3 text-sm">
           <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="px-3 py-1.5 border rounded-lg disabled:opacity-40">← Назад</button>
-          <span>стр. {page} из {Math.ceil(total / limit)}</span>
-          <button disabled={page >= Math.ceil(total / limit)} onClick={() => setPage((p) => p + 1)} className="px-3 py-1.5 border rounded-lg disabled:opacity-40">Вперёд →</button>
+          <span>стр. {page} из {totalPages} · {totalGroups.toLocaleString('ru-RU')} вакансий</span>
+          <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="px-3 py-1.5 border rounded-lg disabled:opacity-40">Вперёд →</button>
         </div>
       )}
     </div>
