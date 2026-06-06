@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -96,7 +96,28 @@ export default function SentApplicationsPage() {
   const [byStatus, setByStatus] = useState<{ sent: number; rejected: number }>({ sent: 0, rejected: 0 });
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
   const limit = 250;
+
+  // Collapse consecutive REJECTED rows for the same vacancy+recruiter into one foldable group, so a
+  // matcher run's wall of ~80 "не прошёл AI-match" rejections doesn't bury the sent rows. Sent rows
+  // are never grouped. Groups start collapsed.
+  const groupInfo = useMemo(() => {
+    const m = new Map<string, { groupId: string; isFirst: boolean; size: number }>();
+    const keyOf = (r: Row) => `${r.jobTitle || ''}|${r.recruiterEmail || ''}`;
+    let i = 0;
+    while (i < rows.length) {
+      if (rows[i].sent) { i++; continue; }
+      const key = keyOf(rows[i]);
+      let j = i;
+      while (j < rows.length && !rows[j].sent && keyOf(rows[j]) === key) j++;
+      const size = j - i;
+      const groupId = rows[i].id;
+      for (let k = i; k < j; k++) m.set(rows[k].id, { groupId, isFirst: k === i, size });
+      i = j;
+    }
+    return m;
+  }, [rows]);
 
   async function fetchData() {
     setLoading(true);
@@ -121,6 +142,12 @@ export default function SentApplicationsPage() {
     const next = new Set(expanded);
     if (next.has(id)) next.delete(id); else next.add(id);
     setExpanded(next);
+  }
+
+  function toggleGroup(id: string) {
+    const next = new Set(openGroups);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setOpenGroups(next);
   }
 
   return (
@@ -190,8 +217,27 @@ export default function SentApplicationsPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {rows.map((r) => {
+                const gi = groupInfo.get(r.id);
+                const grouped = !!gi && gi.size > 1;
+                const groupOpen = grouped ? openGroups.has(gi!.groupId) : true;
+                // Hidden member of a collapsed reject group.
+                if (grouped && !gi!.isFirst && !groupOpen) return null;
+                return (
                 <React.Fragment key={r.id}>
+                  {grouped && gi!.isFirst && (
+                    <tr className="border-b bg-rose-50/60 cursor-pointer hover:bg-rose-100/60" onClick={() => toggleGroup(gi!.groupId)}>
+                      <td className="py-1.5 px-2 text-rose-400">{groupOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</td>
+                      <td colSpan={6} className="py-1.5 px-2 text-xs">
+                        <span className="font-semibold text-rose-700">✕ {gi!.size} отклонено</span>
+                        <span className="text-muted-foreground"> · {r.jobTitle || '—'}</span>
+                        <span className="font-mono text-[10px] text-muted-foreground"> · {r.recruiterEmail || '—'}</span>
+                        <span className="text-muted-foreground ml-1">{groupOpen ? '— свернуть' : '— раскрыть'}</span>
+                      </td>
+                    </tr>
+                  )}
+                  {(!grouped || groupOpen) && (
+                  <>
                   <tr className="border-b hover:bg-muted/40 cursor-pointer" onClick={() => toggle(r.id)}>
                     <td className="py-2 px-2 text-gray-400">{expanded.has(r.id) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</td>
                     <td className="py-2 px-2 text-muted-foreground whitespace-nowrap">{timeAgo(r.at)}</td>
@@ -344,8 +390,11 @@ export default function SentApplicationsPage() {
                       </td>
                     </tr>
                   )}
+                  </>
+                  )}
                 </React.Fragment>
-              ))}
+                );
+              })}
               {!rows.length && !loading && (
                 <tr><td colSpan={7} className="py-10 text-center text-muted-foreground">Нет отправленных заявок за период</td></tr>
               )}
