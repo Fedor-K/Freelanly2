@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { isAiUnavailable } from '@/lib/ai-errors';
 
 // AI Provider — Z.ai (GLM-4-32B) only
 let _zai: OpenAI | null = null;
@@ -363,8 +364,11 @@ Write the complete email now.`;
     }
     return softenTemplate(softenOverpromise(content));
   } catch (error) {
+    // FAIL CLOSED when the provider is down / out of balance: propagate so the matcher skips this
+    // pairing and retries later, instead of emailing a recruiter a generic blind template.
+    if (isAiUnavailable(error)) throw error;
     console.error('[CoverLetterGenerator] AI generation failed:', error);
-    // Minimal fallback
+    // Minimal fallback (transient/other non-availability errors only)
     const topSkills = userProfile.skills.slice(0, 3).join(', ');
     return `Hi there,\n\nI saw your post for ${jobTitle}. I have experience with ${topSkills} and would love to discuss how I can help. Happy to chat anytime.\n\n${userProfile.name}`;
   }

@@ -3,6 +3,7 @@ import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { generateCoverLetter, generateSubjectLine, generateFollowUp } from '@/services/cover-letter-generator';
 import { generateRecruiterRationale } from '@/services/matching/recruiter-rationale';
 import { fetchResumeAttachment } from '@/lib/resume-attachment';
+import { isAiUnavailable } from '@/lib/ai-errors';
 import { AutoApplyStatus, Prisma } from '@prisma/client';
 import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
@@ -1028,8 +1029,11 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           const r = await aiMatchCheck(listing, c.userSkills, (c.loop.user as any).resumeText || '', (c.loop.user as any).name || 'Applicant', c.userLangs, c.userLoc, c.userTitle, c.userField);
           aiMatchCache.set(cacheKey, r);
           return r;
-        } catch {
-          return null; // AI failed — skip rather than send bad match
+        } catch (e) {
+          // AI down / out of balance → abort the whole opportunity so it RETRIES on a later run
+          // (leaving matchedAt NULL), instead of being marked done with 0 matches and lost.
+          if (isAiUnavailable(e)) throw e;
+          return null; // other AI failure — skip this candidate rather than send a bad match
         }
       })
     );
@@ -1135,9 +1139,9 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
             location_flag: decision.extras.location_flag, location_detail: decision.extras.location_detail, gateReason: decision.reason,
           });
           if (ENFORCE_GATE && decision.decision === 'NO') gateBlocked = true;
-        } catch { /* gate failed -> fail-open, no block */ }
+        } catch (e) { if (isAiUnavailable(e)) throw e; /* non-AI gate failure -> fail-open, no block */ }
         qVerdict = breakdownToVerdict(qBreakdown);
-      } catch { /* fail-open: no verdict, letter still generated */ }
+      } catch (e) { if (isAiUnavailable(e)) throw e; /* non-AI failure -> fail-open: no verdict, letter still generated */ }
       if (gateBlocked) {
         gated++;
         // Persist the REJECTED decision so the admin audit shows EVERY processed pairing, not just
@@ -1185,6 +1189,9 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
         generateSubjectLine({ jobTitle: listing.title, userName: loop.user.name || 'Applicant' }),
       ]);
     } catch (e) {
+      // AI down / out of balance → abort the opportunity (retry next run). NEVER fall through to
+      // queue a pairing with no/blind cover letter when the provider is unavailable.
+      if (isAiUnavailable(e)) throw e;
       console.error(`[AutoApply] Failed to pre-generate cover letter for ${listing.title}:`, e);
     }
 
