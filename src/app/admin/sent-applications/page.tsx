@@ -38,6 +38,8 @@ type Row = {
   reasoning: { kind: 'info' | 'ok' | 'warn' | 'final'; text: string }[];
   recruiterReasoning: string | null;
   coverLetter: string | null;
+  conversation: { from: string; text: string; attachmentUrl: string | null; at: string }[];
+  recruiterReplied: boolean;
 };
 
 const PERIODS = [
@@ -311,8 +313,31 @@ export default function SentApplicationsPage() {
                               <div className="text-xs text-gray-700 whitespace-pre-wrap bg-amber-50 border border-amber-200 rounded p-2 max-h-72 overflow-auto">{r.jobDescription || '—'}</div>
                             </div>
                             <div>
-                              <div className="text-xs font-semibold mb-1.5 uppercase text-muted-foreground">Текст отклика (cover letter)</div>
-                              <div className="text-xs text-gray-700 whitespace-pre-wrap bg-white border rounded p-2 max-h-72 overflow-auto">{r.sent ? (r.coverLetter || '—') : <span className="text-muted-foreground">Не отправлено — кавер не генерировался.</span>}</div>
+                              <div className="text-xs font-semibold mb-1.5 uppercase text-muted-foreground flex items-center gap-2">
+                                Переписка с рекрутером
+                                {r.recruiterReplied
+                                  ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700">рекрутер ответил</span>
+                                  : r.sent && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">ответа пока нет</span>}
+                              </div>
+                              {r.conversation && r.conversation.length > 0 ? (
+                                <div className="space-y-1.5 max-h-96 overflow-auto pr-1">
+                                  {r.conversation.map((m, i) => {
+                                    const mine = m.from === 'user';
+                                    const sys = m.from === 'system';
+                                    return (
+                                      <div key={i} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`max-w-[85%] rounded-lg px-2.5 py-1.5 text-xs whitespace-pre-wrap ${sys ? 'bg-gray-100 text-gray-600 italic' : mine ? 'bg-blue-50 border border-blue-200 text-gray-800' : 'bg-green-50 border border-green-200 text-gray-800'}`}>
+                                          <div className="text-[9px] font-semibold uppercase mb-0.5 text-muted-foreground">{m.from === 'recruiter' ? 'Рекрутер' : m.from === 'system' ? 'Система' : 'Кандидат'} · {timeAgo(m.at)}</div>
+                                          {m.text}
+                                          {m.attachmentUrl && <div className="mt-1"><a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>📎 вложение</a></div>}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="text-xs text-gray-700 whitespace-pre-wrap bg-white border rounded p-2 max-h-72 overflow-auto">{r.sent ? (r.coverLetter || '—') : <span className="text-muted-foreground">Не отправлено — кавер не генерировался.</span>}</div>
+                              )}
                             </div>
                           </div>
                         </div>

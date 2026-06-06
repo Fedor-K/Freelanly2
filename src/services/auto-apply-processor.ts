@@ -3,6 +3,7 @@ import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { generateCoverLetter, generateSubjectLine, generateFollowUp } from '@/services/cover-letter-generator';
 import { generateRecruiterRationale } from '@/services/matching/recruiter-rationale';
 import { fetchResumeAttachment } from '@/lib/resume-attachment';
+import { isAiUnavailable } from '@/lib/ai-errors';
 import { AutoApplyStatus, Prisma } from '@prisma/client';
 import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
@@ -144,9 +145,9 @@ export async function processAutoApplyQueue(): Promise<{
           resumeText: true,
           parsedProfile: true,
           resumeUrl: true,
+          resumeGenerated: true,
           resumeBase64: true,
           resumeFileName: true,
-          resumeGenerated: true,
           salaryExpectation: true,
           salaryExpectationAt: true,
           workPreference: true,
@@ -447,7 +448,8 @@ export async function processAutoApplyQueue(): Promise<{
       // null when the user has no real stored résumé (placeholder) → send without one.
       // CV-from-profile generation was retired: never attach a machine-built PDF
       // (resumeGenerated=true). Those users send without an attachment until they
-      // upload a real résumé (a real upload flips the flag back to false).
+      // upload a real résumé (a real upload flips the flag back to false). Strong no-CV
+      // matches still send as a cover letter with no attachment (owner decision 2026-06-06).
       const resumeAttachment = app.user.resumeGenerated
         ? null
         : await fetchResumeAttachment(app.user.resumeUrl, app.user.resumeFileName);
@@ -852,6 +854,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           email: true,
           parsedProfile: true,
           resumeText: true,
+          resumeUrl: true,
           resumeGenerated: true,
           workPreference: true,
           bookingUrl: true,
@@ -1026,8 +1029,11 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           const r = await aiMatchCheck(listing, c.userSkills, (c.loop.user as any).resumeText || '', (c.loop.user as any).name || 'Applicant', c.userLangs, c.userLoc, c.userTitle, c.userField);
           aiMatchCache.set(cacheKey, r);
           return r;
-        } catch {
-          return null; // AI failed — skip rather than send bad match
+        } catch (e) {
+          // AI down / out of balance → abort the whole opportunity so it RETRIES on a later run
+          // (leaving matchedAt NULL), instead of being marked done with 0 matches and lost.
+          if (isAiUnavailable(e)) throw e;
+          return null; // other AI failure — skip this candidate rather than send a bad match
         }
       })
     );
@@ -1121,7 +1127,11 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
             candidateSkills: (parsedProfile?.skills as string[]) || [],
             candidateCv: loop.user.resumeText || '',
           });
-          const hasRealCV = !!loop.resumeUrl && !loop.user.resumeGenerated;
+          // Real CV = the SAME thing the send path actually attaches: a genuine uploaded résumé in
+          // our Blob store, not a machine-generated one. Key off loop.user.resumeUrl (where the CV
+          // really lives + what fetchResumeAttachment uses), NOT loop.resumeUrl — that column is
+          // unpopulated (null for every loop), which silently rejected EVERY real-CV candidate.
+          const hasRealCV = !loop.user.resumeGenerated && !!loop.user.resumeUrl && loop.user.resumeUrl.includes('blob.vercel-storage');
           const decision = assess(g, { matched: bd.matched, total: bd.total, missingCore: qMissingCore, coreMatched: qCoreMatched }, loop.user.resumeText || '', listing.title, hasRealCV);
           Object.assign(qBreakdown, {
             profession: decision.extras.profession, english_req: decision.extras.english_req, english_level: decision.extras.english_level,
@@ -1129,9 +1139,9 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
             location_flag: decision.extras.location_flag, location_detail: decision.extras.location_detail, gateReason: decision.reason,
           });
           if (ENFORCE_GATE && decision.decision === 'NO') gateBlocked = true;
-        } catch { /* gate failed -> fail-open, no block */ }
+        } catch (e) { if (isAiUnavailable(e)) throw e; /* non-AI gate failure -> fail-open, no block */ }
         qVerdict = breakdownToVerdict(qBreakdown);
-      } catch { /* fail-open: no verdict, letter still generated */ }
+      } catch (e) { if (isAiUnavailable(e)) throw e; /* non-AI failure -> fail-open: no verdict, letter still generated */ }
       if (gateBlocked) {
         gated++;
         // Persist the REJECTED decision so the admin audit shows EVERY processed pairing, not just
@@ -1179,6 +1189,9 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
         generateSubjectLine({ jobTitle: listing.title, userName: loop.user.name || 'Applicant' }),
       ]);
     } catch (e) {
+      // AI down / out of balance → abort the opportunity (retry next run). NEVER fall through to
+      // queue a pairing with no/blind cover letter when the provider is unavailable.
+      if (isAiUnavailable(e)) throw e;
       console.error(`[AutoApply] Failed to pre-generate cover letter for ${listing.title}:`, e);
     }
 
