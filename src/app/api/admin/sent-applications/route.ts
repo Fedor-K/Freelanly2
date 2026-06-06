@@ -92,6 +92,23 @@ export async function GET(request: NextRequest) {
     : [];
   const oppMap = new Map(opps.map((o) => [o.id, o]));
 
+  // Full recruiter conversation thread per application (cover letter seeded as from:'user' at send,
+  // recruiter replies as from:'recruiter', follow-ups/system as from:'system'). Ordered oldest→newest.
+  const appIds = apps.map((a) => a.id);
+  const messages = appIds.length
+    ? await prisma.message.findMany({
+        where: { applicationId: { in: appIds } },
+        orderBy: { createdAt: 'asc' },
+        select: { applicationId: true, from: true, text: true, attachmentUrl: true, createdAt: true },
+      })
+    : [];
+  const msgMap = new Map<string, { from: string; text: string; attachmentUrl: string | null; at: string }[]>();
+  for (const m of messages) {
+    const arr = msgMap.get(m.applicationId) ?? [];
+    arr.push({ from: m.from, text: (m.text || '').slice(0, 4000), attachmentUrl: m.attachmentUrl || null, at: m.createdAt.toISOString() });
+    msgMap.set(m.applicationId, arr);
+  }
+
   const rows = apps.map((a) => {
     const prof = (a.user?.parsedProfile ?? {}) as Record<string, unknown>;
     const arr = (v: unknown) => (Array.isArray(v) ? (v as unknown[]).map(String) : []);
@@ -150,6 +167,8 @@ export async function GET(request: NextRequest) {
           }
         : null,
       coverLetter: a.coverLetter ? a.coverLetter.slice(0, 2000) : null,
+      conversation: msgMap.get(a.id) ?? [],
+      recruiterReplied: (msgMap.get(a.id) ?? []).some((m) => m.from === 'recruiter'),
       caveats: computeCaveats(a.matchBreakdown),   // { strength, items[] } | null — honest borderline flags
       reasoning: explainDecision(a.matchBreakdown, { sent, gateReason: typeof bdFull.gateReason === 'string' ? bdFull.gateReason : null }), // deterministic gate trail (fallback for records w/o LLM rationale)
       recruiterReasoning: (typeof (a.matchBreakdown as Record<string, unknown> | null)?.recruiterReasoning === 'string'
