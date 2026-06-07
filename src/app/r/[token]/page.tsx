@@ -2,9 +2,10 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { prisma } from '@/lib/db';
 import { computeCaveats } from '@/lib/match-caveats';
+import { cleanReplyText } from '@/lib/clean-reply';
 import { verifyRecruiterToken } from '@/lib/recruiter-token';
-import { RecruiterInboxClient, type RecruiterCandidate } from '@/components/recruiter/RecruiterInboxClient';
-import { RecruiterFeedback } from '@/components/recruiter/RecruiterFeedback';
+import { RecruiterCabinet } from '@/components/recruiter/cabinet/RecruiterCabinet';
+import type { RecruiterCandidate, RecruiterInfo } from '@/components/recruiter/cabinet/lib';
 import { hasRenderableCv, type CvProfile } from '@/lib/recruiter-cv';
 import '../../design-app.css';
 import '../recruiter.css';
@@ -60,9 +61,8 @@ function topJobTitle(apps: { jobTitle: string }[]): string {
 }
 
 // Only show candidates from AFTER the matcher-quality fix went live. Pre-fix (legacy)
-// applications were scored by the old buggy matcher (e.g. a Java dev shown for a
-// "Medical Interpreter" role) — rather than re-score that backlog, we simply don't show it.
-// Move this date earlier to surface more history once the legacy backlog is trustworthy.
+// applications were scored by the old buggy matcher — rather than re-score that backlog, we
+// don't show it. Move this date earlier to surface more history once it's trustworthy.
 const MATCHER_FIX_CUTOFF = new Date('2026-05-26T00:00:00Z');
 
 interface Props {
@@ -90,40 +90,35 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
     take: 200,
     select: {
       id: true, jobTitle: true, coverLetter: true, matchScore: true, matchLabel: true, createdAt: true,
-      jobId: true, opportunityId: true, matchBreakdown: true,
+      jobId: true, opportunityId: true, matchBreakdown: true, status: true, repliedAt: true, replyText: true,
       user: { select: { name: true, parsedProfile: true, resumeUrl: true, lastActiveAt: true, availableFrom: true, portfolioUrl: true, salaryExpectation: true, salaryExpectationAt: true, timezone: true, availability: true, rateFloorHourly: true } },
     },
   });
 
   await logVisit(email, apps.length);
 
-  // Value-first funnel: show the candidate list immediately (the token already proves inbox
-  // control). Registration is deferred to the first ACTION (reply) via an inline form in the
-  // client — this fixes the old drop-off where a form gated the list on the very first visit.
-  // We only bump lastSeenAt for an already-registered recruiter and never create a row on a
-  // mere visit, so "registered" stays a genuine engagement signal captured at reply time.
-  const recruiter = await prisma.recruiter.findUnique({ where: { email }, select: { id: true } });
+  // Already-registered recruiter → bump lastSeenAt + load their profile/plan. We never create a
+  // row on a mere visit, so "registered" stays a genuine engagement signal captured at reply time.
+  const recruiter = await prisma.recruiter.findUnique({ where: { email }, select: { id: true, name: true, company: true, plan: true } });
   const needsRegistration = !recruiter;
   if (recruiter) {
     await prisma.recruiter.update({ where: { email }, data: { lastSeenAt: new Date() } }).catch(() => {});
   }
 
+  // Which candidates this recruiter has already revealed (seeds the reveal state + quota).
+  const reveals = await prisma.contactReveal.findMany({ where: { recruiterEmail: email.toLowerCase() }, select: { applicationId: true } });
+  const revealedAppIds = reveals.map((r) => r.applicationId);
+
   const candidates: RecruiterCandidate[] = apps.map((a) => {
     const p = (a.user.parsedProfile ?? {}) as Record<string, unknown>;
     const arr = (v: unknown) => (Array.isArray(v) ? (v as unknown[]).map(String) : []);
-    // Always serve the CV through the token-gated route: it redirects to the original PDF
-    // (Blob) when stored, or renders an HTML résumé from the parsed profile for legacy
-    // candidates whose original file was never persisted. null only when there's nothing.
     const hasBlob = !!a.user.resumeUrl && a.user.resumeUrl.includes('blob.vercel-storage');
     const cvUrl = hasBlob || hasRenderableCv(p as CvProfile) ? `/r/${token}/cv/${a.id}` : null;
     return {
       appId: a.id,
       name: a.user.name || 'Candidate',
       jobTitle: a.jobTitle,
-      // §2.1 — same vacancy groups together. Prefer the stable listing id; fall back to title.
       listingKey: a.jobId || a.opportunityId || a.jobTitle,
-      // §3 — surface the frozen structural breakdown only when it has real lines
-      // (skip null / error / empty / fallback). Shape mirrors buildBreakdown's Line.
       matchBreakdown: (() => {
         const b = a.matchBreakdown as Record<string, unknown> | null;
         if (!b || typeof b !== 'object' || b.error) return undefined;
@@ -147,84 +142,47 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
       })(),
       createdAt: a.createdAt.toISOString(),
       fit: a.matchLabel || (a.matchScore != null ? `${a.matchScore}% match` : null),
+      score: a.matchScore ?? null,
+      status: a.status || 'SENT',
+      repliedAt: a.repliedAt ? a.repliedAt.toISOString() : null,
+      replyPreview: a.replyText ? cleanReplyText(a.replyText).slice(0, 160) : null,
       ...(() => { const cv = computeCaveats(a.matchBreakdown); return { strength: cv?.strength ?? null, caveats: cv?.items ?? [] }; })(),
       coverLetter: a.coverLetter || '',
       cvUrl,
-      // Genuine candidate liveness — auth.ts updates lastActiveAt on real login (throttled),
-      // NOT system events. Drives the honest "actively job-seeking" badge (hidden when dormant).
       lastActiveAt: a.user.lastActiveAt ? a.user.lastActiveAt.toISOString() : null,
       profile: {
         current_title: typeof p.current_title === 'string' ? p.current_title : undefined,
         experience_years: typeof p.experience_years === 'number' ? p.experience_years : undefined,
-        // Contract/remote recruiters rank timezone + rate above experience (TZ §2.2).
         timezone: a.user.timezone || undefined,
-        availabilityHours: a.user.availability || undefined,   // "~30 hrs/week"
+        availabilityHours: a.user.availability || undefined,
         rateFloorHourly: typeof a.user.rateFloorHourly === 'number' ? a.user.rateFloorHourly : undefined,
         summary: typeof p.summary === 'string' ? p.summary : undefined,
         location: typeof p.location === 'string' ? p.location : undefined,
         languages: arr(p.languages),
         skills: arr(p.skills).slice(0, 25),
-        availableFrom: a.user.availableFrom || undefined,   // "when can you start" — top recruiter re-ask
-        portfolioUrl: a.user.portfolioUrl || undefined,     // portfolio / GitHub / site
-        // Candidate-stated expected pay — SELF-REPORTED. Pass the timestamp too so the card
-        // labels it as stated, never verified, and de-emphasizes stale values.
+        availableFrom: a.user.availableFrom || undefined,
+        portfolioUrl: a.user.portfolioUrl || undefined,
         salaryExpectation: a.user.salaryExpectation || undefined,
         salaryExpectationAt: a.user.salaryExpectationAt ? a.user.salaryExpectationAt.toISOString() : undefined,
       },
     };
   });
 
+  const info: RecruiterInfo = {
+    name: recruiter?.name || '',
+    company: recruiter?.company || guessCompany(email),
+    email,
+    plan: recruiter?.plan === 'pro' ? 'pro' : 'free',
+  };
+
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', fontFamily: 'system-ui, sans-serif', color: 'var(--text, #0B0C0F)' }}>
-      <div style={{ borderBottom: '1px solid var(--line)', background: 'var(--bg-1)', padding: '16px 24px' }}>
-        <div style={{ maxWidth: '720px', margin: '0 auto', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-          <strong style={{ fontSize: '16px' }}>Freelanly</strong>
-          <span className="meta">{email}</span>
-        </div>
-      </div>
-
-      <div style={{ maxWidth: '720px', margin: '0 auto', padding: '28px 24px 64px' }}>
-        <h1 style={{ fontSize: '22px', margin: '0 0 4px' }}>
-          {candidates.length} candidate{candidates.length === 1 ? '' : 's'} applied to your roles
-        </h1>
-        <p className="meta" style={{ margin: '0 0 20px' }}>Sorted by match. Open a candidate to view their profile and CV, reply, or reveal their email to reach them directly.</p>
-
-        {candidates.length > 0 && (() => {
-          const roleCount = new Set(candidates.map((c) => c.listingKey)).size;
-          const strongCount = candidates.filter((c) => c.strength === 'Strong').length;
-          const stats = [
-            { n: candidates.length, l: candidates.length === 1 ? 'candidate' : 'candidates' },
-            { n: roleCount, l: roleCount === 1 ? 'role' : 'roles' },
-            { n: strongCount, l: 'strong match' + (strongCount === 1 ? '' : 'es') },
-          ];
-          return (
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', margin: '0 0 22px' }}>
-              {stats.map((s) => (
-                <div key={s.l} style={{ background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-md)', padding: '11px 18px', minWidth: '104px' }}>
-                  <div style={{ fontSize: '21px', fontWeight: 700, lineHeight: 1 }}>{s.n}</div>
-                  <div className="meta" style={{ fontSize: '11px', marginTop: '4px' }}>{s.l}</div>
-                </div>
-              ))}
-            </div>
-          );
-        })()}
-
-        {candidates.length > 0 && <RecruiterFeedback token={token} />}
-
-        {candidates.length === 0 ? (
-          <div className="card" style={{ padding: '32px', textAlign: 'center' }}>
-            <p className="meta">No applications yet. They’ll appear here as candidates apply to your posts.</p>
-          </div>
-        ) : (
-          <RecruiterInboxClient
-            token={token}
-            candidates={candidates}
-            needsRegistration={needsRegistration}
-            email={email}
-            prefill={{ company: guessCompany(email), hiringFor: topJobTitle(apps) }}
-          />
-        )}
-      </div>
-    </div>
+    <RecruiterCabinet
+      token={token}
+      recruiter={info}
+      candidates={candidates}
+      revealedAppIds={revealedAppIds}
+      needsRegistration={needsRegistration}
+      prefill={{ company: guessCompany(email), hiringFor: topJobTitle(apps) }}
+    />
   );
 }

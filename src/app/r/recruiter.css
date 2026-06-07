@@ -436,6 +436,42 @@
 .spec .v { font-size: 14px; color: var(--ink); font-weight: 450; }
 .spec .v small { color: var(--ink-3); font-weight: 400; }
 
+/* ============== PAGE LAYOUTS (ported from prototype page <style>) ============== */
+/* candidates: filters rail + results */
+.cand-grid { display: grid; grid-template-columns: 248px 1fr; gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .cand-grid { grid-template-columns: 1fr; } }
+.fseg { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.fseg:last-child { border-bottom: none; }
+.fseg h4 { font-size: 11px; font-family: 'Geist Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); margin: 0 0 10px; font-weight: 500; }
+.fitem { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; font-size: 13px; cursor: pointer; }
+.fitem .left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.fitem .cb { width: 14px; height: 14px; border: 1.5px solid var(--line-3); border-radius: 4px; display: grid; place-items: center; flex-shrink: 0; }
+.fitem.on .cb { background: var(--ink); border-color: var(--ink); }
+.fitem.on .cb::after { content: ''; width: 7px; height: 4px; border: 1.5px solid #fff; border-top: 0; border-right: 0; transform: rotate(-45deg); margin-top: -2px; }
+.fitem .count { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-4); }
+
+/* overview: main + rail */
+.ov-grid { display: grid; grid-template-columns: 1fr 360px; gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .ov-grid { grid-template-columns: 1fr; } }
+.feed-row { display: grid; grid-template-columns: 32px 1fr auto; gap: 12px; align-items: start; padding: 13px 18px; border-bottom: 1px solid var(--line); }
+.feed-row:last-child { border-bottom: none; }
+.feed-row .ft { font-size: 13px; color: var(--ink); line-height: 1.45; }
+.feed-row .ft b { font-weight: 500; }
+.feed-row .when { font-family: 'Geist Mono', monospace; font-size: 10.5px; color: var(--ink-4); white-space: nowrap; }
+.feed-dot { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; color: #000; }
+.top-cand { display: grid; grid-template-columns: 32px 1fr auto; gap: 11px; align-items: center; padding: 11px 18px; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; cursor: pointer; }
+.top-cand:last-child { border-bottom: none; }
+.top-cand:hover { background: var(--bg-2); }
+
+/* conversations: list + thread */
+.conv-layout { display: grid; grid-template-columns: 340px 1fr; gap: 16px; align-items: start; min-height: calc(100vh - var(--topbar-h) - 90px); }
+@media (max-width: 1000px) { .conv-layout { grid-template-columns: 1fr; } }
+.conv-list-pane { overflow: auto; max-height: calc(100vh - var(--topbar-h) - 90px); }
+.conv-thread-pane { display: flex; flex-direction: column; min-height: 540px; }
+.thread-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.thread-body { flex: 1; overflow: auto; padding: 22px; }
+.day-sep { text-align: center; font-family: 'Geist Mono', monospace; font-size: 10.5px; color: var(--ink-4); letter-spacing: 0.06em; text-transform: uppercase; margin: 6px 0 16px; }
+
 /* ============== LIGHT SIDEBAR (tweak) ============== */
 .sb-light .sidebar { background: var(--bg-1); color: var(--ink); border-right: 1px solid var(--line); }
 .sb-light .sb-logo { border-bottom-color: var(--line); }
