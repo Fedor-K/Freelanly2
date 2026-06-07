@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyRecruiterToken } from '@/lib/recruiter-token';
+import { isFreeEmailProvider } from '@/lib/content-quality';
 
 // POST /api/recruiter/register — first-touch recruiter registration from the /r/[token] portal.
 // The signed token already proves control of the inbox (the link was emailed to them), so no OTP.
@@ -14,6 +15,13 @@ export async function POST(request: NextRequest) {
     const { token, name, company, hiringFor, hiringVolume } = await request.json();
     const email = verifyRecruiterToken(token || '');
     if (!email) return NextResponse.json({ error: 'Invalid link' }, { status: 401 });
+
+    // Demand-side gate (decision 2026-06): recruiters on free/personal email domains can't register.
+    // The paying customer is a real company; a gmail "recruiter" is almost always a résumé-farm /
+    // agency reposter. Block here so they never become a Recruiter row or reach the paywall.
+    if (isFreeEmailProvider(email)) {
+      return NextResponse.json({ error: 'Please register with your company email address — free inboxes (gmail, outlook, etc.) aren’t supported.' }, { status: 403 });
+    }
 
     const data = {
       name: clip(name, 120) || null,

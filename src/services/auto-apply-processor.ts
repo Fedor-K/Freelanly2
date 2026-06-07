@@ -12,6 +12,7 @@ import { isScamRecipient } from '@/lib/scam-filter';
 import { getRecruiterPortalUrl } from '@/lib/recruiter-token';
 import { routeAllows } from '@/lib/loop-routing';
 import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
+import { isFreeEmailProvider } from '@/lib/content-quality';
 import { parseJD, buildBreakdown, type ParsedJD } from '@/lib/match-breakdown/generate';
 import { computeCaveats, breakdownToVerdict } from '@/lib/match-caveats';
 import { runGate, assess } from '@/services/matching/gate';
@@ -257,6 +258,15 @@ export async function processAutoApplyQueue(): Promise<{
     // already drops these, this covers anything already queued).
     if (isBlockedApplyEmail(app.appliedToEmail)) {
       await markFailed(app.id, 'Blocked apply domain');
+      skipped++;
+      continue;
+    }
+
+    // Free-domain apply emails are dropped (decision 2026-06): the segment's high reply-rate is
+    // inflated by auto-responder résumé-farms and scam redirects, not genuine direct clients.
+    // Import already drops new ones; this guards anything already queued before the change.
+    if (isFreeEmailProvider(app.appliedToEmail)) {
+      await markFailed(app.id, 'Free-domain apply email');
       skipped++;
       continue;
     }

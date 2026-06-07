@@ -347,6 +347,16 @@ export async function POST(request: NextRequest) {
     const isAnnouncement = isPersonalAnnouncement(extracted.title, postContent);
     const hasFreeEmail = isFreeEmailProvider(validatedEmail);
 
+    // Hard block: free-domain apply emails are dropped entirely (decision 2026-06). Audit of the
+    // free-domain segment showed its higher reply-rate is inflated by auto-responder résumé-farms
+    // (e.g. hivepostify/gaostaff, 78-90% auto-reply) and WhatsApp/phone scam redirects, not genuine
+    // direct clients. URL-apply posts (no email) are unaffected; send-time guard backs this up.
+    if (hasFreeEmail) {
+      console.log(`[LinkedInPosts] Free-domain apply email, skipping: ${validatedEmail}`);
+      logSkip('free_email_domain', extracted.title);
+      return NextResponse.json({ success: true, status: 'skipped', reason: 'free_email_domain' });
+    }
+
     if (isAnnouncement) {
       console.log(`[LinkedInPosts] Announcement style detected (will affect quality score)`);
     }
