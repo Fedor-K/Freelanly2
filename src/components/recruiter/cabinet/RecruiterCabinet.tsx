@@ -249,7 +249,12 @@ export function RecruiterCabinet({
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, name: regName, company: regCompany, hiringFor: regHiringFor, hiringVolume: regVol }),
       });
-      if (!r.ok) throw new Error();
+      if (!r.ok) {
+        // Surface the server's reason (e.g. free-domain inboxes aren't supported) instead of a generic error.
+        const data = await r.json().catch(() => ({}));
+        setRegErr(data.error || 'Something went wrong — try again.');
+        return;
+      }
       setRegistered(true); setRegOpen(false);
       const pid = pendingReplyAppId; setPendingReplyAppId(null);
       if (pid) void doSendRaw(pid);
