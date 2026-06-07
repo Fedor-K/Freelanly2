@@ -857,6 +857,13 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     return 0;
   }
 
+  // Free-domain apply emails are dropped (decision 2026-06): don't match/queue them at all, so the
+  // matcher wastes no cover-letter generation on the existing free-domain backlog (~1.2k opps that
+  // age out over 30d). Import already blocks new ones; the send loop guards anything already queued.
+  if (isFreeEmailProvider(listing.applyEmail)) {
+    return 0;
+  }
+
   // Find all active loops from users with verified SMTP
   const activeLoops = await prisma.autoApplyLoop.findMany({
     where: {
