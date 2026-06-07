@@ -14,7 +14,7 @@ import { routeAllows } from '@/lib/loop-routing';
 import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
 import { isFreeEmailProvider } from '@/lib/content-quality';
 import { parseJD, buildBreakdown, type ParsedJD } from '@/lib/match-breakdown/generate';
-import { computeCaveats, breakdownToVerdict } from '@/lib/match-caveats';
+import { computeCaveats, breakdownToVerdict, reconcileScore } from '@/lib/match-caveats';
 import { runGate, assess } from '@/services/matching/gate';
 
 // Hard gate (assess) enforcement. ON by default; set MATCH_GATE_ENFORCE=0 to fall back to
@@ -1190,7 +1190,8 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
               jobId: listing.type === 'job' ? listing.id : null,
               opportunityId: listing.type === 'opportunity' ? listing.id : null,
               companyName: realCompanyName, jobTitle: listing.title, appliedToEmail: listing.applyEmail,
-              matchScore: m.matchScore,
+              // Score reconciled to the breakdown-derived strength so the number can't contradict the label.
+              matchScore: reconcileScore(m.matchScore, (qBreakdown ? computeCaveats(qBreakdown)?.strength : undefined) ?? (m.matchLabel as 'Strong' | 'Good' | 'Weak')),
               matchLabel: (qBreakdown ? computeCaveats(qBreakdown)?.strength : undefined) ?? m.matchLabel,
               matchBreakdown: qBreakdown ? (qBreakdown as Prisma.InputJsonValue) : undefined,
               coverLetter: '', subject: '', resumeUrl: loop.resumeUrl,
@@ -1242,7 +1243,8 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           companyName: realCompanyName,
           jobTitle: listing.title,
           appliedToEmail: listing.applyEmail,
-          matchScore: m.matchScore,
+          // Score reconciled to the breakdown-derived strength (fit ring can't say 80% on a Weak match).
+          matchScore: reconcileScore(m.matchScore, (qBreakdown ? computeCaveats(qBreakdown)?.strength : undefined) ?? (m.matchLabel as 'Strong' | 'Good' | 'Weak')),
           // Label from the breakdown's caveats (same source as the card) when available, else the
           // score tier. Also store the breakdown now, so queued records aren't "—" no-breakdown.
           matchLabel: (qBreakdown ? computeCaveats(qBreakdown)?.strength : undefined) ?? m.matchLabel,

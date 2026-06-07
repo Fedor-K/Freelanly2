@@ -38,9 +38,37 @@ export function computeCaveats(bd: unknown): Caveats | null {
   const engRisk = englishReq === 'strong' && (englishLevel === 'b1' || englishLevel === 'low');
   if (engRisk) items.push('English may be below what this role needs — worth verifying');
 
-  if (items.length === 0) return { strength: 'Strong', items };
-  const severe = hardFail || coreMissing.length > 0 || engRisk || (profession === 'adjacent' && total >= 3 && matched < 2);
+  // Coverage severity — a low matched/total ratio can't be a Strong/Good match even when none of
+  // the misses are flagged `core`. Without this, a 2-of-5 match (only generic tooling present, the
+  // role-defining skills absent but un-flagged) slipped through as "Good". Honest floor:
+  //   <50% of stated requirements met (≥3 reqs)  → Weak;  0 matched of ≥2 → Weak.
+  const lowCoverage = total >= 3 && matched / total < 0.5;
+  const zeroCoverage = total >= 2 && matched === 0;
+
+  if (items.length === 0) {
+    // Even with zero explicit caveats, a thin coverage ratio bars a "Strong" label.
+    if (lowCoverage || zeroCoverage) return { strength: 'Weak', items };
+    return { strength: 'Strong', items };
+  }
+  const severe = hardFail || coreMissing.length > 0 || engRisk || lowCoverage || zeroCoverage
+    || (profession === 'adjacent' && total >= 3 && matched < 2);
   return { strength: items.length >= 2 || severe ? 'Weak' : 'Good', items };
+}
+
+// Reconcile the raw 0-100 AI score with the breakdown-derived strength so the NUMBER shown in the
+// portal (fit ring) can never contradict the LABEL. The AI score is a holistic guess; the strength
+// is grounded in the structural breakdown. We clamp the score into the band for its strength, so a
+// breakdown that says Weak can't surface as "Strong 80%". Returns the clamped score.
+const SCORE_BANDS: Record<'Strong' | 'Good' | 'Weak', [number, number]> = {
+  Strong: [78, 96],
+  Good: [58, 77],
+  Weak: [35, 57],
+};
+export function reconcileScore(aiScore: number | null | undefined, strength: 'Strong' | 'Good' | 'Weak' | null | undefined): number | null {
+  if (aiScore == null) return null;
+  if (!strength) return aiScore;
+  const [lo, hi] = SCORE_BANDS[strength];
+  return Math.max(lo, Math.min(hi, Math.round(aiScore)));
 }
 
 // Human-readable, point-by-point REASONING for the admin audit card — explains, in plain language,

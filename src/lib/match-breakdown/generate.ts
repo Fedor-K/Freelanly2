@@ -136,13 +136,24 @@ export async function generateBreakdown(inp: GenInput): Promise<Breakdown> {
 
 // Pure, synchronous, no LLM — code-only verification. Safe to call per-candidate with a JD
 // parsed once per opportunity (the LLM cost lives in parseJD).
+// A short headline ("SAFe Agile Facilitator", "Senior Database Specialist | DBA") is legitimate,
+// keyword-dense self-description we DO want as evidence. But a buzzword-stuffed LinkedIn headline
+// ("Architect | Azure | AWS | GCP | Devops | FullStack | Reactjs | Angular | …") is a keyword list,
+// not proof of experience — searching it phantom-matches requirements (a Java/.NET dev gets a
+// false "Azure DevOps ✓"). So when the title is many short segments, keep ONLY the leading role
+// phrase; the structured skills array remains the real evidence for the dropped tokens.
+function titleForEvidence(title?: string | null): string {
+  const t = (title || '').trim();
+  if (!t) return '';
+  const segs = t.split(/\s*[|•·/]\s*/).map((s) => s.trim()).filter(Boolean);
+  return segs.length >= 4 ? segs[0] : t;
+}
+
 export function buildBreakdown(jd: ParsedJD, inp: GenInput): Breakdown {
   const rejected: Rejected[] = [];
   const lines: Line[] = [];
-  // Search the candidate's headline/title too — it's keyword-dense and often states the very skill
-  // the JD names ("SAFe Agile Facilitator" → SAFe, "Senior Database Specialist | DBA" → DBA) that
-  // the skills array omits. Legitimate, grounded evidence (the candidate's own self-description).
-  const haystackSkills = `${inp.cvText} ${inp.candidateSkills.join(' , ')} ${inp.candidateTitle || ''}`;
+  // Skill evidence = CV text + structured skills + the candidate's (de-buzzworded) headline.
+  const haystackSkills = `${inp.cvText} ${inp.candidateSkills.join(' , ')} ${titleForEvidence(inp.candidateTitle)}`;
 
   // SKILLS — any-of group, token-identity (no paraphrase → no #3)
   for (const req of jd.skills) {
