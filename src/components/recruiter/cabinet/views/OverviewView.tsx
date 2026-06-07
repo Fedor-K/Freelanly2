@@ -66,7 +66,7 @@ export function OverviewView() {
             <div className="card-head"><h3>Recent activity</h3><span className="meta mono">latest</span></div>
             <div>
               {activity.map(({ c, at, replied }, idx) => (
-                <div key={idx} className="feed-row">
+                <div key={idx} className="feed-row" style={{ cursor: 'pointer' }} onClick={() => openDetail(c.appId)}>
                   <div className="feed-dot" style={{ background: replied ? 'var(--acid)' : '#6EE7FF' }}><RIcon name={replied ? 'chat' : 'users'} size={15} /></div>
                   <div className="ft">
                     <b>{c.name}</b> {replied ? 'replied to your outreach' : <>applied to <b>{c.jobTitle}</b></>}
