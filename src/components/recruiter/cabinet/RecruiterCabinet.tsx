@@ -89,14 +89,14 @@ export function RecruiterCabinet({
   token,
   recruiter,
   candidates,
-  revealedAppIds,
+  revealedContacts,
   needsRegistration = false,
   prefill = { company: '', hiringFor: '' },
 }: {
   token: string;
   recruiter: RecruiterInfo;
   candidates: RecruiterCandidate[];
-  revealedAppIds: string[];
+  revealedContacts: Record<string, string>;   // appId → real email, for contacts already revealed
   needsRegistration?: boolean;
   prefill?: { company: string; hiringFor: string };
 }) {
@@ -108,12 +108,9 @@ export function RecruiterCabinet({
   const [roleFilter, setRoleFilter] = useState('all');
   const [mobileNav, setMobileNav] = useState(false);
 
-  // reveal — seed from the recruiter's existing ContactReveal rows (server-provided).
-  const [revealed, setRevealed] = useState<Record<string, string>>(() => {
-    const seed: Record<string, string> = {};
-    for (const id of revealedAppIds) seed[id] = '';   // known-revealed; email fetched on demand
-    return seed;
-  });
+  // reveal — seed from the recruiter's existing ContactReveal rows (server supplies the real
+  // email for each, since they've already been revealed to this recruiter).
+  const [revealed, setRevealed] = useState<Record<string, string>>(() => ({ ...revealedContacts }));
   const [revealing, setRevealing] = useState<string | null>(null);
 
   const [threads, setThreads] = useState<Record<string, Msg[]>>({});

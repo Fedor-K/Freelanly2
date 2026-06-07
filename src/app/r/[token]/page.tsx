@@ -105,9 +105,15 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
     await prisma.recruiter.update({ where: { email }, data: { lastSeenAt: new Date() } }).catch(() => {});
   }
 
-  // Which candidates this recruiter has already revealed (seeds the reveal state + quota).
+  // Which candidates this recruiter has already revealed → seed the reveal state with the REAL
+  // email (already revealed to them, so fair to send back; non-revealed emails are never sent).
   const reveals = await prisma.contactReveal.findMany({ where: { recruiterEmail: email.toLowerCase() }, select: { applicationId: true } });
-  const revealedAppIds = reveals.map((r) => r.applicationId);
+  const revealedIds = reveals.map((r) => r.applicationId);
+  const revealedRows = revealedIds.length
+    ? await prisma.autoApplication.findMany({ where: { id: { in: revealedIds } }, select: { id: true, user: { select: { email: true } } } })
+    : [];
+  const revealedContacts: Record<string, string> = {};
+  for (const r of revealedRows) if (r.user.email) revealedContacts[r.id] = r.user.email;
 
   const candidates: RecruiterCandidate[] = apps.map((a) => {
     const p = (a.user.parsedProfile ?? {}) as Record<string, unknown>;
@@ -180,7 +186,7 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
       token={token}
       recruiter={info}
       candidates={candidates}
-      revealedAppIds={revealedAppIds}
+      revealedContacts={revealedContacts}
       needsRegistration={needsRegistration}
       prefill={{ company: guessCompany(email), hiringFor: topJobTitle(apps) }}
     />
