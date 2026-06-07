@@ -186,7 +186,27 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
         <h1 style={{ fontSize: '22px', margin: '0 0 4px' }}>
           {candidates.length} candidate{candidates.length === 1 ? '' : 's'} applied to your roles
         </h1>
-        <p className="meta" style={{ margin: '0 0 24px' }}>Sorted by match. Open a candidate to view their profile and CV, reply, or reveal their email to reach them directly.</p>
+        <p className="meta" style={{ margin: '0 0 20px' }}>Sorted by match. Open a candidate to view their profile and CV, reply, or reveal their email to reach them directly.</p>
+
+        {candidates.length > 0 && (() => {
+          const roleCount = new Set(candidates.map((c) => c.listingKey)).size;
+          const strongCount = candidates.filter((c) => c.strength === 'Strong').length;
+          const stats = [
+            { n: candidates.length, l: candidates.length === 1 ? 'candidate' : 'candidates' },
+            { n: roleCount, l: roleCount === 1 ? 'role' : 'roles' },
+            { n: strongCount, l: 'strong match' + (strongCount === 1 ? '' : 'es') },
+          ];
+          return (
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', margin: '0 0 22px' }}>
+              {stats.map((s) => (
+                <div key={s.l} style={{ background: 'var(--bg-1)', border: '1px solid var(--line)', borderRadius: 'var(--r-md)', padding: '11px 18px', minWidth: '104px' }}>
+                  <div style={{ fontSize: '21px', fontWeight: 700, lineHeight: 1 }}>{s.n}</div>
+                  <div className="meta" style={{ fontSize: '11px', marginTop: '4px' }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
 
         {candidates.length > 0 && <RecruiterFeedback token={token} />}
 

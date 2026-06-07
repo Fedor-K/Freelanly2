@@ -47,6 +47,12 @@ const REG_VOLUMES = ['1', '2-5', '6-20', '20+'] as const;
 const REG_LABEL: CSSProperties = { display: 'block', fontSize: '13px', fontWeight: 600, margin: '0 0 5px', color: '#0B0C0F' };
 const REG_INPUT: CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1px solid #E8E5DC', borderRadius: '9px', fontSize: '14px' };
 
+// Profiles (esp. Spanish CVs) often store skills in ALL CAPS — a wall of shouting chips. Tidy each
+// word to Title Case while keeping short tokens (≤4 chars: SAP, ATS, KPI, AWS, SQL) as acronyms.
+function tidySkill(s: string): string {
+  return s.split(/\s+/).map((w) => (w.length <= 4 || w !== w.toUpperCase() ? w : w.charAt(0) + w.slice(1).toLowerCase())).join(' ');
+}
+
 function timeAgo(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
   if (days <= 0) return 'today';
@@ -294,7 +300,7 @@ export function RecruiterInboxClient({
             {/* Skills line */}
             {shown.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '8px', alignItems: 'center' }}>
-                {shown.map((s, j) => <span key={j} className="chip" style={{ height: '19px', padding: '0 7px', fontSize: '10px', background: 'var(--bg-2)' }}>{s}</span>)}
+                {shown.map((s, j) => <span key={j} className="chip" style={{ height: '20px', padding: '0 8px', fontSize: '10.5px', background: 'var(--bg-2)', textTransform: 'none', letterSpacing: 0 }}>{tidySkill(s)}</span>)}
                 {extra > 0 && <span className="meta" style={{ fontSize: '10.5px' }}>+{extra}</span>}
               </div>
             )}
