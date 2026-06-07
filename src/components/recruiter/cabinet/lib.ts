@@ -96,6 +96,22 @@ export function shortTime(iso: string): string {
     d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
+// Some candidates type their name letter-spaced — "M A R I A   A L E X S A N D R A".
+// Detect that (many single-char tokens) and collapse it back to words, using runs of 2+ spaces
+// as the word boundary the typist left between words. Normal names — including ALL-CAPS ones
+// like "HÉCTOR GONZÁLEZ VILLEGAS" or short initials like "J R Smith" — are returned untouched.
+export function cleanDisplayName(raw: string): string {
+  const name = (raw || '').trim();
+  if (!name) return raw;
+  const tokens = name.split(/\s+/);
+  const singles = tokens.filter((t) => t.length === 1).length;
+  if (singles < 6 || singles / tokens.length < 0.7) return raw; // not letter-spaced → leave alone
+  // recover words from 2+-space gaps; within a word, glue the single letters together
+  const words = name.split(/\s{2,}/).map((chunk) => chunk.replace(/\s+/g, '')).filter(Boolean);
+  const recovered = words.length > 1 ? words : [tokens.join('')]; // no gaps → single best-effort word
+  return recovered.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
 // Honest liveness: only when the candidate genuinely logged in recently (≤7d). Else null → hide.
 export function freshness(iso: string | null): { label: string; color: string } | null {
   if (!iso) return null;

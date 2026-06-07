@@ -5,7 +5,7 @@ import { computeCaveats } from '@/lib/match-caveats';
 import { cleanReplyText } from '@/lib/clean-reply';
 import { verifyRecruiterToken } from '@/lib/recruiter-token';
 import { RecruiterCabinet } from '@/components/recruiter/cabinet/RecruiterCabinet';
-import type { RecruiterCandidate, RecruiterInfo } from '@/components/recruiter/cabinet/lib';
+import { cleanDisplayName, type RecruiterCandidate, type RecruiterInfo } from '@/components/recruiter/cabinet/lib';
 import { hasRenderableCv, type CvProfile } from '@/lib/recruiter-cv';
 import '../../design-app.css';
 import '../recruiter.css';
@@ -116,7 +116,7 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
     const cvUrl = hasBlob || hasRenderableCv(p as CvProfile) ? `/r/${token}/cv/${a.id}` : null;
     return {
       appId: a.id,
-      name: a.user.name || 'Candidate',
+      name: cleanDisplayName(a.user.name || 'Candidate'),
       jobTitle: a.jobTitle,
       listingKey: a.jobId || a.opportunityId || a.jobTitle,
       matchBreakdown: (() => {
