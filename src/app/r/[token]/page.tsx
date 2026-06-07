@@ -7,6 +7,7 @@ import { RecruiterInboxClient, type RecruiterCandidate } from '@/components/recr
 import { RecruiterFeedback } from '@/components/recruiter/RecruiterFeedback';
 import { hasRenderableCv, type CvProfile } from '@/lib/recruiter-cv';
 import '../../design-app.css';
+import '../recruiter.css';
 
 // Fire-and-forget visit log (top of the demand funnel) — deduped per recruiter ~5 min so
 // email link-scanners / double renders don't inflate the count. Never blocks the page.

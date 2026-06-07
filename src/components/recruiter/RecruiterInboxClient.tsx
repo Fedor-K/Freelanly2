@@ -53,6 +53,16 @@ function tidySkill(s: string): string {
   return s.split(/\s+/).map((w) => (w.length <= 4 || w !== w.toUpperCase() ? w : w.charAt(0) + w.slice(1).toLowerCase())).join(' ');
 }
 
+// Match-strength → the designer's badge class (recruiter.css: .match-strong/.match-good/.match-weak).
+function strengthClass(s: string | null): string {
+  return s === 'Strong' ? 'match-strong' : s === 'Good' ? 'match-good' : 'match-weak';
+}
+// Up to two initials for the avatar.
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || parts[0]?.[1] || '')).toUpperCase() || '?';
+}
+
 function timeAgo(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
   if (days <= 0) return 'today';
@@ -267,56 +277,51 @@ export function RecruiterInboxClient({
         const firstName = c.name.split(' ')[0];
         const fr = freshness(c.lastActiveAt);
         return (
-          <div key={c.appId} className="card" style={{ padding: '11px 14px' }}>
-            {/* Compact header */}
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', cursor: 'pointer' }} onClick={() => toggle(c.appId)}>
-              <div className="avatar" style={{ background: AV_COLORS[i % AV_COLORS.length], width: '30px', height: '30px', fontSize: '11px', flexShrink: 0 }}>
-                {c.name.slice(0, 2).toUpperCase()}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0 }}>
-                  <span className="name" style={{ fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
-                  {c.strength && <span style={{ height: '17px', lineHeight: '17px', padding: '0 7px', fontSize: '9.5px', fontWeight: 700, borderRadius: '5px', flexShrink: 0, background: c.strength === 'Strong' ? '#dcfce7' : c.strength === 'Good' ? '#fef9c3' : '#fee2e2', color: c.strength === 'Strong' ? '#166534' : c.strength === 'Good' ? '#854d0e' : '#991b1b' }}>{c.strength}</span>}
-                  {c.fit && <span className="chip" style={{ height: '17px', padding: '0 7px', fontSize: '9.5px', flexShrink: 0 }}>{c.fit}</span>}
-                  <span className="meta" style={{ fontSize: '11px', marginLeft: 'auto', flexShrink: 0 }}>{timeAgo(c.createdAt)}</span>
+          <div key={c.appId} className="card" style={{ overflow: 'hidden', marginBottom: '10px' }}>
+            {/* Candidate row — designer .cand-card. Click anywhere (except the action column) to expand. */}
+            <div className="cand-card" style={{ cursor: 'pointer' }} onClick={() => toggle(c.appId)}>
+              <div className="cand-av" style={{ background: AV_COLORS[i % AV_COLORS.length] }}>{initials(c.name)}</div>
+              <div className="cand-main">
+                <div className="cand-head">
+                  <span className="cand-name">{c.name}</span>
+                  {c.strength && <span className={`match-badge ${strengthClass(c.strength)}`}><span className="dot" />{c.strength} match</span>}
+                  {fr && <span style={{ fontSize: '10px', fontWeight: 700, color: '#fff', background: fr.color, borderRadius: '5px', padding: '1px 7px', whiteSpace: 'nowrap' }}>{fr.label}</span>}
+                  <span className="mono" style={{ fontSize: '11px', color: 'var(--ink-4)', whiteSpace: 'nowrap', marginLeft: 'auto' }}>applied {timeAgo(c.createdAt)}</span>
                 </div>
-                {fr && (
-                  <div style={{ marginTop: '4px' }}>
-                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#fff', background: fr.color, borderRadius: '5px', padding: '2px 7px', whiteSpace: 'nowrap' }}>{fr.label}</span>
+                {(c.profile.current_title || (c.profile.languages && c.profile.languages[0])) && (
+                  <div className="cand-role">{c.profile.current_title || '—'}{c.profile.languages && c.profile.languages[0] && <><span className="sep">·</span>{c.profile.languages[0]}</>}</div>
+                )}
+                {shown.length > 0 && (
+                  <div className="cand-skills">
+                    {shown.map((s, j) => <span key={j} className="tag">{tidySkill(s)}</span>)}
+                    {extra > 0 && <span className="meta" style={{ fontSize: '11px' }}>+{extra}</span>}
                   </div>
                 )}
+                <div className="cand-facts">
+                  {typeof c.profile.rateFloorHourly === 'number' && c.profile.rateFloorHourly > 0 && <span className="fact"><b>${c.profile.rateFloorHourly}/hr</b> from</span>}
+                  {c.profile.availabilityHours && <span className="fact"><b>{c.profile.availabilityHours}</b></span>}
+                  {c.profile.timezone && <span className="fact">{c.profile.timezone}</span>}
+                  {c.profile.location && <span className="fact">{c.profile.location}</span>}
+                  {typeof c.profile.experience_years === 'number' && c.profile.experience_years > 0 && <span className="fact"><b>{c.profile.experience_years} yrs</b></span>}
+                  {c.profile.availableFrom && <span className="fact">Can start {c.profile.availableFrom}</span>}
+                </div>
+                {c.caveats && c.caveats.length > 0 && (
+                  <div className="caveat"><span><b>Heads up:</b> {c.caveats[0]}</span></div>
+                )}
               </div>
-            </div>
-
-            {/* Honest caveats — the borderline signals, shown openly so the recruiter judges */}
-            {c.caveats && c.caveats.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '8px' }}>
-                {c.caveats.map((cv, j) => (
-                  <span key={j} style={{ fontSize: '10px', color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '5px', padding: '2px 7px' }}>⚠️ {cv}</span>
-                ))}
+              <div className="cand-right" onClick={(e) => e.stopPropagation()}>
+                <div className="cand-actions">
+                  <button className="btn btn-ghost btn-sm" onClick={() => toggle(c.appId)}>{open ? 'Hide' : 'Chat'}</button>
+                  {c.cvUrl && <a href={c.cvUrl} target="_blank" rel="noopener noreferrer" className="btn btn-soft btn-sm" onClick={() => track('view_cv', c.appId)}>CV</a>}
+                  {revealed[c.appId] ? (
+                    <a href={`mailto:${revealed[c.appId]}`} className="lock-inline done" title="Candidate's real email — click to email them directly">✉️ {revealed[c.appId]}</a>
+                  ) : (
+                    <button className="lock-inline" onClick={() => reveal(c.appId)} disabled={revealing === c.appId} title={`See ${firstName}'s real email`}>
+                      {revealing === c.appId ? 'Revealing…' : '🔒 Reveal email'}
+                    </button>
+                  )}
+                </div>
               </div>
-            )}
-
-            {/* Skills line */}
-            {shown.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '8px', alignItems: 'center' }}>
-                {shown.map((s, j) => <span key={j} className="chip" style={{ height: '20px', padding: '0 8px', fontSize: '10.5px', background: 'var(--bg-2)', textTransform: 'none', letterSpacing: 0 }}>{tidySkill(s)}</span>)}
-                {extra > 0 && <span className="meta" style={{ fontSize: '10.5px' }}>+{extra}</span>}
-              </div>
-            )}
-
-            {/* Action bar */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px', alignItems: 'center' }}>
-              <button className="btn btn-primary btn-sm" onClick={() => toggle(c.appId)}>💬 {open ? 'Hide' : 'Open chat'}</button>
-              {c.cvUrl && <a href={c.cvUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" onClick={() => track('view_cv', c.appId)}>📄 CV</a>}
-              {/* Reveal is the key measured action — make it pop (was a buried ghost button → 0 reveals). */}
-              {revealed[c.appId] ? (
-                <a href={`mailto:${revealed[c.appId]}`} className="btn btn-sm" style={{ fontWeight: 700, background: '#C7F94A', color: '#000', border: '1px solid #C7F94A' }} title="Candidate's real email — click to email them directly">✉️ {revealed[c.appId]}</a>
-              ) : (
-                <button className="btn btn-sm" onClick={() => reveal(c.appId)} disabled={revealing === c.appId} style={{ fontWeight: 700, background: '#F4F8E8', color: '#0B0C0F', border: '1px solid #C7F94A' }} title={`See ${firstName}'s real email to contact them directly (free)`}>
-                  {revealing === c.appId ? 'Revealing…' : '🔓 Reveal email'}
-                </button>
-              )}
             </div>
 
             {/* Expanded: profile + chat + compose */}
