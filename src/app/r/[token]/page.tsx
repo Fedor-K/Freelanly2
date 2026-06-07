@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { prisma } from '@/lib/db';
-import { computeCaveats } from '@/lib/match-caveats';
+import { computeCaveats, reconcileScore } from '@/lib/match-caveats';
 import { cleanReplyText } from '@/lib/clean-reply';
 import { verifyRecruiterToken } from '@/lib/recruiter-token';
 import { RecruiterCabinet } from '@/components/recruiter/cabinet/RecruiterCabinet';
@@ -148,7 +148,9 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
       })(),
       createdAt: a.createdAt.toISOString(),
       fit: a.matchLabel || (a.matchScore != null ? `${a.matchScore}% match` : null),
-      score: a.matchScore ?? null,
+      // Reconcile the fit-ring number to the LIVE-recomputed strength (same computeCaveats the badge
+      // uses), so historical records with an inflated stored score can't show "Weak" + ring "80".
+      score: reconcileScore(a.matchScore, computeCaveats(a.matchBreakdown)?.strength ?? null),
       status: a.status || 'SENT',
       repliedAt: a.repliedAt ? a.repliedAt.toISOString() : null,
       replyPreview: a.replyText ? cleanReplyText(a.replyText).slice(0, 160) : null,
