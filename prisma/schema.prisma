@@ -2147,7 +2147,8 @@ enum AutoApplyStatus {
   INTERVIEW   // Got interview
   OFFER       // Received offer
   SKIPPED     // User manually skipped this project
-  REJECTED    // Rejected
+  REJECTED    // Recruiter replied "not a fit" — real, user-facing rejection (always has repliedAt)
+  MATCH_REJECTED // Matcher declined this pairing — admin-audit only, never sent, NOT user-facing
   FAILED      // Send failed (SMTP error)
 }
 

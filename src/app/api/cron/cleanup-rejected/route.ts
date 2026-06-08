@@ -4,12 +4,13 @@ import { prisma } from '@/lib/db';
 /**
  * POST /api/cron/cleanup-rejected
  *
- * Prunes audit-only REJECTED AutoApplication rows older than 7 days. The matcher logs every
- * considered pairing (sent + rejected-with-reason) so the admin audit shows "who/why", which is
- * ~12k rejected rows/hour — left unbounded the table balloons (~2M rows/week) and the audit page
- * slows down. We keep the last 7 days of rejections (the audit windows are 24h/7d/30d, so the
- * useful debugging window stays intact) and NEVER touch real outreach (SENT/DELIVERED/OPENED/
- * REPLIED/INTERVIEW/OFFER), in-flight (PENDING/REVIEW/SENDING), SKIPPED, or FAILED.
+ * Prunes audit-only MATCH_REJECTED AutoApplication rows older than 7 days. The matcher logs every
+ * considered pairing (sent + matcher-declined-with-reason) so the admin audit shows "who/why", which
+ * is ~12k declined rows/hour — left unbounded the table balloons (~2M rows/week) and the audit page
+ * slows down. We keep the last 7 days of declines (the audit windows are 24h/7d/30d, so the useful
+ * debugging window stays intact) and NEVER touch real outreach (SENT/DELIVERED/OPENED/REPLIED/
+ * INTERVIEW/OFFER), recruiter "not a fit" replies (REJECTED), in-flight (PENDING/REVIEW/SENDING),
+ * SKIPPED, or FAILED.
  *
  * Batched: the first run can be millions of rows, so we delete in chunks and stay under the
  * function time budget — whatever's left is picked up by the next daily run. Runs daily via Vercel cron.
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
         DELETE FROM "AutoApplication"
         WHERE id IN (
           SELECT id FROM "AutoApplication"
-          WHERE status = 'REJECTED' AND "createdAt" < ${cutoff}
+          WHERE status = 'MATCH_REJECTED' AND "createdAt" < ${cutoff}
           LIMIT ${BATCH}
         )`;
       total += deleted;
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
       if (deleted < BATCH) break; // drained
     }
 
-    console.log(`[CleanupRejected] deleted ${total} REJECTED rows older than ${cutoff.toISOString()} in ${batches} batches`);
+    console.log(`[CleanupRejected] deleted ${total} MATCH_REJECTED rows older than ${cutoff.toISOString()} in ${batches} batches`);
     return NextResponse.json({ success: true, deleted: total, batches, cutoff: cutoff.toISOString(), tookMs: Date.now() - started });
   } catch (error) {
     console.error('[CleanupRejected] error:', error);

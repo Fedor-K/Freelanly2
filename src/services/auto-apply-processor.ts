@@ -1180,9 +1180,10 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
       } catch (e) { if (isAiUnavailable(e)) throw e; /* non-AI failure -> fail-open: no verdict, letter still generated */ }
       if (gateBlocked) {
         gated++;
-        // Persist the REJECTED decision so the admin audit shows EVERY processed pairing, not just
-        // the sends. Mirror of the create below: status REJECTED, no cover, gateReason in the
-        // breakdown. Unique (userId, opportunityId) → re-evaluations of the same pair are deduped.
+        // Persist the decline so the admin audit shows EVERY processed pairing, not just the
+        // sends. status=MATCH_REJECTED (NOT REJECTED, which means a recruiter replied "not a
+        // fit" — these never went out): keeps the audit row out of every user-facing view.
+        // No cover, gateReason in the breakdown. Unique (userId, opportunityId) → re-evaluations dedup.
         try {
           await prisma.autoApplication.create({
             data: {
@@ -1195,7 +1196,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
               matchLabel: (qBreakdown ? computeCaveats(qBreakdown)?.strength : undefined) ?? m.matchLabel,
               matchBreakdown: qBreakdown ? (qBreakdown as Prisma.InputJsonValue) : undefined,
               coverLetter: '', subject: '', resumeUrl: loop.resumeUrl,
-              status: AutoApplyStatus.REJECTED,
+              status: AutoApplyStatus.MATCH_REJECTED,
             },
           });
         } catch (error) {
@@ -1294,7 +1295,8 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           matchScore: ar.score, matchLabel: bd ? (computeCaveats(bd)?.strength ?? null) : null,
           matchBreakdown: bd ? (bd as Prisma.InputJsonValue) : undefined,
           coverLetter: '', subject: '', resumeUrl: ar.cand.loop.resumeUrl,
-          status: AutoApplyStatus.REJECTED,
+          // Audit-only decline (never sent). MATCH_REJECTED, not REJECTED — see the gate block above.
+          status: AutoApplyStatus.MATCH_REJECTED,
         };
       });
       await prisma.autoApplication.createMany({ data: rows, skipDuplicates: true });

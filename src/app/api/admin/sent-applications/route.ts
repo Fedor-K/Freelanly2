@@ -126,7 +126,8 @@ export async function GET(request: NextRequest) {
   // Shared filter — every processed pairing (sent or rejected) in the period.
   const where: Prisma.AutoApplicationWhereInput = { createdAt: { gte: since }, status: { notIn: ['PENDING', 'SENDING', 'REVIEW'] } };
   if (statusFilter === 'sent') where.sentAt = { not: null };
-  if (statusFilter === 'rejected') where.status = 'REJECTED';
+  // "rejected" = matcher-declined pairings (the audit), NOT recruiter "not a fit" replies (REJECTED).
+  if (statusFilter === 'rejected') where.status = 'MATCH_REJECTED';
   if (label !== 'all') where.matchLabel = label === 'none' ? null : label;
   if (cv === 'with') where.user = { resumeUrl: { contains: 'blob.vercel-storage' } };
   if (cv === 'without') where.user = { OR: [{ resumeUrl: null }, { NOT: { resumeUrl: { contains: 'blob.vercel-storage' } } }] };
@@ -160,7 +161,7 @@ export async function GET(request: NextRequest) {
       orderBy: { _max: { createdAt: 'desc' } },
     }),
     prisma.autoApplication.groupBy({ by: ['jobTitle', 'appliedToEmail'], where: { ...where, sentAt: { not: null } }, _count: { _all: true } }),
-    prisma.autoApplication.groupBy({ by: ['jobTitle', 'appliedToEmail'], where: { ...where, status: 'REJECTED' }, _count: { _all: true } }),
+    prisma.autoApplication.groupBy({ by: ['jobTitle', 'appliedToEmail'], where: { ...where, status: 'MATCH_REJECTED' }, _count: { _all: true } }),
     prisma.$queryRawUnsafe<Array<{ label: string | null; n: number }>>(
       `SELECT "matchLabel" label, CAST(COUNT(*) AS INT) n FROM "AutoApplication"
        WHERE "createdAt" >= $1 AND status NOT IN ('PENDING','SENDING','REVIEW') GROUP BY 1 ORDER BY 2 DESC`, since),
