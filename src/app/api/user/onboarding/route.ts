@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
               keywords: ((profile?.skills as string[]) || []).slice(0, 5).join(', ') || null,
               dailyLimit: 10,
               mode: 'AUTO',
-              isActive: false, // TEMP PAUSE: auto-apply loop creation disabled for new users (flip back to true to restore autonomous sends)
+              isActive: true, // autonomous auto-apply on (TEMP PAUSE from 2026-06-03 lifted 2026-06-08 after matcher quality work: gate, honesty, free-domain)
             },
           });
         }

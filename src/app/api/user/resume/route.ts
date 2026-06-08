@@ -205,7 +205,7 @@ Extract as many skills as you can find (up to 20). Extract ALL experience roles,
             keywords: keywords || null,
             dailyLimit: 20,
             mode: 'AUTO',
-            isActive: false, // TEMP PAUSE: auto-apply loop creation disabled for new users (flip back to true to restore autonomous sends)
+            isActive: true, // autonomous auto-apply on (TEMP PAUSE from 2026-06-03 lifted 2026-06-08 after matcher quality work: gate, honesty, free-domain)
           },
         }),
         prisma.user.update({
