@@ -3,6 +3,7 @@
 // subdomains. Used at import (linkedin-posts webhook) AND in the auto-apply sender.
 export const BLOCKED_APPLY_DOMAINS: string[] = [
   'univar.in',
+  'zohomail.com',
 ];
 
 export function isBlockedApplyEmail(email?: string | null): boolean {
