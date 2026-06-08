@@ -232,6 +232,24 @@ export async function processAutoApplyQueue(): Promise<{
     console.warn('[AutoApply] candidate-count preload skipped:', (e as Error)?.message);
   }
 
+  // Per-VACANCY candidate totals (recruiter email + exact job title). Powers the sharper
+  // "N candidates applied to your <role>" CTA — naming the exact vacancy the recruiter is
+  // hiring for beats the cross-role total, and a shortlist of N is the one thing the email
+  // (one attached candidate) physically can't deliver. Same best-effort +1 convention.
+  const vkey = (email: string, title: string) => `${email} ${title}`;
+  const vacancyCountByKey = new Map<string, number>();
+  try {
+    const recipEmails = [...new Set(pendingApps.map((a) => a.appliedToEmail))];
+    const grouped = await prisma.autoApplication.groupBy({
+      by: ['appliedToEmail', 'jobTitle'],
+      where: { appliedToEmail: { in: recipEmails }, sentAt: { not: null } },
+      _count: { _all: true },
+    });
+    for (const g of grouped) vacancyCountByKey.set(vkey(g.appliedToEmail, g.jobTitle), g._count._all + 1);
+  } catch (e) {
+    console.warn('[AutoApply] vacancy-count preload skipped:', (e as Error)?.message);
+  }
+
   // Per-batch cache: parse each JD once (LLM), reuse across candidates sharing the opportunity.
   const jdCache = new Map<string, ParsedJD>();
 
@@ -476,6 +494,7 @@ export async function processAutoApplyQueue(): Promise<{
         // All sends are brokered via apply@ (Postal), so the recruiter-portal footer always applies.
         recruiterEmail: app.appliedToEmail,
         candidateCount: candidateCountByEmail.get(app.appliedToEmail) || 1,
+        vacancyCount: vacancyCountByKey.get(vkey(app.appliedToEmail, app.jobTitle)) || 1,
       });
 
       // AI now generates complete email with greeting + signature
@@ -1341,10 +1360,13 @@ export function buildApplicationEmailHtml(params: {
    *  portal (/r/[token]). Pass ONLY for Postal (apply@) sends — not for a candidate's own
    *  SMTP, where a Freelanly footer would be out of place. */
   recruiterEmail?: string;
-  /** Total candidates this recruiter has (incl. this one) — drives a concrete portal CTA. */
+  /** Total candidates this recruiter has across ALL roles (incl. this one) — fallback CTA. */
   candidateCount?: number;
+  /** Candidates for THIS exact vacancy (recruiter email + job title, incl. this one) — the
+   *  primary "N applied to your <role>" shortlist CTA. */
+  vacancyCount?: number;
 }): string {
-  const { coverLetter, userName, jobTitle, applicationId, recruiterEmail, candidateCount } = params;
+  const { coverLetter, userName, jobTitle, applicationId, recruiterEmail, candidateCount, vacancyCount } = params;
   const portalUrl = recruiterEmail ? getRecruiterPortalUrl(recruiterEmail) : '';
 
   // Convert newlines to paragraphs (escape content — AI/scraped text must not inject HTML)
@@ -1357,12 +1379,24 @@ export function buildApplicationEmailHtml(params: {
   // Prominent top banner — frames the portal as the recruiter's candidate inbox so they
   // reply/review there (where we can build paywall + tracking) instead of plain email reply.
   // Email reply still works (Reply-To unchanged) — this is a soft nudge, no forced redirect.
-  // Concrete CTA when the recruiter has more than one candidate — a real reason to open the portal.
-  const hasMany = typeof candidateCount === 'number' && candidateCount > 1;
-  const bannerSub = hasMany
-    ? `You now have ${candidateCount} candidates for your roles. Reply, view CVs, and manage them all in one place.`
-    : `Reply, view their CV, and manage everyone who applied to your roles — all in one place.`;
-  const bannerCta = hasMany ? `View all ${candidateCount} candidates &rarr;` : `Open your candidates &amp; reply &rarr;`;
+  // Concrete CTA, strongest first: a per-vacancy shortlist ("N applied to your <role>") is the
+  // one thing the email — which carries a single attached candidate — physically can't deliver.
+  // Fall back to the cross-role total, then a generic nudge when this is the only applicant so far.
+  const safeRole = escapeHtml(jobTitle);
+  const hasVacancyMany = typeof vacancyCount === 'number' && vacancyCount > 1;
+  const hasTotalMany = typeof candidateCount === 'number' && candidateCount > 1;
+  let bannerSub: string;
+  let bannerCta: string;
+  if (hasVacancyMany) {
+    bannerSub = `${vacancyCount} candidates have already applied to your ${safeRole} role. Open the shortlist to compare their CVs and reply — all in one place.`;
+    bannerCta = `Open your ${vacancyCount}-candidate shortlist &rarr;`;
+  } else if (hasTotalMany) {
+    bannerSub = `You now have ${candidateCount} candidates across your roles. Reply, view CVs, and manage them all in one place.`;
+    bannerCta = `View all ${candidateCount} candidates &rarr;`;
+  } else {
+    bannerSub = `Reply, view their CV, and manage everyone who applied to your roles — all in one place.`;
+    bannerCta = `Open your candidates &amp; reply &rarr;`;
+  }
   const portalBanner = recruiterEmail
     ? `<table role="presentation" width="100%" style="margin: 0 0 22px; border-collapse: collapse;">
     <tr><td style="background: #F4F8E8; border: 1px solid #C7F94A; border-radius: 12px; padding: 16px 20px;">
