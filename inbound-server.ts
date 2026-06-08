@@ -4,6 +4,7 @@ import { sendEmail } from './src/lib/email';
 import { sendAutoApplyViaPostal } from './src/lib/email/postal';
 import { fetchResumeAttachment } from './src/lib/resume-attachment';
 import { isScamReply } from './src/lib/scam-filter';
+import { maybeSendRecruiterShortlistNudge } from './src/lib/recruiter-nudge';
 import OpenAI from 'openai';
 
 // Auto-send the user's résumé when a recruiter explicitly asks for it. ~57% of recruiter
@@ -127,6 +128,22 @@ const server = http.createServer(async (req, res) => {
         await prisma.activityLog.create({
           data: { userId: app.userId, action: 'RECRUITER_REPLIED', details: { applicationId: appId, category, source: 'postal_inbound_hetzner' } },
         }).catch(() => {});
+
+        // Lever #1 — at peak intent (the recruiter just replied) pull them into the portal with the
+        // one thing the application email can't deliver: their full shortlist for this role. Fire-and-
+        // forget; the helper is rate-limited (1/recruiter/14d), honors opt-out, skips free inboxes.
+        // Guard: only when the sender is the recruiter, not the candidate (defensive — /inbound is
+        // recruiter-only today, but candidate self-replies must never trigger a nudge to themselves).
+        const senderEmail = (from.match(/<([^>]+)>/)?.[1] || from || '').toLowerCase().trim();
+        if (senderEmail && senderEmail !== (app.user.email || '').toLowerCase().trim()) {
+          void maybeSendRecruiterShortlistNudge({
+            recruiterEmail: app.appliedToEmail || '',
+            jobTitle: app.jobTitle,
+            candidateName: app.user.name || 'your candidate',
+            applicationId: appId,
+            category,
+          });
+        }
 
         // ── Auto-send résumé on a clear "send me your CV" request ────────────────────────
         // Recruiter asked for the CV and the user has one stored → send it for them, once

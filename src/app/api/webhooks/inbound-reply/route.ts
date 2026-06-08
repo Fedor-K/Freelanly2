@@ -7,6 +7,7 @@ import { isScamReply } from '@/lib/scam-filter';
 import { sendTelegramNotification, formatReplyNotification } from '@/lib/telegram-notify';
 import OpenAI from 'openai';
 import { replyNotificationEmail, replyTeaserEmail } from '@/lib/email-templates';
+import { maybeSendRecruiterShortlistNudge } from '@/lib/recruiter-nudge';
 
 function getAIClient() {
   const p = process.env.AI_PROVIDER?.toLowerCase();
@@ -180,6 +181,17 @@ export async function POST(request: NextRequest) {
         data: { userId: app.userId, action: 'RECRUITER_REPLIED', details: { applicationId: appId, category: newStatus, source: 'postal_webhook' } },
       }).catch(() => {});
     }
+
+    // Lever #1 — pull the recruiter into the portal with their full shortlist at peak intent.
+    // Reached only on a genuine recruiter reply (user-direction/scam/spam already returned above).
+    // Fire-and-forget; the helper rate-limits (1/recruiter/14d), honors opt-out, skips free inboxes.
+    void maybeSendRecruiterShortlistNudge({
+      recruiterEmail: app.appliedToEmail || '',
+      jobTitle: app.jobTitle,
+      candidateName: app.user.name || 'your candidate',
+      applicationId: appId,
+      category: newStatus,
+    });
 
     // Tiered notifications — kill fatigue, amplify hot leads:
     //  • INTERVIEW (hot)  → email + Telegram (if connected) + Slack

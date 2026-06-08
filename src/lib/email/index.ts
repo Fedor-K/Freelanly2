@@ -21,6 +21,7 @@ interface SendEmailParams {
   html: string;
   text?: string;
   replyTo?: string;
+  listUnsubscribe?: string;
   attachments?: Array<{
     filename: string;
     content: string; // base64 encoded

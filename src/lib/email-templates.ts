@@ -2,6 +2,7 @@
  * Branded email templates for Freelanly
  * Designed for 560px container, system fonts fallback, dark-mode safe.
  */
+import { escapeHtml } from '@/lib/html-escape';
 
 const BRAND = {
   bg: '#F7F6F1',
@@ -294,5 +295,58 @@ export function welcomeEmail(userName: string): { subject: string; html: string;
     </div>
   `);
   const text = `Welcome to Freelanly, ${firstName}! Upload your CV, pick categories, review drafts. Open: https://freelanly.com/dashboard`;
+  return { subject, html, text };
+}
+
+/**
+ * Recruiter-facing nudge, sent the moment a recruiter replies to a candidate (peak intent).
+ * Pulls them into the portal with the one thing the application email can't deliver: their full
+ * shortlist (N candidates for this exact role). Self-contained shell so the footer carries the
+ * recruiter-specific one-click unsubscribe (the generic emailShell footer points at the candidate
+ * /unsubscribe page). The List-Unsubscribe header is set separately at send time.
+ */
+export function recruiterShortlistNudgeEmail(params: {
+  candidateName: string;
+  jobTitle: string;
+  candidateCount: number;
+  portalUrl: string;
+  unsubscribeUrl: string;
+}): { subject: string; html: string; text: string } {
+  const { candidateName, jobTitle, candidateCount, portalUrl, unsubscribeUrl } = params;
+  const name = escapeHtml(candidateName || 'your candidate');
+  const role = escapeHtml(jobTitle || 'your role');
+  const many = candidateCount > 1;
+
+  const subject = many
+    ? `${candidateCount} candidates applied to your ${jobTitle} role`
+    : `Your reply reached ${candidateName}`;
+  const lead = many
+    ? `<strong>${candidateCount} candidates</strong> have applied to your <strong>${role}</strong> role. See them side by side, compare CVs, and reply to anyone — your whole pipeline in one place.`
+    : `View ${name}'s full profile and CV, and keep replying right here — your pipeline for <strong>${role}</strong> in one place.`;
+  const ctaLabel = many ? `Open your ${candidateCount}-candidate shortlist →` : `Open ${name}'s profile →`;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Freelanly</title></head>
+<body style="margin:0;padding:0;background:${BRAND.bg};font-family:'Geist',-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;color:${BRAND.ink};-webkit-font-smoothing:antialiased;">
+<div style="max-width:560px;margin:32px auto;background:${BRAND.card};border-radius:14px;overflow:hidden;box-shadow:0 1px 0 rgba(0,0,0,0.02),0 12px 32px -8px rgba(0,0,0,0.08);">
+  <div style="display:flex;align-items:center;gap:10px;padding:18px 28px;border-bottom:1px solid ${BRAND.line};">
+    <div style="width:26px;height:26px;border-radius:7px;background:${BRAND.ink};color:${BRAND.acid};display:inline-block;text-align:center;line-height:26px;font-weight:700;font-size:13px;font-family:monospace;">F</div>
+    <span style="font-size:14px;font-weight:500;">Freelanly</span>
+    <span style="margin-left:auto;font-family:monospace;font-size:10.5px;color:${BRAND.ink4};letter-spacing:0.06em;text-transform:uppercase;">For recruiters</span>
+  </div>
+  <div style="padding:32px 32px 28px;">
+    <div style="font-size:12px;font-family:monospace;color:${BRAND.acidDeep};letter-spacing:0.04em;text-transform:uppercase;margin-bottom:10px;">✓ Your reply reached ${name}</div>
+    <h1 style="font-size:23px;font-weight:500;letter-spacing:-0.022em;margin:0 0 12px;color:${BRAND.ink};">${many ? `You have ${candidateCount} candidates for ${role}` : `Manage ${role} in one place`}</h1>
+    <p style="margin:0 0 22px;color:${BRAND.ink2};font-size:14px;line-height:1.6;">${lead}</p>
+    <a href="${portalUrl}" style="display:inline-block;padding:13px 30px;background:${BRAND.acid};color:#000;border-radius:10px;text-decoration:none;font-size:15px;font-weight:700;">${ctaLabel}</a>
+    <p style="margin:22px 0 0;font-size:12.5px;color:${BRAND.ink3};line-height:1.55;">No password needed — this link opens your candidates straight away. Replying by email still works too.</p>
+  </div>
+  <div style="padding:22px 32px 28px;font-size:11.5px;font-family:monospace;color:${BRAND.ink4};letter-spacing:0.04em;line-height:1.65;background:${BRAND.bg2};border-top:1px solid ${BRAND.line};">
+    <div>Freelanly · freelanly.com</div>
+    <div style="margin-top:8px;font-size:10.5px;color:${BRAND.ink4};">You're getting this because a candidate applied to ${role} via your inbox. <a href="${unsubscribeUrl}" style="color:${BRAND.ink3};text-decoration:underline;">Unsubscribe</a></div>
+  </div>
+</div>
+</body></html>`;
+
+  const text = `${many ? `${candidateCount} candidates have applied to your ${jobTitle} role.` : `View ${candidateName}'s profile and CV.`} Open your candidates (no password needed): ${portalUrl}\n\nUnsubscribe: ${unsubscribeUrl}`;
   return { subject, html, text };
 }

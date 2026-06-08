@@ -22,6 +22,8 @@ interface SendEmailParams {
   html: string;
   text?: string;
   replyTo?: string;
+  /** One-click List-Unsubscribe target (RFC 8058). Set for bulk/marketing sends to recruiters. */
+  listUnsubscribe?: string;
   attachments?: Array<{
     filename: string;
     content: string;
@@ -55,6 +57,13 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
 
     if (params.replyTo) {
       body.reply_to = params.replyTo;
+    }
+
+    if (params.listUnsubscribe) {
+      body.headers = {
+        'List-Unsubscribe': `<${params.listUnsubscribe}>, <mailto:unsubscribe@freelanly.com?subject=unsubscribe>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      };
     }
 
     if (params.attachments && params.attachments.length > 0) {
