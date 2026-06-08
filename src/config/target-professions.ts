@@ -318,12 +318,18 @@ const WHITELIST_ENGINEERING = [
   'software development engineer in test', 'software engineer in test',
   // Generic terms (digital context)
   'developer', 'programmer', 'coder',
+  // Architects
+  'architect', 'software architect', 'ai architect', 'mobile architect',
+  'azure architect', 'aws architect', 'enterprise architect', 'boomi architect',
   // IT admin/tooling
-  'atlassian administrator', 'jira engineer', 'jira administrator',
+  'administrator', 'atlassian administrator', 'jira engineer', 'jira administrator',
+  'linux administrator', 'control-m administrator',
   'migration specialist', 'deployment specialist',
   'robotics engineer', 'simulation engineer',
+  'performance engineer', 'mongodb engineer',
   // Consultants
-  'blackline consultant',
+  'consultant', 'blackline consultant', 'oracle consultant',
+  'edi analyst',
 ];
 
 const WHITELIST_DATA = [
@@ -385,6 +391,7 @@ const WHITELIST_DESIGN = [
   'figma', 'sketch designer',
   '3d designer', '3d artist', '3d modeler',
   'illustrator', 'photographer', 'product photographer',
+  'graphics artist', '3d visualization',
   'designer', // generic - matches "Marketing Designer", etc.
 ];
 
@@ -424,6 +431,8 @@ const WHITELIST_MARKETING = [
   'lead gen manager', 'leadgen', 'traffic manager', 'traffic acquisition',
   'vp marketing', 'head of marketing', 'cmo', 'chief marketing',
   'marketeer', 'marketing coordinator',
+  'performance marketer',
+  'business development intern', 'business development',
   'content strategist', 'content lead',
   'affiliate marketing', 'influencer marketing', 'partnership marketing',
 ];
@@ -506,9 +515,11 @@ const WHITELIST_SUPPORT = [
   'global onboarding',
   'call center agent', 'call center',
   'medical reviewer',
+  'customer service representative',
 ];
 
 const WHITELIST_HR = [
+  'hr intern', 'human resources intern',
   'recruiter', 'technical recruiter', 'it recruiter',
   'sourcer', 'talent sourcer',
   'talent acquisition', 'recruiting coordinator', 'recruiting manager',
