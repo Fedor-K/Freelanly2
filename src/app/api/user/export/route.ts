@@ -12,7 +12,9 @@ export async function GET() {
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const apps = await prisma.autoApplication.findMany({
-      where: { userId: session.user.id },
+      // Exclude the matcher's phantom REJECTED rows (declined candidates, never sent,
+      // no reply) — they'd read as recruiter rejections in the user's exported CSV.
+      where: { userId: session.user.id, NOT: { status: 'REJECTED', repliedAt: null } },
       orderBy: { createdAt: 'desc' },
       select: {
         jobTitle: true,

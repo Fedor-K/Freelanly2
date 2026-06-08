@@ -20,7 +20,13 @@ export async function GET(request: NextRequest) {
     const applications = await prisma.autoApplication.findMany({
       where: {
         userId,
-        status: { in: ['SENT', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'] },
+        // REJECTED is a real recruiter "not a fit" ONLY when it came from a reply.
+        // The matcher writes phantom REJECTED rows (never sent, no reply) for every
+        // candidate it declines — those must never surface as the user's rejections.
+        OR: [
+          { status: { in: ['SENT', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER'] } },
+          { status: 'REJECTED', repliedAt: { not: null } },
+        ],
       },
       select: {
         id: true,

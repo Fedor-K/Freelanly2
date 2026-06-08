@@ -22,8 +22,11 @@ export async function GET(request: NextRequest) {
       _count: { status: true },
     });
 
+    // NOTE: REJECTED is excluded here — the matcher writes phantom REJECTED rows (never
+    // sent, no reply) that would otherwise inflate the `sent` denominator and crater the
+    // reply rate. Real recruiter rejections are counted separately via `rejected` below.
     const sent = stats.reduce((sum, s) => {
-      if (['SENT', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'].includes(s.status)) {
+      if (['SENT', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER'].includes(s.status)) {
         return sum + s._count.status;
       }
       return sum;
@@ -32,7 +35,10 @@ export async function GET(request: NextRequest) {
     const opened = stats.find(s => s.status === 'OPENED')?._count.status || 0;
     const interviews = stats.find(s => s.status === 'INTERVIEW')?._count.status || 0;
     const pending = stats.find(s => s.status === 'PENDING')?._count.status || 0;
-    const rejected = stats.find(s => s.status === 'REJECTED')?._count.status || 0;
+    // Real recruiter rejection = a reply marked "not a fit" (has repliedAt), not a matcher decline.
+    const rejected = await prisma.autoApplication.count({
+      where: { userId, status: 'REJECTED', repliedAt: { not: null } },
+    });
 
     const replyRate = sent > 0 ? ((replied + interviews) / sent * 100) : 0;
     const openRate = sent > 0 ? (opened / sent * 100) : 0;

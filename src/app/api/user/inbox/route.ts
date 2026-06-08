@@ -74,12 +74,17 @@ export async function GET(request: NextRequest) {
 
     const where: Record<string, unknown> = {
       userId: session.user.id,
-      status: { in: ['REPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'] },
+      // Inbox only shows real recruiter replies. REJECTED counts ONLY when it came from
+      // a reply — the matcher writes phantom REJECTED rows (never sent) that must not show.
+      OR: [
+        { status: { in: ['REPLIED', 'INTERVIEW', 'OFFER'] } },
+        { status: 'REJECTED', repliedAt: { not: null } },
+      ],
     };
 
-    if (filter === 'interested') where.status = 'REPLIED';
-    if (filter === 'interview') where.status = 'INTERVIEW';
-    if (filter === 'rejected') where.status = 'REJECTED';
+    if (filter === 'interested') { delete where.OR; where.status = 'REPLIED'; }
+    if (filter === 'interview') { delete where.OR; where.status = 'INTERVIEW'; }
+    if (filter === 'rejected') { delete where.OR; where.status = 'REJECTED'; where.repliedAt = { not: null }; }
 
     const threads = await prisma.autoApplication.findMany({
       where: where as any,

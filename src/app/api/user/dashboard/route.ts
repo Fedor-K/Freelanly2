@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     // KPIs
     const apps = await prisma.autoApplication.findMany({
       where: { userId, ...(since ? { sentAt: { gte: since } } : {}) },
-      select: { status: true, sentAt: true, followUpSentAt: true },
+      select: { status: true, sentAt: true, followUpSentAt: true, repliedAt: true },
     });
 
     const sent = apps.filter(a => a.sentAt).length;
@@ -40,7 +40,9 @@ export async function GET(request: NextRequest) {
     const replied = apps.filter(a => ['REPLIED', 'INTERVIEW', 'OFFER'].includes(a.status)).length;
     const followUps = apps.filter(a => a.followUpSentAt).length;
     const interviews = apps.filter(a => a.status === 'INTERVIEW').length;
-    const rejected = apps.filter(a => a.status === 'REJECTED').length;
+    // Real recruiter rejection = a reply marked "not a fit". Exclude the matcher's
+    // phantom REJECTED rows (never sent, no reply) so users don't see false rejections.
+    const rejected = apps.filter(a => a.status === 'REJECTED' && a.repliedAt).length;
 
     // Previous period for comparison
     let prevSent = 0;
