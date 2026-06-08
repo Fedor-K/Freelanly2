@@ -318,6 +318,12 @@ const WHITELIST_ENGINEERING = [
   'software development engineer in test', 'software engineer in test',
   // Generic terms (digital context)
   'developer', 'programmer', 'coder',
+  // IT admin/tooling
+  'atlassian administrator', 'jira engineer', 'jira administrator',
+  'migration specialist', 'deployment specialist',
+  'robotics engineer', 'simulation engineer',
+  // Consultants
+  'blackline consultant',
 ];
 
 const WHITELIST_DATA = [
@@ -498,6 +504,8 @@ const WHITELIST_SUPPORT = [
   'implementation manager', 'implementation specialist',
   'onboarding specialist', 'onboarding manager', 'onboarding',
   'global onboarding',
+  'call center agent', 'call center',
+  'medical reviewer',
 ];
 
 const WHITELIST_HR = [
