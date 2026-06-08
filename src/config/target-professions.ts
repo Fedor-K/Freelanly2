@@ -330,6 +330,7 @@ const WHITELIST_ENGINEERING = [
   // Consultants
   'consultant', 'blackline consultant', 'oracle consultant',
   'edi analyst',
+  'business system analyst', 'business systems analyst',
 ];
 
 const WHITELIST_DATA = [
