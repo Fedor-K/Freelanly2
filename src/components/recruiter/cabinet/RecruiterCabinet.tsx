@@ -122,8 +122,10 @@ export function RecruiterCabinet({
   const [paywall, setPaywall] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  // registration (value-first: asked at first reply)
+  // registration (value-first: the FIRST in-portal reply is free, registration is asked only
+  // from the SECOND reply on — so the recruiter completes the core action before any ask)
   const [registered, setRegistered] = useState(false);
+  const [portalRepliesSent, setPortalRepliesSent] = useState(0);
   const [regOpen, setRegOpen] = useState(false);
   const [pendingReplyAppId, setPendingReplyAppId] = useState<string | null>(null);
   const [regName, setRegName] = useState(recruiter.name || '');
@@ -225,6 +227,7 @@ export function RecruiterCabinet({
       if (res.ok && data.success) {
         setThreads((t) => ({ ...t, [appId]: [...(t[appId] || []), { from: 'recruiter', text: message, at: new Date().toISOString() }] }));
         setDrafts((d) => ({ ...d, [appId]: '' }));
+        setPortalRepliesSent((n) => n + 1);  // unlocks the value-first registration ask on the next reply
       } else {
         setSendErr((e) => ({ ...e, [appId]: data.error || 'Failed to send' }));
       }
@@ -237,9 +240,13 @@ export function RecruiterCabinet({
 
   const doSend = useCallback((appId: string) => {
     if (!(drafts[appId] || '').trim()) return;
-    if (needsRegistration && !registered) { setPendingReplyAppId(appId); setRegErr(''); setRegOpen(true); return; }
+    // Value-first: let the FIRST reply through with no registration so the recruiter experiences
+    // the core action (messaging a candidate). Ask to register only from the second reply on.
+    if (needsRegistration && !registered && portalRepliesSent >= 1) {
+      setPendingReplyAppId(appId); setRegErr(''); setRegOpen(true); return;
+    }
     void doSendRaw(appId);
-  }, [drafts, needsRegistration, registered, doSendRaw]);
+  }, [drafts, needsRegistration, registered, portalRepliesSent, doSendRaw]);
 
   const completeRegistration = useCallback(async () => {
     if (regSaving) return;
@@ -391,12 +398,12 @@ export function RecruiterCabinet({
         <RIcon name="check" size={15} /><span>{toastMsg}</span>
       </div>
 
-      {/* registration modal (first reply) */}
+      {/* registration modal (asked from the second reply on — first reply is free) */}
       {regOpen && (
         <div onClick={() => { if (!regSaving) setRegOpen(false); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 250 }}>
           <div className="card" onClick={(e) => e.stopPropagation()} style={{ padding: '22px', maxWidth: '420px', width: '100%' }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: '18px' }}>One quick step to reply</h3>
-            <p className="meta" style={{ margin: '0 0 16px', fontSize: '13px' }}>A few details and your message goes straight to the candidate. No password needed.</p>
+            <h3 style={{ margin: '0 0 4px', fontSize: '18px' }}>Keep the conversation going</h3>
+            <p className="meta" style={{ margin: '0 0 16px', fontSize: '13px' }}>Your first message is on its way. Add a couple of details to keep replying — and we&apos;ll email you the moment a candidate responds. No password needed.</p>
             <div style={{ marginBottom: '12px' }}>
               <span style={REG_LABEL}>Your email</span>
               <input value={recruiter.email} readOnly disabled style={{ ...REG_INPUT, background: '#F6F5F1', color: '#8A8780' }} />
