@@ -4,6 +4,7 @@
 export const BLOCKED_APPLY_DOMAINS: string[] = [
   'univar.in',
   'zohomail.com',
+  'kloudhire.com',
 ];
 
 export function isBlockedApplyEmail(email?: string | null): boolean {
