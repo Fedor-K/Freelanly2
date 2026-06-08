@@ -374,10 +374,11 @@ const WHITELIST_DESIGN = [
   'product designer', 'digital product designer',
   'visual designer', 'graphic designer', 'web designer',
   'interaction designer', 'motion designer', 'motion designers', 'motion graphics',
-  'brand designer', 'creative director', 'art director',
+  'brand designer', 'creative director', 'art director', 'creative strategist',
   'design lead', 'head of design', 'design manager',
   'figma', 'sketch designer',
   '3d designer', '3d artist', '3d modeler',
+  'illustrator', 'photographer', 'product photographer',
   'designer', // generic - matches "Marketing Designer", etc.
 ];
 
@@ -400,15 +401,18 @@ const WHITELIST_PROJECT = [
 const WHITELIST_MARKETING = [
   'marketing manager', 'digital marketing', 'growth marketing',
   'performance marketing', 'content marketing',
-  'seo specialist', 'seo manager', 'sem specialist', 'sem manager',
+  'marketing intern', 'marketing associate', 'marketing executive',
+  'seo specialist', 'seo manager', 'seo executive', 'seo analyst', 'seo',
+  'sem specialist', 'sem manager',
   'ppc specialist', 'ppc manager', 'paid media', 'media buyer',
-  'social media manager', 'social media specialist',
+  'social media manager', 'social media specialist', 'social media',
   'community manager', 'community lead',
   'email marketing', 'email specialist', 'marketing automation',
   'crm manager', 'crm specialist', 'lifecycle marketing',
   'brand manager', 'brand strategist',
   'marketing analyst', 'marketing ops', 'marketing operations',
   'growth manager', 'growth lead', 'head of growth',
+  'growth specialist', 'growth strategist', 'growth executive',
   'demand generation', 'demand gen', 'lead generation', 'lead gen',
   'lead gen manager', 'leadgen', 'traffic manager', 'traffic acquisition',
   'vp marketing', 'head of marketing', 'cmo', 'chief marketing',
