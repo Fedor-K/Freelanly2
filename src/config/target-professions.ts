@@ -331,6 +331,12 @@ const WHITELIST_ENGINEERING = [
   'consultant', 'blackline consultant', 'oracle consultant',
   'edi analyst',
   'business system analyst', 'business systems analyst',
+  // Broad roles
+  'expert', 'subject matter expert', 'sme',
+  'specialist',
+  'mainframe', 'maximo',
+  'shopify manager', 'shopify',
+  'modeler', 'character modeler',
 ];
 
 const WHITELIST_DATA = [
@@ -479,7 +485,8 @@ const WHITELIST_TRANSLATION = [
   'proofreader', 'revisor', 'reviser',
   'translation reviewer', 'linguistic reviewer', 'localization reviewer',
   // Transcription & Subtitling
-  'transcriptionist', 'subtitler', 'captioner', 'subtitle editor',
+  'transcriptionist', 'transcription', 'subtitler', 'captioner', 'subtitle editor',
+  'language expert',
   // Specialized
   'terminologist', 'terminology manager', 'terminology specialist',
   'dtp specialist', 'desktop publishing specialist',
