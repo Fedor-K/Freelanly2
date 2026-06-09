@@ -209,18 +209,18 @@ const server = http.createServer(async (req, res) => {
               subject: autoResumeSent ? `✅ We sent your résumé to ${app.companyName}` : hot ? `🔔 ${app.companyName} wants to interview you!` : `${app.companyName} replied to your application!`,
               html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px">
                 <h2 style="margin:0 0 8px">${autoResumeSent ? `We sent your résumé to ${app.companyName} ✅` : hot ? `An interview request, ${firstName}! 🔔` : `Hey ${firstName}, you got a reply! 🎉`}</h2>
-                <p style="color:#555;margin:0 0 20px;line-height:1.6">${autoResumeSent ? `${app.companyName} asked for your résumé and we sent it for you automatically. Open the thread to follow up:` : 'A recruiter responded to your application.'}</p>
+                <p style="color:#555;margin:0 0 20px;line-height:1.6">${autoResumeSent ? `${app.companyName} asked for your résumé and <strong>we already sent it for you automatically</strong> — nothing you need to do. No need to reply with your CV again; open the thread only if you'd like to add a personal note.` : 'A recruiter responded to your application.'}</p>
                 <table style="width:100%;border:1px solid #E8E5DC;border-radius:10px;border-collapse:collapse">
                   <tr><td style="padding:12px 16px"><strong>${emoji} ${app.companyName}</strong><br>
                   <span style="color:#666;font-size:13px">${app.jobTitle}</span><br>
                   <span style="color:#888;font-size:13px">${preview}</span></td></tr>
                 </table>
                 <div style="margin-top:24px;text-align:center">
-                  <a href="https://freelanly.com/api/track/reply-click?app=${appId}&u=${app.userId}&to=${encodeURIComponent('/dashboard?tab=inbox')}" style="display:inline-block;padding:14px 32px;background:#C7F94A;color:#000;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px">View & Reply →</a>
+                  <a href="https://freelanly.com/api/track/reply-click?app=${appId}&u=${app.userId}&to=${encodeURIComponent('/dashboard?tab=inbox')}" style="display:inline-block;padding:14px 32px;background:#C7F94A;color:#000;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px">${autoResumeSent ? 'View conversation' : 'View & Reply'} →</a>
                 </div>
                 <img src="https://freelanly.com/api/track/reply-open?app=${appId}&u=${app.userId}" width="1" height="1" style="display:none" alt="" />
               </div>`,
-              text: autoResumeSent ? `${app.companyName} asked for your résumé — we sent it for you. Follow up: https://freelanly.com/dashboard/inbox` : `Hey ${firstName}, ${app.companyName} replied! View: https://freelanly.com/dashboard/inbox`,
+              text: autoResumeSent ? `${app.companyName} asked for your résumé — we already sent it for you. No need to reply with your CV again. View: https://freelanly.com/dashboard/inbox` : `Hey ${firstName}, ${app.companyName} replied! View: https://freelanly.com/dashboard/inbox`,
             });
             sendOk = !!(r && r.success); sendErr = (r && r.error) || null;
           } catch (e) {
