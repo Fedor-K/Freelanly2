@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { AlertFrequency } from '@prisma/client';
 import { rateLimit, getClientIp, sanitizeEmail, sanitizeString } from '@/lib/rate-limit';
 import { validateEmail } from '@/lib/email-validator';
+import { recordSignup } from '@/lib/signup';
 
 interface RegisterRequest {
   email: string;
@@ -19,6 +20,9 @@ interface RegisterRequest {
   utmContent?: string;
   source?: string; // Registration traffic source (utm_source)
   jobAlertOptIn?: boolean; // §4 scaffold — consent to future job-alert emails (sending suspended)
+  entryPoint?: string; // Registration surface: 'freelance_inline' | 'auth_signin' | 'auth_modal'
+  opportunityId?: string; // The project the user registered through (inline /freelance apply)
+  pageUrl?: string; // Page path the registration happened on
 }
 
 /**
@@ -57,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: RegisterRequest = await request.json();
-    const { email, name, categories, country, countries, languages, jobId, agreedToTerms, gclid, source, utmMedium, utmCampaign, utmContent, jobAlertOptIn } = body;
+    const { email, name, categories, country, countries, languages, jobId, agreedToTerms, gclid, source, utmMedium, utmCampaign, utmContent, jobAlertOptIn, entryPoint, opportunityId, pageUrl } = body;
 
     // Rate limit by email: 1 request per 10 minutes (prevent email bombing)
     const normalizedEmailForLimit = sanitizeEmail(email || '');
@@ -176,6 +180,18 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[Register] Created new user: ${normalizedEmail}`);
+
+    // Single registration chokepoint — log the SIGNUP with full attribution (path A: inline
+    // /freelance + auth forms). The NextAuth createUser event covers path B (magic-link only).
+    await recordSignup({
+      userId: user.id,
+      email: normalizedEmail,
+      source: source || null,
+      entryPoint: entryPoint || 'auth_register',
+      opportunityId: opportunityId || null,
+      jobId: jobId || null,
+      pageUrl: pageUrl || null,
+    });
 
     // Create alerts for each category × country
     await createAlertsForUser(user.id, normalizedEmail, categories, selectedCountries, languagePairs);

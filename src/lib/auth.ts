@@ -4,6 +4,7 @@ import Resend from 'next-auth/providers/resend';
 import { prisma } from '@/lib/db';
 import { sendMagicLinkEmail } from '@/lib/auth-email';
 import { ActivityAction } from '@prisma/client';
+import { recordSignup } from '@/lib/signup';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -84,18 +85,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     // Track new signups
     async createUser({ user }) {
       console.log(`[Auth] New user created: ${user.email}`);
-      // Log signup for dispute evidence (IP not available in NextAuth events)
-      try {
-        await prisma.activityLog.create({
-          data: {
-            userId: user.id,
-            action: ActivityAction.SIGNUP,
-            details: { email: user.email },
-          },
-        });
-      } catch (e) {
-        console.error('[Auth] Failed to log signup:', e);
-      }
+      // Single registration chokepoint (path B: adapter-created users, e.g. magic-link with no
+      // pre-register via /api/auth/register). Path A (register upsert) logs its own SIGNUP with
+      // richer attribution; recordSignup is idempotent so this never double-logs.
+      if (user.id) await recordSignup({ userId: user.id, email: user.email, entryPoint: 'magic_link' });
     },
 
     async signIn({ user, account }) {

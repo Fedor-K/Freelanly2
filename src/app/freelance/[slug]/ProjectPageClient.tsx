@@ -223,6 +223,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
               languages: selectedCategories.includes('translation') ? selectedLanguages : undefined,
               agreedToTerms: true,
               jobAlertOptIn,
+              // Registration attribution (single chokepoint): inline apply on a project page.
+              entryPoint: 'freelance_inline',
+              opportunityId: project.id,
+              pageUrl: typeof window !== 'undefined' ? window.location.pathname : undefined,
             }),
           });
           if (!regRes.ok) {
