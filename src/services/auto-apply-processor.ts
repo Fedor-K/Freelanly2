@@ -157,6 +157,7 @@ export async function processAutoApplyQueue(): Promise<{
           caseStudies: true,
           freeAppliesUsedToday: true,
           lastFreeApplyReset: true,
+          image: true,
         },
       },
       loop: {
@@ -236,7 +237,7 @@ export async function processAutoApplyQueue(): Promise<{
   // "N candidates applied to your <role>" CTA — naming the exact vacancy the recruiter is
   // hiring for beats the cross-role total, and a shortlist of N is the one thing the email
   // (one attached candidate) physically can't deliver. Same best-effort +1 convention.
-  const vkey = (email: string, title: string) => `${email} ${title}`;
+  const vkey = (email: string, title: string) => `${email}${title}`;
   const vacancyCountByKey = new Map<string, number>();
   try {
     const recipEmails = [...new Set(pendingApps.map((a) => a.appliedToEmail))];
@@ -248,6 +249,33 @@ export async function processAutoApplyQueue(): Promise<{
     for (const g of grouped) vacancyCountByKey.set(vkey(g.appliedToEmail, g.jobTitle), g._count._all + 1);
   } catch (e) {
     console.warn('[AutoApply] vacancy-count preload skipped:', (e as Error)?.message);
+  }
+
+  // Preload other candidates per recruiter email for the "more candidates" email section.
+  // Shows names + titles + photos of recent applicants to create social proof / urgency.
+  type OtherCandidate = { name: string; title: string; avatarUrl: string | null };
+  const otherCandidatesByEmail = new Map<string, OtherCandidate[]>();
+  try {
+    const recipEmails2 = [...new Set(pendingApps.map((a) => a.appliedToEmail))];
+    const others = await prisma.autoApplication.findMany({
+      where: { appliedToEmail: { in: recipEmails2 }, sentAt: { not: null }, status: { notIn: ['PENDING', 'FAILED', 'REJECTED'] } },
+      orderBy: { sentAt: 'desc' },
+      take: 500,
+      select: { appliedToEmail: true, jobTitle: true, user: { select: { name: true, image: true, parsedProfile: true } } },
+    });
+    for (const o of others) {
+      const list = otherCandidatesByEmail.get(o.appliedToEmail) || [];
+      if (list.length >= 5) continue;
+      const pp = (o.user.parsedProfile ?? {}) as Record<string, unknown>;
+      const title = (typeof pp.current_title === 'string' ? pp.current_title : o.jobTitle) || '';
+      const name = o.user.name || 'Candidate';
+      // Dedupe by name
+      if (list.some(c => c.name === name)) continue;
+      list.push({ name, title, avatarUrl: o.user.image || null });
+      otherCandidatesByEmail.set(o.appliedToEmail, list);
+    }
+  } catch (e) {
+    console.warn('[AutoApply] other-candidates preload skipped:', (e as Error)?.message);
   }
 
   // Per-batch cache: parse each JD once (LLM), reuse across candidates sharing the opportunity.
@@ -484,6 +512,7 @@ export async function processAutoApplyQueue(): Promise<{
         : await fetchResumeAttachment(app.user.resumeUrl, app.user.resumeFileName);
 
       // Build email HTML
+      const pp = (app.user.parsedProfile ?? {}) as Record<string, unknown>;
       const html = buildApplicationEmailHtml({
         coverLetter,
         userName: app.user.name || 'Applicant',
@@ -495,6 +524,15 @@ export async function processAutoApplyQueue(): Promise<{
         recruiterEmail: app.appliedToEmail,
         candidateCount: candidateCountByEmail.get(app.appliedToEmail) || 1,
         vacancyCount: vacancyCountByKey.get(vkey(app.appliedToEmail, app.jobTitle)) || 1,
+        avatarUrl: app.user.image || undefined,
+        profile: {
+          location: typeof pp.location === 'string' ? pp.location : undefined,
+          experienceYears: typeof pp.experience_years === 'number' ? pp.experience_years : undefined,
+          summary: typeof pp.summary === 'string' ? pp.summary : undefined,
+          skills: Array.isArray(pp.skills) ? pp.skills.map(String).slice(0, 6) : [],
+          languages: Array.isArray(pp.languages) ? pp.languages.map(String) : [],
+        },
+        otherCandidates: (otherCandidatesByEmail.get(app.appliedToEmail) || []).filter(c => c.name !== (app.user.name || 'Applicant')).slice(0, 3),
       });
 
       // AI now generates complete email with greeting + signature
@@ -1356,67 +1394,129 @@ export function buildApplicationEmailHtml(params: {
   companyName: string;
   recruiterName?: string;
   applicationId?: string;
-  /** When set, append a subtle "see all your candidates" footer linking to the recruiter
-   *  portal (/r/[token]). Pass ONLY for Postal (apply@) sends — not for a candidate's own
-   *  SMTP, where a Freelanly footer would be out of place. */
   recruiterEmail?: string;
-  /** Total candidates this recruiter has across ALL roles (incl. this one) — fallback CTA. */
   candidateCount?: number;
-  /** Candidates for THIS exact vacancy (recruiter email + job title, incl. this one) — the
-   *  primary "N applied to your <role>" shortlist CTA. */
   vacancyCount?: number;
+  avatarUrl?: string;
+  profile?: {
+    location?: string;
+    experienceYears?: number;
+    summary?: string;
+    skills?: string[];
+    languages?: string[];
+  };
+  otherCandidates?: Array<{ name: string; title: string; avatarUrl: string | null }>;
 }): string {
-  const { coverLetter, userName, jobTitle, applicationId, recruiterEmail, candidateCount, vacancyCount } = params;
+  const { coverLetter, userName, jobTitle, applicationId, recruiterEmail, candidateCount, vacancyCount, avatarUrl, profile, otherCandidates } = params;
   const portalUrl = recruiterEmail ? getRecruiterPortalUrl(recruiterEmail) : '';
+  const firstName = userName.split(/\s+/)[0] || userName;
 
-  // Convert newlines to paragraphs (escape content — AI/scraped text must not inject HTML)
+  // --- Card-based layout (profile data available) ---
+  if (recruiterEmail && profile) {
+    const safeName = escapeHtml(userName);
+    const safeRole = escapeHtml(jobTitle);
+
+    // Meta line: 📍 Location · ⏱ N years experience · 💬 Language
+    const metaParts: string[] = [];
+    if (profile.location) metaParts.push(`\ud83d\udccd ${escapeHtml(profile.location)}`);
+    if (profile.experienceYears && profile.experienceYears > 0) metaParts.push(`\u23f1 ${profile.experienceYears} years experience`);
+    if (profile.languages && profile.languages.length > 0) metaParts.push(`\ud83d\udcac ${escapeHtml(profile.languages.slice(0, 3).join(', '))}`);
+    const metaLine = metaParts.length > 0
+      ? `<div style="font-size: 13px; color: #666; margin-top: 4px;">${metaParts.join(' &middot; ')}</div>`
+      : '';
+
+    // Summary — use profile summary or first paragraph of cover letter
+    const summaryText = profile.summary
+      ? profile.summary.slice(0, 200) + (profile.summary.length > 200 ? '...' : '')
+      : coverLetter.split('\n').filter(l => l.trim()).slice(0, 2).join(' ').slice(0, 200);
+    const summaryBlock = summaryText
+      ? `<p style="font-size: 14px; color: #333; line-height: 1.5; margin: 16px 0 14px;">${escapeHtml(summaryText)}</p>`
+      : '';
+
+    // Skill tags
+    const skills = profile.skills && profile.skills.length > 0 ? profile.skills.slice(0, 6) : [];
+    const skillTags = skills.length > 0
+      ? `<div style="margin-bottom: 18px;">${skills.map(s =>
+          `<span style="display: inline-block; background: #F3F3F0; color: #333; font-size: 12px; padding: 4px 10px; border-radius: 6px; margin: 0 6px 6px 0;">${escapeHtml(s)}</span>`
+        ).join('')}</div>`
+      : '';
+
+    // Avatar — circular photo or letter initial, floated left of name
+    const avatarImg = avatarUrl
+      ? `<img src="${escapeHtml(avatarUrl)}" width="52" height="52" alt="${safeName}" style="width:52px;height:52px;border-radius:50%;display:block;" />`
+      : '';
+
+    // Reply + View CV buttons
+    const replyBtn = `<a href="mailto:" style="display: inline-block; padding: 10px 28px; background: #0B0C0F; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px;">Reply to ${escapeHtml(firstName)} &rarr;</a>`;
+    const cvLink = portalUrl
+      ? `&nbsp;&nbsp;&nbsp;<a href="${portalUrl}" style="font-size: 14px; color: #555; text-decoration: underline;">View CV</a>`
+      : '';
+
+    // Bottom CTA — "N more candidates" or portal link
+    const hasMany = (typeof vacancyCount === 'number' && vacancyCount > 1) || (typeof candidateCount === 'number' && candidateCount > 1);
+    const moreCount = (typeof vacancyCount === 'number' && vacancyCount > 1) ? vacancyCount - 1 : ((typeof candidateCount === 'number' && candidateCount > 1) ? candidateCount - 1 : 0);
+    // Cover letter teaser — first 2-3 meaningful lines, trimmed
+    const clLines = coverLetter.split('\n').filter(l => l.trim() && !l.trim().toLowerCase().startsWith('dear') && !l.trim().toLowerCase().startsWith('best regard') && !l.trim().toLowerCase().startsWith('sincerely'));
+    const teaserText = clLines.slice(0, 2).join(' ').slice(0, 250);
+    const teaserBlock = teaserText
+      ? `<div style="font-size: 13px; color: #555; font-style: italic; line-height: 1.5; margin-bottom: 18px; padding: 12px 16px; background: #FAFAF8; border-radius: 8px; border-left: 3px solid #C7F94A;">"${escapeHtml(teaserText)}${teaserText.length >= 250 ? '...' : ''}"</div>`
+      : '';
+
+    // Other candidates section with photos + names + titles
+    const oc = otherCandidates && otherCandidates.length > 0 ? otherCandidates : [];
+    const otherCandidatesHtml = oc.length > 0 && portalUrl
+      ? oc.map(c => {
+          const cAvatar = c.avatarUrl
+            ? `<img src="${escapeHtml(c.avatarUrl)}" width="36" height="36" style="width:36px;height:36px;border-radius:50%;display:block;" alt="${escapeHtml(c.name)}" />`
+            : `<div style="width:36px;height:36px;border-radius:50%;background:#E8E8E5;color:#666;font-size:15px;font-weight:700;text-align:center;line-height:36px;">${escapeHtml(c.name.charAt(0).toUpperCase())}</div>`;
+          return `<div style="padding: 10px 0; border-bottom: 1px solid #f0f0ec;"><!--[if mso]><table cellpadding="0" cellspacing="0"><tr><td valign="middle" width="50"><![endif]--><div style="display:inline-block;vertical-align:middle;width:36px;margin-right:12px;">${cAvatar}</div><!--[if mso]></td><td valign="middle"><![endif]--><div style="display:inline-block;vertical-align:middle;"><span style="font-weight: 600; font-size: 14px; color: #0B0C0F;">${escapeHtml(c.name)}</span> <span style="font-size: 13px; color: #666;">&mdash; ${escapeHtml(c.title)}</span></div><!--[if mso]></td></tr></table><![endif]--></div>`;
+        }).join('')
+      : '';
+
+    const bottomSection = portalUrl
+      ? `<div style="margin-top: 28px; padding-top: 20px; border-top: 1px solid #ebe9e3;">
+          ${oc.length > 0 ? `<div style="font-size: 15px; font-weight: 700; color: #0B0C0F; margin-bottom: 8px;">${oc.length} more candidate${oc.length > 1 ? 's' : ''} applied to your roles</div>${otherCandidatesHtml}` : (hasMany ? `<div style="font-size: 15px; font-weight: 700; color: #0B0C0F; margin-bottom: 6px;">${moreCount} more candidate${moreCount > 1 ? 's' : ''} applied to your roles</div><div style="font-size: 13px; color: #666; line-height: 1.5; margin-bottom: 14px;">View profiles, CVs, and reply — all in one place.</div>` : '')}
+          <div style="text-align: center; margin-top: 16px;">
+            <a href="${portalUrl}" style="display: inline-block; padding: 12px 32px; background: #C7F94A; color: #000; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px;">View all candidates &rarr;</a>
+          </div>
+        </div>`
+      : '';
+
+    const trackingPixel = applicationId
+      ? `<img src="https://freelanly.com/api/track/auto-apply-open?id=${applicationId}" width="1" height="1" style="display:block;width:1px;height:1px;border:0;" alt="" />`
+      : '';
+
+    // Name block: avatar left, name+meta right — or just name if no avatar
+    const nameBlock = avatarImg
+      ? `<div style="margin-bottom: 2px;"><!--[if mso]><table cellpadding="0" cellspacing="0"><tr><td valign="top" width="66"><![endif]--><div style="display:inline-block;vertical-align:top;width:52px;margin-right:14px;">${avatarImg}</div><!--[if mso]></td><td valign="top"><![endif]--><div style="display:inline-block;vertical-align:top;"><div style="font-weight: 700; font-size: 17px; color: #0B0C0F;">${safeName}</div>${metaLine}</div><!--[if mso]></td></tr></table><![endif]--></div>`
+      : `<div style="margin-bottom: 2px;"><div style="font-weight: 700; font-size: 17px; color: #0B0C0F;">${safeName}</div>${metaLine}</div>`;
+
+    return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6; margin: 0; padding: 0;">
+<div style="font-size: 20px; font-weight: 700; color: #0B0C0F; margin-bottom: 4px;">New applicant for ${safeRole}</div>
+<div style="font-size: 13px; color: #888; margin-bottom: 16px;">via Freelanly</div>
+<hr style="border: none; border-top: 1px solid #e5e5e0; margin-bottom: 20px;" />
+<div style="border: 1px solid #e5e5e0; border-radius: 14px; padding: 24px; margin-bottom: 8px;">
+  ${nameBlock}
+  ${summaryBlock}
+  ${skillTags}
+  ${teaserBlock}
+  <div>${replyBtn}${cvLink}</div>
+</div>
+${bottomSection}
+${trackingPixel}
+</body>
+</html>`.trim();
+  }
+
+  // --- Fallback: plain cover-letter layout (follow-ups, SMTP sends, no profile data) ---
   const paragraphs = coverLetter
     .split('\n')
     .filter((p) => p.trim())
     .map((p) => `<p style="margin: 0 0 12px; line-height: 1.6;">${escapeHtml(p)}</p>`)
     .join('');
-
-  // Prominent top banner — frames the portal as the recruiter's candidate inbox so they
-  // reply/review there (where we can build paywall + tracking) instead of plain email reply.
-  // Email reply still works (Reply-To unchanged) — this is a soft nudge, no forced redirect.
-  // Concrete CTA, strongest first: a per-vacancy shortlist ("N applied to your <role>") is the
-  // one thing the email — which carries a single attached candidate — physically can't deliver.
-  // Fall back to the cross-role total, then a generic nudge when this is the only applicant so far.
-  const safeRole = escapeHtml(jobTitle);
-  const hasVacancyMany = typeof vacancyCount === 'number' && vacancyCount > 1;
-  const hasTotalMany = typeof candidateCount === 'number' && candidateCount > 1;
-  let bannerSub: string;
-  let bannerCta: string;
-  if (hasVacancyMany) {
-    bannerSub = `${vacancyCount} candidates have already applied to your ${safeRole} role. Open the shortlist to compare their CVs and reply — all in one place.`;
-    bannerCta = `Open your ${vacancyCount}-candidate shortlist &rarr;`;
-  } else if (hasTotalMany) {
-    bannerSub = `You now have ${candidateCount} candidates across your roles. Reply, view CVs, and manage them all in one place.`;
-    bannerCta = `View all ${candidateCount} candidates &rarr;`;
-  } else {
-    bannerSub = `Reply, view their CV, and manage everyone who applied to your roles — all in one place.`;
-    bannerCta = `Open your candidates &amp; reply &rarr;`;
-  }
-  const portalBanner = recruiterEmail
-    ? `<table role="presentation" width="100%" style="margin: 0 0 22px; border-collapse: collapse;">
-    <tr><td style="background: #F4F8E8; border: 1px solid #C7F94A; border-radius: 12px; padding: 16px 20px;">
-      <div style="font-size: 14px; font-weight: 700; color: #0B0C0F; margin-bottom: 3px;">New applicant for ${escapeHtml(jobTitle)}</div>
-      <div style="font-size: 13px; color: #555; line-height: 1.5; margin-bottom: 13px;">${bannerSub}</div>
-      <a href="${portalUrl}" style="display: inline-block; padding: 10px 24px; background: #0B0C0F; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px;">${bannerCta}</a>
-    </td></tr>
-  </table>`
-    : '';
-
-  const portalCta = recruiterEmail
-    ? `<table role="presentation" width="100%" style="margin-top: 26px; border-collapse: collapse;">
-    <tr><td style="padding: 22px 0 4px; border-top: 1px solid #ebe9e3; text-align: center;">
-      <div style="font-size: 15px; font-weight: 600; color: #0B0C0F; margin-bottom: 4px;">${escapeHtml(userName)} and your other candidates are in one place</div>
-      <div style="font-size: 13px; color: #666; line-height: 1.5; margin-bottom: 16px;">View profiles &amp; CVs and reply to everyone who applied to your roles.</div>
-      <a href="${portalUrl}" style="display: inline-block; padding: 13px 32px; background: #C7F94A; color: #000; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 15px;">View candidates &amp; reply &rarr;</a>
-      <div style="font-size: 11px; color: #9a9a9a; margin-top: 16px;">via Freelanly</div>
-    </td></tr>
-  </table>`
-    : '';
 
   const trackingPixel = applicationId
     ? `<img src="https://freelanly.com/api/track/auto-apply-open?id=${applicationId}" width="1" height="1" style="display:block;width:1px;height:1px;border:0;" alt="" />`
@@ -1428,8 +1528,6 @@ export function buildApplicationEmailHtml(params: {
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6;">
   ${paragraphs}
-  ${portalBanner}
-  ${portalCta}
   ${trackingPixel}
 </body>
 </html>

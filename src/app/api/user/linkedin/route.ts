@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     const email = session.user.email || '';
-    const { liProfile, resolvedUrl } = await scrapeLinkedInProfile(url, email);
+    const { liProfile, resolvedUrl, photoUrl } = await scrapeLinkedInProfile(url, email);
 
     const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { parsedProfile: true } });
     const existing = (user?.parsedProfile as Record<string, unknown>) || null;
@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
       data: {
         linkedinUrl: resolvedUrl || url, // always store the URL (credibility signal), scrape or not
         ...(merged ? { parsedProfile: merged as Prisma.InputJsonValue } : {}),
+        ...(photoUrl ? { image: photoUrl } : {}),
       },
     });
 

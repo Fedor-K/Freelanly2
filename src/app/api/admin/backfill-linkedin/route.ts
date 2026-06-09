@@ -39,14 +39,14 @@ export async function GET(request: NextRequest) {
 
   for (const u of todo) {
     try {
-      const { liProfile, resolvedUrl } = await scrapeLinkedInProfile(u.linkedinUrl!, u.email || '');
+      const { liProfile, resolvedUrl, photoUrl } = await scrapeLinkedInProfile(u.linkedinUrl!, u.email || '');
       const existing = (u.parsedProfile as Record<string, unknown> | null) || null;
       const merged = (mergeCandidateProfiles(existing, liProfile, u.email || '') || existing || {}) as Record<string, unknown>;
       merged._liScraped = true;
       merged._liScrapedAt = new Date().toISOString();
       await prisma.user.update({
         where: { id: u.id },
-        data: { parsedProfile: merged as Prisma.InputJsonValue, ...(resolvedUrl ? { linkedinUrl: resolvedUrl } : {}) },
+        data: { parsedProfile: merged as Prisma.InputJsonValue, ...(resolvedUrl ? { linkedinUrl: resolvedUrl } : {}), ...(photoUrl ? { image: photoUrl } : {}) },
       });
       if (liProfile) {
         enriched++;

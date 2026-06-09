@@ -104,7 +104,7 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
     }
 
     // 2) LinkedIn → structured profile (ENRICHMENT, shared module). Complement, not replacement.
-    const { liProfile, resolvedUrl, aboutText } = await scrapeLinkedInProfile(linkedinUrl, email);
+    const { liProfile, resolvedUrl, aboutText, photoUrl } = await scrapeLinkedInProfile(linkedinUrl, email);
     const savedLinkedinUrl = resolvedUrl;
     if (!pdfText && aboutText) pdfText = aboutText;
 
@@ -148,6 +148,7 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
         parsedProfile: parsedProfile == null ? undefined : (parsedProfile as Prisma.InputJsonValue),
         name: parsedProfile?.name || undefined,
         linkedinUrl: savedLinkedinUrl || undefined,
+        image: photoUrl || undefined,
       },
     });
 

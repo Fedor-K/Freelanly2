@@ -9,11 +9,12 @@ export type ScrapedLinkedIn = {
   liProfile: CandProfile | null;
   resolvedUrl: string | null; // canonical profile URL the actor resolved (cleaner than raw input)
   aboutText: string;          // fallback résumé-text when there's no PDF (about + headline + skills)
+  photoUrl: string | null;    // LinkedIn profile photo URL (200×200)
 };
 
 /** Scrape a candidate's own LinkedIn profile via Apify and map it to our profile shape. */
 export async function scrapeLinkedInProfile(linkedinUrl: string | null, email: string): Promise<ScrapedLinkedIn> {
-  const empty: ScrapedLinkedIn = { liProfile: null, resolvedUrl: linkedinUrl || null, aboutText: '' };
+  const empty: ScrapedLinkedIn = { liProfile: null, resolvedUrl: linkedinUrl || null, aboutText: '', photoUrl: null };
   if (!linkedinUrl || !linkedinUrl.includes('linkedin.com/in/')) return empty;
   const apifyToken = process.env.APIFY_API_TOKEN;
   if (!apifyToken) return empty;
@@ -86,9 +87,12 @@ export async function scrapeLinkedInProfile(linkedinUrl: string | null, email: s
       languages: allLangs, location: liLoc,
     };
     const resolvedUrl = (typeof pr.linkedinUrl === 'string' && pr.linkedinUrl.includes('linkedin.com')) ? pr.linkedinUrl : linkedinUrl;
+    const photoUrl: string | null = (typeof pr.photo === 'string' && pr.photo) ? pr.photo
+      : (pr.profilePicture?.url && typeof pr.profilePicture.url === 'string') ? pr.profilePicture.url
+      : null;
     const aboutText = pr.about ? `${liName || ''}\n${pr.headline || ''}\n\n${pr.about}\n\nSkills: ${(liSkills as string[]).join(', ')}` : '';
-    console.log(`[LinkedIn] scraped for ${email}: ${liName}, ${(liSkills as string[]).length} skills`);
-    return { liProfile, resolvedUrl, aboutText };
+    console.log(`[LinkedIn] scraped for ${email}: ${liName}, ${(liSkills as string[]).length} skills, photo=${!!photoUrl}`);
+    return { liProfile, resolvedUrl, aboutText, photoUrl };
   } catch (e) {
     console.error('[LinkedIn] scrape failed:', e);
     return empty;
