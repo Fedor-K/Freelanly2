@@ -1,34 +1,9 @@
 import http from 'http';
 import { prisma } from './src/lib/db';
 import { sendEmail } from './src/lib/email';
-import { sendAutoApplyViaPostal } from './src/lib/email/postal';
-import { fetchResumeAttachment } from './src/lib/resume-attachment';
 import { isScamReply } from './src/lib/scam-filter';
 import { maybeSendRecruiterShortlistNudge } from './src/lib/recruiter-nudge';
 import OpenAI from 'openai';
-
-// Auto-send the user's résumé when a recruiter explicitly asks for it. ~57% of recruiter
-// replies are "send me your CV" — a stall, not a step. The user often never acts on it
-// (engagement is the funnel bottleneck), so the thread dies. This closes the loop the way
-// auto-apply promises. Disable globally with AUTO_RESUME_REPLY=false.
-const AUTO_RESUME_REPLY = process.env.AUTO_RESUME_REPLY !== 'false';
-
-/**
- * Precise "send me your CV/resume" detector. Requires a request verb adjacent to cv/resume
- * (so "thank you for your resume" / "I'll forward your resume" / "we won't move your resume
- * forward" do NOT trip it) — we are sending an email on the user's behalf, so false sends
- * must be near-zero. Verified against real recruiter replies.
- */
-function isCvRequest(text: string): boolean {
-  if (!text) return false;
-  const t = text.slice(0, 600);
-  return [
-    /\b(send|share|provide|attach|upload|email|submit|drop|resend)\b(?:[^.!?\n]{0,40}?)\b(cv|resume|résumé|resumé)\b/i,
-    /\bdo you have\b(?:[^.!?\n]{0,20}?)\b(cv|resume|résumé)\b/i,
-    /\b(may i (have|get)|can i (have|get)|looking for|i need|kindly)\b(?:[^.!?\n]{0,30}?)\b(cv|resume|résumé)\b/i,
-    /\bupdated\s+(cv|resume|résumé)\b/i,
-  ].some((re) => re.test(t));
-}
 
 function getAIClient() {
   const p = process.env.AI_PROVIDER?.toLowerCase();
@@ -96,7 +71,7 @@ const server = http.createServer(async (req, res) => {
           where: { id: appId },
           select: { id: true, status: true, userId: true, jobTitle: true, companyName: true, sentAt: true,
             subject: true, appliedToEmail: true,
-            user: { select: { email: true, name: true, notifyOnReply: true, telegramChatId: true, resumeUrl: true, resumeFileName: true } } },
+            user: { select: { email: true, name: true, notifyOnReply: true, telegramChatId: true } } },
         });
 
         if (!app) {
@@ -145,51 +120,8 @@ const server = http.createServer(async (req, res) => {
           });
         }
 
-        // ── Auto-send résumé on a clear "send me your CV" request ────────────────────────
-        // Recruiter asked for the CV and the user has one stored → send it for them, once
-        // per thread, routed/threaded/email-stripped via Postal. Runs regardless of the
-        // notify setting (it is an action, not a notification); a rejection is excluded and
-        // scam/spam already returned above.
-        let autoResumeSent = false;
-        if (AUTO_RESUME_REPLY && category !== 'REJECTED' && app.appliedToEmail && isCvRequest(replyText)) {
-          // Dedup: skip if a résumé was already attached in this thread (auto OR by the user).
-          const alreadySentCv = await prisma.message.findFirst({
-            where: { applicationId: appId, from: 'user', attachmentUrl: { not: null } },
-            select: { id: true },
-          }).catch(() => null);
-          if (!alreadySentCv) {
-            const att = await fetchResumeAttachment(app.user.resumeUrl, app.user.resumeFileName);
-            if (att) {
-              const note = `Hi there,\n\nThanks for getting back to me — please find my résumé attached. Happy to share anything else you need.\n\nBest regards,\n${app.user.name || 'Applicant'}`;
-              const noteHtml = `<div style="font-family:sans-serif;font-size:15px;line-height:1.6;color:#333">${note.split('\n').filter(Boolean).map((p) => `<p style="margin:0 0 12px">${p}</p>`).join('')}</div>`;
-              try {
-                const r = await sendAutoApplyViaPostal({
-                  userName: app.user.name || 'Applicant',
-                  userEmail: app.user.email,
-                  to: app.appliedToEmail,
-                  subject: `Re: ${app.subject || app.jobTitle}`,
-                  html: noteHtml,
-                  text: note,
-                  applicationId: appId,
-                  attachmentBase64: att.base64,
-                  attachmentFilename: att.filename,
-                });
-                if (r && r.success) {
-                  autoResumeSent = true;
-                  await Promise.all([
-                    prisma.message.create({ data: { applicationId: appId, from: 'user', text: note, attachmentUrl: att.filename } }),
-                    prisma.activityLog.create({ data: { userId: app.userId, action: 'INBOX_REPLY_SENT', details: { applicationId: appId, to: app.appliedToEmail, auto: true, kind: 'auto_resume', hasAttachment: true } } }),
-                  ]).catch(() => {});
-                  console.log(`[Inbound] AUTO-sent résumé for ${appId} → ${app.appliedToEmail}`);
-                } else {
-                  console.error(`[Inbound] auto-resume send failed for ${appId}: ${r && r.error}`);
-                }
-              } catch (e) {
-                console.error(`[Inbound] auto-resume error for ${appId}:`, (e as Error)?.message || e);
-              }
-            }
-          }
-        }
+        // Auto-send résumé on a CV request was REMOVED (2026-06-10): the candidate must reply
+        // and attach their CV themselves from the inbox. No automatic résumé send.
 
         // Tiered notifications: notify on INTERVIEW + REPLIED (actionable), stay SILENT on
         // REJECTED (cold) — kills notification fatigue so real interviews are not buried.
@@ -206,21 +138,21 @@ const server = http.createServer(async (req, res) => {
           try {
             const r = await sendEmail({
               to: app.user.email,
-              subject: autoResumeSent ? `✅ We sent your résumé to ${app.companyName}` : hot ? `🔔 ${app.companyName} wants to interview you!` : `${app.companyName} replied to your application!`,
+              subject: hot ? `🔔 ${app.companyName} wants to interview you!` : `${app.companyName} replied to your application!`,
               html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px">
-                <h2 style="margin:0 0 8px">${autoResumeSent ? `We sent your résumé to ${app.companyName} ✅` : hot ? `An interview request, ${firstName}! 🔔` : `Hey ${firstName}, you got a reply! 🎉`}</h2>
-                <p style="color:#555;margin:0 0 20px;line-height:1.6">${autoResumeSent ? `${app.companyName} asked for your résumé and <strong>we already sent it for you automatically</strong> — nothing you need to do. No need to reply with your CV again; open the thread only if you'd like to add a personal note.` : 'A recruiter responded to your application.'}</p>
+                <h2 style="margin:0 0 8px">${hot ? `An interview request, ${firstName}! 🔔` : `Hey ${firstName}, you got a reply! 🎉`}</h2>
+                <p style="color:#555;margin:0 0 20px;line-height:1.6">A recruiter responded to your application — open the thread to reply and attach your CV.</p>
                 <table style="width:100%;border:1px solid #E8E5DC;border-radius:10px;border-collapse:collapse">
                   <tr><td style="padding:12px 16px"><strong>${emoji} ${app.companyName}</strong><br>
                   <span style="color:#666;font-size:13px">${app.jobTitle}</span><br>
                   <span style="color:#888;font-size:13px">${preview}</span></td></tr>
                 </table>
                 <div style="margin-top:24px;text-align:center">
-                  <a href="https://freelanly.com/api/track/reply-click?app=${appId}&u=${app.userId}&to=${encodeURIComponent('/dashboard?tab=inbox')}" style="display:inline-block;padding:14px 32px;background:#C7F94A;color:#000;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px">${autoResumeSent ? 'View conversation' : 'View & Reply'} →</a>
+                  <a href="https://freelanly.com/api/track/reply-click?app=${appId}&u=${app.userId}&to=${encodeURIComponent('/dashboard?tab=inbox')}" style="display:inline-block;padding:14px 32px;background:#C7F94A;color:#000;border-radius:10px;text-decoration:none;font-weight:600;font-size:15px">View &amp; Reply →</a>
                 </div>
                 <img src="https://freelanly.com/api/track/reply-open?app=${appId}&u=${app.userId}" width="1" height="1" style="display:none" alt="" />
               </div>`,
-              text: autoResumeSent ? `${app.companyName} asked for your résumé — we already sent it for you. No need to reply with your CV again. View: https://freelanly.com/dashboard/inbox` : `Hey ${firstName}, ${app.companyName} replied! View: https://freelanly.com/dashboard/inbox`,
+              text: `Hey ${firstName}, ${app.companyName} replied! View & reply: https://freelanly.com/dashboard/inbox`,
             });
             sendOk = !!(r && r.success); sendErr = (r && r.error) || null;
           } catch (e) {
