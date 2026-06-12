@@ -51,8 +51,11 @@ async function parseResume(resumeText: string): Promise<Record<string, unknown> 
 }
 
 export async function GET(request: NextRequest) {
+  // Auth: admin session OR ?secret=CRON_SECRET (so this one-off backfill can be driven headless).
   const session = await auth();
-  if (!session?.user?.email || !ADMIN_EMAILS.includes(session.user.email)) {
+  const isAdmin = !!session?.user?.email && ADMIN_EMAILS.includes(session.user.email);
+  const secretOk = !!process.env.CRON_SECRET && request.nextUrl.searchParams.get('secret') === process.env.CRON_SECRET;
+  if (!isAdmin && !secretOk) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
