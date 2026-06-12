@@ -676,6 +676,7 @@ export async function queueAutoApplyForOpportunity(opportunityId: string): Promi
     applyEmail: opportunity.applyEmail,
     categorySlug: opportunity.category.slug,
     country: opportunity.country,
+    locationType: opportunity.locationType,
     level: opportunity.level,
     skills: opportunity.skills,
   });
@@ -707,6 +708,7 @@ export async function queueAutoApplyForJob(jobId: string): Promise<number> {
     applyEmail: job.applyEmail,
     categorySlug: job.category.slug,
     country: job.country,
+    locationType: job.locationType,
     level: job.level,
     skills: job.skills,
   });
@@ -845,6 +847,51 @@ function calculateMatchScore(
   return Math.min(100, score);
 }
 
+
+// ── Matcher pre-filter (2026-06-13) ───────────────────────────────────────────
+// Conservative free-text location → ISO2. Only classifies when confident; null = unknown =
+// fail-open (the pair still goes to the LLM). Patterns mirror the offline validation script.
+const PREFILTER_COUNTRY_PATTERNS: [RegExp, string][] = [
+  [/\b(usa|u\.s\.a|u\.s\.|united states|america)\b|,\s*(al|ak|az|ar|ca|co|ct|de|fl|ga|hi|id|il|in|ia|ks|ky|la|me|md|ma|mi|mn|ms|mo|mt|ne|nv|nh|nj|nm|ny|nc|nd|oh|ok|or|pa|ri|sc|sd|tn|tx|ut|vt|va|wa|wv|wi|wy)\b\.?$|\b(new york|los angeles|chicago|houston|dallas|austin|seattle|miami|boston|atlanta|denver|phoenix|san francisco|san jose|san diego)\b/i, 'US'],
+  [/\bindia\b|\b(hyderabad|bangalore|bengaluru|mumbai|delhi|chennai|pune|kolkata|noida|gurgaon|gurugram|ahmedabad|jaipur|kochi|indore|telangana|maharashtra|karnataka)\b/i, 'IN'],
+  [/\b(uk|u\.k\.|united kingdom|england|scotland|wales)\b|\b(london|manchester|birmingham|leeds|glasgow|edinburgh)\b/i, 'GB'],
+  [/\bcanada\b|\b(toronto|vancouver|montreal|ottawa|calgary|edmonton|ontario|quebec|british columbia)\b/i, 'CA'],
+  [/\bgermany\b|\b(berlin|munich|hamburg|frankfurt|cologne|stuttgart)\b/i, 'DE'],
+  [/\bfrance\b|\b(paris|lyon|marseille|toulouse)\b/i, 'FR'],
+  [/\bspain\b|\b(madrid|barcelona|valencia|seville)\b/i, 'ES'],
+  [/\bitaly\b|\b(rome|milan|turin|naples)\b/i, 'IT'],
+  [/\bnetherlands\b|\b(amsterdam|rotterdam|the hague|utrecht)\b/i, 'NL'],
+  [/\bpoland\b|\b(warsaw|krakow|wroclaw|gdansk)\b/i, 'PL'],
+  [/\bportugal\b|\b(lisbon|porto)\b/i, 'PT'],
+  [/\bukraine\b|\b(kyiv|kiev|kharkiv|lviv|odesa)\b/i, 'UA'],
+  [/\bpakistan\b|\b(karachi|lahore|islamabad|rawalpindi)\b/i, 'PK'],
+  [/\bbangladesh\b|\b(dhaka|chittagong)\b/i, 'BD'],
+  [/\bnigeria\b|\b(lagos|abuja|ibadan|port harcourt)\b/i, 'NG'],
+  [/\bkenya\b|\bnairobi\b/i, 'KE'],
+  [/\begypt\b|\b(cairo|alexandria|giza)\b/i, 'EG'],
+  [/\bphilippines\b|\b(manila|cebu|davao|quezon)\b/i, 'PH'],
+  [/\bindonesia\b|\b(jakarta|surabaya|bandung)\b/i, 'ID'],
+  [/\bvietnam\b|\b(hanoi|ho chi minh|saigon|da nang)\b/i, 'VN'],
+  [/\bbrazil\b|\b(sao paulo|são paulo|rio de janeiro|belo horizonte|brasilia)\b/i, 'BR'],
+  [/\bmexico\b|\b(mexico city|guadalajara|monterrey)\b/i, 'MX'],
+  [/\bargentina\b|\bbuenos aires\b/i, 'AR'],
+  [/\bcolombia\b|\b(bogota|bogotá|medellin|medellín|cali)\b/i, 'CO'],
+  [/\bturkey\b|\bt[uü]rkiye\b|\b(istanbul|ankara|izmir)\b/i, 'TR'],
+  [/\b(uae|united arab emirates)\b|\b(dubai|abu dhabi|sharjah)\b/i, 'AE'],
+  [/\bsaudi arabia\b|\b(riyadh|jeddah)\b/i, 'SA'],
+  [/\baustralia\b|\b(sydney|melbourne|brisbane|perth)\b/i, 'AU'],
+  [/\bsouth africa\b|\b(johannesburg|cape town|durban|pretoria)\b/i, 'ZA'],
+  [/\bsri lanka\b|\bcolombo\b/i, 'LK'],
+  [/\bnepal\b|\bkathmandu\b/i, 'NP'],
+];
+const PREFILTER_EU = new Set(['DE','FR','ES','IT','NL','PL','PT','RO','GR','CZ','AT','BE','SE','DK','FI','IE','HU','BG','HR','SK','SI','LT','LV','EE','LU','MT','CY']);
+
+export function prefilterCandidateCountry(loc: string | null | undefined): string | null {
+  if (!loc) return null;
+  for (const [re, iso] of PREFILTER_COUNTRY_PATTERNS) if (re.test(loc)) return iso;
+  return null;
+}
+
 interface ListingData {
   type: 'job' | 'opportunity';
   id: string;
@@ -854,6 +901,7 @@ interface ListingData {
   applyEmail: string;
   categorySlug: string;
   country: string | null;
+  locationType?: string | null; // REMOTE | REMOTE_COUNTRY | ONSITE | HYBRID — drives the geo pre-filter
   level: string;
   skills: string[];
 }
@@ -1090,6 +1138,62 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     });
   }
 
+  let qParsedJD: ParsedJD | undefined; // parse the JD once per listing, reuse per candidate
+
+  // ── Lexical+geo PRE-FILTER (2026-06-13) ──────────────────────────────────────
+  // Skip the LLM for pairs that BOTH (a) lexically match 0 of the JD's parsed skill lines AND
+  // (b) sit in a different country than a country-bound (REMOTE_COUNTRY) listing. Either signal
+  // alone over-cuts (lex-0 alone kills 3.4% of really-queued pairs, geo alone 21% — and
+  // cross-country sends still earn a 3.1% reply rate); the AND-combo cuts ~28% of AI calls at
+  // 0.27% false-reject, validated offline on 7d of scored pairs (AI-COST-AUDIT-2026-06-12.md).
+  // FAIL-OPEN everywhere: parseJD/breakdown failure, unknown candidate country, listing not
+  // REMOTE_COUNTRY → the pair goes to the LLM exactly as before. Skips are persisted as
+  // MATCH_REJECTED rows with matchBreakdown.prefilter=true and NULL matchScore (no AI verdict),
+  // so the audit mirror stays complete and the leak/false-reject metrics stay queryable.
+  const prefilterRejects: { cand: Cand; bd: Record<string, unknown> }[] = [];
+  const listingCountryBound = listing.locationType === 'REMOTE_COUNTRY' && !!listing.country;
+  const geoMismatch = (c: Cand): boolean => {
+    if (!listingCountryBound) return false;
+    const uc = prefilterCandidateCountry(c.userLoc);
+    if (!uc) return false;
+    return listing.country === 'EU' ? !PREFILTER_EU.has(uc) : uc !== listing.country;
+  };
+  if (listingCountryBound && candidates.some(geoMismatch)) {
+    try {
+      const jdText = `${listing.title}\n${listing.description}`;
+      qParsedJD = qParsedJD ?? (await parseJD(jdText));
+      const keep: Cand[] = [];
+      for (const c of candidates) {
+        let cut = false;
+        if (geoMismatch(c)) {
+          try {
+            const b = buildBreakdown(qParsedJD, {
+              jdText, cvText: c.loop.user.resumeText || '', candidateSkills: c.userSkills,
+              candidateLanguages: c.userLangs || [], candidateTitle: c.userTitle || null,
+              candidateYears: typeof (c.loop.user.parsedProfile as any)?.experience_years === 'number' ? (c.loop.user.parsedProfile as any).experience_years : null,
+              candidateLocation: c.userLoc || null,
+            });
+            if (b.total > 0 && b.matched === 0) {
+              cut = true;
+              prefilterRejects.push({ cand: c, bd: {
+                v: 1, matched: b.matched, total: b.total, ratio: 0, lines: b.lines,
+                yearsContext: b.yearsContext, locationContext: b.locationContext, rejected: b.rejected,
+                fallback: b.fallback, decision: 'NO', prefilter: true,
+                gateReason: 'пре-фильтр: 0 лексических совпадений + страна не совпадает с country-bound листингом',
+              } });
+            }
+          } catch { /* breakdown failed → fail-open, pair goes to the LLM */ }
+        }
+        if (!cut) keep.push(c);
+      }
+      candidates.length = 0;
+      for (const k of keep) candidates.push(k);
+    } catch (e) {
+      if (isAiUnavailable(e)) throw e;
+      // parseJD failed → fail-open: no pre-filter for this listing
+    }
+  }
+
   // PARALLEL AI PASS: evaluate candidates in concurrent chunks (was one sequential await per
   // loop — the dominant cost: ~18 min/opportunity at thousands of loops). Stop launching
   // chunks once we have enough matches to fill the listing's budget. Decisions are identical
@@ -1131,7 +1235,6 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
   let queued = 0;
   let gated = 0; // blocked by the hard gate (assess === NO)
   let brochureSkipped = 0; // résumé was a company brochure / non-CV, not a personal CV
-  let qParsedJD: ParsedJD | undefined; // parse the JD once per listing, reuse per candidate
   for (const m of matched) {
     if (queued >= budget) break;
     const loop = m.cand.loop;
@@ -1327,6 +1430,28 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
 
   // Log AI-match rejections (every considered candidate that the AI judged not a fit) so the admin
   // audit shows the SAME full picture as the test batches — not just sends + the rare hard-gate cut.
+  // Pre-filter declines → audit rows. NULL matchScore = "no AI verdict" (keeps every
+  // matchScore-based analysis meaning "the LLM actually scored this pair").
+  if (prefilterRejects.length) {
+    try {
+      await prisma.autoApplication.createMany({
+        data: prefilterRejects.map((pr) => ({
+          userId: pr.cand.loop.userId, loopId: pr.cand.loop.id,
+          jobId: listing.type === 'job' ? listing.id : null,
+          opportunityId: listing.type === 'opportunity' ? listing.id : null,
+          companyName: listing.companyName, jobTitle: listing.title, appliedToEmail: listing.applyEmail,
+          matchScore: null, matchLabel: null,
+          matchBreakdown: pr.bd as Prisma.InputJsonValue,
+          coverLetter: '', subject: '', resumeUrl: pr.cand.loop.resumeUrl,
+          status: AutoApplyStatus.MATCH_REJECTED,
+        })),
+        skipDuplicates: true,
+      });
+    } catch (e) {
+      console.error('[AutoApply] prefilter audit log failed (non-fatal):', e);
+    }
+  }
+
   // Deterministic breakdown (reuses the once-per-listing parsed JD → no extra LLM). Best-effort: any
   // failure here must never touch the live send flow above.
   if (aiRejects.length) {
@@ -1362,9 +1487,9 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     }
   }
 
-  if (queued > 0 || gated > 0 || aiRejects.length > 0 || brochureSkipped > 0) {
+  if (queued > 0 || gated > 0 || aiRejects.length > 0 || brochureSkipped > 0 || prefilterRejects.length > 0) {
     console.log(
-      `[AutoApply] Queued ${queued}${gated > 0 ? `, gated ${gated}` : ''}${brochureSkipped > 0 ? `, brochure-skipped ${brochureSkipped}` : ''}${aiRejects.length ? `, ai-rejected ${aiRejects.length}` : ''} (assess=NO${ENFORCE_GATE ? '' : ', shadow'}) for ${listing.type} "${listing.title}"`
+      `[AutoApply] Queued ${queued}${gated > 0 ? `, gated ${gated}` : ''}${brochureSkipped > 0 ? `, brochure-skipped ${brochureSkipped}` : ''}${aiRejects.length ? `, ai-rejected ${aiRejects.length}` : ''}${prefilterRejects.length ? `, prefiltered ${prefilterRejects.length}` : ''} (assess=NO${ENFORCE_GATE ? '' : ', shadow'}) for ${listing.type} "${listing.title}"`
     );
   }
 
