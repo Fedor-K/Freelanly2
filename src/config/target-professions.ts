@@ -236,8 +236,9 @@ const BLACKLIST_MISC = [
   // Airlines (physical)
   'flight attendant', 'cabin crew', 'pilot', 'co-pilot',
   'ground crew', 'baggage handler', 'ramp agent',
-  // Assistants (too generic for remote tech)
-  'personal assistant', 'executive assistant', 'virtual assistant',
+  // Assistants (too generic for remote tech; 'virtual assistant' moved to
+  // whitelist 2026-06-12 — it's a core freelance gig we now scrape deliberately)
+  'personal assistant', 'executive assistant',
   'administrative assistant', 'admin assistant',
   // Retail/Merchandise
   'merchandise', 'merchandising', 'merchandiser',
@@ -399,6 +400,7 @@ const WHITELIST_DESIGN = [
   '3d designer', '3d artist', '3d modeler',
   'illustrator', 'photographer', 'product photographer',
   'graphics artist', '3d visualization',
+  'game artist', 'concept artist', '2d artist',
   'designer', // generic - matches "Marketing Designer", etc.
 ];
 
@@ -437,8 +439,9 @@ const WHITELIST_MARKETING = [
   'demand generation', 'demand gen', 'lead generation', 'lead gen',
   'lead gen manager', 'leadgen', 'traffic manager', 'traffic acquisition',
   'vp marketing', 'head of marketing', 'cmo', 'chief marketing',
-  'marketeer', 'marketing coordinator',
+  'marketeer', 'marketing coordinator', 'marketing assistant',
   'performance marketer',
+  'link building', 'link builder',
   'business development intern', 'business development',
   'content strategist', 'content lead',
   'affiliate marketing', 'influencer marketing', 'partnership marketing',
@@ -482,6 +485,7 @@ const WHITELIST_TRANSLATION = [
   'interpreter', 'conference interpreter', 'remote interpreter',
   // Post-editing & QA
   'post-editor', 'post editor', 'mtpe', 'machine translation post-editor',
+  'post-editing', 'post editing',
   'proofreader', 'revisor', 'reviser',
   'translation reviewer', 'linguistic reviewer', 'localization reviewer',
   // Transcription & Subtitling
@@ -584,7 +588,8 @@ const WHITELIST_OPERATIONS = [
   'revops', 'revenue operations', 'sales operations',
   'business analyst', 'strategy analyst',
   'chief of staff',
-  'data entry specialist', 'data entry clerk',
+  'data entry specialist', 'data entry clerk', 'data entry',
+  'virtual assistant', // core freelance gig (moved from blacklist 2026-06-12)
   'research assistant',
   'operations lead', 'head of operations', 'vp operations', 'coo',
 ];
