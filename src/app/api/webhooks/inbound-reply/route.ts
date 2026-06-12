@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/email';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { escapeHtml } from '@/lib/html-escape';
 import { isScamReply } from '@/lib/scam-filter';
+import { isFreeEmailProvider } from '@/lib/content-quality';
 import { sendTelegramNotification, formatReplyNotification } from '@/lib/telegram-notify';
 import OpenAI from 'openai';
 import { replyNotificationEmail, replyTeaserEmail } from '@/lib/email-templates';
@@ -147,6 +148,16 @@ export async function POST(request: NextRequest) {
     if (isScamReply(from, replyText)) {
       console.log(`[InboundReply] Scam reply filtered for ${appId} from ${from}: ${replyText.slice(0, 80)}`);
       return NextResponse.json({ ok: true, appId, scam: true });
+    }
+
+    // Free-domain demand is dropped (decision 2026-06): import/match/send already block it, but
+    // ~5.7k applications sent BEFORE the cutoff still receive "replies" — audit showed these are
+    // résumé-farm auto-responders (mass templates weeks later, salary/PII harvesting), 20% of
+    // weekly inbound. Drop them like SPAM. Threads the user already advanced to INTERVIEW/OFFER
+    // are spared — those few conversations are real enough to let the user decide.
+    if (isFreeEmailProvider(app.appliedToEmail) && app.status !== 'INTERVIEW' && app.status !== 'OFFER') {
+      console.log(`[InboundReply] Free-domain thread reply dropped for ${appId} from ${from}`);
+      return NextResponse.json({ ok: true, appId, freeDomainDropped: true });
     }
 
     const newStatus = replyText.length > 10 ? await categorizeReply(replyText) : 'REPLIED';

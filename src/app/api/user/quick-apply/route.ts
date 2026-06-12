@@ -10,6 +10,7 @@ import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
 import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
+import { isFreeEmailProvider } from '@/lib/content-quality';
 
 const FREE_DAILY_LIMIT = 20;
 
@@ -99,6 +100,13 @@ export async function POST(request: NextRequest) {
     // Global apply blocklist (spam farms / banned senders) — the inline path must honour the same
     // block as the matcher/import, so a blocked address can't be reached via manual apply either.
     if (isBlockedApplyEmail(opportunity.applyEmail)) {
+      return NextResponse.json({ error: 'unavailable', message: 'This project is no longer available.' }, { status: 410 });
+    }
+
+    // Free-domain demand is dropped (decision 2026-06): import/match/send already block it; this
+    // closes the last door — old free-domain opportunities still inside the 30-day storage window
+    // could otherwise be reached via inline apply.
+    if (isFreeEmailProvider(opportunity.applyEmail)) {
       return NextResponse.json({ error: 'unavailable', message: 'This project is no longer available.' }, { status: 410 });
     }
 

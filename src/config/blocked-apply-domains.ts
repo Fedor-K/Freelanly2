@@ -11,6 +11,7 @@ export const BLOCKED_APPLY_DOMAINS: string[] = [
 
 export const BLOCKED_APPLY_EMAILS: string[] = [
   'hivepostifyofficial@gmail.com', // résumé-farm spammer ("HivePostify: We selected you…") — purged 2026-06-10
+  'impact.recruiting.org@gmail.com', // résumé-farm ("Neuberg Stewart": batch "Congratulations" templates 27d later, salary/PII harvesting) — purged 2026-06-12
 ];
 
 export function isBlockedApplyEmail(email?: string | null): boolean {
