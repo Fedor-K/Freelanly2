@@ -181,6 +181,14 @@ const BLACKLIST_ACCOUNTING = [
   'controller', 'assistant controller',
   'billing', 'billing specialist', 'invoicing',
   'cpa', 'certified public accountant',
+  // Indian accounting/compliance roles (2026-06-13, blacklist-only era — these flood from Telegram
+  // finance channels; onsite-India FTE, not our target). MULTI-WORD / qualified forms so we never
+  // catch bare 'ca' (California etc.) and never block our finance TARGETS (financial analyst, FP&A,
+  // treasury analyst — kept in WHITELIST_FINANCE, NOT blacklisted).
+  'chartered accountant', 'company secretary', 'cost accountant', 'icwa', 'cma certification',
+  'ca articleship', 'articleship', 'ca fresher', 'ca inter', 'ca final', 'ca industrial',
+  'qualified ca', 'semi qualified', 'semi-qualified', 'ca trainee', 'ca dropout',
+  'credit manager', 'area credit manager', 'relationship manager', 'branch manager',
 ];
 
 const BLACKLIST_SALES_FIELD = [
