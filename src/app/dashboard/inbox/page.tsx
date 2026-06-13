@@ -22,7 +22,7 @@ export default async function InboxPage() {
     select: {
       id: true, companyName: true, jobTitle: true, coverLetter: true,
       subject: true, replyText: true, replyCategory: true, replySignal: true,
-      repliedAt: true, sentAt: true, appliedToEmail: true,
+      repliedAt: true, sentAt: true, appliedToEmail: true, replyUnlocked: true,
       user: { select: { name: true, email: true } },
     },
   });
@@ -48,6 +48,7 @@ export default async function InboxPage() {
     repliedAt: r.repliedAt?.toISOString() || null,
     sentAt: r.sentAt?.toISOString() || null,
     appliedToEmail: r.appliedToEmail,
+    replyUnlocked: r.replyUnlocked,
     userName: r.user.name || 'You',
     userEmail: r.user.email,
   }));

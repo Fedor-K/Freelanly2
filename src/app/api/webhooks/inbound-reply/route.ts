@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         jobTitle: true,
         companyName: true,
         appliedToEmail: true,
-        user: { select: { email: true, name: true, plan: true, notifySlackUrl: true, notifyOnReply: true, telegramChatId: true } },
+        user: { select: { email: true, name: true, plan: true, notifySlackUrl: true, notifyOnReply: true, telegramChatId: true, freeReplyUsed: true } },
       },
     });
 
@@ -170,6 +170,19 @@ export async function POST(request: NextRequest) {
 
     const signal = replyText.length > 10 ? await extractSignal(replyText, app.jobTitle, app.companyName) : '';
 
+    // PAYWALL ($5/reply, first free). Gated behind REPLY_PAYWALL env so it stays OFF until flipped.
+    // The candidate's FIRST non-rejection reply is free (hook); after that each reply is locked
+    // until they pay $5. PRO users and cold REJECTED replies are never gated.
+    const PAYWALL_ON = process.env.REPLY_PAYWALL === 'on';
+    const isProUser = app.user.plan !== 'FREE';
+    const isColdReply = newStatus === 'REJECTED';
+    let lockReply = false;       // true => teaser only, candidate must pay to read/respond
+    let consumeFreeUnlock = false;
+    if (PAYWALL_ON && !isProUser && !isColdReply) {
+      if (app.user.freeReplyUsed) lockReply = true;     // free already spent → lock
+      else consumeFreeUnlock = true;                    // this one is the free hook
+    }
+
     if (app.status !== 'INTERVIEW' && app.status !== 'OFFER') {
       await prisma.autoApplication.update({
         where: { id: appId },
@@ -179,8 +192,12 @@ export async function POST(request: NextRequest) {
           replyCategory: newStatus,
           replySignal: signal || null,
           repliedAt: new Date(),
+          replyUnlocked: !lockReply,
         },
       });
+      if (consumeFreeUnlock) {
+        await prisma.user.update({ where: { id: app.userId }, data: { freeReplyUsed: true } }).catch(() => {});
+      }
       // Save to message thread
       await prisma.message.create({
         data: { applicationId: appId, from: 'recruiter', text: replyText.slice(0, 2000) },
@@ -213,8 +230,6 @@ export async function POST(request: NextRequest) {
     const notify = app.user.notifyOnReply !== false;
     const isHot = newStatus === 'INTERVIEW';
     const isCold = newStatus === 'REJECTED';
-    const isPro = app.user.plan !== 'FREE';
-    const paywallEnabled = false; // Set to true when ready to enable paywall
 
     if (notify && !isCold) {
       // Email (branded full reply, or teaser once paywall is on). Capture the send
@@ -224,7 +239,7 @@ export async function POST(request: NextRequest) {
       let variant = 'branded';
       let threw: string | null = null;
       try {
-        if (!paywallEnabled || isPro) {
+        if (!lockReply) {
           const branded = replyNotificationEmail({
             userName: app.user.name || 'there',
             recruiterName: from.split('<')[0].trim() || app.companyName,

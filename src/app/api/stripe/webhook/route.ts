@@ -124,6 +124,26 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
+  // Handle single reply unlock ($5 one-time payment — read+respond to a recruiter reply)
+  if (session.metadata?.type === 'unlock_reply') {
+    const applicationId = session.metadata.applicationId;
+    if (applicationId) {
+      await prisma.autoApplication.updateMany({
+        where: { id: applicationId, userId },
+        data: { replyUnlocked: true },
+      });
+      await prisma.activityLog.create({
+        data: {
+          userId,
+          action: ActivityAction.CHECKOUT_COMPLETE,
+          details: { type: 'unlock_reply', applicationId, amount: (session.amount_total || 0) / 100 },
+        },
+      }).catch(() => {});
+      console.log(`[Stripe Webhook] Reply unlocked for user ${userId}: app ${applicationId}`);
+    }
+    return;
+  }
+
   console.log(`[Stripe Webhook] Checkout completed for user ${userId}, subscription ${subscriptionId}`);
 
   // Fetch subscription to get period end date

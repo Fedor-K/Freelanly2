@@ -55,6 +55,7 @@ model User {
   salaryExpectationAt DateTime? // when stated — render must de-emphasize / decay stale self-reports (same freshness discipline as everywhere)
   portfolioUrl   String?   // candidate-entered portfolio / GitHub / personal site — recruiters ask for it (14%); shown on the application card
   caseStudies    Json?     // ["notion-sync", "crdt-merge"] — AI picks best per outreach
+  freeReplyUsed  Boolean  @default(false)  // PAYWALL: has the user spent their one free reply-unlock? First recruiter reply is free (hook), rest cost $5.
 
   // Voice training (3 sample emails for AI to match writing style)
   voiceSamples   Json?     // ["sample email 1", "sample email 2", "sample email 3"]
@@ -2083,6 +2084,7 @@ model AutoApplication {
   replyCategory   String?  // INTERESTED, INTERVIEW, REJECTED, OTHER
   replySignal     String?  // AI-extracted signal: "Wants to chat Tue 3pm CET. Caveat: role is full-time."
   repliedAt       DateTime?
+  replyUnlocked   Boolean @default(true)  // PAYWALL: false = recruiter replied but candidate must pay $5 to read+respond. Default true so existing/non-paywalled replies stay open; inbound sets false only when REPLY_PAYWALL is on and the user's free unlock is spent.
 
   // Follow-up
   followUpSentAt  DateTime?
