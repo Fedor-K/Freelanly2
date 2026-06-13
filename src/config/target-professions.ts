@@ -290,6 +290,7 @@ const WHITELIST_ENGINEERING = [
   'fullstack engineer', 'full-stack engineer', 'full stack engineer',
   'web developer', 'mobile developer', 'app developer',
   'ios developer', 'android developer', 'ios engineer', 'android engineer',
+  'flutter developer', 'flutter engineer', 'react native developer', 'react native engineer', 'dart developer',
   'react developer', 'vue developer', 'angular developer',
   'react engineer', 'vue engineer', 'angular engineer',
   'node developer', 'nodejs developer', 'node engineer',
