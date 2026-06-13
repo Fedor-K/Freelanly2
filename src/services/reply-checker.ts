@@ -330,7 +330,7 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
   // Get user's SMTP config + user info for notifications
   const [smtp, user] = await Promise.all([
     prisma.userSmtp.findUnique({ where: { userId } }),
-    prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true, notifyOnReply: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true, notifyOnReply: true, plan: true, freeReplyUsed: true } }),
   ]);
 
   if (!smtp || !smtp.verified) return 0;
@@ -358,12 +358,31 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
   try {
     const results = await searchForReplies(imapHost, smtp.email, smtp.password, subjects);
 
+    // $5-per-reply paywall (gated behind REPLY_PAYWALL=on). First real reply per user is free;
+    // after that each new reply is locked until a $5 Stripe unlock. PRO + cold (REJECTED/SPAM)
+    // replies are never gated. When the flag is off, lockReply is always false → unchanged behavior.
+    const PAYWALL_ON = process.env.REPLY_PAYWALL === 'on';
+    const isPro = user?.plan === 'PRO';
+    let freeAvailable = !user?.freeReplyUsed;
+    let consumedFree = false;
+
     let repliedCount = 0;
     for (const result of results) {
       if (result.replied) {
         // Strip null bytes and non-printable chars that PostgreSQL rejects
         const replyText = (result.replyText || '').replace(/\0/g, '').replace(/[\x01-\x08\x0B\x0C\x0E-\x1F]/g, '');
         const category = replyText.length > 10 ? await categorizeReply(replyText) : 'REPLIED';
+
+        const isCold = category === 'REJECTED' || category === 'SPAM';
+        let lockReply = false;
+        if (PAYWALL_ON && !isPro && !isCold) {
+          if (freeAvailable) {
+            freeAvailable = false;
+            consumedFree = true;
+          } else {
+            lockReply = true;
+          }
+        }
 
         await prisma.autoApplication.update({
           where: { id: result.applicationId },
@@ -372,6 +391,7 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
             replyText: replyText || null,
             replyCategory: category,
             repliedAt: new Date(),
+            replyUnlocked: !lockReply,
           },
         });
         repliedCount++;
@@ -386,11 +406,16 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
       }
     }
 
+    // Burn the user's one free reply once it's been used in this batch.
+    if (consumedFree) {
+      await prisma.user.update({ where: { id: userId }, data: { freeReplyUsed: true } }).catch(() => {});
+    }
+
     // Send email notification for new replies
     if (repliedCount > 0 && user?.email && user.notifyOnReply !== false) {
       const apps = await prisma.autoApplication.findMany({
         where: { userId, repliedAt: { gte: new Date(Date.now() - 60000) } },
-        select: { id: true, companyName: true, jobTitle: true, replyCategory: true, replyText: true },
+        select: { id: true, companyName: true, jobTitle: true, replyCategory: true, replyText: true, replyUnlocked: true },
         take: 5,
       });
       const firstName = user.name?.split(' ')[0] || 'there';
@@ -400,9 +425,11 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
       const openPixel = `<img src="${trackBase}/reply-open?u=${encodeURIComponent(userId)}&app=${encodeURIComponent(firstAppId)}" width="1" height="1" style="display:none" alt="" />`;
 
       const replyList = apps.map(a => {
-        const preview = a.replyText ? a.replyText.replace(/<[^>]+>/g, '').replace(/â€™/g, "'").replace(/â€œ/g, '"').replace(/â€/g, '"').replace(/â€"/g, '—').replace(/â€"/g, '–').replace(/Â/g, '').slice(0, 100) : '';
-        const emoji = a.replyCategory === 'INTERVIEW' ? '🟢' : a.replyCategory === 'REJECTED' ? '🔴' : '💬';
-        return `<tr><td style="padding:12px 16px;border-bottom:1px solid #E8E5DC"><strong>${emoji} ${a.companyName}</strong><br><span style="color:#666;font-size:13px">${a.jobTitle}</span><br><span style="color:#888;font-size:13px">${preview}${preview.length >= 100 ? '...' : ''}</span></td></tr>`;
+        const locked = a.replyUnlocked === false;
+        const cleanPreview = a.replyText ? a.replyText.replace(/<[^>]+>/g, '').replace(/â€™/g, "'").replace(/â€œ/g, '"').replace(/â€/g, '"').replace(/â€"/g, '—').replace(/â€"/g, '–').replace(/Â/g, '').slice(0, 100) : '';
+        const preview = locked ? '🔒 Unlock to read &amp; respond — $5' : cleanPreview;
+        const emoji = locked ? '🔒' : a.replyCategory === 'INTERVIEW' ? '🟢' : a.replyCategory === 'REJECTED' ? '🔴' : '💬';
+        return `<tr><td style="padding:12px 16px;border-bottom:1px solid #E8E5DC"><strong>${emoji} ${a.companyName}</strong><br><span style="color:#666;font-size:13px">${a.jobTitle}</span><br><span style="color:#888;font-size:13px">${preview}${!locked && preview.length >= 100 ? '...' : ''}</span></td></tr>`;
       }).join('');
 
       await sendEmail({
