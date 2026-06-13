@@ -251,6 +251,34 @@ const BLACKLIST_MISC = [
   'master class', 'masterclass', 'training program',
 ];
 
+// v2.3 (2026-06-13) — Office-but-off-target tail. Added when switching to blacklist-only
+// (whitelist dropped): these are non-physical roles the old default-deny silently excluded.
+// MULTI-WORD on purpose so tech roles survive: 'loan processing' blocks the junk but
+// 'Loan Management System Developer' passes; 'insurance agent' blocks but 'Guidewire Developer'
+// (insurance-tech) passes; 'call centre' blocks but 'Call Center Software Developer' passes.
+const BLACKLIST_OFFICE_OFFTARGET = [
+  // Lending / mortgage / insurance / claims ops (NOT fintech engineering)
+  'loan processor', 'loan processing', 'loan officer', 'non-qm', 'non qm',
+  'mortgage broker', 'mortgage processor', 'mortgage loan officer', 'mortgage underwriter',
+  'underwriter', 'underwriting',
+  'insurance agent', 'insurance broker', 'insurance sales', 'insurance advisor',
+  'claims adjuster', 'claims processor', 'claims processing', 'claims examiner', 'claims specialist',
+  'escrow', 'title officer',
+  // Call centre / BPO / telesales
+  'call centre', 'call center executive', 'call center representative', 'call centre executive',
+  'telecaller', 'telecalling', 'telemarketer', 'telemarketing', 'cold caller', 'cold calling',
+  'inbound calling', 'outbound calling',
+  // Real estate (managers/brokers; agent/realtor already in BLACKLIST_PROPERTY)
+  'commercial real estate', 'real estate manager', 'real estate broker', 'real estate associate',
+  // Clinical / lab / pharma ops (some in HEALTHCARE; these cover the office variants)
+  'laboratory scientist', 'clinical laboratory', 'lab scientist', 'medical technologist',
+  'clinical research', 'pharmacovigilance', 'drug safety', 'regulatory affairs',
+  'medical coder', 'medical coding', 'medical biller', 'medical billing',
+  // Physical / hardware technicians (engineer titles handled by PHYSICAL_ENGINEERING)
+  'engineering technician', 'electrical technician', 'mechanical technician',
+  'electronics technician', 'instrumentation technician', 'calibration technician',
+];
+
 // Combine all blacklist patterns
 const BLACKLIST_PATTERNS = [
   ...BLACKLIST_HEALTHCARE,
@@ -273,6 +301,7 @@ const BLACKLIST_PATTERNS = [
   ...BLACKLIST_AGRICULTURE,
   ...BLACKLIST_LEGAL_TRADITIONAL,
   ...BLACKLIST_MISC,
+  ...BLACKLIST_OFFICE_OFFTARGET,
 ];
 
 // ============================================================================
@@ -753,22 +782,25 @@ export function isTargetProfession(title: string): boolean {
 /**
  * Main function: Check if job should be imported
  *
- * RULE ORDER:
+ * RULE ORDER (v2.3, 2026-06-13 — switched to BLACKLIST-ONLY / default-allow):
  * 1. Blacklist check (priority) → if matches → SKIP
- * 2. Whitelist check → if matches → IMPORT
- * 3. No match → SKIP
+ * 2. Otherwise → IMPORT (default-allow)
+ *
+ * Why the whitelist was dropped: its original job was SEO anti-thin-content, but /freelance is
+ * noindex now, so that reason is dead. Meanwhile the matcher gained strong per-pairing gates
+ * (routeAllows by category + lexical/geo pre-filter + AI match GATE) that refuse to actually SEND
+ * a mismatched pairing — so a junk opportunity that slips in just queues 0 and ages out. The
+ * whitelist was doing redundant work at the cost of silently dropping legit roles it didn't list
+ * verbatim (Genesys/SecOps/Database Engineer, Paid Search Strategist, etc.). The blacklist was
+ * hardened (BLACKLIST_OFFICE_OFFTARGET) for the office-but-off-target tail before the flip.
+ * `isTargetProfession` is kept as a non-gating CLASSIFIER to monitor mis-send rate for a week.
  *
  * @param title - Job title to check
  * @returns true if job should be imported, false if should be skipped
  */
 export function shouldImportByProfession(title: string): boolean {
-  // First check blacklist (takes priority)
-  if (isBlacklistedProfession(title)) {
-    return false;
-  }
-
-  // Then check whitelist
-  return isTargetProfession(title);
+  // Blacklist is now the ONLY hard gate (default-allow for everything else).
+  return !isBlacklistedProfession(title);
 }
 
 // Export for testing/debugging
