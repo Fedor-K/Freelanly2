@@ -551,6 +551,20 @@ export async function processAutoApplyQueue(): Promise<{
         ? null
         : await fetchResumeAttachment(app.user.resumeUrl, app.user.resumeFileName);
 
+      // CV-ALWAYS-ATTACHED (owner decision 2026-06-15): "send your CV" is recruiters' #1 ask.
+      // If this user SHOULD have an attachable résumé (a real Blob upload, not a machine-built CV)
+      // but the fetch came back empty — almost always a transient Blob hiccup — HOLD the send
+      // (keep PENDING, retry next batch) rather than ship a CV-less application. Quality over
+      // speed. The 24h PENDING→FAILED expiry above backstops a permanently-broken résumé so this
+      // never loops forever. Done before quota consumption so a held send wastes no daily quota.
+      const expectsCv = !app.user.resumeGenerated && (app.user.resumeUrl || '').includes('blob.vercel-storage');
+      if (expectsCv && !resumeAttachment) {
+        await prisma.autoApplication.update({ where: { id: app.id }, data: { status: AutoApplyStatus.PENDING } });
+        console.log(`[AutoApply] held ${app.id}: CV expected but attachment fetch failed — retry next batch (no CV-less send)`);
+        skipped++;
+        continue;
+      }
+
       // Build email HTML
       const pp = (app.user.parsedProfile ?? {}) as Record<string, unknown>;
       const html = buildApplicationEmailHtml({
