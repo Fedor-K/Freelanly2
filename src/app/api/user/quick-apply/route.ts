@@ -15,6 +15,53 @@ import { isFreeEmailProvider } from '@/lib/content-quality';
 const FREE_DAILY_LIMIT = 20;
 
 /**
+ * Short AI summary shown on the draft/review screen after the profile is analyzed: who the
+ * candidate is, how they fit THIS role, and other roles they'd be a strong fit for. Best-effort
+ * (returns null on any failure) — never blocks the draft.
+ */
+async function generateCandidateSummary(
+  profile: Record<string, unknown> | null,
+  jobTitle: string,
+  jobDescription: string,
+): Promise<{ who: string; fit: string; otherRoles: string[] } | null> {
+  if (!profile) return null;
+  try {
+    const OpenAI = (await import('openai')).default;
+    const client = new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' });
+    const skills = ((profile.skills as string[]) || []).slice(0, 15).join(', ');
+    const prompt = `Candidate:
+- Current title: ${profile.current_title || '—'}
+- Field: ${profile.field || '—'}
+- Experience: ${profile.experience_years ?? '—'} years
+- Skills: ${skills || '—'}
+- Summary: ${(profile.summary as string) || '—'}
+
+Target role: ${jobTitle}
+Role description: ${jobDescription.slice(0, 600)}
+
+Return ONLY JSON, no markdown:
+{"who":"one punchy sentence on who this candidate is professionally","fit":"1-2 sentences: how well they fit THIS specific role and why","otherRoles":["3-5 specific job titles this candidate is a strong fit for"]}`;
+    const r = await client.chat.completions.create({
+      model: 'glm-4-32b-0414-128k', temperature: 0.4, max_tokens: 320,
+      messages: [
+        { role: 'system', content: 'You are a concise, honest career analyst. Return ONLY valid JSON.' },
+        { role: 'user', content: prompt },
+      ],
+    });
+    const m = (r.choices[0]?.message?.content || '').match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    const parsed = JSON.parse(m[0]);
+    return {
+      who: String(parsed.who || '').slice(0, 240),
+      fit: String(parsed.fit || '').slice(0, 320),
+      otherRoles: Array.isArray(parsed.otherRoles) ? parsed.otherRoles.slice(0, 5).map((s: unknown) => String(s)) : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * POST /api/user/quick-apply
  * One-click apply to a specific opportunity from the project page.
  * Body: { opportunityId: string }
@@ -197,7 +244,10 @@ export async function POST(request: NextRequest) {
 
     // Draft-only mode: return full letter as user will see it
     if (draftOnly) {
-      return NextResponse.json({ ok: true, coverLetter: fullLetter, subject, to: opportunity.applyEmail });
+      // Candidate summary card (who they are + fit for this role + other strong-fit roles). The
+      // profile was just analyzed; this gives the user confidence before sending. Best-effort.
+      const matchSummary = await generateCandidateSummary(profile, opportunity.title, opportunity.description);
+      return NextResponse.json({ ok: true, coverLetter: fullLetter, subject, to: opportunity.applyEmail, matchSummary, matchLabel: pairing.label || null });
     }
 
     // Recruiter-voice rationale for the admin audit card — generated ONLY on a real send (after the

@@ -74,6 +74,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
   // Cover letter state
   const [coverLetter, setCoverLetter] = useState('');
+  const [matchSummary, setMatchSummary] = useState<{ who: string; fit: string; otherRoles: string[] } | null>(null);
+  const [matchLabel, setMatchLabel] = useState<string | null>(null);
   const [subject, setSubject] = useState('');
   const [sendTo, setSendTo] = useState('');
   const [genError, setGenError] = useState('');
@@ -142,6 +144,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             setCoverLetter(data.coverLetter || '');
             setSubject(data.subject || `Application: ${project.title}`);
             setSendTo(data.to || '');
+            setMatchSummary(data.matchSummary || null);
+            setMatchLabel(data.matchLabel || null);
             setPhase('review');
           } else if (data.error === 'already_applied') {
             setGenError('You already applied to this project.');
@@ -357,6 +361,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         setCoverLetter(data.coverLetter || '');
         setSubject(data.subject || `Application: ${project.title}`);
         setSendTo(data.to || '');
+        setMatchSummary(data.matchSummary || null);
+        setMatchLabel(data.matchLabel || null);
         setPhase('review');
       } else {
         if (data.error === 'resume_required') {
@@ -666,6 +672,27 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       return (
         <div>
           <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '12px' }}>Review & send</h2>
+
+          {matchSummary && (
+            <div style={{ marginBottom: '14px', padding: '14px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 600 }}>Your match</span>
+                {matchLabel && <span style={{ fontSize: '11px', fontWeight: 600, color: '#3F6212', background: '#D9F99D', padding: '2px 8px', borderRadius: '999px' }}>{matchLabel}</span>}
+              </div>
+              {matchSummary.who && <p style={{ fontSize: '13px', color: '#3A3A35', margin: '0 0 6px', lineHeight: 1.5 }}>{matchSummary.who}</p>}
+              {matchSummary.fit && <p style={{ fontSize: '13px', color: '#555', margin: '0 0 8px', lineHeight: 1.5 }}><b>Fit for this role:</b> {matchSummary.fit}</p>}
+              {matchSummary.otherRoles?.length > 0 && (
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#8A8780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '5px' }}>Also a strong fit for</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                    {matchSummary.otherRoles.map((r, i) => (
+                      <span key={i} style={{ fontSize: '12px', padding: '3px 9px', background: '#fff', border: '1px solid #DDEBC4', borderRadius: '6px', color: '#3F6212' }}>{r}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {sendTo && (
             <div style={{ fontSize: '12px', color: '#8A8780', marginBottom: '8px', fontFamily: "'Geist Mono', monospace" }}>
