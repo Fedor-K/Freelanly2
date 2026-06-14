@@ -1,3 +1,4 @@
+import { promises as dnsPromises } from 'dns';
 import { prisma } from '@/lib/db';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { generateCoverLetter, generateSubjectLine, generateFollowUp } from '@/services/cover-letter-generator';
@@ -216,6 +217,33 @@ export async function processAutoApplyQueue(): Promise<{
     console.warn('[AutoApply] suppression preload skipped (migration pending?):', (e as Error)?.message);
   }
 
+  // Pre-validate recipient domains (MX) once per batch. Sending to a dead/typo'd domain just
+  // hard-bounces (~8.5% of sends), and bounces poison the domain's Gmail sender reputation — which
+  // in turn spam-folders our OTP/notification mail to new users. Resolve each unique recipient
+  // domain ONCE; skip apps whose domain has no MX. Fail OPEN on transient DNS errors (timeout) so a
+  // resolver hiccup never blocks real sends — only NXDOMAIN/NODATA (genuinely no mail) is dropped.
+  const invalidRecipientDomains = new Set<string>();
+  try {
+    const domains = [...new Set(
+      pendingApps.map((a) => a.appliedToEmail.split('@')[1]?.toLowerCase().trim()).filter(Boolean) as string[]
+    )];
+    await Promise.all(domains.map(async (domain) => {
+      try {
+        const mx = await dnsPromises.resolveMx(domain);
+        if (!mx || mx.length === 0) invalidRecipientDomains.add(domain);
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code === 'ENOTFOUND' || code === 'ENODATA') invalidRecipientDomains.add(domain);
+        // other (timeout/SERVFAIL) → fail open: leave out of the invalid set, let it send
+      }
+    }));
+    if (invalidRecipientDomains.size) {
+      console.log(`[AutoApply] ${invalidRecipientDomains.size} recipient domain(s) have no MX — those sends will be skipped (bounce avoided)`);
+    }
+  } catch (e) {
+    console.warn('[AutoApply] MX preload skipped:', (e as Error)?.message);
+  }
+
   // Per-recruiter candidate totals — powers a concrete "N candidates for your roles" CTA in the
   // email (a real reason to open the portal; only ~4% do today). Best-effort; keyed on the exact
   // stored appliedToEmail. Counts all sent applications, so it's stable across this batch.
@@ -320,6 +348,15 @@ export async function processAutoApplyQueue(): Promise<{
     // Recruiter opted out via one-click List-Unsubscribe — stop all outreach to them.
     if (suppressedEmails.has(app.appliedToEmail.toLowerCase().trim())) {
       await markFailed(app.id, 'Recruiter unsubscribed');
+      skipped++;
+      continue;
+    }
+
+    // Dead/typo'd recipient domain (no MX) — sending only hard-bounces and damages sender
+    // reputation. Drop it instead of bouncing. (MX resolved once per batch above.)
+    const recipientDomain = app.appliedToEmail.split('@')[1]?.toLowerCase().trim();
+    if (recipientDomain && invalidRecipientDomains.has(recipientDomain)) {
+      await markFailed(app.id, 'Invalid recipient domain (no MX)');
       skipped++;
       continue;
     }
