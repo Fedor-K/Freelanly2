@@ -50,6 +50,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [salaryExpectation, setSalaryExpectation] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [authLoading, setAuthLoading] = useState(false);
@@ -315,6 +316,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       fd.append('file', resumeFile!);
       fd.append('email', email);
       fd.append('linkedinUrl', linkedinUrl);
+      if (salaryExpectation.trim()) fd.append('salaryExpectation', salaryExpectation.trim());
       try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* proceed — dashboard handles a missing profile */ }
       const url = new URL(window.location.href);
       url.searchParams.set('apply', '1');
@@ -496,6 +498,17 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 </div>
               </div>
             )}
+
+            {/* Desired salary — optional. Recruiters' #1 screening question is pay/CTC; capturing
+                it up front means they don't have to re-ask. */}
+            <div style={{ marginBottom: '8px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Desired salary <span style={{ color: '#8A8780', fontWeight: 400 }}>(optional)</span></label>
+              <input
+                type="text" placeholder="e.g. $2,000/mo · 15 LPA · €40k/yr" value={salaryExpectation}
+                onChange={e => setSalaryExpectation(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '13px' }}
+              />
+            </div>
 
             <div style={{ fontSize: '11px', color: '#8A8780', marginBottom: '8px' }}><span style={{ color: '#B91C1C' }}>*</span> Required fields</div>
             {authError && <div style={{ fontSize: '13px', color: '#B91C1C', padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', marginBottom: '8px' }}>{authError}</div>}

@@ -37,6 +37,9 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File | null;
     const email = (formData.get('email') as string)?.toLowerCase().trim();
     const linkedinUrl = (formData.get('linkedinUrl') as string)?.trim() || null;
+    // Self-reported desired pay — captured at signup so recruiters don't have to re-ask CTC
+    // (their #1 screening question). Free-text/soft context, never a verified line.
+    const salaryExpectation = (formData.get('salaryExpectation') as string)?.trim().slice(0, 60) || null;
 
     if (!email) {
       return NextResponse.json({ error: 'Email required' }, { status: 400 });
@@ -163,6 +166,7 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
         location: (parsedProfile?.location as string) || undefined,
         linkedinUrl: savedLinkedinUrl || undefined,
         image: photoUrl || undefined,
+        ...(salaryExpectation ? { salaryExpectation, salaryExpectationAt: new Date() } : {}),
       },
     });
 
