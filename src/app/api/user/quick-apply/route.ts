@@ -94,6 +94,11 @@ async function findFittingOpportunities(
     });
     const appliedIds = applied.map(a => a.opportunityId).filter(Boolean) as string[];
 
+    // LIGHT pool — title + category only (no description), so we can pull a BIG, category-representative
+    // slice cheaply. A 60-row most-recent slice under-represents minority categories: e.g. a PM whose
+    // fit is product/project-management/operations (~5% of the base) often gets 0 candidates in 60 rows
+    // dominated by engineering (~38%). 250 rows gives every category enough presence for step 1 to find
+    // the real fits. Descriptions are fetched only for the few that survive the shortlist (step 2).
     const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
     const pool = await prisma.opportunity.findMany({
       where: {
@@ -102,9 +107,9 @@ async function findFittingOpportunities(
         createdAt: { gte: since },
         id: { notIn: [excludeOpportunityId, ...appliedIds] },
       },
-      select: { slug: true, title: true, description: true, country: true, category: { select: { slug: true } }, clientName: true, posterCompany: true, company: { select: { name: true } } },
+      select: { id: true, slug: true, title: true, category: { select: { slug: true } } },
       orderBy: { createdAt: 'desc' },
-      take: 60,
+      take: 250,
     });
     if (pool.length === 0) return [];
 
@@ -141,11 +146,19 @@ Return ONLY JSON: {"picks":[<index>, ...]}`;
       .slice(0, 8);
     if (picks.length === 0) return [];
 
+    // Fetch full records (incl. description) only for the shortlist, for the strict vetting pass.
+    const shortlisted = await prisma.opportunity.findMany({
+      where: { id: { in: picks.map(i => pool[i].id) } },
+      select: { id: true, slug: true, title: true, description: true, country: true, clientName: true, posterCompany: true, company: { select: { name: true } } },
+    });
+    const byId = new Map(shortlisted.map(o => [o.id, o]));
+
     // Step 2 — vet each shortlisted role through the SAME assessPairing the apply-flow runs on click.
     // This is the fix for "I click a recommended role and STILL get told I don't fit": a suggestion
     // is only shown if the real matcher would NOT reject it (decision !== 'NO'). Keep order, take 4.
     const vetted = await Promise.all(picks.map(async (i) => {
-      const o = pool[i];
+      const o = byId.get(pool[i].id);
+      if (!o) return null;
       try {
         const pr = await assessPairing({
           jobTitle: o.title, jobDescription: o.description, jobCountry: o.country,
