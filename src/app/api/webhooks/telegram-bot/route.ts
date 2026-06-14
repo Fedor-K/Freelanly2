@@ -87,7 +87,18 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Generic /start without token
+      // Generic /start without token — if this chat is ALREADY linked, say so (a bare /start from
+      // an already-connected user would otherwise read as "nothing happened" / tell them to connect).
+      const linked = await prisma.user.findFirst({ where: { telegramChatId: String(chatId) }, select: { name: true } });
+      if (linked) {
+        await reply(chatId,
+          `✅ You're already connected${linked.name ? `, ${linked.name}` : ''}!\n\n`
+          + `I'll ping you here the moment a recruiter replies to your applications.\n\n`
+          + `💬 Recruiter replies  🟢 Interview invites  📊 Daily summary\n\n`
+          + `Dashboard: freelanly.com/dashboard`,
+        );
+        return NextResponse.json({ ok: true });
+      }
       await reply(chatId,
         `👋 Hey ${firstName}! Welcome to Freelanly.\n\n`
         + `I'll send you instant notifications when recruiters reply to your applications.\n\n`
