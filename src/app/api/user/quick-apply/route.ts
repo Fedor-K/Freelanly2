@@ -23,6 +23,8 @@ async function generateCandidateSummary(
   profile: Record<string, unknown> | null,
   jobTitle: string,
   jobDescription: string,
+  matchLabel: string | null,
+  matchReason: string,
 ): Promise<{ who: string; fit: string; otherRoles: string[] } | null> {
   if (!profile) return null;
   try {
@@ -39,12 +41,18 @@ async function generateCandidateSummary(
 Target role: ${jobTitle}
 Role description: ${jobDescription.slice(0, 600)}
 
+Our matcher rated this candidate↔role pairing as: "${matchLabel || 'unrated'}" match${matchReason ? ` (reason: ${matchReason})` : ''}.
+Your "fit" sentence MUST be consistent with that rating — never oversell. If the match is Weak/poor,
+say plainly that this role is a stretch and WHY (e.g. it's in a different field than the candidate's
+background). If it's Strong, explain why it's a great fit. The "otherRoles" should be roles that
+genuinely match the candidate's actual background (not the target role's field if it doesn't fit).
+
 Return ONLY JSON, no markdown:
-{"who":"one punchy sentence on who this candidate is professionally","fit":"1-2 sentences: how well they fit THIS specific role and why","otherRoles":["3-5 specific job titles this candidate is a strong fit for"]}`;
+{"who":"one punchy sentence on who this candidate is professionally","fit":"1-2 sentences, consistent with the match rating: how well they fit THIS specific role and why","otherRoles":["3-5 specific job titles this candidate is genuinely a strong fit for"]}`;
     const r = await client.chat.completions.create({
       model: 'glm-4-32b-0414-128k', temperature: 0.4, max_tokens: 320,
       messages: [
-        { role: 'system', content: 'You are a concise, honest career analyst. Return ONLY valid JSON.' },
+        { role: 'system', content: 'You are a concise, BRUTALLY HONEST career analyst. Never inflate fit. Return ONLY valid JSON.' },
         { role: 'user', content: prompt },
       ],
     });
@@ -210,7 +218,7 @@ export async function POST(request: NextRequest) {
     // writing the cover letter. The user reads this first, then clicks through to generate the
     // application — so we don't spend the cover-letter LLM call until they actually proceed.
     if (summaryOnly) {
-      const matchSummary = await generateCandidateSummary(profile, opportunity.title, opportunity.description);
+      const matchSummary = await generateCandidateSummary(profile, opportunity.title, opportunity.description, pairing.label || null, pairing.reason || '');
       return NextResponse.json({ ok: true, matchSummary, matchLabel: pairing.label || null, to: opportunity.applyEmail });
     }
 
