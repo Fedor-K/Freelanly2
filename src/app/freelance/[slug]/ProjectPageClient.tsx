@@ -503,9 +503,12 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
               Code sent to {email}
             </div>
             <input
-              type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
+              type="text" inputMode="numeric" autoComplete="one-time-code"
               placeholder="000000" value={otpCode}
               onChange={e => {
+                // No maxLength on the raw input: codes are e-mailed spaced ("497 214"), and a
+                // maxLength={6} would truncate the spaced paste to "497 21" BEFORE we strip the
+                // space → dropping the last digit. Strip non-digits, THEN cap at 6.
                 const v = e.target.value.replace(/\D/g, '').slice(0, 6);
                 setOtpCode(v);
                 setOtpError('');
