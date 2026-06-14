@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 import { extractText } from 'unpdf';
 import OpenAI from 'openai';
 import { put } from '@vercel/blob';
-import { scrapeLinkedInProfile, mergeCandidateProfiles } from '@/lib/linkedin-profile';
+import { scrapeLinkedInProfile, mergeCandidateProfiles, normalizeLinkedInUrl } from '@/lib/linkedin-profile';
 import { deriveCategorySlugs } from '@/lib/loop-routing';
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'zai';
@@ -54,6 +54,13 @@ export async function POST(request: NextRequest) {
     if (!linkedinUrl) {
       return NextResponse.json({ error: 'LinkedIn URL is required' }, { status: 400 });
     }
+    // Validate it's a REAL personal profile URL (auto-fixes https:/ , linked.com, ?skipRedirect).
+    // Rejects the ~19% garbage (bare names, company pages, /me links) that can never be scraped —
+    // this is the single chokepoint every registration passes through.
+    const normalizedLinkedin = normalizeLinkedInUrl(linkedinUrl);
+    if (!normalizedLinkedin) {
+      return NextResponse.json({ error: 'Enter your real LinkedIn profile URL, e.g. linkedin.com/in/your-name' }, { status: 400 });
+    }
 
     // Find user by email
     const user = await prisma.user.findUnique({
@@ -88,7 +95,7 @@ export async function POST(request: NextRequest) {
             model: getModel(),
             messages: [
               { role: 'system', content: `You extract structured data from resumes. Return ONLY valid JSON, no markdown.
-Format: {"name":"string","email":"string or null","phone":"string or null","skills":["skill1","skill2"],"experience_years":number,"current_title":"string","field":"string","summary":"1-2 sentence summary","languages":["English"],"experience":[{"title":"Job Title","company":"Company Name","dates":"Start - End","description":"1-2 sentences on the role and achievements"}],"education":[{"degree":"Degree","school":"School Name","dates":"Start - End"}]}
+Format: {"name":"string","email":"string or null","phone":"string or null","location":"City, Country or null","skills":["skill1","skill2"],"experience_years":number,"current_title":"string","field":"string","summary":"1-2 sentence summary","languages":["English"],"experience":[{"title":"Job Title","company":"Company Name","dates":"Start - End","description":"1-2 sentences on the role and achievements"}],"education":[{"degree":"Degree","school":"School Name","dates":"Start - End"}]}
 Extract up to 20 skills and ALL experience + education entries. If not found, use null or [].` },
               { role: 'user', content: `Extract profile data:\n\n${pdfText.substring(0, 6000)}` },
             ],
@@ -104,12 +111,18 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
     }
 
     // 2) LinkedIn → structured profile (ENRICHMENT, shared module). Complement, not replacement.
-    const { liProfile, resolvedUrl, aboutText, photoUrl } = await scrapeLinkedInProfile(linkedinUrl, email);
+    const { liProfile, resolvedUrl, aboutText, photoUrl } = await scrapeLinkedInProfile(normalizedLinkedin, email);
     const savedLinkedinUrl = resolvedUrl;
     if (!pdfText && aboutText) pdfText = aboutText;
 
     // 3) MERGE — résumé is the authoritative base; LinkedIn enriches (union skills/langs, gaps).
     parsedProfile = mergeCandidateProfiles(resumeProfile, liProfile, email);
+    // Mark the LI scrape as done ONLY when it actually returned a profile, so the backfill job
+    // re-targets just the failures (timeout / Apify throttle) instead of re-scraping successes.
+    if (parsedProfile && liProfile) {
+      parsedProfile._liScraped = true;
+      parsedProfile._liScrapedAt = new Date().toISOString();
+    }
 
     if (!pdfText && !parsedProfile) {
       return NextResponse.json({ error: 'Could not extract profile data' }, { status: 400 });
@@ -147,6 +160,7 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
         resumeFileName: file?.name || undefined,
         parsedProfile: parsedProfile == null ? undefined : (parsedProfile as Prisma.InputJsonValue),
         name: parsedProfile?.name || undefined,
+        location: (parsedProfile?.location as string) || undefined,
         linkedinUrl: savedLinkedinUrl || undefined,
         image: photoUrl || undefined,
       },

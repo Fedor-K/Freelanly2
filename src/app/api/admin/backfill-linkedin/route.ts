@@ -46,7 +46,12 @@ export async function GET(request: NextRequest) {
       merged._liScrapedAt = new Date().toISOString();
       await prisma.user.update({
         where: { id: u.id },
-        data: { parsedProfile: merged as Prisma.InputJsonValue, ...(resolvedUrl ? { linkedinUrl: resolvedUrl } : {}), ...(photoUrl ? { image: photoUrl } : {}) },
+        data: {
+          parsedProfile: merged as Prisma.InputJsonValue,
+          ...(merged.location ? { location: String(merged.location) } : {}),
+          ...(resolvedUrl ? { linkedinUrl: resolvedUrl } : {}),
+          ...(photoUrl ? { image: photoUrl } : {}),
+        },
       });
       if (liProfile) {
         enriched++;

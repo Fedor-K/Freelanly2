@@ -154,6 +154,7 @@ Extract as many skills as you can find (up to 20). Extract ALL experience roles,
         resumeFileName: file.name,
         parsedProfile: (mergedProfile as object) || undefined,
         name: parsedProfile?.name || undefined,
+        location: ((mergedProfile as Record<string, unknown> | null)?.location as string) || undefined,
       },
     });
 

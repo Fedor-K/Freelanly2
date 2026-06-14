@@ -5,6 +5,30 @@
 
 export type CandProfile = Record<string, unknown>;
 
+/**
+ * Normalize a user-entered LinkedIn URL to a canonical https://www.linkedin.com/in/<slug> form,
+ * auto-fixing the common typos we see in registrations (single-slash scheme `https:/`, missing
+ * scheme, `linked.com`, trailing `?skipRedirect=…`). Returns null when it isn't a real PERSONAL
+ * profile URL — bare names ("Karri Aravind Swamy"), "no tengo", company pages (/company/…),
+ * /me?trk=… links, public-profile/settings links — i.e. the ~19% garbage that can never be scraped.
+ */
+export function normalizeLinkedInUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let s = String(raw).trim();
+  if (!s) return null;
+  s = s.replace(/^(https?):\/(?!\/)/i, '$1://'); // https:/ → https://
+  if (!/^https?:\/\//i.test(s)) s = 'https://' + s.replace(/^\/+/, '');
+  s = s.replace(/linked\.com/i, 'linkedin.com');
+  let u: URL;
+  try { u = new URL(s); } catch { return null; }
+  if (!/(^|\.)linkedin\.com$/i.test(u.hostname)) return null;
+  const m = u.pathname.match(/\/in\/([^/?#]+)/i); // must be a personal /in/<slug> path
+  if (!m) return null;
+  const slug = m[1].trim(); // keep URL-encoded (handles emoji/unicode vanity slugs)
+  if (slug.length < 2) return null;
+  return `https://www.linkedin.com/in/${slug}`;
+}
+
 export type ScrapedLinkedIn = {
   liProfile: CandProfile | null;
   resolvedUrl: string | null; // canonical profile URL the actor resolved (cleaner than raw input)
@@ -14,14 +38,15 @@ export type ScrapedLinkedIn = {
 
 /** Scrape a candidate's own LinkedIn profile via Apify and map it to our profile shape. */
 export async function scrapeLinkedInProfile(linkedinUrl: string | null, email: string): Promise<ScrapedLinkedIn> {
-  const empty: ScrapedLinkedIn = { liProfile: null, resolvedUrl: linkedinUrl || null, aboutText: '', photoUrl: null };
-  if (!linkedinUrl || !linkedinUrl.includes('linkedin.com/in/')) return empty;
+  const normUrl = normalizeLinkedInUrl(linkedinUrl);
+  const empty: ScrapedLinkedIn = { liProfile: null, resolvedUrl: normUrl || linkedinUrl || null, aboutText: '', photoUrl: null };
+  if (!normUrl) return empty;
   const apifyToken = process.env.APIFY_API_TOKEN;
   if (!apifyToken) return empty;
   try {
     const runRes = await fetch(
       `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-scraper/run-sync-get-dataset-items?token=${apifyToken}`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urls: [linkedinUrl] }), signal: AbortSignal.timeout(35000) }
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urls: [normUrl] }), signal: AbortSignal.timeout(35000) }
     );
     if (!runRes.ok) return empty;
     const items = await runRes.json();
