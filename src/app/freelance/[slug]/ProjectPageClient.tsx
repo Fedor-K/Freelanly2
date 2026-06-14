@@ -26,6 +26,15 @@ interface ProjectProps {
 
 type Phase = 'guest' | 'auth' | 'generating' | 'review' | 'sent';
 
+// Rotating status lines for the cover-letter generation screen (so it reads as live work).
+const GEN_STEPS = [
+  { title: 'Reading the job post…', sub: 'Understanding what this role needs' },
+  { title: 'Matching your profile…', sub: 'Comparing your skills & experience' },
+  { title: 'Writing your cover letter…', sub: 'Drafting a tailored intro for you' },
+  { title: 'Polishing the wording…', sub: 'Making it sound like you' },
+  { title: 'Almost ready…', sub: 'Final touches' },
+];
+
 export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const { track } = useTracker();
   const startTime = useRef(Date.now());
@@ -51,6 +60,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   // After the OTP code is confirmed we reveal the profile fields (résumé/LinkedIn/categories).
   // Until the code is entered the user only sees the email step — no fields at all.
   const [profileStep, setProfileStep] = useState(false);
+  // Rotating status index for the "generating" screen so it reads as live work, not a freeze.
+  const [genStepIdx, setGenStepIdx] = useState(0);
 
   // OTP state
   const [otpCode, setOtpCode] = useState('');
@@ -153,6 +164,15 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Advance the "generating" status messages so the screen reads as live work, not a freeze.
+  // Resets to 0 whenever we (re-)enter the generating phase; stops advancing on the last step.
+  useEffect(() => {
+    if (phase !== 'generating') { setGenStepIdx(0); return; }
+    setGenStepIdx(0);
+    const id = setInterval(() => setGenStepIdx(i => Math.min(i + 1, GEN_STEPS.length - 1)), 2600);
+    return () => clearInterval(id);
+  }, [phase]);
 
   // Track page view
   useEffect(() => {
@@ -574,11 +594,27 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
     // PHASE: GENERATING
     if (phase === 'generating') {
+      const step = GEN_STEPS[genStepIdx] || GEN_STEPS[0];
+      const pct = Math.round(((genStepIdx + 1) / GEN_STEPS.length) * 100);
       return (
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <div style={{ fontSize: '32px', marginBottom: '16px' }}>✍️</div>
-          <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '6px' }}>Writing your cover letter...</h2>
-          <p style={{ fontSize: '13px', color: '#8A8780' }}>AI is reading the job post and matching with your profile</p>
+          <style>{`
+            @keyframes fl-spin { to { transform: rotate(360deg); } }
+            @keyframes fl-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.9); } }
+            @keyframes fl-bar { from { background-position: 0 0; } to { background-position: 28px 0; } }
+          `}</style>
+          {/* spinning ring around a pulsing pen — unmistakably "working" */}
+          <div style={{ position: 'relative', width: 56, height: 56, margin: '0 auto 18px' }}>
+            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid #ECEAE3', borderTopColor: '#C7F94A', animation: 'fl-spin .9s linear infinite' }} />
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, animation: 'fl-pulse 1.6s ease-in-out infinite' }}>✍️</div>
+          </div>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '6px' }}>{step.title}</h2>
+          <p style={{ fontSize: '13px', color: '#8A8780', marginBottom: '16px', minHeight: 18 }}>{step.sub}</p>
+          {/* animated striped progress bar that fills step-by-step */}
+          <div style={{ width: '72%', maxWidth: 260, height: 6, margin: '0 auto', background: '#ECEAE3', borderRadius: 999, overflow: 'hidden' }}>
+            <div style={{ width: `${pct}%`, height: '100%', borderRadius: 999, transition: 'width .6s ease', backgroundImage: 'repeating-linear-gradient(45deg, #C7F94A 0, #C7F94A 8px, #b6e842 8px, #b6e842 16px)', backgroundSize: '28px 28px', animation: 'fl-bar 1s linear infinite' }} />
+          </div>
+          <p style={{ fontSize: '11px', color: '#B3AFA6', marginTop: 10 }}>This usually takes a few seconds…</p>
         </div>
       );
     }
