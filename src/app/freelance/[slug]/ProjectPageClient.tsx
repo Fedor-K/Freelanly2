@@ -235,19 +235,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           }
         }
 
-        // Upload resume (non-blocking)
-        if (resumeFile) {
-          const fd = new FormData();
-          fd.append('file', resumeFile);
-          fd.append('email', email);
-          if (linkedinUrl) fd.append('linkedinUrl', linkedinUrl);
-          fetch('/api/user/resume-preauth', { method: 'POST', body: fd }).catch(() => {});
-        } else if (linkedinUrl) {
-          const fd = new FormData();
-          fd.append('email', email);
-          fd.append('linkedinUrl', linkedinUrl);
-          fetch('/api/user/resume-preauth', { method: 'POST', body: fd }).catch(() => {});
-        }
+        // NOTE: résumé upload + profile build (LinkedIn scrape, AI parse, loop creation) is
+        // deferred to AFTER the user confirms the OTP code — see handleOtpSubmit. Email
+        // verification is the gate: nothing is processed for an unconfirmed address. Here we only
+        // register the user and trigger the code.
       }
 
       // Send magic link / OTP
@@ -277,7 +268,17 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        // Authenticated! Reload with apply flag to trigger cover letter generation
+        // Email CONFIRMED → only now run the deferred résumé upload + profile build (LinkedIn
+        // scrape, AI parse, loop creation). Awaited so parsedProfile exists before the apply flow
+        // runs; otpLoading stays true so the user sees a spinner while it completes.
+        if (resumeFile || linkedinUrl) {
+          const fd = new FormData();
+          if (resumeFile) fd.append('file', resumeFile);
+          fd.append('email', email);
+          if (linkedinUrl) fd.append('linkedinUrl', linkedinUrl);
+          try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* proceed — dashboard handles a missing profile */ }
+        }
+        // Authenticated + profile built! Reload with apply flag to trigger cover letter generation
         const url = new URL(window.location.href);
         url.searchParams.set('apply', '1');
         window.location.href = url.toString();
