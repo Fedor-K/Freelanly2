@@ -3,13 +3,15 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { DiscoveryFeed } from '@/components/app/DiscoveryFeed';
+import { buildFitContext, scoreFit } from '@/lib/fit-score';
 import './discovery-design.css';
 
 export const metadata: Metadata = {
   title: 'Discovery — Freelanly',
 };
 
-export const revalidate = 120;
+// Per-user fit ranking — must never be cached across users.
+export const dynamic = 'force-dynamic';
 
 export default async function DiscoveryPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const session = await auth();
@@ -23,49 +25,82 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
   const dayAgo = new Date(Date.now() - 24 * 3600000);
   const weekAgo = new Date(Date.now() - 7 * 86400000);
 
-  // Fetch recent opportunities (last 7 days, with apply email)
-  const [opportunities, jobs, totalToday] = await Promise.all([
+  // Profile-aware feed: rank the WHOLE week's base by lexical fit to this user (no LLM, runs in code),
+  // so everyone opens Discovery and sees roles that match their background first — not just newest.
+  // Pass 1 pulls light rows (id/title/skills/createdAt) for the full base, scores + sorts + paginates
+  // in code; pass 2 fetches display fields only for the page's 50. Score 0 (no profile, or no overlap)
+  // falls back to recency — nothing is hidden, only re-ranked.
+  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { parsedProfile: true } });
+  const fitCtx = buildFitContext(me?.parsedProfile as Record<string, unknown> | null);
+
+  const [poolOpps, poolJobs, totalToday] = await Promise.all([
     prisma.opportunity.findMany({
       where: { isActive: true, createdAt: { gte: weekAgo } },
-      orderBy: { createdAt: 'desc' },
-      take: perPage,
-      skip,
+      select: { id: true, title: true, skills: true, createdAt: true },
+    }),
+    prisma.job.findMany({
+      where: { isActive: true, createdAt: { gte: weekAgo }, applyEmail: { not: null } },
+      select: { id: true, title: true, skills: true, createdAt: true },
+    }),
+    prisma.opportunity.count({ where: { isActive: true, createdAt: { gte: dayAgo } } }),
+  ]);
+
+  // Score every row, sort by fit desc then recency, then slice this page.
+  const ranked = [
+    ...poolOpps.map(o => ({ id: o.id, type: 'opportunity' as const, createdAt: o.createdAt, score: scoreFit(fitCtx, o) })),
+    ...poolJobs.map(j => ({ id: j.id, type: 'job' as const, createdAt: j.createdAt, score: scoreFit(fitCtx, j) })),
+  ].sort((a, b) => (b.score - a.score) || (b.createdAt.getTime() - a.createdAt.getTime()));
+
+  const total = ranked.length;
+  const pageSlice = ranked.slice(skip, skip + perPage);
+  const hasMore = skip + perPage < total;
+
+  // Pass 2 — fetch display fields only for the IDs on this page, then restore the ranked order.
+  const oppIds = pageSlice.filter(r => r.type === 'opportunity').map(r => r.id);
+  const jobIds = pageSlice.filter(r => r.type === 'job').map(r => r.id);
+  const [opportunities, jobs] = await Promise.all([
+    oppIds.length ? prisma.opportunity.findMany({
+      where: { id: { in: oppIds } },
       select: {
         id: true, title: true, clientName: true, posterCompany: true,
         description: true, createdAt: true, skills: true, location: true,
         applyEmail: true, sourceUrl: true,
         company: { select: { name: true } },
       },
-    }),
-    prisma.job.findMany({
-      where: { isActive: true, createdAt: { gte: weekAgo }, applyEmail: { not: null } },
-      orderBy: { createdAt: 'desc' },
-      take: perPage,
-      skip,
+    }) : Promise.resolve([]),
+    jobIds.length ? prisma.job.findMany({
+      where: { id: { in: jobIds } },
       select: {
         id: true, title: true, description: true, createdAt: true,
         skills: true, country: true, applyEmail: true, sourceUrl: true,
         company: { select: { name: true } },
       },
-    }),
-    prisma.opportunity.count({ where: { isActive: true, createdAt: { gte: dayAgo } } }),
+    }) : Promise.resolve([]),
   ]);
 
-  // Merge and sort
-  const items = [
-    ...opportunities.map(o => ({
-      id: o.id,
-      type: 'opportunity' as const,
-      title: o.title,
-      companyName: o.company?.name || o.posterCompany || o.clientName,
-      description: o.description,
-      source: 'linkedin',
-      createdAt: o.createdAt.toISOString(),
-      skills: o.skills,
-      location: o.location,
-      applyEmail: o.applyEmail,
-    })),
-    ...jobs.map(j => ({
+  const oppById = new Map(opportunities.map(o => [o.id, o]));
+  const jobById = new Map(jobs.map(j => [j.id, j]));
+
+  const items = pageSlice.map(r => {
+    if (r.type === 'opportunity') {
+      const o = oppById.get(r.id);
+      if (!o) return null;
+      return {
+        id: o.id,
+        type: 'opportunity' as const,
+        title: o.title,
+        companyName: o.company?.name || o.posterCompany || o.clientName || 'Unknown',
+        description: o.description,
+        source: 'linkedin',
+        createdAt: o.createdAt.toISOString(),
+        skills: o.skills,
+        location: o.location,
+        applyEmail: o.applyEmail,
+      };
+    }
+    const j = jobById.get(r.id);
+    if (!j) return null;
+    return {
       id: j.id,
       type: 'job' as const,
       title: j.title,
@@ -76,11 +111,12 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
       skills: j.skills,
       location: j.country,
       applyEmail: j.applyEmail,
-    })),
-  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-  const total = items.length;
-  const hasMore = opportunities.length === perPage || jobs.length === perPage;
+    };
+  }).filter(Boolean) as Array<{
+    id: string; type: 'opportunity' | 'job'; title: string; companyName: string;
+    description: string; source: string; createdAt: string; skills: string[];
+    location: string | null; applyEmail: string | null;
+  }>;
 
   // Compute top skills with counts
   const skillCounts: Record<string, number> = {};

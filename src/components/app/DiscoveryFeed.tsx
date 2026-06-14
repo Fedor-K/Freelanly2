@@ -157,14 +157,15 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
   // Sort
   if (sortBy === 'newest') {
     visible.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  } else {
-    // Best match = most matching active skills, then by skills count
+  } else if (activeSkills.size > 0) {
+    // Manual skill filter is on → rank by how many of the picked skills each role matches.
     visible.sort((a, b) => {
-      const aMatch = activeSkills.size > 0 ? a.skills.filter(s => activeSkills.has(s)).length : a.skills.length;
-      const bMatch = activeSkills.size > 0 ? b.skills.filter(s => activeSkills.has(s)).length : b.skills.length;
+      const aMatch = a.skills.filter(s => activeSkills.has(s)).length;
+      const bMatch = b.skills.filter(s => activeSkills.has(s)).length;
       return bMatch - aMatch;
     });
   }
+  // else: "My matches" with no manual filter → keep the server's profile fit ranking as-is.
 
   return (
     <>

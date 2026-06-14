@@ -11,6 +11,7 @@ import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT } from '@/l
 import { escapeHtml } from '@/lib/html-escape';
 import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
 import { isFreeEmailProvider } from '@/lib/content-quality';
+import { buildFitContext, scoreFit } from '@/lib/fit-score';
 
 const FREE_DAILY_LIMIT = 20;
 
@@ -69,12 +70,6 @@ Return ONLY JSON, no markdown:
   }
 }
 
-/** Significant lowercase tokens (drops stopwords + short noise) for lexical overlap scoring. */
-function fitTokens(s: string): string[] {
-  const stop = new Set(['the','and','for','with','our','your','you','are','will','that','this','from','into','remote','full','time','part','job','role','position','team','work','senior','junior','mid','lead','i','ii','iii']);
-  return (s.toLowerCase().match(/[a-z][a-z+#.]{2,}/g) || []).filter(t => !stop.has(t));
-}
-
 /**
  * Roles that genuinely fit this candidate — shown when THIS role is a weak match, so we steer the
  * user toward applications a recruiter will actually answer instead of spamming a mismatch.
@@ -117,22 +112,11 @@ async function findFittingOpportunities(
     if (pool.length === 0) return [];
 
     // Stage 1 — lexical fit score (no LLM) over the whole base.
-    const candSkills = new Set(((profile.skills as string[]) || []).map(s => s.toLowerCase().trim()).filter(Boolean));
-    const candTitleTokens = new Set([
-      ...fitTokens(typeof profile.current_title === 'string' ? profile.current_title : ''),
-      ...fitTokens(typeof profile.field === 'string' ? profile.field : ''),
-    ]);
-
-    const scored = pool.map((o) => {
-      const oppSkills = (o.skills || []).map(s => s.toLowerCase().trim());
-      const oppTitleTokens = fitTokens(o.title);
-      let skillScore = 0;
-      for (const s of candSkills) if (oppSkills.includes(s) || o.title.toLowerCase().includes(s)) skillScore++;
-      let titleScore = 0;
-      for (const t of oppTitleTokens) if (candTitleTokens.has(t)) titleScore++;
-      // Title overlap is the stronger signal of role-fit (a "Project Manager" matching a PM), skills second.
-      return { o, score: titleScore * 3 + skillScore };
-    }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+    const fitCtx = buildFitContext(profile);
+    const scored = pool
+      .map((o) => ({ o, score: scoreFit(fitCtx, o) }))
+      .filter(x => x.score > 0)
+      .sort((a, b) => b.score - a.score);
 
     if (scored.length === 0) return [];
     const top = scored.slice(0, 10).map(x => x.o);
