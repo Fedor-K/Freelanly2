@@ -602,7 +602,15 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             {otpError && <div style={{ fontSize: '12px', color: '#B91C1C', marginBottom: '8px' }}>{otpError}</div>}
             {otpLoading && <div style={{ fontSize: '12px', color: '#047857' }}>Verifying...</div>}
             {genError && <div style={{ fontSize: '12px', color: '#B91C1C', marginBottom: '8px' }}>{genError}</div>}
-            <button onClick={() => { setCodeSent(false); setOtpCode(''); setOtpError(''); }} style={{ fontSize: '12px', color: '#8A8780', background: 'none', border: 'none', cursor: 'pointer', marginTop: '4px' }}>
+            {/* The single biggest drop-off is here: cold Gmail can file the code under Spam/Promotions.
+                A nudge to check those folders recovers users who'd otherwise think nothing arrived. */}
+            <div style={{ fontSize: '12px', color: '#8A8780', marginTop: '6px', lineHeight: 1.5 }}>
+              Didn&apos;t get it? Check <b>Spam</b> or <b>Promotions</b>.{' '}
+              <button onClick={() => { setOtpCode(''); setOtpError(''); handleSendCode(); }} disabled={otpLoading} style={{ color: '#3F6212', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0, textDecoration: 'underline' }}>
+                Resend code
+              </button>
+            </div>
+            <button onClick={() => { setCodeSent(false); setOtpCode(''); setOtpError(''); }} style={{ fontSize: '12px', color: '#8A8780', background: 'none', border: 'none', cursor: 'pointer', marginTop: '8px' }}>
               ← Back
             </button>
           </div>

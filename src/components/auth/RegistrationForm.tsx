@@ -589,7 +589,6 @@ export function RegistrationForm({
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
-            maxLength={6}
             value={otpCode.join('')}
             onChange={(e) => {
               const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
@@ -622,6 +621,15 @@ export function RegistrationForm({
         {otpError && <p style={{fontSize: '13px', color: '#B91C1C', marginBottom: '12px'}}>{otpError}</p>}
         {otpLoading && <p style={{fontSize: '13px', color: '#5C6068', marginBottom: '12px'}}>Verifying...</p>}
 
+        {/* Biggest drop-off in the funnel is right here: cold Gmail can file the code under
+            Spam/Promotions. Nudging those folders + a one-click resend recovers users who'd
+            otherwise assume nothing arrived. */}
+        <p style={{fontSize: '13px', color: '#5C6068', marginBottom: '8px', lineHeight: 1.5}}>
+          Didn&apos;t get it? Check <b>Spam</b> or <b>Promotions</b>.{' '}
+          <button onClick={() => { setOtpCode(['','','','','','']); setOtpError(''); handleSendMagicLink(); }} disabled={otpLoading} style={{color: '#4D8B0A', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0, textDecoration: 'underline'}}>
+            Resend code
+          </button>
+        </p>
         <p style={{fontSize: '12px', color: '#6B7280', marginBottom: '16px'}}>or click the link in the email</p>
 
         <button
