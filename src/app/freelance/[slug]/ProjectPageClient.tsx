@@ -48,6 +48,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
   // §4 opt-in scaffold — explicit consent (default off) to future job-alert emails; sending suspended.
   const [jobAlertOptIn, setJobAlertOptIn] = useState(false);
+  // After the OTP code is confirmed we reveal the profile fields (résumé/LinkedIn/categories).
+  // Until the code is entered the user only sees the email step — no fields at all.
+  const [profileStep, setProfileStep] = useState(false);
 
   // OTP state
   const [otpCode, setOtpCode] = useState('');
@@ -194,51 +197,29 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     setAuthError('');
 
     try {
-      // Validate all required fields
-      if (hasResume === false) {
-        const errors: Record<string, boolean> = {};
-        if (!resumeFile) errors.resume = true;
-        if (!linkedinUrl) errors.linkedin = true;
-        if (selectedCategories.length === 0) errors.categories = true;
-        if (selectedCategories.includes('translation') && selectedLanguages.length === 0) errors.languages = true;
-        if (Object.keys(errors).length > 0) {
-          setFieldErrors(errors);
-          setAuthError('Please fill in all required fields');
-          setAuthLoading(false);
-          return;
+      // STEP 1 = EMAIL ONLY. No résumé/LinkedIn/category fields here — they're collected only
+      // AFTER the user confirms the OTP code (see profileStep / handleProfileSubmit). Email
+      // verification is the gate: an unconfirmed visitor never even sees the fields, and we
+      // process nothing for them. Register the new user with email only and trigger the code.
+      if (hasResume === false && isExisting === false) {
+        const regRes = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            categories: [],
+            agreedToTerms: true,
+            jobAlertOptIn,
+            // Registration attribution (single chokepoint): inline apply on a project page.
+            entryPoint: 'freelance_inline',
+            opportunityId: project.id,
+            pageUrl: typeof window !== 'undefined' ? window.location.pathname : undefined,
+          }),
+        });
+        if (!regRes.ok) {
+          const data = await regRes.json();
+          throw new Error(data.error || 'Registration failed');
         }
-        setFieldErrors({});
-      }
-
-      // Register (new users) or update alerts (existing without resume)
-      if (hasResume === false) {
-        // Only call register for new users; for existing users just upload resume
-        if (isExisting === false) {
-          const regRes = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email,
-              categories: selectedCategories,
-              languages: selectedCategories.includes('translation') ? selectedLanguages : undefined,
-              agreedToTerms: true,
-              jobAlertOptIn,
-              // Registration attribution (single chokepoint): inline apply on a project page.
-              entryPoint: 'freelance_inline',
-              opportunityId: project.id,
-              pageUrl: typeof window !== 'undefined' ? window.location.pathname : undefined,
-            }),
-          });
-          if (!regRes.ok) {
-            const data = await regRes.json();
-            throw new Error(data.error || 'Registration failed');
-          }
-        }
-
-        // NOTE: résumé upload + profile build (LinkedIn scrape, AI parse, loop creation) is
-        // deferred to AFTER the user confirms the OTP code — see handleOtpSubmit. Email
-        // verification is the gate: nothing is processed for an unconfirmed address. Here we only
-        // register the user and trigger the code.
       }
 
       // Send magic link / OTP
@@ -268,17 +249,13 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        // Email CONFIRMED → only now run the deferred résumé upload + profile build (LinkedIn
-        // scrape, AI parse, loop creation). Awaited so parsedProfile exists before the apply flow
-        // runs; otpLoading stays true so the user sees a spinner while it completes.
-        if (resumeFile || linkedinUrl) {
-          const fd = new FormData();
-          if (resumeFile) fd.append('file', resumeFile);
-          fd.append('email', email);
-          if (linkedinUrl) fd.append('linkedinUrl', linkedinUrl);
-          try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* proceed — dashboard handles a missing profile */ }
+        // Email CONFIRMED. New users (no résumé yet) now move to the profile step to enter their
+        // résumé/LinkedIn/categories — nothing was collected before this point. Existing users who
+        // already have a résumé skip straight to applying.
+        if (hasResume === false) {
+          setProfileStep(true);
+          return; // finally{} clears otpLoading; the fields step renders next
         }
-        // Authenticated + profile built! Reload with apply flag to trigger cover letter generation
         const url = new URL(window.location.href);
         url.searchParams.set('apply', '1');
         window.location.href = url.toString();
@@ -291,6 +268,40 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       setOtpError('Something went wrong');
     } finally {
       setOtpLoading(false);
+    }
+  }
+
+  // STEP 3 (only reachable AFTER the OTP code is confirmed): collect résumé/LinkedIn/categories,
+  // build the profile, then apply. An unverified visitor never reaches this — they're stopped at
+  // the code step and never see these fields.
+  async function handleProfileSubmit() {
+    const errors: Record<string, boolean> = {};
+    if (!resumeFile) errors.resume = true;
+    if (!linkedinUrl) errors.linkedin = true;
+    if (selectedCategories.length === 0) errors.categories = true;
+    if (selectedCategories.includes('translation') && selectedLanguages.length === 0) errors.languages = true;
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setAuthError('Please fill in all required fields');
+      return;
+    }
+    setFieldErrors({});
+    setAuthError('');
+    setAuthLoading(true);
+    try {
+      // Email is confirmed → build the profile: résumé upload + LinkedIn scrape + AI parse + loop
+      // creation. Awaited so parsedProfile exists before the apply flow runs.
+      const fd = new FormData();
+      fd.append('file', resumeFile!);
+      fd.append('email', email);
+      fd.append('linkedinUrl', linkedinUrl);
+      try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* proceed — dashboard handles a missing profile */ }
+      const url = new URL(window.location.href);
+      url.searchParams.set('apply', '1');
+      window.location.href = url.toString();
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Something went wrong');
+      setAuthLoading(false);
     }
   }
 
@@ -394,6 +405,96 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
     // PHASE: AUTH — email + onboarding fields + OTP
     if (phase === 'auth') {
+      // STEP 3: profile fields — reached ONLY after the OTP code is confirmed (profileStep=true).
+      // An unverified visitor never gets here.
+      if (profileStep) {
+        return (
+          <div>
+            <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>Email confirmed ✓</h2>
+            <p style={{ fontSize: '13px', color: '#8A8780', marginBottom: '12px' }}>Now tell us about you so we can apply.</p>
+
+            {/* Resume upload */}
+            <div style={{ marginBottom: '8px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.resume ? '#B91C1C' : '#555', display: 'block', marginBottom: '4px' }}>Resume (PDF) <span style={{ color: '#B91C1C' }}>*</span></label>
+              <div
+                onClick={() => { const inp = document.getElementById('resume-input') as HTMLInputElement; inp?.click(); }}
+                style={{ padding: '10px 14px', border: `1px dashed ${fieldErrors.resume ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '13px', color: resumeFile ? '#047857' : '#8A8780', cursor: 'pointer', background: resumeFile ? '#ECFDF5' : '#fff' }}
+              >
+                {resumeFile ? `✓ ${resumeFile.name}` : 'Click to upload PDF'}
+                <input id="resume-input" type="file" accept=".pdf,.docx" hidden onChange={e => setResumeFile(e.target.files?.[0] || null)} />
+              </div>
+            </div>
+
+            {/* LinkedIn */}
+            <div style={{ marginBottom: '8px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.linkedin ? '#B91C1C' : '#555', display: 'block', marginBottom: '4px' }}>LinkedIn <span style={{ color: '#B91C1C' }}>*</span></label>
+              <input
+                type="url" placeholder="linkedin.com/in/yourname" value={linkedinUrl}
+                onChange={e => setLinkedinUrl(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', border: `1px solid ${fieldErrors.linkedin ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '13px' }}
+              />
+            </div>
+
+            {/* Categories */}
+            <div style={{ marginBottom: '8px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.categories ? '#B91C1C' : '#555', display: 'block', marginBottom: '6px' }}>What kind of work? <span style={{ color: '#B91C1C' }}>*</span></label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                {categories.map(cat => (
+                  <span
+                    key={cat.slug}
+                    onClick={() => setSelectedCategories(prev => prev.includes(cat.slug) ? prev.filter(c => c !== cat.slug) : [...prev, cat.slug])}
+                    style={{
+                      padding: '4px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer',
+                      background: selectedCategories.includes(cat.slug) ? '#0A0B0F' : '#F0EDE5',
+                      color: selectedCategories.includes(cat.slug) ? '#fff' : '#555',
+                    }}
+                  >
+                    {cat.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Languages for translation */}
+            {selectedCategories.includes('translation') && (
+              <div style={{ marginBottom: '8px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.languages ? '#B91C1C' : '#555', display: 'block', marginBottom: '6px' }}>Your languages <span style={{ color: '#B91C1C' }}>*</span></label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxHeight: '120px', overflowY: 'auto' }}>
+                  {languages.filter(l => l.code !== 'EN').map(lang => (
+                    <span
+                      key={lang.code}
+                      onClick={() => setSelectedLanguages(prev => prev.includes(lang.code) ? prev.filter(c => c !== lang.code) : [...prev, lang.code])}
+                      style={{
+                        padding: '4px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer',
+                        background: selectedLanguages.includes(lang.code) ? '#0A0B0F' : '#F0EDE5',
+                        color: selectedLanguages.includes(lang.code) ? '#fff' : '#555',
+                      }}
+                    >
+                      {lang.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ fontSize: '11px', color: '#8A8780', marginBottom: '8px' }}><span style={{ color: '#B91C1C' }}>*</span> Required fields</div>
+            {authError && <div style={{ fontSize: '13px', color: '#B91C1C', padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', marginBottom: '8px' }}>{authError}</div>}
+
+            <button
+              onClick={handleProfileSubmit}
+              disabled={authLoading}
+              style={{
+                width: '100%', padding: '14px', background: '#C7F94A', color: '#000', border: 'none',
+                borderRadius: '10px', fontSize: '15px', fontWeight: 600, cursor: 'pointer', marginTop: '8px',
+                opacity: authLoading ? 0.6 : 1,
+              }}
+            >
+              {authLoading ? 'Setting up your profile...' : 'Continue →'}
+            </button>
+          </div>
+        );
+      }
+
       if (codeSent) {
         // OTP input
         return (
@@ -438,78 +539,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           />
           {checkingEmail && <div style={{ fontSize: '11px', color: '#8A8780', marginBottom: '8px' }}>Checking...</div>}
 
-          {/* Onboarding fields for users without resume */}
-          {hasResume === false && isExisting !== null && (
-            <div style={{ marginTop: '8px' }}>
-              {/* Resume upload */}
-              <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.resume ? '#B91C1C' : '#555', display: 'block', marginBottom: '4px' }}>Resume (PDF) <span style={{ color: '#B91C1C' }}>*</span></label>
-                <div
-                  onClick={() => { const inp = document.getElementById('resume-input') as HTMLInputElement; inp?.click(); }}
-                  style={{ padding: '10px 14px', border: `1px dashed ${fieldErrors.resume ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '13px', color: resumeFile ? '#047857' : '#8A8780', cursor: 'pointer', background: resumeFile ? '#ECFDF5' : '#fff' }}
-                >
-                  {resumeFile ? `✓ ${resumeFile.name}` : 'Click to upload PDF'}
-                  <input id="resume-input" type="file" accept=".pdf,.docx" hidden onChange={e => setResumeFile(e.target.files?.[0] || null)} />
-                </div>
-              </div>
-
-              {/* LinkedIn */}
-              <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.linkedin ? '#B91C1C' : '#555', display: 'block', marginBottom: '4px' }}>LinkedIn <span style={{ color: '#B91C1C' }}>*</span></label>
-                <input
-                  type="url" placeholder="linkedin.com/in/yourname" value={linkedinUrl}
-                  onChange={e => setLinkedinUrl(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${fieldErrors.linkedin ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '13px' }}
-                />
-              </div>
-
-              {/* Categories */}
-              <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.categories ? '#B91C1C' : '#555', display: 'block', marginBottom: '6px' }}>What kind of work? <span style={{ color: '#B91C1C' }}>*</span></label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                  {categories.map(cat => (
-                    <span
-                      key={cat.slug}
-                      onClick={() => setSelectedCategories(prev => prev.includes(cat.slug) ? prev.filter(c => c !== cat.slug) : [...prev, cat.slug])}
-                      style={{
-                        padding: '4px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer',
-                        background: selectedCategories.includes(cat.slug) ? '#0A0B0F' : '#F0EDE5',
-                        color: selectedCategories.includes(cat.slug) ? '#fff' : '#555',
-                      }}
-                    >
-                      {cat.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Languages for translation */}
-              {selectedCategories.includes('translation') && (
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.languages ? '#B91C1C' : '#555', display: 'block', marginBottom: '6px' }}>Your languages <span style={{ color: '#B91C1C' }}>*</span></label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxHeight: '120px', overflowY: 'auto' }}>
-                    {languages.filter(l => l.code !== 'EN').map(lang => (
-                      <span
-                        key={lang.code}
-                        onClick={() => setSelectedLanguages(prev => prev.includes(lang.code) ? prev.filter(c => c !== lang.code) : [...prev, lang.code])}
-                        style={{
-                          padding: '4px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer',
-                          background: selectedLanguages.includes(lang.code) ? '#0A0B0F' : '#F0EDE5',
-                          color: selectedLanguages.includes(lang.code) ? '#fff' : '#555',
-                        }}
-                      >
-                        {lang.name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {hasResume === false && isExisting !== null && (
-            <div style={{ fontSize: '11px', color: '#8A8780', marginBottom: '8px' }}><span style={{ color: '#B91C1C' }}>*</span> Required fields</div>
-          )}
+          {/* Fields (résumé/LinkedIn/work type) are intentionally NOT here — they appear only after
+              the OTP code is confirmed (profileStep). Step 1 collects the email and nothing else. */}
 
           {authError && <div style={{ fontSize: '13px', color: '#B91C1C', padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', marginBottom: '8px' }}>{authError}</div>}
 
