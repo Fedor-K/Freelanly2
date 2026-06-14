@@ -69,15 +69,24 @@ Return ONLY JSON, no markdown:
   }
 }
 
+/** Significant lowercase tokens (drops stopwords + short noise) for lexical overlap scoring. */
+function fitTokens(s: string): string[] {
+  const stop = new Set(['the','and','for','with','our','your','you','are','will','that','this','from','into','remote','full','time','part','job','role','position','team','work','senior','junior','mid','lead','i','ii','iii']);
+  return (s.toLowerCase().match(/[a-z][a-z+#.]{2,}/g) || []).filter(t => !stop.has(t));
+}
+
 /**
  * Roles that genuinely fit this candidate — shown when THIS role is a weak match, so we steer the
  * user toward applications a recruiter will actually answer instead of spamming a mismatch.
  *
- * We deliberately do NOT filter by the user's loop categories: those get contaminated by the very
- * role they're applying to (a PM applying to a Web Developer post seeds an "engineering" loop, so
- * loop-category suggestions would be all dev roles — the same wall). Instead we pull a broad recent
- * pool and let the LLM pick the ones that fit the candidate's ACTUAL background, returning fewer
- * (even zero) rather than padding the list with more mismatches.
+ * Two stages, no arbitrary pool cap:
+ *  1) Cheap lexical fit-score over the WHOLE 14-day base (no LLM): skill overlap + title/field token
+ *     overlap. Runs in code over a few thousand light rows in milliseconds, so every category — even
+ *     a 5%-of-base one like project-management — is fully considered. Take the top ~10 by score.
+ *  2) Strict vet: run those few through the SAME assessPairing the apply-flow uses on click, so a
+ *     suggestion is only surfaced if the real matcher won't reject it (decision !== 'NO'). Take 4.
+ * We do NOT filter by the user's loop categories — those get contaminated by the very role they're
+ * applying to (a PM applying to a Web Developer post seeds an "engineering" loop).
  */
 async function findFittingOpportunities(
   userId: string,
@@ -94,11 +103,7 @@ async function findFittingOpportunities(
     });
     const appliedIds = applied.map(a => a.opportunityId).filter(Boolean) as string[];
 
-    // LIGHT pool — title + category only (no description), so we can pull a BIG, category-representative
-    // slice cheaply. A 60-row most-recent slice under-represents minority categories: e.g. a PM whose
-    // fit is product/project-management/operations (~5% of the base) often gets 0 candidates in 60 rows
-    // dominated by engineering (~38%). 250 rows gives every category enough presence for step 1 to find
-    // the real fits. Descriptions are fetched only for the few that survive the shortlist (step 2).
+    // Full 14-day base, light fields only — no take/limit. Scoring happens in code below.
     const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
     const pool = await prisma.opportunity.findMany({
       where: {
@@ -107,57 +112,42 @@ async function findFittingOpportunities(
         createdAt: { gte: since },
         id: { notIn: [excludeOpportunityId, ...appliedIds] },
       },
-      select: { id: true, slug: true, title: true, category: { select: { slug: true } } },
-      orderBy: { createdAt: 'desc' },
-      take: 250,
+      select: { id: true, slug: true, title: true, skills: true },
     });
     if (pool.length === 0) return [];
 
-    // Step 1 — one cheap LLM pass to shortlist the indices that look like a genuine fit for the
-    // candidate's actual background (titles + categories only). Over-select a little (up to 8) so
-    // step 2 has room to drop any that the strict matcher rejects.
-    const OpenAI = (await import('openai')).default;
-    const client = new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' });
-    const skills = ((profile.skills as string[]) || []).slice(0, 12).join(', ');
-    const list = pool.map((o, i) => `[${i}] ${o.title}${o.category?.slug ? ` (${o.category.slug})` : ''}`).join('\n');
-    const prompt = `Candidate:
-- Current title: ${profile.current_title || '—'}
-- Field: ${profile.field || '—'}
-- Experience: ${profile.experience_years ?? '—'} years
-- Skills: ${skills || '—'}
+    // Stage 1 — lexical fit score (no LLM) over the whole base.
+    const candSkills = new Set(((profile.skills as string[]) || []).map(s => s.toLowerCase().trim()).filter(Boolean));
+    const candTitleTokens = new Set([
+      ...fitTokens(typeof profile.current_title === 'string' ? profile.current_title : ''),
+      ...fitTokens(typeof profile.field === 'string' ? profile.field : ''),
+    ]);
 
-Open roles (index, title, category):
-${list}
+    const scored = pool.map((o) => {
+      const oppSkills = (o.skills || []).map(s => s.toLowerCase().trim());
+      const oppTitleTokens = fitTokens(o.title);
+      let skillScore = 0;
+      for (const s of candSkills) if (oppSkills.includes(s) || o.title.toLowerCase().includes(s)) skillScore++;
+      let titleScore = 0;
+      for (const t of oppTitleTokens) if (candTitleTokens.has(t)) titleScore++;
+      // Title overlap is the stronger signal of role-fit (a "Project Manager" matching a PM), skills second.
+      return { o, score: titleScore * 3 + skillScore };
+    }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
 
-Shortlist the roles this candidate is a genuinely STRONG fit for, based on their real background.
-Be strict: if a role needs hands-on skills the candidate lacks, DO NOT include it. Max 8, best first.
-Return ONLY JSON: {"picks":[<index>, ...]}`;
-    const r = await client.chat.completions.create({
-      model: 'glm-4-32b-0414-128k', temperature: 0.2, max_tokens: 120,
-      messages: [
-        { role: 'system', content: 'You are a strict career matcher. Only surface genuine fits. Return ONLY valid JSON.' },
-        { role: 'user', content: prompt },
-      ],
-    });
-    const m = (r.choices[0]?.message?.content || '').match(/\{[\s\S]*\}/);
-    if (!m) return [];
-    const picks: number[] = (JSON.parse(m[0]).picks || [])
-      .filter((n: unknown) => typeof n === 'number' && n >= 0 && n < pool.length)
-      .slice(0, 8);
-    if (picks.length === 0) return [];
+    if (scored.length === 0) return [];
+    const top = scored.slice(0, 10).map(x => x.o);
 
-    // Fetch full records (incl. description) only for the shortlist, for the strict vetting pass.
-    const shortlisted = await prisma.opportunity.findMany({
-      where: { id: { in: picks.map(i => pool[i].id) } },
+    // Fetch full records (incl. description) only for the top-scored handful, for the strict vet.
+    const full = await prisma.opportunity.findMany({
+      where: { id: { in: top.map(t => t.id) } },
       select: { id: true, slug: true, title: true, description: true, country: true, clientName: true, posterCompany: true, company: { select: { name: true } } },
     });
-    const byId = new Map(shortlisted.map(o => [o.id, o]));
+    const byId = new Map(full.map(o => [o.id, o]));
 
-    // Step 2 — vet each shortlisted role through the SAME assessPairing the apply-flow runs on click.
-    // This is the fix for "I click a recommended role and STILL get told I don't fit": a suggestion
-    // is only shown if the real matcher would NOT reject it (decision !== 'NO'). Keep order, take 4.
-    const vetted = await Promise.all(picks.map(async (i) => {
-      const o = byId.get(pool[i].id);
+    // Stage 2 — vet each through the SAME assessPairing the apply-flow runs on click, so a suggestion
+    // is only shown if the real matcher would NOT reject it. Preserve fit-score order, take 4.
+    const vetted = await Promise.all(top.map(async (t) => {
+      const o = byId.get(t.id);
       if (!o) return null;
       try {
         const pr = await assessPairing({
