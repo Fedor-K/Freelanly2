@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { signIn } from 'next-auth/react';
 import { categories, countries, languages } from '@/config/site';
 import { getStoredClickId, getStoredUtmSource, getStoredUtmParams } from '@/components/analytics/GclidCapture';
+import { SalaryPicker } from '@/components/SalaryPicker';
 
 /** Read UTM params from current page URL as fallback when localStorage is empty */
 function getUtmFromUrl(): { source?: string; utmMedium?: string; utmCampaign?: string; utmContent?: string; gclid?: string } {
@@ -745,7 +746,7 @@ export function RegistrationForm({
         {/* Desired salary — optional */}
         <div>
           <label className="field-label">Desired salary <span className="optional">— optional, so recruiters don&apos;t have to ask</span></label>
-          <input className="text-input" type="text" value={salaryExpectation} onChange={(e) => setSalaryExpectation(e.target.value)} placeholder="e.g. $2,000/mo · 15 LPA · €40k/yr" />
+          <SalaryPicker onChange={setSalaryExpectation} />
         </div>
 
         {/* Telegram reply alerts — optional */}

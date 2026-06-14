@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useTracker } from '@/hooks/useTracker';
+import { SalaryPicker } from '@/components/SalaryPicker';
 import { categories, languages } from '@/config/site';
 
 interface ProjectProps {
@@ -517,11 +518,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 it up front means they don't have to re-ask. */}
             <div style={{ marginBottom: '8px' }}>
               <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Desired salary <span style={{ color: '#8A8780', fontWeight: 400 }}>(optional)</span></label>
-              <input
-                type="text" placeholder="e.g. $2,000/mo · 15 LPA · €40k/yr" value={salaryExpectation}
-                onChange={e => setSalaryExpectation(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '13px' }}
-              />
+              <SalaryPicker onChange={setSalaryExpectation} />
             </div>
 
             {/* Telegram reply alerts — optional. Recruiter replies are easy to miss in email;
