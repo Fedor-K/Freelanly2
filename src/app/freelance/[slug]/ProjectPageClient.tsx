@@ -68,7 +68,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [authError, setAuthError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
   // §4 opt-in scaffold — explicit consent (default off) to future job-alert emails; sending suspended.
-  const [jobAlertOptIn, setJobAlertOptIn] = useState(false);
   // After the OTP code is confirmed we reveal the profile fields (résumé/LinkedIn/categories).
   // Until the code is entered the user only sees the email step — no fields at all.
   const [profileStep, setProfileStep] = useState(false);
@@ -236,7 +235,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             email,
             categories: [],
             agreedToTerms: true,
-            jobAlertOptIn,
             // Registration attribution (single chokepoint): inline apply on a project page.
             entryPoint: 'freelance_inline',
             opportunityId: project.id,
@@ -614,12 +612,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
               the OTP code is confirmed (profileStep). Step 1 collects the email and nothing else. */}
 
           {authError && <div style={{ fontSize: '13px', color: '#B91C1C', padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', marginBottom: '8px' }}>{authError}</div>}
-
-          {/* §4 opt-in scaffold — explicit consent, default off. Alert sending is suspended. */}
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '12px', color: '#8A8780', marginTop: '10px', cursor: 'pointer' }}>
-            <input type="checkbox" checked={jobAlertOptIn} onChange={(e) => setJobAlertOptIn(e.target.checked)} style={{ marginTop: '2px', flexShrink: 0 }} />
-            <span>Email me new gigs that match my profile (optional — you can change this anytime).</span>
-          </label>
 
           <button
             onClick={handleSendCode}
