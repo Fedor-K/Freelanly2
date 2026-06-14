@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTracker } from '@/hooks/useTracker';
 import { SalaryPicker } from '@/components/SalaryPicker';
-import { ProcessingScreen, PROFILE_BUILD_STEPS } from '@/components/ProcessingScreen';
+import { ProcessingScreen } from '@/components/ProcessingScreen';
 import { categories, languages } from '@/config/site';
 
 interface ProjectProps {
@@ -28,9 +28,12 @@ interface ProjectProps {
 
 type Phase = 'guest' | 'auth' | 'analyzing' | 'summary' | 'generating' | 'review' | 'sent';
 
-// Rotating status lines for the profile-analysis (match summary) screen.
+// One continuous status sequence covering the whole flow: building the profile (résumé + LinkedIn)
+// AND assessing the match — shown on a single processing screen so it reads as one process.
 const ANALYZE_STEPS = [
-  { title: 'Reading your résumé…', sub: 'Pulling your experience & skills' },
+  { title: 'Uploading your résumé…', sub: 'Securely storing your PDF' },
+  { title: 'Reading your LinkedIn…', sub: 'Pulling your experience & skills' },
+  { title: 'Building your profile…', sub: 'Structuring your background' },
   { title: 'Reading the job post…', sub: 'Understanding what this role needs' },
   { title: 'Assessing your fit…', sub: 'Matching you to this role & others' },
   { title: 'Almost ready…', sub: 'Preparing your summary' },
@@ -325,22 +328,32 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     }
     setFieldErrors({});
     setAuthError('');
-    setAuthLoading(true);
+    // ONE continuous process (no page reload): build the profile (résumé upload + LinkedIn scrape +
+    // AI parse + loop), then immediately assess the match — both stages under a single processing
+    // screen so it reads as one flow, not two jarring screens.
+    setIsAuthed(true);
+    setPhase('analyzing');
     try {
-      // Email is confirmed → build the profile: résumé upload + LinkedIn scrape + AI parse + loop
-      // creation. Awaited so parsedProfile exists before the apply flow runs.
       const fd = new FormData();
       fd.append('file', resumeFile!);
       fd.append('email', email);
       fd.append('linkedinUrl', linkedinUrl);
       if (salaryExpectation.trim()) fd.append('salaryExpectation', salaryExpectation.trim());
       try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* proceed — dashboard handles a missing profile */ }
-      const url = new URL(window.location.href);
-      url.searchParams.set('apply', '1');
-      window.location.href = url.toString();
-    } catch (err) {
-      setAuthError(err instanceof Error ? err.message : 'Something went wrong');
-      setAuthLoading(false);
+
+      // Assess the match (no cover letter yet — summaryOnly). Session cookie was set at verify.
+      const res = await fetch('/api/user/quick-apply', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ opportunityId: project.id, summaryOnly: true }),
+      });
+      const data = await res.json();
+      if (data.error === 'already_applied') { setGenError('You already applied to this project.'); setPhase('sent'); return; }
+      setMatchSummary(data.matchSummary || null);
+      setMatchLabel(data.matchLabel || null);
+      setSendTo(data.to || '');
+      setPhase('summary');
+    } catch {
+      setPhase('summary'); // fail-open: still let the user proceed to write the application
     }
   }
 
@@ -450,9 +463,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       // STEP 3: profile fields — reached ONLY after the OTP code is confirmed (profileStep=true).
       // An unverified visitor never gets here.
       if (profileStep) {
-        // While the profile is being built (résumé upload + LinkedIn scrape + AI parse, 10-35s),
-        // show the live processing screen instead of a frozen "Setting up…" button.
-        if (authLoading) return <ProcessingScreen steps={PROFILE_BUILD_STEPS} emoji="📋" />;
         return (
           <div>
             <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>Email confirmed ✓</h2>
