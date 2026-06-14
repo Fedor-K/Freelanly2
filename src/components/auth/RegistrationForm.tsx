@@ -5,6 +5,7 @@ import { signIn } from 'next-auth/react';
 import { categories, countries, languages } from '@/config/site';
 import { getStoredClickId, getStoredUtmSource, getStoredUtmParams } from '@/components/analytics/GclidCapture';
 import { SalaryPicker } from '@/components/SalaryPicker';
+import { ProcessingScreen, PROFILE_BUILD_STEPS } from '@/components/ProcessingScreen';
 
 /** Read UTM params from current page URL as fallback when localStorage is empty */
 function getUtmFromUrl(): { source?: string; utmMedium?: string; utmCampaign?: string; utmContent?: string; gclid?: string } {
@@ -686,6 +687,9 @@ export function RegistrationForm({
   // Step: Profile — reached ONLY after the OTP code is confirmed (email-first). Collects the
   // résumé/LinkedIn/categories/salary + optional Telegram, then enters the account.
   if (step === 'profile') {
+    // While the profile is being built (résumé upload + LinkedIn scrape + AI parse, 10-35s),
+    // show the live processing screen instead of a frozen "Setting up…" button.
+    if (profileSubmitting) return <ProcessingScreen steps={PROFILE_BUILD_STEPS} emoji="📋" />;
     return (
       <div className="field-group">
         <div style={{ textAlign: 'center', marginBottom: '4px' }}>

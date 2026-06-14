@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTracker } from '@/hooks/useTracker';
 import { SalaryPicker } from '@/components/SalaryPicker';
+import { ProcessingScreen, PROFILE_BUILD_STEPS } from '@/components/ProcessingScreen';
 import { categories, languages } from '@/config/site';
 
 interface ProjectProps {
@@ -445,6 +446,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       // STEP 3: profile fields — reached ONLY after the OTP code is confirmed (profileStep=true).
       // An unverified visitor never gets here.
       if (profileStep) {
+        // While the profile is being built (résumé upload + LinkedIn scrape + AI parse, 10-35s),
+        // show the live processing screen instead of a frozen "Setting up…" button.
+        if (authLoading) return <ProcessingScreen steps={PROFILE_BUILD_STEPS} emoji="📋" />;
         return (
           <div>
             <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>Email confirmed ✓</h2>
