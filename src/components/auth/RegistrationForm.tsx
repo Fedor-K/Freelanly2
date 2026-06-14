@@ -85,6 +85,7 @@ export function RegistrationForm({
   const [agreedToTerms, setAgreedToTerms] = useState(true);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [salaryExpectation, setSalaryExpectation] = useState('');
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -292,13 +293,14 @@ export function RegistrationForm({
             formData.append('file', resumeFile);
             formData.append('email', email);
             if (linkedinUrl) formData.append('linkedinUrl', linkedinUrl);
+            if (salaryExpectation.trim()) formData.append('salaryExpectation', salaryExpectation.trim());
             await fetch('/api/user/resume-preauth', { method: 'POST', body: formData }).catch(() => {});
           } catch {}
         } else if (linkedinUrl) {
           try {
             await fetch('/api/user/resume-preauth', {
               method: 'POST',
-              body: (() => { const fd = new FormData(); fd.append('email', email); fd.append('linkedinUrl', linkedinUrl); return fd; })(),
+              body: (() => { const fd = new FormData(); fd.append('email', email); fd.append('linkedinUrl', linkedinUrl); if (salaryExpectation.trim()) fd.append('salaryExpectation', salaryExpectation.trim()); return fd; })(),
             }).catch(() => {});
           } catch {}
         }
@@ -463,6 +465,7 @@ export function RegistrationForm({
           if (resumeFile) fd.append('file', resumeFile);
           fd.append('email', email);
           if (linkedinUrl) fd.append('linkedinUrl', linkedinUrl);
+          if (salaryExpectation.trim()) fd.append('salaryExpectation', salaryExpectation.trim());
           await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }).catch(() => {});
         } catch {}
       }
@@ -665,6 +668,12 @@ export function RegistrationForm({
             <div>
               <label className="field-label">LinkedIn URL <span className="required" style={{ color: '#B91C1C' }}>*</span> <span className="optional">— required, enriches your résumé + credibility signal</span></label>
               <input className="text-input" type="url" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/in/yourname" />
+            </div>
+
+            {/* Desired salary — optional; pay/CTC is recruiters' #1 screening question */}
+            <div>
+              <label className="field-label">Desired salary <span className="optional">— optional, so recruiters don&apos;t have to ask</span></label>
+              <input className="text-input" type="text" value={salaryExpectation} onChange={(e) => setSalaryExpectation(e.target.value)} placeholder="e.g. $2,000/mo · 15 LPA · €40k/yr" />
             </div>
 
             {/* Resume Upload with drag & drop */}
