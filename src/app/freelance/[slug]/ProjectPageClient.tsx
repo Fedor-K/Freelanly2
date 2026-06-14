@@ -51,6 +51,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [salaryExpectation, setSalaryExpectation] = useState('');
+  const [tgState, setTgState] = useState<'idle' | 'opening' | 'opened'>('idle');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [authLoading, setAuthLoading] = useState(false);
@@ -292,6 +293,19 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     }
   }
 
+  // Open the Telegram deep link so the user gets recruiter-reply alerts in Telegram. Auth-gated
+  // (telegram-link needs the session) — only reachable on the post-code profile step. Linking
+  // completes when they tap Start in the bot (the bot webhook sets telegramChatId).
+  async function connectTelegram() {
+    setTgState('opening');
+    try {
+      const r = await fetch('/api/user/telegram-link', { method: 'POST' });
+      const d = await r.json();
+      if (d.url) { window.open(d.url, '_blank'); setTgState('opened'); }
+      else setTgState('idle');
+    } catch { setTgState('idle'); }
+  }
+
   // STEP 3 (only reachable AFTER the OTP code is confirmed): collect résumé/LinkedIn/categories,
   // build the profile, then apply. An unverified visitor never reaches this — they're stopped at
   // the code step and never see these fields.
@@ -508,6 +522,20 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 onChange={e => setSalaryExpectation(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '13px' }}
               />
+            </div>
+
+            {/* Telegram reply alerts — optional. Recruiter replies are easy to miss in email;
+                Telegram pings instantly. Opens the bot deep link; linking finishes on Start. */}
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Get recruiter-reply alerts on Telegram <span style={{ color: '#8A8780', fontWeight: 400 }}>(optional)</span></label>
+              <button
+                type="button"
+                onClick={connectTelegram}
+                disabled={tgState === 'opening'}
+                style={{ width: '100%', padding: '10px 12px', background: tgState === 'opened' ? '#ECFDF5' : '#fff', color: tgState === 'opened' ? '#047857' : '#229ED9', border: `1px solid ${tgState === 'opened' ? '#A7F3D0' : '#229ED9'}`, borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                {tgState === 'opened' ? '✓ Telegram opened — tap Start in the bot' : tgState === 'opening' ? 'Opening…' : '✈ Connect Telegram for instant alerts'}
+              </button>
             </div>
 
             <div style={{ fontSize: '11px', color: '#8A8780', marginBottom: '8px' }}><span style={{ color: '#B91C1C' }}>*</span> Required fields</div>
