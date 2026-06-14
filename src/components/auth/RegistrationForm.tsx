@@ -54,7 +54,7 @@ export interface RegistrationFormProps {
   prefillEmail?: string;
 }
 
-type FormStep = 'email' | 'login' | 'register' | 'sent';
+type FormStep = 'email' | 'login' | 'register' | 'sent' | 'profile';
 
 interface UserInfo {
   name: string | null;
@@ -86,6 +86,8 @@ export function RegistrationForm({
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [salaryExpectation, setSalaryExpectation] = useState('');
+  const [tgState, setTgState] = useState<'idle' | 'opening' | 'opened'>('idle');
+  const [profileSubmitting, setProfileSubmitting] = useState(false);
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -239,41 +241,22 @@ export function RegistrationForm({
     // Normalize email to prevent case mismatch with OTP token lookup
     setEmail(prev => prev.toLowerCase().trim());
 
-    // Validate required fields when onboarding fields are shown
-    if (hasResume === false) {
-      // LinkedIn complements the résumé — both are required (résumé is the base, LinkedIn enriches).
-      if (!resumeFile) {
-        setError('Please upload your résumé (PDF)');
-        return;
-      }
-      if (!linkedinUrl) {
-        setError('Please add your LinkedIn profile URL');
-        return;
-      }
-      if (selectedCategories.length === 0) {
-        setError('Please select at least one job category');
-        return;
-      }
-      if (showTranslationFields && selectedLanguages.length === 0) {
-        setError('Please select at least one language for translation alerts');
-        return;
-      }
-    }
-
     setIsLoading(true);
     setError('');
 
     try {
-      // Register or update alerts for users without resume
-      if (hasResume === false) {
+      // EMAIL-FIRST: register the new user with email ONLY. Résumé / LinkedIn / categories / salary
+      // are collected AFTER the OTP code is confirmed (the 'profile' step) — same mechanic as the
+      // inline apply flow. Categories only fed suspended job-alerts and the loop derives its own
+      // from the résumé, so an empty list here is fine. Existing users skip register entirely.
+      if (hasResume === false && isExistingUser === false) {
         const regRes = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email,
             name: name || undefined,
-            categories: selectedCategories,
-            languages: showTranslationFields ? selectedLanguages : undefined,
+            categories: [],
             jobId,
             agreedToTerms: true,
             gclid: getStoredClickId()?.value || getUtmFromUrl().gclid,
@@ -284,25 +267,6 @@ export function RegistrationForm({
         if (!regRes.ok) {
           const data = await regRes.json();
           throw new Error(data.error || 'Registration failed');
-        }
-
-        // Upload resume or LinkedIn profile (non-blocking, pre-auth)
-        if (resumeFile) {
-          try {
-            const formData = new FormData();
-            formData.append('file', resumeFile);
-            formData.append('email', email);
-            if (linkedinUrl) formData.append('linkedinUrl', linkedinUrl);
-            if (salaryExpectation.trim()) formData.append('salaryExpectation', salaryExpectation.trim());
-            await fetch('/api/user/resume-preauth', { method: 'POST', body: formData }).catch(() => {});
-          } catch {}
-        } else if (linkedinUrl) {
-          try {
-            await fetch('/api/user/resume-preauth', {
-              method: 'POST',
-              body: (() => { const fd = new FormData(); fd.append('email', email); fd.append('linkedinUrl', linkedinUrl); if (salaryExpectation.trim()) fd.append('salaryExpectation', salaryExpectation.trim()); return fd; })(),
-            }).catch(() => {});
-          } catch {}
         }
       }
 
@@ -350,6 +314,41 @@ export function RegistrationForm({
     setUserInfo(null);
     setError('');
   };
+
+  // Open the Telegram deep link for instant recruiter-reply alerts. Auth-gated → only the
+  // post-code 'profile' step. Linking completes when the user taps Start (bot sets telegramChatId).
+  async function connectTelegram() {
+    setTgState('opening');
+    try {
+      const r = await fetch('/api/user/telegram-link', { method: 'POST' });
+      const d = await r.json();
+      if (d.url) { window.open(d.url, '_blank'); setTgState('opened'); } else setTgState('idle');
+    } catch { setTgState('idle'); }
+  }
+
+  // STEP 3 ('profile', only after the OTP code is confirmed): collect résumé/LinkedIn/categories/
+  // salary, build the profile, then enter the account. Mirror of the inline apply flow — the only
+  // difference is the final action (here: go to the dashboard; inline: generate + send the apply).
+  async function handleProfileSubmit() {
+    if (!resumeFile) { setError('Please upload your résumé (PDF)'); return; }
+    if (!linkedinUrl) { setError('Please add your LinkedIn profile URL'); return; }
+    if (selectedCategories.length === 0) { setError('Please pick at least one kind of work'); return; }
+    if (showTranslationFields && selectedLanguages.length === 0) { setError('Please pick at least one language'); return; }
+    setError('');
+    setProfileSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', resumeFile);
+      fd.append('email', email);
+      fd.append('linkedinUrl', linkedinUrl);
+      if (salaryExpectation.trim()) fd.append('salaryExpectation', salaryExpectation.trim());
+      try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* dashboard handles a missing profile */ }
+      window.location.href = callbackUrl || '/dashboard';
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setProfileSubmitting(false);
+    }
+  }
 
   // Category handlers
   const toggleCategory = (slug: string) => {
@@ -552,6 +551,10 @@ export function RegistrationForm({
       });
       const data = await res.json();
       if (res.ok && data.success) {
+        // Email confirmed. Users who still need a profile go to the 'profile' step (collect
+        // résumé/LinkedIn/categories/salary/Telegram, then apply); everyone else (existing user
+        // with a résumé) just enters their account.
+        if (hasResume === false) { setStep('profile'); setOtpLoading(false); return; }
         window.location.href = callbackUrl || data.callbackUrl || '/dashboard';
       } else {
         setOtpError(data.error || 'Invalid code');
@@ -661,93 +664,106 @@ export function RegistrationForm({
           )}
         </div>
 
-        {/* Registration fields — for users without resume (new or existing) */}
-        {hasResume === false && isExistingUser !== null && (
-          <>
-            {/* LinkedIn URL */}
-            <div>
-              <label className="field-label">LinkedIn URL <span className="required" style={{ color: '#B91C1C' }}>*</span> <span className="optional">— required, enriches your résumé + credibility signal</span></label>
-              <input className="text-input" type="url" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/in/yourname" />
-            </div>
-
-            {/* Desired salary — optional; pay/CTC is recruiters' #1 screening question */}
-            <div>
-              <label className="field-label">Desired salary <span className="optional">— optional, so recruiters don&apos;t have to ask</span></label>
-              <input className="text-input" type="text" value={salaryExpectation} onChange={(e) => setSalaryExpectation(e.target.value)} placeholder="e.g. $2,000/mo · 15 LPA · €40k/yr" />
-            </div>
-
-            {/* Resume Upload with drag & drop */}
-            <div>
-              <label className="field-label">Résumé</label>
-              <div
-                className={`upload-zone${resumeFile ? ' has-file' : ''}`}
-                onClick={(e) => { const inp = (e.currentTarget as HTMLElement).querySelector('input[type="file"]') as HTMLInputElement; if (inp && (e.target as HTMLElement).tagName !== 'INPUT') inp.click(); }}
-                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }}
-                onDragLeave={(e) => { e.currentTarget.classList.remove('drag-over'); }}
-                onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drag-over'); const file = e.dataTransfer.files?.[0]; if (file && (file.name.endsWith('.pdf') || file.name.endsWith('.docx'))) setResumeFile(file); }}
-              >
-                <div className="up-ico">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                </div>
-                <div style={{flex: 1}}>
-                  <div className="up-ttl">{resumeFile ? resumeFile.name : 'Drag & drop your résumé here'}</div>
-                  <div className="up-sub">{resumeFile ? 'Ready to upload' : 'PDF or DOCX · or click to choose'}</div>
-                </div>
-                <input type="file" accept=".pdf,.docx" style={{display: 'none'}} onChange={(e) => setResumeFile(e.target.files?.[0] || null)} />
-                {!resumeFile && <span style={{fontSize: '11.5px', color: '#5C6068', fontFamily: "'Geist Mono', monospace"}}>Choose →</span>}
-                {resumeFile && <span style={{fontSize: '11.5px', color: '#047857', fontFamily: "'Geist Mono', monospace"}}>✓</span>}
-              </div>
-            </div>
-
-            {/* Categories */}
-            <div>
-              <label className="field-label">What kind of work do you want? <span className="optional">— pick all that apply</span></label>
-              <div className="cat-grid">
-                {categories.map((cat) => (
-                  <div key={cat.slug} className={`cat-chip${selectedCategories.includes(cat.slug) ? ' on' : ''}`} onClick={() => toggleCategory(cat.slug)}>
-                    <span className="cb"></span>
-                    {cat.name}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Job Count Preview */}
-            {selectedCategories.length > 0 && jobCountPreview && (
-              <div style={{padding: '10px 14px', borderRadius: '10px', fontSize: '13px', background: jobCountPreview.count < 5 ? 'rgba(180,83,9,0.06)' : 'rgba(21,128,61,0.06)', border: `1px solid ${jobCountPreview.count < 5 ? 'rgba(180,83,9,0.2)' : 'rgba(21,128,61,0.2)'}`, color: jobCountPreview.count < 5 ? '#B45309' : '#15803D'}}>
-                {jobCountPreview.count} jobs in the last 7 days (~{jobCountPreview.dailyAverage}/day)
-              </div>
-            )}
-
-            {/* Translation Languages */}
-            {showTranslationFields && (
-              <div style={{padding: '12px', background: 'rgba(11,12,15,0.03)', borderRadius: '10px'}}>
-                <label className="field-label">Your Languages *</label>
-                <p style={{fontSize: '12px', color: '#5C6068', marginBottom: '8px'}}>Select languages you can translate (besides English)</p>
-                <div className="cat-grid" style={{maxHeight: '240px', overflowY: 'auto'}}>
-                  {languages.filter(l => l.code !== 'EN').map((lang) => (
-                    <div key={lang.code} className={`cat-chip${selectedLanguages.includes(lang.code) ? ' on' : ''}`} onClick={() => toggleLanguage(lang.code)}>
-                      <span className="cb"></span>
-                      {lang.name}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
-        )}
+        {/* Profile fields (résumé/LinkedIn/categories/salary/Telegram) are collected on the
+            post-code 'profile' step — this email-first step asks ONLY for the email. */}
 
         {error && <p style={{fontSize: '13px', color: '#B91C1C'}}>{error}</p>}
 
         <button
           className="primary-btn"
           onClick={handleSendMagicLink}
-          disabled={isLoading || isExistingUser === null || (hasResume === false && selectedCategories.length === 0)}
+          disabled={isLoading || isExistingUser === null}
         >
           {isLoading ? 'Sending...' : isExistingUser ? 'Send me a code' : 'Send me a code'}
           <span style={{transition: 'transform 140ms'}}>→</span>
         </button>
 
+      </div>
+    );
+  }
+
+  // Step: Profile — reached ONLY after the OTP code is confirmed (email-first). Collects the
+  // résumé/LinkedIn/categories/salary + optional Telegram, then enters the account.
+  if (step === 'profile') {
+    return (
+      <div className="field-group">
+        <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 600 }}>Email confirmed ✓</h2>
+          <p style={{ marginTop: '4px', color: '#5C6068', fontSize: '13px' }}>Now tell us about you so we can apply.</p>
+        </div>
+
+        {/* LinkedIn URL */}
+        <div>
+          <label className="field-label">LinkedIn URL <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
+          <input className="text-input" type="url" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/in/yourname" />
+        </div>
+
+        {/* Résumé */}
+        <div>
+          <label className="field-label">Résumé (PDF) <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
+          <div
+            className={`upload-zone${resumeFile ? ' has-file' : ''}`}
+            onClick={(e) => { const inp = (e.currentTarget as HTMLElement).querySelector('input[type="file"]') as HTMLInputElement; if (inp && (e.target as HTMLElement).tagName !== 'INPUT') inp.click(); }}
+            onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }}
+            onDragLeave={(e) => { e.currentTarget.classList.remove('drag-over'); }}
+            onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drag-over'); const file = e.dataTransfer.files?.[0]; if (file && (file.name.endsWith('.pdf') || file.name.endsWith('.docx'))) setResumeFile(file); }}
+          >
+            <div style={{ flex: 1 }}>
+              <div className="up-ttl">{resumeFile ? resumeFile.name : 'Drag & drop your résumé here'}</div>
+              <div className="up-sub">{resumeFile ? 'Ready to upload' : 'PDF or DOCX · or click to choose'}</div>
+            </div>
+            <input type="file" accept=".pdf,.docx" style={{ display: 'none' }} onChange={(e) => setResumeFile(e.target.files?.[0] || null)} />
+            {resumeFile ? <span style={{ fontSize: '11.5px', color: '#047857' }}>✓</span> : <span style={{ fontSize: '11.5px', color: '#5C6068' }}>Choose →</span>}
+          </div>
+        </div>
+
+        {/* Categories */}
+        <div>
+          <label className="field-label">What kind of work? <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
+          <div className="cat-grid">
+            {categories.map((cat) => (
+              <div key={cat.slug} className={`cat-chip${selectedCategories.includes(cat.slug) ? ' on' : ''}`} onClick={() => toggleCategory(cat.slug)}>
+                <span className="cb"></span>{cat.name}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {showTranslationFields && (
+          <div style={{ padding: '12px', background: 'rgba(11,12,15,0.03)', borderRadius: '10px' }}>
+            <label className="field-label">Your Languages *</label>
+            <div className="cat-grid" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+              {languages.filter(l => l.code !== 'EN').map((lang) => (
+                <div key={lang.code} className={`cat-chip${selectedLanguages.includes(lang.code) ? ' on' : ''}`} onClick={() => toggleLanguage(lang.code)}>
+                  <span className="cb"></span>{lang.name}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Desired salary — optional */}
+        <div>
+          <label className="field-label">Desired salary <span className="optional">— optional, so recruiters don&apos;t have to ask</span></label>
+          <input className="text-input" type="text" value={salaryExpectation} onChange={(e) => setSalaryExpectation(e.target.value)} placeholder="e.g. $2,000/mo · 15 LPA · €40k/yr" />
+        </div>
+
+        {/* Telegram reply alerts — optional */}
+        <div>
+          <label className="field-label">Get recruiter-reply alerts on Telegram <span className="optional">— optional</span></label>
+          <button
+            type="button" onClick={connectTelegram} disabled={tgState === 'opening'}
+            style={{ width: '100%', padding: '10px 12px', background: tgState === 'opened' ? '#ECFDF5' : '#fff', color: tgState === 'opened' ? '#047857' : '#229ED9', border: `1px solid ${tgState === 'opened' ? '#A7F3D0' : '#229ED9'}`, borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+          >
+            {tgState === 'opened' ? '✓ Telegram opened — tap Start in the bot' : tgState === 'opening' ? 'Opening…' : '✈ Connect Telegram for instant alerts'}
+          </button>
+        </div>
+
+        {error && <p style={{ fontSize: '13px', color: '#B91C1C' }}>{error}</p>}
+
+        <button className="primary-btn" onClick={handleProfileSubmit} disabled={profileSubmitting}>
+          {profileSubmitting ? 'Setting up your profile…' : 'Continue →'}
+        </button>
       </div>
     );
   }
