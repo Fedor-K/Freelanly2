@@ -70,6 +70,51 @@ Return ONLY JSON, no markdown:
 }
 
 /**
+ * Roles that genuinely fit this candidate — shown when THIS role is a weak match, so we steer the
+ * user toward applications a recruiter will actually answer instead of spamming a mismatch. We match
+ * on the candidate's own loop directions (the 21 category slugs they signed up for), most-recent
+ * first, excluding the current role and anything they already applied to.
+ */
+async function findFittingOpportunities(
+  userId: string,
+  excludeOpportunityId: string,
+): Promise<{ slug: string; title: string; company: string }[]> {
+  try {
+    const loops = await prisma.autoApplyLoop.findMany({
+      where: { userId }, select: { categorySlugs: true },
+    });
+    const catSlugs = Array.from(new Set(loops.flatMap(l => l.categorySlugs))).filter(Boolean);
+    if (catSlugs.length === 0) return [];
+
+    const applied = await prisma.autoApplication.findMany({
+      where: { userId }, select: { opportunityId: true },
+    });
+    const appliedIds = applied.map(a => a.opportunityId).filter(Boolean) as string[];
+
+    const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const opps = await prisma.opportunity.findMany({
+      where: {
+        isActive: true,
+        applyEmail: { not: null },
+        createdAt: { gte: since },
+        category: { slug: { in: catSlugs } },
+        id: { notIn: [excludeOpportunityId, ...appliedIds] },
+      },
+      select: { slug: true, title: true, clientName: true, posterCompany: true, company: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 4,
+    });
+    return opps.map(o => ({
+      slug: o.slug,
+      title: o.title,
+      company: o.company?.name || o.posterCompany || o.clientName || '',
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
  * POST /api/user/quick-apply
  * One-click apply to a specific opportunity from the project page.
  * Body: { opportunityId: string }
@@ -218,8 +263,22 @@ export async function POST(request: NextRequest) {
     // writing the cover letter. The user reads this first, then clicks through to generate the
     // application — so we don't spend the cover-letter LLM call until they actually proceed.
     if (summaryOnly) {
-      const matchSummary = await generateCandidateSummary(profile, opportunity.title, opportunity.description, pairing.label || null, pairing.reason || '');
-      return NextResponse.json({ ok: true, matchSummary, matchLabel: pairing.label || null, to: opportunity.applyEmail });
+      // Tier drives the verdict copy on the summary card: strong/good → "write my application";
+      // weak → honest "this one's a stretch, recruiters skip mismatches" + roles that actually fit.
+      const isWeak = pairing.decision === 'NO' || /weak|poor/i.test(pairing.label || '');
+      const tier = isWeak ? 'weak' : (/strong/i.test(pairing.label || '') ? 'strong' : 'good');
+      const [matchSummary, suggestions] = await Promise.all([
+        generateCandidateSummary(profile, opportunity.title, opportunity.description, pairing.label || null, pairing.reason || ''),
+        isWeak ? findFittingOpportunities(user.id, opportunity.id) : Promise.resolve([]),
+      ]);
+      return NextResponse.json({
+        ok: true,
+        matchSummary,
+        matchLabel: pairing.label || null,
+        tier,
+        suggestions,
+        to: opportunity.applyEmail,
+      });
     }
 
     // Use provided text or generate new

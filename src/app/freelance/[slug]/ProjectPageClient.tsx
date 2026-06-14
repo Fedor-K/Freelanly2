@@ -86,6 +86,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [coverLetter, setCoverLetter] = useState('');
   const [matchSummary, setMatchSummary] = useState<{ who: string; fit: string; otherRoles: string[] } | null>(null);
   const [matchLabel, setMatchLabel] = useState<string | null>(null);
+  const [matchTier, setMatchTier] = useState<'strong' | 'good' | 'weak'>('good');
+  const [suggestions, setSuggestions] = useState<{ slug: string; title: string; company: string }[]>([]);
   const [subject, setSubject] = useState('');
   const [sendTo, setSendTo] = useState('');
   const [genError, setGenError] = useState('');
@@ -160,6 +162,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           }
           setMatchSummary(data.matchSummary || null);
           setMatchLabel(data.matchLabel || null);
+          setMatchTier(data.tier || 'good');
+          setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
           setSendTo(data.to || '');
           setPhase('summary');
         })
@@ -350,6 +354,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       if (data.error === 'already_applied') { setGenError('You already applied to this project.'); setPhase('sent'); return; }
       setMatchSummary(data.matchSummary || null);
       setMatchLabel(data.matchLabel || null);
+      setMatchTier(data.tier || 'good');
+      setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
       setSendTo(data.to || '');
       setPhase('summary');
     } catch {
@@ -650,16 +656,29 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     // PHASE: SUMMARY — the user reads "who you are / fit for this role / other roles", THEN clicks
     // through to write the application. The cover letter is generated only on that click.
     if (phase === 'summary') {
+      const weak = matchTier === 'weak';
+      // Card palette by tier: green for a real fit, amber for "this one's a stretch".
+      const cardBg = weak ? '#FFF8EC' : '#F6FAEF';
+      const cardBorder = weak ? '#F2D9A8' : '#DDEBC4';
+      const badgeColor = weak ? '#92400E' : '#3F6212';
+      const badgeBg = weak ? '#FDE9C8' : '#D9F99D';
+
       return (
         <div>
-          <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>Here&apos;s your match</h2>
-          <p style={{ fontSize: '13px', color: '#8A8780', marginBottom: '14px' }}>We read your résumé & LinkedIn. Review, then write your application.</p>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>
+            {weak ? 'Honest take on this one' : 'Here’s your match'}
+          </h2>
+          <p style={{ fontSize: '13px', color: '#8A8780', marginBottom: '14px' }}>
+            {weak
+              ? 'We read your résumé & LinkedIn — and we won’t send a mismatch on your behalf.'
+              : 'We read your résumé & LinkedIn. Review, then write your application.'}
+          </p>
 
-          <div style={{ marginBottom: '16px', padding: '14px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '12px' }}>
-            {matchLabel && <div style={{ marginBottom: '8px' }}><span style={{ fontSize: '11px', fontWeight: 600, color: '#3F6212', background: '#D9F99D', padding: '3px 10px', borderRadius: '999px' }}>{matchLabel} match</span></div>}
+          <div style={{ marginBottom: '16px', padding: '14px', background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '12px' }}>
+            {matchLabel && <div style={{ marginBottom: '8px' }}><span style={{ fontSize: '11px', fontWeight: 600, color: badgeColor, background: badgeBg, padding: '3px 10px', borderRadius: '999px' }}>{matchLabel} match</span></div>}
             {matchSummary?.who && <p style={{ fontSize: '14px', color: '#2A2A26', margin: '0 0 8px', lineHeight: 1.5, fontWeight: 500 }}>{matchSummary.who}</p>}
             {matchSummary?.fit && <p style={{ fontSize: '13px', color: '#555', margin: '0 0 10px', lineHeight: 1.5 }}><b>Fit for {project.title}:</b> {matchSummary.fit}</p>}
-            {(matchSummary?.otherRoles?.length ?? 0) > 0 && (
+            {!weak && (matchSummary?.otherRoles?.length ?? 0) > 0 && (
               <div>
                 <div style={{ fontSize: '11px', fontWeight: 600, color: '#8A8780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>You&apos;re also a strong fit for</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
@@ -672,12 +691,42 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             {!matchSummary && <p style={{ fontSize: '13px', color: '#8A8780', margin: 0 }}>Profile ready — let&apos;s write your application.</p>}
           </div>
 
-          <button
-            onClick={generateCoverLetter}
-            style={{ width: '100%', padding: '14px', background: '#C7F94A', color: '#000', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}
-          >
-            Write my application →
-          </button>
+          {weak ? (
+            <>
+              <p style={{ fontSize: '13px', color: '#6B6862', lineHeight: 1.55, margin: '0 0 14px' }}>
+                We could fire off an application here — but recruiters skip mismatches, and it would just
+                burn one of your daily applies. You&apos;ll get a real reply faster from roles that actually fit you.
+              </p>
+
+              {suggestions.length > 0 && (
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#8A8780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>Better matches for you</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {suggestions.map((s) => (
+                      <a key={s.slug} href={`/freelance/${s.slug}?apply=1`} style={{ display: 'block', padding: '12px 14px', background: '#fff', border: '1px solid #E4E1D9', borderRadius: '10px', textDecoration: 'none' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A17', marginBottom: s.company ? '2px' : 0 }}>{s.title}</div>
+                        {s.company && <div style={{ fontSize: '12px', color: '#8A8780' }}>{s.company}</div>}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={generateCoverLetter}
+                style={{ width: '100%', padding: '12px', background: 'transparent', color: '#8A8780', border: '1px solid #E4E1D9', borderRadius: '10px', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}
+              >
+                Apply here anyway
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={generateCoverLetter}
+              style={{ width: '100%', padding: '14px', background: '#C7F94A', color: '#000', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Write my application →
+            </button>
+          )}
         </div>
       );
     }
