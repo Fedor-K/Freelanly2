@@ -71,20 +71,23 @@ Return ONLY JSON, no markdown:
 
 /**
  * Roles that genuinely fit this candidate — shown when THIS role is a weak match, so we steer the
- * user toward applications a recruiter will actually answer instead of spamming a mismatch. We match
- * on the candidate's own loop directions (the 21 category slugs they signed up for), most-recent
- * first, excluding the current role and anything they already applied to.
+ * user toward applications a recruiter will actually answer instead of spamming a mismatch.
+ *
+ * We deliberately do NOT filter by the user's loop categories: those get contaminated by the very
+ * role they're applying to (a PM applying to a Web Developer post seeds an "engineering" loop, so
+ * loop-category suggestions would be all dev roles — the same wall). Instead we pull a broad recent
+ * pool and let the LLM pick the ones that fit the candidate's ACTUAL background, returning fewer
+ * (even zero) rather than padding the list with more mismatches.
  */
 async function findFittingOpportunities(
   userId: string,
   excludeOpportunityId: string,
+  profile: Record<string, unknown> | null,
+  cvText: string,
+  hasRealCV: boolean,
 ): Promise<{ slug: string; title: string; company: string }[]> {
   try {
-    const loops = await prisma.autoApplyLoop.findMany({
-      where: { userId }, select: { categorySlugs: true },
-    });
-    const catSlugs = Array.from(new Set(loops.flatMap(l => l.categorySlugs))).filter(Boolean);
-    if (catSlugs.length === 0) return [];
+    if (!profile) return [];
 
     const applied = await prisma.autoApplication.findMany({
       where: { userId }, select: { opportunityId: true },
@@ -92,22 +95,69 @@ async function findFittingOpportunities(
     const appliedIds = applied.map(a => a.opportunityId).filter(Boolean) as string[];
 
     const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    const opps = await prisma.opportunity.findMany({
+    const pool = await prisma.opportunity.findMany({
       where: {
         isActive: true,
         applyEmail: { not: null },
         createdAt: { gte: since },
-        category: { slug: { in: catSlugs } },
         id: { notIn: [excludeOpportunityId, ...appliedIds] },
       },
-      select: { slug: true, title: true, clientName: true, posterCompany: true, company: { select: { name: true } } },
+      select: { slug: true, title: true, description: true, country: true, category: { select: { slug: true } }, clientName: true, posterCompany: true, company: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
-      take: 4,
+      take: 60,
     });
-    return opps.map(o => ({
-      slug: o.slug,
-      title: o.title,
-      company: o.company?.name || o.posterCompany || o.clientName || '',
+    if (pool.length === 0) return [];
+
+    // Step 1 — one cheap LLM pass to shortlist the indices that look like a genuine fit for the
+    // candidate's actual background (titles + categories only). Over-select a little (up to 8) so
+    // step 2 has room to drop any that the strict matcher rejects.
+    const OpenAI = (await import('openai')).default;
+    const client = new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' });
+    const skills = ((profile.skills as string[]) || []).slice(0, 12).join(', ');
+    const list = pool.map((o, i) => `[${i}] ${o.title}${o.category?.slug ? ` (${o.category.slug})` : ''}`).join('\n');
+    const prompt = `Candidate:
+- Current title: ${profile.current_title || '—'}
+- Field: ${profile.field || '—'}
+- Experience: ${profile.experience_years ?? '—'} years
+- Skills: ${skills || '—'}
+
+Open roles (index, title, category):
+${list}
+
+Shortlist the roles this candidate is a genuinely STRONG fit for, based on their real background.
+Be strict: if a role needs hands-on skills the candidate lacks, DO NOT include it. Max 8, best first.
+Return ONLY JSON: {"picks":[<index>, ...]}`;
+    const r = await client.chat.completions.create({
+      model: 'glm-4-32b-0414-128k', temperature: 0.2, max_tokens: 120,
+      messages: [
+        { role: 'system', content: 'You are a strict career matcher. Only surface genuine fits. Return ONLY valid JSON.' },
+        { role: 'user', content: prompt },
+      ],
+    });
+    const m = (r.choices[0]?.message?.content || '').match(/\{[\s\S]*\}/);
+    if (!m) return [];
+    const picks: number[] = (JSON.parse(m[0]).picks || [])
+      .filter((n: unknown) => typeof n === 'number' && n >= 0 && n < pool.length)
+      .slice(0, 8);
+    if (picks.length === 0) return [];
+
+    // Step 2 — vet each shortlisted role through the SAME assessPairing the apply-flow runs on click.
+    // This is the fix for "I click a recommended role and STILL get told I don't fit": a suggestion
+    // is only shown if the real matcher would NOT reject it (decision !== 'NO'). Keep order, take 4.
+    const vetted = await Promise.all(picks.map(async (i) => {
+      const o = pool[i];
+      try {
+        const pr = await assessPairing({
+          jobTitle: o.title, jobDescription: o.description, jobCountry: o.country,
+          profile, cvText, hasRealCV,
+        });
+        return pr.decision !== 'NO' ? o : null;
+      } catch {
+        return null;
+      }
+    }));
+    return vetted.filter(Boolean).slice(0, 4).map((o) => ({
+      slug: o!.slug, title: o!.title, company: o!.company?.name || o!.posterCompany || o!.clientName || '',
     }));
   } catch {
     return [];
@@ -269,7 +319,7 @@ export async function POST(request: NextRequest) {
       const tier = isWeak ? 'weak' : (/strong/i.test(pairing.label || '') ? 'strong' : 'good');
       const [matchSummary, suggestions] = await Promise.all([
         generateCandidateSummary(profile, opportunity.title, opportunity.description, pairing.label || null, pairing.reason || ''),
-        isWeak ? findFittingOpportunities(user.id, opportunity.id) : Promise.resolve([]),
+        isWeak ? findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', !!user.resumeText) : Promise.resolve([]),
       ]);
       return NextResponse.json({
         ok: true,
