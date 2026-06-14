@@ -84,12 +84,14 @@ export async function POST(request: NextRequest) {
     if (!email || !email.includes('@')) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400 });
     }
-    if (!categories || categories.length === 0) {
-      return NextResponse.json({ error: 'At least one category is required' }, { status: 400 });
-    }
+    // Categories are OPTIONAL at registration now: the inline apply flow collects email FIRST
+    // (email-only step), and the work-type/résumé fields come AFTER OTP confirmation. Categories
+    // only ever fed job-alerts (suspended) and the loop derives its own categories from the
+    // résumé — so an empty list here is fine; we just create no alerts.
+    const cats = Array.isArray(categories) ? categories : [];
 
-    // Validate languages for translation category
-    if (categories.includes('translation')) {
+    // Validate languages for translation category (only when a category was actually provided)
+    if (cats.includes('translation')) {
       const validLanguages = languages?.filter((l) => l && l !== 'EN') || [];
       if (validLanguages.length === 0) {
         return NextResponse.json(
@@ -139,7 +141,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      await createAlertsForUser(existingUser.id, normalizedEmail, categories, selectedCountries, languagePairs);
+      await createAlertsForUser(existingUser.id, normalizedEmail, cats, selectedCountries, languagePairs);
 
       return NextResponse.json({
         success: true,
@@ -194,7 +196,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Create alerts for each category × country
-    await createAlertsForUser(user.id, normalizedEmail, categories, selectedCountries, languagePairs);
+    await createAlertsForUser(user.id, normalizedEmail, cats, selectedCountries, languagePairs);
 
     // Track registration source (which job triggered it)
     if (jobId) {
@@ -211,7 +213,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Registration successful. Check your email for login link.',
-      alertsCreated: categories.length,
+      alertsCreated: cats.length,
     });
   } catch (error) {
     console.error('[Register] Error:', error);
