@@ -83,9 +83,12 @@ export async function processAutoApplyQueue(): Promise<{
     console.log(`[AutoApply] Reset sentToday for ${resetResult.count} loops`);
   }
 
-  // Find loops that haven't hit their daily limit yet
+  // Find loops that haven't hit their daily limit yet — only for EMAIL-VERIFIED users.
+  // Email confirmation (OTP code) is a hard prerequisite: nothing is sent until the user proves
+  // they own the address. Safety net for any PENDING app queued before this gate / before the
+  // user verified — it stays PENDING (held), and ships once they confirm the code.
   const availableLoops = await prisma.autoApplyLoop.findMany({
-    where: { isActive: true },
+    where: { isActive: true, user: { emailVerified: { not: null } } },
     select: { id: true, sentToday: true, dailyLimit: true },
   });
   const availableLoopIds = availableLoops
@@ -1006,10 +1009,14 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     return 0;
   }
 
-  // Find all active loops from users with verified SMTP
+  // Find all active loops — ONLY for users who confirmed their email via OTP code. Email
+  // verification is a hard prerequisite: until it's done, NOTHING happens — no matching, no AI
+  // spend, no application queued. Applying for unverified users only manufactures ghost threads
+  // (they can't log in to see/answer recruiter replies — ~25% of sends were going to such accounts).
   const activeLoops = await prisma.autoApplyLoop.findMany({
     where: {
       isActive: true,
+      user: { emailVerified: { not: null } },
     },
     include: {
       user: {
