@@ -1177,16 +1177,17 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
 
   let qParsedJD: ParsedJD | undefined; // parse the JD once per listing, reuse per candidate
 
-  // ── Lexical+geo PRE-FILTER (2026-06-13) ──────────────────────────────────────
-  // Skip the LLM for pairs that BOTH (a) lexically match 0 of the JD's parsed skill lines AND
-  // (b) sit in a different country than a country-bound (REMOTE_COUNTRY) listing. Either signal
-  // alone over-cuts (lex-0 alone kills 3.4% of really-queued pairs, geo alone 21% — and
-  // cross-country sends still earn a 3.1% reply rate); the AND-combo cuts ~28% of AI calls at
-  // 0.27% false-reject, validated offline on 7d of scored pairs (AI-COST-AUDIT-2026-06-12.md).
-  // FAIL-OPEN everywhere: parseJD/breakdown failure, unknown candidate country, listing not
-  // REMOTE_COUNTRY → the pair goes to the LLM exactly as before. Skips are persisted as
-  // MATCH_REJECTED rows with matchBreakdown.prefilter=true and NULL matchScore (no AI verdict),
-  // so the audit mirror stays complete and the leak/false-reject metrics stay queryable.
+  // ── geo + lexical PRE-FILTER (2026-06-13, geo hardened 2026-06-14) ───────────
+  // Skip the LLM for pairs that can't plausibly match a country-bound (REMOTE_COUNTRY) listing.
+  // Original AND-combo: cut only when lexical-0 AND wrong-country (cut ~28% of AI calls @ 0.27%
+  // false-reject, AI-COST-AUDIT-2026-06-12.md). HARDENED: a KNOWN-location geo mismatch now cuts
+  // on its own (skills can't make you eligible to a country you're not in), UNLESS the JD opens
+  // the door to the candidate's region (worldwide/global, or Europe/EU for an EU candidate, or
+  // LATAM for a LATAM candidate) — those mis-tagged multi-region roles fall back to the old
+  // lexical-0 rule (see the loop below). FAIL-OPEN everywhere: parseJD/breakdown failure, UNKNOWN
+  // candidate country, listing not REMOTE_COUNTRY → pair goes to the LLM as before. Skips persist
+  // as MATCH_REJECTED rows with matchBreakdown.prefilter=true (+ geoCut flag) and NULL matchScore,
+  // so the audit mirror stays complete and leak/false-reject metrics stay queryable.
   const prefilterRejects: { cand: Cand; bd: Record<string, unknown> }[] = [];
   const listingCountryBound = listing.locationType === 'REMOTE_COUNTRY' && !!listing.country;
   const geoMismatch = (c: Cand): boolean => {
@@ -1199,24 +1200,48 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     try {
       const jdText = `${listing.title}\n${listing.description}`;
       qParsedJD = qParsedJD ?? (await parseJD(jdText));
+      // HARDENED 2026-06-14: a KNOWN-location geo mismatch on a country-bound (REMOTE_COUNTRY)
+      // listing is disqualifying ON ITS OWN — no amount of skill match makes you eligible to a
+      // country you're not in (e.g. India dev → US-only role: 1242 such pairs burned the LLM on
+      // one US listing for 0 sends). So geo mismatch alone now cuts, EXCEPT when the JD signals
+      // openness to the candidate's region — many roles are tagged with a single `country` but
+      // actually accept a region ("USA or Europe" → country=US). In that case we fall back to the
+      // old, conservative lexical-0 rule. Still FAIL-OPEN on unknown candidate location / parse fail.
+      // Strong global-openness signals only — deliberately NOT "fully remote"/"remote-first",
+      // which US-only roles routinely use and would wrongly spare a wrong-country candidate.
+      const jdGlobalOpen = /\b(worldwide|world ?wide|work from anywhere|from anywhere|any (?:country|location|timezone|time zone)|globally|global remote|no location restriction|location[- ]independent)\b/i.test(jdText);
+      const jdMentionsEU = /\b(europe|european|\beu\b|emea|eea|cet|cest)\b/i.test(jdText);
+      const jdMentionsLatam = /\b(latam|latin america|south america)\b/i.test(jdText);
+      const PREFILTER_LATAM = new Set(['BR','MX','AR','CO','PE','CL','VE','EC','UY','PY','BO','CR','PA','GT','DO','HN','SV','NI']);
+      const jdAllowsRegion = (uc: string): boolean =>
+        jdGlobalOpen
+        || (jdMentionsEU && PREFILTER_EU.has(uc))
+        || (jdMentionsLatam && PREFILTER_LATAM.has(uc));
       const keep: Cand[] = [];
       for (const c of candidates) {
         let cut = false;
         if (geoMismatch(c)) {
           try {
+            const uc = prefilterCandidateCountry(c.userLoc)!; // geoMismatch guarantees a known country
             const b = buildBreakdown(qParsedJD, {
               jdText, cvText: c.loop.user.resumeText || '', candidateSkills: c.userSkills,
               candidateLanguages: c.userLangs || [], candidateTitle: c.userTitle || null,
               candidateYears: typeof (c.loop.user.parsedProfile as any)?.experience_years === 'number' ? (c.loop.user.parsedProfile as any).experience_years : null,
               candidateLocation: c.userLoc || null,
             });
-            if (b.total > 0 && b.matched === 0) {
+            const regionAllowed = jdAllowsRegion(uc);
+            const lexZero = b.total > 0 && b.matched === 0;
+            // Hard geo-cut unless the JD opens the door to the candidate's region; if it does, keep
+            // the old lexical-0 behaviour so a mis-tagged multi-region role isn't over-cut.
+            if (!regionAllowed || lexZero) {
               cut = true;
               prefilterRejects.push({ cand: c, bd: {
-                v: 1, matched: b.matched, total: b.total, ratio: 0, lines: b.lines,
+                v: 1, matched: b.matched, total: b.total, ratio: b.total ? b.matched / b.total : 0, lines: b.lines,
                 yearsContext: b.yearsContext, locationContext: b.locationContext, rejected: b.rejected,
-                fallback: b.fallback, decision: 'NO', prefilter: true,
-                gateReason: 'пре-фильтр: 0 лексических совпадений + страна не совпадает с country-bound листингом',
+                fallback: b.fallback, decision: 'NO', prefilter: true, geoCut: !regionAllowed,
+                gateReason: !regionAllowed
+                  ? `пре-фильтр гео: кандидат в ${uc}, вакансия привязана к ${listing.country} (JD без открытости к региону)`
+                  : 'пре-фильтр: 0 лексических совпадений + страна не совпадает с country-bound листингом',
               } });
             }
           } catch { /* breakdown failed → fail-open, pair goes to the LLM */ }
