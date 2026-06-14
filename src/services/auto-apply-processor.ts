@@ -151,7 +151,6 @@ export async function processAutoApplyQueue(): Promise<{
           resumeText: true,
           parsedProfile: true,
           resumeUrl: true,
-          resumeGenerated: true,
           resumeBase64: true,
           resumeFileName: true,
           salaryExpectation: true,
@@ -542,22 +541,16 @@ export async function processAutoApplyQueue(): Promise<{
 
       // Attach the user's actual résumé (Blob PDF) to the application. Recruiters
       // constantly reply "send me your CV" — sending it up front cuts that round-trip.
-      // null when the user has no real stored résumé (placeholder) → send without one.
-      // CV-from-profile generation was retired: never attach a machine-built PDF
-      // (resumeGenerated=true). Those users send without an attachment until they
-      // upload a real résumé (a real upload flips the flag back to false). Strong no-CV
-      // matches still send as a cover letter with no attachment (owner decision 2026-06-06).
-      const resumeAttachment = app.user.resumeGenerated
-        ? null
-        : await fetchResumeAttachment(app.user.resumeUrl, app.user.resumeFileName);
+      // null when the user has no real stored résumé (placeholder/legacy URL) → send without one.
+      const resumeAttachment = await fetchResumeAttachment(app.user.resumeUrl, app.user.resumeFileName);
 
       // CV-ALWAYS-ATTACHED (owner decision 2026-06-15): "send your CV" is recruiters' #1 ask.
-      // If this user SHOULD have an attachable résumé (a real Blob upload, not a machine-built CV)
-      // but the fetch came back empty — almost always a transient Blob hiccup — HOLD the send
-      // (keep PENDING, retry next batch) rather than ship a CV-less application. Quality over
-      // speed. The 24h PENDING→FAILED expiry above backstops a permanently-broken résumé so this
-      // never loops forever. Done before quota consumption so a held send wastes no daily quota.
-      const expectsCv = !app.user.resumeGenerated && (app.user.resumeUrl || '').includes('blob.vercel-storage');
+      // If this user SHOULD have an attachable résumé (a real Blob upload) but the fetch came back
+      // empty — almost always a transient Blob hiccup — HOLD the send (keep PENDING, retry next
+      // batch) rather than ship a CV-less application. Quality over speed. The 24h PENDING→FAILED
+      // expiry above backstops a permanently-broken résumé so this never loops forever. Done
+      // before quota consumption so a held send wastes no daily quota.
+      const expectsCv = (app.user.resumeUrl || '').includes('blob.vercel-storage');
       if (expectsCv && !resumeAttachment) {
         await prisma.autoApplication.update({ where: { id: app.id }, data: { status: AutoApplyStatus.PENDING } });
         console.log(`[AutoApply] held ${app.id}: CV expected but attachment fetch failed — retry next batch (no CV-less send)`);
@@ -1041,7 +1034,6 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           parsedProfile: true,
           resumeText: true,
           resumeUrl: true,
-          resumeGenerated: true,
           workPreference: true,
           bookingUrl: true,
           caseStudies: true,
@@ -1410,7 +1402,7 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
           // our Blob store, not a machine-generated one. Key off loop.user.resumeUrl (where the CV
           // really lives + what fetchResumeAttachment uses), NOT loop.resumeUrl — that column is
           // unpopulated (null for every loop), which silently rejected EVERY real-CV candidate.
-          const hasRealCV = !loop.user.resumeGenerated && !!loop.user.resumeUrl && loop.user.resumeUrl.includes('blob.vercel-storage');
+          const hasRealCV = !!loop.user.resumeUrl && loop.user.resumeUrl.includes('blob.vercel-storage');
           const decision = assess(g, { matched: bd.matched, total: bd.total, missingCore: qMissingCore, coreMatched: qCoreMatched }, loop.user.resumeText || '', listing.title, hasRealCV);
           Object.assign(qBreakdown, {
             profession: decision.extras.profession, english_req: decision.extras.english_req, english_level: decision.extras.english_level,

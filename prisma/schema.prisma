@@ -39,7 +39,6 @@ model User {
   resumeText     String?   // Extracted text from PDF
   resumeBase64   String?   // PDF file as base64 for email attachment
   resumeFileName String?   // Original filename
-  resumeGenerated Boolean  @default(false) // true = PDF auto-built from parsedProfile (no real upload); a real upload overwrites it
   parsedProfile  Json?     // AI-extracted: {name, skills, current_title, field, experience_years, summary}
   linkedinUrl    String?   // Candidate's LinkedIn profile URL (collected at apply; used for enrichment + recruiter view)
 

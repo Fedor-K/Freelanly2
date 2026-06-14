@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       `SELECT u.name, u."parsedProfile"->>'current_title' title, a."jobTitle" job, a."matchScore" score, a."matchLabel" label,
               left(regexp_replace(COALESCE(a."coverLetter",''), '[\r\n]+', ' ', 'g'), 240) letter
        FROM "AutoApplication" a JOIN "User" u ON u.id=a."userId"
-       WHERE a.status='SENT' AND a."sentAt" >= $1 AND u."resumeGenerated"=false AND u."resumeUrl" LIKE '%blob.vercel-storage%'
+       WHERE a.status='SENT' AND a."sentAt" >= $1 AND u."resumeUrl" LIKE '%blob.vercel-storage%'
          AND length(COALESCE(a."coverLetter",'')) > 80
        ORDER BY a."sentAt" DESC LIMIT 10`, since),
   ]);
