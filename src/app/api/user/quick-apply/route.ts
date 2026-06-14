@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { opportunityId, jobId, editedCoverLetter, editedSubject, draftOnly, coverLetter: providedCoverLetter, subject: providedSubject } = body;
+    const { opportunityId, jobId, editedCoverLetter, editedSubject, draftOnly, summaryOnly, coverLetter: providedCoverLetter, subject: providedSubject } = body;
     if (!opportunityId && !jobId) {
       return NextResponse.json({ error: 'opportunityId or jobId required' }, { status: 400 });
     }
@@ -202,8 +202,16 @@ export async function POST(request: NextRequest) {
     });
     // Gate: block an actual SEND (not a draft preview) when the verdict is NO.
     const enforceGate = process.env.MATCH_GATE_ENFORCE !== '0';
-    if (!draftOnly && enforceGate && pairing.decision === 'NO') {
+    if (!draftOnly && !summaryOnly && enforceGate && pairing.decision === 'NO') {
       return NextResponse.json({ error: 'poor_match', message: `This role isn't a strong enough match for your profile (${pairing.reason}).` }, { status: 422 });
+    }
+
+    // SUMMARY-ONLY: return the candidate summary card (who they are + fit + other roles) WITHOUT
+    // writing the cover letter. The user reads this first, then clicks through to generate the
+    // application — so we don't spend the cover-letter LLM call until they actually proceed.
+    if (summaryOnly) {
+      const matchSummary = await generateCandidateSummary(profile, opportunity.title, opportunity.description);
+      return NextResponse.json({ ok: true, matchSummary, matchLabel: pairing.label || null, to: opportunity.applyEmail });
     }
 
     // Use provided text or generate new
@@ -244,10 +252,8 @@ export async function POST(request: NextRequest) {
 
     // Draft-only mode: return full letter as user will see it
     if (draftOnly) {
-      // Candidate summary card (who they are + fit for this role + other strong-fit roles). The
-      // profile was just analyzed; this gives the user confidence before sending. Best-effort.
-      const matchSummary = await generateCandidateSummary(profile, opportunity.title, opportunity.description);
-      return NextResponse.json({ ok: true, coverLetter: fullLetter, subject, to: opportunity.applyEmail, matchSummary, matchLabel: pairing.label || null });
+      // Summary card is fetched separately first (summaryOnly) — here we only return the letter.
+      return NextResponse.json({ ok: true, coverLetter: fullLetter, subject, to: opportunity.applyEmail });
     }
 
     // Recruiter-voice rationale for the admin audit card — generated ONLY on a real send (after the

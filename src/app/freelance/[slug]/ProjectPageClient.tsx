@@ -26,7 +26,15 @@ interface ProjectProps {
   similar: Array<{ slug: string; title: string; companyName: string; skills: string[] }>;
 }
 
-type Phase = 'guest' | 'auth' | 'generating' | 'review' | 'sent';
+type Phase = 'guest' | 'auth' | 'analyzing' | 'summary' | 'generating' | 'review' | 'sent';
+
+// Rotating status lines for the profile-analysis (match summary) screen.
+const ANALYZE_STEPS = [
+  { title: 'Reading your résumé…', sub: 'Pulling your experience & skills' },
+  { title: 'Reading the job post…', sub: 'Understanding what this role needs' },
+  { title: 'Assessing your fit…', sub: 'Matching you to this role & others' },
+  { title: 'Almost ready…', sub: 'Preparing your summary' },
+];
 
 // Rotating status lines for the cover-letter generation screen (so it reads as live work).
 const GEN_STEPS = [
@@ -132,37 +140,28 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       url.searchParams.delete('apply');
       window.history.replaceState({}, '', url.toString());
       setIsAuthed(true);
-      setPhase('generating');
+      // First analyze the profile and show the match summary — the user reads "who you are / fit /
+      // other roles" and clicks through to WRITE the application (cover letter) themselves. We do
+      // NOT generate the cover letter yet (summaryOnly), so no LLM spend until they proceed.
+      setPhase('analyzing');
       fetch('/api/user/quick-apply', { credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ opportunityId: project.id, draftOnly: true }),
+        body: JSON.stringify({ opportunityId: project.id, summaryOnly: true }),
       })
         .then(r => r.json())
         .then(data => {
-          if (data.ok || data.coverLetter) {
-            setCoverLetter(data.coverLetter || '');
-            setSubject(data.subject || `Application: ${project.title}`);
-            setSendTo(data.to || '');
-            setMatchSummary(data.matchSummary || null);
-            setMatchLabel(data.matchLabel || null);
-            setPhase('review');
-          } else if (data.error === 'already_applied') {
+          if (data.error === 'already_applied') {
             setGenError('You already applied to this project.');
             setPhase('sent');
-          } else {
-            setCoverLetter('');
-            setSubject(`Application: ${project.title}`);
-            setGenError(data.message || 'Write your cover letter below.');
-            setPhase('review');
+            return;
           }
+          setMatchSummary(data.matchSummary || null);
+          setMatchLabel(data.matchLabel || null);
+          setSendTo(data.to || '');
+          setPhase('summary');
         })
-        .catch(() => {
-          setCoverLetter('');
-          setSubject(`Application: ${project.title}`);
-          setGenError('Write your cover letter below.');
-          setPhase('review');
-        });
+        .catch(() => { setPhase('summary'); });
       return;
     }
 
@@ -350,6 +349,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   // Generate AI cover letter
   async function generateCoverLetter() {
     setGenError('');
+    setPhase('generating');
     try {
       const res = await fetch('/api/user/quick-apply', { credentials: 'include',
         method: 'POST',
@@ -640,6 +640,46 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       );
     }
 
+    // PHASE: ANALYZING — building the match summary (before the user reads it)
+    if (phase === 'analyzing') {
+      return <ProcessingScreen steps={ANALYZE_STEPS} emoji="🔍" />;
+    }
+
+    // PHASE: SUMMARY — the user reads "who you are / fit for this role / other roles", THEN clicks
+    // through to write the application. The cover letter is generated only on that click.
+    if (phase === 'summary') {
+      return (
+        <div>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>Here&apos;s your match</h2>
+          <p style={{ fontSize: '13px', color: '#8A8780', marginBottom: '14px' }}>We read your résumé & LinkedIn. Review, then write your application.</p>
+
+          <div style={{ marginBottom: '16px', padding: '14px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '12px' }}>
+            {matchLabel && <div style={{ marginBottom: '8px' }}><span style={{ fontSize: '11px', fontWeight: 600, color: '#3F6212', background: '#D9F99D', padding: '3px 10px', borderRadius: '999px' }}>{matchLabel} match</span></div>}
+            {matchSummary?.who && <p style={{ fontSize: '14px', color: '#2A2A26', margin: '0 0 8px', lineHeight: 1.5, fontWeight: 500 }}>{matchSummary.who}</p>}
+            {matchSummary?.fit && <p style={{ fontSize: '13px', color: '#555', margin: '0 0 10px', lineHeight: 1.5 }}><b>Fit for {project.title}:</b> {matchSummary.fit}</p>}
+            {(matchSummary?.otherRoles?.length ?? 0) > 0 && (
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#8A8780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>You&apos;re also a strong fit for</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                  {matchSummary!.otherRoles.map((r, i) => (
+                    <span key={i} style={{ fontSize: '12px', padding: '4px 10px', background: '#fff', border: '1px solid #DDEBC4', borderRadius: '6px', color: '#3F6212' }}>{r}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {!matchSummary && <p style={{ fontSize: '13px', color: '#8A8780', margin: 0 }}>Profile ready — let&apos;s write your application.</p>}
+          </div>
+
+          <button
+            onClick={generateCoverLetter}
+            style={{ width: '100%', padding: '14px', background: '#C7F94A', color: '#000', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Write my application →
+          </button>
+        </div>
+      );
+    }
+
     // PHASE: GENERATING
     if (phase === 'generating') {
       const step = GEN_STEPS[genStepIdx] || GEN_STEPS[0];
@@ -672,27 +712,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       return (
         <div>
           <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '12px' }}>Review & send</h2>
-
-          {matchSummary && (
-            <div style={{ marginBottom: '14px', padding: '14px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600 }}>Your match</span>
-                {matchLabel && <span style={{ fontSize: '11px', fontWeight: 600, color: '#3F6212', background: '#D9F99D', padding: '2px 8px', borderRadius: '999px' }}>{matchLabel}</span>}
-              </div>
-              {matchSummary.who && <p style={{ fontSize: '13px', color: '#3A3A35', margin: '0 0 6px', lineHeight: 1.5 }}>{matchSummary.who}</p>}
-              {matchSummary.fit && <p style={{ fontSize: '13px', color: '#555', margin: '0 0 8px', lineHeight: 1.5 }}><b>Fit for this role:</b> {matchSummary.fit}</p>}
-              {matchSummary.otherRoles?.length > 0 && (
-                <div>
-                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#8A8780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '5px' }}>Also a strong fit for</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                    {matchSummary.otherRoles.map((r, i) => (
-                      <span key={i} style={{ fontSize: '12px', padding: '3px 9px', background: '#fff', border: '1px solid #DDEBC4', borderRadius: '6px', color: '#3F6212' }}>{r}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {sendTo && (
             <div style={{ fontSize: '12px', color: '#8A8780', marginBottom: '8px', fontFamily: "'Geist Mono', monospace" }}>
