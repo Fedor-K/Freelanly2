@@ -256,7 +256,7 @@ STYLE FOR THIS EMAIL: ${style}
 LENGTH: ${length.label} — aim for ${length.words} words, ${length.paragraphs} paragraphs.
 
 YOUR JOB:
-1. Figure out who to address — look at the recruiter email and job description. If you can identify the person's actual first name, greet them by it (e.g. "Hi Sarah,"). If you CANNOT, write exactly "Hi there,". NEVER output a literal bracket placeholder like [Name], [Recruiter], [Company], [LinkedIn] or [Your Name] — fill it with the real value or leave it out.
+1. Figure out who to address — look ONLY at the recruiter email local-part (before the @) and any explicit name in the job description or signature. If a real first name is clearly present THERE, greet them by it. If it is NOT clearly present, write exactly "Hi there,". NEVER invent, guess, or default to a placeholder human name (do NOT write "Hi Sarah", "Hi John", or any name you are not certain of) — when unsure, you MUST use "Hi there,". NEVER output a literal bracket placeholder like [Name], [Recruiter], [Company], [LinkedIn] or [Your Name] — fill it with the real value or leave it out.
 2. Figure out the company — from the description, email domain, poster info, anything. Mention it.
 3. FOLLOW THE STYLE INSTRUCTION ABOVE for the opening. NEVER default to "I saw the [role] at [company] and was interested" / "I noticed your post for". The first sentence must feel hand-written, not templated.
 4. Give 1-2 CONCRETE proof points from the applicant's real background — a relevant project, result, or number. ONLY real things from the profile — NEVER invent.
