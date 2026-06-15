@@ -1206,6 +1206,49 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
   // as MATCH_REJECTED rows with matchBreakdown.prefilter=true (+ geoCut flag) and NULL matchScore,
   // so the audit mirror stays complete and leak/false-reject metrics stay queryable.
   const prefilterRejects: { cand: Cand; bd: Record<string, unknown> }[] = [];
+
+  // ── HARD geo cut (A+B+C, 2026-06-15) ─────────────────────────────────────────
+  // The structured `country` tag isn't enough. US-only requirements (W2, US citizen/GC, "must be
+  // authorized to work in the US", "no sponsorship", onsite-in-US) usually live in the JD TEXT, and
+  // ONSITE/HYBRID roles need a LOCAL candidate. Our audience is remote/offshore, so these are dead
+  // ends — the recruiter asks "visa/W2?" and the thread dies, burning the application + their
+  // interest. Cut BEFORE the LLM. Unlike the soft block below this is FAIL-CLOSED: an UNKNOWN
+  // candidate country is also cut (we won't fire a guaranteed-mismatch US-W2/onsite application on a
+  // blind guess — 40% of candidates have no resolvable location). Scoped: only listings that carry a
+  // hard signal are touched; everything else passes through untouched.
+  {
+    const hardJd = `${listing.title}\n${listing.description}`;
+    // (A) US-only hard signals in the JD text.
+    const jdUsOnly = /\b(w-?2(?:\s*(?:only|basis|position|role))?|us citizen|u\.?s\.?\s*citizen|green\s?card|gc\/?usc|usc\/?gc|must be (?:authorized|located|based)[^.]{0,30}\b(?:us|u\.s\.?|united states)\b|authorized to work in (?:the )?(?:us|united states)|no (?:h-?1b|sponsorship|c2c)\b|onsite in (?:the )?(?:us|united states)|day-?1 onsite|locals? only|need locals?)\b/i.test(hardJd);
+    // (C) onsite/hybrid → must be local to the role's own country (skip EU multi-country tag).
+    const onsite = listing.locationType === 'ONSITE' || listing.locationType === 'HYBRID';
+    // (A2) US REMOTE_COUNTRY roles: the W2 / work-authorization requirement is near-universal for US
+    // postings and almost always surfaces only in the recruiter's REPLY (not the JD text), so the
+    // JD-signal test above catches ~none of them. Treat country=US REMOTE_COUNTRY as a hard US
+    // requirement → fail-closed (our audience is offshore-majority; an unknown location on a US role
+    // is far more likely offshore than a quiet US local, and a wrong guess is a guaranteed dead end).
+    const usRemoteCountry = listing.locationType === 'REMOTE_COUNTRY' && listing.country === 'US';
+    const hardCountry = (jdUsOnly || usRemoteCountry) ? 'US'
+      : (onsite && listing.country && listing.country !== 'EU' ? listing.country : null);
+    if (hardCountry) {
+      const reason = hardCountry === 'US'
+        ? 'пре-фильтр гео (hard): US-роль (W2 / work authorization) — кандидат не в US или локация неизвестна'
+        : `пре-фильтр гео (hard): onsite/hybrid в ${hardCountry} — кандидат не локальный`;
+      const keep: Cand[] = [];
+      for (const c of candidates) {
+        const uc = prefilterCandidateCountry(c.userLoc); // null = unknown location
+        if (uc !== hardCountry) { // (B) FAIL-CLOSED: cut on mismatch OR unknown
+          prefilterRejects.push({ cand: c, bd: {
+            v: 1, decision: 'NO', prefilter: true, geoCut: true, hardGeo: true,
+            candidateCountry: uc || 'unknown', requiredCountry: hardCountry, gateReason: reason,
+          } });
+        } else keep.push(c);
+      }
+      candidates.length = 0;
+      for (const k of keep) candidates.push(k);
+    }
+  }
+
   const listingCountryBound = listing.locationType === 'REMOTE_COUNTRY' && !!listing.country;
   const geoMismatch = (c: Cand): boolean => {
     if (!listingCountryBound) return false;
