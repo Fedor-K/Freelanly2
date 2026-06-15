@@ -17,7 +17,7 @@ async function main() {
   const notSpam = { replyCategory: { not: 'SPAM' } };
 
   const [
-    sentToday, oppsToday, recruiterRepliesToday, regsFullToday,
+    sentToday, oppsToday, recruiterRepliesToday, fullRegUsers,
     newRecruitersToday, recruitersTotal, interviews, offers,
   ] = await Promise.all([
     // 📤 applications actually sent today
@@ -27,12 +27,18 @@ async function main() {
     // 💬 real recruiter replies today (any reply except spam/farming)
     prisma.autoApplication.count({ where: { repliedAt: { gte: ds }, ...notSpam } }),
     // 📝 registrations that completed the FULL cycle today (verified email + résumé + LinkedIn)
-    prisma.user.count({ where: { createdAt: { gte: ds }, emailVerified: { not: null }, resumeUrl: { not: null }, linkedinUrl: { not: null } } }),
+    prisma.user.findMany({ where: { createdAt: { gte: ds }, emailVerified: { not: null }, resumeUrl: { not: null }, linkedinUrl: { not: null } }, select: { id: true } }),
     prisma.recruiter.count({ where: { registeredAt: { gte: ds } } }),
     prisma.recruiter.count(),
     prisma.autoApplication.count({ where: { status: 'INTERVIEW' } }),
     prisma.autoApplication.count({ where: { status: 'OFFER' } }),
   ]);
+
+  // 📝 how many applications actually went out FROM today's full-cycle registrants
+  const regsFullToday = fullRegUsers.length;
+  const appliesFromFullRegs = await prisma.autoApplication.count({
+    where: { userId: { in: fullRegUsers.map((u) => u.id) }, sentAt: { not: null } },
+  });
 
   // 📤 distinct projects those sends went to
   const sentProjects = await prisma.autoApplication.findMany({
@@ -67,7 +73,7 @@ async function main() {
     `💬 ${fmt(recruiterRepliesToday)} ответов от рекрутеров`,
     `👤 ${fmt(gotReply.length)} юзеров получили ответ`,
     `✍️ ${fmt(replierUsers.length)} юзеров ответили рекрутерам (${newReplier} новых + ${retReplier} ret)`,
-    `📝 ${fmt(regsFullToday)} прошли полную регистрацию (почта + резюме + LinkedIn)`,
+    `📝 ${fmt(regsFullToday)} прошли полную регистрацию (почта + резюме + LinkedIn) → от них ушло ${fmt(appliesFromFullRegs)} откликов`,
     `📋 ${fmt(newRecruitersToday)} новых рекрутеров (${fmt(recruitersTotal)} всего)`,
     `🏆 ${fmt(interviews)} интервью, ${fmt(offers)} офферов`,
   ];
