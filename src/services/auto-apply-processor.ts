@@ -1798,7 +1798,11 @@ async function ensureMatcherSchema(): Promise<void> {
 // so a frontend dev gets frontend roles — not 60 random recent posts from a noisy broad category.
 const BACKFILL_DAYS = 5;
 const BACKFILL_MAX_QUEUE_PER_LOOP = FREE_DAILY_APPLY_LIMIT; // fill the daily quota (20)
-const BACKFILL_GATE_TOP = 60;       // gate at most the top-N fit-ranked (enough to fill the quota)
+// Gate only the top-N fit-ranked: genuine gate-passing matches cluster at the very top of the fit
+// ranking (e.g. arunachalam's 5 matches were all top-fit), and each gate is a sequential LLM call
+// under onlyLoopId — so 25 captures virtually all real matches while keeping per-loop cost/latency
+// bounded (60 made a full-cohort re-backfill take ~an hour and burned tokens on deep-rejects).
+const BACKFILL_GATE_TOP = 25;
 const BACKFILL_POOL = 600;          // how much of the category backlog to fit-rank
 const BACKFILL_LOOPS_PER_RUN = 10;
 
