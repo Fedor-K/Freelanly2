@@ -18,7 +18,7 @@ async function main() {
 
   const [
     sentToday, oppsToday, recruiterRepliesToday, regsFullToday,
-    newRecruitersToday, recruitersTotal, tgTotal, interviews, offers,
+    newRecruitersToday, recruitersTotal, interviews, offers,
   ] = await Promise.all([
     // 📤 applications actually sent today
     prisma.autoApplication.count({ where: { sentAt: { gte: ds } } }),
@@ -30,7 +30,6 @@ async function main() {
     prisma.user.count({ where: { createdAt: { gte: ds }, emailVerified: { not: null }, resumeUrl: { not: null }, linkedinUrl: { not: null } } }),
     prisma.recruiter.count({ where: { registeredAt: { gte: ds } } }),
     prisma.recruiter.count(),
-    prisma.user.count({ where: { telegramChatId: { not: null } } }),
     prisma.autoApplication.count({ where: { status: 'INTERVIEW' } }),
     prisma.autoApplication.count({ where: { status: 'OFFER' } }),
   ]);
@@ -70,7 +69,6 @@ async function main() {
     `✍️ ${fmt(replierUsers.length)} юзеров ответили рекрутерам (${newReplier} новых + ${retReplier} ret)`,
     `📝 ${fmt(regsFullToday)} прошли полную регистрацию (почта + резюме + LinkedIn)`,
     `📋 ${fmt(newRecruitersToday)} новых рекрутеров (${fmt(recruitersTotal)} всего)`,
-    `📱 ${fmt(tgTotal)} в Telegram`,
     `🏆 ${fmt(interviews)} интервью, ${fmt(offers)} офферов`,
   ];
   console.log(lines.join('\n'));
