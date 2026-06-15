@@ -7,7 +7,7 @@ import { fetchResumeAttachment } from '@/lib/resume-attachment';
 import { isAiUnavailable } from '@/lib/ai-errors';
 import { looksLikeCompanyBrochure } from '@/lib/resume-quality';
 import { AutoApplyStatus, Prisma } from '@prisma/client';
-import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
+import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
 import { isScamRecipient } from '@/lib/scam-filter';
 import { getRecruiterPortalUrl } from '@/lib/recruiter-token';
@@ -1790,24 +1790,45 @@ async function ensureMatcherSchema(): Promise<void> {
   matcherSchemaReady = true;
 }
 
-// Backfill window + bounds. A new loop is matched against opportunities from the last 5 days, but
-// we queue only a handful so the backfill doesn't blow the user's whole daily quota on old gigs —
-// fresh inflow then tops them up. Loops-per-run is bounded so a signup spike can't stall the cycle.
+// Backfill window + bounds. A new loop is matched against the last BACKFILL_DAYS of the backlog and
+// queued up to the user's DAILY QUOTA of genuine matches — a quality candidate who fits dozens of
+// projects should get a full day's worth of applications on day one, not a token couple. The pending
+// cap (MAX_PENDING_PER_USER) inside queueAutoApplyForListing is the real ceiling; this just lets the
+// backfill fill it. We fit-RANK the whole category backlog (cheap, in code) and gate the best first,
+// so a frontend dev gets frontend roles — not 60 random recent posts from a noisy broad category.
 const BACKFILL_DAYS = 5;
-const BACKFILL_MAX_QUEUE_PER_LOOP = 5;
-const BACKFILL_OPPS_SCAN = 60;
-const BACKFILL_LOOPS_PER_RUN = 12;
+const BACKFILL_MAX_QUEUE_PER_LOOP = FREE_DAILY_APPLY_LIMIT; // fill the daily quota (20)
+const BACKFILL_GATE_TOP = 60;       // gate at most the top-N fit-ranked (enough to fill the quota)
+const BACKFILL_POOL = 600;          // how much of the category backlog to fit-rank
+const BACKFILL_LOOPS_PER_RUN = 10;
+
+// Lexical fit score (no LLM) — same idea as lib/fit-score, inlined so the worker has no extra import
+// to resolve. Ranks the candidate's category backlog so the strongest matches get gated first.
+const BF_STOP = new Set(['the','and','for','with','our','your','you','are','will','that','this','from','into','remote','full','time','part','job','role','position','team','work','senior','junior','mid','lead','i','ii','iii']);
+function bfTokens(s: string): string[] {
+  return (String(s || '').toLowerCase().match(/[a-z][a-z+#.]{2,}/g) || []).filter(t => !BF_STOP.has(t));
+}
+function bfScore(candSkills: Set<string>, candTitleTokens: Set<string>, opp: { title: string; skills: string[] }): number {
+  const titleLower = opp.title.toLowerCase();
+  const oppSkills = (opp.skills || []).map(s => s.toLowerCase().trim());
+  let skill = 0;
+  for (const s of candSkills) if (oppSkills.includes(s) || titleLower.includes(s)) skill++;
+  let title = 0;
+  for (const t of bfTokens(opp.title)) if (candTitleTokens.has(t)) title++;
+  return title * 3 + skill;
+}
 
 /**
  * Cold-start fix: match each newly-created loop ONCE against the recent backlog (last BACKFILL_DAYS),
  * so a fresh signup immediately gets the fitting projects that were already processed (matchedAt set)
- * before they existed — instead of waiting for new matching inflow (a multi-hour cold start at night).
- * Reuses the exact same gates/caps/dedup as the live matcher via queueAutoApplyForOpportunity(onlyLoopId).
+ * before they existed — instead of waiting for new matching inflow. Fit-ranks the candidate's category
+ * backlog and gates the best first, filling up to the daily quota. Reuses the exact same gates/caps/
+ * dedup as the live matcher via queueAutoApplyForOpportunity(onlyLoopId).
  */
 async function backfillNewLoops(): Promise<number> {
   let totalQueued = 0;
-  const loops = await prisma.$queryRaw<{ id: string; categorySlugs: string[] }[]>`
-    SELECT l.id, l."categorySlugs"
+  const loops = await prisma.$queryRaw<{ id: string; categorySlugs: string[]; userId: string }[]>`
+    SELECT l.id, l."categorySlugs", l."userId"
     FROM "AutoApplyLoop" l
     JOIN "User" u ON u.id = l."userId"
     WHERE l."isActive" = true
@@ -1819,25 +1840,37 @@ async function backfillNewLoops(): Promise<number> {
 
   for (const loop of loops) {
     try {
-      // Scope the backlog to the loop's own directions when set (keeps it cheap — a data loop only
-      // scans data opps); fall back to all categories for an unclassified loop. routeAllows + the
-      // THIN gate inside queueAutoApplyForOpportunity still apply the real filtering per pair.
       const cats = Array.isArray(loop.categorySlugs) ? loop.categorySlugs.filter(Boolean) : [];
       const since = new Date(Date.now() - BACKFILL_DAYS * 24 * 3600 * 1000);
-      const opps = await prisma.opportunity.findMany({
-        where: {
-          isActive: true,
-          applyEmail: { not: null },
-          createdAt: { gte: since },
-          ...(cats.length > 0 ? { category: { slug: { in: cats } } } : {}),
-        },
-        select: { id: true },
-        orderBy: { createdAt: 'desc' },
-        take: BACKFILL_OPPS_SCAN,
-      });
+      // Pull the candidate's category backlog (light) + their profile, fit-rank, gate the best first.
+      const [pool, user] = await Promise.all([
+        prisma.opportunity.findMany({
+          where: {
+            isActive: true,
+            applyEmail: { not: null },
+            createdAt: { gte: since },
+            ...(cats.length > 0 ? { category: { slug: { in: cats } } } : {}),
+          },
+          select: { id: true, title: true, skills: true },
+          orderBy: { createdAt: 'desc' },
+          take: BACKFILL_POOL,
+        }),
+        prisma.user.findUnique({ where: { id: loop.userId }, select: { parsedProfile: true } }),
+      ]);
+
+      const pp = (user?.parsedProfile as Record<string, unknown> | null) || {};
+      const candSkills = new Set(((pp.skills as string[]) || []).map(s => String(s).toLowerCase().trim()).filter(Boolean));
+      const candTitleTokens = new Set([
+        ...bfTokens(typeof pp.current_title === 'string' ? pp.current_title : ''),
+        ...bfTokens(typeof pp.field === 'string' ? pp.field : ''),
+      ]);
+      const ranked = pool
+        .map(o => ({ id: o.id, score: bfScore(candSkills, candTitleTokens, o) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, BACKFILL_GATE_TOP);
 
       let queuedForLoop = 0;
-      for (const opp of opps) {
+      for (const opp of ranked) {
         if (queuedForLoop >= BACKFILL_MAX_QUEUE_PER_LOOP) break;
         try {
           queuedForLoop += await queueAutoApplyForOpportunity(opp.id, loop.id);
