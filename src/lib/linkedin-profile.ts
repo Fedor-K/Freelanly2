@@ -105,8 +105,13 @@ export async function scrapeLinkedInProfile(linkedinUrl: string | null, email: s
       .filter((y: unknown): y is number => typeof y === 'number' && y > 1950);
     const liExpYears = startYears.length ? Math.max(0, new Date().getFullYear() - Math.min(...startYears)) : 0;
 
+    // current_title from the most recent REAL job title, not the headline. LinkedIn headlines are
+    // marketing taglines ("Building X — helping Y", "Helping founders scale") — using them as the
+    // title makes the matcher mis-read the candidate's profession and reject every genuine fit.
+    // field is NOT derived from the headline for the same reason (let the résumé parse own it).
+    const liMostRecentTitle = (liExperience[0]?.title || '').trim();
     const liProfile: CandProfile = {
-      name: liName, email, current_title: pr.headline || null, field: pr.headline || null,
+      name: liName, email, current_title: liMostRecentTitle || (typeof pr.headline === 'string' ? pr.headline : null), field: null,
       skills: liSkills, summary: pr.about || '', experience_years: liExpYears,
       experience: liExperience, education: liEducation, certifications: liCerts,
       languages: allLangs, location: liLoc,
@@ -139,7 +144,9 @@ export function mergeCandidateProfiles(resumeProfile: CandProfile | null, liProf
     name: resumeProfile.name || liProfile.name,
     email: resumeProfile.email || liProfile.email || email,
     phone: (resumeProfile.phone as string) || (liProfile.phone as string) || null,
-    current_title: liProfile.current_title || resumeProfile.current_title,
+    // Résumé is the authoritative base for the title too — its parsed current_title comes from real
+    // work history. Only fall back to LinkedIn's (now a real job title, not the headline) if absent.
+    current_title: resumeProfile.current_title || liProfile.current_title,
     field: resumeProfile.field || liProfile.field,
     skills: uniq([...((resumeProfile.skills as unknown[]) || []), ...((liProfile.skills as unknown[]) || [])]).slice(0, 25),
     languages: uniq([...((resumeProfile.languages as unknown[]) || []), ...((liProfile.languages as unknown[]) || [])]),

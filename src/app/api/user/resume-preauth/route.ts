@@ -99,6 +99,12 @@ export async function POST(request: NextRequest) {
             messages: [
               { role: 'system', content: `You extract structured data from resumes. Return ONLY valid JSON, no markdown.
 Format: {"name":"string","email":"string or null","phone":"string or null","location":"City, Country or null","skills":["skill1","skill2"],"experience_years":number,"current_title":"string","field":"string","summary":"1-2 sentence summary","languages":["English"],"experience":[{"title":"Job Title","company":"Company Name","dates":"Start - End","description":"1-2 sentences on the role and achievements"}],"education":[{"degree":"Degree","school":"School Name","dates":"Start - End"}]}
+IMPORTANT — "current_title" MUST be a real JOB TITLE from the most recent work experience entry
+(e.g. "Localization Project Manager", "Frontend Developer"). NEVER use a LinkedIn headline, tagline,
+or personal-brand statement (e.g. "Building X — helping Y", "Helping founders scale") as the title —
+if the top line is a slogan, take the title from the experience section instead. "field" is the
+candidate's actual profession/domain derived from their work history (e.g. "Localization", "Project
+Management", "Frontend Engineering"), not a company pitch.
 Extract up to 20 skills and ALL experience + education entries. If not found, use null or [].` },
               { role: 'user', content: `Extract profile data:\n\n${pdfText.substring(0, 6000)}` },
             ],
