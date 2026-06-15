@@ -54,18 +54,23 @@ async function main() {
 
   // ✍️ users who genuinely replied BACK to a recruiter today (outbound message in a thread the
   // recruiter has already replied to — not the initial outreach). Split new vs returning.
-  const replyMsgs = await prisma.message.findMany({
+  // A from='user' message is the candidate's REPLY only if it was written AFTER the recruiter replied.
+  // The initial outreach (cover letter) is ALSO stored as a from='user' message (at send time, BEFORE
+  // repliedAt) — counting that as a "reply" is the bug that made this metric fake. So: genuine reply =
+  // user message with createdAt > application.repliedAt.
+  const isGenuine = (m) => m.application.repliedAt && m.createdAt.getTime() > m.application.repliedAt.getTime() + 1000;
+  const replyMsgs = (await prisma.message.findMany({
     where: { from: 'user', createdAt: { gte: ds }, application: { repliedAt: { not: null } } },
-    select: { application: { select: { userId: true } } },
-  });
+    select: { createdAt: true, application: { select: { userId: true, repliedAt: true } } },
+  })).filter(isGenuine);
   const replierUsers = [...new Set(replyMsgs.map((m) => m.application.userId))];
+  // new vs returning: did this user ever genuinely reply (msg after repliedAt) BEFORE today?
+  const priorGenuine = new Set((await prisma.message.findMany({
+    where: { from: 'user', createdAt: { lt: ds }, application: { repliedAt: { not: null } } },
+    select: { createdAt: true, application: { select: { userId: true, repliedAt: true } } },
+  })).filter(isGenuine).map((m) => m.application.userId));
   let newReplier = 0, retReplier = 0;
-  for (const uid of replierUsers) {
-    const earlier = await prisma.message.count({
-      where: { from: 'user', createdAt: { lt: ds }, application: { userId: uid, repliedAt: { not: null } } },
-    });
-    earlier > 0 ? retReplier++ : newReplier++;
-  }
+  for (const uid of replierUsers) priorGenuine.has(uid) ? retReplier++ : newReplier++;
 
   const lines = [
     `📤 ${fmt(sentToday)} откликов отправлено сегодня → на ${fmt(sentProjects.length)} разных проектов`,
