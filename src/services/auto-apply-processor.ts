@@ -681,7 +681,7 @@ export async function processAutoApplyQueue(): Promise<{
  * When a new Opportunity is created, match it against all active auto-apply loops
  * and create PENDING AutoApplication records.
  */
-export async function queueAutoApplyForOpportunity(opportunityId: string): Promise<number> {
+export async function queueAutoApplyForOpportunity(opportunityId: string, onlyLoopId?: string): Promise<number> {
   const opportunity = await prisma.opportunity.findUnique({
     where: { id: opportunityId },
     include: {
@@ -726,7 +726,7 @@ export async function queueAutoApplyForOpportunity(opportunityId: string): Promi
     locationType: opportunity.locationType,
     level: opportunity.level,
     skills: opportunity.skills,
-  });
+  }, onlyLoopId);
 }
 
 /**
@@ -1003,7 +1003,7 @@ function loopMatchesTargeting(
   return false;
 }
 
-async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
+async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: string): Promise<number> {
   // Phase 1.3: skip listings whose apply address is dead/garbage — sending there is pure waste.
   if (!isSendableRecipient(listing.applyEmail)) {
     return 0;
@@ -1024,6 +1024,10 @@ async function queueAutoApplyForListing(listing: ListingData): Promise<number> {
     where: {
       isActive: true,
       user: { emailVerified: { not: null } },
+      // onlyLoopId: backfill mode — match this single new loop against the backlog (see
+      // backfillNewLoops). All the gates/caps/dedup/fairness below run identically, just scoped
+      // to one loop, so a fresh signup gets its fitting backlog instead of a cold start.
+      ...(onlyLoopId ? { id: onlyLoopId } : {}),
     },
     include: {
       user: {
@@ -1762,7 +1766,97 @@ async function ensureMatcherSchema(): Promise<void> {
          OR "createdAt" < NOW() - INTERVAL '3 days'
        )`
   );
+  // backfilledAt marker on the loop (cold-start fix): the per-opportunity matcher only matches a
+  // listing against loops that EXIST when it arrives, so a loop created today never sees the
+  // already-processed backlog (its `matchedAt` is set). backfillNewLoops runs each NULL-marked loop
+  // ONCE against the recent backlog so a fresh signup gets its fitting projects immediately.
+  await prisma.$executeRawUnsafe(
+    `ALTER TABLE "AutoApplyLoop" ADD COLUMN IF NOT EXISTS "backfilledAt" TIMESTAMP(3)`
+  );
+  // ONE-TIME population bootstrap (guarded by a Settings flag so it runs exactly once ever — the
+  // process restarts each cron run, so an unguarded UPDATE would re-stamp every cycle and skip
+  // every loop older than its threshold). Loops >2 days old have had ample live-matching chances —
+  // mark them done so we don't avalanche-backfill the whole ~1.1k population. Loops ≤2 days old are
+  // the genuine cold-start victims → leave/reset NULL so they get backfilled over the next runs.
+  const bootKey = 'backfill_bootstrap_v1';
+  const booted = await prisma.settings.findUnique({ where: { key: bootKey } }).catch(() => null);
+  if (!booted) {
+    await prisma.$executeRawUnsafe(
+      `UPDATE "AutoApplyLoop"
+         SET "backfilledAt" = CASE WHEN "createdAt" < NOW() - INTERVAL '2 days' THEN NOW() ELSE NULL END`
+    );
+    await prisma.settings.create({ data: { key: bootKey, value: new Date().toISOString() } }).catch(() => {});
+  }
   matcherSchemaReady = true;
+}
+
+// Backfill window + bounds. A new loop is matched against opportunities from the last 5 days, but
+// we queue only a handful so the backfill doesn't blow the user's whole daily quota on old gigs —
+// fresh inflow then tops them up. Loops-per-run is bounded so a signup spike can't stall the cycle.
+const BACKFILL_DAYS = 5;
+const BACKFILL_MAX_QUEUE_PER_LOOP = 5;
+const BACKFILL_OPPS_SCAN = 60;
+const BACKFILL_LOOPS_PER_RUN = 12;
+
+/**
+ * Cold-start fix: match each newly-created loop ONCE against the recent backlog (last BACKFILL_DAYS),
+ * so a fresh signup immediately gets the fitting projects that were already processed (matchedAt set)
+ * before they existed — instead of waiting for new matching inflow (a multi-hour cold start at night).
+ * Reuses the exact same gates/caps/dedup as the live matcher via queueAutoApplyForOpportunity(onlyLoopId).
+ */
+async function backfillNewLoops(): Promise<number> {
+  let totalQueued = 0;
+  const loops = await prisma.$queryRaw<{ id: string; categorySlugs: string[] }[]>`
+    SELECT l.id, l."categorySlugs"
+    FROM "AutoApplyLoop" l
+    JOIN "User" u ON u.id = l."userId"
+    WHERE l."isActive" = true
+      AND l."backfilledAt" IS NULL
+      AND u."emailVerified" IS NOT NULL
+    ORDER BY l."createdAt" DESC
+    LIMIT ${BACKFILL_LOOPS_PER_RUN}
+  `;
+
+  for (const loop of loops) {
+    try {
+      // Scope the backlog to the loop's own directions when set (keeps it cheap — a data loop only
+      // scans data opps); fall back to all categories for an unclassified loop. routeAllows + the
+      // THIN gate inside queueAutoApplyForOpportunity still apply the real filtering per pair.
+      const cats = Array.isArray(loop.categorySlugs) ? loop.categorySlugs.filter(Boolean) : [];
+      const since = new Date(Date.now() - BACKFILL_DAYS * 24 * 3600 * 1000);
+      const opps = await prisma.opportunity.findMany({
+        where: {
+          isActive: true,
+          applyEmail: { not: null },
+          createdAt: { gte: since },
+          ...(cats.length > 0 ? { category: { slug: { in: cats } } } : {}),
+        },
+        select: { id: true },
+        orderBy: { createdAt: 'desc' },
+        take: BACKFILL_OPPS_SCAN,
+      });
+
+      let queuedForLoop = 0;
+      for (const opp of opps) {
+        if (queuedForLoop >= BACKFILL_MAX_QUEUE_PER_LOOP) break;
+        try {
+          queuedForLoop += await queueAutoApplyForOpportunity(opp.id, loop.id);
+        } catch (e) {
+          if (isAiUnavailable(e)) throw e; // AI down → abort, retry this loop next run (leave backfilledAt NULL)
+          // other per-opp error → skip this opp, keep going
+        }
+      }
+      totalQueued += queuedForLoop;
+      // Mark done so the loop is backfilled exactly once (even if 0 queued — niche profession).
+      await prisma.$executeRaw`UPDATE "AutoApplyLoop" SET "backfilledAt" = NOW() WHERE id = ${loop.id}`;
+    } catch (e) {
+      console.error(`[AutoApply] Backfill error for loop ${loop.id}:`, e);
+      // leave backfilledAt NULL → retry next run
+    }
+  }
+
+  if (loops.length > 0) console.log(`[AutoApply] Backfilled ${loops.length} new loops, queued ${totalQueued} applications`);
+  return totalQueued;
 }
 
 /**
@@ -1814,6 +1908,17 @@ export async function matchAndQueueAutoApplies(): Promise<number> {
   }
 
   console.log(`[AutoApply] Matched ${rows.length} opportunities, queued ${totalQueued} applications`);
+
+  // Cold-start fix: also run any brand-new loops against the recent backlog (see backfillNewLoops).
+  // Runs after the inflow pass so fresh opportunities are matched first. Best-effort: a backfill
+  // failure must not break the main matcher run.
+  try {
+    totalQueued += await backfillNewLoops();
+  } catch (e) {
+    if (isAiUnavailable(e)) { console.error('[AutoApply] Backfill aborted (AI unavailable), retry next run'); }
+    else console.error('[AutoApply] Backfill pass failed:', e);
+  }
+
   return totalQueued;
 }
 
