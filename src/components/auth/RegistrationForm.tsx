@@ -88,6 +88,10 @@ export function RegistrationForm({
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [salaryExpectation, setSalaryExpectation] = useState('');
+  const [currentRate, setCurrentRate] = useState('');
+  const [workAuth, setWorkAuth] = useState('');
+  const [noticeForm, setNoticeForm] = useState('');
+  const NOTICE_FORM_OPTIONS = ['Immediately', 'Within 2 weeks', 'Within a month', 'More than a month'];
   const [tgState, setTgState] = useState<'idle' | 'opening' | 'opened'>('idle');
   const [profileSubmitting, setProfileSubmitting] = useState(false);
 
@@ -344,6 +348,9 @@ export function RegistrationForm({
       fd.append('email', email);
       fd.append('linkedinUrl', linkedinUrl);
       if (salaryExpectation.trim()) fd.append('salaryExpectation', salaryExpectation.trim());
+      if (currentRate.trim()) fd.append('currentRate', currentRate.trim());
+      if (workAuth) fd.append('workAuthorization', workAuth);
+      if (noticeForm) fd.append('availableFrom', noticeForm);
       try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* dashboard handles a missing profile */ }
       window.location.href = callbackUrl || '/dashboard';
     } catch (err) {
@@ -755,10 +762,35 @@ export function RegistrationForm({
           </div>
         )}
 
-        {/* Desired salary — optional */}
+        {/* Fields recruiters re-ask on every reply (work auth, current + expected pay, notice) —
+            captured up front and put in the first outreach email so there's no "share details" round. */}
         <div>
-          <label className="field-label">Desired salary <span className="optional">— optional, so recruiters don&apos;t have to ask</span></label>
+          <label className="field-label">Where can you legally work? <span className="optional">— optional</span></label>
+          <select value={workAuth} onChange={e => setWorkAuth(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '14px', background: '#fff' }}>
+            <option value="">Select…</option>
+            <option value="Remote — anywhere / worldwide">Remote — anywhere / worldwide</option>
+            <option value="My country only">My country only</option>
+            <option value="US-authorized (citizen / GC / valid visa)">US-authorized (citizen / GC / valid visa)</option>
+            <option value="EU-authorized">EU-authorized</option>
+            <option value="UK-authorized">UK-authorized</option>
+            <option value="Canada-authorized">Canada-authorized</option>
+            <option value="Need sponsorship">Need sponsorship</option>
+          </select>
+        </div>
+        <div>
+          <label className="field-label">Current rate / pay <span className="optional">— optional</span></label>
+          <input type="text" value={currentRate} onChange={e => setCurrentRate(e.target.value)} placeholder="e.g. $2,000/mo or 12 LPA" style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '14px' }} />
+        </div>
+        <div>
+          <label className="field-label">Expected salary <span className="optional">— optional, so recruiters don&apos;t have to ask</span></label>
           <SalaryPicker onChange={setSalaryExpectation} />
+        </div>
+        <div>
+          <label className="field-label">Notice period / when can you start? <span className="optional">— optional</span></label>
+          <select value={noticeForm} onChange={e => setNoticeForm(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '14px', background: '#fff' }}>
+            <option value="">Select…</option>
+            {NOTICE_FORM_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
         </div>
 
         {/* Telegram reply alerts — optional */}

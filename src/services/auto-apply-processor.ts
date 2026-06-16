@@ -155,6 +155,10 @@ export async function processAutoApplyQueue(): Promise<{
           resumeFileName: true,
           salaryExpectation: true,
           salaryExpectationAt: true,
+          location: true,
+          workAuthorization: true,
+          currentRate: true,
+          availableFrom: true,
           workPreference: true,
           bookingUrl: true,
           caseStudies: true,
@@ -579,11 +583,24 @@ export async function processAutoApplyQueue(): Promise<{
           skills: Array.isArray(pp.skills) ? pp.skills.map(String).slice(0, 6) : [],
           languages: Array.isArray(pp.languages) ? pp.languages.map(String) : [],
         },
+        atsDetails: {
+          workAuthorization: app.user.workAuthorization,
+          currentRate: app.user.currentRate,
+          salaryExpectation: app.user.salaryExpectation,
+          availableFrom: app.user.availableFrom,
+        },
         otherCandidates: (otherCandidatesByEmail.get(app.appliedToEmail) || []).filter(c => c.name !== (app.user.name || 'Applicant')).slice(0, 3),
       });
 
-      // AI now generates complete email with greeting + signature
-      const text = coverLetter;
+      // AI now generates complete email with greeting + signature. Append the same screening
+      // facts as a plaintext footer (mirrors the HTML card's ATS table) for text-only clients.
+      const atsLines = [
+        app.user.workAuthorization && `Work authorization: ${app.user.workAuthorization}`,
+        app.user.currentRate && `Current rate: ${app.user.currentRate}`,
+        app.user.salaryExpectation && `Expected rate: ${app.user.salaryExpectation}`,
+        app.user.availableFrom && `Availability: ${app.user.availableFrom}`,
+      ].filter(Boolean);
+      const text = atsLines.length ? `${coverLetter}\n\n—\n${atsLines.join('\n')}` : coverLetter;
 
       // Enforce the shared FREE 20/day cap atomically before sending (PRO unlimited).
       // On the cap, return the app to PENDING so it can send after the daily reset
@@ -1652,9 +1669,17 @@ export function buildApplicationEmailHtml(params: {
     skills?: string[];
     languages?: string[];
   };
+  // Self-reported screening facts captured at signup — surfaced here so the recruiter doesn't
+  // have to fire the "share work auth / current CTC / notice" round-trip (their #1 ATS step).
+  atsDetails?: {
+    workAuthorization?: string | null;
+    currentRate?: string | null;
+    salaryExpectation?: string | null;
+    availableFrom?: string | null;
+  };
   otherCandidates?: Array<{ name: string; title: string; avatarUrl: string | null }>;
 }): string {
-  const { coverLetter, userName, jobTitle, applicationId, recruiterEmail, candidateCount, vacancyCount, avatarUrl, profile, otherCandidates } = params;
+  const { coverLetter, userName, jobTitle, applicationId, recruiterEmail, candidateCount, vacancyCount, avatarUrl, profile, atsDetails, otherCandidates } = params;
   const portalUrl = recruiterEmail ? getRecruiterPortalUrl(recruiterEmail) : '';
   const firstName = userName.split(/\s+/)[0] || userName;
 
@@ -1691,6 +1716,19 @@ export function buildApplicationEmailHtml(params: {
     // Avatar — circular photo or letter initial, floated left of name
     const avatarImg = avatarUrl
       ? `<img src="${escapeHtml(avatarUrl)}" width="52" height="52" alt="${safeName}" style="width:52px;height:52px;border-radius:50%;display:block;" />`
+      : '';
+
+    // ATS screening facts — a compact labeled table so the recruiter has work-auth / current rate /
+    // expected rate / availability up front instead of replying to ask. Only renders rows we have.
+    const atsRows: Array<[string, string]> = [];
+    if (atsDetails?.workAuthorization) atsRows.push(['Work authorization', atsDetails.workAuthorization]);
+    if (atsDetails?.currentRate) atsRows.push(['Current rate', atsDetails.currentRate]);
+    if (atsDetails?.salaryExpectation) atsRows.push(['Expected rate', atsDetails.salaryExpectation]);
+    if (atsDetails?.availableFrom) atsRows.push(['Availability', atsDetails.availableFrom]);
+    const atsBlock = atsRows.length > 0
+      ? `<table cellpadding="0" cellspacing="0" style="margin: 0 0 18px; font-size: 13px; color: #333; border-collapse: collapse;">${atsRows.map(([k, v]) =>
+          `<tr><td style="padding: 3px 14px 3px 0; color: #888; vertical-align: top; white-space: nowrap;">${escapeHtml(k)}</td><td style="padding: 3px 0; color: #0B0C0F; font-weight: 600;">${escapeHtml(v)}</td></tr>`
+        ).join('')}</table>`
       : '';
 
     // Reply + View CV buttons
@@ -1749,6 +1787,7 @@ export function buildApplicationEmailHtml(params: {
   ${nameBlock}
   ${summaryBlock}
   ${skillTags}
+  ${atsBlock}
   ${teaserBlock}
   <div>${replyBtn}${cvLink}</div>
 </div>

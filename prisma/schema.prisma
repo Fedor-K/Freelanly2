@@ -50,8 +50,10 @@ model User {
   availableFrom  String?   // "mid-November", "immediately"
   rateFloorHourly Int?     // Minimum $/hr — auto-skip jobs below this
   rateFloorProject Int?    // Minimum $/project — auto-skip below
-  salaryExpectation   String?   // candidate-stated expected pay (post-submit, SELF-REPORTED) — soft context in the breakdown, never a verified/statused line
+  salaryExpectation   String?   // candidate-stated EXPECTED pay (SELF-REPORTED) — soft context in the breakdown, never a verified/statused line
   salaryExpectationAt DateTime? // when stated — render must de-emphasize / decay stale self-reports (same freshness discipline as everywhere)
+  currentRate         String?   // candidate-stated CURRENT pay/CTC (SELF-REPORTED) — recruiters re-ask for it; collected in the signup form, put in the first outreach email to cut the ATS "share details" round
+  workAuthorization   String?   // where the candidate can legally work (e.g. "Remote – anywhere", "US authorized", "EU", "My country only") — SELF-REPORTED; recruiters re-ask (visa/work-auth); collected in the signup form
   portfolioUrl   String?   // candidate-entered portfolio / GitHub / personal site — recruiters ask for it (14%); shown on the application card
   caseStudies    Json?     // ["notion-sync", "crdt-merge"] — AI picks best per outreach
   freeReplyUsed  Boolean  @default(false)  // PAYWALL: has the user spent their one free reply-unlock? First recruiter reply is free (hook), rest cost $5.

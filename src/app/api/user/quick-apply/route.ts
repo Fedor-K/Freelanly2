@@ -190,6 +190,11 @@ export async function POST(request: NextRequest) {
         plan: true,
         resumeText: true,
         parsedProfile: true,
+        location: true,
+        workAuthorization: true,
+        currentRate: true,
+        salaryExpectation: true,
+        availableFrom: true,
         freeAppliesUsedToday: true,
         lastFreeApplyReset: true,
         userSmtp: true,
@@ -370,7 +375,19 @@ export async function POST(request: NextRequest) {
     const hasGreeting = /^\s*(hi|hello|dear|hey)\b/i.test(coverLetter);
     const greeting = hasGreeting ? '' : (recruiterName ? `Hi ${recruiterName},\n\n` : 'Hi there,\n\n');
     const signature = `Best regards,\n${user.name || 'Applicant'}`;
-    const fullLetter = `${greeting}${coverLetter}\n\n${signature}`;
+    // ATS-checklist footer: the exact fields recruiters re-ask for on the first reply (location, work
+    // auth, current + expected pay, availability). Collected in the signup form; attached here so the
+    // recruiter has them up front and skips the "share these details" round. No email/phone (replies
+    // route through us). Each is the candidate's OWN self-reported value — never an email.
+    const details = [
+      user.location && `Location: ${user.location}`,
+      user.workAuthorization && `Work authorization: ${user.workAuthorization}`,
+      user.currentRate && `Current rate: ${user.currentRate}`,
+      user.salaryExpectation && `Expected rate: ${user.salaryExpectation}`,
+      user.availableFrom && `Availability: ${user.availableFrom}`,
+    ].filter(Boolean);
+    const detailsBlock = details.length ? `\n\n—\n${details.join('\n')}` : '';
+    const fullLetter = `${greeting}${coverLetter}\n\n${signature}${detailsBlock}`;
 
     // Draft-only mode: return full letter as user will see it
     if (draftOnly) {
