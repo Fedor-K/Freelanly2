@@ -119,33 +119,43 @@ async function findFittingOpportunities(
       .sort((a, b) => b.score - a.score);
 
     if (scored.length === 0) return [];
-    const top = scored.slice(0, 10).map(x => x.o);
-
-    // Fetch full records (incl. description) only for the top-scored handful, for the strict vet.
+    // Vet DEEPER than the top handful: fit-scoring is lexical and can't tell "Project Manager" (fits)
+    // from "Salesforce Project Manager" (doesn't) — both score on project+manager. For a niche/manager
+    // profile the top-10 can be entirely domain-specific roles the strict matcher rejects, while the
+    // few generic roles that DO pass tie just below and never get vetted (→ empty suggestions despite
+    // real fits existing). So consider up to 24 and gate in score-order batches, stopping as soon as 4
+    // pass — cheap for the common case (fits sit at the top), deep enough to rescue the niche case.
+    const VET_CAP = 24, VET_BATCH = 8, WANT = 4;
+    const cand = scored.slice(0, VET_CAP).map(x => x.o);
     const full = await prisma.opportunity.findMany({
-      where: { id: { in: top.map(t => t.id) } },
+      where: { id: { in: cand.map(t => t.id) } },
       select: { id: true, slug: true, title: true, description: true, country: true, clientName: true, posterCompany: true, company: { select: { name: true } } },
     });
     const byId = new Map(full.map(o => [o.id, o]));
 
-    // Stage 2 — vet each through the SAME assessPairing the apply-flow runs on click, so a suggestion
-    // is only shown if the real matcher would NOT reject it. Preserve fit-score order, take 4.
-    const vetted = await Promise.all(top.map(async (t) => {
-      const o = byId.get(t.id);
-      if (!o) return null;
-      try {
-        const pr = await assessPairing({
-          jobTitle: o.title, jobDescription: o.description, jobCountry: o.country,
-          profile, cvText, hasRealCV,
-        });
-        return pr.decision !== 'NO' ? o : null;
-      } catch {
-        return null;
+    // Stage 2 — vet through the SAME assessPairing the apply-flow runs on click, so a suggestion is
+    // only shown if the real matcher would NOT reject it. Score-order batches with early stop at 4.
+    const kept: { slug: string; title: string; company: string }[] = [];
+    for (let i = 0; i < cand.length && kept.length < WANT; i += VET_BATCH) {
+      const batch = cand.slice(i, i + VET_BATCH);
+      const results = await Promise.all(batch.map(async (t) => {
+        const o = byId.get(t.id);
+        if (!o) return null;
+        try {
+          const pr = await assessPairing({
+            jobTitle: o.title, jobDescription: o.description, jobCountry: o.country,
+            profile, cvText, hasRealCV,
+          });
+          return pr.decision !== 'NO' ? o : null;
+        } catch {
+          return null;
+        }
+      }));
+      for (const o of results) {
+        if (o && kept.length < WANT) kept.push({ slug: o.slug, title: o.title, company: o.company?.name || o.posterCompany || o.clientName || '' });
       }
-    }));
-    return vetted.filter(Boolean).slice(0, 4).map((o) => ({
-      slug: o!.slug, title: o!.title, company: o!.company?.name || o!.posterCompany || o!.clientName || '',
-    }));
+    }
+    return kept;
   } catch {
     return [];
   }
