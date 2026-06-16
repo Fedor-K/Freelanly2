@@ -7,6 +7,7 @@ export const BLOCKED_APPLY_DOMAINS: string[] = [
   'univar.in',
   'zohomail.com',
   'kloudhire.com',
+  'allyted.com', // staffing mill: replies to every candidate with a "fill this Google form" lead-farm, not a real conversation — blocked 2026-06-16
 ];
 
 export const BLOCKED_APPLY_EMAILS: string[] = [
