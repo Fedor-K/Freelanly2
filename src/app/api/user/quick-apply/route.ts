@@ -300,9 +300,13 @@ export async function POST(request: NextRequest) {
       jobTitle: opportunity.title, jobDescription: opportunity.description, jobCountry: null,
       profile, cvText: user.resumeText || '', hasRealCV: !!user.resumeText,
     });
-    // Gate: block an actual SEND (not a draft preview) when the verdict is NO.
+    // Gate: block BOTH the cover-letter generation (draftOnly) AND the send when the verdict is NO.
+    // Blocking only the send wasted a cover-letter LLM call (money) and led to a contradictory UX —
+    // the user wrote/reviewed a letter, then got refused at "Send". If we won't send it, don't let
+    // them spend on writing it: stop at the draft. summaryOnly still passes (it's just the verdict
+    // card, no letter). The weak-match card uses the `gated` flag below to not even offer the path.
     const enforceGate = process.env.MATCH_GATE_ENFORCE !== '0';
-    if (!draftOnly && !summaryOnly && enforceGate && pairing.decision === 'NO') {
+    if (!summaryOnly && enforceGate && pairing.decision === 'NO') {
       return NextResponse.json({ error: 'poor_match', message: `This role isn't a strong enough match for your profile (${pairing.reason}).` }, { status: 422 });
     }
 
@@ -324,6 +328,10 @@ export async function POST(request: NextRequest) {
         matchLabel: pairing.label || null,
         tier,
         suggestions,
+        // gated = a real SEND would be refused (hard NO + gate on). The card uses this to NOT offer
+        // "Apply here anyway" (which would only generate a letter and then be blocked). A weak-but-
+        // sendable verdict (decision !== NO) leaves gated=false, so "Apply here anyway" still works.
+        gated: enforceGate && pairing.decision === 'NO',
         to: opportunity.applyEmail,
       });
     }

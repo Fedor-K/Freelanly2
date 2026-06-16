@@ -87,6 +87,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [matchSummary, setMatchSummary] = useState<{ who: string; fit: string; otherRoles: string[] } | null>(null);
   const [matchLabel, setMatchLabel] = useState<string | null>(null);
   const [matchTier, setMatchTier] = useState<'strong' | 'good' | 'weak'>('good');
+  const [gated, setGated] = useState(false); // true = a send would be refused → don't offer the cover-letter path
   const [suggestions, setSuggestions] = useState<{ slug: string; title: string; company: string }[]>([]);
   const [subject, setSubject] = useState('');
   const [sendTo, setSendTo] = useState('');
@@ -163,6 +164,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           setMatchSummary(data.matchSummary || null);
           setMatchLabel(data.matchLabel || null);
           setMatchTier(data.tier || 'good');
+          setGated(!!data.gated);
           setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
           setSendTo(data.to || '');
           setPhase('summary');
@@ -355,6 +357,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       setMatchSummary(data.matchSummary || null);
       setMatchLabel(data.matchLabel || null);
       setMatchTier(data.tier || 'good');
+      setGated(!!data.gated);
       setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
       setSendTo(data.to || '');
       setPhase('summary');
@@ -720,12 +723,20 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 </div>
               )}
 
-              <button
-                onClick={generateCoverLetter}
-                style={{ width: '100%', padding: '12px', background: 'transparent', color: '#8A8780', border: '1px solid #E4E1D9', borderRadius: '10px', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}
-              >
-                Apply here anyway
-              </button>
+              {gated ? (
+                // A send would be refused (hard mismatch). Don't offer a button that just burns an
+                // LLM call on a letter we won't send — be honest and point to the fitting roles.
+                <p style={{ fontSize: '12px', color: '#A8A49B', textAlign: 'center', margin: '4px 0 0', lineHeight: 1.5 }}>
+                  We don&apos;t send applications to roles this far from your profile — pick one of your matches above.
+                </p>
+              ) : (
+                <button
+                  onClick={generateCoverLetter}
+                  style={{ width: '100%', padding: '12px', background: 'transparent', color: '#8A8780', border: '1px solid #E4E1D9', borderRadius: '10px', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}
+                >
+                  Apply here anyway
+                </button>
+              )}
             </>
           ) : (
             <button
