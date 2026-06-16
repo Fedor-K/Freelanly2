@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
         jobTitle: true,
         companyName: true,
         appliedToEmail: true,
+        replyUnlocked: true,
         user: { select: { email: true, name: true, plan: true, notifySlackUrl: true, notifyOnReply: true, telegramChatId: true, freeReplyUsed: true } },
       },
     });
@@ -118,6 +119,19 @@ export async function POST(request: NextRequest) {
     // user's real address is never exposed.
     const senderEmail = (from.match(/<([^>]+)>/)?.[1] || from).toLowerCase().trim();
     if (senderEmail && senderEmail === app.user.email?.toLowerCase().trim()) {
+      // Send-paywall (mirror of /api/user/inbox): the OUTBOUND reply is the gated action.
+      // PRO unlimited; first reply free; after that the thread must be unlocked (paid) to forward.
+      const PW_ON = process.env.REPLY_PAYWALL === 'on';
+      const isFree = app.user.plan === 'FREE';
+      let grantFree = false;
+      if (PW_ON && isFree && !app.replyUnlocked) {
+        if (app.user.freeReplyUsed) {
+          // Locked: do not forward the user's email reply; they must unlock it in the dashboard.
+          console.log(`[InboundReply] User email-reply for ${appId} is send-locked — not forwarded (pay required)`);
+          return NextResponse.json({ ok: true, appId, sendLocked: true });
+        }
+        grantFree = true;
+      }
       if (replyText && app.appliedToEmail) {
         const fwd = await sendAutoApplyViaPostal({
           userName: app.user.name || 'Applicant',
@@ -135,6 +149,11 @@ export async function POST(request: NextRequest) {
           await prisma.activityLog.create({
             data: { userId: app.userId, action: 'INBOX_REPLY_SENT', details: { applicationId: app.id, to: app.appliedToEmail, company: app.companyName, source: 'email_reply' } },
           }).catch(() => {});
+          if (grantFree) {
+            // Spend the one free outbound credit and unlock this thread for future replies.
+            await prisma.user.update({ where: { id: app.userId }, data: { freeReplyUsed: true } }).catch(() => {});
+            await prisma.autoApplication.update({ where: { id: app.id }, data: { replyUnlocked: true } }).catch(() => {});
+          }
           console.log(`[InboundReply] User email-reply forwarded to recruiter for ${appId}`);
         } else {
           console.error(`[InboundReply] Failed to forward user reply for ${appId}: ${fwd.error}`);
@@ -170,18 +189,16 @@ export async function POST(request: NextRequest) {
 
     const signal = replyText.length > 10 ? await extractSignal(replyText, app.jobTitle, app.companyName) : '';
 
-    // PAYWALL ($5/reply, first free). Gated behind REPLY_PAYWALL env so it stays OFF until flipped.
-    // The candidate's FIRST non-rejection reply is free (hook); after that each reply is locked
-    // until they pay $5. PRO users and cold REJECTED replies are never gated.
+    // PAYWALL moved to SENDING (decision 2026-06-16): reading a recruiter reply is ALWAYS free.
+    // We never lock the read or consume the free credit here. `replyUnlocked` only seeds whether
+    // SENDING is already open: PRO and paywall-off → open (true); FREE with paywall on →
+    // send-locked (false) until the user spends their one free reply or pays $5 (enforced at send
+    // time in /api/user/inbox). Cold REJECTED threads are always open (nothing to gate).
     const PAYWALL_ON = process.env.REPLY_PAYWALL === 'on';
     const isProUser = app.user.plan !== 'FREE';
     const isColdReply = newStatus === 'REJECTED';
-    let lockReply = false;       // true => teaser only, candidate must pay to read/respond
-    let consumeFreeUnlock = false;
-    if (PAYWALL_ON && !isProUser && !isColdReply) {
-      if (app.user.freeReplyUsed) lockReply = true;     // free already spent → lock
-      else consumeFreeUnlock = true;                    // this one is the free hook
-    }
+    const sendOpen = !PAYWALL_ON || isProUser || isColdReply;
+    const lockReply = false; // reading is never locked anymore — full notification always
 
     if (app.status !== 'INTERVIEW' && app.status !== 'OFFER') {
       await prisma.autoApplication.update({
@@ -192,12 +209,9 @@ export async function POST(request: NextRequest) {
           replyCategory: newStatus,
           replySignal: signal || null,
           repliedAt: new Date(),
-          replyUnlocked: !lockReply,
+          replyUnlocked: sendOpen,
         },
       });
-      if (consumeFreeUnlock) {
-        await prisma.user.update({ where: { id: app.userId }, data: { freeReplyUsed: true } }).catch(() => {});
-      }
       // Save to message thread
       await prisma.message.create({
         data: { applicationId: appId, from: 'recruiter', text: replyText.slice(0, 2000) },

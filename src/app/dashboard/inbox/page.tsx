@@ -29,8 +29,15 @@ export default async function InboxPage() {
 
   const me = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { resumeUrl: true, resumeFileName: true, telegramChatId: true },
+    select: { resumeUrl: true, resumeFileName: true, telegramChatId: true, plan: true, freeReplyUsed: true },
   });
+
+  // Paywall moved to SENDING (read is always free). A thread's reply box is locked when the
+  // paywall is on, the user is FREE, they've already spent their one free outbound credit, and
+  // this thread hasn't been unlocked (paid or free-spent). PRO is never locked.
+  const paywallOn = process.env.REPLY_PAYWALL === 'on';
+  const sendLockedFor = (replyUnlocked: boolean) =>
+    paywallOn && me?.plan === 'FREE' && !!me?.freeReplyUsed && !replyUnlocked;
   // Only our own Blob-stored résumés are attachable (matches the SSRF guard server-side).
   const resumeAttachable = (() => {
     try { return !!me?.resumeUrl && new URL(me.resumeUrl).hostname.endsWith('.public.blob.vercel-storage.com'); } catch { return false; }
@@ -49,6 +56,7 @@ export default async function InboxPage() {
     sentAt: r.sentAt?.toISOString() || null,
     appliedToEmail: r.appliedToEmail,
     replyUnlocked: r.replyUnlocked,
+    sendLocked: sendLockedFor(r.replyUnlocked),
     userName: r.user.name || 'You',
     userEmail: r.user.email,
   }));

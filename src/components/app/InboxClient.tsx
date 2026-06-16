@@ -17,6 +17,9 @@ type Reply = {
   userName: string;
   userEmail: string;
   replyUnlocked?: boolean;
+  // Paywall now gates SENDING, not reading. Reading the recruiter's message is always free;
+  // sendLocked=true means the user must pay $5 (or already spent their free credit) to reply.
+  sendLocked?: boolean;
 };
 
 const COLORS = ['#FF6B6B','#A8E024','#6EE7FF','#FFB951','#A78BFA','#34D399','#F87171','#818CF8'];
@@ -116,6 +119,11 @@ export function InboxClient({ replies, resumeAttachable = false, resumeFileName 
       if (res.ok) {
         setSendResult('Sent!');
         setReplyText('');
+      } else if (res.status === 402) {
+        // Paywall: sending this reply is locked → open the $5 checkout.
+        setSending(false);
+        handleUnlock(appId);
+        return;
       } else {
         const data = await res.json();
         setSendResult(`Failed: ${data.error || 'unknown'}`);
@@ -202,8 +210,8 @@ export function InboxClient({ replies, resumeAttachable = false, resumeFileName 
                   <span className="meta" style={{ fontSize: '10.5px' }}>{timeAgo(r.repliedAt)}</span>
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--ink-3)', marginBottom: '4px' }}>{r.jobTitle}</div>
-                <div style={{ fontSize: '12.5px', color: r.replyUnlocked === false ? 'var(--ink-4)' : 'var(--ink-2)', lineHeight: 1.4, maxHeight: '36px', overflow: 'hidden' }}>
-                  {r.replyUnlocked === false ? '🔒 Recruiter replied — unlock to read' : (r.replyText?.slice(0, 120) || 'Reply received')}
+                <div style={{ fontSize: '12.5px', color: 'var(--ink-2)', lineHeight: 1.4, maxHeight: '36px', overflow: 'hidden' }}>
+                  {r.replyText?.slice(0, 120) || 'Reply received'}
                 </div>
                 {r.replyCategory && (
                   <div className="row gap-1 mt-2">
@@ -260,21 +268,7 @@ export function InboxClient({ replies, resumeAttachable = false, resumeFileName 
                 </div>
               )}
 
-              {/* Recruiter reply — left side (gated behind $5 unlock when locked) */}
-              {active.replyUnlocked === false ? (
-                <div style={{ alignSelf: 'center', maxWidth: '420px', textAlign: 'center', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '14px', padding: '20px 22px' }}>
-                  <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '6px' }}>
-                    🎉 {active.companyName} replied{active.replyCategory === 'INTERVIEW' ? ' — wants to talk!' : ''}
-                  </div>
-                  <div style={{ fontSize: '13px', color: 'var(--ink-3)', marginBottom: '14px' }}>
-                    A recruiter is interested in you for <b>{active.jobTitle}</b>. Unlock to read their full message and reply.
-                  </div>
-                  <button className="btn btn-primary" onClick={() => handleUnlock(active.id)} disabled={unlocking} style={{ fontSize: '14px' }}>
-                    {unlocking ? 'Opening checkout…' : '🔓 Unlock & respond — $5'}
-                  </button>
-                  <div style={{ fontSize: '11px', color: 'var(--ink-4)', marginTop: '8px' }}>One-time. Your message stays private.</div>
-                </div>
-              ) : (
+              {/* Recruiter reply — left side. Reading is ALWAYS free (paywall moved to sending). */}
               <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                 <div style={{ maxWidth: '75%' }}>
                   <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '16px 16px 16px 4px', padding: '12px 16px' }}>
@@ -288,7 +282,6 @@ export function InboxClient({ replies, resumeAttachable = false, resumeFileName 
                   </div>
                 </div>
               </div>
-              )}
 
               {active.replySignal && (
                 <div style={{ alignSelf: 'center', padding: '8px 14px', background: 'var(--acid-tint)', borderRadius: '20px', fontSize: '12px', color: 'var(--acid-deep)' }}>
@@ -341,13 +334,15 @@ export function InboxClient({ replies, resumeAttachable = false, resumeFileName 
               </div>
             </div>
 
-            {/* Reply input — bottom bar (locked until the reply is unlocked) */}
+            {/* Reply input — bottom bar. Reading is free; SENDING is what's gated ($5/thread,
+                first reply free). Locked → show the pay button instead of the composer. */}
             <div style={{ padding: '14px 24px', borderTop: '1px solid var(--line)', background: 'var(--bg-2)' }}>
-              {active.replyUnlocked === false ? (
+              {active.sendLocked ? (
               <div style={{ textAlign: 'center', padding: '6px 0' }}>
                 <button className="btn btn-primary btn-sm" onClick={() => handleUnlock(active.id)} disabled={unlocking}>
                   {unlocking ? 'Opening checkout…' : '🔓 Unlock to reply — $5'}
                 </button>
+                <div style={{ fontSize: '11px', color: 'var(--ink-4)', marginTop: '6px' }}>Reading is free — pay only to send your reply.</div>
               </div>
               ) : (
               <>

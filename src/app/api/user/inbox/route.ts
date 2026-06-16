@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
     const app = await prisma.autoApplication.findFirst({
       where: { id: applicationId, userId: session.user.id },
       include: {
-        user: { select: { name: true, email: true, userSmtp: true, resumeUrl: true, resumeFileName: true } },
+        user: { select: { name: true, email: true, userSmtp: true, resumeUrl: true, resumeFileName: true, plan: true, freeReplyUsed: true } },
       },
     });
 
@@ -193,6 +193,22 @@ export async function POST(request: NextRequest) {
 
     // Send Reply
     if (action === 'send' && message) {
+      // PAYWALL ($5/reply-thread, first free) — moved from READING the recruiter's reply to
+      // SENDING a reply back (decision 2026-06-16: reading is always free; the locked action is
+      // the outbound reply, which is what actually advances the conversation). `replyUnlocked`
+      // now means "this thread's SEND is unlocked" (PRO, paid via Stripe, or the one free credit).
+      // PRO is unlimited; the candidate's FIRST outbound reply across all threads is free (hook).
+      const PAYWALL_ON = process.env.REPLY_PAYWALL === 'on';
+      const isPro = app.user.plan !== 'FREE';
+      let grantFreeUnlock = false;
+      if (PAYWALL_ON && !isPro && !app.replyUnlocked) {
+        if (app.user.freeReplyUsed) {
+          // Free credit already spent and this thread isn't paid → must pay to send.
+          return NextResponse.json({ error: 'payment_required', applicationId, priceUsd: 5 }, { status: 402 });
+        }
+        grantFreeUnlock = true; // this send spends the one free credit
+      }
+
       // Belt-and-suspenders: strip AI meta-framing at SEND time too (the suggest-time strip
       // only protects fresh suggestions — users edit, paste, or the preamble sits after the
       // greeting; this is what actually reaches the recruiter, so sanitize it here).
@@ -253,6 +269,11 @@ export async function POST(request: NextRequest) {
           prisma.message.create({
             data: { applicationId, from: 'user', text: outgoing, attachmentUrl: attFilename || null },
           }),
+          // Spend the one free outbound credit and unlock THIS thread for future replies.
+          ...(grantFreeUnlock ? [
+            prisma.user.update({ where: { id: session.user.id }, data: { freeReplyUsed: true } }),
+            prisma.autoApplication.update({ where: { id: applicationId }, data: { replyUnlocked: true } }),
+          ] : []),
         ]).catch(() => {});
         return NextResponse.json({ success: true, sentTo: app.appliedToEmail });
       } else {

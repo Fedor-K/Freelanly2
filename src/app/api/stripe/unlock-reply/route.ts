@@ -45,8 +45,8 @@ export async function POST(request: NextRequest) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: 'Unlock recruiter reply',
-              description: `Read & respond to ${app.companyName}'s reply`,
+              name: 'Unlock reply',
+              description: `Send your reply to ${app.companyName} (reading is free)`,
             },
             unit_amount: UNLOCK_PRICE_CENTS,
           },
