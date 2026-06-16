@@ -330,6 +330,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     if (!linkedinUrl) errors.linkedin = true;
     if (selectedCategories.length === 0) errors.categories = true;
     if (selectedCategories.includes('translation') && selectedLanguages.length === 0) errors.languages = true;
+    if (!workAuth) errors.workAuth = true;
+    if (!currentRate.trim()) errors.currentRate = true;
+    if (!salaryExpectation.trim()) errors.salary = true;
+    if (!noticeForm) errors.notice = true;
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       setAuthError('Please fill in all required fields');
@@ -347,10 +351,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       fd.append('file', resumeFile!);
       fd.append('email', email);
       fd.append('linkedinUrl', linkedinUrl);
-      if (salaryExpectation.trim()) fd.append('salaryExpectation', salaryExpectation.trim());
-      if (currentRate.trim()) fd.append('currentRate', currentRate.trim());
-      if (workAuth) fd.append('workAuthorization', workAuth);
-      if (noticeForm) fd.append('availableFrom', noticeForm);
+      fd.append('salaryExpectation', salaryExpectation.trim());
+      fd.append('currentRate', currentRate.trim());
+      fd.append('workAuthorization', workAuth);
+      fd.append('availableFrom', noticeForm);
       try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* proceed — dashboard handles a missing profile */ }
 
       // Assess the match (no cover letter yet — summaryOnly). Session cookie was set at verify.
@@ -551,10 +555,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 notice). Captured up front and put in the first outreach email → no "share details"
                 round. Optional, but the more filled, the fewer back-and-forths. */}
             <div style={{ marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Where can you legally work? <span style={{ color: '#8A8780', fontWeight: 400 }}>(optional)</span></label>
-              <select value={workAuth} onChange={e => setWorkAuth(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '14px', background: '#fff' }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Where can you legally work? <span style={{ color: '#B91C1C', fontWeight: 400 }}>*</span></label>
+              <select value={workAuth} onChange={e => setWorkAuth(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${fieldErrors.workAuth ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '14px', background: '#fff' }}>
                 <option value="">Select…</option>
-                <option value="Remote — anywhere / worldwide">Remote — anywhere / worldwide</option>
+                <option value="Remote — anywhere / worldwide (non US)">Remote — anywhere / worldwide (non US)</option>
                 <option value="My country only">My country only</option>
                 <option value="US-authorized (citizen / GC / valid visa)">US-authorized (citizen / GC / valid visa)</option>
                 <option value="EU-authorized">EU-authorized</option>
@@ -564,16 +568,16 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
               </select>
             </div>
             <div style={{ marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Current rate / pay <span style={{ color: '#8A8780', fontWeight: 400 }}>(optional)</span></label>
-              <input type="text" value={currentRate} onChange={e => setCurrentRate(e.target.value)} placeholder="e.g. $2,000/mo or 12 LPA" style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '14px' }} />
+              <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Current rate / pay <span style={{ color: '#B91C1C', fontWeight: 400 }}>*</span></label>
+              <input type="text" value={currentRate} onChange={e => setCurrentRate(e.target.value)} placeholder="e.g. $2,000/mo or 12 LPA" style={{ width: '100%', padding: '10px 12px', border: `1px solid ${fieldErrors.currentRate ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '14px' }} />
             </div>
             <div style={{ marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Expected salary <span style={{ color: '#8A8780', fontWeight: 400 }}>(optional)</span></label>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Expected salary <span style={{ color: '#B91C1C', fontWeight: 400 }}>*</span></label>
               <SalaryPicker onChange={setSalaryExpectation} />
             </div>
             <div style={{ marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Notice period / when can you start? <span style={{ color: '#8A8780', fontWeight: 400 }}>(optional)</span></label>
-              <select value={noticeForm} onChange={e => setNoticeForm(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '14px', background: '#fff' }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Notice period / when can you start? <span style={{ color: '#B91C1C', fontWeight: 400 }}>*</span></label>
+              <select value={noticeForm} onChange={e => setNoticeForm(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${fieldErrors.notice ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '14px', background: '#fff' }}>
                 <option value="">Select…</option>
                 {NOTICE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
               </select>

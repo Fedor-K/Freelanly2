@@ -340,6 +340,10 @@ export function RegistrationForm({
     if (!linkedinUrl) { setError('Please add your LinkedIn profile URL'); return; }
     if (selectedCategories.length === 0) { setError('Please pick at least one kind of work'); return; }
     if (showTranslationFields && selectedLanguages.length === 0) { setError('Please pick at least one language'); return; }
+    if (!workAuth) { setError('Please select where you can legally work'); return; }
+    if (!currentRate.trim()) { setError('Please add your current rate / pay'); return; }
+    if (!salaryExpectation.trim()) { setError('Please add your expected salary'); return; }
+    if (!noticeForm) { setError('Please select your notice period'); return; }
     setError('');
     setProfileSubmitting(true);
     try {
@@ -347,10 +351,10 @@ export function RegistrationForm({
       fd.append('file', resumeFile);
       fd.append('email', email);
       fd.append('linkedinUrl', linkedinUrl);
-      if (salaryExpectation.trim()) fd.append('salaryExpectation', salaryExpectation.trim());
-      if (currentRate.trim()) fd.append('currentRate', currentRate.trim());
-      if (workAuth) fd.append('workAuthorization', workAuth);
-      if (noticeForm) fd.append('availableFrom', noticeForm);
+      fd.append('salaryExpectation', salaryExpectation.trim());
+      fd.append('currentRate', currentRate.trim());
+      fd.append('workAuthorization', workAuth);
+      fd.append('availableFrom', noticeForm);
       try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* dashboard handles a missing profile */ }
       window.location.href = callbackUrl || '/dashboard';
     } catch (err) {
@@ -765,10 +769,10 @@ export function RegistrationForm({
         {/* Fields recruiters re-ask on every reply (work auth, current + expected pay, notice) —
             captured up front and put in the first outreach email so there's no "share details" round. */}
         <div>
-          <label className="field-label">Where can you legally work? <span className="optional">— optional</span></label>
+          <label className="field-label">Where can you legally work? <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
           <select value={workAuth} onChange={e => setWorkAuth(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '14px', background: '#fff' }}>
             <option value="">Select…</option>
-            <option value="Remote — anywhere / worldwide">Remote — anywhere / worldwide</option>
+            <option value="Remote — anywhere / worldwide (non US)">Remote — anywhere / worldwide (non US)</option>
             <option value="My country only">My country only</option>
             <option value="US-authorized (citizen / GC / valid visa)">US-authorized (citizen / GC / valid visa)</option>
             <option value="EU-authorized">EU-authorized</option>
@@ -778,15 +782,15 @@ export function RegistrationForm({
           </select>
         </div>
         <div>
-          <label className="field-label">Current rate / pay <span className="optional">— optional</span></label>
+          <label className="field-label">Current rate / pay <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
           <input type="text" value={currentRate} onChange={e => setCurrentRate(e.target.value)} placeholder="e.g. $2,000/mo or 12 LPA" style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '14px' }} />
         </div>
         <div>
-          <label className="field-label">Expected salary <span className="optional">— optional, so recruiters don&apos;t have to ask</span></label>
+          <label className="field-label">Expected salary <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
           <SalaryPicker onChange={setSalaryExpectation} />
         </div>
         <div>
-          <label className="field-label">Notice period / when can you start? <span className="optional">— optional</span></label>
+          <label className="field-label">Notice period / when can you start? <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
           <select value={noticeForm} onChange={e => setNoticeForm(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '14px', background: '#fff' }}>
             <option value="">Select…</option>
             {NOTICE_FORM_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
