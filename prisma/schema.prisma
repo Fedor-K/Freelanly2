@@ -55,6 +55,8 @@ model User {
   currentRate         String?   // candidate-stated CURRENT pay/CTC (SELF-REPORTED) — recruiters re-ask for it; collected in the signup form, put in the first outreach email to cut the ATS "share details" round
   workAuthorization   String?   // where the candidate can legally work (e.g. "Remote – anywhere", "US authorized", "EU", "My country only") — SELF-REPORTED; recruiters re-ask (visa/work-auth); collected in the signup form
   portfolioUrl   String?   // candidate-entered portfolio / GitHub / personal site — recruiters ask for it (14%); shown on the application card
+  profileShareConsent   Boolean   @default(false) // affirmative opt-in (GDPR/CCPA) to share the candidate's profile with employers & hiring partners — REQUIRED before any third-party resale/feed; collected at signup
+  profileShareConsentAt DateTime? // when consent was given (audit trail for data-subject requests)
   caseStudies    Json?     // ["notion-sync", "crdt-merge"] — AI picks best per outreach
   freeReplyUsed  Boolean  @default(false)  // PAYWALL: has the user spent their one free reply-unlock? First recruiter reply is free (hook), rest cost $5.
 

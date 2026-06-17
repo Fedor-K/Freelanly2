@@ -92,6 +92,7 @@ export function RegistrationForm({
   const [workAuth, setWorkAuth] = useState('');
   const [noticeForm, setNoticeForm] = useState('');
   const NOTICE_FORM_OPTIONS = ['Immediately', 'Within 2 weeks', 'Within a month', 'More than a month'];
+  const [shareConsent, setShareConsent] = useState(false);
   const [tgState, setTgState] = useState<'idle' | 'opening' | 'opened'>('idle');
   const [profileSubmitting, setProfileSubmitting] = useState(false);
 
@@ -355,6 +356,7 @@ export function RegistrationForm({
       fd.append('currentRate', currentRate.trim());
       fd.append('workAuthorization', workAuth);
       fd.append('availableFrom', noticeForm);
+      fd.append('profileShareConsent', shareConsent ? 'true' : 'false');
       try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* dashboard handles a missing profile */ }
       window.location.href = callbackUrl || '/dashboard';
     } catch (err) {
@@ -807,6 +809,13 @@ export function RegistrationForm({
             {tgState === 'opened' ? '✓ Telegram opened — tap Start in the bot' : tgState === 'opening' ? 'Opening…' : '✈ Connect Telegram for instant alerts'}
           </button>
         </div>
+
+        {/* Affirmative opt-in to share the profile with employers/partners (GDPR/CCPA). Positive
+            framing — most job-seekers want to be contacted — but unchecked by default for valid consent. */}
+        <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '12.5px', color: '#555', cursor: 'pointer', lineHeight: 1.4 }}>
+          <input type="checkbox" checked={shareConsent} onChange={(e) => setShareConsent(e.target.checked)} style={{ marginTop: '2px', flexShrink: 0 }} />
+          <span>Let Freelanly share my profile with employers and hiring partners so they can reach out about jobs.</span>
+        </label>
 
         {error && <p style={{ fontSize: '13px', color: '#B91C1C' }}>{error}</p>}
 

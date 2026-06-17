@@ -44,6 +44,9 @@ export async function POST(request: NextRequest) {
     const currentRate = (formData.get('currentRate') as string)?.trim().slice(0, 60) || null;
     const workAuthorization = (formData.get('workAuthorization') as string)?.trim().slice(0, 60) || null;
     const availableFrom = (formData.get('availableFrom') as string)?.trim().slice(0, 60) || null;
+    // Affirmative opt-in (GDPR/CCPA) to present the profile to employers & hiring partners. Only a
+    // literal 'true' counts as consent; anything else (unchecked) → no consent, no resale eligibility.
+    const profileShareConsent = (formData.get('profileShareConsent') as string) === 'true';
 
     if (!email) {
       return NextResponse.json({ error: 'Email required' }, { status: 400 });
@@ -203,6 +206,7 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
         ...(currentRate ? { currentRate } : {}),
         ...(workAuthorization ? { workAuthorization } : {}),
         ...(availableFrom ? { availableFrom } : {}),
+        ...(profileShareConsent ? { profileShareConsent: true, profileShareConsentAt: new Date() } : {}),
       },
     });
 

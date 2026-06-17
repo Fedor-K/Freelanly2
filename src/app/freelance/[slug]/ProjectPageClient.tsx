@@ -67,6 +67,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [currentRate, setCurrentRate] = useState('');
   const [workAuth, setWorkAuth] = useState('');
   const [noticeForm, setNoticeForm] = useState(''); // notice period collected IN the form (recruiters re-ask)
+  const [shareConsent, setShareConsent] = useState(false); // GDPR/CCPA opt-in to present profile to employers/partners
   const [tgState, setTgState] = useState<'idle' | 'opening' | 'opened'>('idle');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
@@ -355,6 +356,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       fd.append('currentRate', currentRate.trim());
       fd.append('workAuthorization', workAuth);
       fd.append('availableFrom', noticeForm);
+      fd.append('profileShareConsent', shareConsent ? 'true' : 'false');
       try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* proceed — dashboard handles a missing profile */ }
 
       // Assess the match (no cover letter yet — summaryOnly). Session cookie was set at verify.
@@ -596,6 +598,12 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 {tgState === 'opened' ? '✓ Telegram opened — tap Start in the bot' : tgState === 'opening' ? 'Opening…' : '✈ Connect Telegram for instant alerts'}
               </button>
             </div>
+
+            {/* Affirmative opt-in to share profile with employers/partners (GDPR/CCPA) — unchecked by default. */}
+            <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '12px', color: '#555', cursor: 'pointer', lineHeight: 1.4, marginBottom: '10px' }}>
+              <input type="checkbox" checked={shareConsent} onChange={e => setShareConsent(e.target.checked)} style={{ marginTop: '2px', flexShrink: 0 }} />
+              <span>Let Freelanly share my profile with employers and hiring partners so they can reach out about jobs.</span>
+            </label>
 
             <div style={{ fontSize: '11px', color: '#8A8780', marginBottom: '8px' }}><span style={{ color: '#B91C1C' }}>*</span> Required fields</div>
             {authError && <div style={{ fontSize: '13px', color: '#B91C1C', padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', marginBottom: '8px' }}>{authError}</div>}
