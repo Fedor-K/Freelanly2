@@ -10,6 +10,10 @@ function getAIClient() {
   return { client: new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' }), model: 'glm-4-32b-0414-128k' };
 }
 
+// Geo brush-offs ("need a Canada-based candidate", "only for candidates based in LATAM") are
+// rejections the LLM keeps reading as interest — only ever downgrades a would-be REPLIED → REJECTED.
+const GEO_REJECT_RE = /(?:\b(?:need|looking for|require|want|seeking|prefer)\b[^.\n]{0,30}\bbased\b[^.\n]{0,15}\bcandidate)|(?:\bavailable only (?:for|to)\b[^.\n]{0,40}\bcandidate)|(?:\bonly (?:for|to|open to|available (?:for|to))\b[^.\n]{0,30}\bcandidates?\b[^.\n]{0,30}\b(?:based|located|in)\b)|(?:\bcandidates?\b[^.\n]{0,25}\b(?:must|need to|should|have to)\b[^.\n]{0,12}\bbe\b[^.\n]{0,15}\b(?:based|located)\b)/i;
+
 async function categorizeReply(text: string): Promise<string> {
   try {
     const { client, model } = getAIClient();
@@ -23,9 +27,12 @@ async function categorizeReply(text: string): Promise<string> {
     const cat = r.choices[0]?.message?.content?.trim().toUpperCase() || 'OTHER';
     if (cat.includes('INTERVIEW')) return 'INTERVIEW';
     if (cat.includes('REJECT')) return 'REJECTED';
+    if (GEO_REJECT_RE.test(text)) return 'REJECTED'; // geo brush-off the LLM read as interest
     if (cat.includes('INTERESTED')) return 'REPLIED';
     return 'REPLIED';
-  } catch { return 'REPLIED'; }
+  } catch {
+    return GEO_REJECT_RE.test(text) ? 'REJECTED' : 'REPLIED';
+  }
 }
 
 /**

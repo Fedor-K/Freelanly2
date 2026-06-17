@@ -30,6 +30,12 @@ async function extractSignal(text: string, jobTitle: string, companyName: string
   } catch { return ''; }
 }
 
+// Deterministic backstop for GEO brush-offs the LLM keeps mislabeling as INTERESTED ("I need a
+// Canada-based candidate", "only for candidates based in LATAM", "candidates must be located in X").
+// These are rejections; mislabeling them as REPLIED inflates the reply metric AND wrongly send-locks
+// a dead thread (REJECTED is paywall-free). Only ever downgrades a would-be REPLIED → REJECTED.
+const GEO_REJECT_RE = /(?:\b(?:need|looking for|require|want|seeking|prefer)\b[^.\n]{0,30}\bbased\b[^.\n]{0,15}\bcandidate)|(?:\bavailable only (?:for|to)\b[^.\n]{0,40}\bcandidate)|(?:\bonly (?:for|to|open to|available (?:for|to))\b[^.\n]{0,30}\bcandidates?\b[^.\n]{0,30}\b(?:based|located|in)\b)|(?:\bcandidates?\b[^.\n]{0,25}\b(?:must|need to|should|have to)\b[^.\n]{0,12}\bbe\b[^.\n]{0,15}\b(?:based|located)\b)/i;
+
 async function categorizeReply(text: string): Promise<string> {
   try {
     const { client, model } = getAIClient();
@@ -44,8 +50,11 @@ async function categorizeReply(text: string): Promise<string> {
     if (cat.includes('SPAM')) return 'SPAM';
     if (cat.includes('INTERVIEW')) return 'INTERVIEW';
     if (cat.includes('REJECT')) return 'REJECTED';
+    if (GEO_REJECT_RE.test(text)) return 'REJECTED'; // geo brush-off the LLM read as interest
     return 'REPLIED';
-  } catch { return 'REPLIED'; }
+  } catch {
+    return GEO_REJECT_RE.test(text) ? 'REJECTED' : 'REPLIED';
+  }
 }
 
 /**

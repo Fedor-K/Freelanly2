@@ -1239,18 +1239,29 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
     const jdUsOnly = /\b(w-?2(?:\s*(?:only|basis|position|role))?|us citizen|u\.?s\.?\s*citizen|green\s?card|gc\/?usc|usc\/?gc|must be (?:authorized|located|based)[^.]{0,30}\b(?:us|u\.s\.?|united states)\b|authorized to work in (?:the )?(?:us|united states)|no (?:h-?1b|sponsorship|c2c)\b|onsite in (?:the )?(?:us|united states)|day-?1 onsite|locals? only|need locals?)\b/i.test(hardJd);
     // (C) onsite/hybrid → must be local to the role's own country (skip EU multi-country tag).
     const onsite = listing.locationType === 'ONSITE' || listing.locationType === 'HYBRID';
-    // (A2) US REMOTE_COUNTRY roles: the W2 / work-authorization requirement is near-universal for US
-    // postings and almost always surfaces only in the recruiter's REPLY (not the JD text), so the
-    // JD-signal test above catches ~none of them. Treat country=US REMOTE_COUNTRY as a hard US
-    // requirement → fail-closed (our audience is offshore-majority; an unknown location on a US role
-    // is far more likely offshore than a quiet US local, and a wrong guess is a guaranteed dead end).
-    const usRemoteCountry = listing.locationType === 'REMOTE_COUNTRY' && listing.country === 'US';
-    const hardCountry = (jdUsOnly || usRemoteCountry) ? 'US'
-      : (onsite && listing.country && listing.country !== 'EU' ? listing.country : null);
+    // A JD that explicitly opens to anywhere spares the hard cut (a globally-open role mis-tagged with
+    // one country shouldn't be country-locked). Strong signals only — NOT "fully remote"/"remote-first",
+    // which country-locked roles routinely use ("100% remote, must be located in Canada").
+    const jdGlobalOpen = /\b(worldwide|world ?wide|work from anywhere|from anywhere|any (?:country|location|timezone|time zone)|globally|global remote|no location restriction|location[- ]independent)\b/i.test(hardJd);
+    // (A2) COUNTRY-LOCKED REMOTE roles (generalized from US-only 2026-06-17). A REMOTE_COUNTRY listing
+    // bound to ONE specific country (US, CA, AU, GB, …) carries a near-universal "must be located in /
+    // authorized to work in <country>" requirement that almost never surfaces as a JD skill signal and
+    // is a guaranteed dead end for an offshore candidate (a Canada-only Power BI role shipped to 7 of
+    // our India/LATAM candidates → all bounced "need a Canada-based candidate"). Treat as a hard geo
+    // requirement → fail-closed (unknown location cut too: offshore-majority audience, a wrong guess is
+    // a guaranteed dead end). EU is excluded (multi-country region tag, handled by the soft cut below);
+    // globally-open JDs are spared.
+    const countryLockedRemote = listing.locationType === 'REMOTE_COUNTRY' && !!listing.country
+      && listing.country !== 'EU' && !jdGlobalOpen;
+    const hardCountry = jdUsOnly ? 'US'
+      : (countryLockedRemote ? listing.country!
+      : (onsite && listing.country && listing.country !== 'EU' ? listing.country : null));
     if (hardCountry) {
-      const reason = hardCountry === 'US'
+      const reason = hardCountry === 'US' && jdUsOnly
         ? 'пре-фильтр гео (hard): US-роль (W2 / work authorization) — кандидат не в US или локация неизвестна'
-        : `пре-фильтр гео (hard): onsite/hybrid в ${hardCountry} — кандидат не локальный`;
+        : onsite
+        ? `пре-фильтр гео (hard): onsite/hybrid в ${hardCountry} — кандидат не локальный или локация неизвестна`
+        : `пре-фильтр гео (hard): remote-роль привязана к ${hardCountry} (must be located/authorized there) — кандидат не локальный или локация неизвестна`;
       const keep: Cand[] = [];
       for (const c of candidates) {
         const uc = prefilterCandidateCountry(c.userLoc); // null = unknown location
