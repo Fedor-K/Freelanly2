@@ -28,7 +28,9 @@ async function scrapePosterLocation(url: string): Promise<{ country: string | nu
   try {
     const res = await fetch(
       `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-scraper/run-sync-get-dataset-items?token=${token}&build=${encodeURIComponent(build)}`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urls: [url] }), signal: AbortSignal.timeout(15000) }
+      // The actor can take 25-30s on a cold profile (one observed at 27s) — a 15s cap would kill it →
+      // null → fail-open → no block. 35s gives it room; cached after the first hit so it's one-time.
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urls: [url] }), signal: AbortSignal.timeout(35000) }
     );
     if (!res.ok) return { country: null, location: null };
     const items = await res.json();
