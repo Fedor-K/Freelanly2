@@ -49,11 +49,13 @@ export async function POST(request: NextRequest) {
 
     let raw: Record<string, unknown>;
     try {
+      // Pin the build — harvestapi 0.0.123 (2026-06-17) runs under LIMITED_PERMISSIONS and 403s on
+      // its key-value store → every run fails. 0.0.122 works. Override via APIFY_LI_PROFILE_BUILD.
       const run = await apify.actor('harvestapi/linkedin-profile-scraper').call(
         {
           urls: [normalizeLinkedInUrl(profileUrl)],
         },
-        { waitSecs: 120 }
+        { waitSecs: 120, build: process.env.APIFY_LI_PROFILE_BUILD || '0.0.122' }
       );
 
       console.log(`[LinkedIn] Apify run finished: ${run.id}, status: ${run.status}`);

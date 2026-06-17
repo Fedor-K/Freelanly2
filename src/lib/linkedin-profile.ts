@@ -43,9 +43,14 @@ export async function scrapeLinkedInProfile(linkedinUrl: string | null, email: s
   if (!normUrl) return empty;
   const apifyToken = process.env.APIFY_API_TOKEN;
   if (!apifyToken) return empty;
+  // PIN the actor build. harvestapi shipped build 0.0.123 on 2026-06-17 15:39 UTC that runs under
+  // LIMITED_PERMISSIONS and 403s creating its key-value store → every run FAILS (candidate enrichment
+  // went dark at 15:41). 0.0.122 (the prior build) works. Pin it until the author fixes `latest`;
+  // override via APIFY_LI_PROFILE_BUILD env (set to 'latest' to un-pin) without a redeploy.
+  const liBuild = process.env.APIFY_LI_PROFILE_BUILD || '0.0.122';
   try {
     const runRes = await fetch(
-      `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-scraper/run-sync-get-dataset-items?token=${apifyToken}`,
+      `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-scraper/run-sync-get-dataset-items?token=${apifyToken}&build=${encodeURIComponent(liBuild)}`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urls: [normUrl] }), signal: AbortSignal.timeout(35000) }
     );
     if (!runRes.ok) return empty;
