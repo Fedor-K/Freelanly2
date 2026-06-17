@@ -277,6 +277,13 @@ export async function POST(request: NextRequest) {
           logSkip('poster_region', null, { posterCountry: poster.country, cached: poster.cached });
           return NextResponse.json({ success: true, status: 'skipped', reason: 'poster_region', posterCountry: poster.country });
         }
+        // A "recruiter" with LinkedIn's Open-To-Work banner is a job-seeker posing as a hirer
+        // (bench/fake recruiter, e.g. C2C staffing) — drop regardless of country.
+        if (poster.openToWork) {
+          console.log(`[LinkedInPosts] Skipping #OpenToWork poster ${clientName}: ${postUrl}`);
+          logSkip('poster_opentowork', null, { posterCountry: poster.country, cached: poster.cached });
+          return NextResponse.json({ success: true, status: 'skipped', reason: 'poster_opentowork' });
+        }
       } catch (e) {
         console.warn('[LinkedInPosts] poster-region check failed (fail-open, importing):', e);
       }

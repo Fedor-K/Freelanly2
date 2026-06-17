@@ -9,6 +9,7 @@ export const BLOCKED_APPLY_DOMAINS: string[] = [
   'kloudhire.com',
   'allyted.com', // staffing mill: replies to every candidate with a "fill this Google form" lead-farm, not a real conversation — blocked 2026-06-16
   'anjaneyaxconsultingservices.com', // same Google-form harvest: "Dear Candidate, fill out the form, shortlisted contacted via WhatsApp" — blocked 2026-06-16
+  'cognitek.io', // C2C bench-staffing; recruiter posts jobs while #OPENTOWORK himself (US-located, so geo doesn't catch) — blocked 2026-06-17
 ];
 
 export const BLOCKED_APPLY_EMAILS: string[] = [

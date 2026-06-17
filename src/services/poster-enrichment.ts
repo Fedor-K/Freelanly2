@@ -16,14 +16,16 @@ async function ensureCache(): Promise<void> {
     "linkedinUrl" text PRIMARY KEY,
     country text,
     location text,
+    "openToWork" boolean,
     "scrapedAt" timestamptz NOT NULL DEFAULT now()
   )`).catch(() => {});
+  await prisma.$executeRawUnsafe(`ALTER TABLE "PosterLocation" ADD COLUMN IF NOT EXISTS "openToWork" boolean`).catch(() => {});
   cacheReady = true;
 }
 
-async function scrapePosterLocation(url: string): Promise<{ country: string | null; location: string | null }> {
+async function scrapePosterLocation(url: string): Promise<{ country: string | null; location: string | null; openToWork: boolean }> {
   const token = process.env.APIFY_API_TOKEN;
-  if (!token) return { country: null, location: null };
+  if (!token) return { country: null, location: null, openToWork: false };
   const build = process.env.APIFY_LI_PROFILE_BUILD || '0.0.122'; // latest 0.0.123 is broken — see linkedin-profile.ts
   try {
     const res = await fetch(
@@ -32,18 +34,20 @@ async function scrapePosterLocation(url: string): Promise<{ country: string | nu
       // null → fail-open → no block. 35s gives it room; cached after the first hit so it's one-time.
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urls: [url] }), signal: AbortSignal.timeout(35000) }
     );
-    if (!res.ok) return { country: null, location: null };
+    if (!res.ok) return { country: null, location: null, openToWork: false };
     const items = await res.json();
     const pr = Array.isArray(items) ? items[0] : null;
-    if (!pr) return { country: null, location: null };
+    if (!pr) return { country: null, location: null, openToWork: false };
     const locObj = (pr.location && typeof pr.location === 'object') ? pr.location : null;
     // Prefer the actor's normalized ISO2; fall back to our freeform resolver on the text.
     const iso = locObj?.parsed?.countryCode || locObj?.countryCode || null;
     const locText = typeof pr.location === 'string' ? pr.location : (locObj?.linkedinText || locObj?.parsed?.text || null);
     const country = iso ? String(iso).toUpperCase() : resolveCountry(locText);
-    return { country: country || null, location: locText || null };
+    // openToWork = the LinkedIn "Open To Work" banner. A "recruiter" who is themselves open-to-work is
+    // a job-seeker posing as a hirer (bench/fake recruiter) — the webhook drops their posts.
+    return { country: country || null, location: locText || null, openToWork: pr.openToWork === true };
   } catch {
-    return { country: null, location: null };
+    return { country: null, location: null, openToWork: false };
   }
 }
 
@@ -51,24 +55,24 @@ async function scrapePosterLocation(url: string): Promise<{ country: string | nu
  * Resolve a poster's country (cached per LinkedIn URL) and whether they're in the blocked set.
  * `blocked` is only ever true for a KNOWN blocked country — unknown/failed → false (fail-open).
  */
-export async function getPosterRegion(linkedinUrl: string | null | undefined): Promise<{ country: string | null; blocked: boolean; cached: boolean }> {
+export async function getPosterRegion(linkedinUrl: string | null | undefined): Promise<{ country: string | null; blocked: boolean; openToWork: boolean; cached: boolean }> {
   const BLOCK = new Set(blockedCountries());
-  if (!BLOCK.size || !linkedinUrl) return { country: null, blocked: false, cached: false };
+  if (!linkedinUrl) return { country: null, blocked: false, openToWork: false, cached: false };
   const url = normalizeLinkedInUrl(linkedinUrl) || linkedinUrl;
   await ensureCache();
   try {
-    const hit = await prisma.$queryRaw<{ country: string | null }[]>`SELECT country FROM "PosterLocation" WHERE "linkedinUrl" = ${url}`;
+    const hit = await prisma.$queryRaw<{ country: string | null; openToWork: boolean | null }[]>`SELECT country, "openToWork" FROM "PosterLocation" WHERE "linkedinUrl" = ${url}`;
     if (hit.length) {
       const c = hit[0].country;
-      return { country: c, blocked: !!c && BLOCK.has(c), cached: true };
+      return { country: c, blocked: !!c && BLOCK.has(c), openToWork: hit[0].openToWork === true, cached: true };
     }
   } catch { /* table read failed → treat as miss */ }
-  const { country, location } = await scrapePosterLocation(url);
+  const { country, location, openToWork } = await scrapePosterLocation(url);
   // Cache the result (incl. null) to bound cost; a backfill can refresh WHERE country IS NULL later.
   await prisma.$executeRaw`
-    INSERT INTO "PosterLocation" ("linkedinUrl", country, location)
-    VALUES (${url}, ${country}, ${location})
-    ON CONFLICT ("linkedinUrl") DO UPDATE SET country = EXCLUDED.country, location = EXCLUDED.location, "scrapedAt" = now()
+    INSERT INTO "PosterLocation" ("linkedinUrl", country, location, "openToWork")
+    VALUES (${url}, ${country}, ${location}, ${openToWork})
+    ON CONFLICT ("linkedinUrl") DO UPDATE SET country = EXCLUDED.country, location = EXCLUDED.location, "openToWork" = EXCLUDED."openToWork", "scrapedAt" = now()
   `.catch(() => {});
-  return { country, blocked: !!country && BLOCK.has(country), cached: false };
+  return { country, blocked: !!country && BLOCK.has(country), openToWork, cached: false };
 }
