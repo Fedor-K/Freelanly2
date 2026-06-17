@@ -272,7 +272,11 @@ export async function POST(request: NextRequest) {
     if (process.env.POSTER_REGION_FILTER === 'on') {
       try {
         const poster = await getPosterRegion(clientLinkedIn);
-        if (poster.blocked) {
+        // Country-region cut is now SEPARATELY toggleable (POSTER_COUNTRY_BLOCK). Decision 2026-06-18:
+        // turned OFF — India/etc recruiters' posts ARE the demand that interviews our LATAM candidates
+        // (Appnosh/Infinity/Techaurcode all interviewed LATAM), so blocking them by recruiter-country
+        // cut real engagement. We still scrape (for openToWork below) but don't drop on country.
+        if (poster.blocked && process.env.POSTER_COUNTRY_BLOCK !== 'off') {
           console.log(`[LinkedInPosts] Skipping post from ${poster.country} recruiter ${clientName}: ${postUrl}`);
           logSkip('poster_region', null, { posterCountry: poster.country, cached: poster.cached });
           return NextResponse.json({ success: true, status: 'skipped', reason: 'poster_region', posterCountry: poster.country });
