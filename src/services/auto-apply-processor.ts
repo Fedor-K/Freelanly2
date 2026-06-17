@@ -947,6 +947,31 @@ const PREFILTER_COUNTRY_PATTERNS: [RegExp, string][] = [
   [/\bsouth africa\b|\b(johannesburg|cape town|durban|pretoria)\b/i, 'ZA'],
   [/\bsri lanka\b|\bcolombo\b/i, 'LK'],
   [/\bnepal\b|\bkathmandu\b/i, 'NP'],
+  // Additional GOOD (kept) countries — added 2026-06-17 (keep in sync with src/lib/region-block.ts).
+  // ~500 full-cycle LATAM/EU users were resolving to null → UNKNOWN-cut by the matcher. US pattern is
+  // first above, so US-city collisions (e.g. "Lima, OH") are caught as US before these.
+  [/\bperu\b|\bper[uú]\b|\blima\b/i, 'PE'],
+  [/\bvenezuela\b|\b(caracas|maracaibo|barquisimeto)\b/i, 'VE'],
+  [/\bchile\b|\bsantiago metropolitan\b/i, 'CL'],
+  [/\becuador\b|\b(quito|guayaquil)\b/i, 'EC'],
+  [/\buruguay\b|\bmontevideo\b/i, 'UY'],
+  [/\b(dominican republic|rep[uú]blica dominicana)\b|\bsanto domingo\b/i, 'DO'],
+  [/\bnicaragua\b|\bmanagua\b/i, 'NI'],
+  [/\bcosta rica\b/i, 'CR'],
+  [/\bpanam[aá]\b/i, 'PA'],
+  [/\bguatemala\b/i, 'GT'],
+  [/\bbolivia\b|\bla paz\b/i, 'BO'],
+  [/\bparaguay\b|\basunci[oó]n\b/i, 'PY'],
+  [/\bhonduras\b|\btegucigalpa\b/i, 'HN'],
+  [/\bel salvador\b|\bsan salvador\b/i, 'SV'],
+  [/\bserbia\b|\bbelgrade\b/i, 'RS'],
+  [/\bromania\b|\bbucharest\b/i, 'RO'],
+  [/\bgreece\b|\bathens\b/i, 'GR'],
+  [/\bczech\b|\bprague\b/i, 'CZ'],
+  [/\bhungary\b|\bbudapest\b/i, 'HU'],
+  [/\b(jordan|amman)\b/i, 'JO'],
+  [/\bisrael\b|\b(tel aviv|jerusalem)\b/i, 'IL'],
+  [/\btbilisi\b/i, 'GE'],
 ];
 const PREFILTER_EU = new Set(['DE','FR','ES','IT','NL','PL','PT','RO','GR','CZ','AT','BE','SE','DK','FI','IE','HU','BG','HR','SK','SI','LT','LV','EE','LU','MT','CY']);
 
