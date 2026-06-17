@@ -9,10 +9,29 @@ const VALID_CATEGORIES = new Set([
   'support', 'education', 'research', 'consulting'
 ]);
 
+// Site-wide IP geo block (owner decision 2026-06-17). Visitors whose Vercel-resolved IP country is
+// in SITE_GEO_BLOCK (comma ISO2) get a hard 403 — the site is simply unavailable to them. IP-based,
+// so it's leaky (VPN gets in; in-region travellers wrongly blocked) — the résumé/profile-location
+// registration block and the supply-side poster filter are the precise backstops. /api/* is already
+// excluded by the matcher config below, so webhooks/crons/tracking keep working. Unknown IP country
+// (crawlers, datacenters) is NOT blocked. Empty/unset env = off.
+const SITE_GEO_BLOCK = new Set((process.env.SITE_GEO_BLOCK || '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean));
+
 export function middleware(req: NextRequest) {
   const host = req.headers.get('host') || '';
   const pathname = req.nextUrl.pathname;
   const search = req.nextUrl.search;
+
+  // 0. Geo block — earliest, before anything else.
+  if (SITE_GEO_BLOCK.size) {
+    const country = (req.headers.get('x-vercel-ip-country') || '').toUpperCase();
+    if (country && SITE_GEO_BLOCK.has(country)) {
+      return new NextResponse(
+        '<!doctype html><html><head><meta charset="utf-8"><title>Not available</title></head><body style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;background:#0B0C0F;color:#FAFAF7;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center"><div><h1 style="font-weight:600;font-size:22px;margin:0 0 8px">Freelanly isn\'t available in your region yet.</h1><p style="color:#8A8780;font-size:14px;margin:0">We\'re not accepting users from your location at this time.</p></div></body></html>',
+        { status: 403, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } }
+      );
+    }
+  }
 
   // 1. WWW to non-WWW redirect (301 permanent) — MUST be first
   // Fixes 12.3K "Duplicate without user-selected canonical" in GSC

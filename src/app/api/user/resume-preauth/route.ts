@@ -6,6 +6,7 @@ import OpenAI from 'openai';
 import { put } from '@vercel/blob';
 import { scrapeLinkedInProfile, mergeCandidateProfiles, normalizeLinkedInUrl } from '@/lib/linkedin-profile';
 import { deriveCategorySlugs } from '@/lib/loop-routing';
+import { isLocationBlocked } from '@/lib/region-block';
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'zai';
 
@@ -138,6 +139,16 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
 
     if (!pdfText && !parsedProfile) {
       return NextResponse.json({ error: 'Could not extract profile data' }, { status: 400 });
+    }
+
+    // REGION BLOCK (registration, owner decision 2026-06-17): reject signups whose résumé/LinkedIn
+    // location resolves to a blocked country. This is the precise backstop to the blunt IP geo block
+    // (catches VPN users — their profile still says India). Unknown location is NOT blocked here (we
+    // don't turn away unclassifiable wanted users). No loop/enrichment is created → the account is inert.
+    const candidateLoc = ((parsedProfile?.location as string) || (resumeProfile?.location as string) || null);
+    if (isLocationBlocked(candidateLoc)) {
+      console.log(`[ResumePreAuth] region-blocked signup: ${email} (${candidateLoc})`);
+      return NextResponse.json({ error: 'Freelanly isn’t available in your region yet.', regionBlocked: true }, { status: 403 });
     }
 
     // Upload original PDF to Vercel Blob. allowOverwrite:true is REQUIRED — @vercel/blob v2
