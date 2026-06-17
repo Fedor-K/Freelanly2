@@ -11,21 +11,27 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const fmt = (n) => Number(n).toLocaleString('en-US');
 
+// Geo brush-offs ("I need a Canada-based candidate", "only for candidates based in LATAM") are
+// rejections, not real engagement — excluded from 💬/👤 (Fedor 2026-06-17). Same pattern the
+// categorizer uses. SPAM is already filtered separately.
+const GEO_REJECT_RE = /(?:\b(?:need|looking for|require|want|seeking|prefer)\b[^.\n]{0,30}\bbased\b[^.\n]{0,15}\bcandidate)|(?:\bavailable only (?:for|to)\b[^.\n]{0,40}\bcandidate)|(?:\bonly (?:for|to|open to|available (?:for|to))\b[^.\n]{0,30}\bcandidates?\b[^.\n]{0,30}\b(?:based|located|in)\b)|(?:\bcandidates?\b[^.\n]{0,25}\b(?:must|need to|should|have to)\b[^.\n]{0,12}\bbe\b[^.\n]{0,15}\b(?:based|located)\b)/i;
+const isGeoReject = (t) => GEO_REJECT_RE.test(t || '');
+
 async function main() {
   const ds = new Date();
   ds.setUTCHours(0, 0, 0, 0);
   const notSpam = { replyCategory: { not: 'SPAM' } };
 
   const [
-    sentToday, oppsToday, recruiterRepliesToday, fullRegUsers,
+    sentToday, oppsToday, repliedRowsToday, fullRegUsers,
     newRecruitersToday, recruitersTotal, interviews, offers,
   ] = await Promise.all([
     // 📤 applications actually sent today
     prisma.autoApplication.count({ where: { sentAt: { gte: ds } } }),
     // 📥 new opportunities scraped into the base today
     prisma.opportunity.count({ where: { createdAt: { gte: ds } } }),
-    // 💬 real recruiter replies today (any reply except spam/farming)
-    prisma.autoApplication.count({ where: { repliedAt: { gte: ds }, ...notSpam } }),
+    // 💬 recruiter replies today (non-spam) — fetched with text so geo brush-offs can be filtered out
+    prisma.autoApplication.findMany({ where: { repliedAt: { gte: ds }, ...notSpam }, select: { userId: true, replyText: true } }),
     // 📝 registrations that completed the FULL cycle today (verified email + résumé + LinkedIn)
     prisma.user.findMany({ where: { createdAt: { gte: ds }, emailVerified: { not: null }, resumeUrl: { not: null }, linkedinUrl: { not: null } }, select: { id: true } }),
     prisma.recruiter.count({ where: { registeredAt: { gte: ds } } }),
@@ -46,11 +52,11 @@ async function main() {
     select: { opportunityId: true }, distinct: ['opportunityId'],
   });
 
-  // 👤 distinct users who got a recruiter reply today
-  const gotReply = await prisma.autoApplication.findMany({
-    where: { repliedAt: { gte: ds }, ...notSpam },
-    select: { userId: true }, distinct: ['userId'],
-  });
+  // 💬 real recruiter replies = non-spam minus geo brush-offs ("need a Canada-based candidate")
+  const realReplies = repliedRowsToday.filter((r) => !isGeoReject(r.replyText));
+  const recruiterRepliesToday = realReplies.length;
+  // 👤 distinct users who got a REAL (non-geo) recruiter reply today
+  const gotReply = [...new Set(realReplies.map((r) => r.userId))];
 
   // ✍️ users who genuinely replied BACK to a recruiter today (outbound message in a thread the
   // recruiter has already replied to — not the initial outreach). Split new vs returning.
