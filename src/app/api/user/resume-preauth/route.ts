@@ -109,6 +109,12 @@ or personal-brand statement (e.g. "Building X — helping Y", "Helping founders 
 if the top line is a slogan, take the title from the experience section instead. "field" is the
 candidate's actual profession/domain derived from their work history (e.g. "Localization", "Project
 Management", "Frontend Engineering"), not a company pitch.
+IMPORTANT — "experience_years" is total YEARS OF PROFESSIONAL WORK EXPERIENCE, computed from the work
+history (sum/span of job dates). It is NOT the person's age, NOT a birth year, NOT years since
+graduation, and NOT a phone/ID number. Estimate from the experience dates; if the work history can't
+support it, prefer a conservative number. It must be plausible (typically 0–45) and never exceed the
+candidate's plausible working life — if you'd output something like 34 for someone whose jobs span ~10
+years, that's age, not experience: use the ~10. If unknown, use 0.
 Extract up to 20 skills and ALL experience + education entries. If not found, use null or [].` },
               { role: 'user', content: `Extract profile data:\n\n${pdfText.substring(0, 6000)}` },
             ],
@@ -139,6 +145,13 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
 
     if (!pdfText && !parsedProfile) {
       return NextResponse.json({ error: 'Could not extract profile data' }, { status: 400 });
+    }
+
+    // Backstop for the age-as-experience mix-up (glm sometimes ignores the prompt): anything implausible
+    // as professional tenure is almost certainly age / a birth year / an ID — drop it to null (unknown)
+    // rather than ship "34 years experience" for a 34-year-old.
+    if (parsedProfile && typeof parsedProfile.experience_years === 'number' && parsedProfile.experience_years > 45) {
+      parsedProfile.experience_years = null;
     }
 
     // REGION BLOCK (registration, owner decision 2026-06-17): reject signups whose résumé/LinkedIn

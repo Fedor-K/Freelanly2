@@ -23,7 +23,8 @@ function aiClient() {
 
 const EXTRACT_SYSTEM = `You extract structured data from resumes. Return ONLY valid JSON, no markdown, no explanation.
 Format: {"name":"string","email":"string or null","phone":"string or null","skills":["skill1","skill2"],"experience_years":number,"current_title":"string","field":"string","summary":"1-2 sentence professional summary","languages":["English","Spanish"],"location":"City, Country or null","experience":[{"title":"Job Title","company":"Company Name","dates":"Start - End","description":"Brief description of role and achievements"}],"education":[{"degree":"Degree","institution":"University Name","dates":"Start - End"}],"projects":[{"name":"Project Name","description":"Brief description"}],"certifications":["Cert name (Year)"]}
-Extract as many skills as you can find (up to 20). Extract ALL experience roles, education entries, projects, and certifications. If a field is not found, use null or empty array.`;
+Extract as many skills as you can find (up to 20). Extract ALL experience roles, education entries, projects, and certifications. If a field is not found, use null or empty array.
+IMPORTANT — "experience_years" is total YEARS OF PROFESSIONAL WORK EXPERIENCE from the job-date history (NOT age, NOT birth year, NOT years since graduation, NOT a phone/ID number). It must be plausible (0-45) and never exceed the work-history span — if the jobs span ~10 years, output ~10, never the person's age (e.g. 34). If unknown, use 0.`;
 
 async function parseResume(resumeText: string): Promise<Record<string, unknown> | null> {
   try {
