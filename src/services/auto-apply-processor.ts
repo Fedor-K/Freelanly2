@@ -950,6 +950,15 @@ const PREFILTER_COUNTRY_PATTERNS: [RegExp, string][] = [
 ];
 const PREFILTER_EU = new Set(['DE','FR','ES','IT','NL','PL','PT','RO','GR','CZ','AT','BE','SE','DK','FI','IE','HU','BG','HR','SK','SI','LT','LV','EE','LU','MT','CY']);
 
+// AUDIENCE region block (owner decision 2026-06-17): auto-apply only fires for the segments that
+// actually convert to recruiter engagement (US/EU/LATAM/etc). Candidates whose resolved country is in
+// MATCH_REGION_BLOCK (ISO2, comma-sep) are cut BEFORE the LLM as region_excluded. The literal token
+// UNKNOWN also blocks candidates with no resolvable location. Env-driven so it's tunable/reversible
+// without a redeploy; empty/unset = off (no behavior change). Read once per process (each */5 cron run
+// is a fresh tsx process, so a worker .env edit takes effect on the next run).
+const REGION_BLOCK = new Set((process.env.MATCH_REGION_BLOCK || '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean));
+const REGION_BLOCK_UNKNOWN = REGION_BLOCK.has('UNKNOWN');
+
 export function prefilterCandidateCountry(loc: string | null | undefined): string | null {
   if (!loc) return null;
   for (const [re, iso] of PREFILTER_COUNTRY_PATTERNS) if (re.test(loc)) return iso;
@@ -1223,6 +1232,27 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
   // as MATCH_REJECTED rows with matchBreakdown.prefilter=true (+ geoCut flag) and NULL matchScore,
   // so the audit mirror stays complete and leak/false-reject metrics stay queryable.
   const prefilterRejects: { cand: Cand; bd: Record<string, unknown> }[] = [];
+
+  // ── AUDIENCE region block ────────────────────────────────────────────────────
+  // Candidate-level (listing-independent) cut: if the candidate's resolved country is in the blocked
+  // set — or their location is unresolvable and UNKNOWN is blocked — drop them before any matching, so
+  // they never burn an LLM call or a send for ANY listing this run. Reversible via MATCH_REGION_BLOCK.
+  if (REGION_BLOCK.size) {
+    const keep: Cand[] = [];
+    for (const c of candidates) {
+      const uc = prefilterCandidateCountry(c.userLoc);
+      const blocked = uc ? REGION_BLOCK.has(uc) : REGION_BLOCK_UNKNOWN;
+      if (blocked) {
+        prefilterRejects.push({ cand: c, bd: {
+          v: 1, decision: 'NO', prefilter: true, regionBlock: true,
+          candidateCountry: uc || 'unknown',
+          gateReason: `region excluded (audience filter): ${uc || 'unknown location'}`,
+        } });
+      } else keep.push(c);
+    }
+    candidates.length = 0;
+    for (const k of keep) candidates.push(k);
+  }
 
   // ── HARD geo cut (A+B+C, 2026-06-15) ─────────────────────────────────────────
   // The structured `country` tag isn't enough. US-only requirements (W2, US citizen/GC, "must be
