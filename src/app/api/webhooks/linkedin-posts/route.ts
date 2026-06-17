@@ -6,6 +6,7 @@ import { ensureSalaryData } from '@/lib/salary-estimation';
 import { notifySearchEngines } from '@/lib/indexing';
 import { shouldSkipJob } from '@/lib/job-filter';
 import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
+import { getPosterRegion } from '@/services/poster-enrichment';
 import { assessContentQuality, isFreeEmailProvider, isPersonalAnnouncement } from '@/lib/content-quality';
 import { siteConfig } from '@/config/site';
 import type { TranslationType, Level } from '@prisma/client';
@@ -259,6 +260,26 @@ export async function POST(request: NextRequest) {
         status: 'skipped',
         reason: 'duplicate',
       });
+    }
+
+    // =========================================================================
+    // SUPPLY-SIDE POSTER REGION FILTER (gated by POSTER_REGION_FILTER=on)
+    // Drop posts from blocked-country recruiters. Scrapes the poster's profile ONCE (cached per
+    // LinkedIn URL), so India/etc staffing recruiters on generic .com domains are caught by their
+    // REAL location, not the email TLD. Fail-open: scrape failure → not blocked. Done before the AI
+    // extraction so a blocked post wastes no AI spend.
+    // =========================================================================
+    if (process.env.POSTER_REGION_FILTER === 'on') {
+      try {
+        const poster = await getPosterRegion(clientLinkedIn);
+        if (poster.blocked) {
+          console.log(`[LinkedInPosts] Skipping post from ${poster.country} recruiter ${clientName}: ${postUrl}`);
+          logSkip('poster_region', null, { posterCountry: poster.country, cached: poster.cached });
+          return NextResponse.json({ success: true, status: 'skipped', reason: 'poster_region', posterCountry: poster.country });
+        }
+      } catch (e) {
+        console.warn('[LinkedInPosts] poster-region check failed (fail-open, importing):', e);
+      }
     }
 
     // =========================================================================

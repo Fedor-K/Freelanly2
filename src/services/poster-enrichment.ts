@@ -1,122 +1,72 @@
 import { prisma } from '@/lib/db';
+import { resolveCountry, blockedCountries } from '@/lib/region-block';
+import { normalizeLinkedInUrl } from '@/lib/linkedin-profile';
 
-const APIFY_TOKEN = process.env.APIFY_API_TOKEN || '';
+// ── Supply-side poster-location filter ───────────────────────────────────────
+// Resolve the LinkedIn POST AUTHOR's (recruiter's) country and block posts from blocked-country
+// recruiters at import. The post actor doesn't return author location, so we scrape the poster's
+// profile (harvestapi, pinned build) ONCE and cache it per LinkedIn URL in a raw-SQL table (kept out
+// of the Prisma schema to avoid a migration / client-wide SELECT drift). Gated behind
+// POSTER_REGION_FILTER=on. Fail-open: any scrape/parse failure → country null → NOT blocked.
 
-interface LinkedInProfile {
-  name?: string;
-  headline?: string;
-  company?: string;
-  followers?: number;
-  location?: string;
-  about?: string;
+let cacheReady = false;
+async function ensureCache(): Promise<void> {
+  if (cacheReady) return;
+  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "PosterLocation" (
+    "linkedinUrl" text PRIMARY KEY,
+    country text,
+    location text,
+    "scrapedAt" timestamptz NOT NULL DEFAULT now()
+  )`).catch(() => {});
+  cacheReady = true;
 }
 
-/**
- * Scrape a LinkedIn profile using Apify LinkedIn Profile Scraper
- */
-async function scrapeLinkedInProfile(profileUrl: string): Promise<LinkedInProfile | null> {
-  if (!APIFY_TOKEN || !profileUrl.includes('linkedin.com')) return null;
-
+async function scrapePosterLocation(url: string): Promise<{ country: string | null; location: string | null }> {
+  const token = process.env.APIFY_API_TOKEN;
+  if (!token) return { country: null, location: null };
+  const build = process.env.APIFY_LI_PROFILE_BUILD || '0.0.122'; // latest 0.0.123 is broken — see linkedin-profile.ts
   try {
-    // Use Apify LinkedIn Profile Scraper actor
-    const runResp = await fetch('https://api.apify.com/v2/acts/anchor~linkedin-profile-scraper/runs?token=' + APIFY_TOKEN, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        startUrls: [{ url: profileUrl }],
-        maxItems: 1,
-        proxy: { useApifyProxy: true, apifyProxyGroups: ['RESIDENTIAL'] },
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
-
-    if (!runResp.ok) {
-      console.error('[PosterEnrich] Apify run failed:', runResp.status);
-      return null;
-    }
-
-    const run = await runResp.json();
-    const runId = run.data?.id;
-    if (!runId) return null;
-
-    // Wait for completion (poll every 5s, max 60s)
-    for (let i = 0; i < 12; i++) {
-      await new Promise(r => setTimeout(r, 5000));
-      const statusResp = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_TOKEN}`);
-      const status = await statusResp.json();
-      if (status.data?.status === 'SUCCEEDED') break;
-      if (status.data?.status === 'FAILED' || status.data?.status === 'ABORTED') return null;
-    }
-
-    // Get results
-    const dataResp = await fetch(`https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${APIFY_TOKEN}`);
-    const items = await dataResp.json();
-    const profile = items[0];
-
-    if (!profile) return null;
-
-    return {
-      name: profile.fullName || profile.name,
-      headline: profile.headline || profile.title,
-      company: profile.company?.name || profile.companyName,
-      followers: profile.followersCount || profile.followers,
-      location: profile.location || profile.addressLocality,
-      about: profile.about?.slice(0, 300),
-    };
-  } catch (e) {
-    console.error('[PosterEnrich] Scrape error:', e);
-    return null;
+    const res = await fetch(
+      `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-scraper/run-sync-get-dataset-items?token=${token}&build=${encodeURIComponent(build)}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urls: [url] }), signal: AbortSignal.timeout(15000) }
+    );
+    if (!res.ok) return { country: null, location: null };
+    const items = await res.json();
+    const pr = Array.isArray(items) ? items[0] : null;
+    if (!pr) return { country: null, location: null };
+    const locObj = (pr.location && typeof pr.location === 'object') ? pr.location : null;
+    // Prefer the actor's normalized ISO2; fall back to our freeform resolver on the text.
+    const iso = locObj?.parsed?.countryCode || locObj?.countryCode || null;
+    const locText = typeof pr.location === 'string' ? pr.location : (locObj?.linkedinText || locObj?.parsed?.text || null);
+    const country = iso ? String(iso).toUpperCase() : resolveCountry(locText);
+    return { country: country || null, location: locText || null };
+  } catch {
+    return { country: null, location: null };
   }
 }
 
 /**
- * Enrich poster data for opportunities that have LinkedIn URL but missing profile details.
- * Run periodically (e.g., daily) to fill in poster info.
+ * Resolve a poster's country (cached per LinkedIn URL) and whether they're in the blocked set.
+ * `blocked` is only ever true for a KNOWN blocked country — unknown/failed → false (fail-open).
  */
-export async function enrichPosterProfiles(limit = 10): Promise<number> {
-  // Find opportunities with LinkedIn URL but no enriched data
-  const opportunities = await prisma.opportunity.findMany({
-    where: {
-      clientLinkedIn: { not: '' },
-      posterTitle: null,
-      createdAt: { gte: new Date(Date.now() - 7 * 86400000) }, // Only recent
-    },
-    select: { id: true, clientLinkedIn: true, clientName: true },
-    take: limit,
-    orderBy: { createdAt: 'desc' },
-  });
-
-  if (opportunities.length === 0) {
-    console.log('[PosterEnrich] No opportunities to enrich');
-    return 0;
-  }
-
-  let enriched = 0;
-
-  for (const opp of opportunities) {
-    try {
-      const profile = await scrapeLinkedInProfile(opp.clientLinkedIn);
-      if (profile) {
-        await prisma.opportunity.update({
-          where: { id: opp.id },
-          data: {
-            clientName: profile.name || opp.clientName,
-            posterTitle: profile.headline,
-            posterCompany: profile.company,
-            posterFollowers: profile.followers,
-            
-          },
-        });
-        enriched++;
-        console.log(`[PosterEnrich] Enriched ${opp.clientName}: ${profile.headline} (${profile.followers} followers)`);
-      }
-
-      // Rate limit: 3s between scrapes
-      await new Promise(r => setTimeout(r, 3000));
-    } catch (e) {
-      console.error(`[PosterEnrich] Failed for ${opp.id}:`, e);
+export async function getPosterRegion(linkedinUrl: string | null | undefined): Promise<{ country: string | null; blocked: boolean; cached: boolean }> {
+  const BLOCK = new Set(blockedCountries());
+  if (!BLOCK.size || !linkedinUrl) return { country: null, blocked: false, cached: false };
+  const url = normalizeLinkedInUrl(linkedinUrl) || linkedinUrl;
+  await ensureCache();
+  try {
+    const hit = await prisma.$queryRaw<{ country: string | null }[]>`SELECT country FROM "PosterLocation" WHERE "linkedinUrl" = ${url}`;
+    if (hit.length) {
+      const c = hit[0].country;
+      return { country: c, blocked: !!c && BLOCK.has(c), cached: true };
     }
-  }
-
-  return enriched;
+  } catch { /* table read failed → treat as miss */ }
+  const { country, location } = await scrapePosterLocation(url);
+  // Cache the result (incl. null) to bound cost; a backfill can refresh WHERE country IS NULL later.
+  await prisma.$executeRaw`
+    INSERT INTO "PosterLocation" ("linkedinUrl", country, location)
+    VALUES (${url}, ${country}, ${location})
+    ON CONFLICT ("linkedinUrl") DO UPDATE SET country = EXCLUDED.country, location = EXCLUDED.location, "scrapedAt" = now()
+  `.catch(() => {});
+  return { country, blocked: !!country && BLOCK.has(country), cached: false };
 }
