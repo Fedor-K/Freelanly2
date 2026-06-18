@@ -11,6 +11,7 @@ export const BLOCKED_APPLY_DOMAINS: string[] = [
   'anjaneyaxconsultingservices.com', // same Google-form harvest: "Dear Candidate, fill out the form, shortlisted contacted via WhatsApp" — blocked 2026-06-16
   'cognitek.io', // C2C bench-staffing; recruiter posts jobs while #OPENTOWORK himself (US-located, so geo doesn't catch) — blocked 2026-06-17
   'neurasol.com', // India (Hyderabad) staffing recruiter, 'interested please share' spam — blocked 2026-06-17
+  'wyreflow.com', // Google-form harvest: "complete the Internship Application Form" + WhatsApp channel, identical template to many candidates — blocked 2026-06-18
 ];
 
 export const BLOCKED_APPLY_EMAILS: string[] = [

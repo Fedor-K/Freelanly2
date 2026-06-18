@@ -36,7 +36,13 @@ async function extractSignal(text: string, jobTitle: string, companyName: string
 // a dead thread (REJECTED is paywall-free). Only ever downgrades a would-be REPLIED → REJECTED.
 const GEO_REJECT_RE = /(?:\b(?:need|looking for|require|want|seeking|prefer)\b[^.\n]{0,30}\bbased\b[^.\n]{0,15}\bcandidate)|(?:\bavailable only (?:for|to)\b[^.\n]{0,40}\bcandidate)|(?:\bonly (?:for|to|open to|available (?:for|to))\b[^.\n]{0,30}\bcandidates?\b[^.\n]{0,30}\b(?:based|located|in)\b)|(?:\bcandidates?\b[^.\n]{0,25}\b(?:must|need to|should|have to)\b[^.\n]{0,12}\bbe\b[^.\n]{0,15}\b(?:based|located)\b)/i;
 
+// Farm "recruiters" that mass-collect candidates via a Google Form / WhatsApp channel instead of
+// a real conversation (e.g. Wyreflow "complete the Internship Application Form"). Deterministic —
+// the LLM keeps reading these as INTERESTED. Treat as SPAM: don't count, don't notify, don't store.
+const FARM_FORM_RE = /forms\.gle\/|docs\.google\.com\/forms|\bgoogle\s+form\b|\b(?:complete|fill\s*(?:out|in)?|submit)\b[^.\n]{0,40}\b(?:internship\s+)?application\s+form\b|whatsapp\.com\/channel\//i;
+
 async function categorizeReply(text: string): Promise<string> {
+  if (FARM_FORM_RE.test(text)) return 'SPAM'; // farm form-collectors — deterministic, before the LLM
   try {
     const { client, model } = getAIClient();
     const r = await client.chat.completions.create({
@@ -53,7 +59,7 @@ async function categorizeReply(text: string): Promise<string> {
     if (GEO_REJECT_RE.test(text)) return 'REJECTED'; // geo brush-off the LLM read as interest
     return 'REPLIED';
   } catch {
-    return GEO_REJECT_RE.test(text) ? 'REJECTED' : 'REPLIED';
+    return FARM_FORM_RE.test(text) ? 'SPAM' : GEO_REJECT_RE.test(text) ? 'REJECTED' : 'REPLIED';
   }
 }
 

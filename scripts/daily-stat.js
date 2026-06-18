@@ -16,6 +16,11 @@ const fmt = (n) => Number(n).toLocaleString('en-US');
 // categorizer uses. SPAM is already filtered separately.
 const GEO_REJECT_RE = /(?:\b(?:need|looking for|require|want|seeking|prefer)\b[^.\n]{0,30}\bbased\b[^.\n]{0,15}\bcandidate)|(?:\bavailable only (?:for|to)\b[^.\n]{0,40}\bcandidate)|(?:\bonly (?:for|to|open to|available (?:for|to))\b[^.\n]{0,30}\bcandidates?\b[^.\n]{0,30}\b(?:based|located|in)\b)|(?:\bcandidates?\b[^.\n]{0,25}\b(?:must|need to|should|have to)\b[^.\n]{0,12}\bbe\b[^.\n]{0,15}\b(?:based|located)\b)/i;
 const isGeoReject = (t) => GEO_REJECT_RE.test(t || '');
+// Farm form-collectors (Google Form / WhatsApp-channel "recruiters", e.g. Wyreflow) — not real
+// engagement; excluded from 💬/👤. Belt-and-suspenders for rows stored before the inbound filter
+// caught them. Same pattern the live inbound-server + webhook use.
+const FARM_FORM_RE = /forms\.gle\/|docs\.google\.com\/forms|\bgoogle\s+form\b|\b(?:complete|fill\s*(?:out|in)?|submit)\b[^.\n]{0,40}\b(?:internship\s+)?application\s+form\b|whatsapp\.com\/channel\//i;
+const isFarmForm = (t) => FARM_FORM_RE.test(t || '');
 
 async function main() {
   const ds = new Date();
@@ -53,7 +58,8 @@ async function main() {
   });
 
   // 💬 real recruiter replies = non-spam minus geo brush-offs ("need a Canada-based candidate")
-  const realReplies = repliedRowsToday.filter((r) => !isGeoReject(r.replyText));
+  // and farm form-collectors (Google Form / WhatsApp-channel mass templates)
+  const realReplies = repliedRowsToday.filter((r) => !isGeoReject(r.replyText) && !isFarmForm(r.replyText));
   const recruiterRepliesToday = realReplies.length;
   // 👤 distinct users who got a REAL (non-geo) recruiter reply today
   const gotReply = [...new Set(realReplies.map((r) => r.userId))];
