@@ -15,7 +15,7 @@ const COUNTRY_PATTERNS: [RegExp, string][] = [
   [/\bcanada\b|\b(toronto|vancouver|montreal|ottawa|calgary|edmonton|ontario|quebec|british columbia)\b/i, 'CA'],
   [/\bgermany\b|\b(berlin|munich|hamburg|frankfurt|cologne|stuttgart)\b/i, 'DE'],
   [/\bfrance\b|\b(paris|lyon|marseille|toulouse)\b/i, 'FR'],
-  [/\bspain\b|\b(madrid|barcelona|valencia|seville)\b/i, 'ES'],
+  [/\bspain\b|\bespa[ñn]a\b|\b(madrid|barcelona|valencia|seville|sevilla)\b/i, 'ES'],
   [/\bitaly\b|\b(rome|milan|turin|naples)\b/i, 'IT'],
   [/\bnetherlands\b|\b(amsterdam|rotterdam|the hague|utrecht)\b/i, 'NL'],
   [/\bpoland\b|\b(warsaw|krakow|wroclaw|gdansk)\b/i, 'PL'],
@@ -35,8 +35,8 @@ const COUNTRY_PATTERNS: [RegExp, string][] = [
   [/\bphilippines\b|\b(manila|cebu|davao|quezon)\b/i, 'PH'],
   [/\bindonesia\b|\b(jakarta|surabaya|bandung)\b/i, 'ID'],
   [/\bvietnam\b|\b(hanoi|ho chi minh|saigon|da nang)\b/i, 'VN'],
-  [/\bbrazil\b|\b(sao paulo|são paulo|rio de janeiro|belo horizonte|brasilia)\b/i, 'BR'],
-  [/\bmexico\b|\b(mexico city|guadalajara|monterrey)\b/i, 'MX'],
+  [/\bbra[sz]il\b|\b(sao paulo|são paulo|rio de janeiro|belo horizonte|bras[ií]lia)\b/i, 'BR'],
+  [/\bm[eé]xico\b|\b(mexico city|ciudad de m[eé]xico|cdmx|guadalajara|monterrey)\b/i, 'MX'],
   [/\bargentina\b|\bbuenos aires\b/i, 'AR'],
   [/\bcolombia\b|\b(bogota|bogotá|medellin|medellín|cali)\b/i, 'CO'],
   [/\bturkey\b|\bt[uü]rkiye\b|\b(istanbul|ankara|izmir)\b/i, 'TR'],
@@ -49,7 +49,7 @@ const COUNTRY_PATTERNS: [RegExp, string][] = [
   // Additional GOOD (kept) countries — added 2026-06-17 after ~500 full-cycle LATAM/EU users were
   // falling into UNKNOWN (resolver only knew BR/MX/AR/CO). US pattern is first above, so US-city
   // collisions (e.g. "Lima, OH") are caught as US before these.
-  [/\bperu\b|\bper[uú]\b|\blima\b/i, 'PE'],
+  [/\bperu\b|\bper[uú](?![a-z])|\blima\b/i, 'PE'],
   [/\bvenezuela\b|\b(caracas|maracaibo|barquisimeto)\b/i, 'VE'],
   [/\bchile\b|\bsantiago metropolitan\b/i, 'CL'],
   [/\becuador\b|\b(quito|guayaquil)\b/i, 'EC'],
@@ -57,7 +57,7 @@ const COUNTRY_PATTERNS: [RegExp, string][] = [
   [/\b(dominican republic|rep[uú]blica dominicana)\b|\bsanto domingo\b/i, 'DO'],
   [/\bnicaragua\b|\bmanagua\b/i, 'NI'],
   [/\bcosta rica\b/i, 'CR'],
-  [/\bpanam[aá]\b/i, 'PA'],
+  [/\bpanam[aá](?![a-z])/i, 'PA'],
   [/\bguatemala\b/i, 'GT'],
   [/\bbolivia\b|\bla paz\b/i, 'BO'],
   [/\bparaguay\b|\basunci[oó]n\b/i, 'PY'],
