@@ -101,6 +101,15 @@ const COUNTRY_PATTERNS: [RegExp, string][] = [
   [/\bzambia\b|\blusaka\b/i, 'ZM'],
   [/\bburundi\b|\bbujumbura\b/i, 'BI'],
   [/\bcongo\b|\bbrazzaville\b/i, 'CG'],
+  // Spelling/region variants — added 2026-06-19 after target candidates fell to UNKNOWN
+  // (native spellings, adjectives, distinctive regions). Placed last; none collide with US.
+  [/\bitalia\b/i, 'IT'],
+  [/\bvenezuel\w*|\bvenezolan\w*/i, 'VE'],
+  [/\bcaba\b/i, 'AR'],
+  [/\bcundinamarca\b/i, 'CO'],
+  [/\bhermosillo\b|\bsonora\b/i, 'MX'],
+  [/\bcastilla\b/i, 'ES'],
+  [/\bminas gerais\b/i, 'BR'],
 ];
 
 export function resolveCountry(loc: string | null | undefined): string | null {

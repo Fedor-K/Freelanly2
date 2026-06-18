@@ -1001,6 +1001,14 @@ const PREFILTER_COUNTRY_PATTERNS: [RegExp, string][] = [
   [/\bzambia\b|\blusaka\b/i, 'ZM'],
   [/\bburundi\b|\bbujumbura\b/i, 'BI'],
   [/\bcongo\b|\bbrazzaville\b/i, 'CG'],
+  // Spelling/region variants — added 2026-06-19 (keep in sync with src/lib/region-block.ts).
+  [/\bitalia\b/i, 'IT'],
+  [/\bvenezuel\w*|\bvenezolan\w*/i, 'VE'],
+  [/\bcaba\b/i, 'AR'],
+  [/\bcundinamarca\b/i, 'CO'],
+  [/\bhermosillo\b|\bsonora\b/i, 'MX'],
+  [/\bcastilla\b/i, 'ES'],
+  [/\bminas gerais\b/i, 'BR'],
 ];
 const PREFILTER_EU = new Set(['DE','FR','ES','IT','NL','PL','PT','RO','GR','CZ','AT','BE','SE','DK','FI','IE','HU','BG','HR','SK','SI','LT','LV','EE','LU','MT','CY']);
 
