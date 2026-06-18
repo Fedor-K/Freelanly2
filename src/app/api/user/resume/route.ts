@@ -6,6 +6,7 @@ import OpenAI from 'openai';
 import { put } from '@vercel/blob';
 import { mergeCandidateProfiles } from '@/lib/linkedin-profile';
 import { deriveCategorySlugs } from '@/lib/loop-routing';
+import { isLocationBlocked } from '@/lib/region-block';
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'zai';
 
@@ -145,6 +146,16 @@ IMPORTANT — "experience_years" is total YEARS OF PROFESSIONAL WORK EXPERIENCE 
     const mergedProfile = parsedProfile
       ? mergeCandidateProfiles(parsedProfile, existingProfile, existingUser?.email || '')
       : existingProfile;
+
+    // Region backstop — same gate as the pre-auth signup path. Email-first signups reach the
+    // dashboard before any résumé is parsed, so the blocked country only becomes visible HERE,
+    // on the authenticated upload. Without this check a blocked-region user can sign up with email,
+    // upload a résumé, get a loop, and start applying (exactly how the Nigeria leak happened).
+    const candidateLoc = ((mergedProfile as Record<string, unknown> | null)?.location as string) || null;
+    if (isLocationBlocked(candidateLoc)) {
+      console.log(`[Resume] region-blocked upload: ${existingUser?.email} (${candidateLoc})`);
+      return NextResponse.json({ error: 'Freelanly isn’t available in your region yet.', regionBlocked: true }, { status: 403 });
+    }
 
     // Store resume data + parsed profile on user
     await prisma.user.update({
