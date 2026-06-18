@@ -7,6 +7,7 @@ import { notifySearchEngines } from '@/lib/indexing';
 import { shouldSkipJob } from '@/lib/job-filter';
 import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
 import { getPosterRegion } from '@/services/poster-enrichment';
+import { blockedCountries } from '@/lib/region-block';
 import { assessContentQuality, isFreeEmailProvider, isPersonalAnnouncement } from '@/lib/content-quality';
 import { siteConfig } from '@/config/site';
 import type { TranslationType, Level } from '@prisma/client';
@@ -469,6 +470,19 @@ export async function POST(request: NextRequest) {
       extracted.cleanDescription || postContent,
       extracted.location
     ) || extractCountryCode(extracted.location); // fallback to dictionary
+
+    // JOB-COUNTRY-LOCK filter (2026-06-18): drop roles LOCKED to a blocked country — country-bound
+    // remote (e.g. "Nigeria, REMOTE_COUNTRY") or onsite/hybrid there. These are useless for our LATAM
+    // audience (they can't take them) and attract the wrong registrants. DISTINCT from the recruiter-
+    // country filter (which we keep OFF — India recruiters' GLOBAL/US-remote posts interview LATAM):
+    // this gates on the JOB's locked geography, not who posted it. Reversible via JOB_COUNTRY_LOCK_FILTER.
+    if (process.env.JOB_COUNTRY_LOCK_FILTER !== 'off'
+      && (locationType === 'REMOTE_COUNTRY' || locationType === 'ONSITE' || locationType === 'HYBRID')
+      && countryCode && blockedCountries().includes(countryCode)) {
+      console.log(`[LinkedInPosts] Skipping ${countryCode}-locked job (${locationType}): ${extracted.title}`);
+      logSkip('job_country_locked', extracted.title, { jobCountry: countryCode, locationType });
+      return NextResponse.json({ success: true, status: 'skipped', reason: 'job_country_locked', jobCountry: countryCode });
+    }
 
     // Get actual or estimated salary data (default to HOUR for freelance)
     const salaryData = extracted.salaryMin ? {
