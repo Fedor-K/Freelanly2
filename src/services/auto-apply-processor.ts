@@ -918,6 +918,8 @@ function calculateMatchScore(
 const PREFILTER_COUNTRY_PATTERNS: [RegExp, string][] = [
   [/\b(usa|u\.s\.a|u\.s\.|united states|america)\b|,\s*(al|ak|az|ar|ca|co|ct|de|fl|ga|hi|id|il|in|ia|ks|ky|la|me|md|ma|mi|mn|ms|mo|mt|ne|nv|nh|nj|nm|ny|nc|nd|oh|ok|or|pa|ri|sc|sd|tn|tx|ut|vt|va|wa|wv|wi|wy)\b\.?$|\b(new york|los angeles|chicago|houston|dallas|austin|seattle|miami|boston|atlanta|denver|phoenix|san francisco|san jose|san diego)\b/i, 'US'],
   [/\bindia\b|\b(hyderabad|bangalore|bengaluru|mumbai|delhi|chennai|pune|kolkata|noida|gurgaon|gurugram|ahmedabad|jaipur|kochi|indore|telangana|maharashtra|karnataka)\b/i, 'IN'],
+  // Expanded India coverage — added 2026-06-19 (keep in sync with src/lib/region-block.ts).
+  [/\b(uttar pradesh|tamil nadu|west bengal|madhya pradesh|andhra pradesh|rajasthan|gujarat|kerala|haryana|punjab|bihar|odisha|assam|jharkhand|uttarakhand|chhattisgarh|\bgoa\b)\b|\bu\.p\.|\b(kanpur|lucknow|nagpur|surat|vadodara|coimbatore|visakhapatnam|vizag|thane|patna|ghaziabad|ludhiana|\bagra\b|nashik|faridabad|meerut|rajkot|varanasi|bhopal|mysore|mysuru|thiruvananthapuram|trivandrum|mohali|chandigarh|cochin|madurai|vijayawada|guwahati|ranchi|raipur|dehradun)\b/i, 'IN'],
   [/\b(uk|u\.k\.|united kingdom|england|scotland|wales)\b|\b(london|manchester|birmingham|leeds|glasgow|edinburgh)\b/i, 'GB'],
   [/\bcanada\b|\b(toronto|vancouver|montreal|ottawa|calgary|edmonton|ontario|quebec|british columbia)\b/i, 'CA'],
   [/\bgermany\b|\b(berlin|munich|hamburg|frankfurt|cologne|stuttgart)\b/i, 'DE'],
