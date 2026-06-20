@@ -13,14 +13,11 @@ export const metadata: Metadata = {
 // Per-user fit ranking — must never be cached across users.
 export const dynamic = 'force-dynamic';
 
-export default async function DiscoveryPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+export default async function DiscoveryPage() {
   const session = await auth();
   if (!session?.user?.id) redirect('/auth/signin');
 
-  const params = await searchParams;
-  const page = parseInt(params.page || '1') || 1;
   const perPage = 50;
-  const skip = (page - 1) * perPage;
 
   const dayAgo = new Date(Date.now() - 24 * 3600000);
   const weekAgo = new Date(Date.now() - 7 * 86400000);
@@ -109,8 +106,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
   // verified queue is thin. No LLM at feed time; these never claim "Strong".
   const queueIds = new Set(queueItems.map(i => i.id));
   const closestRanked = ranked.filter(r => !queueIds.has(r.id));
-  const closestTotal = closestRanked.length;
-  const closestSlice = closestRanked.slice(skip, skip + perPage);
+  const closestSlice = closestRanked.slice(0, perPage);
 
   const oppIds = closestSlice.filter(r => r.type === 'opportunity').map(r => r.id);
   const jobIds = closestSlice.filter(r => r.type === 'job').map(r => r.id);
@@ -153,10 +149,9 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
     };
   }).filter(Boolean) as FeedItem[];
 
-  // Verified queue on page 1, then the closest tail. Pagination is over the tail.
-  const items: FeedItem[] = page === 1 ? [...queueItems, ...closestItems] : closestItems;
-  const total = queueItems.length + closestTotal;
-  const hasMore = skip + perPage < closestTotal;
+  // Verified queue first, then the closest tail (top N, no pagination — the feed is the few real
+  // matches; "similar" is opt-in via a button in the client).
+  const items: FeedItem[] = [...queueItems, ...closestItems];
 
   // Compute top skills with counts
   const skillCounts: Record<string, number> = {};
@@ -187,21 +182,9 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
       <div className="disco-grid">
         <DiscoveryFeed
           items={items}
-          total={total}
           topSkills={topSkills}
           sourceCounts={Object.entries(sourceCounts)}
         />
-      </div>
-
-      {/* Pagination */}
-      <div style={{display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '16px'}}>
-        {page > 1 && (
-          <a href={`/dashboard/discovery?page=${page - 1}`} className="btn btn-ghost btn-sm">← Previous</a>
-        )}
-        <span style={{fontSize: '13px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", alignSelf: 'center'}}>Page {page}</span>
-        {hasMore && (
-          <a href={`/dashboard/discovery?page=${page + 1}`} className="btn btn-ghost btn-sm">Next →</a>
-        )}
       </div>
 
     </div>

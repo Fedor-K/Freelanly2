@@ -55,7 +55,6 @@ function timeAgo(date: string): string {
 
 export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
   items: Job[];
-  total: number;
   topSkills: [string, number][];
   sourceCounts: [string, number][];
 }) {
