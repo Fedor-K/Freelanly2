@@ -46,7 +46,7 @@ function timeAgo(date: string): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }: {
+export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
   items: Job[];
   total: number;
   topSkills: [string, number][];
@@ -339,12 +339,6 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
           </div>
           </div>
         ))}
-
-        {total > visible.length + skipped.size && (
-          <div style={{padding: '14px 20px', textAlign: 'center'}}>
-            <a href="/dashboard/discovery" className="btn btn-soft">Load more results</a>
-          </div>
-        )}
       </div>
 
       {/* Draft preview modal */}
