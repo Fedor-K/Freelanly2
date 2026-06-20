@@ -14,6 +14,7 @@ type Job = {
   location: string | null;
   applyEmail: string | null;
   matchLabel: 'Strong' | 'Good' | 'Weak';
+  aiVerified: boolean;
   matchScore: number;
   matchedSkills: string[];
   matchedTitleTokens: string[];
@@ -280,7 +281,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
               <div className="row gap-2">
                 <div className="job-title">{item.title}</div>
                 {item.matchLabel === 'Strong' && (
-                  <span className="chip chip-good" style={{fontSize: '10px'}}>★ Strong match</span>
+                  <span className="chip chip-good" style={{fontSize: '10px'}}>★ Strong match{item.aiVerified ? ' · AI-checked' : ''}</span>
                 )}
                 <span className="chip"><span className="chip-dot live"></span>{timeAgo(item.createdAt)}</span>
               </div>

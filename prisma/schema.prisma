@@ -134,6 +134,7 @@ model User {
   userSmtp              UserSmtp?
   autoApplyLoops        AutoApplyLoop[]
   autoApplications      AutoApplication[]
+  matchVerdicts         MatchVerdict[]
   coverLetterTemplates  CoverLetterTemplate[]
   savedFeeds            SavedFeed[]
   freeAppliesUsedToday  Int       @default(0)
@@ -652,6 +653,7 @@ model Opportunity {
   alertNotifications AlertNotification[]
   socialPostQueue    SocialPostQueue[]
   applyAttempts      ApplyAttempt[]
+  matchVerdicts      MatchVerdict[]
 
   @@index([categoryId])
   @@index([companyId])
@@ -660,6 +662,27 @@ model Opportunity {
   @@index([clientLinkedIn])
   @@index([keywordRunId])
   @@index([sourceKeyword])
+}
+
+// Shared per-(candidate × opportunity) LLM match verdict cache. ONE vet per pair, read by both the
+// discovery feed (on-demand, top-K) and reusable by the auto-apply matcher — so the real assessPairing
+// verdict is never recomputed. Cascades on user/opportunity delete (opps are purged after 30 days).
+model MatchVerdict {
+  id            String   @id @default(cuid())
+  userId        String
+  opportunityId String
+  label         String   // Strong | Good | Weak
+  decision      String   // SEND | NO
+  score         Int?
+  reason        String?
+  breakdown     Json?
+  createdAt     DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, opportunityId])
+  @@index([userId])
 }
 
 // ============================================

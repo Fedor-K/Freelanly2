@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { DiscoveryFeed } from '@/components/app/DiscoveryFeed';
 import { buildFitContext, scoreFitLabeled, type FitLabel } from '@/lib/fit-score';
+import { getVerdicts } from '@/lib/match-verdict';
 import './discovery-design.css';
 
 export const metadata: Metadata = {
@@ -33,7 +34,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
   // No résumé yet → send to in-app résumé onboarding, NOT an empty feed. Discovery is the post-login
   // landing now, so this guard (mirrors src/app/dashboard/page.tsx) must live here too — without a
   // parsedProfile there's nothing to match against. Also prevents the old login-loop.
-  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { parsedProfile: true, resumeUrl: true } });
+  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { parsedProfile: true, resumeUrl: true, resumeText: true } });
   if (!me?.resumeUrl) redirect('/dashboard/settings#profile');
   const fitCtx = buildFitContext(me?.parsedProfile as Record<string, unknown> | null);
 
@@ -96,10 +97,32 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
   const oppById = new Map(opportunities.map(o => [o.id, o]));
   const jobById = new Map(jobs.map(j => [j.id, j]));
 
-  const items = pageSlice.map(r => {
+  // LLM-verify the top-K strong-lexical opportunities on this page — the real assessPairing verdict
+  // overrides the cheap lexical label (false "Strong" demoted, hard rejects dropped). Synchronous
+  // (~1.5s on first view of a new set), cached forever in MatchVerdict so later loads are instant
+  // (Option A). Fail-open: a vetting error falls back to the lexical labels.
+  const TOP_K = 8;
+  const toVet = pageSlice
+    .filter(r => r.type === 'opportunity' && r.label === 'Strong')
+    .slice(0, TOP_K)
+    .map(r => oppById.get(r.id))
+    .filter((o): o is NonNullable<typeof o> => !!o)
+    .map(o => ({ id: o.id, title: o.title, description: o.description }));
+  let verdicts = new Map<string, { label: FitLabel; decision: 'NO' | 'SEND' }>();
+  try {
+    verdicts = await getVerdicts(
+      { id: session.user.id, parsedProfile: me.parsedProfile as Record<string, unknown> | null, resumeText: me.resumeText, resumeUrl: me.resumeUrl },
+      toVet,
+    );
+  } catch (e) {
+    console.error('[discovery] vet failed, falling back to lexical:', e);
+  }
+
+  let items = pageSlice.map(r => {
     if (r.type === 'opportunity') {
       const o = oppById.get(r.id);
       if (!o) return null;
+      const v = verdicts.get(o.id);
       return {
         id: o.id,
         type: 'opportunity' as const,
@@ -111,7 +134,8 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
         skills: o.skills,
         location: o.location,
         applyEmail: o.applyEmail,
-        matchLabel: r.label,
+        matchLabel: v ? v.label : r.label,  // real LLM verdict overrides lexical when present
+        aiVerified: !!v,
         matchScore: r.score,
         matchedSkills: r.matchedSkills.slice(0, 4),
         matchedTitleTokens: r.matchedTitleTokens,
@@ -133,6 +157,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
       location: j.country,
       applyEmail: j.applyEmail,
       matchLabel: r.label,
+      aiVerified: false,
       matchScore: r.score,
       matchedSkills: r.matchedSkills.slice(0, 4),
       matchedTitleTokens: r.matchedTitleTokens,
@@ -143,9 +168,16 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
     id: string; type: 'opportunity' | 'job'; title: string; companyName: string;
     description: string; source: string; createdAt: string; skills: string[];
     location: string | null; applyEmail: string | null;
-    matchLabel: FitLabel; matchScore: number; matchedSkills: string[]; matchedTitleTokens: string[];
+    matchLabel: FitLabel; aiVerified: boolean; matchScore: number; matchedSkills: string[]; matchedTitleTokens: string[];
     languageGap: string[]; missingCore: string[];
   }>;
+
+  // Apply the LLM verdicts: drop hard rejects (the matcher said NO / Weak), then re-sort so any
+  // demoted-to-Good items sink below the confirmed Strong ones. Stable sort preserves lexical order
+  // within a label.
+  items = items
+    .filter(it => { const v = verdicts.get(it.id); return !(v && (v.decision === 'NO' || v.label === 'Weak')); })
+    .sort((a, b) => RANK[a.matchLabel] - RANK[b.matchLabel]);
 
   // Compute top skills with counts
   const skillCounts: Record<string, number> = {};
