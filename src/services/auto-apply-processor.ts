@@ -1093,6 +1093,30 @@ function loopMatchesTargeting(
   return false;
 }
 
+// Per-opportunity JD-parse cache. parseJD was the matcher's biggest repeated LLM cost — the SAME job
+// post got re-parsed for every candidate and every run. Parse it ONCE, persist on Opportunity.parsedJd
+// (raw SQL, dormant column like matchedAt — no prisma-schema/client change), and reuse for everyone
+// after. This is what makes deep vetting (BACKFILL_GATE_TOP) affordable. Only successful parses (skills
+// present) are cached, so a transient LLM failure isn't frozen in as "no requirements".
+async function parseJDForListing(listing: ListingData): Promise<ParsedJD> {
+  if (listing.type === 'opportunity') {
+    try {
+      const rows = await prisma.$queryRawUnsafe<{ parsedJd: unknown }[]>(
+        `SELECT "parsedJd" FROM "Opportunity" WHERE id = $1`, listing.id);
+      const cached = rows?.[0]?.parsedJd as ParsedJD | null | undefined;
+      if (cached && Array.isArray(cached.skills) && cached.skills.length > 0) return cached;
+    } catch { /* cache read failed → fall through to a fresh parse */ }
+  }
+  const parsed = await parseJD(`${listing.title}\n${listing.description}`, listing.title);
+  if (listing.type === 'opportunity' && parsed.skills.length > 0) {
+    prisma.$executeRawUnsafe(
+      `UPDATE "Opportunity" SET "parsedJd" = $1::jsonb WHERE id = $2`,
+      JSON.stringify(parsed), listing.id,
+    ).catch(() => {});
+  }
+  return parsed;
+}
+
 async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: string): Promise<number> {
   // Phase 1.3: skip listings whose apply address is dead/garbage — sending there is pure waste.
   if (!isSendableRecipient(listing.applyEmail)) {
@@ -1381,7 +1405,7 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
   if (listingCountryBound && candidates.some(geoMismatch)) {
     try {
       const jdText = `${listing.title}\n${listing.description}`;
-      qParsedJD = qParsedJD ?? (await parseJD(jdText));
+      qParsedJD = qParsedJD ?? (await parseJDForListing(listing));
       // HARDENED 2026-06-14: a KNOWN-location geo mismatch on a country-bound (REMOTE_COUNTRY)
       // listing is disqualifying ON ITS OWN — no amount of skill match makes you eligible to a
       // country you're not in (e.g. India dev → US-only role: 1242 such pairs burned the LLM on
@@ -1528,7 +1552,7 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
       let gateBlocked = false;
       try {
         const jdText = `${listing.title}\n${listing.description}`;
-        if (!qParsedJD) qParsedJD = await parseJD(jdText);
+        if (!qParsedJD) qParsedJD = await parseJDForListing(listing);
         const bd = buildBreakdown(qParsedJD, {
           jdText, cvText: loop.user.resumeText || '',
           candidateSkills: (parsedProfile?.skills as string[]) || [],
@@ -1701,7 +1725,7 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
   if (aiRejects.length) {
     try {
       const jdText = `${listing.title}\n${listing.description}`;
-      qParsedJD = qParsedJD ?? (await parseJD(jdText));
+      qParsedJD = qParsedJD ?? (await parseJDForListing(listing));
       const rows = aiRejects.map((ar) => {
         let bd: Record<string, unknown> | undefined;
         try {
@@ -1989,7 +2013,10 @@ const BACKFILL_MAX_QUEUE_PER_LOOP = FREE_DAILY_APPLY_LIMIT; // fill the daily qu
 // ranking (e.g. arunachalam's 5 matches were all top-fit), and each gate is a sequential LLM call
 // under onlyLoopId — so 25 captures virtually all real matches while keeping per-loop cost/latency
 // bounded (60 made a full-cohort re-backfill take ~an hour and burned tokens on deep-rejects).
-const BACKFILL_GATE_TOP = 25;
+// Raised 25 → 60 (2026-06-20) now that parseJDForListing caches the JD parse per-opportunity: the parse
+// cost that made deep vetting expensive is amortized, so we gate further down the fit ranking and catch
+// real matches the lexical top-25 missed. Only NEW loops backfill (a few/run), so latency stays bounded.
+const BACKFILL_GATE_TOP = 60;
 const BACKFILL_POOL = 600;          // how much of the category backlog to fit-rank
 const BACKFILL_LOOPS_PER_RUN = 10;
 
