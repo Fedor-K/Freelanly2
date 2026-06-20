@@ -15,7 +15,18 @@ type Job = {
   applyEmail: string | null;
   matchLabel: 'Strong' | 'Good' | 'Weak';
   matchScore: number;
+  matchedSkills: string[];
+  titleMatch: boolean;
 };
+
+// Human "why it matched" line for the card — explains the Strong/Good decision from the actual signals.
+function matchReason(item: Job): string | null {
+  if (item.matchLabel === 'Weak') return null;
+  const parts: string[] = [];
+  if (item.titleMatch) parts.push('matches your role');
+  if (item.matchedSkills.length) parts.push(item.matchedSkills.join(' · '));
+  return parts.length ? parts.join(' + ') : null;
+}
 
 const COLORS = ['#FF6B6B','#A8E024','#6EE7FF','#FFB951','#A78BFA','#34D399','#F87171','#818CF8'];
 
@@ -265,6 +276,13 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
                 <span className="chip"><span className="chip-dot live"></span>{timeAgo(item.createdAt)}</span>
               </div>
               <div className="job-company">{item.companyName} · {item.source === 'linkedin' ? 'via LinkedIn' : item.source}</div>
+              {matchReason(item) && (
+                <div style={{fontSize: '12px', color: 'var(--ink-4)', margin: '3px 0 2px'}}>
+                  <strong style={{color: 'var(--good, #2E7D32)', fontWeight: 600}}>
+                    Why {item.matchLabel === 'Strong' ? 'strong' : 'good'}:
+                  </strong>{' '}{matchReason(item)}
+                </div>
+              )}
               <div
                 className="job-snippet"
                 style={{cursor: 'pointer'}}

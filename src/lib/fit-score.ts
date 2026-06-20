@@ -72,17 +72,33 @@ const GOOD_MIN = 50;               // ≥ this → Good, else Weak
  * every profile regardless of how many skills it lists. This is still a RANKING signal, not the real
  * matcher verdict — used to surface strong matches first on the candidate's landing feed.
  */
+export type FitResult = {
+  score: number;
+  label: FitLabel;
+  /** Why it scored — the candidate's own skills found in the role (original casing), for the UI rationale. */
+  matchedSkills: string[];
+  /** True when the role title shares the candidate's profession/title tokens (e.g. "Project Manager"). */
+  titleMatch: boolean;
+};
+
 export function scoreFitLabeled(
   ctx: FitContext,
   opp: { title: string; skills?: string[] | null },
-): { score: number; label: FitLabel } {
-  if (ctx.empty) return { score: 0, label: 'Weak' };
+): FitResult {
+  if (ctx.empty) return { score: 0, label: 'Weak', matchedSkills: [], titleMatch: false };
 
   const titleLower = opp.title.toLowerCase();
-  const oppSkills = (opp.skills || []).map(s => s.toLowerCase().trim());
+  const oppSkillsRaw = opp.skills || [];
+  const oppSkills = oppSkillsRaw.map(s => s.toLowerCase().trim());
 
-  let skillMatches = 0;
-  for (const s of ctx.skills) if (oppSkills.includes(s) || titleLower.includes(s)) skillMatches++;
+  // Collect the actual matched skills (display casing) so the card can explain WHY it's a match.
+  const matchedSkills: string[] = [];
+  for (const s of ctx.skills) {
+    const idx = oppSkills.indexOf(s);
+    if (idx !== -1) matchedSkills.push(oppSkillsRaw[idx]);
+    else if (titleLower.includes(s)) matchedSkills.push(s);
+  }
+  const skillMatches = matchedSkills.length;
 
   let titleMatches = 0;
   for (const t of fitTokens(opp.title)) if (ctx.titleTokens.has(t)) titleMatches++;
@@ -96,5 +112,5 @@ export function scoreFitLabeled(
 
   const score = Math.round(100 * (TITLE_WEIGHT * titleFrac + SKILL_WEIGHT * skillFrac));
   const label: FitLabel = score >= STRONG_MIN ? 'Strong' : score >= GOOD_MIN ? 'Good' : 'Weak';
-  return { score, label };
+  return { score, label, matchedSkills, titleMatch: titleMatches > 0 };
 }
