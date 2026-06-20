@@ -49,9 +49,8 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
     prisma.opportunity.count({ where: { isActive: true, createdAt: { gte: dayAgo } } }),
   ]);
 
-  // Score every row, then order Strong → Good → (recency for the rest). Strong matches surface first
-  // on the landing; the rest top up below so the feed is never empty (graceful fallback for niche
-  // profiles). Self-appliable only (applyEmail filter above) — "could self-apply" is the whole point.
+  // Score every row, then order Strong → Good → (recency for the rest). Self-appliable only
+  // (applyEmail filter above) — "could self-apply" is the whole point.
   const RANK: Record<FitLabel, number> = { Strong: 0, Good: 1, Weak: 2 };
   const ranked = [
     ...poolOpps.map(o => ({ id: o.id, type: 'opportunity' as const, createdAt: o.createdAt, ...scoreFitLabeled(fitCtx, o) })),
@@ -60,8 +59,15 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
     (RANK[a.label] - RANK[b.label]) || (b.score - a.score) || (b.createdAt.getTime() - a.createdAt.getTime()),
   );
 
-  const total = ranked.length;
-  const pageSlice = ranked.slice(skip, skip + perPage);
+  // The feed IS the strong matches — don't pad. Only when a niche profile has too few strong do we top
+  // up (with the best non-strong) to a floor, so the landing is never near-empty. A profile with 39
+  // strong sees 39, not 50.
+  const STRONG_FLOOR = 12;
+  const strongRows = ranked.filter(r => r.label === 'Strong');
+  const feed = strongRows.length >= STRONG_FLOOR ? strongRows : ranked.slice(0, STRONG_FLOOR);
+
+  const total = feed.length;
+  const pageSlice = feed.slice(skip, skip + perPage);
   const hasMore = skip + perPage < total;
 
   // Pass 2 — fetch display fields only for the IDs on this page, then restore the ranked order.

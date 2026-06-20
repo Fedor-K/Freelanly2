@@ -257,7 +257,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
             <span className="muted f-mono" style={{fontSize: '11px'}}>Sort:</span>
             <div className="seg">
               <button className={sortBy === 'match' ? 'active' : ''} onClick={() => setSortBy('match')}>My matches</button>
-              <button className={sortBy === 'newest' ? 'active' : ''} onClick={() => setSortBy('newest')}>All</button>
+              <button className={sortBy === 'newest' ? 'active' : ''} onClick={() => setSortBy('newest')}>Newest</button>
             </div>
           </div>
         </div>
