@@ -12,6 +12,9 @@ export const BLOCKED_APPLY_DOMAINS: string[] = [
   'cognitek.io', // C2C bench-staffing; recruiter posts jobs while #OPENTOWORK himself (US-located, so geo doesn't catch) — blocked 2026-06-17
   'neurasol.com', // India (Hyderabad) staffing recruiter, 'interested please share' spam — blocked 2026-06-17
   'wyreflow.com', // Google-form harvest: "complete the Internship Application Form" + WhatsApp channel, identical template to many candidates — blocked 2026-06-18
+  'whitegloveservices.org', // single fake "Social Media Manager" post funneled 36 candidates to one email; reply is a canned "position already filled" template (domain typo'd as whitegloveservies.org in signature) — blocked 2026-06-20
+  'vedastech.co.in', // India (Anand, Gujarat) translator WhatsApp-farm: 106 candidates → one "Multilingual Translator" post in a day; reply = "saved you in DB, join our WhatsApp group" — blocked 2026-06-20
+  'vedastech.io', // same Vedas Tech proprietor — block sibling domain pre-emptively — blocked 2026-06-20
 ];
 
 export const BLOCKED_APPLY_EMAILS: string[] = [
