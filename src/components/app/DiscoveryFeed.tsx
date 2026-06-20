@@ -253,12 +253,9 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
       <div className="card">
         <div className="card-head">
           <div className="row gap-3">
-            <h3>{visible.length} results</h3>
+            <h3>{inMatchMode && verifiedCount === 0 ? `${visible.length} similar` : `${visible.length} results`}</h3>
             {inMatchMode && verifiedCount > 0 && (
               <span className="chip chip-good" style={{fontSize: '11px'}}>★ {verifiedCount} verified match{verifiedCount === 1 ? '' : 'es'}</span>
-            )}
-            {inMatchMode && verifiedCount === 0 && (
-              <span className="chip" style={{fontSize: '11px', color: 'var(--ink-4)'}}>No verified matches yet — closest below</span>
             )}
             <span className="chip chip-acid-soft"><span className="chip-dot live"></span>Live feed</span>
             <button className="btn btn-ghost btn-sm disco-filter-toggle" onClick={() => setShowFilters(f => !f)}>{showFilters ? 'Hide filters' : 'Filters'}</button>
@@ -271,6 +268,17 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
             </div>
           </div>
         </div>
+
+        {inMatchMode && verifiedCount === 0 && visible.length > 0 && (
+          <div style={{padding: '16px 20px', borderBottom: '1px solid rgba(11,12,15,0.07)', background: '#FBFAF6'}}>
+            <div style={{fontSize: '14px', fontWeight: 600, color: 'var(--ink-1, #0B0C0F)'}}>No strong matches right now</div>
+            <div style={{fontSize: '12px', color: 'var(--ink-4)', marginTop: '3px', lineHeight: 1.5}}>
+              The matcher hasn&apos;t verified a strong match for you in the current pool. Below are the
+              closest opportunities — similar to your profile, but <strong>not verified matches</strong>.
+              New gigs land every few hours, so check back.
+            </div>
+          </div>
+        )}
 
         {visible.length === 0 ? (
           <div style={{padding: '40px 20px', textAlign: 'center', color: 'var(--ink-4)', fontSize: '13px'}}>
