@@ -83,9 +83,9 @@ export function OnboardingClient({ firstName, hasResume, hasLinkedin }: { firstN
         body: JSON.stringify({ step: 'complete' }),
       });
 
-      window.location.href = '/dashboard';
+      window.location.href = '/dashboard/discovery';
     } catch {
-      window.location.href = '/dashboard';
+      window.location.href = '/dashboard/discovery';
     }
   }
 

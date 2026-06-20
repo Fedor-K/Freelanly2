@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { DiscoveryFeed } from '@/components/app/DiscoveryFeed';
-import { buildFitContext, scoreFit } from '@/lib/fit-score';
+import { buildFitContext, scoreFitLabeled, type FitLabel } from '@/lib/fit-score';
 import './discovery-design.css';
 
 export const metadata: Metadata = {
@@ -30,12 +30,16 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
   // Pass 1 pulls light rows (id/title/skills/createdAt) for the full base, scores + sorts + paginates
   // in code; pass 2 fetches display fields only for the page's 50. Score 0 (no profile, or no overlap)
   // falls back to recency — nothing is hidden, only re-ranked.
-  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { parsedProfile: true } });
+  // No résumé yet → send to in-app résumé onboarding, NOT an empty feed. Discovery is the post-login
+  // landing now, so this guard (mirrors src/app/dashboard/page.tsx) must live here too — without a
+  // parsedProfile there's nothing to match against. Also prevents the old login-loop.
+  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { parsedProfile: true, resumeUrl: true } });
+  if (!me?.resumeUrl) redirect('/dashboard/settings#profile');
   const fitCtx = buildFitContext(me?.parsedProfile as Record<string, unknown> | null);
 
   const [poolOpps, poolJobs, totalToday] = await Promise.all([
     prisma.opportunity.findMany({
-      where: { isActive: true, createdAt: { gte: weekAgo } },
+      where: { isActive: true, createdAt: { gte: weekAgo }, applyEmail: { not: null } },
       select: { id: true, title: true, skills: true, createdAt: true },
     }),
     prisma.job.findMany({
@@ -45,11 +49,16 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
     prisma.opportunity.count({ where: { isActive: true, createdAt: { gte: dayAgo } } }),
   ]);
 
-  // Score every row, sort by fit desc then recency, then slice this page.
+  // Score every row, then order Strong → Good → (recency for the rest). Strong matches surface first
+  // on the landing; the rest top up below so the feed is never empty (graceful fallback for niche
+  // profiles). Self-appliable only (applyEmail filter above) — "could self-apply" is the whole point.
+  const RANK: Record<FitLabel, number> = { Strong: 0, Good: 1, Weak: 2 };
   const ranked = [
-    ...poolOpps.map(o => ({ id: o.id, type: 'opportunity' as const, createdAt: o.createdAt, score: scoreFit(fitCtx, o) })),
-    ...poolJobs.map(j => ({ id: j.id, type: 'job' as const, createdAt: j.createdAt, score: scoreFit(fitCtx, j) })),
-  ].sort((a, b) => (b.score - a.score) || (b.createdAt.getTime() - a.createdAt.getTime()));
+    ...poolOpps.map(o => ({ id: o.id, type: 'opportunity' as const, createdAt: o.createdAt, ...scoreFitLabeled(fitCtx, o) })),
+    ...poolJobs.map(j => ({ id: j.id, type: 'job' as const, createdAt: j.createdAt, ...scoreFitLabeled(fitCtx, j) })),
+  ].sort((a, b) =>
+    (RANK[a.label] - RANK[b.label]) || (b.score - a.score) || (b.createdAt.getTime() - a.createdAt.getTime()),
+  );
 
   const total = ranked.length;
   const pageSlice = ranked.slice(skip, skip + perPage);
@@ -96,6 +105,8 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
         skills: o.skills,
         location: o.location,
         applyEmail: o.applyEmail,
+        matchLabel: r.label,
+        matchScore: r.score,
       };
     }
     const j = jobById.get(r.id);
@@ -111,11 +122,14 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
       skills: j.skills,
       location: j.country,
       applyEmail: j.applyEmail,
+      matchLabel: r.label,
+      matchScore: r.score,
     };
   }).filter(Boolean) as Array<{
     id: string; type: 'opportunity' | 'job'; title: string; companyName: string;
     description: string; source: string; createdAt: string; skills: string[];
     location: string | null; applyEmail: string | null;
+    matchLabel: FitLabel; matchScore: number;
   }>;
 
   // Compute top skills with counts

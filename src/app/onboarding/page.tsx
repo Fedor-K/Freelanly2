@@ -20,7 +20,7 @@ export default async function OnboardingPage() {
   });
 
   // Already completed onboarding → go to dashboard
-  if (user?.needsOnboarding === false) redirect('/dashboard');
+  if (user?.needsOnboarding === false) redirect('/dashboard/discovery');
 
   const hasResume = !!(user?.resumeText || user?.parsedProfile);
   const hasLinkedin = !!user?.linkedinUrl;

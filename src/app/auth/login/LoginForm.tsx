@@ -38,7 +38,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
       const result = await signIn('email', {
         email,
         redirect: false,
-        callbackUrl: callbackUrl || '/dashboard',
+        callbackUrl: callbackUrl || '/dashboard/discovery',
       });
 
       if (result?.error) {

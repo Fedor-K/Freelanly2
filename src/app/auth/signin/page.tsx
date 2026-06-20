@@ -58,7 +58,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
     const u = await prisma.user
       .findUnique({ where: { id: session.user.id }, select: { resumeUrl: true } })
       .catch(() => null);
-    redirect(u?.resumeUrl ? '/dashboard' : '/dashboard/settings#profile');
+    redirect(u?.resumeUrl ? '/dashboard/discovery' : '/dashboard/settings#profile');
   }
 
   // Personalized headline based on ref source

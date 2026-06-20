@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      callbackUrl: '/dashboard',
+      callbackUrl: '/dashboard/discovery',
     });
   } catch (error) {
     console.error('[VerifyCode] Error:', error);

@@ -13,6 +13,8 @@ type Job = {
   skills: string[];
   location: string | null;
   applyEmail: string | null;
+  matchLabel: 'Strong' | 'Good' | 'Weak';
+  matchScore: number;
 };
 
 const COLORS = ['#FF6B6B','#A8E024','#6EE7FF','#FFB951','#A78BFA','#34D399','#F87171','#818CF8'];
@@ -167,6 +169,14 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
   }
   // else: "My matches" with no manual filter → keep the server's profile fit ranking as-is.
 
+  // In default "My matches" view the server already orders Strong → rest. Mark the boundary so we can
+  // split the feed into a "Strong match" section and a "More opportunities" top-up below it.
+  const inMatchMode = sortBy === 'match' && activeSkills.size === 0;
+  const strongCount = visible.filter(i => i.matchLabel === 'Strong').length;
+  const firstRestIdx = inMatchMode && strongCount > 0
+    ? visible.findIndex(i => i.matchLabel !== 'Strong')
+    : -1;
+
   return (
     <>
       {/* Filters sidebar */}
@@ -218,6 +228,9 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
         <div className="card-head">
           <div className="row gap-3">
             <h3>{visible.length} results</h3>
+            {inMatchMode && strongCount > 0 && (
+              <span className="chip chip-good" style={{fontSize: '11px'}}>★ {strongCount} strong match{strongCount === 1 ? '' : 'es'}</span>
+            )}
             <span className="chip chip-acid-soft"><span className="chip-dot live"></span>Live feed</span>
             <button className="btn btn-ghost btn-sm disco-filter-toggle" onClick={() => setShowFilters(f => !f)}>{showFilters ? 'Hide filters' : 'Filters'}</button>
           </div>
@@ -235,11 +248,20 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
             No opportunities match your filters. Try removing a skill filter.
           </div>
         ) : visible.map((item, i) => (
-          <div key={item.id} className="job-card" style={{cursor: 'default'}}>
+          <div key={item.id}>
+            {i === firstRestIdx && (
+              <div style={{padding: '10px 20px 4px', fontSize: '11px', fontFamily: "'Geist Mono', monospace", color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '1px solid rgba(11,12,15,0.07)'}}>
+                More opportunities
+              </div>
+            )}
+          <div className="job-card" style={{cursor: 'default'}}>
             <div className="logo" style={{background: COLORS[i % COLORS.length]}}>{item.companyName[0]}</div>
             <div>
               <div className="row gap-2">
                 <div className="job-title">{item.title}</div>
+                {item.matchLabel === 'Strong' && (
+                  <span className="chip chip-good" style={{fontSize: '10px'}}>★ Strong match</span>
+                )}
                 <span className="chip"><span className="chip-dot live"></span>{timeAgo(item.createdAt)}</span>
               </div>
               <div className="job-company">{item.companyName} · {item.source === 'linkedin' ? 'via LinkedIn' : item.source}</div>
@@ -286,6 +308,7 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
                 )}
               </div>
             </div>
+          </div>
           </div>
         ))}
 

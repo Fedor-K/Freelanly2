@@ -280,7 +280,7 @@ export function RegistrationForm({
       // Send magic link
       const result = await signIn('resend', {
         email,
-        callbackUrl: callbackUrl || '/dashboard',
+        callbackUrl: callbackUrl || '/dashboard/discovery',
         redirect: false,
       });
 
@@ -358,7 +358,7 @@ export function RegistrationForm({
       fd.append('availableFrom', noticeForm);
       fd.append('profileShareConsent', shareConsent ? 'true' : 'false');
       try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* dashboard handles a missing profile */ }
-      window.location.href = callbackUrl || '/dashboard';
+      window.location.href = callbackUrl || '/dashboard/discovery';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
       setProfileSubmitting(false);
@@ -407,7 +407,7 @@ export function RegistrationForm({
     try {
       const result = await signIn('resend', {
         email,
-        callbackUrl: callbackUrl || '/dashboard',
+        callbackUrl: callbackUrl || '/dashboard/discovery',
         redirect: false,
       });
 
@@ -487,7 +487,7 @@ export function RegistrationForm({
       // Send magic link
       const result = await signIn('resend', {
         email,
-        callbackUrl: callbackUrl || '/dashboard',
+        callbackUrl: callbackUrl || '/dashboard/discovery',
         redirect: false,
       });
 
@@ -570,7 +570,7 @@ export function RegistrationForm({
         // résumé/LinkedIn/categories/salary/Telegram, then apply); everyone else (existing user
         // with a résumé) just enters their account.
         if (hasResume === false) { setStep('profile'); setOtpLoading(false); return; }
-        window.location.href = callbackUrl || data.callbackUrl || '/dashboard';
+        window.location.href = callbackUrl || data.callbackUrl || '/dashboard/discovery';
       } else {
         setOtpError(data.error || 'Invalid code');
         setOtpCode(['', '', '', '', '', '']);
