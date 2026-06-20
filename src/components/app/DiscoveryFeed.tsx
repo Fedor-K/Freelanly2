@@ -190,12 +190,14 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
   }
   // else: "My matches" with no manual filter → keep the server's profile fit ranking as-is.
 
-  // In default "My matches" view the server already orders Strong → rest. Mark the boundary so we can
-  // split the feed into a "Strong match" section and a "More opportunities" top-up below it.
+  // "Strong" is only claimed for AI-VERIFIED matches (the real assessPairing vet confirmed them).
+  // Unverified lexical-strong are NOT badged — they fall into "Closest opportunities" below. So the
+  // promise on screen is honest: a Strong badge means the matcher actually checked it.
+  const isStrong = (i: Job) => i.aiVerified && i.matchLabel === 'Strong';
   const inMatchMode = sortBy === 'match' && activeSkills.size === 0;
-  const strongCount = visible.filter(i => i.matchLabel === 'Strong').length;
+  const strongCount = visible.filter(isStrong).length;
   const firstRestIdx = inMatchMode && strongCount > 0
-    ? visible.findIndex(i => i.matchLabel !== 'Strong')
+    ? visible.findIndex(i => !isStrong(i))
     : -1;
 
   return (
@@ -252,6 +254,9 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
             {inMatchMode && strongCount > 0 && (
               <span className="chip chip-good" style={{fontSize: '11px'}}>★ {strongCount} strong match{strongCount === 1 ? '' : 'es'}</span>
             )}
+            {inMatchMode && strongCount === 0 && (
+              <span className="chip" style={{fontSize: '11px', color: 'var(--ink-4)'}}>No strong matches right now — closest below</span>
+            )}
             <span className="chip chip-acid-soft"><span className="chip-dot live"></span>Live feed</span>
             <button className="btn btn-ghost btn-sm disco-filter-toggle" onClick={() => setShowFilters(f => !f)}>{showFilters ? 'Hide filters' : 'Filters'}</button>
           </div>
@@ -272,7 +277,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
           <div key={item.id}>
             {i === firstRestIdx && (
               <div style={{padding: '10px 20px 4px', fontSize: '11px', fontFamily: "'Geist Mono', monospace", color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '1px solid rgba(11,12,15,0.07)'}}>
-                More opportunities
+                Closest opportunities
               </div>
             )}
           <div className="job-card" style={{cursor: 'default'}}>
@@ -280,8 +285,8 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
             <div>
               <div className="row gap-2">
                 <div className="job-title">{item.title}</div>
-                {item.matchLabel === 'Strong' && (
-                  <span className="chip chip-good" style={{fontSize: '10px'}}>★ Strong match{item.aiVerified ? ' · AI-checked' : ''}</span>
+                {isStrong(item) && (
+                  <span className="chip chip-good" style={{fontSize: '10px'}}>★ Strong match · AI-checked</span>
                 )}
                 <span className="chip"><span className="chip-dot live"></span>{timeAgo(item.createdAt)}</span>
               </div>

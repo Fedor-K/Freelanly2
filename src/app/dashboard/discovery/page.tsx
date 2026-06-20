@@ -101,7 +101,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
   // overrides the cheap lexical label (false "Strong" demoted, hard rejects dropped). Synchronous
   // (~1.5s on first view of a new set), cached forever in MatchVerdict so later loads are instant
   // (Option A). Fail-open: a vetting error falls back to the lexical labels.
-  const TOP_K = 8;
+  const TOP_K = 12;
   const toVet = pageSlice
     .filter(r => r.type === 'opportunity' && r.label === 'Strong')
     .slice(0, TOP_K)
@@ -172,12 +172,15 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
     languageGap: string[]; missingCore: string[];
   }>;
 
-  // Apply the LLM verdicts: drop hard rejects (the matcher said NO / Weak), then re-sort so any
-  // demoted-to-Good items sink below the confirmed Strong ones. Stable sort preserves lexical order
-  // within a label.
+  // Apply the LLM verdicts: drop hard rejects (the matcher said NO / Weak), then order so AI-VERIFIED
+  // Strong floats above everything. "Strong" is only claimed for verified items; unverified lexical
+  // strong sinks into the "closest opportunities" tail (no badge). Stable sort keeps lexical order
+  // within a tier.
+  const rankOf = (it: { aiVerified: boolean; matchLabel: FitLabel }) =>
+    it.aiVerified && it.matchLabel === 'Strong' ? 0 : RANK[it.matchLabel] + 1;
   items = items
     .filter(it => { const v = verdicts.get(it.id); return !(v && (v.decision === 'NO' || v.label === 'Weak')); })
-    .sort((a, b) => RANK[a.matchLabel] - RANK[b.matchLabel]);
+    .sort((a, b) => rankOf(a) - rankOf(b));
 
   // Compute top skills with counts
   const skillCounts: Record<string, number> = {};
