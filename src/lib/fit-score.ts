@@ -95,8 +95,8 @@ export type FitResult = {
   label: FitLabel;
   /** Why it scored — the candidate's own skills found in the role (original casing), for the UI rationale. */
   matchedSkills: string[];
-  /** True when the role title shares the candidate's profession/title tokens (e.g. "Project Manager"). */
-  titleMatch: boolean;
+  /** Candidate profession/title words also in the role title (e.g. ["project","manager"]) — for the rationale. */
+  matchedTitleTokens: string[];
   /** Languages the role demands that the candidate doesn't list — a hard gap that blocks "Strong". */
   languageGap: string[];
 };
@@ -105,7 +105,7 @@ export function scoreFitLabeled(
   ctx: FitContext,
   opp: { title: string; skills?: string[] | null },
 ): FitResult {
-  if (ctx.empty) return { score: 0, label: 'Weak', matchedSkills: [], titleMatch: false, languageGap: [] };
+  if (ctx.empty) return { score: 0, label: 'Weak', matchedSkills: [], matchedTitleTokens: [], languageGap: [] };
 
   const titleLower = opp.title.toLowerCase();
   const oppSkillsRaw = opp.skills || [];
@@ -120,8 +120,10 @@ export function scoreFitLabeled(
   }
   const skillMatches = matchedSkills.length;
 
-  let titleMatches = 0;
-  for (const t of fitTokens(opp.title)) if (ctx.titleTokens.has(t)) titleMatches++;
+  // Candidate profession words present in the role title (in title order, so they read naturally).
+  const matchedTitleTokens: string[] = [];
+  for (const t of fitTokens(opp.title)) if (ctx.titleTokens.has(t)) matchedTitleTokens.push(t);
+  const titleMatches = matchedTitleTokens.length;
 
   const titleFrac = ctx.titleTokens.size > 0
     ? Math.min(1, titleMatches / Math.min(TITLE_FULL_CREDIT, ctx.titleTokens.size))
@@ -144,5 +146,5 @@ export function scoreFitLabeled(
     if (languageGap.length > 0) label = 'Good'; // demote out of the Strong section
   }
 
-  return { score, label, matchedSkills, titleMatch: titleMatches > 0, languageGap };
+  return { score, label, matchedSkills, matchedTitleTokens, languageGap };
 }

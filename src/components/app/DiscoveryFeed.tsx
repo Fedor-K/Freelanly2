@@ -16,19 +16,24 @@ type Job = {
   matchLabel: 'Strong' | 'Good' | 'Weak';
   matchScore: number;
   matchedSkills: string[];
-  titleMatch: boolean;
+  matchedTitleTokens: string[];
   languageGap: string[];
 };
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-// Human "why it matched" line for the card — explains the Strong/Good decision from the actual signals.
-function matchReason(item: Job): string | null {
-  if (item.matchLabel === 'Weak') return null;
-  const parts: string[] = [];
-  if (item.titleMatch) parts.push('matches your role');
-  if (item.matchedSkills.length) parts.push(item.matchedSkills.join(' · '));
-  return parts.length ? parts.join(' + ') : null;
+// The concrete overlap between the role and the candidate's profile — the role's profession words
+// plus the candidate's own skills found in it, as one deduped list (e.g. "Project Manager · Jira · Agile").
+function matchedItems(item: Job): string[] {
+  const role = item.matchedTitleTokens.map(cap).join(' '); // "project","manager" -> "Project Manager"
+  const parts = [role, ...item.matchedSkills].filter(Boolean);
+  const seen = new Set<string>();
+  return parts.filter(s => {
+    const k = s.toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
 
 const COLORS = ['#FF6B6B','#A8E024','#6EE7FF','#FFB951','#A78BFA','#34D399','#F87171','#818CF8'];
@@ -279,13 +284,12 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
                 <span className="chip"><span className="chip-dot live"></span>{timeAgo(item.createdAt)}</span>
               </div>
               <div className="job-company">{item.companyName} · {item.source === 'linkedin' ? 'via LinkedIn' : item.source}</div>
-              {matchReason(item) && (
+              {item.matchLabel !== 'Weak' && matchedItems(item).length > 0 && (
                 <div style={{fontSize: '12px', color: 'var(--ink-4)', margin: '3px 0 2px'}}>
-                  <strong style={{color: 'var(--good, #2E7D32)', fontWeight: 600}}>
-                    Why {item.matchLabel === 'Strong' ? 'strong' : 'good'}:
-                  </strong>{' '}{matchReason(item)}
+                  <strong style={{color: 'var(--good, #2E7D32)', fontWeight: 600}}>In your profile too:</strong>{' '}
+                  {matchedItems(item).join(' · ')}
                   {item.languageGap.length > 0 && (
-                    <span style={{color: '#B45309', fontWeight: 500}}> — needs {item.languageGap.map(cap).join(', ')}</span>
+                    <span style={{color: '#B45309', fontWeight: 500}}> · but needs {item.languageGap.map(cap).join(', ')}, not in your profile</span>
                   )}
                 </div>
               )}
