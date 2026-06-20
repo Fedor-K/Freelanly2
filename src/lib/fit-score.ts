@@ -18,7 +18,24 @@ export function fitTokens(s: string): string[] {
   return (s.toLowerCase().match(/[a-z][a-z+#.]{2,}/g) || []).filter(t => !STOP.has(t));
 }
 
-export type FitContext = { skills: Set<string>; titleTokens: Set<string>; empty: boolean };
+// Known language names (English-canonical, lowercase) used by the language-gap guard. A role that
+// demands a language the candidate doesn't have can't be a Strong match — even if title + tools overlap.
+const LANGUAGES = [
+  'english', 'spanish', 'french', 'german', 'korean', 'japanese', 'chinese', 'mandarin', 'cantonese',
+  'portuguese', 'italian', 'russian', 'arabic', 'dutch', 'hindi', 'turkish', 'polish', 'swedish',
+  'norwegian', 'danish', 'finnish', 'greek', 'hebrew', 'thai', 'vietnamese', 'indonesian', 'ukrainian',
+  'romanian', 'czech', 'hungarian', 'tagalog', 'bengali', 'urdu', 'farsi', 'persian', 'catalan',
+];
+
+/** Canonical language names mentioned anywhere in the given strings. */
+function detectLanguages(...parts: string[]): Set<string> {
+  const blob = parts.join(' ').toLowerCase();
+  const found = new Set<string>();
+  for (const lang of LANGUAGES) if (new RegExp(`\\b${lang}\\b`).test(blob)) found.add(lang);
+  return found;
+}
+
+export type FitContext = { skills: Set<string>; titleTokens: Set<string>; languages: Set<string>; empty: boolean };
 
 /** Build the candidate side once, then score many opportunities against it. */
 export function buildFitContext(profile: Record<string, unknown> | null | undefined): FitContext {
@@ -29,7 +46,8 @@ export function buildFitContext(profile: Record<string, unknown> | null | undefi
     ...fitTokens(typeof profile?.current_title === 'string' ? (profile.current_title as string) : ''),
     ...fitTokens(typeof profile?.field === 'string' ? (profile.field as string) : ''),
   ]);
-  return { skills, titleTokens, empty: skills.size === 0 && titleTokens.size === 0 };
+  const languages = detectLanguages(...((profile?.languages as string[]) || []).map(String));
+  return { skills, titleTokens, languages, empty: skills.size === 0 && titleTokens.size === 0 };
 }
 
 /**
@@ -79,13 +97,15 @@ export type FitResult = {
   matchedSkills: string[];
   /** True when the role title shares the candidate's profession/title tokens (e.g. "Project Manager"). */
   titleMatch: boolean;
+  /** Languages the role demands that the candidate doesn't list — a hard gap that blocks "Strong". */
+  languageGap: string[];
 };
 
 export function scoreFitLabeled(
   ctx: FitContext,
   opp: { title: string; skills?: string[] | null },
 ): FitResult {
-  if (ctx.empty) return { score: 0, label: 'Weak', matchedSkills: [], titleMatch: false };
+  if (ctx.empty) return { score: 0, label: 'Weak', matchedSkills: [], titleMatch: false, languageGap: [] };
 
   const titleLower = opp.title.toLowerCase();
   const oppSkillsRaw = opp.skills || [];
@@ -111,6 +131,18 @@ export function scoreFitLabeled(
     : 0;
 
   const score = Math.round(100 * (TITLE_WEIGHT * titleFrac + SKILL_WEIGHT * skillFrac));
-  const label: FitLabel = score >= STRONG_MIN ? 'Strong' : score >= GOOD_MIN ? 'Good' : 'Weak';
-  return { score, label, matchedSkills, titleMatch: titleMatches > 0 };
+  let label: FitLabel = score >= STRONG_MIN ? 'Strong' : score >= GOOD_MIN ? 'Good' : 'Weak';
+
+  // Language-gap guard: a Strong label is wrong if the role demands a (non-English) language the
+  // candidate doesn't have — the lexical score can't see it, so catch it here. Only when we actually
+  // know the candidate's languages (else we'd downgrade good matches on a parsing gap). English is
+  // excluded: it's near-universal and unreliably parsed, so never the disqualifier.
+  let languageGap: string[] = [];
+  if (label === 'Strong' && ctx.languages.size > 0) {
+    const roleLangs = detectLanguages(opp.title, oppSkills.join(' '));
+    languageGap = [...roleLangs].filter(l => l !== 'english' && !ctx.languages.has(l));
+    if (languageGap.length > 0) label = 'Good'; // demote out of the Strong section
+  }
+
+  return { score, label, matchedSkills, titleMatch: titleMatches > 0, languageGap };
 }

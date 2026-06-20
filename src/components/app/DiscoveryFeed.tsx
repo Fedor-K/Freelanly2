@@ -17,7 +17,10 @@ type Job = {
   matchScore: number;
   matchedSkills: string[];
   titleMatch: boolean;
+  languageGap: string[];
 };
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 // Human "why it matched" line for the card — explains the Strong/Good decision from the actual signals.
 function matchReason(item: Job): string | null {
@@ -281,6 +284,9 @@ export function DiscoveryFeed({ items: initial, total, topSkills, sourceCounts }
                   <strong style={{color: 'var(--good, #2E7D32)', fontWeight: 600}}>
                     Why {item.matchLabel === 'Strong' ? 'strong' : 'good'}:
                   </strong>{' '}{matchReason(item)}
+                  {item.languageGap.length > 0 && (
+                    <span style={{color: '#B45309', fontWeight: 500}}> — needs {item.languageGap.map(cap).join(', ')}</span>
+                  )}
                 </div>
               )}
               <div

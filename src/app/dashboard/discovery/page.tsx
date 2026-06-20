@@ -109,6 +109,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
         matchScore: r.score,
         matchedSkills: r.matchedSkills.slice(0, 4),
         titleMatch: r.titleMatch,
+        languageGap: r.languageGap,
       };
     }
     const j = jobById.get(r.id);
@@ -128,12 +129,13 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
       matchScore: r.score,
       matchedSkills: r.matchedSkills.slice(0, 4),
       titleMatch: r.titleMatch,
+      languageGap: r.languageGap,
     };
   }).filter(Boolean) as Array<{
     id: string; type: 'opportunity' | 'job'; title: string; companyName: string;
     description: string; source: string; createdAt: string; skills: string[];
     location: string | null; applyEmail: string | null;
-    matchLabel: FitLabel; matchScore: number; matchedSkills: string[]; titleMatch: boolean;
+    matchLabel: FitLabel; matchScore: number; matchedSkills: string[]; titleMatch: boolean; languageGap: string[];
   }>;
 
   // Compute top skills with counts
