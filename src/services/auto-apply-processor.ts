@@ -1170,7 +1170,15 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
   // wasteful AI match evaluations once the budget is spent.
   const FANOUT_CAP = 30;
   const existingForListing = await prisma.autoApplication.count({
-    where: listing.type === 'job' ? { jobId: listing.id } : { opportunityId: listing.id },
+    where: {
+      ...(listing.type === 'job' ? { jobId: listing.id } : { opportunityId: listing.id }),
+      // Count only REAL recruiter touches. MATCH_REJECTED (never sent), FAILED (send error) and
+      // SKIPPED (user dismissed) used to inflate this cap — a viral role accrued dozens of rejects,
+      // crossed 30, and was then silently skipped for ALL future candidates (incl. perfect late
+      // matches) for the rest of its life, though the recruiter had only ~4 real applicants. REJECTED
+      // stays counted (it reached the recruiter). Fix 2026-06-21.
+      status: { notIn: [AutoApplyStatus.MATCH_REJECTED, AutoApplyStatus.FAILED, AutoApplyStatus.SKIPPED] },
+    },
   });
   if (existingForListing >= FANOUT_CAP) {
     return 0;
