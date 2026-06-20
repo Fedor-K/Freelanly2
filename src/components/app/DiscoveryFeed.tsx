@@ -175,6 +175,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
   const [sortBy, setSortBy] = useState<'newest' | 'match'>('match');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
+  const [showSimilar, setShowSimilar] = useState(false); // similar (non-100%) opps are opt-in via a button
 
   // Apply filters
   let visible = items.filter(i => !skipped.has(i.id));
@@ -195,13 +196,84 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
   }
   // else: "My matches" with no manual filter → keep the server's profile fit ranking as-is.
 
-  // The feed leads with the verified matches (matcher-vetted), then the unbadged "closest" tail. Mark
-  // the boundary so we can label the tail honestly.
+  // The feed leads with verified matches; the unverified "similar" (not-100%) opps are split out and
+  // only shown when the user opts in via a button. Other sort modes show everything inline.
   const inMatchMode = sortBy === 'match' && activeSkills.size === 0;
   const verifiedCount = visible.filter(isVerified).length;
-  const firstRestIdx = inMatchMode && verifiedCount > 0
-    ? visible.findIndex(i => !isVerified(i))
-    : -1;
+  const verifiedVisible = inMatchMode ? visible.filter(isVerified) : visible;
+  const similarVisible = inMatchMode ? visible.filter(i => !isVerified(i)) : [];
+
+  const renderCard = (item: Job, i: number) => (
+    <div key={item.id} className="job-card" style={{cursor: 'default'}}>
+      <div className="logo" style={{background: COLORS[i % COLORS.length]}}>{item.companyName[0]}</div>
+      <div>
+        <div className="row gap-2">
+          <div className="job-title">{item.title}</div>
+          {isVerified(item) && (
+            <span className="chip chip-good" style={{fontSize: '10px'}}>
+              {item.matchLabel === 'Strong' ? '★ Strong match · AI-checked' : '✓ Good match · AI-checked'}
+            </span>
+          )}
+          <span className="chip"><span className="chip-dot live"></span>{timeAgo(item.createdAt)}</span>
+        </div>
+        <div className="job-company">{item.companyName} · {item.source === 'linkedin' ? 'via LinkedIn' : item.source}</div>
+        {item.matchLabel !== 'Weak' && matchedItems(item).length > 0 && (
+          <div style={{fontSize: '12px', color: 'var(--ink-4)', margin: '3px 0 2px'}}>
+            <strong style={{color: 'var(--good, #2E7D32)', fontWeight: 600}}>In your profile too:</strong>{' '}
+            {matchedItems(item).join(' · ')}
+            {item.languageGap.length > 0 && (
+              <span style={{color: '#B45309', fontWeight: 500}}> · but needs {item.languageGap.map(cap).join(', ')}, not in your profile</span>
+            )}
+            {item.languageGap.length === 0 && item.missingCore.length > 0 && (
+              <span style={{color: '#B45309', fontWeight: 500}}> · missing {item.missingCore.slice(0, 2).join(', ')}</span>
+            )}
+          </div>
+        )}
+        <div
+          className="job-snippet"
+          style={{cursor: 'pointer'}}
+          onClick={() => setExpanded(prev => {
+            const next = new Set(prev);
+            if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+            return next;
+          })}
+        >
+          {expanded.has(item.id) ? item.description : item.description.slice(0, 200)}
+          {!expanded.has(item.id) && item.description.length > 200 ? <span style={{color: 'var(--acid-deep, #4D8B0A)', fontWeight: 500}}> ... read more ▸</span> : null}
+          {expanded.has(item.id) && item.description.length > 200 ? <span style={{color: 'var(--ink-4)', fontWeight: 400}}> ▴ collapse</span> : null}
+        </div>
+        <div className="job-meta">
+          {item.skills.slice(0, 5).map(s => (
+            <span key={s} className={`tag${activeSkills.has(s) ? ' tag-acid' : ''}`}>{s}</span>
+          ))}
+          {item.location && <span className="tag">{item.location}</span>}
+        </div>
+      </div>
+      <div className="job-right">
+        <div className="job-actions">
+          {applied.has(item.id) || item.alreadyApplied ? (
+            <span className="chip chip-good" style={{fontSize: '11px'}}>✓ Applied</span>
+          ) : (
+            <>
+              <button className="btn btn-ghost btn-sm" onClick={() => setSkipped(prev => new Set(prev).add(item.id))}>Skip</button>
+              {item.applyEmail ? (
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => handleApply(item)}
+                  disabled={!!loading[item.id]}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                  {loading[item.id] === 'apply' ? 'Applying...' : 'Apply'}
+                </button>
+              ) : (
+                <span className="meta" style={{fontSize: '11px'}}>No email</span>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -284,84 +356,21 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
           <div style={{padding: '40px 20px', textAlign: 'center', color: 'var(--ink-4)', fontSize: '13px'}}>
             No opportunities match your filters. Try removing a skill filter.
           </div>
-        ) : visible.map((item, i) => (
-          <div key={item.id}>
-            {i === firstRestIdx && (
-              <div style={{padding: '10px 20px 4px', fontSize: '11px', fontFamily: "'Geist Mono', monospace", color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '1px solid rgba(11,12,15,0.07)'}}>
-                Closest opportunities
+        ) : (
+          <>
+            {verifiedVisible.map((item, i) => renderCard(item, i))}
+            {similarVisible.length > 0 && (
+              <div style={{padding: '14px 20px', borderTop: '1px solid rgba(11,12,15,0.07)', textAlign: 'center'}}>
+                <button className="btn btn-soft btn-sm" onClick={() => setShowSimilar(s => !s)}>
+                  {showSimilar
+                    ? 'Hide similar'
+                    : `Show ${similarVisible.length} similar opportunit${similarVisible.length === 1 ? 'y' : 'ies'} (not 100% matches)`}
+                </button>
               </div>
             )}
-          <div className="job-card" style={{cursor: 'default'}}>
-            <div className="logo" style={{background: COLORS[i % COLORS.length]}}>{item.companyName[0]}</div>
-            <div>
-              <div className="row gap-2">
-                <div className="job-title">{item.title}</div>
-                {isVerified(item) && (
-                  <span className="chip chip-good" style={{fontSize: '10px'}}>
-                    {item.matchLabel === 'Strong' ? '★ Strong match · AI-checked' : '✓ Good match · AI-checked'}
-                  </span>
-                )}
-                <span className="chip"><span className="chip-dot live"></span>{timeAgo(item.createdAt)}</span>
-              </div>
-              <div className="job-company">{item.companyName} · {item.source === 'linkedin' ? 'via LinkedIn' : item.source}</div>
-              {item.matchLabel !== 'Weak' && matchedItems(item).length > 0 && (
-                <div style={{fontSize: '12px', color: 'var(--ink-4)', margin: '3px 0 2px'}}>
-                  <strong style={{color: 'var(--good, #2E7D32)', fontWeight: 600}}>In your profile too:</strong>{' '}
-                  {matchedItems(item).join(' · ')}
-                  {item.languageGap.length > 0 && (
-                    <span style={{color: '#B45309', fontWeight: 500}}> · but needs {item.languageGap.map(cap).join(', ')}, not in your profile</span>
-                  )}
-                  {item.languageGap.length === 0 && item.missingCore.length > 0 && (
-                    <span style={{color: '#B45309', fontWeight: 500}}> · missing {item.missingCore.slice(0, 2).join(', ')}</span>
-                  )}
-                </div>
-              )}
-              <div
-                className="job-snippet"
-                style={{cursor: 'pointer'}}
-                onClick={() => setExpanded(prev => {
-                  const next = new Set(prev);
-                  if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
-                  return next;
-                })}
-              >
-                {expanded.has(item.id) ? item.description : item.description.slice(0, 200)}
-                {!expanded.has(item.id) && item.description.length > 200 ? <span style={{color: 'var(--acid-deep, #4D8B0A)', fontWeight: 500}}> ... read more ▸</span> : null}
-                {expanded.has(item.id) && item.description.length > 200 ? <span style={{color: 'var(--ink-4)', fontWeight: 400}}> ▴ collapse</span> : null}
-              </div>
-              <div className="job-meta">
-                {item.skills.slice(0, 5).map(s => (
-                  <span key={s} className={`tag${activeSkills.has(s) ? ' tag-acid' : ''}`}>{s}</span>
-                ))}
-                {item.location && <span className="tag">{item.location}</span>}
-              </div>
-            </div>
-            <div className="job-right">
-              <div className="job-actions">
-                {applied.has(item.id) || item.alreadyApplied ? (
-                  <span className="chip chip-good" style={{fontSize: '11px'}}>✓ Applied</span>
-                ) : (
-                  <>
-                    <button className="btn btn-ghost btn-sm" onClick={() => setSkipped(prev => new Set(prev).add(item.id))}>Skip</button>
-                    {item.applyEmail ? (
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => handleApply(item)}
-                        disabled={!!loading[item.id]}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                        {loading[item.id] === 'apply' ? 'Applying...' : 'Apply'}
-                      </button>
-                    ) : (
-                      <span className="meta" style={{fontSize: '11px'}}>No email</span>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-          </div>
-        ))}
+            {showSimilar && similarVisible.map((item, i) => renderCard(item, verifiedVisible.length + i))}
+          </>
+        )}
       </div>
 
       {/* Draft preview modal */}
