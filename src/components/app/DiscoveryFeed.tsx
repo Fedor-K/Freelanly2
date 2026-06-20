@@ -15,6 +15,7 @@ type Job = {
   applyEmail: string | null;
   matchLabel: 'Strong' | 'Good' | 'Weak';
   aiVerified: boolean;
+  alreadyApplied: boolean;
   matchScore: number;
   matchedSkills: string[];
   matchedTitleTokens: string[];
@@ -23,6 +24,10 @@ type Job = {
 };
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// A verified match = the auto-apply matcher actually vetted it (Strong or Good). Only these are
+// badged; everything else is an unbadged "closest opportunity" for browsing.
+const isVerified = (i: Job) => i.aiVerified;
 
 // The concrete overlap between the role and the candidate's profile — the role's profession words
 // plus the candidate's own skills found in it, as one deduped list (e.g. "Project Manager · Jira · Agile").
@@ -190,14 +195,12 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
   }
   // else: "My matches" with no manual filter → keep the server's profile fit ranking as-is.
 
-  // "Strong" is only claimed for AI-VERIFIED matches (the real assessPairing vet confirmed them).
-  // Unverified lexical-strong are NOT badged — they fall into "Closest opportunities" below. So the
-  // promise on screen is honest: a Strong badge means the matcher actually checked it.
-  const isStrong = (i: Job) => i.aiVerified && i.matchLabel === 'Strong';
+  // The feed leads with the verified matches (matcher-vetted), then the unbadged "closest" tail. Mark
+  // the boundary so we can label the tail honestly.
   const inMatchMode = sortBy === 'match' && activeSkills.size === 0;
-  const strongCount = visible.filter(isStrong).length;
-  const firstRestIdx = inMatchMode && strongCount > 0
-    ? visible.findIndex(i => !isStrong(i))
+  const verifiedCount = visible.filter(isVerified).length;
+  const firstRestIdx = inMatchMode && verifiedCount > 0
+    ? visible.findIndex(i => !isVerified(i))
     : -1;
 
   return (
@@ -251,11 +254,11 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
         <div className="card-head">
           <div className="row gap-3">
             <h3>{visible.length} results</h3>
-            {inMatchMode && strongCount > 0 && (
-              <span className="chip chip-good" style={{fontSize: '11px'}}>★ {strongCount} strong match{strongCount === 1 ? '' : 'es'}</span>
+            {inMatchMode && verifiedCount > 0 && (
+              <span className="chip chip-good" style={{fontSize: '11px'}}>★ {verifiedCount} verified match{verifiedCount === 1 ? '' : 'es'}</span>
             )}
-            {inMatchMode && strongCount === 0 && (
-              <span className="chip" style={{fontSize: '11px', color: 'var(--ink-4)'}}>No strong matches right now — closest below</span>
+            {inMatchMode && verifiedCount === 0 && (
+              <span className="chip" style={{fontSize: '11px', color: 'var(--ink-4)'}}>No verified matches yet — closest below</span>
             )}
             <span className="chip chip-acid-soft"><span className="chip-dot live"></span>Live feed</span>
             <button className="btn btn-ghost btn-sm disco-filter-toggle" onClick={() => setShowFilters(f => !f)}>{showFilters ? 'Hide filters' : 'Filters'}</button>
@@ -285,8 +288,10 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
             <div>
               <div className="row gap-2">
                 <div className="job-title">{item.title}</div>
-                {isStrong(item) && (
-                  <span className="chip chip-good" style={{fontSize: '10px'}}>★ Strong match · AI-checked</span>
+                {isVerified(item) && (
+                  <span className="chip chip-good" style={{fontSize: '10px'}}>
+                    {item.matchLabel === 'Strong' ? '★ Strong match · AI-checked' : '✓ Good match · AI-checked'}
+                  </span>
                 )}
                 <span className="chip"><span className="chip-dot live"></span>{timeAgo(item.createdAt)}</span>
               </div>
@@ -325,7 +330,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
             </div>
             <div className="job-right">
               <div className="job-actions">
-                {applied.has(item.id) ? (
+                {applied.has(item.id) || item.alreadyApplied ? (
                   <span className="chip chip-good" style={{fontSize: '11px'}}>✓ Applied</span>
                 ) : (
                   <>

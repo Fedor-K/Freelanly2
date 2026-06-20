@@ -4,7 +4,6 @@ import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { DiscoveryFeed } from '@/components/app/DiscoveryFeed';
 import { buildFitContext, scoreFitLabeled, type FitLabel } from '@/lib/fit-score';
-import { getVerdicts } from '@/lib/match-verdict';
 import './discovery-design.css';
 
 export const metadata: Metadata = {
@@ -60,127 +59,104 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
     (RANK[a.label] - RANK[b.label]) || (b.score - a.score) || (b.createdAt.getTime() - a.createdAt.getTime()),
   );
 
-  // The feed IS the strong matches — don't pad. Only when a niche profile has too few strong do we top
-  // up (with the best non-strong) to a floor, so the landing is never near-empty. A profile with 39
-  // strong sees 39, not 50.
-  const STRONG_FLOOR = 12;
-  const strongRows = ranked.filter(r => r.label === 'Strong');
-  const feed = strongRows.length >= STRONG_FLOOR ? strongRows : ranked.slice(0, STRONG_FLOOR);
+  type FeedItem = {
+    id: string; type: 'opportunity' | 'job'; title: string; companyName: string; description: string;
+    source: string; createdAt: string; skills: string[]; location: string | null; applyEmail: string | null;
+    matchLabel: FitLabel; aiVerified: boolean; alreadyApplied: boolean; matchScore: number;
+    matchedSkills: string[]; matchedTitleTokens: string[]; languageGap: string[]; missingCore: string[];
+  };
 
-  const total = feed.length;
-  const pageSlice = feed.slice(skip, skip + perPage);
-  const hasMore = skip + perPage < total;
+  // ── Verified queue: the matches the auto-apply matcher ALREADY vetted as real (Strong/Good, not
+  // rejected) and that are still live. Free + already computed → the honest core of the feed, shown
+  // first regardless of lexical rank. A thin-but-true feed beats a thick-but-fake one (owner decision).
+  const GOOD_STATUS = ['PENDING', 'REVIEW', 'SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER'];
+  const SENT_STATUS = new Set(['SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER']);
+  // AutoApplication has no `opportunity` relation (only scalar opportunityId) — fetch verdicts, then
+  // the live opportunities, and join in code.
+  const queueApps = await prisma.autoApplication.findMany({
+    where: {
+      userId: session.user.id,
+      matchLabel: { in: ['Strong', 'Good'] },
+      status: { in: GOOD_STATUS as never },
+      opportunityId: { not: null },
+    },
+    select: { opportunityId: true, matchLabel: true, status: true },
+  });
+  const qOppIds = [...new Set(queueApps.map(a => a.opportunityId!).filter(Boolean))];
+  const qOpps = qOppIds.length ? await prisma.opportunity.findMany({
+    where: { id: { in: qOppIds }, isActive: true, applyEmail: { not: null } },
+    select: { id: true, title: true, clientName: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, company: { select: { name: true } } },
+  }) : [];
+  const qOppById = new Map(qOpps.map(o => [o.id, o]));
+  const queueItemsRaw = queueApps.map((a): FeedItem | null => {
+    const o = a.opportunityId ? qOppById.get(a.opportunityId) : null;
+    if (!o) return null;
+    const fit = scoreFitLabeled(fitCtx, { title: o.title, skills: o.skills });
+    return {
+      id: o.id, type: 'opportunity', title: o.title,
+      companyName: o.company?.name || o.posterCompany || o.clientName || 'Unknown',
+      description: o.description, source: 'linkedin', createdAt: o.createdAt.toISOString(),
+      skills: o.skills, location: o.location, applyEmail: o.applyEmail,
+      matchLabel: (a.matchLabel as FitLabel) || 'Good', aiVerified: true, alreadyApplied: SENT_STATUS.has(a.status),
+      matchScore: 100, matchedSkills: fit.matchedSkills.slice(0, 4), matchedTitleTokens: fit.matchedTitleTokens,
+      languageGap: [], missingCore: [],
+    };
+  });
+  const queueItems: FeedItem[] = (queueItemsRaw.filter(Boolean) as FeedItem[])
+    .sort((x, y) => RANK[x.matchLabel] - RANK[y.matchLabel]); // Strong before Good
 
-  // Pass 2 — fetch display fields only for the IDs on this page, then restore the ranked order.
-  const oppIds = pageSlice.filter(r => r.type === 'opportunity').map(r => r.id);
-  const jobIds = pageSlice.filter(r => r.type === 'job').map(r => r.id);
+  // ── Closest tail: the lexical-ranked pool (minus the queue), UNbadged — for browsing when the
+  // verified queue is thin. No LLM at feed time; these never claim "Strong".
+  const queueIds = new Set(queueItems.map(i => i.id));
+  const closestRanked = ranked.filter(r => !queueIds.has(r.id));
+  const closestTotal = closestRanked.length;
+  const closestSlice = closestRanked.slice(skip, skip + perPage);
+
+  const oppIds = closestSlice.filter(r => r.type === 'opportunity').map(r => r.id);
+  const jobIds = closestSlice.filter(r => r.type === 'job').map(r => r.id);
   const [opportunities, jobs] = await Promise.all([
     oppIds.length ? prisma.opportunity.findMany({
       where: { id: { in: oppIds } },
-      select: {
-        id: true, title: true, clientName: true, posterCompany: true,
-        description: true, createdAt: true, skills: true, location: true,
-        applyEmail: true, sourceUrl: true,
-        company: { select: { name: true } },
-      },
+      select: { id: true, title: true, clientName: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, sourceUrl: true, company: { select: { name: true } } },
     }) : Promise.resolve([]),
     jobIds.length ? prisma.job.findMany({
       where: { id: { in: jobIds } },
-      select: {
-        id: true, title: true, description: true, createdAt: true,
-        skills: true, country: true, applyEmail: true, sourceUrl: true,
-        company: { select: { name: true } },
-      },
+      select: { id: true, title: true, description: true, createdAt: true, skills: true, country: true, applyEmail: true, sourceUrl: true, company: { select: { name: true } } },
     }) : Promise.resolve([]),
   ]);
-
   const oppById = new Map(opportunities.map(o => [o.id, o]));
   const jobById = new Map(jobs.map(j => [j.id, j]));
 
-  // LLM-verify the top-K strong-lexical opportunities on this page — the real assessPairing verdict
-  // overrides the cheap lexical label (false "Strong" demoted, hard rejects dropped). Synchronous
-  // (~1.5s on first view of a new set), cached forever in MatchVerdict so later loads are instant
-  // (Option A). Fail-open: a vetting error falls back to the lexical labels.
-  const TOP_K = 12;
-  const toVet = pageSlice
-    .filter(r => r.type === 'opportunity' && r.label === 'Strong')
-    .slice(0, TOP_K)
-    .map(r => oppById.get(r.id))
-    .filter((o): o is NonNullable<typeof o> => !!o)
-    .map(o => ({ id: o.id, title: o.title, description: o.description }));
-  let verdicts = new Map<string, { label: FitLabel; decision: 'NO' | 'SEND' }>();
-  try {
-    verdicts = await getVerdicts(
-      { id: session.user.id, parsedProfile: me.parsedProfile as Record<string, unknown> | null, resumeText: me.resumeText, resumeUrl: me.resumeUrl },
-      toVet,
-    );
-  } catch (e) {
-    console.error('[discovery] vet failed, falling back to lexical:', e);
-  }
-
-  let items = pageSlice.map(r => {
+  const closestItems: FeedItem[] = closestSlice.map(r => {
     if (r.type === 'opportunity') {
       const o = oppById.get(r.id);
       if (!o) return null;
-      const v = verdicts.get(o.id);
       return {
-        id: o.id,
-        type: 'opportunity' as const,
-        title: o.title,
+        id: o.id, type: 'opportunity' as const, title: o.title,
         companyName: o.company?.name || o.posterCompany || o.clientName || 'Unknown',
-        description: o.description,
-        source: 'linkedin',
-        createdAt: o.createdAt.toISOString(),
-        skills: o.skills,
-        location: o.location,
-        applyEmail: o.applyEmail,
-        matchLabel: v ? v.label : r.label,  // real LLM verdict overrides lexical when present
-        aiVerified: !!v,
-        matchScore: r.score,
-        matchedSkills: r.matchedSkills.slice(0, 4),
-        matchedTitleTokens: r.matchedTitleTokens,
-        languageGap: r.languageGap,
-        missingCore: r.missingCore,
+        description: o.description, source: 'linkedin', createdAt: o.createdAt.toISOString(),
+        skills: o.skills, location: o.location, applyEmail: o.applyEmail,
+        matchLabel: r.label, aiVerified: false, alreadyApplied: false,
+        matchScore: r.score, matchedSkills: r.matchedSkills.slice(0, 4), matchedTitleTokens: r.matchedTitleTokens,
+        languageGap: r.languageGap, missingCore: r.missingCore,
       };
     }
     const j = jobById.get(r.id);
     if (!j) return null;
     return {
-      id: j.id,
-      type: 'job' as const,
-      title: j.title,
-      companyName: j.company.name,
-      description: j.description,
-      source: j.sourceUrl?.includes('lever') ? 'Lever' : j.sourceUrl?.includes('linkedin') ? 'linkedin' : 'careers page',
-      createdAt: j.createdAt.toISOString(),
-      skills: j.skills,
-      location: j.country,
-      applyEmail: j.applyEmail,
-      matchLabel: r.label,
-      aiVerified: false,
-      matchScore: r.score,
-      matchedSkills: r.matchedSkills.slice(0, 4),
-      matchedTitleTokens: r.matchedTitleTokens,
-      languageGap: r.languageGap,
-      missingCore: r.missingCore,
+      id: j.id, type: 'job' as const, title: j.title, companyName: j.company.name,
+      description: j.description, source: j.sourceUrl?.includes('lever') ? 'Lever' : j.sourceUrl?.includes('linkedin') ? 'linkedin' : 'careers page',
+      createdAt: j.createdAt.toISOString(), skills: j.skills, location: j.country, applyEmail: j.applyEmail,
+      matchLabel: r.label, aiVerified: false, alreadyApplied: false,
+      matchScore: r.score, matchedSkills: r.matchedSkills.slice(0, 4), matchedTitleTokens: r.matchedTitleTokens,
+      languageGap: r.languageGap, missingCore: r.missingCore,
     };
-  }).filter(Boolean) as Array<{
-    id: string; type: 'opportunity' | 'job'; title: string; companyName: string;
-    description: string; source: string; createdAt: string; skills: string[];
-    location: string | null; applyEmail: string | null;
-    matchLabel: FitLabel; aiVerified: boolean; matchScore: number; matchedSkills: string[]; matchedTitleTokens: string[];
-    languageGap: string[]; missingCore: string[];
-  }>;
+  }).filter(Boolean) as FeedItem[];
 
-  // Apply the LLM verdicts: drop hard rejects (the matcher said NO / Weak), then order so AI-VERIFIED
-  // Strong floats above everything. "Strong" is only claimed for verified items; unverified lexical
-  // strong sinks into the "closest opportunities" tail (no badge). Stable sort keeps lexical order
-  // within a tier.
-  const rankOf = (it: { aiVerified: boolean; matchLabel: FitLabel }) =>
-    it.aiVerified && it.matchLabel === 'Strong' ? 0 : RANK[it.matchLabel] + 1;
-  items = items
-    .filter(it => { const v = verdicts.get(it.id); return !(v && (v.decision === 'NO' || v.label === 'Weak')); })
-    .sort((a, b) => rankOf(a) - rankOf(b));
+  // Verified queue on page 1, then the closest tail. Pagination is over the tail.
+  const items: FeedItem[] = page === 1 ? [...queueItems, ...closestItems] : closestItems;
+  const total = queueItems.length + closestTotal;
+  const hasMore = skip + perPage < closestTotal;
 
   // Compute top skills with counts
   const skillCounts: Record<string, number> = {};
