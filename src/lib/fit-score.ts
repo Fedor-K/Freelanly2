@@ -99,13 +99,15 @@ export type FitResult = {
   matchedTitleTokens: string[];
   /** Languages the role demands that the candidate doesn't list — a hard gap that blocks "Strong". */
   languageGap: string[];
+  /** Named specializations in the role title (also listed as requirements) the candidate lacks — blocks "Strong". */
+  missingCore: string[];
 };
 
 export function scoreFitLabeled(
   ctx: FitContext,
   opp: { title: string; skills?: string[] | null },
 ): FitResult {
-  if (ctx.empty) return { score: 0, label: 'Weak', matchedSkills: [], matchedTitleTokens: [], languageGap: [] };
+  if (ctx.empty) return { score: 0, label: 'Weak', matchedSkills: [], matchedTitleTokens: [], languageGap: [], missingCore: [] };
 
   const titleLower = opp.title.toLowerCase();
   const oppSkillsRaw = opp.skills || [];
@@ -146,5 +148,19 @@ export function scoreFitLabeled(
     if (languageGap.length > 0) label = 'Good'; // demote out of the Strong section
   }
 
-  return { score, label, matchedSkills, matchedTitleTokens, languageGap };
+  // Core-specialization guard: a named tech in the role TITLE that's also a listed requirement
+  // (e.g. "ServiceNow" in "ServiceNow Project Manager") but absent from the candidate's profile means
+  // the role's defining specialization is missing — not Strong, even if the generic title + a couple of
+  // skills overlap. Only single-word title tokens that exactly match a skill tag trigger, so generic
+  // words ("project") and multi-word tags ("ms project") never false-fire.
+  const missingCore: string[] = [];
+  if (label === 'Strong') {
+    for (const t of fitTokens(opp.title)) {
+      const idx = oppSkills.indexOf(t);
+      if (idx !== -1 && !ctx.skills.has(t) && !ctx.titleTokens.has(t)) missingCore.push(oppSkillsRaw[idx]);
+    }
+    if (missingCore.length > 0) label = 'Good';
+  }
+
+  return { score, label, matchedSkills, matchedTitleTokens, languageGap, missingCore };
 }

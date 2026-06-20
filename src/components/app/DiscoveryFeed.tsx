@@ -18,6 +18,7 @@ type Job = {
   matchedSkills: string[];
   matchedTitleTokens: string[];
   languageGap: string[];
+  missingCore: string[];
 };
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -290,6 +291,9 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
                   {matchedItems(item).join(' · ')}
                   {item.languageGap.length > 0 && (
                     <span style={{color: '#B45309', fontWeight: 500}}> · but needs {item.languageGap.map(cap).join(', ')}, not in your profile</span>
+                  )}
+                  {item.languageGap.length === 0 && item.missingCore.length > 0 && (
+                    <span style={{color: '#B45309', fontWeight: 500}}> · missing {item.missingCore.slice(0, 2).join(', ')}</span>
                   )}
                 </div>
               )}
