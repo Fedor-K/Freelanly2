@@ -162,12 +162,6 @@ export default async function DiscoveryPage({ searchParams }: { searchParams: Pr
           <h1>Discovery <span style={{fontSize: '16px', color: 'var(--ink-4)', fontWeight: 400, fontFamily: "'Geist Mono', monospace"}}>· {totalToday} new today</span></h1>
           <p>Live feed across LinkedIn posts, career pages, and freelance boards. Updated every 3 hours.</p>
         </div>
-        <div className="page-actions">
-          <a href="/dashboard/discovery" className="btn btn-ghost">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-            Refresh feed
-          </a>
-        </div>
       </div>
 
       <div className="disco-grid">
