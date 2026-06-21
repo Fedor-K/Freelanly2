@@ -73,7 +73,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
   // The feed is built server-side and arrives instantly, so a route-loading screen just flashes. Show
   // a guaranteed ~2.2s "scanning the feed" intro on mount instead, so the search animation is actually seen.
   const [intro, setIntro] = useState(true);
-  useEffect(() => { const t = setTimeout(() => setIntro(false), 2200); return () => clearTimeout(t); }, []);
+  useEffect(() => { const t = setTimeout(() => setIntro(false), 3500); return () => clearTimeout(t); }, []);
 
   async function handleApply(item: Job) {
     if (!item.applyEmail) return;
