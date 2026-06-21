@@ -329,8 +329,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     const errors: Record<string, boolean> = {};
     if (!resumeFile) errors.resume = true;
     if (!linkedinUrl) errors.linkedin = true;
-    if (selectedCategories.length === 0) errors.categories = true;
-    if (selectedCategories.includes('translation') && selectedLanguages.length === 0) errors.languages = true;
     if (!workAuth) errors.workAuth = true;
     if (!currentRate.trim()) errors.currentRate = true;
     if (!salaryExpectation.trim()) errors.salary = true;
@@ -510,48 +508,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 style={{ width: '100%', padding: '10px 12px', border: `1px solid ${fieldErrors.linkedin ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '13px' }}
               />
             </div>
-
-            {/* Categories */}
-            <div style={{ marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.categories ? '#B91C1C' : '#555', display: 'block', marginBottom: '6px' }}>What kind of work? <span style={{ color: '#B91C1C' }}>*</span></label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                {categories.map(cat => (
-                  <span
-                    key={cat.slug}
-                    onClick={() => setSelectedCategories(prev => prev.includes(cat.slug) ? prev.filter(c => c !== cat.slug) : [...prev, cat.slug])}
-                    style={{
-                      padding: '4px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer',
-                      background: selectedCategories.includes(cat.slug) ? '#0A0B0F' : '#F0EDE5',
-                      color: selectedCategories.includes(cat.slug) ? '#fff' : '#555',
-                    }}
-                  >
-                    {cat.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Languages for translation */}
-            {selectedCategories.includes('translation') && (
-              <div style={{ marginBottom: '8px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.languages ? '#B91C1C' : '#555', display: 'block', marginBottom: '6px' }}>Your languages <span style={{ color: '#B91C1C' }}>*</span></label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxHeight: '120px', overflowY: 'auto' }}>
-                  {languages.filter(l => l.code !== 'EN').map(lang => (
-                    <span
-                      key={lang.code}
-                      onClick={() => setSelectedLanguages(prev => prev.includes(lang.code) ? prev.filter(c => c !== lang.code) : [...prev, lang.code])}
-                      style={{
-                        padding: '4px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer',
-                        background: selectedLanguages.includes(lang.code) ? '#0A0B0F' : '#F0EDE5',
-                        color: selectedLanguages.includes(lang.code) ? '#fff' : '#555',
-                      }}
-                    >
-                      {lang.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* The fields recruiters re-ask for on every reply (work auth, current + expected pay,
                 notice). Captured up front and put in the first outreach email → no "share details"

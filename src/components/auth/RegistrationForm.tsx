@@ -339,8 +339,6 @@ export function RegistrationForm({
   async function handleProfileSubmit() {
     if (!resumeFile) { setError('Please upload your résumé (PDF)'); return; }
     if (!linkedinUrl) { setError('Please add your LinkedIn profile URL'); return; }
-    if (selectedCategories.length === 0) { setError('Please pick at least one kind of work'); return; }
-    if (showTranslationFields && selectedLanguages.length === 0) { setError('Please pick at least one language'); return; }
     if (!workAuth) { setError('Please select where you can legally work'); return; }
     if (!currentRate.trim()) { setError('Please add your current rate / pay'); return; }
     if (!salaryExpectation.trim()) { setError('Please add your expected salary'); return; }
@@ -427,17 +425,6 @@ export function RegistrationForm({
   // Registration Submit (for new users)
   const handleRegistrationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (selectedCategories.length === 0) {
-      setError('Please select at least one job category');
-      return;
-    }
-
-    // Validate languages for translation category
-    if (showTranslationFields && selectedLanguages.length === 0) {
-      setError('Please select at least one language for translation alerts');
-      return;
-    }
 
     // Validate ToS agreement
     if (!agreedToTerms) {
@@ -743,31 +730,6 @@ export function RegistrationForm({
           </div>
         </div>
 
-        {/* Categories */}
-        <div>
-          <label className="field-label">What kind of work? <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
-          <div className="cat-grid">
-            {categories.map((cat) => (
-              <div key={cat.slug} className={`cat-chip${selectedCategories.includes(cat.slug) ? ' on' : ''}`} onClick={() => toggleCategory(cat.slug)}>
-                <span className="cb"></span>{cat.name}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {showTranslationFields && (
-          <div style={{ padding: '12px', background: 'rgba(11,12,15,0.03)', borderRadius: '10px' }}>
-            <label className="field-label">Your Languages *</label>
-            <div className="cat-grid" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              {languages.filter(l => l.code !== 'EN').map((lang) => (
-                <div key={lang.code} className={`cat-chip${selectedLanguages.includes(lang.code) ? ' on' : ''}`} onClick={() => toggleLanguage(lang.code)}>
-                  <span className="cb"></span>{lang.name}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Fields recruiters re-ask on every reply (work auth, current + expected pay, notice) —
             captured up front and put in the first outreach email so there's no "share details" round. */}
         <div>
@@ -868,17 +830,6 @@ export function RegistrationForm({
         <div>
           <label className="field-label">Name</label>
           <input className="text-input" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
-        </div>
-
-        <div>
-          <label className="field-label">What kind of work? <span className="optional">— pick all that apply</span></label>
-          <div className="cat-grid">
-            {categories.map((cat) => (
-              <div key={cat.slug} className={`cat-chip${selectedCategories.includes(cat.slug) ? ' on' : ''}`} onClick={() => toggleCategory(cat.slug)}>
-                <span className="cb"></span>{cat.name}
-              </div>
-            ))}
-          </div>
         </div>
 
         {error && <p style={{fontSize: '13px', color: '#B91C1C'}}>{error}</p>}
