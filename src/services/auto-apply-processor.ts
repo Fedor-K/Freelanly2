@@ -933,6 +933,8 @@ const PREFILTER_COUNTRY_PATTERNS: [RegExp, string][] = [
   [/\bpakistan\b|\b(karachi|lahore|islamabad|rawalpindi)\b/i, 'PK'],
   [/\bbangladesh\b|\b(dhaka|chittagong)\b/i, 'BD'],
   [/\bnigeria\b|\b(lagos|abuja|ibadan|port harcourt)\b/i, 'NG'],
+  [/\bmozambique\b|\bmaputo\b/i, 'MZ'],
+  [/\bangola\b|\bluanda\b/i, 'AO'],
   [/\bkenya\b|\bnairobi\b/i, 'KE'],
   [/\begypt\b|\b(cairo|alexandria|giza)\b/i, 'EG'],
   [/\bphilippines\b|\b(manila|cebu|davao|quezon)\b/i, 'PH'],
