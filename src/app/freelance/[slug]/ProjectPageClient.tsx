@@ -571,7 +571,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             </div>
             <div style={{ marginBottom: '8px' }}>
               <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Current rate / pay <span style={{ color: '#B91C1C', fontWeight: 400 }}>*</span></label>
-              <input type="text" value={currentRate} onChange={e => setCurrentRate(e.target.value)} placeholder="e.g. $2,000/mo or 12 LPA" style={{ width: '100%', padding: '10px 12px', border: `1px solid ${fieldErrors.currentRate ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '14px' }} />
+              <SalaryPicker single onChange={setCurrentRate} />
             </div>
             <div style={{ marginBottom: '8px' }}>
               <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Expected salary <span style={{ color: '#B91C1C', fontWeight: 400 }}>*</span></label>

@@ -785,7 +785,7 @@ export function RegistrationForm({
         </div>
         <div>
           <label className="field-label">Current rate / pay <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
-          <input type="text" value={currentRate} onChange={e => setCurrentRate(e.target.value)} placeholder="e.g. $2,000/mo or 12 LPA" style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '14px' }} />
+          <SalaryPicker single onChange={setCurrentRate} />
         </div>
         <div>
           <label className="field-label">Expected salary <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
