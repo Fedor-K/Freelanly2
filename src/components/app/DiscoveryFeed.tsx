@@ -1,6 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { ProcessingScreen } from '@/components/ProcessingScreen';
+
+const DISCOVERY_SCAN_STEPS = [
+  { title: 'Scanning the feed…', sub: 'Reading the freshest gigs' },
+  { title: 'Matching to your profile…', sub: 'Skills, role, languages, location' },
+  { title: 'Ranking your matches…', sub: 'Strongest fits first' },
+];
 
 type Job = {
   id: string;
@@ -63,6 +70,10 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
   const [applied, setApplied] = useState<Set<string>>(new Set());
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [activeSkills, setActiveSkills] = useState<Set<string>>(new Set());
+  // The feed is built server-side and arrives instantly, so a route-loading screen just flashes. Show
+  // a guaranteed ~2.2s "scanning the feed" intro on mount instead, so the search animation is actually seen.
+  const [intro, setIntro] = useState(true);
+  useEffect(() => { const t = setTimeout(() => setIntro(false), 2200); return () => clearTimeout(t); }, []);
 
   async function handleApply(item: Job) {
     if (!item.applyEmail) return;
@@ -273,6 +284,14 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
       </div>
     </div>
   );
+
+  if (intro) {
+    return (
+      <div style={{ gridColumn: '1 / -1', display: 'grid', placeItems: 'center', minHeight: '60vh' }}>
+        <ProcessingScreen scan steps={DISCOVERY_SCAN_STEPS} emoji="🔍" note="Finding gigs that fit you…" />
+      </div>
+    );
+  }
 
   return (
     <>
