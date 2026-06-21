@@ -100,12 +100,14 @@ export default async function DiscoveryPage() {
     };
   });
   const queueItems: FeedItem[] = (queueItemsRaw.filter(Boolean) as FeedItem[])
-    .sort((x, y) => RANK[x.matchLabel] - RANK[y.matchLabel]); // Strong before Good
+    .sort((x, y) => y.createdAt.localeCompare(x.createdAt)); // freshest first
 
   // ── Closest tail: the lexical-ranked pool (minus the queue), UNbadged — for browsing when the
   // verified queue is thin. No LLM at feed time; these never claim "Strong".
   const queueIds = new Set(queueItems.map(i => i.id));
-  const closestRanked = ranked.filter(r => !queueIds.has(r.id));
+  const closestRanked = ranked
+    .filter(r => !queueIds.has(r.id))
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); // freshest first
   const closestSlice = closestRanked.slice(0, perPage);
 
   const oppIds = closestSlice.filter(r => r.type === 'opportunity').map(r => r.id);
