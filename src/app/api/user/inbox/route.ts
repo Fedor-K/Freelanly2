@@ -198,7 +198,10 @@ export async function POST(request: NextRequest) {
       // the outbound reply, which is what actually advances the conversation). `replyUnlocked`
       // now means "this thread's SEND is unlocked" (PRO, paid via Stripe, or the one free credit).
       // PRO is unlimited; the candidate's FIRST outbound reply across all threads is free (hook).
-      const PAYWALL_ON = process.env.REPLY_PAYWALL === 'on';
+      // PAYWALL REMOVED (owner decision 2026-06-22): reply SENDING is always free now — the
+      // $5 gate suppressed candidate responsiveness (our sellable asset). Logic kept dormant
+      // (freeReplyUsed / Stripe unlock) for easy revert.
+      const PAYWALL_ON = false;
       const isPro = app.user.plan !== 'FREE';
       let grantFreeUnlock = false;
       if (PAYWALL_ON && !isPro && !app.replyUnlocked) {

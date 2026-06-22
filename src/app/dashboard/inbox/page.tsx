@@ -35,7 +35,7 @@ export default async function InboxPage() {
   // Paywall moved to SENDING (read is always free). A thread's reply box is locked when the
   // paywall is on, the user is FREE, they've already spent their one free outbound credit, and
   // this thread hasn't been unlocked (paid or free-spent). PRO is never locked.
-  const paywallOn = process.env.REPLY_PAYWALL === 'on';
+  const paywallOn = false; // PAYWALL REMOVED (owner decision 2026-06-22) — reply box never locked
   const sendLockedFor = (replyUnlocked: boolean) =>
     paywallOn && me?.plan === 'FREE' && !!me?.freeReplyUsed && !replyUnlocked;
   // Only our own Blob-stored résumés are attachable (matches the SSRF guard server-side).

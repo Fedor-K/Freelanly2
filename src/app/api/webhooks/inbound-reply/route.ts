@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
     if (senderEmail && senderEmail === app.user.email?.toLowerCase().trim()) {
       // Send-paywall (mirror of /api/user/inbox): the OUTBOUND reply is the gated action.
       // PRO unlimited; first reply free; after that the thread must be unlocked (paid) to forward.
-      const PW_ON = process.env.REPLY_PAYWALL === 'on';
+      const PW_ON = false; // PAYWALL REMOVED (owner decision 2026-06-22) — sending always free
       const isFree = app.user.plan === 'FREE';
       let grantFree = false;
       if (PW_ON && isFree && !app.replyUnlocked) {
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
     // SENDING is already open: PRO and paywall-off → open (true); FREE with paywall on →
     // send-locked (false) until the user spends their one free reply or pays $5 (enforced at send
     // time in /api/user/inbox). Cold REJECTED threads are always open (nothing to gate).
-    const PAYWALL_ON = process.env.REPLY_PAYWALL === 'on';
+    const PAYWALL_ON = false; // PAYWALL REMOVED (owner decision 2026-06-22) — sending always free
     const isProUser = app.user.plan !== 'FREE';
     const isColdReply = newStatus === 'REJECTED';
     const sendOpen = !PAYWALL_ON || isProUser || isColdReply;

@@ -368,7 +368,7 @@ export async function checkRepliesForUser(userId: string): Promise<number> {
     // $5-per-reply paywall (gated behind REPLY_PAYWALL=on). First real reply per user is free;
     // after that each new reply is locked until a $5 Stripe unlock. PRO + cold (REJECTED/SPAM)
     // replies are never gated. When the flag is off, lockReply is always false → unchanged behavior.
-    const PAYWALL_ON = process.env.REPLY_PAYWALL === 'on';
+    const PAYWALL_ON = false; // PAYWALL REMOVED (owner decision 2026-06-22) — replies always free/unlocked
     const isPro = user?.plan === 'PRO';
     let freeAvailable = !user?.freeReplyUsed;
     let consumedFree = false;
