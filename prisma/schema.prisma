@@ -2099,6 +2099,7 @@ model AutoApplication {
   matchScore      Int?     // 0-100 match score
   matchLabel      String?  // "Strong", "Good", "Weak"
   matchBreakdown  Json?    // frozen verified breakdown {matched,total,wouldGate,bucket,lines,...} — shadow/gate/render
+  origin          String?  @default("AUTO") // "AUTO" = matcher auto-applied | "SELF" = user clicked apply. DB-level default 'AUTO' so the worker's creates (which don't set it) get AUTO; Vercel self-apply routes set 'SELF' explicitly. Existing pre-instrumentation rows = NULL. Lets us measure self-vs-auto reply rate.
 
   // Status tracking
   status          AutoApplyStatus @default(PENDING)

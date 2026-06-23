@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
 
         await prisma.autoApplication.create({
           data: {
+            origin: 'SELF', // user-initiated action (save to review)
             userId, loopId: loop.id, opportunityId,
             companyName: opp.clientName, jobTitle: opp.title,
             appliedToEmail: opp.applyEmail || '', coverLetter: '', subject: '',

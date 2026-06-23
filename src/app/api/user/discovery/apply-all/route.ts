@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
       try {
         await prisma.autoApplication.create({
           data: {
+            origin: 'SELF', // user clicked apply-all in discovery
             userId,
             loopId: loop.id,
             opportunityId: opp.id,

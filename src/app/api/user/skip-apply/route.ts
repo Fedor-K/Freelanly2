@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
 
     await prisma.autoApplication.create({
       data: {
+        origin: 'SELF', // user-initiated skip
         userId: session.user.id,
         loopId: loop.id,
         opportunityId,

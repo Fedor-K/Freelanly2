@@ -461,6 +461,7 @@ export async function POST(request: NextRequest) {
       }
       const appRecord = await prisma.autoApplication.create({
         data: {
+          origin: 'SELF', // user clicked apply (quick-apply)
           userId: user.id, loopId: loop.id, opportunityId: opportunity.id,
           companyName: opportunity.clientName, jobTitle: opportunity.title,
           appliedToEmail: opportunity.applyEmail, coverLetter, subject,
@@ -522,6 +523,7 @@ export async function POST(request: NextRequest) {
 
     await prisma.autoApplication.create({
       data: {
+        origin: 'SELF', // user clicked apply (quick-apply, draft path)
         userId: user.id,
         loopId: loop.id,
         opportunityId: opportunity.id,
