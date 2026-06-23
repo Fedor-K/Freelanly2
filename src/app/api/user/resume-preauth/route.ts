@@ -190,6 +190,20 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
       }
     }
 
+    // IP-geo fallback for location: when the résumé/LinkedIn parse yields no location, derive it from
+    // the signup request IP (Vercel headers) so genuine candidates don't fall into the UNKNOWN bucket —
+    // which the matcher's MATCH_REGION_BLOCK treats as blocked, silently excluding real (mostly LATAM)
+    // users. Write the FULL country name (not the ISO code): the region resolver matches names/cities,
+    // and a trailing 2-letter code would collide with US-state abbreviations ("CO" = Colorado, not Colombia).
+    let resolvedLocation = (parsedProfile?.location as string) || undefined;
+    if (!resolvedLocation) {
+      const ipCode = (request.headers.get('x-vercel-ip-country') || '').toUpperCase();
+      const ipCity = request.headers.get('x-vercel-ip-city') ? decodeURIComponent(request.headers.get('x-vercel-ip-city')!) : '';
+      let countryName = '';
+      if (ipCode) { try { countryName = new Intl.DisplayNames(['en'], { type: 'region' }).of(ipCode) || ''; } catch { /* invalid code */ } }
+      if (countryName) resolvedLocation = ipCity ? `${ipCity}, ${countryName}` : countryName;
+    }
+
     // Save to user
     await prisma.user.update({
       where: { id: user.id },
@@ -199,7 +213,7 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
         resumeFileName: file?.name || undefined,
         parsedProfile: parsedProfile == null ? undefined : (parsedProfile as Prisma.InputJsonValue),
         name: parsedProfile?.name || undefined,
-        location: (parsedProfile?.location as string) || undefined,
+        location: resolvedLocation,
         linkedinUrl: savedLinkedinUrl || undefined,
         image: photoUrl || undefined,
         ...(salaryExpectation ? { salaryExpectation, salaryExpectationAt: new Date() } : {}),
