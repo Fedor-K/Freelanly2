@@ -98,10 +98,23 @@ export default function PrivacyPage() {
                 We do not sell your personal information. We may share your information with:
               </p>
               <ul className="list-disc pl-6 mb-4 space-y-2">
-                <li>Employers when you apply for a job</li>
+                <li>Employers and recruiters when you apply for a job</li>
+                <li>
+                  Employers and recruiters with open roles that match your profile — when you upload a
+                  résumé or build a profile, you authorize Freelanly to share your profile, including
+                  your name, professional background, skills, location, and résumé/CV, with potential
+                  employers and recruiters whose open positions match your background, so they can
+                  consider you for those roles. This includes us presenting you as part of a curated
+                  shortlist of matched candidates to a hiring company.
+                </li>
                 <li>Service providers who assist in our operations</li>
                 <li>Law enforcement when required by law</li>
               </ul>
+              <p className="mb-4">
+                You can withdraw this authorization at any time by deleting your résumé/profile or your
+                account (see “Your Rights” below); we will stop sharing your profile with new employers
+                going forward.
+              </p>
             </section>
 
             <section className="mb-8">

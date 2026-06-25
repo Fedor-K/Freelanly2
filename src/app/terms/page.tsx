@@ -40,6 +40,15 @@ export default function TermsPage() {
                 connections between job seekers and employers but are not a party to any employment
                 agreements.
               </p>
+              <p className="mb-4">
+                As part of the service, when you upload a résumé or build a candidate profile you grant
+                Freelanly permission to match your profile against open roles and to share it —
+                including your name, professional background, skills, location, and résumé/CV — with
+                potential employers and recruiters whose positions match your background, including by
+                presenting you within a curated shortlist of candidates. This helps relevant employers
+                discover you. You may withdraw this permission at any time by removing your
+                résumé/profile or deleting your account.
+              </p>
             </section>
 
             <section className="mb-8">
