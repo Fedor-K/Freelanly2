@@ -127,7 +127,8 @@ export async function ingestCompanyCard(card: LeverCompanyCard): Promise<Record<
  * full set on the Hetzner worker. Never throws on a single company.
  */
 export async function ingestActiveLeverRoles(limit = 80): Promise<Record<IngestOutcome, number> & { companies: number }> {
-  const slugs = await getLeverSlugs(limit);
+  // Randomize so each slice covers different (mostly SMB) companies; dedup prevents re-ingest.
+  const slugs = await getLeverSlugs(limit, { randomize: true });
   const names = await leverNameMap(slugs);
   const tally = { created: 0, duplicate: 0, skipped: 0, companies: 0 };
   for (const slug of slugs) {

@@ -104,12 +104,16 @@ export async function fetchAllLeverPostings(slugs: string[]): Promise<LeverPosti
 // the most productive boards come first. No Apify / no guessing needed.
 import { prisma } from '@/lib/db';
 
-export async function getLeverSlugs(limit = 2060): Promise<string[]> {
+export async function getLeverSlugs(limit = 2060, opts: { randomize?: boolean } = {}): Promise<string[]> {
+  // randomize=true: a small slice (e.g. the Vercel ingest cron's limit=80) rotates across the whole
+  // ~2000-company population over repeated runs instead of always hitting the top importers — and
+  // since 97% of the list is small companies, a random draw naturally favors SMBs over the few giants.
+  const orderBy = opts.randomize ? 'random()' : '"totalImported" DESC NULLS LAST';
   const rows = await prisma.$queryRawUnsafe<{ companySlug: string }[]>(
     `SELECT "companySlug" FROM "DataSource"
      WHERE "sourceType"='LEVER' AND "isActive"=true AND "companySlug" IS NOT NULL
        AND "lastSuccessAt" > now() - interval '120 days'
-     ORDER BY "totalImported" DESC NULLS LAST
+     ORDER BY ${orderBy}
      LIMIT $1`, limit);
   return [...new Set(rows.map(r => (r.companySlug || '').toLowerCase().trim()).filter(Boolean))];
 }

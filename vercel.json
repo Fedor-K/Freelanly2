@@ -43,7 +43,7 @@
     },
     {
       "path": "/api/cron/ingest-ats",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 */2 * * *"
     }
   ]
 }
