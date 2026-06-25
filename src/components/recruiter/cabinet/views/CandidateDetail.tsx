@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { RIcon } from '../icons';
 import { useCabinet } from '../RecruiterCabinet';
-import { ChatThread, Compose, FitRing, MatchBadge, intentPill } from '../parts';
+import { ChatThread, Compose, MatchBadge, intentPill } from '../parts';
 import { avColor, initials, tidySkill, timeAgo } from '../lib';
 
 export function CandidateDetail({ appId }: { appId: string }) {
@@ -49,7 +49,6 @@ export function CandidateDetail({ appId }: { appId: string }) {
                   <span style={{ margin: '0 8px', opacity: 0.4 }}>·</span>applied {timeAgo(c.createdAt)} to <b style={{ color: 'var(--ink-2)', fontWeight: 500 }}>{c.jobTitle}</b>
                 </div>
               </div>
-              <FitRing score={c.score} strength={c.strength} lg />
             </div>
             <div className="row gap-2 mt-6" style={{ flexWrap: 'wrap' }}>
               {c.cvUrl && <a className="btn btn-ghost" href={c.cvUrl} target="_blank" rel="noopener noreferrer" onClick={() => track('view_cv', c.appId)}><RIcon name="doc" size={14} /> View CV</a>}

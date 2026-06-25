@@ -43,7 +43,10 @@ export function CandidateCard({ c }: { c: RecruiterCandidate }) {
 
   return (
     <div className="cand-card" style={{ cursor: 'pointer' }} onClick={() => openDetail(c.appId)}>
-      <div className="cand-av" style={{ background: avColor(i), backgroundImage: c.avatarUrl ? `url(${c.avatarUrl})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>{c.avatarUrl ? '' : initials(c.name)}</div>
+      <div className="cand-av" style={{ background: avColor(i), position: 'relative', overflow: 'hidden' }}>
+        {initials(c.name)}
+        {c.avatarUrl && <img src={c.avatarUrl} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+      </div>
       <div className="cand-main">
         <div className="cand-head">
           <span className="cand-name">{c.name}</span>
@@ -73,7 +76,6 @@ export function CandidateCard({ c }: { c: RecruiterCandidate }) {
         )}
       </div>
       <div className="cand-right" onClick={(e) => e.stopPropagation()}>
-        <FitRing score={c.score} strength={c.strength} />
         <div className="cand-actions">
           <button className="btn btn-ghost btn-sm" onClick={() => openDetail(c.appId)}><RIcon name="chat" size={13} /> Chat</button>
           {c.cvUrl && <a href={c.cvUrl} target="_blank" rel="noopener noreferrer" className="btn btn-soft btn-sm" onClick={() => track('view_cv', c.appId)}><RIcon name="doc" size={13} /> CV</a>}

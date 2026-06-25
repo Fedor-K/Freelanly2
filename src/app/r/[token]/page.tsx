@@ -128,7 +128,7 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
     return {
       appId: a.id,
       name: cleanDisplayName(a.user.name || 'Candidate'),
-      avatarUrl: a.user.image || null,
+      avatarUrl: a.user.image ? `/r/${token}/avatar/${a.id}` : null, // proxied (licdn can't be hot-linked)
       jobTitle: a.jobTitle,
       listingKey: a.jobId || a.opportunityId || a.jobTitle,
       matchBreakdown: (() => {
