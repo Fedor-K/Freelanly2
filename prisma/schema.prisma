@@ -630,8 +630,9 @@ model Opportunity {
   // `prisma db push` it may try to drop it — the matcher re-creates it (one-time re-scan).
 
   // === SOURCE ===
-  sourceUrl       String              // LinkedIn post URL
-  sourceId        String?             // LinkedIn post ID
+  sourceUrl       String              // LinkedIn post URL (or ATS hosted job URL)
+  sourceId        String?             // LinkedIn post ID (or ATS posting UUID)
+  source          String   @default("linkedin") // 'linkedin' | 'ats_lever' — drives feed apply mode
 
   // === KEYWORD TRACKING ===
   sourceKeyword   String?             // Which keyword found this post

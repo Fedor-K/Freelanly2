@@ -20,6 +20,7 @@ type Job = {
   skills: string[];
   location: string | null;
   applyEmail: string | null;
+  applyUrl: string | null;
   matchLabel: 'Strong' | 'Good' | 'Weak';
   aiVerified: boolean;
   alreadyApplied: boolean;
@@ -275,6 +276,17 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
                   {loading[item.id] === 'apply' ? 'Applying...' : 'Apply'}
                 </button>
+              ) : item.applyUrl ? (
+                // ATS role — external apply on the company's site (no auto-send, no cover letter)
+                <a
+                  className="btn btn-primary btn-sm"
+                  href={item.applyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setApplied(prev => new Set(prev).add(item.id))}
+                >
+                  Apply on company site ↗
+                </a>
               ) : (
                 <span className="meta" style={{fontSize: '11px'}}>No email</span>
               )}

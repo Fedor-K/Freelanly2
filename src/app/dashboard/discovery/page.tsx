@@ -36,7 +36,8 @@ export default async function DiscoveryPage() {
 
   const [poolOpps, poolJobs, totalToday] = await Promise.all([
     prisma.opportunity.findMany({
-      where: { isActive: true, createdAt: { gte: weekAgo }, applyEmail: { not: null } },
+      // self-appliable (applyEmail) OR external-apply ATS roles (applyUrl) — both belong in the feed
+      where: { isActive: true, createdAt: { gte: weekAgo }, OR: [{ applyEmail: { not: null } }, { applyUrl: { not: null } }] },
       select: { id: true, title: true, skills: true, createdAt: true },
     }),
     prisma.job.findMany({
@@ -59,6 +60,7 @@ export default async function DiscoveryPage() {
   type FeedItem = {
     id: string; type: 'opportunity' | 'job'; title: string; companyName: string; description: string;
     source: string; createdAt: string; skills: string[]; location: string | null; applyEmail: string | null;
+    applyUrl: string | null;
     matchLabel: FitLabel; aiVerified: boolean; alreadyApplied: boolean; matchScore: number;
     matchedSkills: string[]; matchedTitleTokens: string[]; languageGap: string[]; missingCore: string[];
   };
@@ -81,8 +83,8 @@ export default async function DiscoveryPage() {
   });
   const qOppIds = [...new Set(queueApps.map(a => a.opportunityId!).filter(Boolean))];
   const qOpps = qOppIds.length ? await prisma.opportunity.findMany({
-    where: { id: { in: qOppIds }, isActive: true, applyEmail: { not: null } },
-    select: { id: true, title: true, clientName: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, company: { select: { name: true } } },
+    where: { id: { in: qOppIds }, isActive: true, OR: [{ applyEmail: { not: null } }, { applyUrl: { not: null } }] },
+    select: { id: true, title: true, clientName: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, company: { select: { name: true } } },
   }) : [];
   const qOppById = new Map(qOpps.map(o => [o.id, o]));
   const queueItemsRaw = queueApps.map((a): FeedItem | null => {
@@ -92,8 +94,8 @@ export default async function DiscoveryPage() {
     return {
       id: o.id, type: 'opportunity', title: o.title,
       companyName: o.company?.name || o.posterCompany || o.clientName || 'Unknown',
-      description: o.description, source: 'linkedin', createdAt: o.createdAt.toISOString(),
-      skills: o.skills, location: o.location, applyEmail: o.applyEmail,
+      description: o.description, source: o.source === 'ats_lever' ? 'Lever' : 'linkedin', createdAt: o.createdAt.toISOString(),
+      skills: o.skills, location: o.location, applyEmail: o.applyEmail, applyUrl: o.applyUrl,
       matchLabel: (a.matchLabel as FitLabel) || 'Good', aiVerified: true, alreadyApplied: SENT_STATUS.has(a.status),
       matchScore: 100, matchedSkills: fit.matchedSkills.slice(0, 4), matchedTitleTokens: fit.matchedTitleTokens,
       languageGap: [], missingCore: [],
@@ -115,7 +117,7 @@ export default async function DiscoveryPage() {
   const [opportunities, jobs] = await Promise.all([
     oppIds.length ? prisma.opportunity.findMany({
       where: { id: { in: oppIds } },
-      select: { id: true, title: true, clientName: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, sourceUrl: true, company: { select: { name: true } } },
+      select: { id: true, title: true, clientName: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, sourceUrl: true, company: { select: { name: true } } },
     }) : Promise.resolve([]),
     jobIds.length ? prisma.job.findMany({
       where: { id: { in: jobIds } },
@@ -132,8 +134,8 @@ export default async function DiscoveryPage() {
       return {
         id: o.id, type: 'opportunity' as const, title: o.title,
         companyName: o.company?.name || o.posterCompany || o.clientName || 'Unknown',
-        description: o.description, source: 'linkedin', createdAt: o.createdAt.toISOString(),
-        skills: o.skills, location: o.location, applyEmail: o.applyEmail,
+        description: o.description, source: o.source === 'ats_lever' ? 'Lever' : 'linkedin', createdAt: o.createdAt.toISOString(),
+        skills: o.skills, location: o.location, applyEmail: o.applyEmail, applyUrl: o.applyUrl,
         matchLabel: r.label, aiVerified: false, alreadyApplied: false,
         matchScore: r.score, matchedSkills: r.matchedSkills.slice(0, 4), matchedTitleTokens: r.matchedTitleTokens,
         languageGap: r.languageGap, missingCore: r.missingCore,
@@ -144,7 +146,7 @@ export default async function DiscoveryPage() {
     return {
       id: j.id, type: 'job' as const, title: j.title, companyName: j.company.name,
       description: j.description, source: j.sourceUrl?.includes('lever') ? 'Lever' : j.sourceUrl?.includes('linkedin') ? 'linkedin' : 'careers page',
-      createdAt: j.createdAt.toISOString(), skills: j.skills, location: j.country, applyEmail: j.applyEmail,
+      createdAt: j.createdAt.toISOString(), skills: j.skills, location: j.country, applyEmail: j.applyEmail, applyUrl: null,
       matchLabel: r.label, aiVerified: false, alreadyApplied: false,
       matchScore: r.score, matchedSkills: r.matchedSkills.slice(0, 4), matchedTitleTokens: r.matchedTitleTokens,
       languageGap: r.languageGap, missingCore: r.missingCore,

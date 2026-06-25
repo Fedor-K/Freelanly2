@@ -20,7 +20,7 @@ import { prisma } from '@/lib/db';
 const ATS_INCLUDE = /\b(software|backend|back-end|front-?end|full[\s-]?stack|web|mobile|ios|android|game|embedded|firmware|systems?|platform|cloud|infrastructure|network|devops|sre|site reliability|data|database|ml|machine learning|\bai\b|nlp|analytics|bi engineer|qa|quality assurance|sdet|automation (engineer|tester)|security|cyber|appsec|infosec|engineer|engineering|developer|programmer|architect|designer|\bux\b|\bui\b|product design|graphic|visual|motion|product manager|product owner|technical writer|content (writer|designer|strategist)|copywriter|translator|localization|localisation)\b/i;
 const ATS_EXCLUDE = /\b(sales|account (executive|manager|director)|business development|pre-?sales|\bbdr\b|\bsdr\b|recruit(er|ing)|talent acquisition|customer success|program specialist|field cto|salesman|account based)\b/i;
 const ONSITE = new Set(['on-site', 'onsite', 'in-office', 'in office']);
-function isTargetAtsRole(p: LeverPosting): boolean {
+export function isTargetAtsRole(p: LeverPosting): boolean {
   const t = p.title || '';
   if (!ATS_INCLUDE.test(t) || ATS_EXCLUDE.test(t)) return false;
   if (p.workplaceType && ONSITE.has(p.workplaceType.toLowerCase())) return false;
@@ -38,7 +38,7 @@ export type LeverCompanyCard = {
 };
 
 /** slug → company name (for domain resolution), read from the dormant DataSource table. */
-async function leverNameMap(slugs: string[]): Promise<Map<string, string | null>> {
+export async function leverNameMap(slugs: string[]): Promise<Map<string, string | null>> {
   const map = new Map<string, string | null>();
   if (!slugs.length) return map;
   try {
