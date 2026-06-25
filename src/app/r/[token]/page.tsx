@@ -85,7 +85,12 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
   }
 
   const apps = await prisma.autoApplication.findMany({
-    where: { appliedToEmail: { equals: email, mode: 'insensitive' }, sentAt: { not: null }, recruiterHidden: false, createdAt: { gte: MATCHER_FIX_CUTOFF } },
+    // Show real candidate applications (sentAt set) AND demand-side shortlist cards we pushed to this
+    // company (origin='SHORTLIST', sentAt intentionally NULL so they don't count as candidate sends).
+    where: {
+      appliedToEmail: { equals: email, mode: 'insensitive' }, recruiterHidden: false, createdAt: { gte: MATCHER_FIX_CUTOFF },
+      OR: [{ sentAt: { not: null } }, { origin: 'SHORTLIST' }],
+    },
     orderBy: [{ matchScore: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
     take: 200,
     select: {

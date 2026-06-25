@@ -20,6 +20,7 @@
 //
 // ⚠️ Run on the Hetzner worker (port 25 / Postal). Not wired to any cron yet — dormant by default.
 import { prisma } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 import { sendEmail } from '@/lib/email';
 import { getRecruiterPortalUrl, getRecruiterUnsubscribeUrl } from '@/lib/recruiter-token';
 import type { LeverCompanyCard } from './lever-pipeline';
@@ -105,7 +106,7 @@ export async function canSendToCompany(opts: { email: string; domain: string }):
 
 // ── Email composition (self-contained; inline candidate list, no portal dependency) ─────────────
 function esc(s: string): string { return (s || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!)); }
-function cardEmail(company: string, role: string, cands: ShortlistCandidate[], portalUrl: string, unsub: string) {
+export function cardEmail(company: string, role: string, cands: ShortlistCandidate[], portalUrl: string, unsub: string) {
   const n = cands.length;
   const rows = cands.map(c => {
     const skills = ((c.matchBreakdown?.lines as Array<{ label?: string }> | undefined)?.slice(0, 4).map(l => l.label).filter(Boolean).join(' · ')) || '';
@@ -153,6 +154,10 @@ export async function sendCompanyCard(card: LeverCompanyCard, shortlist: Shortli
       listUnsubscribe: getRecruiterUnsubscribeUrl(email) });
   } catch (e) { res = { success: false, error: (e as Error)?.message }; }
 
+  // On a successful send, persist the shortlist so the email's "View profiles & CVs" link actually
+  // shows these candidates in the /r portal (with CVs + reply). See persistShortlistCandidates.
+  if (res.success) await persistShortlistCandidates(card, shortlist, role);
+
   await prisma.activityLog.create({
     data: {
       action: 'COMPANY_CARD_SENT',
@@ -164,4 +169,46 @@ export async function sendCompanyCard(card: LeverCompanyCard, shortlist: Shortli
   return res.success
     ? { sent: true, reason: gate.reason || 'sent', messageId: res.messageId }
     : { sent: false, reason: `send failed: ${res.error || 'unknown'}` };
+}
+
+/**
+ * Persist shortlist candidates as AutoApplication rows so the /r portal renders them (profiles, CVs,
+ * reply all key on AutoApplication.id). Marked origin='SHORTLIST' with sentAt=NULL so they DON'T
+ * count as candidate auto-apply "sends"; the portal query includes them via origin. Idempotent:
+ * skips a candidate already carded to this recruiter for this role. Never throws.
+ */
+async function persistShortlistCandidates(card: LeverCompanyCard, shortlist: ShortlistCandidate[], role: string): Promise<void> {
+  const email = card.contact.email!;
+  const company = card.name || card.contact.domain.split('.')[0];
+  for (const c of shortlist) {
+    try {
+      const existing = await prisma.autoApplication.findFirst({
+        where: { userId: c.userId, appliedToEmail: email, jobTitle: role, origin: 'SHORTLIST' },
+        select: { id: true },
+      });
+      if (existing) continue;
+      // AutoApplication requires a loopId; reuse the candidate's own loop. Skip if they somehow have none.
+      const loop = await prisma.autoApplyLoop.findFirst({ where: { userId: c.userId }, select: { id: true } });
+      if (!loop) continue;
+      const ratio = (c.matchBreakdown as { ratio?: number } | null)?.ratio;
+      await prisma.autoApplication.create({
+        data: {
+          userId: c.userId,
+          loopId: loop.id,
+          appliedToEmail: email,
+          companyName: company,
+          jobTitle: role,
+          coverLetter: '',
+          subject: '',
+          origin: 'SHORTLIST',
+          status: 'SENT',           // display status in the portal; sentAt stays NULL (not a real send)
+          matchScore: typeof ratio === 'number' ? Math.round(ratio * 100) : null,
+          matchLabel: c.label ?? null,
+          matchBreakdown: (c.matchBreakdown ?? undefined) as Prisma.InputJsonValue | undefined,
+        },
+      });
+    } catch (e) {
+      console.error('[persistShortlist] failed:', c.userId, (e as Error)?.message);
+    }
+  }
 }
