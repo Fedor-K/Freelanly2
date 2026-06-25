@@ -2012,7 +2012,7 @@ model AutoApplyLoop {
   templateId      String?  // CoverLetterTemplate ID
 
   // Automation settings
-  mode            AutoApplyMode @default(AUTO)
+  mode            AutoApplyMode @default(MANUAL) // self-apply default; AUTO is opt-in
   dailyLimit      Int      @default(10)
   sentToday       Int      @default(0)
   lastResetAt     DateTime @default(now())

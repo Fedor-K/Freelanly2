@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
           categorySlugs: deriveCategorySlugs({ jobTitles: titles, currentTitle, field, skills }),
           keywords: skills.slice(0, 5).join(', ') || null,
           dailyLimit: 20,
-          mode: 'AUTO',
+          mode: 'MANUAL', // self-apply is the default; auto-send is opt-in (settings toggle)
           isActive: true,
         },
       }).catch(() => {});

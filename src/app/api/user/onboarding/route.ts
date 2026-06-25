@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
               categorySlugs: deriveCategorySlugs({ jobTitles: titles, currentTitle: profile?.current_title as string, field: profile?.field as string, skills: profile?.skills as string[] }),
               keywords: ((profile?.skills as string[]) || []).slice(0, 5).join(', ') || null,
               dailyLimit: 10,
-              mode: 'AUTO',
+              mode: 'MANUAL', // self-apply is the default; auto-send is opt-in (settings toggle)
               isActive: true, // autonomous auto-apply on (TEMP PAUSE from 2026-06-03 lifted 2026-06-08 after matcher quality work: gate, honesty, free-domain)
             },
           });

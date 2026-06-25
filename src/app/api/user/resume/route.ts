@@ -217,7 +217,7 @@ IMPORTANT — "experience_years" is total YEARS OF PROFESSIONAL WORK EXPERIENCE 
             categorySlugs: deriveCategorySlugs({ jobTitles: titles, currentTitle: parsedProfile?.current_title, field: parsedProfile?.field, skills: parsedProfile?.skills as string[] }),
             keywords: keywords || null,
             dailyLimit: 20,
-            mode: 'AUTO',
+            mode: 'MANUAL', // self-apply is the default; auto-send is opt-in (settings toggle)
             isActive: true, // autonomous auto-apply on (TEMP PAUSE from 2026-06-03 lifted 2026-06-08 after matcher quality work: gate, honesty, free-domain)
           },
         }),

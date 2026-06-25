@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
 
     // Validate mode
     const validModes: AutoApplyMode[] = ['AUTO', 'SEMI', 'MANUAL'];
-    const loopMode = (mode as AutoApplyMode) || 'AUTO';
+    const loopMode = (mode as AutoApplyMode) || 'MANUAL';
     if (!validModes.includes(loopMode)) {
       return NextResponse.json({ error: 'Invalid mode' }, { status: 400 });
     }
