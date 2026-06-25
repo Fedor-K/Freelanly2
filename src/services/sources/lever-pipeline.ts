@@ -7,6 +7,7 @@
 // ⚠️ resolveCompanyContact does an SMTP probe (port 25) — run this on the Hetzner worker, not Vercel.
 import { fetchLeverPostings, getLeverSlugs, type LeverPosting } from './lever-ats';
 import { resolveCompanyContact, type CompanyContact } from './company-contact';
+import { getMaxJobAgeDate } from '@/lib/utils';
 import { prisma } from '@/lib/db';
 
 // STRICT role filter for ATS boards. The shared shouldImportByProfession is "default-allow", and
@@ -23,6 +24,9 @@ function isTargetAtsRole(p: LeverPosting): boolean {
   const t = p.title || '';
   if (!ATS_INCLUDE.test(t) || ATS_EXCLUDE.test(t)) return false;
   if (p.workplaceType && ONSITE.has(p.workplaceType.toLowerCase())) return false;
+  // Freshness: max 14 days (MAX_JOB_AGE_DAYS), same as the LinkedIn rule. Lever lists many stale /
+  // evergreen reqs (medians run 1-5 months, tails to years) — we only pitch genuinely fresh openings.
+  if (p.createdAt < getMaxJobAgeDate()) return false;
   return true;
 }
 
