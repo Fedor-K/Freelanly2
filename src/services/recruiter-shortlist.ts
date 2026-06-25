@@ -13,6 +13,23 @@ import type { LeverPosting } from '@/services/sources/lever-ats';
 
 const LABEL_RANK: Record<string, number> = { Strong: 0, Good: 1, Weak: 2 };
 
+// Quality floor for what we'll actually pitch to a recruiter. A "SEND" gate decision is necessary
+// but NOT sufficient: Phase-0 testing showed roles where the gate returned Weak/ratio=0 candidates
+// (breakdown matched ZERO requirements) — pitching those reads as spam. We only ship genuinely-fit
+// candidates: label Strong/Good AND at least one matched requirement (ratio>0). A role whose best
+// candidates don't clear this returns [] (better to send nothing than a weak shortlist).
+// Env-overridable: SHORTLIST_ALLOW_WEAK=true keeps Weak; SHORTLIST_MIN_RATIO sets the ratio floor.
+const ALLOW_WEAK = process.env.SHORTLIST_ALLOW_WEAK === 'true';
+const MIN_RATIO = (() => { const n = parseFloat(process.env.SHORTLIST_MIN_RATIO || ''); return Number.isFinite(n) ? n : 0.0001; })();
+const OK_LABELS = new Set(ALLOW_WEAK ? ['Strong', 'Good', 'Weak'] : ['Strong', 'Good']);
+
+function clearsQualityFloor(c: ShortlistCandidate): boolean {
+  if (c.decision !== 'SEND') return false;
+  if (!OK_LABELS.has(c.label || '')) return false;             // drop Weak/unlabeled (unless ALLOW_WEAK)
+  const ratio = Number((c.matchBreakdown as { ratio?: unknown } | null)?.ratio ?? 0);
+  return ratio >= MIN_RATIO;                                   // require ≥1 matched requirement
+}
+
 function lexScore(profile: unknown, roleText: string): number {
   const p = (profile || {}) as Record<string, unknown>;
   const skills = ((p.skills as string[]) || []).map(s => String(s).toLowerCase());
@@ -126,7 +143,7 @@ export async function buildShortlistForRole(
     vetCandidate(role, jd, jdText, byId.get(r.id)!, r.s));
 
   return vetted
-    .filter(c => c.decision === 'SEND')
+    .filter(clearsQualityFloor)
     .sort((a, b) => (LABEL_RANK[a.label || 'Weak'] - LABEL_RANK[b.label || 'Weak']) || (b.lexScore - a.lexScore))
     .slice(0, limit);
 }
