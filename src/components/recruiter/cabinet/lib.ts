@@ -13,6 +13,7 @@ export type MatchLine = {
 export type RecruiterCandidate = {
   appId: string;
   name: string;
+  avatarUrl?: string | null;     // LinkedIn profile photo (User.image); falls back to initials
   jobTitle: string;
   createdAt: string;
   fit: string | null;          // human label, e.g. "Strong" or "85% match"

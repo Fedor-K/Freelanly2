@@ -96,7 +96,7 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
     select: {
       id: true, jobTitle: true, coverLetter: true, matchScore: true, matchLabel: true, createdAt: true,
       jobId: true, opportunityId: true, matchBreakdown: true, status: true, repliedAt: true, replyText: true,
-      user: { select: { name: true, parsedProfile: true, resumeUrl: true, lastActiveAt: true, availableFrom: true, portfolioUrl: true, salaryExpectation: true, salaryExpectationAt: true, timezone: true, availability: true, rateFloorHourly: true } },
+      user: { select: { name: true, image: true, parsedProfile: true, resumeUrl: true, lastActiveAt: true, availableFrom: true, portfolioUrl: true, salaryExpectation: true, salaryExpectationAt: true, timezone: true, availability: true, rateFloorHourly: true } },
     },
   });
 
@@ -128,6 +128,7 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
     return {
       appId: a.id,
       name: cleanDisplayName(a.user.name || 'Candidate'),
+      avatarUrl: a.user.image || null,
       jobTitle: a.jobTitle,
       listingKey: a.jobId || a.opportunityId || a.jobTitle,
       matchBreakdown: (() => {

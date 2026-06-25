@@ -43,7 +43,7 @@ export function CandidateCard({ c }: { c: RecruiterCandidate }) {
 
   return (
     <div className="cand-card" style={{ cursor: 'pointer' }} onClick={() => openDetail(c.appId)}>
-      <div className="cand-av" style={{ background: avColor(i) }}>{initials(c.name)}</div>
+      <div className="cand-av" style={{ background: avColor(i), backgroundImage: c.avatarUrl ? `url(${c.avatarUrl})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>{c.avatarUrl ? '' : initials(c.name)}</div>
       <div className="cand-main">
         <div className="cand-head">
           <span className="cand-name">{c.name}</span>
