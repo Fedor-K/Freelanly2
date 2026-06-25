@@ -3,7 +3,8 @@
 // This is the demand-side source for the recruiter-shortlist product (NOT the old candidate
 // auto-apply): ATS roles come from direct hirers with real (employer-stated) salary, unlike the
 // LinkedIn-post applyEmails which are mostly staffing bodyshops. Per role we later match 3 vetted
-// candidates and push a shortlist to the hiring decision-maker (contact via Apollo enrichment).
+// candidates and push a shortlist to the hiring decision-maker (contact resolved for free by
+// company-contact.ts — real domain + verified role-alias, no paid enrichment).
 //
 // API: GET https://api.lever.co/v0/postings/{site}?mode=json — PUBLIC, no auth, ~2 req/s.
 // Returns [] for a valid site with no open roles; {"ok":false,"error":"Document not found"} for a
