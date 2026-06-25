@@ -22,6 +22,10 @@ interface SendEmailParams {
   html: string;
   text?: string;
   replyTo?: string;
+  /** Override the From address/name — e.g. cold outreach from an ISOLATED domain
+   * (talent.freelanly.com) so its reputation can't reach the OTP/apply domain. Defaults to POSTAL_FROM_EMAIL. */
+  from?: string;
+  fromName?: string;
   /** One-click List-Unsubscribe target (RFC 8058). Set for bulk/marketing sends to recruiters. */
   listUnsubscribe?: string;
   attachments?: Array<{
@@ -49,7 +53,7 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
   try {
     const body: Record<string, unknown> = {
       to: [sanitizedTo],
-      from: `${config.fromName} <${config.fromEmail}>`,
+      from: `${params.fromName || config.fromName} <${params.from || config.fromEmail}>`,
       subject: params.subject,
       html_body: params.html,
       plain_body: params.text || params.html.replace(/<[^>]*>/g, ''),

@@ -144,12 +144,12 @@ export async function sendCompanyCard(card: LeverCompanyCard, shortlist: Shortli
   const company = card.name || card.contact.domain.split('.')[0];
   const mail = cardEmail(company, role, shortlist, getRecruiterPortalUrl(email), getRecruiterUnsubscribeUrl(email));
 
-  // NOTE: Postal sends from POSTAL_FROM_EMAIL; true isolation of the cold-outreach domain
-  // (OUTREACH.fromEmail) is a deploy-time concern — point this worker at a SEPARATE Postal
-  // org/domain from the OTP/auto-apply one so a reputation hit can't reach transactional mail.
+  // Send FROM the isolated cold-outreach domain (OUTREACH.fromEmail, e.g. talent.freelanly.com) so a
+  // reputation hit can't reach the OTP/auto-apply transactional domain. Replies land on that domain.
   let res: { success: boolean; messageId?: string; error?: string };
   try {
-    res = await sendEmail({ to: email, subject: mail.subject, html: mail.html, text: mail.text,
+    res = await sendEmail({ to: email, from: OUTREACH.fromEmail, fromName: 'Freelanly Talent',
+      subject: mail.subject, html: mail.html, text: mail.text,
       listUnsubscribe: getRecruiterUnsubscribeUrl(email) });
   } catch (e) { res = { success: false, error: (e as Error)?.message }; }
 

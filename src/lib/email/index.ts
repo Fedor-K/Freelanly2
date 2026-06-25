@@ -21,6 +21,8 @@ interface SendEmailParams {
   html: string;
   text?: string;
   replyTo?: string;
+  from?: string;
+  fromName?: string;
   listUnsubscribe?: string;
   attachments?: Array<{
     filename: string;
