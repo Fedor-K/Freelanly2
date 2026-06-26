@@ -34,6 +34,10 @@ export default async function DiscoveryPage() {
   if (!me?.resumeUrl) redirect('/dashboard/settings#profile');
   const fitCtx = buildFitContext(me?.parsedProfile as Record<string, unknown> | null);
 
+  // Has this user ever applied? Drives the first-apply hero + nudge for fresh (profile-only) signups.
+  const priorApplies = await prisma.autoApplication.count({ where: { userId: session.user.id, origin: 'SELF', sentAt: { not: null } } });
+  const hasApplied = priorApplies > 0;
+
   const [poolOpps, poolJobs, totalToday] = await Promise.all([
     prisma.opportunity.findMany({
       // self-appliable (applyEmail) OR external-apply ATS roles (applyUrl) — both belong in the feed
@@ -188,6 +192,7 @@ export default async function DiscoveryPage() {
           items={items}
           topSkills={topSkills}
           sourceCounts={Object.entries(sourceCounts)}
+          hasApplied={hasApplied}
         />
       </div>
 

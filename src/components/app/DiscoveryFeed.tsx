@@ -61,14 +61,16 @@ function timeAgo(date: string): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
+export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasApplied = true }: {
   items: Job[];
   topSkills: [string, number][];
   sourceCounts: [string, number][];
+  hasApplied?: boolean;
 }) {
   const [items] = useState(initial);
   const [loading, setLoading] = useState<Record<string, string>>({});
   const [applied, setApplied] = useState<Set<string>>(new Set());
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [activeSkills, setActiveSkills] = useState<Set<string>>(new Set());
   // The feed is built server-side and arrives instantly, so a route-loading screen just flashes. Show
@@ -214,6 +216,13 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
   const verifiedVisible = inMatchMode ? visible.filter(isVerified) : visible;
   const similarVisible = inMatchMode ? visible.filter(i => !isVerified(i)) : [];
 
+  // First-apply driver for fresh (profile-only) signups: prominent hero on the single best applyable
+  // match + a one-time nudge, both shown only until the user makes their first apply.
+  const showFirstApply = !hasApplied && applied.size === 0 && visible.length > 0;
+  const heroItem = showFirstApply
+    ? (verifiedVisible.find(i => (i.applyEmail || i.applyUrl) && !applied.has(i.id)) || visible.find(i => i.applyEmail || i.applyUrl))
+    : undefined;
+
   const renderCard = (item: Job, i: number) => (
     <div key={item.id} className="job-card" style={{cursor: 'default'}}>
       <div className="logo" style={{background: COLORS[i % COLORS.length]}}>{item.companyName[0]}</div>
@@ -353,6 +362,44 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
 
       {/* Results */}
       <div className="card">
+
+        {/* First-apply nudge — only until the user applies once */}
+        {showFirstApply && !nudgeDismissed && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', background: 'linear-gradient(90deg, rgba(199,241,53,0.18), rgba(199,241,53,0.05))', borderBottom: '1px solid rgba(11,12,15,0.07)' }}>
+            <span style={{ fontSize: '20px' }}>👋</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink-1, #0B0C0F)' }}>Apply to your first role — it&apos;s free and takes ~30 seconds</div>
+              <div style={{ fontSize: '12px', color: 'var(--ink-4)', marginTop: '2px' }}>We pre-write the cover letter. Just review and send.</div>
+            </div>
+            <button className="btn btn-ghost btn-sm" onClick={() => setNudgeDismissed(true)}>Dismiss</button>
+          </div>
+        )}
+
+        {/* Best-match hero — single, prominent, one click to apply */}
+        {showFirstApply && heroItem && (
+          <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(11,12,15,0.07)', background: '#FBFAF6' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#7A8B1E', marginBottom: '8px' }}>★ Your best match</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+              <div className="logo" style={{ background: COLORS[0] }}>{heroItem.companyName[0]}</div>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--ink-1, #0B0C0F)' }}>{heroItem.title}</div>
+                <div style={{ fontSize: '13px', color: 'var(--ink-4)', marginTop: '2px' }}>
+                  {heroItem.companyName}{matchedItems(heroItem).length > 0 && <> · {matchedItems(heroItem).slice(0, 3).join(' · ')}</>}
+                </div>
+              </div>
+              {heroItem.applyEmail ? (
+                <button className="btn btn-acid" onClick={() => handleApply(heroItem)} disabled={!!loading[heroItem.id]}>
+                  Apply — ~30s →
+                </button>
+              ) : heroItem.applyUrl ? (
+                <a className="btn btn-acid" href={`/go/ats/${heroItem.id}`} target="_blank" rel="noopener noreferrer" onClick={() => setApplied(prev => new Set(prev).add(heroItem.id))}>
+                  Apply on company site ↗
+                </a>
+              ) : null}
+            </div>
+          </div>
+        )}
+
         <div className="card-head">
           <div className="row gap-3">
             <h3>{inMatchMode && verifiedCount === 0 ? `${visible.length} similar` : `${visible.length} results`}</h3>
