@@ -106,6 +106,29 @@ export async function canSendToCompany(opts: { email: string; domain: string }):
 
 // ── Email composition (self-contained; inline candidate list, no portal dependency) ─────────────
 function esc(s: string): string { return (s || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!)); }
+
+// Map a candidate's freeform/multilingual self-title to a clean, standard English profession for the
+// anonymous card headline ("Analista de reporting III" → "Data / BI Analyst"). Truthful to their real
+// domain (never relabeled as the target role); falls back to a level-stripped version of the original.
+export function normalizeProfession(title: string | null | undefined): string {
+  const t = (title || '').toLowerCase();
+  if (!t.trim()) return 'Professional';
+  const has = (...ks: string[]) => ks.some(k => t.includes(k));
+  if (has('full stack', 'full-stack', 'fullstack', 'full‑stack')) return 'Full-Stack Developer';
+  if (has('front', 'react', 'angular', 'vue', 'frontend')) return 'Frontend Developer';
+  if (has('back', 'java', 'node', '.net', 'golang', ' go ', 'php', 'ruby', 'django', 'spring', 'c#')) return 'Backend Developer';
+  if (has('mobile', 'android', 'ios', 'flutter', 'react native', 'kotlin', 'swift')) return 'Mobile Developer';
+  if (has('devops', 'sre', 'infra', 'cloud engineer', 'kubernetes', 'platform engineer')) return 'DevOps Engineer';
+  if (has('qa', 'quality', 'tester', 'sdet', 'automation engineer')) return 'QA Engineer';
+  if (has('data engineer', 'etl', 'data pipeline')) return 'Data Engineer';
+  if (has('data scien', 'machine learning', 'ai engineer', 'ml engineer')) return 'Data Scientist';
+  if (has('bi ', 'business intelligence', 'analyst', 'analista', 'report', 'power bi', 'tableau')) return 'Data / BI Analyst';
+  if (has('design', 'diseñ', ' ux', 'ui/ux', 'product designer')) return 'Product Designer';
+  if (has('product manager', 'product owner')) return 'Product Manager';
+  if (has('engineer', 'developer', 'programmer', 'desarrollador', 'software', 'ingenier')) return 'Software Engineer';
+  const cleaned = (title || '').replace(/\b(I{1,3}|IV|VI?|junior|senior|sr\.?|jr\.?|lead|principal|staff)\b/gi, '').replace(/\s+/g, ' ').trim();
+  return cleaned || 'Professional';
+}
 export function cardEmail(company: string, role: string, cands: ShortlistCandidate[], portalUrl: string, unsub: string) {
   const n = cands.length;
   const rows = cands.map(c => {
@@ -115,8 +138,9 @@ export function cardEmail(company: string, role: string, cands: ShortlistCandida
     // colored initials circle. No LinkedIn link (owner decision — keep the recruiter in our funnel).
     // Anonymous teaser: show the PROFESSION, not the name — the recruiter must click through to the
     // portal to see who the candidate is and reach them (keeps them in our funnel; protects identity).
-    const headline = esc(c.title || role || 'Candidate');
-    const initials = esc((c.title || role || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?');
+    const profession = normalizeProfession(c.title) || role || 'Candidate';
+    const headline = esc(profession);
+    const initials = esc(profession.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?');
     const avatar = (c.image || '').includes('blob.vercel-storage')
       ? `<img src="${esc(c.image || '')}" width="48" height="48" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:block;">`
       : `<div style="width:48px;height:48px;border-radius:50%;background:#c6f135;color:#111;font-weight:700;font-size:16px;text-align:center;line-height:48px;">${initials}</div>`;
@@ -137,7 +161,7 @@ export function cardEmail(company: string, role: string, cands: ShortlistCandida
     <p style="margin-top:18px;"><a href="${esc(portalUrl)}" style="background:#c6f135;color:#111;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600;">View profiles &amp; CVs →</a></p>
     <p style="color:#888;font-size:12px;margin-top:24px;">Reply to this email to connect with any of them. Not hiring right now? <a href="${esc(unsub)}">Unsubscribe</a> and we won't email again.</p>
   </div>`;
-  const text = `Hi ${company} team,\n\nYou have an open ${role} role. ${n > 1 ? `${n} candidates` : `A candidate`} from our pool fit it:\n\n${cands.map(c => `• ${c.title || role || 'Candidate'} — ${c.location || 'Remote'}${c.label ? ` (${c.label})` : ''}`).join('\n')}\n\nView profiles & CVs: ${portalUrl}\nReply to connect. Unsubscribe: ${unsub}`;
+  const text = `Hi ${company} team,\n\nYou have an open ${role} role. ${n > 1 ? `${n} candidates` : `A candidate`} from our pool fit it:\n\n${cands.map(c => `• ${normalizeProfession(c.title) || role || 'Candidate'} — ${c.location || 'Remote'}${c.label ? ` (${c.label})` : ''}`).join('\n')}\n\nView profiles & CVs: ${portalUrl}\nReply to connect. Unsubscribe: ${unsub}`;
   return { subject, html, text };
 }
 
