@@ -113,7 +113,10 @@ export function cardEmail(company: string, role: string, cands: ShortlistCandida
     // Photo: only embed an <img> for our persistent Blob avatars — licdn URLs expire and would render
     // as a broken-image icon in the recruiter's client (email has no onError fallback). Otherwise a
     // colored initials circle. No LinkedIn link (owner decision — keep the recruiter in our funnel).
-    const initials = esc((c.name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?');
+    // Anonymous teaser: show the PROFESSION, not the name — the recruiter must click through to the
+    // portal to see who the candidate is and reach them (keeps them in our funnel; protects identity).
+    const headline = esc(c.title || role || 'Candidate');
+    const initials = esc((c.title || role || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?');
     const avatar = (c.image || '').includes('blob.vercel-storage')
       ? `<img src="${esc(c.image || '')}" width="48" height="48" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:block;">`
       : `<div style="width:48px;height:48px;border-radius:50%;background:#c6f135;color:#111;font-weight:700;font-size:16px;text-align:center;line-height:48px;">${initials}</div>`;
@@ -121,7 +124,7 @@ export function cardEmail(company: string, role: string, cands: ShortlistCandida
       <table role="presentation" cellpadding="0" cellspacing="0"><tr>
         <td width="48" style="vertical-align:top;padding-right:12px;">${avatar}</td>
         <td style="vertical-align:top;">
-          <strong>${esc(c.name || 'Candidate')}</strong>${c.label ? ` — <span style="color:#7a7a7a">${esc(c.label)} match</span>` : ''}<br>
+          <strong>${headline}</strong>${c.label ? ` — <span style="color:#7a7a7a">${esc(c.label)} match</span>` : ''}<br>
           <span style="color:#555;font-size:13px;">${esc(c.location || 'Remote')}${skills ? ' · ' + esc(skills) : ''}</span>
         </td>
       </tr></table></td></tr>`;
@@ -134,7 +137,7 @@ export function cardEmail(company: string, role: string, cands: ShortlistCandida
     <p style="margin-top:18px;"><a href="${esc(portalUrl)}" style="background:#c6f135;color:#111;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600;">View profiles &amp; CVs →</a></p>
     <p style="color:#888;font-size:12px;margin-top:24px;">Reply to this email to connect with any of them. Not hiring right now? <a href="${esc(unsub)}">Unsubscribe</a> and we won't email again.</p>
   </div>`;
-  const text = `Hi ${company} team,\n\nYou have an open ${role} role. ${n > 1 ? `${n} candidates` : `A candidate`} from our pool fit it:\n\n${cands.map(c => `• ${c.name || 'Candidate'} — ${c.location || 'Remote'}${c.label ? ` (${c.label})` : ''}`).join('\n')}\n\nView profiles & CVs: ${portalUrl}\nReply to connect. Unsubscribe: ${unsub}`;
+  const text = `Hi ${company} team,\n\nYou have an open ${role} role. ${n > 1 ? `${n} candidates` : `A candidate`} from our pool fit it:\n\n${cands.map(c => `• ${c.title || role || 'Candidate'} — ${c.location || 'Remote'}${c.label ? ` (${c.label})` : ''}`).join('\n')}\n\nView profiles & CVs: ${portalUrl}\nReply to connect. Unsubscribe: ${unsub}`;
   return { subject, html, text };
 }
 

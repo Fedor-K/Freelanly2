@@ -44,6 +44,7 @@ function lexScore(profile: unknown, roleText: string): number {
 export type ShortlistCandidate = {
   userId: string;
   name: string | null;
+  title: string | null;
   email: string;
   location: string | null;
   linkedinUrl: string | null;
@@ -99,7 +100,8 @@ async function vetCandidate(
     decision = d.decision;
   } catch { /* gate fail-open: SEND with breakdown only */ }
   return {
-    userId: u.id, name: u.name, email: u.email, location: u.location, linkedinUrl: u.linkedinUrl, image: u.image,
+    userId: u.id, name: u.name, title: (typeof p.current_title === 'string' ? p.current_title : null),
+    email: u.email, location: u.location, linkedinUrl: u.linkedinUrl, image: u.image,
     label: computeCaveats(matchBreakdown)?.strength, decision, matchBreakdown, lexScore: lex,
   };
 }
