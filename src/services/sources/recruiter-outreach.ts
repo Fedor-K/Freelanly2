@@ -110,10 +110,21 @@ export function cardEmail(company: string, role: string, cands: ShortlistCandida
   const n = cands.length;
   const rows = cands.map(c => {
     const skills = ((c.matchBreakdown?.lines as Array<{ label?: string }> | undefined)?.slice(0, 4).map(l => l.label).filter(Boolean).join(' · ')) || '';
-    return `<tr><td style="padding:10px 0;border-bottom:1px solid #eee;">
-      <strong>${esc(c.name || 'Candidate')}</strong>${c.label ? ` — <span style="color:#7a7a7a">${esc(c.label)} match</span>` : ''}<br>
-      <span style="color:#555;font-size:13px;">${esc(c.location || 'Remote')}${skills ? ' · ' + esc(skills) : ''}</span>
-      ${c.linkedinUrl ? `<br><a href="${esc(c.linkedinUrl)}" style="font-size:13px;">LinkedIn</a>` : ''}</td></tr>`;
+    // Photo: only embed an <img> for our persistent Blob avatars — licdn URLs expire and would render
+    // as a broken-image icon in the recruiter's client (email has no onError fallback). Otherwise a
+    // colored initials circle. No LinkedIn link (owner decision — keep the recruiter in our funnel).
+    const initials = esc((c.name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?');
+    const avatar = (c.image || '').includes('blob.vercel-storage')
+      ? `<img src="${esc(c.image || '')}" width="48" height="48" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:block;">`
+      : `<div style="width:48px;height:48px;border-radius:50%;background:#c6f135;color:#111;font-weight:700;font-size:16px;text-align:center;line-height:48px;">${initials}</div>`;
+    return `<tr><td style="padding:12px 0;border-bottom:1px solid #eee;">
+      <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+        <td width="48" style="vertical-align:top;padding-right:12px;">${avatar}</td>
+        <td style="vertical-align:top;">
+          <strong>${esc(c.name || 'Candidate')}</strong>${c.label ? ` — <span style="color:#7a7a7a">${esc(c.label)} match</span>` : ''}<br>
+          <span style="color:#555;font-size:13px;">${esc(c.location || 'Remote')}${skills ? ' · ' + esc(skills) : ''}</span>
+        </td>
+      </tr></table></td></tr>`;
   }).join('');
   const subject = n > 1 ? `${n} candidates for your ${role} role` : `A candidate for your ${role} role`;
   const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;color:#222;">
