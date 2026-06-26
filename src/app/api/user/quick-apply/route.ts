@@ -9,6 +9,8 @@ import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
+import { fetchResumeAttachment } from '@/lib/resume-attachment';
+import { getRecruiterPortalUrl } from '@/lib/recruiter-token';
 import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
 import { isFreeEmailProvider } from '@/lib/content-quality';
 import { buildFitContext, scoreFit } from '@/lib/fit-score';
@@ -189,6 +191,8 @@ export async function POST(request: NextRequest) {
         email: true,
         plan: true,
         resumeText: true,
+        resumeUrl: true,
+        resumeFileName: true,
         parsedProfile: true,
         location: true,
         workAuthorization: true,
@@ -413,6 +417,18 @@ export async function POST(request: NextRequest) {
     // Use user-edited text if provided, otherwise use assembled fullLetter
     const finalText = providedCoverLetter || editedCoverLetter || fullLetter;
 
+    // Attach the candidate's CV (Blob PDF) + link the recruiter portal — so self-apply carries the
+    // same payload the auto-apply card did (CV + "view all candidates"), the two biggest recruiter asks.
+    const cv = await fetchResumeAttachment(user.resumeUrl, user.resumeFileName || undefined);
+    const portalUrl = getRecruiterPortalUrl(opportunity.applyEmail);
+    const safeName = escapeHtml(user.name || 'this candidate');
+    const footerHtml = `
+  <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e5e5e5;">
+    ${cv ? `<p style="margin: 0 0 10px; font-size: 14px; color: #555;">📎 CV attached (${escapeHtml(cv.filename)}).</p>` : ''}
+    <a href="${portalUrl}" style="display: inline-block; padding: 10px 22px; background: #C7F94A; color: #000; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px;">View ${safeName}'s profile &amp; all candidates &rarr;</a>
+  </div>`;
+    const footerText = `\n\n—\n${cv ? 'CV attached.\n' : ''}View profile & all candidates: ${portalUrl}`;
+
     // Build HTML from final text
     const html = `
 <!DOCTYPE html>
@@ -420,10 +436,11 @@ export async function POST(request: NextRequest) {
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6;">
   ${finalText.split('\n').filter((p: string) => p.trim()).map((p: string) => `<p style="margin: 0 0 12px; line-height: 1.6;">${escapeHtml(p)}</p>`).join('')}
+  ${footerHtml}
 </body>
 </html>`.trim();
 
-    const text = finalText;
+    const text = finalText + footerText;
 
     // Atomically consume the FREE daily quota slot BEFORE sending. The check at the
     // top is a fast UX pre-check only; THIS is the real gate — TOCTOU-safe and covers
@@ -449,6 +466,8 @@ export async function POST(request: NextRequest) {
           subject,
           html,
           text,
+          attachmentBase64: cv?.base64,
+          attachmentFilename: cv?.filename,
         }
       );
     } else {
@@ -479,6 +498,8 @@ export async function POST(request: NextRequest) {
         html,
         text,
         applicationId: appRecord.id,
+        attachmentBase64: cv?.base64,
+        attachmentFilename: cv?.filename,
       });
 
       if (result.success) {
