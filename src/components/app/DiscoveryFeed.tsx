@@ -254,8 +254,8 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
         <div className="job-company">{item.companyName} · {item.source === 'linkedin' ? 'via LinkedIn' : item.source}</div>
         {item.matchLabel !== 'Weak' && matchedItems(item).length > 0 && (
           <div style={{fontSize: '12px', color: 'var(--ink-4)', margin: '3px 0 2px'}}>
-            <strong style={{color: 'var(--good, #2E7D32)', fontWeight: 600}}>In your profile too:</strong>{' '}
-            {matchedItems(item).join(' · ')}
+            <strong style={{color: 'var(--good, #2E7D32)', fontWeight: 600}}>Why you&apos;re seeing this:</strong>{' '}
+            matches your {matchedItems(item).join(' · ')}
             {item.languageGap.length > 0 && (
               <span style={{color: '#B45309', fontWeight: 500}}> · but needs {item.languageGap.map(cap).join(', ')}, not in your profile</span>
             )}
