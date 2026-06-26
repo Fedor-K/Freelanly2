@@ -77,12 +77,12 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   // MANUAL). Make that explicit + one-click to turn on, right here — not buried in settings.
   const [autoState, setAutoState] = useState<'off' | 'saving' | 'on' | 'dismissed'>(autoApplyOn ? 'on' : 'off');
   async function enableAutoApply() {
-    if (!loopIds.length) { setAutoState('on'); return; }
     setAutoState('saving');
     try {
-      await Promise.all(loopIds.map(id => fetch('/api/user/auto-apply', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, mode: 'AUTO' }),
-      })));
+      // single tracked call: flips all loops to AUTO + logs AUTO_APPLY_ENABLED{source}
+      await fetch('/api/user/enable-auto-apply', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'discovery_onboard' }),
+      });
       setAutoState('on');
     } catch { setAutoState('off'); }
   }
