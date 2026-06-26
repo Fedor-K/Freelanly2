@@ -280,7 +280,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts }: {
                 // ATS role — external apply on the company's site (no auto-send, no cover letter)
                 <a
                   className="btn btn-primary btn-sm"
-                  href={item.applyUrl}
+                  href={`/go/ats/${item.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setApplied(prev => new Set(prev).add(item.id))}
