@@ -38,6 +38,12 @@ export default async function DiscoveryPage() {
   const priorApplies = await prisma.autoApplication.count({ where: { userId: session.user.id, origin: 'SELF', sentAt: { not: null } } });
   const hasApplied = priorApplies > 0;
 
+  // Auto-apply state: signups create a loop in MANUAL (self-apply default). Surface a one-click
+  // opt-in in onboarding, since most users register expecting auto-apply and don't know it's optional.
+  const myLoops = await prisma.autoApplyLoop.findMany({ where: { userId: session.user.id }, select: { id: true, mode: true } });
+  const loopIds = myLoops.map((l) => l.id);
+  const autoApplyOn = myLoops.some((l) => l.mode === 'AUTO');
+
   const [poolOpps, poolJobs, totalToday] = await Promise.all([
     prisma.opportunity.findMany({
       // self-appliable (applyEmail) OR external-apply ATS roles (applyUrl) — both belong in the feed
@@ -193,6 +199,8 @@ export default async function DiscoveryPage() {
           topSkills={topSkills}
           sourceCounts={Object.entries(sourceCounts)}
           hasApplied={hasApplied}
+          loopIds={loopIds}
+          autoApplyOn={autoApplyOn}
         />
       </div>
 

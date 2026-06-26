@@ -61,16 +61,31 @@ function timeAgo(date: string): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasApplied = true }: {
+export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasApplied = true, loopIds = [], autoApplyOn = true }: {
   items: Job[];
   topSkills: [string, number][];
   sourceCounts: [string, number][];
   hasApplied?: boolean;
+  loopIds?: string[];
+  autoApplyOn?: boolean;
 }) {
   const [items] = useState(initial);
   const [loading, setLoading] = useState<Record<string, string>>({});
   const [applied, setApplied] = useState<Set<string>>(new Set());
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
+  // Auto-apply onboarding: most users sign up EXPECTING auto-apply, but it's now opt-in (loops default
+  // MANUAL). Make that explicit + one-click to turn on, right here — not buried in settings.
+  const [autoState, setAutoState] = useState<'off' | 'saving' | 'on' | 'dismissed'>(autoApplyOn ? 'on' : 'off');
+  async function enableAutoApply() {
+    if (!loopIds.length) { setAutoState('on'); return; }
+    setAutoState('saving');
+    try {
+      await Promise.all(loopIds.map(id => fetch('/api/user/auto-apply', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, mode: 'AUTO' }),
+      })));
+      setAutoState('on');
+    } catch { setAutoState('off'); }
+  }
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [activeSkills, setActiveSkills] = useState<Set<string>>(new Set());
   // The feed is built server-side and arrives instantly, so a route-loading screen just flashes. Show
@@ -362,6 +377,28 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
 
       {/* Results */}
       <div className="card">
+
+        {/* Auto-apply onboarding — most users sign up expecting auto-apply; make it explicit + 1-click on */}
+        {(autoState === 'off' || autoState === 'saving') && (
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(11,12,15,0.07)', background: 'linear-gradient(90deg, rgba(199,241,53,0.16), rgba(199,241,53,0.04))' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ink-1, #0B0C0F)', marginBottom: '4px' }}>Two ways to apply — your choice</div>
+            <div style={{ fontSize: '13px', color: 'var(--ink-3, #3a3a3a)', lineHeight: 1.5, marginBottom: '12px' }}>
+              <strong>Apply yourself</strong> — pick roles from the feed below (we pre-write the cover letter). Or turn on
+              <strong> auto-apply</strong> and Freelanly applies for you, hands-free, to your strong matches.
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button className="btn btn-acid btn-sm" onClick={enableAutoApply} disabled={autoState === 'saving'}>
+                {autoState === 'saving' ? 'Turning on…' : '⚡ Turn on auto-apply'}
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setAutoState('dismissed')}>I&apos;ll apply myself</button>
+            </div>
+          </div>
+        )}
+        {autoState === 'on' && !autoApplyOn && (
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(11,12,15,0.07)', background: 'rgba(199,241,53,0.10)', fontSize: '13px', fontWeight: 600, color: 'var(--ink-1, #0B0C0F)' }}>
+            ✓ Auto-apply is on — we&apos;ll start applying to your strong matches. You can turn it off anytime in Settings.
+          </div>
+        )}
 
         {/* First-apply nudge — only until the user applies once */}
         {showFirstApply && !nudgeDismissed && (
