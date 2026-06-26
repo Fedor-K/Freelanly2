@@ -168,6 +168,7 @@ export async function buildShortlistForRole(
         missing: lines.filter(l => l.status !== 'full').map(lab).filter(Boolean),
         profession: (c.matchBreakdown.profession as string) || null,
         matchedN: (c.matchBreakdown.matched as number) ?? 0, totalN: (c.matchBreakdown.total as number) ?? 0,
+        language: 'en', // recruiter-facing card → English
       });
       if (why) c.matchBreakdown.recruiterReasoning = why;
     } catch { /* rationale is best-effort — card still renders without it */ }

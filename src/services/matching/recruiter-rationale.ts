@@ -33,6 +33,7 @@ export type RationaleInput = {
   profession?: string | null; // exact | adjacent | different
   matchedN: number;
   totalN: number;
+  language?: 'ru' | 'en'; // output language — 'en' for the recruiter-facing card (default 'ru')
 };
 
 /**
@@ -53,7 +54,9 @@ export async function generateRecruiterRationale(inp: RationaleInput): Promise<s
 - НЕ принимай решение за рекрутера и НЕ давай рекомендаций к действию. НИКОГДА не пиши «двигаем на созвон», «стоит созвона», «дать шанс», «пригласить», «мимо», «отказ», «берём/не берём» и подобное. Только разложи картину соответствия — что делать, решает рекрутер.
 - Опирайся ТОЛЬКО на приведённые факты. НИКОГДА не выдумывай опыт, инструменты, цифры или уровень, которых нет в данных — и в обратную сторону: не выдумывай, что недостающий навык «наверняка есть».
 - Не повторяй сухой список навыков — это суждение, а не сверка.
-- Пиши по-русски, живым языком рекрутера, без буллетов и без канцелярита.`;
+${inp.language === 'en'
+  ? '- Write in ENGLISH, in natural recruiter language (2-4 sentences), no bullet points, no corporate jargon.'
+  : '- Пиши по-русски, живым языком рекрутера, без буллетов и без канцелярита.'}`;
 
     const user = `ВАКАНСИЯ: ${inp.jobTitle}
 Описание (кратко): ${(inp.jobDescription || '').slice(0, 400)}
