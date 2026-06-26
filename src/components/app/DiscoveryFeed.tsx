@@ -115,15 +115,15 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
           draftOnly: true,
         }),
       });
-      // Funnel step 2 — did the cover letter draft generate, and how long did the user wait?
-      track('APPLY_DRAFT', { method: 'feed', ok: res.ok, ms: Date.now() - startedAt, opportunityId: item.type === 'opportunity' ? item.id : undefined });
+      const data = await res.json().catch(() => ({} as Record<string, unknown>));
+      // Funnel step 2 — did the draft generate? Capture the REASON on failure (poor_match / already_applied
+      // / limit_reached / resume_required / unavailable) so we can tell gate-rejections from real errors.
+      track('APPLY_DRAFT', { method: 'feed', ok: res.ok, status: res.status, reason: (data as { error?: string }).error || null, ms: Date.now() - startedAt, opportunityId: item.type === 'opportunity' ? item.id : undefined });
       if (res.ok) {
-        const data = await res.json();
-        setDraftSubject(data.subject || `Application: ${item.title}`);
-        setDraftBody(data.coverLetter || '');
+        setDraftSubject((data as { subject?: string }).subject || `Application: ${item.title}`);
+        setDraftBody((data as { coverLetter?: string }).coverLetter || '');
       } else {
-        const data = await res.json();
-        setDraftBody(data.error || 'Failed to generate draft. You can write your own below.');
+        setDraftBody((data as { message?: string; error?: string }).message || (data as { error?: string }).error || 'Failed to generate draft. You can write your own below.');
         setDraftSubject(`Application: ${item.title}`);
       }
     } catch {
