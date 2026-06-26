@@ -48,7 +48,7 @@ export default async function DiscoveryPage() {
     prisma.opportunity.findMany({
       // self-appliable (applyEmail) OR external-apply ATS roles (applyUrl) — both belong in the feed
       where: { isActive: true, createdAt: { gte: weekAgo }, OR: [{ applyEmail: { not: null } }, { applyUrl: { not: null } }] },
-      select: { id: true, title: true, skills: true, createdAt: true },
+      select: { id: true, title: true, skills: true, createdAt: true, source: true },
     }),
     prisma.job.findMany({
       where: { isActive: true, createdAt: { gte: weekAgo }, applyEmail: { not: null } },
@@ -61,8 +61,8 @@ export default async function DiscoveryPage() {
   // (applyEmail filter above) — "could self-apply" is the whole point.
   const RANK: Record<FitLabel, number> = { Strong: 0, Good: 1, Weak: 2 };
   const ranked = [
-    ...poolOpps.map(o => ({ id: o.id, type: 'opportunity' as const, createdAt: o.createdAt, ...scoreFitLabeled(fitCtx, o) })),
-    ...poolJobs.map(j => ({ id: j.id, type: 'job' as const, createdAt: j.createdAt, ...scoreFitLabeled(fitCtx, j) })),
+    ...poolOpps.map(o => ({ id: o.id, type: 'opportunity' as const, createdAt: o.createdAt, source: o.source, ...scoreFitLabeled(fitCtx, o) })),
+    ...poolJobs.map(j => ({ id: j.id, type: 'job' as const, createdAt: j.createdAt, source: 'linkedin', ...scoreFitLabeled(fitCtx, j) })),
   ].sort((a, b) =>
     (RANK[a.label] - RANK[b.label]) || (b.score - a.score) || (b.createdAt.getTime() - a.createdAt.getTime()),
   );
@@ -121,8 +121,13 @@ export default async function DiscoveryPage() {
   // was showing a bank clerk "Data Scientist" just because it was fresh). Also drop zero-overlap roles
   // (score 0) so off-profile users see a thin honest feed, not irrelevant gigs. "Newest" is still
   // available via the client sort toggle for users who want to browse chronologically.
+  // Stricter bar for ATS (Lever) roles: they're external-apply and NOT AI-vetted, so a thin lexical
+  // overlap is too risky to surface — require a Good+ label (drop Weak ATS). LinkedIn opps are
+  // inline-apply (lower stakes, AI-vettable) so any overlap (score>0) is fine.
   const queueIds = new Set(queueItems.map(i => i.id));
-  const closestRanked = ranked.filter(r => !queueIds.has(r.id) && r.score > 0);
+  const passesBar = (r: { id: string; score: number; label: FitLabel; source: string }) =>
+    r.score > 0 && (r.source !== 'ats_lever' || r.label !== 'Weak');
+  const closestRanked = ranked.filter(r => !queueIds.has(r.id) && passesBar(r));
   const closestSlice = closestRanked.slice(0, perPage);
 
   const oppIds = closestSlice.filter(r => r.type === 'opportunity').map(r => r.id);
