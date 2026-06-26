@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 import { extractText } from 'unpdf';
 import OpenAI from 'openai';
 import { put } from '@vercel/blob';
-import { scrapeLinkedInProfile, mergeCandidateProfiles, normalizeLinkedInUrl } from '@/lib/linkedin-profile';
+import { scrapeLinkedInProfile, mergeCandidateProfiles, normalizeLinkedInUrl, cacheProfilePhotoToBlob } from '@/lib/linkedin-profile';
 import { deriveCategorySlugs } from '@/lib/loop-routing';
 import { isLocationBlocked } from '@/lib/region-block';
 
@@ -204,6 +204,10 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
       if (countryName) resolvedLocation = ipCity ? `${ipCity}, ${countryName}` : countryName;
     }
 
+    // Cache the LinkedIn photo to our Blob NOW (the licdn URL is fresh) — storing the raw signed URL
+    // means it 403s in ~2 weeks. Fall back to the raw URL if caching fails (fresh for now).
+    const cachedImage = photoUrl ? (await cacheProfilePhotoToBlob(photoUrl, user.id)) || photoUrl : undefined;
+
     // Save to user
     await prisma.user.update({
       where: { id: user.id },
@@ -215,7 +219,7 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
         name: parsedProfile?.name || undefined,
         location: resolvedLocation,
         linkedinUrl: savedLinkedinUrl || undefined,
-        image: photoUrl || undefined,
+        image: cachedImage,
         ...(salaryExpectation ? { salaryExpectation, salaryExpectationAt: new Date() } : {}),
         ...(currentRate ? { currentRate } : {}),
         ...(workAuthorization ? { workAuthorization } : {}),

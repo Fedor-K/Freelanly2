@@ -3,7 +3,33 @@
 // fill gaps). Used by the apply flow (resume-preauth) and the authenticated resume route.
 // One Apify actor (harvestapi/linkedin-profile-scraper); skills come back as topSkills + skills.
 
+import { put } from '@vercel/blob';
+
 export type CandProfile = Record<string, unknown>;
+
+/**
+ * Cache a LinkedIn profile photo to our Vercel Blob and return the permanent URL. LinkedIn CDN
+ * (media.licdn.com) URLs are SIGNED with a ~2-week expiry, so storing the raw URL means the photo
+ * 403s a couple weeks later (avatars revert to initials). Call this at scrape time — while the URL
+ * is fresh — to download the bytes and store them on our own domain (never expires, hot-linkable).
+ * Returns null on any failure → caller falls back to the raw URL (fresh for now) or initials.
+ */
+export async function cacheProfilePhotoToBlob(photoUrl: string, userId: string): Promise<string | null> {
+  try {
+    if (!photoUrl || !/^https?:\/\//.test(photoUrl)) return null;
+    const res = await fetch(photoUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!res.ok) return null;
+    const ct = res.headers.get('content-type') || 'image/jpeg';
+    if (!ct.startsWith('image/')) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length < 200) return null; // guard against error pages / 1px stubs
+    const ext = ct.includes('png') ? 'png' : ct.includes('webp') ? 'webp' : 'jpg';
+    const blob = await put(`avatars/${userId}.${ext}`, buf, { access: 'public', contentType: ct, allowOverwrite: true });
+    return blob.url;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Normalize a user-entered LinkedIn URL to a canonical https://www.linkedin.com/in/<slug> form,
