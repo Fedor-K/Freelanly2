@@ -144,12 +144,14 @@ export function cardEmail(company: string, role: string, cands: ShortlistCandida
     const avatar = (c.image || '').includes('blob.vercel-storage')
       ? `<img src="${esc(c.image || '')}" width="48" height="48" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:block;">`
       : `<div style="width:48px;height:48px;border-radius:50%;background:#c6f135;color:#111;font-weight:700;font-size:16px;text-align:center;line-height:48px;">${initials}</div>`;
+    const why = typeof c.matchBreakdown?.recruiterReasoning === 'string' ? (c.matchBreakdown.recruiterReasoning as string).trim() : '';
+    const whyHtml = why ? `<br><span style="color:#444;font-size:13px;line-height:1.5;display:inline-block;margin-top:4px;"><span style="color:#7a7a7a;">Why this fit:</span> ${esc(why)}</span>` : '';
     return `<tr><td style="padding:12px 0;border-bottom:1px solid #eee;">
       <table role="presentation" cellpadding="0" cellspacing="0"><tr>
         <td width="48" style="vertical-align:top;padding-right:12px;">${avatar}</td>
         <td style="vertical-align:top;">
           <strong>${headline}</strong>${c.label ? ` — <span style="color:#7a7a7a">${esc(c.label)} match</span>` : ''}<br>
-          <span style="color:#555;font-size:13px;">${esc(c.location || 'Remote')}${skills ? ' · ' + esc(skills) : ''}</span>
+          <span style="color:#555;font-size:13px;">${esc(c.location || 'Remote')}${skills ? ' · ' + esc(skills) : ''}</span>${whyHtml}
         </td>
       </tr></table></td></tr>`;
   }).join('');

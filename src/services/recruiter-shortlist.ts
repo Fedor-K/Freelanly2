@@ -9,6 +9,7 @@ import { prisma } from '@/lib/db';
 import { parseJD, buildBreakdown } from '@/lib/match-breakdown/generate';
 import { runGate, assess } from '@/services/matching/gate';
 import { computeCaveats } from '@/lib/match-caveats';
+import { generateRecruiterRationale } from '@/services/matching/recruiter-rationale';
 import type { LeverPosting } from '@/services/sources/lever-ats';
 
 const LABEL_RANK: Record<string, number> = { Strong: 0, Good: 1, Weak: 2 };
@@ -145,8 +146,32 @@ export async function buildShortlistForRole(
   const vetted = await mapLimit(ranked.filter(r => byId.has(r.id)), concurrency, r =>
     vetCandidate(role, jd, jdText, byId.get(r.id)!, r.s));
 
-  return vetted
+  const top = vetted
     .filter(clearsQualityFloor)
     .sort((a, b) => (LABEL_RANK[a.label || 'Weak'] - LABEL_RANK[b.label || 'Weak']) || (b.lexScore - a.lexScore))
     .slice(0, limit);
+
+  // Enrich ONLY the final few with the matcher's human-readable "why" (one AI call each) — this is
+  // what the recruiter card shows under each candidate, so the pick is explained, not just labelled.
+  await Promise.all(top.map(async c => {
+    const u = byId.get(c.userId); if (!u || !c.matchBreakdown) return;
+    const p = (u.parsedProfile || {}) as Record<string, unknown>;
+    const lines = (c.matchBreakdown.lines as Array<{ label?: string; core?: boolean; status?: string }>) || [];
+    const lab = (l: { label?: string }) => (l.label || '').trim();
+    try {
+      const why = await generateRecruiterRationale({
+        jobTitle: role.title, jobDescription: role.descriptionPlain,
+        candidateTitle: c.title, candidateYears: typeof p.experience_years === 'number' ? (p.experience_years as number) : null,
+        candidateSkills: (p.skills as string[]) || [], candidateBackground: u.resumeText || '',
+        matched: lines.filter(l => l.status === 'full').map(lab).filter(Boolean),
+        missingCore: lines.filter(l => l.core && l.status !== 'full').map(lab).filter(Boolean),
+        missing: lines.filter(l => l.status !== 'full').map(lab).filter(Boolean),
+        profession: (c.matchBreakdown.profession as string) || null,
+        matchedN: (c.matchBreakdown.matched as number) ?? 0, totalN: (c.matchBreakdown.total as number) ?? 0,
+      });
+      if (why) c.matchBreakdown.recruiterReasoning = why;
+    } catch { /* rationale is best-effort — card still renders without it */ }
+  }));
+
+  return top;
 }
