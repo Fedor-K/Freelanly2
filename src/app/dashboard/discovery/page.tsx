@@ -114,12 +114,15 @@ export default async function DiscoveryPage() {
   const queueItems: FeedItem[] = (queueItemsRaw.filter(Boolean) as FeedItem[])
     .sort((x, y) => y.createdAt.localeCompare(x.createdAt)); // freshest first
 
-  // ── Closest tail: the lexical-ranked pool (minus the queue), UNbadged — for browsing when the
+  // ── Closest tail: the lexical fit-ranked pool (minus the queue), UNbadged — for browsing when the
   // verified queue is thin. No LLM at feed time; these never claim "Strong".
+  // KEEP the fit order from `ranked` (RANK[label] → score → recency) — do NOT re-sort by date. The tail
+  // is the bulk of what users browse, so it must be best-fit-first, not newest-first-for-everyone (that
+  // was showing a bank clerk "Data Scientist" just because it was fresh). Also drop zero-overlap roles
+  // (score 0) so off-profile users see a thin honest feed, not irrelevant gigs. "Newest" is still
+  // available via the client sort toggle for users who want to browse chronologically.
   const queueIds = new Set(queueItems.map(i => i.id));
-  const closestRanked = ranked
-    .filter(r => !queueIds.has(r.id))
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); // freshest first
+  const closestRanked = ranked.filter(r => !queueIds.has(r.id) && r.score > 0);
   const closestSlice = closestRanked.slice(0, perPage);
 
   const oppIds = closestSlice.filter(r => r.type === 'opportunity').map(r => r.id);
