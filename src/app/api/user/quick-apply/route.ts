@@ -422,12 +422,21 @@ export async function POST(request: NextRequest) {
     const cv = await fetchResumeAttachment(user.resumeUrl, user.resumeFileName || undefined);
     const portalUrl = getRecruiterPortalUrl(opportunity.applyEmail);
     const safeName = escapeHtml(user.name || 'this candidate');
+    // Subtle, professional footer — Gmail already shows the attachment chip, so don't repeat "CV
+    // attached" as loud body text; just a clean text link (acid underline, not a neon button).
     const footerHtml = `
-  <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e5e5e5;">
-    ${cv ? `<p style="margin: 0 0 10px; font-size: 14px; color: #555;">📎 CV attached (${escapeHtml(cv.filename)}).</p>` : ''}
-    <a href="${portalUrl}" style="display: inline-block; padding: 10px 22px; background: #C7F94A; color: #000; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px;">View ${safeName}'s profile &amp; all candidates &rarr;</a>
+  <div style="margin-top: 24px; padding-top: 14px; border-top: 1px solid #eee; font-size: 13px; color: #888;">
+    <a href="${portalUrl}" style="color: #1a1a1a; font-weight: 600; text-decoration: none; border-bottom: 2px solid #C7F94A; padding-bottom: 1px;">View ${safeName}'s full profile${cv ? ' &amp; CV' : ''} &rarr;</a>
   </div>`;
-    const footerText = `\n\n—\n${cv ? 'CV attached.\n' : ''}View profile & all candidates: ${portalUrl}`;
+    const footerText = `\n\n—\nView ${user.name || 'this candidate'}'s full profile${cv ? ' & CV' : ''}: ${portalUrl}`;
+
+    // Render the cover letter as clean flowing paragraphs: split on blank lines (real paragraph
+    // breaks) and collapse the AI's mid-sentence hard-wrap newlines into spaces — otherwise every
+    // wrapped line became its own gapped <p>, chopping sentences ("…a proven" / "track record…").
+    const paragraphs = finalText
+      .split(/\n\s*\n/).map((b: string) => b.trim()).filter(Boolean)
+      .map((b: string) => `<p style="margin: 0 0 14px; line-height: 1.6;">${escapeHtml(b).replace(/\s*\n\s*/g, ' ')}</p>`)
+      .join('');
 
     // Build HTML from final text
     const html = `
@@ -435,7 +444,7 @@ export async function POST(request: NextRequest) {
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; font-size: 15px; line-height: 1.6;">
-  ${finalText.split('\n').filter((p: string) => p.trim()).map((p: string) => `<p style="margin: 0 0 12px; line-height: 1.6;">${escapeHtml(p)}</p>`).join('')}
+  ${paragraphs}
   ${footerHtml}
 </body>
 </html>`.trim();
