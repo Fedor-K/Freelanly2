@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTracker } from '@/hooks/useTracker';
 import { ProcessingScreen } from '@/components/ProcessingScreen';
 
 const DISCOVERY_SCAN_STEPS = [
@@ -92,14 +93,18 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   // a guaranteed ~2.2s "scanning the feed" intro on mount instead, so the search animation is actually seen.
   const [intro, setIntro] = useState(true);
   useEffect(() => { const t = setTimeout(() => setIntro(false), 3500); return () => clearTimeout(t); }, []);
+  const { track } = useTracker();
 
   async function handleApply(item: Job) {
     if (!item.applyEmail) return;
+    // Funnel step 1 — user pressed Apply in the feed (this surface was previously untracked).
+    track('OPPORTUNITY_APPLY_CLICK', { method: 'feed', opportunityId: item.type === 'opportunity' ? item.id : undefined, jobId: item.type === 'job' ? item.id : undefined, title: item.title });
     setDraftItem(item);
     setDraftSubject('');
     setDraftBody('');
     setDraftGenerating(true);
 
+    const startedAt = Date.now();
     try {
       const res = await fetch('/api/user/quick-apply', {
         method: 'POST',
@@ -110,6 +115,8 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
           draftOnly: true,
         }),
       });
+      // Funnel step 2 — did the cover letter draft generate, and how long did the user wait?
+      track('APPLY_DRAFT', { method: 'feed', ok: res.ok, ms: Date.now() - startedAt, opportunityId: item.type === 'opportunity' ? item.id : undefined });
       if (res.ok) {
         const data = await res.json();
         setDraftSubject(data.subject || `Application: ${item.title}`);
@@ -120,6 +127,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
         setDraftSubject(`Application: ${item.title}`);
       }
     } catch {
+      track('APPLY_DRAFT', { method: 'feed', ok: false, ms: Date.now() - startedAt, error: 'network' });
       setDraftBody('Failed to generate. Write your cover letter below.');
       setDraftSubject(`Application: ${item.title}`);
     } finally {
@@ -142,6 +150,8 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
         }),
       });
       if (res.ok) {
+        // Funnel step 3 — the draft was actually sent (completes feed click → draft → send).
+        track('QUICK_APPLY', { method: 'feed', opportunityId: draftItem.type === 'opportunity' ? draftItem.id : undefined, jobId: draftItem.type === 'job' ? draftItem.id : undefined });
         setApplied(prev => new Set(prev).add(draftItem.id));
         setDraftItem(null);
       } else {

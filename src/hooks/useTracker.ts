@@ -15,6 +15,7 @@ type TrackAction =
   // Opportunities
   | 'OPPORTUNITY_VIEW'
   | 'OPPORTUNITY_APPLY_CLICK'
+  | 'APPLY_DRAFT'
   // Paywall
   | 'PAYWALL_HIT'
   | 'PAYWALL_CLOSE'
