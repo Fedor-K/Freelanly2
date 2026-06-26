@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { DiscoveryFeed } from '@/components/app/DiscoveryFeed';
 import { buildFitContext, scoreFitLabeled, type FitLabel } from '@/lib/fit-score';
+import { profileStamp } from '@/services/matching/assess-pairing-cached';
 import './discovery-design.css';
 
 export const metadata: Metadata = {
@@ -121,12 +122,28 @@ export default async function DiscoveryPage() {
   // was showing a bank clerk "Data Scientist" just because it was fresh). Also drop zero-overlap roles
   // (score 0) so off-profile users see a thin honest feed, not irrelevant gigs. "Newest" is still
   // available via the client sort toggle for users who want to browse chronologically.
+  // AI-verdict cache: hide pairs the apply-gate (assessPairing) has already rejected for THIS user, so
+  // the feed stops showing what apply would refuse (the lexical Good+ over-promised vs the strict AI).
+  // Only honour a NO that's still fresh — same profileStamp (profile unchanged since) AND within the
+  // 14d TTL — otherwise a stale NO would hide a role forever (it can't be re-judged while hidden).
+  const meStamp = profileStamp({
+    resumeUrl: me.resumeUrl,
+    skills: (me.parsedProfile as Record<string, unknown> | null)?.skills as string[] | undefined,
+    title: (me.parsedProfile as Record<string, unknown> | null)?.current_title as string | undefined,
+  });
+  const VERDICT_TTL_MS = 14 * 864e5;
+  const noVerdictOpps = new Set(
+    (await prisma.pairingVerdict.findMany({ where: { userId: session.user.id, decision: 'NO' }, select: { opportunityId: true, profileStamp: true, createdAt: true } }))
+      .filter(v => v.profileStamp === meStamp && Date.now() - v.createdAt.getTime() < VERDICT_TTL_MS)
+      .map(v => v.opportunityId),
+  );
+
   // Show only Good+ matches (label !== 'Weak') across BOTH sources: the role's profession must overlap
   // the candidate's, OR there's strong skill overlap. A single incidental shared skill (Weak, e.g. a
   // designer matching a dev role on "JavaScript") isn't enough — for LinkedIn or ATS. Off-profile users
   // get a thin honest feed instead of noise; "Newest" stays on the client sort toggle.
   const queueIds = new Set(queueItems.map(i => i.id));
-  const closestRanked = ranked.filter(r => !queueIds.has(r.id) && r.label !== 'Weak');
+  const closestRanked = ranked.filter(r => !queueIds.has(r.id) && r.label !== 'Weak' && !noVerdictOpps.has(r.id));
   const closestSlice = closestRanked.slice(0, perPage);
 
   const oppIds = closestSlice.filter(r => r.type === 'opportunity').map(r => r.id);

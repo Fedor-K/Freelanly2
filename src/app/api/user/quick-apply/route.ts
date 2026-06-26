@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { generateCoverLetter, generateSubjectLine } from '@/services/cover-letter-generator';
 import { assessPairing } from '@/services/matching/assess-pairing';
+import { assessPairingCached, profileStamp } from '@/services/matching/assess-pairing-cached';
 import { generateRecruiterRationale } from '@/services/matching/recruiter-rationale';
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
@@ -305,10 +306,13 @@ export async function POST(request: NextRequest) {
     // Assess the pairing with the SAME verifier + gate + verdict as the autonomous matcher, so a
     // self-apply gets an honest cover + a stored breakdown (no more "—" record, no over-promising).
     const profile = user.parsedProfile as Record<string, unknown> | null;
-    const pairing = await assessPairing({
-      jobTitle: opportunity.title, jobDescription: opportunity.description, jobCountry: null,
-      profile, cvText: user.resumeText || '', hasRealCV: !!user.resumeText,
-    });
+    // Cached gate: reuse a recent verdict for this (user × opportunity) → no 5-7s recompute on a repeat
+    // click, no repeat LLM cost, AND every verdict (incl. NO) gets persisted so the feed can hide what
+    // apply would reject. Fail-open: a cache miss/error just runs the live assessment.
+    const pairing = await assessPairingCached(
+      { userId: user.id, opportunityId: opportunity.id, stamp: profileStamp({ resumeUrl: user.resumeUrl, skills: profile?.skills as string[], title: profile?.current_title as string }) },
+      { jobTitle: opportunity.title, jobDescription: opportunity.description, jobCountry: null, profile, cvText: user.resumeText || '', hasRealCV: !!user.resumeText },
+    );
     // Gate: block BOTH the cover-letter generation (draftOnly) AND the send when the verdict is NO.
     // Blocking only the send wasted a cover-letter LLM call (money) and led to a contradictory UX —
     // the user wrote/reviewed a letter, then got refused at "Send". If we won't send it, don't let

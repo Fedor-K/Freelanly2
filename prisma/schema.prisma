@@ -1809,6 +1809,24 @@ model ActivityLog {
   @@index([userId, action])
 }
 
+// Cache of assessPairing (AI gate) verdicts per (user × opportunity) — so the feed can reflect the
+// real AI judgment (hide what apply would reject), the apply path can skip a recompute (no 5-7s wait,
+// no repeat LLM cost), and the two stop disagreeing. Invalidated by profileStamp (profile change) + TTL.
+model PairingVerdict {
+  id             String   @id @default(cuid())
+  userId         String
+  opportunityId  String
+  decision       String   // 'SEND' | 'NO'
+  label          String?  // Strong | Good | Weak
+  reason         String?
+  matchBreakdown Json?
+  profileStamp   String   // hash of the candidate profile state used for this verdict
+  createdAt      DateTime @default(now())
+
+  @@unique([userId, opportunityId])
+  @@index([opportunityId])
+}
+
 enum ActivityAction {
   // Auth
   LOGIN
