@@ -18,6 +18,16 @@ export function fitTokens(s: string): string[] {
   return (s.toLowerCase().match(/[a-z][a-z+#.]{2,}/g) || []).filter(t => !STOP.has(t));
 }
 
+/** Is a candidate skill present in the role TITLE? SCORER-1: a single-word skill must match a whole
+ *  title TOKEN ("java" ≠ "javascript", "go" ≠ "google") — never a raw substring; multi-word skills
+ *  phrase-match; ≤2-char skills never match a title (too collision-prone — they only count via an
+ *  exact opp-skills tag). Fixes false skill points + fabricated "matched on: java" rationale. */
+function skillInTitle(s: string, titleTokens: Set<string>, titleLower: string): boolean {
+  if (s.length <= 2) return false;
+  if (s.includes(' ')) return titleLower.includes(s);
+  return titleTokens.has(s);
+}
+
 // Known language names (English-canonical, lowercase) used by the language-gap guard. A role that
 // demands a language the candidate doesn't have can't be a Strong match — even if title + tools overlap.
 const LANGUAGES = [
@@ -59,12 +69,14 @@ export function scoreFit(ctx: FitContext, opp: { title: string; skills?: string[
   if (ctx.empty) return 0;
   const titleLower = opp.title.toLowerCase();
   const oppSkills = (opp.skills || []).map(s => s.toLowerCase().trim());
+  const oppTitleTokens = fitTokens(opp.title);
+  const oppTitleTokenSet = new Set(oppTitleTokens);
 
   let skillScore = 0;
-  for (const s of ctx.skills) if (oppSkills.includes(s) || titleLower.includes(s)) skillScore++;
+  for (const s of ctx.skills) if (oppSkills.includes(s) || skillInTitle(s, oppTitleTokenSet, titleLower)) skillScore++;
 
   let titleScore = 0;
-  for (const t of fitTokens(opp.title)) if (ctx.titleTokens.has(t)) titleScore++;
+  for (const t of oppTitleTokens) if (ctx.titleTokens.has(t)) titleScore++;
 
   return titleScore * 3 + skillScore;
 }
@@ -112,19 +124,21 @@ export function scoreFitLabeled(
   const titleLower = opp.title.toLowerCase();
   const oppSkillsRaw = opp.skills || [];
   const oppSkills = oppSkillsRaw.map(s => s.toLowerCase().trim());
+  const oppTitleTokens = fitTokens(opp.title);
+  const oppTitleTokenSet = new Set(oppTitleTokens);
 
   // Collect the actual matched skills (display casing) so the card can explain WHY it's a match.
   const matchedSkills: string[] = [];
   for (const s of ctx.skills) {
     const idx = oppSkills.indexOf(s);
     if (idx !== -1) matchedSkills.push(oppSkillsRaw[idx]);
-    else if (titleLower.includes(s)) matchedSkills.push(s);
+    else if (skillInTitle(s, oppTitleTokenSet, titleLower)) matchedSkills.push(s); // SCORER-1: token-match, not substring
   }
   const skillMatches = matchedSkills.length;
 
   // Candidate profession words present in the role title (in title order, so they read naturally).
   const matchedTitleTokens: string[] = [];
-  for (const t of fitTokens(opp.title)) if (ctx.titleTokens.has(t)) matchedTitleTokens.push(t);
+  for (const t of oppTitleTokens) if (ctx.titleTokens.has(t)) matchedTitleTokens.push(t);
   const titleMatches = matchedTitleTokens.length;
 
   const titleFrac = ctx.titleTokens.size > 0
@@ -155,7 +169,7 @@ export function scoreFitLabeled(
   // words ("project") and multi-word tags ("ms project") never false-fire.
   const missingCore: string[] = [];
   if (label === 'Strong') {
-    for (const t of fitTokens(opp.title)) {
+    for (const t of oppTitleTokens) {
       const idx = oppSkills.indexOf(t);
       if (idx !== -1 && !ctx.skills.has(t) && !ctx.titleTokens.has(t)) missingCore.push(oppSkillsRaw[idx]);
     }

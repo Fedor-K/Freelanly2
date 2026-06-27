@@ -75,8 +75,8 @@ RULES:
   • ALTERNATIVES (candidate needs only ONE) — items joined by "or"/"either" ("Node.js, Java, or Python"; "AWS, GCP or Azure"), OR a parenthetical/example list after a category ("enterprise platforms (SAP, Oracle, Microsoft Dynamics)", "AWS (Lambda, S3, RDS)", "a relational DB (Postgres, MySQL)"). Emit ONE skill: display = the category or "A/B/C", anyOf = [every alternative]. NEVER split these — splitting invents requirements the post didn't make (and falsely marks the unchosen alternative as missing). CRITICAL: when the CATEGORY itself is a concrete named technology ("AWS (Lambda, S3)", "Azure (Functions)"), INCLUDE the category in anyOf too → anyOf:["AWS","Lambda","S3"], so a candidate who lists the platform generically still matches. Only when the category is a generic noun ("platforms", "a database", "a language") is it left out of anyOf.
   • CHECKLIST (all are needed) — distinct tools/competencies joined by "and"/"&" or a plain comma list of a required stack ("Python, pandas, scikit-learn"; "React and Node.js"; "UX Research & User-Centered Design" → "UX Research" + "User-Centered Design"). SPLIT into separate skills so each is matched on its own.
   • The tell: "or"/"either"/a category-then-examples parenthetical ⇒ anyOf; "and"/plain required stack ⇒ split.
-- Each CHECKLIST skill = ONE concrete tool/technology/competency literally named. Max 5 skills, most important first.
-- PRIORITIZE the role-defining stack (the language/framework/domain the job is ABOUT — usually named in the TITLE or the dominant theme) OVER generic tooling. If the post lists both a stack (e.g. React, Node.js) and tooling (Docker, Git, Linux, CI/CD, Jira), the stack comes first and the tooling must NOT crowd it out of the 5 slots. A "Full Stack" / "Software Engineer" title with no concrete stack in the body → extract whatever stack IS named; do NOT pad the list with tooling alone.
+- Each CHECKLIST skill = ONE concrete tool/technology/competency literally named. Max 8 skills, most important first.
+- PRIORITIZE the role-defining stack (the language/framework/domain the job is ABOUT — usually named in the TITLE or the dominant theme) OVER generic tooling. If the post lists both a stack (e.g. React, Node.js) and tooling (Docker, Git, Linux, CI/CD, Jira), the stack comes first and the tooling must NOT crowd it out of the 8 slots. A "Full Stack" / "Software Engineer" title with no concrete stack in the body → extract whatever stack IS named; do NOT pad the list with tooling alone.
 - "core": set true ONLY for the 1-2 skills that DEFINE the role — named in the job TITLE, or explicitly "mandatory"/"must-have"/"required", or the dominant theme of the responsibilities. Everything else core=false. (e.g. for "Senior Software Engineer with AI/ML", AI/ML is core; for "Java Full Stack", Java is core.) NEVER mark generic infra/tooling as core — Docker, Kubernetes, Git, Linux, Bash, CI/CD, Jenkins, Jira, YAML, npm/maven/gradle, nginx are present in almost every role and are NEVER role-defining, even if a thin post mentions only them.
 - "anyOf" = atomic tool names (each a single tool, never a phrase/clause). For a plain single skill, anyOf is just [that skill]; for an ALTERNATIVES requirement, anyOf lists EVERY option ("Node.js, Java, or Python" → {"display":"Node.js/Java/Python","anyOf":["Node.js","Java","Python"],"core":true}; "platforms (SAP, Oracle, Dynamics)" → {"display":"enterprise platform integration","anyOf":["SAP","Oracle","Microsoft Dynamics"]}).
 - For "X or equivalent / or similar" requirements: set anyOf to the concrete equivalents you are CONFIDENT are real (e.g. {"display":"experiment tracking","anyOf":["MLflow","Weights & Biases","Neptune","Comet"]}). If you cannot name real equivalents, OMIT the requirement entirely. NEVER reduce "X or equivalent" to just X.
@@ -89,7 +89,7 @@ RULES:
       { role: 'user', content: jdText.slice(0, 4000) },
     ],
     temperature: 0,
-    max_tokens: 500,
+    max_tokens: 800, // headroom for up to 8 skills (PARSEJD-2) so the JSON isn't truncated mid-object
   });
   const m = (r.choices[0]?.message?.content || '').match(/\{[\s\S]*\}/);
   if (!m) return { skills: [], languages: [] };
@@ -106,8 +106,10 @@ RULES:
         if (inTitle(req, titleLine)) req.core = true;       // …unless it IS the role (named in the title) — title wins
         return req;
       })
+      // PARSEJD-2: cap raised 5→8 so roles with >5 real must-haves don't under-extract and read as a
+      // false "N of N" Strong (a 5-of-8 was being scored 5-of-5). anyOf members stay capped at 5.
       .filter((s: SkillReq | null): s is SkillReq => !!s)
-      .slice(0, 5);
+      .slice(0, 8);
     return {
       skills,
       languages: (Array.isArray(p.languages) ? p.languages : []).map(String),

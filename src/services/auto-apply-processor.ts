@@ -2050,8 +2050,12 @@ function bfTokens(s: string): string[] {
 function bfScore(candSkills: Set<string>, candTitleTokens: Set<string>, opp: { title: string; skills: string[] }): number {
   const titleLower = opp.title.toLowerCase();
   const oppSkills = (opp.skills || []).map(s => s.toLowerCase().trim());
+  const oppTitleTokenSet = new Set(bfTokens(opp.title));
+  // SCORER-1: single-word skill must match a whole title TOKEN (java ≠ javascript, go ≠ google);
+  // multi-word phrase-matches; ≤2-char skills never match a title (only an exact opp-skills tag).
+  const skillInTitle = (s: string) => s.length > 2 && (s.includes(' ') ? titleLower.includes(s) : oppTitleTokenSet.has(s));
   let skill = 0;
-  for (const s of candSkills) if (oppSkills.includes(s) || titleLower.includes(s)) skill++;
+  for (const s of candSkills) if (oppSkills.includes(s) || skillInTitle(s)) skill++;
   let title = 0;
   for (const t of bfTokens(opp.title)) if (candTitleTokens.has(t)) title++;
   return title * 3 + skill;

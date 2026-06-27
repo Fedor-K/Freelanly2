@@ -4,6 +4,8 @@ import { verifySkill } from '@/lib/match-breakdown/verify';
 import { buildBreakdown, type ParsedJD } from '@/lib/match-breakdown/generate';
 import { computeCaveats } from '@/lib/match-caveats';
 import { redactPII } from '@/services/matching/recruiter-rationale';
+import { buildFitContext, scoreFitLabeled } from '@/lib/fit-score';
+import { isLanguageRole } from '@/services/matching/gate';
 
 let pass = 0, fail = 0;
 function ok(name: string, cond: boolean) {
@@ -57,6 +59,25 @@ console.log('\nRAT-1 — résumé grounding is scrubbed of identity before it re
   ok('name removed', !/\bMaria\b/.test(red) && !/\bGonzalez\b/.test(red));
   ok('real experience kept', /7 years building dashboards/.test(red));
 }
+
+console.log('\nSCORER-1 — skills match a whole title TOKEN, not a substring:');
+{
+  const java = buildFitContext({ skills: ['java'], current_title: 'Backend Developer' });
+  ok('"java" does NOT match title "JavaScript Developer"',
+    !scoreFitLabeled(java, { title: 'JavaScript Developer', skills: [] }).matchedSkills.map(s => s.toLowerCase()).includes('java'));
+  const react = buildFitContext({ skills: ['react'], current_title: 'Frontend Developer' });
+  ok('"react" matches title "React Developer"',
+    scoreFitLabeled(react, { title: 'React Developer', skills: [] }).matchedSkills.map(s => s.toLowerCase()).includes('react'));
+  const go = buildFitContext({ skills: ['go'], current_title: 'Backend Developer' });
+  ok('2-char "go" does NOT match title "Google Ads Manager"',
+    !scoreFitLabeled(go, { title: 'Google Ads Manager', skills: [] }).matchedSkills.map(s => s.toLowerCase()).includes('go'));
+}
+
+console.log('\nGATE-6 — the language family is fully covered:');
+ok('"Spanish Subtitling Specialist" → language role', isLanguageRole('Spanish Subtitling Specialist'));
+ok('"English Localization Lead" → language role', isLanguageRole('English Localization Lead'));
+ok('"Japanese Transcription Editor" → language role', isLanguageRole('Japanese Transcription Editor'));
+ok('"Frontend Developer" → NOT a language role', !isLanguageRole('Frontend Developer'));
 
 console.log(`\n${fail === 0 ? '✅ ALL PASS' : '❌ FAILURES'} — ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
