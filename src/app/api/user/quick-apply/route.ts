@@ -10,7 +10,7 @@ import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
-import { fetchResumeAttachment } from '@/lib/resume-attachment';
+import { fetchResumeAttachment, hasRealCV } from '@/lib/resume-attachment';
 import { getRecruiterPortalUrl } from '@/lib/recruiter-token';
 import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
 import { isFreeEmailProvider } from '@/lib/content-quality';
@@ -311,7 +311,7 @@ export async function POST(request: NextRequest) {
     // apply would reject. Fail-open: a cache miss/error just runs the live assessment.
     const pairing = await assessPairingCached(
       { userId: user.id, opportunityId: opportunity.id, stamp: profileStamp({ resumeUrl: user.resumeUrl, skills: profile?.skills as string[], title: profile?.current_title as string }) },
-      { jobTitle: opportunity.title, jobDescription: opportunity.description, jobCountry: null, profile, cvText: user.resumeText || '', hasRealCV: !!user.resumeText },
+      { jobTitle: opportunity.title, jobDescription: opportunity.description, jobCountry: null, profile, cvText: user.resumeText || '', hasRealCV: hasRealCV(user) },
     );
     // Gate: block BOTH the cover-letter generation (draftOnly) AND the send when the verdict is NO.
     // Blocking only the send wasted a cover-letter LLM call (money) and led to a contradictory UX —
@@ -333,7 +333,7 @@ export async function POST(request: NextRequest) {
       const tier = isWeak ? 'weak' : (/strong/i.test(pairing.label || '') ? 'strong' : 'good');
       const [matchSummary, suggestions] = await Promise.all([
         generateCandidateSummary(profile, opportunity.title, opportunity.description, pairing.label || null, pairing.reason || ''),
-        isWeak ? findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', !!user.resumeText) : Promise.resolve([]),
+        isWeak ? findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user)) : Promise.resolve([]),
       ]);
       return NextResponse.json({
         ok: true,

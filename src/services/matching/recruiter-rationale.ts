@@ -23,6 +23,7 @@ function client(): OpenAI {
 export type RationaleInput = {
   jobTitle: string;
   jobDescription: string;
+  candidateName?: string | null; // used ONLY to redact the name out of the grounding (never to print it)
   candidateTitle?: string | null;
   candidateYears?: number | null;
   candidateSkills?: string[];
@@ -35,6 +36,26 @@ export type RationaleInput = {
   totalN: number;
   language?: 'ru' | 'en'; // output language — 'en' for the recruiter-facing card (default 'ru')
 };
+
+// RAT-1: the recruiter card is anonymized (we show profession, not identity — that's what the
+// contact-reveal paywall sells). The résumé text we ground on starts with the candidate's name and
+// contacts, so strip them before they ever reach the model. Defense-in-depth alongside the explicit
+// "never name the candidate" prompt rule.
+export function redactPII(text: string, name?: string | null): string {
+  let t = text || '';
+  t = t.replace(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi, '[email]');           // emails
+  t = t.replace(/\b(?:https?:\/\/|www\.)\S+/gi, '[link]');                       // urls
+  t = t.replace(/\b(?:linkedin\.com|github\.com|t\.me|wa\.me)\/\S+/gi, '[link]'); // bare social handles
+  t = t.replace(/(?:\+?\d[\d\s().-]{8,}\d)/g, '[phone]');                        // phone-ish digit runs
+  if (name && name.trim()) {
+    for (const part of name.trim().split(/\s+/)) {
+      if (part.length >= 3) {
+        t = t.replace(new RegExp(`\\b${part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi'), '[candidate]');
+      }
+    }
+  }
+  return t;
+}
 
 /**
  * Generate a short recruiter-voice judgement (2-4 sentences, Russian). Returns '' on any failure
@@ -51,11 +72,12 @@ export async function generateRecruiterRationale(inp: RationaleInput): Promise<s
 - Дай честную оценку: ядро закрыто реальным опытом, или закрыто частично, или не закрыто (профиль слабо/не подходит). Не приукрашивай ради «двинуть дальше».
 
 ЖЁСТКИЕ ПРАВИЛА:
+- АНОНИМНОСТЬ: НИКОГДА не называй имя кандидата и не упоминай никакие его контакты (email, телефон, ссылки, соцсети). Обращайся к нему только как «кандидат» или по профессии. Карточка анонимна — имя и контакты раскрываются отдельно и платно.
 - НЕ принимай решение за рекрутера и НЕ давай рекомендаций к действию. НИКОГДА не пиши «двигаем на созвон», «стоит созвона», «дать шанс», «пригласить», «мимо», «отказ», «берём/не берём» и подобное. Только разложи картину соответствия — что делать, решает рекрутер.
 - Опирайся ТОЛЬКО на приведённые факты. НИКОГДА не выдумывай опыт, инструменты, цифры или уровень, которых нет в данных — и в обратную сторону: не выдумывай, что недостающий навык «наверняка есть».
 - Не повторяй сухой список навыков — это суждение, а не сверка.
 ${inp.language === 'en'
-  ? '- Write in ENGLISH, in natural recruiter language (2-4 sentences), no bullet points, no corporate jargon.'
+  ? '- Write in ENGLISH, in natural recruiter language (2-4 sentences), no bullet points, no corporate jargon. NEVER mention the candidate\'s name or any contact details — refer to them as "the candidate" or by profession.'
   : '- Пиши по-русски, живым языком рекрутера, без буллетов и без канцелярита.'}`;
 
     const user = `ВАКАНСИЯ: ${inp.jobTitle}
@@ -63,7 +85,7 @@ ${inp.language === 'en'
 
 КАНДИДАТ: ${inp.candidateTitle || 'должность не указана'}${inp.candidateYears != null ? `, ~${inp.candidateYears} лет опыта` : ''}
 Навыки: ${(inp.candidateSkills || []).slice(0, 20).join(', ') || '—'}
-Опыт/резюме: ${(inp.candidateBackground || '').slice(0, 700) || '—'}
+Опыт/резюме (имя и контакты вырезаны): ${redactPII(inp.candidateBackground || '', inp.candidateName).slice(0, 700) || '—'}
 
 ДАННЫЕ МАТЧА: совпало ${inp.matchedN} из ${inp.totalN}. Профессия: ${inp.profession || '?'}.
 Есть из требуемого: ${inp.matched.join(', ') || '—'}.

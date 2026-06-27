@@ -75,8 +75,8 @@ RULES:
   • ALTERNATIVES (candidate needs only ONE) — items joined by "or"/"either" ("Node.js, Java, or Python"; "AWS, GCP or Azure"), OR a parenthetical/example list after a category ("enterprise platforms (SAP, Oracle, Microsoft Dynamics)", "AWS (Lambda, S3, RDS)", "a relational DB (Postgres, MySQL)"). Emit ONE skill: display = the category or "A/B/C", anyOf = [every alternative]. NEVER split these — splitting invents requirements the post didn't make (and falsely marks the unchosen alternative as missing). CRITICAL: when the CATEGORY itself is a concrete named technology ("AWS (Lambda, S3)", "Azure (Functions)"), INCLUDE the category in anyOf too → anyOf:["AWS","Lambda","S3"], so a candidate who lists the platform generically still matches. Only when the category is a generic noun ("platforms", "a database", "a language") is it left out of anyOf.
   • CHECKLIST (all are needed) — distinct tools/competencies joined by "and"/"&" or a plain comma list of a required stack ("Python, pandas, scikit-learn"; "React and Node.js"; "UX Research & User-Centered Design" → "UX Research" + "User-Centered Design"). SPLIT into separate skills so each is matched on its own.
   • The tell: "or"/"either"/a category-then-examples parenthetical ⇒ anyOf; "and"/plain required stack ⇒ split.
-- Each CHECKLIST skill = ONE concrete tool/technology/competency literally named. Max 5 skills, most important first.
-- PRIORITIZE the role-defining stack (the language/framework/domain the job is ABOUT — usually named in the TITLE or the dominant theme) OVER generic tooling. If the post lists both a stack (e.g. React, Node.js) and tooling (Docker, Git, Linux, CI/CD, Jira), the stack comes first and the tooling must NOT crowd it out of the 5 slots. A "Full Stack" / "Software Engineer" title with no concrete stack in the body → extract whatever stack IS named; do NOT pad the list with tooling alone.
+- Each CHECKLIST skill = ONE concrete tool/technology/competency literally named. Max 8 skills, most important first.
+- PRIORITIZE the role-defining stack (the language/framework/domain the job is ABOUT — usually named in the TITLE or the dominant theme) OVER generic tooling. If the post lists both a stack (e.g. React, Node.js) and tooling (Docker, Git, Linux, CI/CD, Jira), the stack comes first and the tooling must NOT crowd it out of the 8 slots. A "Full Stack" / "Software Engineer" title with no concrete stack in the body → extract whatever stack IS named; do NOT pad the list with tooling alone.
 - "core": set true ONLY for the 1-2 skills that DEFINE the role — named in the job TITLE, or explicitly "mandatory"/"must-have"/"required", or the dominant theme of the responsibilities. Everything else core=false. (e.g. for "Senior Software Engineer with AI/ML", AI/ML is core; for "Java Full Stack", Java is core.) NEVER mark generic infra/tooling as core — Docker, Kubernetes, Git, Linux, Bash, CI/CD, Jenkins, Jira, YAML, npm/maven/gradle, nginx are present in almost every role and are NEVER role-defining, even if a thin post mentions only them.
 - "anyOf" = atomic tool names (each a single tool, never a phrase/clause). For a plain single skill, anyOf is just [that skill]; for an ALTERNATIVES requirement, anyOf lists EVERY option ("Node.js, Java, or Python" → {"display":"Node.js/Java/Python","anyOf":["Node.js","Java","Python"],"core":true}; "platforms (SAP, Oracle, Dynamics)" → {"display":"enterprise platform integration","anyOf":["SAP","Oracle","Microsoft Dynamics"]}).
 - For "X or equivalent / or similar" requirements: set anyOf to the concrete equivalents you are CONFIDENT are real (e.g. {"display":"experiment tracking","anyOf":["MLflow","Weights & Biases","Neptune","Comet"]}). If you cannot name real equivalents, OMIT the requirement entirely. NEVER reduce "X or equivalent" to just X.
@@ -84,11 +84,12 @@ RULES:
 - "years" = minimum years if explicitly stated, else null. "location" = required country/timezone if stated, else null.
 - Do NOT extract the bare JOB TITLE / role name itself as a skill — it is the occupation, matched separately, not a verifiable competency. For an "Oracle DBA" role extract the concrete skills (Oracle, RAC, Data Guard, RMAN, performance tuning), NOT "Oracle DBA"; for a "Scrum Master" role extract Scrum, SAFe, Jira — NOT "Scrum Master". Extracting the role label as a skill falsely marks a candidate who clearly IS that role as missing it.
 - Do NOT extract VAGUE / GENERIC competencies as verifiable skills — "understanding of X", "knowledge of X", "X methodologies / principles / fundamentals / best practices / concepts", "familiarity with X". These aren't concrete tools and aren't lexically verifiable; they're implied by doing the job, so extracting them falsely marks an experienced candidate as missing the basics (e.g. an 11-year QA "missing software testing methodologies"). Extract the CONCRETE skill if one is named ("manual testing", "Selenium"); otherwise drop the requirement.
+- IGNORE OPTIONAL / nice-to-have requirements. Anything under or marked "Nice to have", "Preferred", "Bonus", "Plus" / "a plus", "Desirable", "Good to have", "Would be great", "Ideally", "Optional", "Advantageous" is NOT a must-have — do NOT extract it. Counting optional skills inflates the requirement list and falsely marks a strong candidate as "missing" things the role never actually required. Extract ONLY skills the post states as required / must-have / essential.
 - Do NOT invent or infer requirements not in the text. Do NOT include soft/vague traits (leadership, team player, fast learner). JSON only.` },
       { role: 'user', content: jdText.slice(0, 4000) },
     ],
     temperature: 0,
-    max_tokens: 500,
+    max_tokens: 800, // headroom for up to 8 skills (PARSEJD-2) so the JSON isn't truncated mid-object
   });
   const m = (r.choices[0]?.message?.content || '').match(/\{[\s\S]*\}/);
   if (!m) return { skills: [], languages: [] };
@@ -105,8 +106,10 @@ RULES:
         if (inTitle(req, titleLine)) req.core = true;       // …unless it IS the role (named in the title) — title wins
         return req;
       })
+      // PARSEJD-2: cap raised 5→8 so roles with >5 real must-haves don't under-extract and read as a
+      // false "N of N" Strong (a 5-of-8 was being scored 5-of-5). anyOf members stay capped at 5.
       .filter((s: SkillReq | null): s is SkillReq => !!s)
-      .slice(0, 5);
+      .slice(0, 8);
     return {
       skills,
       languages: (Array.isArray(p.languages) ? p.languages : []).map(String),
@@ -119,6 +122,19 @@ RULES:
 // verify-on-JD (#1): requirement is real only if at least one of its tokens is literally in the JD.
 function anyInJD(tokens: string[], jdText: string): boolean {
   return tokens.some((t) => verifySkill(t, jdText, []).found);
+}
+
+// PARSEJD-1 backstop: remove OPTIONAL-requirement blocks ("Nice to have", "Preferred", "Bonus",
+// "Plus", "Desirable"…) so verify-on-JD runs against the MUST-HAVE portion only. A skill the parser
+// over-extracted whose only JD occurrence is inside such a block then fails #1 and is dropped — it
+// no longer inflates `total` and falsely marks a strong candidate as "missing" it. Each block runs
+// from its header to the next blank line (the usual bullet-list shape); a must-have that ALSO appears
+// in the main body is untouched. The parseJD prompt is the primary fix; this is the deterministic net.
+function requiredPortion(jdText: string): string {
+  return (jdText || '').replace(
+    /(?:^|\n)[^\n]{0,50}\b(?:nice[ -]?to[ -]?have|preferred|bonus|(?:a |is a |it'?s a )?plus|desirable|good[ -]to[ -]have|would be (?:a |)great|nice if|ideal(?:ly)?|optional|advantageous)\b[^\n]*(?:\n(?!\s*\n)[^\n]*)*/gi,
+    ' ',
+  );
 }
 
 export type GenInput = {
@@ -154,10 +170,13 @@ export function buildBreakdown(jd: ParsedJD, inp: GenInput): Breakdown {
   const lines: Line[] = [];
   // Skill evidence = CV text + structured skills + the candidate's (de-buzzworded) headline.
   const haystackSkills = `${inp.cvText} ${inp.candidateSkills.join(' , ')} ${titleForEvidence(inp.candidateTitle)}`;
+  // verify-on-JD runs against the MUST-HAVE portion (optional/nice-to-have blocks removed) so an
+  // over-extracted nice-to-have doesn't survive #1 and inflate the denominator (PARSEJD-1).
+  const requiredJD = requiredPortion(inp.jdText);
 
   // SKILLS — any-of group, token-identity (no paraphrase → no #3)
   for (const req of jd.skills) {
-    if (!anyInJD(req.anyOf, inp.jdText)) { rejected.push({ side: 'jd', type: 'skill', label: req.display }); continue; } // #1
+    if (!anyInJD(req.anyOf, requiredJD)) { rejected.push({ side: 'jd', type: 'skill', label: req.display }); continue; } // #1 (must-have portion only)
     let hit: VerifyResult | null = null; let hitMember = '';
     for (const member of req.anyOf) {
       const v = verifySkill(member, haystackSkills, inp.candidateSkills);
@@ -175,7 +194,7 @@ export function buildBreakdown(jd: ParsedJD, inp: GenInput): Breakdown {
   for (const raw of jd.languages.slice(0, 3)) {
     const label = raw.trim();
     if (!label) continue;
-    if (!anyInJD([label], inp.jdText)) { rejected.push({ side: 'jd', type: 'language', label }); continue; }
+    if (!anyInJD([label], requiredJD)) { rejected.push({ side: 'jd', type: 'language', label }); continue; }
     const v = verifySkill(label, inp.candidateLanguages.join(' , '), inp.candidateLanguages);
     lines.push({ label, type: 'language', status: v.found ? 'full' : 'missing', evidence: v.found ? (v.matched || label) : null, source: v.found ? 'profile' : null, member: v.found ? label : undefined, searched: [label] });
   }

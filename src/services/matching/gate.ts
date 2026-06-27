@@ -60,7 +60,11 @@ const SYSTEM = `You apply on a candidate's behalf — applying burns quota and e
 - location_flag: SOFT geographic-fit signal (NOT a blocker). true when the job is tied to a specific city/country AND the post does NOT explicitly say remote/worldwide AND the candidate is in a DIFFERENT country — i.e. on-site vs remote is unclear and there's a geography/market gap worth a human glance. location_detail = "job: <city/country>; candidate: <country>". If the job is clearly remote/worldwide, or location is unknown, or candidate is in the same country, location_flag=false.`;
 
 export async function runGate(inp: GateInput): Promise<Gate> {
-  const user = `JOB title: ${inp.jobTitle}\nJOB country: ${inp.jobCountry || 'not specified'}\nJOB description: ${(inp.jobDescription || '').slice(0, 700)}\n\nCANDIDATE title: ${inp.candidateTitle || '?'}\nCANDIDATE field: ${inp.candidateField || '?'}\nCANDIDATE years: ${inp.candidateYears ?? '?'}\nCANDIDATE location: ${inp.candidateLocation || 'unknown'}\nCANDIDATE languages: ${(inp.candidateLanguages || []).join(', ') || '?'}\nCANDIDATE skills: ${(inp.candidateSkills || []).join(', ')}\nCANDIDATE résumé (for education/cert/work-auth checks): ${(inp.candidateCv || '').slice(0, 900)}`;
+  // GATE-4: the gate must see the SAME JD budget parseJD does (4000) — hard requirements (degree,
+  // cert, "5+ years", native language) frequently sit in a Requirements section past char 700, and
+  // truncating there blinded the gate's hard_fail/native-language/on-site checks while the breakdown
+  // (parseJD@4000) still extracted them, so the two disagreed on what the JD even said.
+  const user = `JOB title: ${inp.jobTitle}\nJOB country: ${inp.jobCountry || 'not specified'}\nJOB description: ${(inp.jobDescription || '').slice(0, 4000)}\n\nCANDIDATE title: ${inp.candidateTitle || '?'}\nCANDIDATE field: ${inp.candidateField || '?'}\nCANDIDATE years: ${inp.candidateYears ?? '?'}\nCANDIDATE location: ${inp.candidateLocation || 'unknown'}\nCANDIDATE languages: ${(inp.candidateLanguages || []).join(', ') || '?'}\nCANDIDATE skills: ${(inp.candidateSkills || []).join(', ')}\nCANDIDATE résumé (for education/cert/work-auth checks): ${(inp.candidateCv || '').slice(0, 1500)}`;
   const r = await zai().chat.completions.create({
     model: MODEL, temperature: 0, max_tokens: 220,
     messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: user }],
@@ -132,7 +136,11 @@ export function englishLevel(cv: string | null | undefined): 'ok' | 'b1' | 'low'
   if (ENG_LOW.test(cv)) return 'low';
   return 'unknown';
 }
-export const isLanguageRole = (title: string) => /interpret|translat|linguist/i.test(title || '');
+// GATE-6: the language-pair gate must cover the WHOLE translation family the prompt defines, not just
+// interpreting/translation — subtitling, localization, dubbing, captioning and transcription are all
+// source↔target language work that a wrong-language candidate should be blocked from.
+export const isLanguageRole = (title: string) =>
+  /interpret|translat|linguist|localiz|localis|\bl10n\b|subtitl|caption|transcrib|transcription|dubbing|voice[\s-]?over/i.test(title || '');
 
 // Final decision: NO (gate fail / below bar) | SEND. Soft signals that survive the bar become
 // caveats (computeCaveats), not blockers — the recruiter is the judge. Bar (per owner decision):
