@@ -29,3 +29,14 @@ export async function fetchResumeAttachment(
     return null;
   }
 }
+
+/**
+ * Does the user have a REAL, attachable résumé — a genuine file in our Blob store — as opposed to
+ * just extracted résumé TEXT (which can be empty for a real PDF, or non-empty for a machine-generated
+ * one)? SINGLE source of truth for the gate's "no real CV" block. Keep it identical across the worker,
+ * self-apply (quick/draft), the recruiter shortlist and match-verdict, so one candidate is never
+ * SEND-able on one path yet rejected "no real CV" on another (APCACHE-4 / SHORTLIST-5).
+ */
+export function hasRealCV(user: { resumeUrl?: string | null }): boolean {
+  return (user.resumeUrl || '').includes('blob.vercel-storage');
+}

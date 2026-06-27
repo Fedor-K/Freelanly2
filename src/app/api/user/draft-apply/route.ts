@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { generateCoverLetter, generateSubjectLine } from '@/services/cover-letter-generator';
 import { assessPairing } from '@/services/matching/assess-pairing';
+import { hasRealCV } from '@/lib/resume-attachment';
 
 /**
  * POST /api/user/draft-apply
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { name: true, email: true, resumeText: true, parsedProfile: true },
+      select: { name: true, email: true, resumeText: true, resumeUrl: true, parsedProfile: true },
     });
 
     if (!user) {
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     // missing/weak requirement). Draft is a preview, so the gate decision is surfaced, not enforced.
     const pairing = await assessPairing({
       jobTitle: opportunity.title, jobDescription: opportunity.description, jobCountry: null,
-      profile, cvText: user.resumeText || '', hasRealCV: !!user.resumeText,
+      profile, cvText: user.resumeText || '', hasRealCV: hasRealCV(user),
     });
 
     // Style-specific prompt override

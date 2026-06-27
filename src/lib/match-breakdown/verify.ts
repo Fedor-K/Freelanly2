@@ -157,6 +157,20 @@ const QUALIFIED: Record<string, RegExp> = {
   '.net': /asp\.net|vb\.net|\bdot ?net\b| \.net\b/,
 };
 
+// Common ENGLISH words that also name a tech (VERIFY-1): a bare haystack token is a false-positive
+// mine — "spring 2024", "express delivery", "react to feedback", "team integration" all phantom-
+// matched Spring/Express/React/Integration and (via SYN groups + IMPLIES) even satisfied a CORE
+// requirement on a "vetted" card. Like QUALIFIED, these assert ONLY via a disambiguating tech
+// context in the haystack OR an exact entry in the candidate's parsed skills array — never the bare
+// word. Unlike QUALIFIED they keep their SYN group (the multi-word members — "spring boot",
+// "react native", "system integration" — are unambiguous and still phrase-match normally).
+const CONTEXT_WORDS: Record<string, RegExp> = {
+  spring: /spring ?boot|springboot|spring framework|spring mvc|spring webflux|spring web|spring data|spring cloud|spring security|spring batch|spring core|java spring/,
+  express: /express\.?js|express js|expressjs|express framework|express server|express middleware|express router|node[a-z .]{0,8}express|express[a-z .]{0,8}node/,
+  integration: /system integration|systems integration|api integration|api-led|middleware integration|enterprise integration|continuous integration|data integration|integration (?:developer|engineer|specialist|architect|platform|layer|pattern|patterns)|\besb\b|mulesoft|integraciones|3rd party integration|third party integration/,
+  react: /react\.?js|react js|reactjs|react native|react hooks|react redux|\bredux\b|\bjsx\b|react developer|react front|front[a-z -]{0,4}end react|react component|react query|react router/,
+};
+
 // Fold diacritics so localized skill/language spellings match their ASCII form: visualización→
 // visualizacion, español→espanol, inglés→ingles. Without this the accent became a word break
 // (visualización→"visualizaci n"), silently dropping every accented skill — a systematic
@@ -212,6 +226,7 @@ export function verifySkill(skill: string, cvText: string, candidateSkills: stri
   // synonym-group / anyOf / implication members, not just a directly-required r/c/d/.net/safe.
   const present = (term: string): boolean => {
     if (QUALIFIED[term]) return QUALIFIED[term].test(haystack) || exactSkills.has(term);
+    if (CONTEXT_WORDS[term]) return CONTEXT_WORDS[term].test(haystack) || exactSkills.has(term); // VERIFY-1: gate bare common words
     if (AMBIGUOUS.has(term)) return tokens.has(term);
     if (term.includes(' ')) return haystack.includes(' ' + term + ' ') || tokens.has(collapse(term));
     return tokens.has(term) || tokens.has(collapse(term));

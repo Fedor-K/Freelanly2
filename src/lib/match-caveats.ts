@@ -31,6 +31,10 @@ export function computeCaveats(bd: unknown): Caveats | null {
   // Geographic mismatch — job tied to a place, remote unclear, candidate elsewhere (soft, verify).
   if (locationFlag) items.push(`Location mismatch: ${locationDetail || 'job and candidate in different countries'} — on-site/remote unclear`);
   if (profession === 'adjacent') items.push('Adjacent role — not an exact occupation match');
+  // A 'different' occupation is never a real match. The gate normally blocks it (decision=NO), but
+  // some historical rows leaked through labelled Strong/Good (profession stripped or gate fail-open).
+  // Flag + treat as severe so it can NEVER read as Strong/Good on a card.
+  if (profession === 'different') items.push('Different occupation — not a match for this role');
   if (total > 0 && otherMissing.length) items.push(`Missing: ${otherMissing.join(', ')}`);
   if (total === 0) items.push('No explicit requirements in the post — matched on profession only');
   // #2 — language caveat ONLY on an explicitly weak level (b1/low), never on "unknown" (avoids
@@ -43,7 +47,9 @@ export function computeCaveats(bd: unknown): Caveats | null {
   // role-defining skills absent but un-flagged) slipped through as "Good". Honest floor:
   //   <50% of stated requirements met (≥3 reqs)  → Weak;  0 matched of ≥2 → Weak.
   const lowCoverage = total >= 3 && matched / total < 0.5;
-  const zeroCoverage = total >= 2 && matched === 0;
+  // CAVEATS-2: ANY stated requirement with zero matched = no verified skill evidence → Weak. Was
+  // total>=2, which let a 1-of-1 "0 matched" row read as Good (a single requirement, none met).
+  const zeroCoverage = total >= 1 && matched === 0;
   // 0 parseable requirements → the only signal is a profession/title match, with NO skill evidence.
   // That's a Weak signal, not "Good" — without this a 0/0 breakdown slipped through as a confident
   // "Good" match (the coverage floors above need total ≥ 2/3, so total=0 dodged them).
@@ -55,6 +61,7 @@ export function computeCaveats(bd: unknown): Caveats | null {
     return { strength: 'Strong', items };
   }
   const severe = hardFail || coreMissing.length > 0 || engRisk || lowCoverage || zeroCoverage || noRequirements
+    || profession === 'different'
     || (profession === 'adjacent' && total >= 3 && matched < 2);
   return { strength: items.length >= 2 || severe ? 'Weak' : 'Good', items };
 }

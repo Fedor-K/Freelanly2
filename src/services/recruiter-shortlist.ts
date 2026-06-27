@@ -10,6 +10,7 @@ import { parseJD, buildBreakdown } from '@/lib/match-breakdown/generate';
 import { runGate, assess } from '@/services/matching/gate';
 import { computeCaveats } from '@/lib/match-caveats';
 import { generateRecruiterRationale } from '@/services/matching/recruiter-rationale';
+import { hasRealCV } from '@/lib/resume-attachment';
 import type { LeverPosting } from '@/services/sources/lever-ats';
 
 const LABEL_RANK: Record<string, number> = { Strong: 0, Good: 1, Weak: 2 };
@@ -61,7 +62,7 @@ async function vetCandidate(
   role: LeverPosting,
   jd: Awaited<ReturnType<typeof parseJD>>,
   jdText: string,
-  u: { id: string; name: string | null; email: string; location: string | null; linkedinUrl: string | null; image: string | null; parsedProfile: unknown; resumeText: string | null },
+  u: { id: string; name: string | null; email: string; location: string | null; linkedinUrl: string | null; image: string | null; parsedProfile: unknown; resumeText: string | null; resumeUrl: string | null },
   lex: number,
 ): Promise<ShortlistCandidate> {
   const p = (u.parsedProfile || {}) as Record<string, unknown>;
@@ -93,13 +94,24 @@ async function vetCandidate(
       candidateSkills: (p.skills as string[]) || [],
       candidateCv: cvText,
     });
-    const d = assess(g, { matched: bd.matched, total: bd.total, missingCore, coreMatched }, cvText, role.title, !!cvText);
+    // Real-CV check keyed on the Blob URL (same as the worker / send path), NOT on whether résumé
+    // TEXT extracted — a genuine Blob PDF whose text extraction failed must not be NO'd as "no real
+    // CV", and a text-only/machine profile must not pass as one (SHORTLIST-5 / unified hasRealCV).
+    const d = assess(g, { matched: bd.matched, total: bd.total, missingCore, coreMatched }, cvText, role.title, hasRealCV(u));
     Object.assign(matchBreakdown, {
       profession: d.extras.profession, english_req: d.extras.english_req, hard_fail: d.extras.hard_fail,
       hard_kind: d.extras.hard_kind, location_flag: d.extras.location_flag, gateReason: d.reason,
     });
     decision = d.decision;
-  } catch { /* gate fail-open: SEND with breakdown only */ }
+  } catch {
+    // FAIL CLOSED on the paid card (SHORTLIST-1): if the gate didn't run (e.g. a transient AI
+    // outage) we can't vouch for profession / hard-fail, so we must NOT ship the candidate as
+    // "vetted". Drop them this run — clearsQualityFloor rejects decision!=='SEND'. Next run, with
+    // the gate back up, they're reconsidered. Auto-apply's send path fails open by design; the
+    // recruiter shortlist is the opposite — never present an unvetted candidate to a paying hirer.
+    decision = 'NO';
+    Object.assign(matchBreakdown, { gateReason: 'gate_unvetted', gate_unvetted: true });
+  }
   return {
     userId: u.id, name: u.name, title: (typeof p.current_title === 'string' ? p.current_title : null),
     email: u.email, location: u.location, linkedinUrl: u.linkedinUrl, image: u.image,
@@ -138,7 +150,7 @@ export async function buildShortlistForRole(
   // Pass 2 — fetch full profiles, parse JD once, vet with bounded concurrency.
   const full = await prisma.user.findMany({
     where: { id: { in: ranked.map(r => r.id) } },
-    select: { id: true, name: true, email: true, location: true, linkedinUrl: true, image: true, parsedProfile: true, resumeText: true },
+    select: { id: true, name: true, email: true, location: true, linkedinUrl: true, image: true, parsedProfile: true, resumeText: true, resumeUrl: true },
   });
   const byId = new Map(full.map(u => [u.id, u]));
   const jd = await parseJD(jdText, role.title);
@@ -161,6 +173,7 @@ export async function buildShortlistForRole(
     try {
       const why = await generateRecruiterRationale({
         jobTitle: role.title, jobDescription: role.descriptionPlain,
+        candidateName: u.name,
         candidateTitle: c.title, candidateYears: typeof p.experience_years === 'number' ? (p.experience_years as number) : null,
         candidateSkills: (p.skills as string[]) || [], candidateBackground: u.resumeText || '',
         matched: lines.filter(l => l.status === 'full').map(lab).filter(Boolean),

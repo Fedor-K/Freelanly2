@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { generateCoverLetter, generateSubjectLine, generateFollowUp } from '@/services/cover-letter-generator';
 import { generateRecruiterRationale } from '@/services/matching/recruiter-rationale';
-import { fetchResumeAttachment } from '@/lib/resume-attachment';
+import { fetchResumeAttachment, hasRealCV } from '@/lib/resume-attachment';
 import { isAiUnavailable } from '@/lib/ai-errors';
 import { looksLikeCompanyBrochure } from '@/lib/resume-quality';
 import { AutoApplyStatus, Prisma } from '@prisma/client';
@@ -444,41 +444,52 @@ export async function processAutoApplyQueue(): Promise<{
       const userSkillsList = (parsedProfile?.skills as string[]) || [];
       const userLangsList = (parsedProfile?.languages as string[]) || [];
 
-      // ── SHADOW match-breakdown: compute + freeze, but DO NOT gate (send everything). ──
-      // FAIL-OPEN: any failure here must never drop a recruiter touch. Threshold is runtime
-      // config; wouldGate=true means "would be CUT once enforced". We later compare reply-rate
-      // of wouldGate vs passed cohorts — that (not low X/Y) proves the threshold is right.
-      let matchBreakdown: Record<string, unknown> | null = null;
-      try {
-        if (jobDescription.trim()) {
-          const jdText = `${app.jobTitle}\n${jobDescription}`;
-          const jdKey = app.opportunityId || app.jobId || jdText.slice(0, 80);
-          let parsed = jdCache.get(jdKey);
-          const t0 = Date.now();
-          if (!parsed) { parsed = await parseJD(jdText); jdCache.set(jdKey, parsed); }
-          const bd = buildBreakdown(parsed, {
-            jdText, cvText: app.user.resumeText || '', candidateSkills: userSkillsList, candidateLanguages: userLangsList,
-            candidateTitle: typeof parsedProfile?.current_title === 'string' ? parsedProfile.current_title as string : null,
-            candidateYears: typeof parsedProfile?.experience_years === 'number' ? parsedProfile.experience_years as number : null,
-            candidateLocation: typeof parsedProfile?.location === 'string' ? parsedProfile.location as string : null,
-            candidateSalary: app.user.salaryExpectation || null,
-            candidateSalaryAt: app.user.salaryExpectationAt ? app.user.salaryExpectationAt.toISOString() : null,
-          });
-          // CORE deterministic-only (no LLM learnability appeal) — see assess-pairing.ts.
-          const ratio = bd.total ? bd.matched / bd.total : 0;
-          const minMatched = Number(process.env.MATCH_GATE_MIN_MATCHED || 2);
-          const minRatio = Number(process.env.MATCH_GATE_MIN_RATIO || 0.40);
-          const wouldGate = bd.total === 0 ? false : !(bd.matched >= minMatched && ratio >= minRatio);
-          matchBreakdown = {
-            v: 1, matched: bd.matched, total: bd.total, ratio: Math.round(ratio * 100) / 100,
-            wouldGate, threshold: { minMatched, minRatio }, lines: bd.lines,
-            yearsContext: bd.yearsContext, locationContext: bd.locationContext, rejected: bd.rejected,
-            fallback: bd.fallback, latencyMs: Date.now() - t0, shadow: true,
-          };
+      // ── Match-breakdown for the cover-letter verdict, recruiter rationale, and stored label. ──
+      // PREFER the GATED breakdown the matcher froze at queue time (assess-pairing). It carries the
+      // gate fields — profession / hard_fail / english / location / gateReason — that computeCaveats
+      // needs to label HONESTLY. The send path must NOT recompute a gate-field-stripped "shadow" and
+      // overwrite it: that silently flipped a correct Weak (wrong profession / hard-fail) into a
+      // confident Strong/Good on the recruiter card (CAVEATS-1). Only build a breakdown here when the
+      // queued row genuinely has none (legacy rows) — and that fallback is explicitly a shadow.
+      let matchBreakdown: Record<string, unknown> | null =
+        app.matchBreakdown && typeof app.matchBreakdown === 'object' && !Array.isArray(app.matchBreakdown)
+          && !(app.matchBreakdown as Record<string, unknown>).error
+          ? (app.matchBreakdown as Record<string, unknown>)
+          : null;
+      if (!matchBreakdown) {
+        // FAIL-OPEN: any failure here must never drop a recruiter touch. wouldGate=true means "would
+        // be CUT once enforced". shadow:true marks this as a gate-blind fallback (no queue breakdown).
+        try {
+          if (jobDescription.trim()) {
+            const jdText = `${app.jobTitle}\n${jobDescription}`;
+            const jdKey = app.opportunityId || app.jobId || jdText.slice(0, 80);
+            let parsed = jdCache.get(jdKey);
+            const t0 = Date.now();
+            if (!parsed) { parsed = await parseJD(jdText); jdCache.set(jdKey, parsed); }
+            const bd = buildBreakdown(parsed, {
+              jdText, cvText: app.user.resumeText || '', candidateSkills: userSkillsList, candidateLanguages: userLangsList,
+              candidateTitle: typeof parsedProfile?.current_title === 'string' ? parsedProfile.current_title as string : null,
+              candidateYears: typeof parsedProfile?.experience_years === 'number' ? parsedProfile.experience_years as number : null,
+              candidateLocation: typeof parsedProfile?.location === 'string' ? parsedProfile.location as string : null,
+              candidateSalary: app.user.salaryExpectation || null,
+              candidateSalaryAt: app.user.salaryExpectationAt ? app.user.salaryExpectationAt.toISOString() : null,
+            });
+            // CORE deterministic-only (no LLM learnability appeal) — see assess-pairing.ts.
+            const ratio = bd.total ? bd.matched / bd.total : 0;
+            const minMatched = Number(process.env.MATCH_GATE_MIN_MATCHED || 2);
+            const minRatio = Number(process.env.MATCH_GATE_MIN_RATIO || 0.40);
+            const wouldGate = bd.total === 0 ? false : !(bd.matched >= minMatched && ratio >= minRatio);
+            matchBreakdown = {
+              v: 1, matched: bd.matched, total: bd.total, ratio: Math.round(ratio * 100) / 100,
+              wouldGate, threshold: { minMatched, minRatio }, lines: bd.lines,
+              yearsContext: bd.yearsContext, locationContext: bd.locationContext, rejected: bd.rejected,
+              fallback: bd.fallback, latencyMs: Date.now() - t0, shadow: true,
+            };
+          }
+        } catch (e) {
+          matchBreakdown = { error: String(e).slice(0, 200), shadow: true };
+          console.error(`[AutoApply] matchBreakdown failed for ${app.id} (fail-open, sending anyway):`, e);
         }
-      } catch (e) {
-        matchBreakdown = { error: String(e).slice(0, 200), shadow: true };
-        console.error(`[AutoApply] matchBreakdown failed for ${app.id} (fail-open, sending anyway):`, e);
       }
 
       // Skip if profile is too sparse (no skills = likely not a real resume)
@@ -518,6 +529,7 @@ export async function processAutoApplyQueue(): Promise<{
         const rv = breakdownToVerdict(matchBreakdown);
         const rr = await generateRecruiterRationale({
           jobTitle: app.jobTitle, jobDescription,
+          candidateName: app.user.name,
           candidateTitle: (parsedProfile?.current_title as string) || null,
           candidateYears: typeof parsedProfile?.experience_years === 'number' ? (parsedProfile.experience_years as number) : null,
           candidateSkills: userSkillsList, candidateBackground: app.user.resumeText || '',
@@ -651,9 +663,9 @@ export async function processAutoApplyQueue(): Promise<{
               coverLetter,
               subject,
               sentAt: now,
-              matchBreakdown: matchBreakdown == null ? undefined : (matchBreakdown as Prisma.InputJsonValue), // shadow: frozen, joinable to reply outcome
-              // Keep the STORED label in sync with what the card renders (computeCaveats) — stops
-              // the "Strong 85 / Good" column-vs-card divergence on real records.
+              matchBreakdown: matchBreakdown == null ? undefined : (matchBreakdown as Prisma.InputJsonValue), // GATED breakdown (now enriched w/ recruiterReasoning), not a gate-blind shadow
+              // Label from the SAME gated breakdown the gate decided on (computeCaveats) — a wrong
+              // profession / hard-fail stays Weak instead of being clobbered to Strong/Good on the card.
               ...(matchBreakdown ? { matchLabel: computeCaveats(matchBreakdown)?.strength ?? undefined } : {}),
             },
           }),
@@ -1605,8 +1617,7 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
           // our Blob store, not a machine-generated one. Key off loop.user.resumeUrl (where the CV
           // really lives + what fetchResumeAttachment uses), NOT loop.resumeUrl — that column is
           // unpopulated (null for every loop), which silently rejected EVERY real-CV candidate.
-          const hasRealCV = !!loop.user.resumeUrl && loop.user.resumeUrl.includes('blob.vercel-storage');
-          const decision = assess(g, { matched: bd.matched, total: bd.total, missingCore: qMissingCore, coreMatched: qCoreMatched }, loop.user.resumeText || '', listing.title, hasRealCV);
+          const decision = assess(g, { matched: bd.matched, total: bd.total, missingCore: qMissingCore, coreMatched: qCoreMatched }, loop.user.resumeText || '', listing.title, hasRealCV(loop.user));
           Object.assign(qBreakdown, {
             profession: decision.extras.profession, english_req: decision.extras.english_req, english_level: decision.extras.english_level,
             hard_fail: decision.extras.hard_fail, hard_kind: decision.extras.hard_kind, hard_detail: decision.extras.hard_detail,

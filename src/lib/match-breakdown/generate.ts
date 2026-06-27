@@ -84,6 +84,7 @@ RULES:
 - "years" = minimum years if explicitly stated, else null. "location" = required country/timezone if stated, else null.
 - Do NOT extract the bare JOB TITLE / role name itself as a skill — it is the occupation, matched separately, not a verifiable competency. For an "Oracle DBA" role extract the concrete skills (Oracle, RAC, Data Guard, RMAN, performance tuning), NOT "Oracle DBA"; for a "Scrum Master" role extract Scrum, SAFe, Jira — NOT "Scrum Master". Extracting the role label as a skill falsely marks a candidate who clearly IS that role as missing it.
 - Do NOT extract VAGUE / GENERIC competencies as verifiable skills — "understanding of X", "knowledge of X", "X methodologies / principles / fundamentals / best practices / concepts", "familiarity with X". These aren't concrete tools and aren't lexically verifiable; they're implied by doing the job, so extracting them falsely marks an experienced candidate as missing the basics (e.g. an 11-year QA "missing software testing methodologies"). Extract the CONCRETE skill if one is named ("manual testing", "Selenium"); otherwise drop the requirement.
+- IGNORE OPTIONAL / nice-to-have requirements. Anything under or marked "Nice to have", "Preferred", "Bonus", "Plus" / "a plus", "Desirable", "Good to have", "Would be great", "Ideally", "Optional", "Advantageous" is NOT a must-have — do NOT extract it. Counting optional skills inflates the requirement list and falsely marks a strong candidate as "missing" things the role never actually required. Extract ONLY skills the post states as required / must-have / essential.
 - Do NOT invent or infer requirements not in the text. Do NOT include soft/vague traits (leadership, team player, fast learner). JSON only.` },
       { role: 'user', content: jdText.slice(0, 4000) },
     ],
@@ -121,6 +122,19 @@ function anyInJD(tokens: string[], jdText: string): boolean {
   return tokens.some((t) => verifySkill(t, jdText, []).found);
 }
 
+// PARSEJD-1 backstop: remove OPTIONAL-requirement blocks ("Nice to have", "Preferred", "Bonus",
+// "Plus", "Desirable"…) so verify-on-JD runs against the MUST-HAVE portion only. A skill the parser
+// over-extracted whose only JD occurrence is inside such a block then fails #1 and is dropped — it
+// no longer inflates `total` and falsely marks a strong candidate as "missing" it. Each block runs
+// from its header to the next blank line (the usual bullet-list shape); a must-have that ALSO appears
+// in the main body is untouched. The parseJD prompt is the primary fix; this is the deterministic net.
+function requiredPortion(jdText: string): string {
+  return (jdText || '').replace(
+    /(?:^|\n)[^\n]{0,50}\b(?:nice[ -]?to[ -]?have|preferred|bonus|(?:a |is a |it'?s a )?plus|desirable|good[ -]to[ -]have|would be (?:a |)great|nice if|ideal(?:ly)?|optional|advantageous)\b[^\n]*(?:\n(?!\s*\n)[^\n]*)*/gi,
+    ' ',
+  );
+}
+
 export type GenInput = {
   jdText: string; cvText: string; jobTitle?: string; // jobTitle drives the deterministic core-anchor
   candidateSkills: string[]; candidateLanguages: string[];
@@ -154,10 +168,13 @@ export function buildBreakdown(jd: ParsedJD, inp: GenInput): Breakdown {
   const lines: Line[] = [];
   // Skill evidence = CV text + structured skills + the candidate's (de-buzzworded) headline.
   const haystackSkills = `${inp.cvText} ${inp.candidateSkills.join(' , ')} ${titleForEvidence(inp.candidateTitle)}`;
+  // verify-on-JD runs against the MUST-HAVE portion (optional/nice-to-have blocks removed) so an
+  // over-extracted nice-to-have doesn't survive #1 and inflate the denominator (PARSEJD-1).
+  const requiredJD = requiredPortion(inp.jdText);
 
   // SKILLS — any-of group, token-identity (no paraphrase → no #3)
   for (const req of jd.skills) {
-    if (!anyInJD(req.anyOf, inp.jdText)) { rejected.push({ side: 'jd', type: 'skill', label: req.display }); continue; } // #1
+    if (!anyInJD(req.anyOf, requiredJD)) { rejected.push({ side: 'jd', type: 'skill', label: req.display }); continue; } // #1 (must-have portion only)
     let hit: VerifyResult | null = null; let hitMember = '';
     for (const member of req.anyOf) {
       const v = verifySkill(member, haystackSkills, inp.candidateSkills);
@@ -175,7 +192,7 @@ export function buildBreakdown(jd: ParsedJD, inp: GenInput): Breakdown {
   for (const raw of jd.languages.slice(0, 3)) {
     const label = raw.trim();
     if (!label) continue;
-    if (!anyInJD([label], inp.jdText)) { rejected.push({ side: 'jd', type: 'language', label }); continue; }
+    if (!anyInJD([label], requiredJD)) { rejected.push({ side: 'jd', type: 'language', label }); continue; }
     const v = verifySkill(label, inp.candidateLanguages.join(' , '), inp.candidateLanguages);
     lines.push({ label, type: 'language', status: v.found ? 'full' : 'missing', evidence: v.found ? (v.matched || label) : null, source: v.found ? 'profile' : null, member: v.found ? label : undefined, searched: [label] });
   }

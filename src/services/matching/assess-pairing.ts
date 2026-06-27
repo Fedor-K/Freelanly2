@@ -21,9 +21,12 @@ export type Pairing = {
   label: 'Strong' | 'Good' | 'Weak' | undefined;
   decision: 'NO' | 'SEND';
   reason: string;
+  ok: boolean; // false = the gate/parse FAILED OPEN (transient outage, no real verdict). Caller still
+               // gets a SEND so a user-initiated apply isn't blocked, but it must NOT be CACHED — else
+               // one z.ai blip freezes a hard-NO pair as a 14-day cached SEND (APCACHE-3).
 };
 
-const EMPTY: Pairing = { matchBreakdown: null, verdict: undefined, label: undefined, decision: 'SEND', reason: '' };
+const EMPTY: Pairing = { matchBreakdown: null, verdict: undefined, label: undefined, decision: 'SEND', reason: '', ok: false };
 
 export async function assessPairing(inp: PairingInput): Promise<Pairing> {
   try {
@@ -52,6 +55,7 @@ export async function assessPairing(inp: PairingInput): Promise<Pairing> {
     };
     let decision: 'NO' | 'SEND' = 'SEND';
     let reason = '';
+    let ok = true; // becomes false if the gate throws — a fail-open SEND with no real verdict
     try {
       const g = await runGate({
         jobTitle: inp.jobTitle, jobDescription: inp.jobDescription, jobCountry: inp.jobCountry ?? null,
@@ -70,8 +74,8 @@ export async function assessPairing(inp: PairingInput): Promise<Pairing> {
         location_flag: d.extras.location_flag, location_detail: d.extras.location_detail, gateReason: d.reason,
       });
       decision = d.decision; reason = d.reason;
-    } catch { /* gate fail-open: SEND with breakdown only */ }
-    return { matchBreakdown, verdict: breakdownToVerdict(matchBreakdown), label: computeCaveats(matchBreakdown)?.strength, decision, reason };
+    } catch { ok = false; /* gate fail-open: SEND with breakdown only — mark unvetted so it isn't cached */ }
+    return { matchBreakdown, verdict: breakdownToVerdict(matchBreakdown), label: computeCaveats(matchBreakdown)?.strength, decision, reason, ok };
   } catch (e) {
     console.error('[assessPairing] failed (fail-open):', e);
     return EMPTY;

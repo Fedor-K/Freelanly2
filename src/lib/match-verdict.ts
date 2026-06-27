@@ -9,6 +9,7 @@
 // landing shows real (not lexical) Strong labels without re-running work the matcher already did.
 import { prisma } from '@/lib/db';
 import { assessPairing } from '@/services/matching/assess-pairing';
+import { hasRealCV } from '@/lib/resume-attachment';
 
 export type Verdict = { label: 'Strong' | 'Good' | 'Weak'; decision: 'NO' | 'SEND' };
 
@@ -59,11 +60,11 @@ export async function getVerdicts(user: VetUser, opps: VetOpp[]): Promise<Map<st
   if (need2.length) {
     const profile = user.parsedProfile;
     const cvText = user.resumeText || '';
-    const hasRealCV = (user.resumeUrl || '').includes('blob.vercel-storage');
+    const realCv = hasRealCV(user);
     const results = await Promise.all(
       need2.map(async (o) => ({
         o,
-        r: await assessPairing({ jobTitle: o.title, jobDescription: o.description, jobCountry: null, profile, cvText, hasRealCV }),
+        r: await assessPairing({ jobTitle: o.title, jobDescription: o.description, jobCountry: null, profile, cvText, hasRealCV: realCv }),
       })),
     );
     const toWrite = [];
