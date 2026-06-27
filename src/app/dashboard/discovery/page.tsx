@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { DiscoveryFeed } from '@/components/app/DiscoveryFeed';
 import { buildFitContext, scoreFitLabeled, type FitLabel } from '@/lib/fit-score';
 import { profileStamp } from '@/services/matching/assess-pairing-cached';
+import { getVerdicts, type Verdict } from '@/lib/match-verdict';
 import './discovery-design.css';
 
 export const metadata: Metadata = {
@@ -187,9 +188,35 @@ export default async function DiscoveryPage() {
     };
   }).filter(Boolean) as FeedItem[];
 
-  // Verified queue first, then the closest tail (top N, no pagination — the feed is the few real
-  // matches; "similar" is opt-in via a button in the client).
-  const items: FeedItem[] = [...queueItems, ...closestItems];
+  // ── Reconcile the lexical tail with the REAL apply-gate, CACHE-ONLY (no render latency, no LLM):
+  // reuse the verdicts the auto-apply matcher already computed for THIS user (MatchVerdict cache +
+  // the matcher's own MATCH_REJECTED rows). Drop opportunities the gate would refuse so the feed stops
+  // showing cards that apply then rejects with poor_match (the feed↔gate divergence — ~40% of feed
+  // draft failures), and upgrade matcher-confirmed pairs to an honest AI-verified badge. Novel pairs
+  // (no cached verdict) stay lexical and are caught by the first-click PairingVerdict cache above.
+  const vettable = closestItems
+    .filter(i => i.type === 'opportunity')
+    .map(i => ({ id: i.id, title: i.title, description: i.description }));
+  let tailVerdicts = new Map<string, Verdict>();
+  if (vettable.length) {
+    try {
+      tailVerdicts = await getVerdicts(
+        { id: session.user.id, parsedProfile: me.parsedProfile as Record<string, unknown> | null, resumeText: me.resumeText, resumeUrl: me.resumeUrl },
+        vettable,
+        { cacheOnly: true },
+      );
+    } catch { /* fail-open: keep the lexical tail unchanged */ }
+  }
+  const vettedClosest = closestItems.flatMap(i => {
+    const v = tailVerdicts.get(i.id);
+    if (v?.decision === 'NO') return [];                                              // matcher already rejected → don't over-promise
+    if (v?.decision === 'SEND') return [{ ...i, aiVerified: true, matchLabel: v.label }]; // confirmed fit → honest badge
+    return [i];                                                                       // no cached verdict → lexical fallback
+  });
+
+  // Verified queue first, then the (gate-reconciled) closest tail (top N, no pagination — the feed is
+  // the few real matches; "similar" is opt-in via a button in the client).
+  const items: FeedItem[] = [...queueItems, ...vettedClosest];
 
   // Compute top skills with counts
   const skillCounts: Record<string, number> = {};

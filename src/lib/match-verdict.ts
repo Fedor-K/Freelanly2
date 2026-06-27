@@ -27,7 +27,11 @@ type VetOpp = { id: string; title: string; description: string };
  * gaps via assessPairing (in parallel), and caches them. Bounded to the opps passed in. Pairs whose
  * vet fails-open (no label) are simply absent from the result → caller keeps its lexical fallback.
  */
-export async function getVerdicts(user: VetUser, opps: VetOpp[]): Promise<Map<string, Verdict>> {
+export async function getVerdicts(
+  user: VetUser,
+  opps: VetOpp[],
+  opts: { cacheOnly?: boolean } = {},
+): Promise<Map<string, Verdict>> {
   const out = new Map<string, Verdict>();
   if (!opps.length) return out;
   const ids = opps.map((o) => o.id);
@@ -55,8 +59,10 @@ export async function getVerdicts(user: VetUser, opps: VetOpp[]): Promise<Map<st
     }
   }
 
-  // 3. vet the rest once, in parallel, then cache
-  const need2 = opps.filter((o) => !out.has(o.id));
+  // 3. vet the rest once, in parallel, then cache. SKIPPED in cacheOnly mode — callers on a latency-
+  // sensitive path (the discovery feed render) reuse only the free cached/matcher verdicts and leave
+  // novel pairs to their lexical fallback (the first apply-click then caches a real verdict).
+  const need2 = opts.cacheOnly ? [] : opps.filter((o) => !out.has(o.id));
   if (need2.length) {
     const profile = user.parsedProfile;
     const cvText = user.resumeText || '';

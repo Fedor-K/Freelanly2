@@ -102,6 +102,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
     setDraftItem(item);
     setDraftSubject('');
     setDraftBody('');
+    setDraftBlocked(null);
     setDraftGenerating(true);
 
     const startedAt = Date.now();
@@ -123,8 +124,18 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
         setDraftSubject((data as { subject?: string }).subject || `Application: ${item.title}`);
         setDraftBody((data as { coverLetter?: string }).coverLetter || '');
       } else {
-        setDraftBody((data as { message?: string; error?: string }).message || (data as { error?: string }).error || 'Failed to generate draft. You can write your own below.');
-        setDraftSubject(`Application: ${item.title}`);
+        // Gate/state refusals are HONEST blocks — don't present a writable failed draft (the user
+        // would just send garbage to a recruiter on a role the gate already rejected). Recoverable
+        // errors (network/5xx) still fall through to a manual-write draft.
+        const reason = (data as { error?: string }).error || '';
+        const message = (data as { message?: string }).message || '';
+        const BLOCKING = ['poor_match', 'already_applied', 'limit_reached', 'resume_required', 'unavailable'];
+        if (BLOCKING.includes(reason)) {
+          setDraftBlocked({ reason, message });
+        } else {
+          setDraftBody(message || reason || 'Couldn\'t generate a draft — you can write your own below.');
+          setDraftSubject(`Application: ${item.title}`);
+        }
       }
     } catch {
       track('APPLY_DRAFT', { method: 'feed', ok: false, ms: Date.now() - startedAt, error: 'network' });
@@ -182,6 +193,9 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   const [draftBody, setDraftBody] = useState('');
   const [draftGenerating, setDraftGenerating] = useState(false);
   const [draftSending, setDraftSending] = useState(false);
+  // The apply-gate refused (or the state blocks applying) — show an HONEST message, not a writable
+  // "Failed to generate" draft the user could still send. poor_match is the feed↔gate divergence.
+  const [draftBlocked, setDraftBlocked] = useState<{ reason: string; message: string } | null>(null);
 
   async function handleApplyAll() {
     const withEmail = visible.filter(i => i.applyEmail && !applied.has(i.id));
@@ -514,6 +528,23 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
               <div style={{padding: '60px 24px', textAlign: 'center', color: '#5C6068'}}>
                 <div style={{fontSize: '14px', marginBottom: '8px'}}>Generating your cover letter...</div>
                 <div style={{fontSize: '12px', color: '#8A8E96'}}>AI is reading the job post and matching with your profile</div>
+              </div>
+            ) : draftBlocked ? (
+              <div style={{padding: '44px 24px', textAlign: 'center'}}>
+                <div style={{fontSize: '15px', fontWeight: 600, marginBottom: '10px'}}>
+                  {draftBlocked.reason === 'poor_match' ? 'Not a strong match for your profile'
+                    : draftBlocked.reason === 'already_applied' ? 'You already applied to this one'
+                    : draftBlocked.reason === 'limit_reached' ? 'Daily apply limit reached'
+                    : draftBlocked.reason === 'resume_required' ? 'Add your résumé first'
+                    : draftBlocked.reason === 'unavailable' ? 'This role is no longer available'
+                    : "Can't apply to this one"}
+                </div>
+                <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '420px', margin: '0 auto 22px'}}>
+                  {draftBlocked.reason === 'poor_match'
+                    ? "Our matcher doesn't think this role fits your background well enough — we'd rather not send a weak application to the recruiter. Try the stronger matches at the top of your feed."
+                    : (draftBlocked.message || 'Applying to this role is not available right now.')}
+                </div>
+                <button className="btn btn-ghost btn-sm" onClick={() => setDraftItem(null)}>Got it</button>
               </div>
             ) : (
               <>
