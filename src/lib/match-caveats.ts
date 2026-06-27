@@ -44,13 +44,17 @@ export function computeCaveats(bd: unknown): Caveats | null {
   //   <50% of stated requirements met (≥3 reqs)  → Weak;  0 matched of ≥2 → Weak.
   const lowCoverage = total >= 3 && matched / total < 0.5;
   const zeroCoverage = total >= 2 && matched === 0;
+  // 0 parseable requirements → the only signal is a profession/title match, with NO skill evidence.
+  // That's a Weak signal, not "Good" — without this a 0/0 breakdown slipped through as a confident
+  // "Good" match (the coverage floors above need total ≥ 2/3, so total=0 dodged them).
+  const noRequirements = total === 0;
 
   if (items.length === 0) {
     // Even with zero explicit caveats, a thin coverage ratio bars a "Strong" label.
-    if (lowCoverage || zeroCoverage) return { strength: 'Weak', items };
+    if (lowCoverage || zeroCoverage || noRequirements) return { strength: 'Weak', items };
     return { strength: 'Strong', items };
   }
-  const severe = hardFail || coreMissing.length > 0 || engRisk || lowCoverage || zeroCoverage
+  const severe = hardFail || coreMissing.length > 0 || engRisk || lowCoverage || zeroCoverage || noRequirements
     || (profession === 'adjacent' && total >= 3 && matched < 2);
   return { strength: items.length >= 2 || severe ? 'Weak' : 'Good', items };
 }
