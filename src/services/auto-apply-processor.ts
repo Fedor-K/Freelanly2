@@ -2152,6 +2152,14 @@ export async function matchAndQueueAutoApplies(): Promise<number> {
     console.error('[AutoApply] matcher schema bootstrap failed, retrying next run:', e);
     return 0;
   }
+  // Self-heal the (out-of-Prisma) embedding columns/index too — optional, so a failure here must NOT
+  // block matching (embeddings only power feed ranking; the embed cron also ensures this).
+  try {
+    const { ensureEmbedSchema } = await import('@/services/embeddings/embed-worker');
+    await ensureEmbedSchema();
+  } catch (e) {
+    console.error('[AutoApply] embed schema bootstrap failed (non-fatal):', (e as Error)?.message);
+  }
 
   // Recent UNPROCESSED opportunities (matchedAt IS NULL), freshest first. matchedAt is what
   // turns this into a draining queue instead of a sliding window: previously this took the
