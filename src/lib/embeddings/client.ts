@@ -6,6 +6,7 @@
 // Model: Qwen/Qwen3-Embedding-0.6B (Apache-2.0). 1024-dim. Asymmetric retrieval — the candidate
 // (query) side gets an instruction prefix; the job (document) side is embedded raw. Same cosine space.
 import OpenAI from 'openai';
+import { createHash } from 'crypto';
 
 export const EMBED_MODEL = process.env.EMBED_MODEL || 'Qwen/Qwen3-Embedding-0.6B';
 export const EMBED_DIM = Number(process.env.EMBED_DIM || 1024);
@@ -23,7 +24,7 @@ function getEmbedClient(): OpenAI {
     _client = new OpenAI({
       baseURL: process.env.EMBED_BASE_URL || 'http://127.0.0.1:8080/v1',
       apiKey: process.env.EMBED_API_KEY || 'sk-local', // local server ignores it
-      timeout: 30000,
+      timeout: Number(process.env.EMBED_TIMEOUT_MS || 120000), // CPU batches can be slow; generous
       maxRetries: 2,
     });
   }
@@ -57,9 +58,16 @@ export function toVectorLiteral(vec: number[]): string {
 // skills + a description/summary slice carry the semantic signal that separates real fit from a
 // shared generic token ("business", "manager").
 
+// Lean on purpose: title + skills carry most of the ranking signal, and the role/seniority/key-tech
+// of a JD sits in its opening. CPU embedding cost is ~linear in tokens, so a short slice keeps both
+// the one-time backfill and the steady-state cron cheap without losing the signal that separates
+// e.g. "Project Manager" from "Salesforce Project Manager". (Tune via EMBED_OPP_DESC_CHARS.)
+const OPP_DESC_CHARS = Number(process.env.EMBED_OPP_DESC_CHARS || 500);
+const USER_CV_CHARS = Number(process.env.EMBED_USER_CV_CHARS || 700);
+
 export function buildOppText(o: { title: string; skills?: string[] | null; description?: string | null }): string {
   const skills = (o.skills || []).join(', ');
-  return [o.title, skills, (o.description || '').slice(0, 1800)].filter(Boolean).join('\n');
+  return [o.title, skills, (o.description || '').slice(0, OPP_DESC_CHARS)].filter(Boolean).join('\n');
 }
 
 export function buildUserText(
@@ -73,7 +81,7 @@ export function buildUserText(
     typeof p.field === 'string' ? p.field : '',
     skills,
     typeof p.summary === 'string' ? p.summary : '',
-    (resumeText || '').slice(0, 1500),
+    (resumeText || '').slice(0, USER_CV_CHARS),
   ].filter(Boolean).join('\n');
   // Candidate = query side → instruction prefix.
   return QUERY_INSTRUCTION + body;
@@ -82,7 +90,5 @@ export function buildUserText(
 /** Stable fingerprint of the exact text we embedded (+ version + model). A profile/JD edit or a
  *  version bump changes it → the fill cron re-embeds. Mirrors profileStamp in assess-pairing-cached. */
 export function embedStamp(text: string): string {
-  // Lazy require so this module stays bundler-safe; crypto is a Node builtin available on the worker + Vercel server.
-  const { createHash } = require('crypto') as typeof import('crypto');
   return createHash('sha1').update(`${EMBED_VERSION}|${EMBED_MODEL}|${text}`).digest('hex');
 }

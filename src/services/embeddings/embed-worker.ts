@@ -9,6 +9,9 @@ import { embed, buildOppText, buildUserText, embedStamp, toVectorLiteral, EMBED_
 
 const BATCH = Number(process.env.EMBED_FILL_BATCH || 64);
 const STALE_SCAN = Number(process.env.EMBED_STALE_SCAN || 200);
+// Only embed opportunities/jobs the feed (7d) and quick-apply (14d) can actually show — older active
+// rows (kept up to 30d) are never read by the semantic path, so embedding them is wasted CPU.
+const OPP_WINDOW_DAYS = Number(process.env.EMBED_OPP_WINDOW_DAYS || 14);
 
 let embedSchemaReady = false;
 /** Idempotent + concurrency-safe: enable pgvector, add the (out-of-Prisma) columns + HNSW index. */
@@ -60,7 +63,7 @@ async function fillOpportunities(limit: number): Promise<number> {
   const rows = await prisma.$queryRawUnsafe<Row[]>(
     `SELECT id, title, skills, LEFT(description, 2000) AS description
      FROM "Opportunity"
-     WHERE embedding IS NULL AND "isActive" = true
+     WHERE embedding IS NULL AND "isActive" = true AND "createdAt" >= now() - interval '${OPP_WINDOW_DAYS} days'
      ORDER BY "createdAt" DESC
      LIMIT $1`,
     limit,
@@ -76,7 +79,7 @@ async function fillJobs(limit: number): Promise<number> {
   const rows = await prisma.$queryRawUnsafe<Row[]>(
     `SELECT id, title, skills, LEFT(description, 2000) AS description
      FROM "Job"
-     WHERE embedding IS NULL AND "isActive" = true
+     WHERE embedding IS NULL AND "isActive" = true AND "createdAt" >= now() - interval '${OPP_WINDOW_DAYS} days'
      ORDER BY "createdAt" DESC
      LIMIT $1`,
     limit,
