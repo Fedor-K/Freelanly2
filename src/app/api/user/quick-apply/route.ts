@@ -15,6 +15,7 @@ import { getRecruiterPortalUrl } from '@/lib/recruiter-token';
 import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
 import { isFreeEmailProvider } from '@/lib/content-quality';
 import { buildFitContext, scoreFit } from '@/lib/fit-score';
+import { getUserEmbedding, semanticRankIds } from '@/services/embeddings/semantic-rank';
 
 const FREE_DAILY_LIMIT = 20;
 
@@ -116,20 +117,36 @@ async function findFittingOpportunities(
 
     // Stage 1 — lexical fit score (no LLM) over the whole base.
     const fitCtx = buildFitContext(profile);
-    const scored = pool
+    const lex = pool
       .map((o) => ({ o, score: scoreFit(fitCtx, o) }))
       .filter(x => x.score > 0)
       .sort((a, b) => b.score - a.score);
 
-    if (scored.length === 0) return [];
-    // Vet DEEPER than the top handful: fit-scoring is lexical and can't tell "Project Manager" (fits)
-    // from "Salesforce Project Manager" (doesn't) — both score on project+manager. For a niche/manager
-    // profile the top-10 can be entirely domain-specific roles the strict matcher rejects, while the
-    // few generic roles that DO pass tie just below and never get vetted (→ empty suggestions despite
-    // real fits existing). So consider up to 24 and gate in score-order batches, stopping as soon as 4
-    // pass — cheap for the common case (fits sit at the top), deep enough to rescue the niche case.
+    if (lex.length === 0) return [];
+
+    // Stage 1b — semantic re-rank (behind FEED_SEMANTIC_RANK): fit-scoring is lexical and can't tell
+    // "Project Manager" (fits) from "Salesforce Project Manager" (doesn't) — both score on
+    // project+manager. Re-rank the lexical shortlist by MEANING so the genuinely-fitting roles rise to
+    // the top of the vet queue. Falls back to pure lexical when off / user unembedded.
+    let ordered = lex;
+    const SEMANTIC = process.env.FEED_SEMANTIC_RANK === '1' || process.env.FEED_SEMANTIC_RANK === 'on';
+    if (SEMANTIC) {
+      const userVec = await getUserEmbedding(userId);
+      if (userVec) {
+        const shortlist = lex.slice(0, 60);
+        const sims = await semanticRankIds(userVec, shortlist.map(x => x.o.id));
+        if (sims.size) {
+          ordered = shortlist.slice().sort((a, b) =>
+            ((sims.get(b.o.id) ?? -1) - (sims.get(a.o.id) ?? -1)) || (b.score - a.score),
+          );
+        }
+      }
+    }
+
+    // Vet DEEPER than the top handful: even after re-rank, gate in score-order batches and stop as soon
+    // as 4 pass — cheap for the common case (fits sit at the top), deep enough to rescue the niche case.
     const VET_CAP = 24, VET_BATCH = 8, WANT = 4;
-    const cand = scored.slice(0, VET_CAP).map(x => x.o);
+    const cand = ordered.slice(0, VET_CAP).map(x => x.o);
     const full = await prisma.opportunity.findMany({
       where: { id: { in: cand.map(t => t.id) } },
       select: { id: true, slug: true, title: true, description: true, country: true, clientName: true, posterCompany: true, company: { select: { name: true } } },

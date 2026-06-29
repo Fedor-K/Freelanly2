@@ -628,6 +628,13 @@ model Opportunity {
   // the generated Prisma client SELECT it in every Opportunity read, 500-ing the app on
   // any deploy that lands before the column exists. Do NOT add it here; if you run
   // `prisma db push` it may try to drop it — the matcher re-creates it (one-time re-scan).
+  //
+  // NOTE: pgvector columns "embedding" (vector(1024)), "embeddingStamp" (text), "embeddedAt"
+  // (timestamptz) + an HNSW index also exist on this table (and on "Job"/"User") in the DB.
+  // Same rule as matchedAt: NOT declared here, managed via raw SQL in
+  // src/services/embeddings/embed-worker.ts (ensureEmbedSchema). A 1024-float column SELECTed on
+  // every feed read would be ruinous — it is read only via raw SQL (semantic-rank.ts). `prisma db
+  // push` may drop it; the embed cron / matcher re-create it.
 
   // === SOURCE ===
   sourceUrl       String              // LinkedIn post URL (or ATS hosted job URL)

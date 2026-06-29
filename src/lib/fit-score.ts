@@ -96,6 +96,15 @@ const SKILL_FULL_CREDIT = 4;       // matching this many skills = full skill cre
 const STRONG_MIN = 70;             // ≥ this → Strong (profession in title + ≥1 matched skill)
 const GOOD_MIN = 50;               // ≥ this → Good, else Weak
 
+// Semantic blend — applied ONLY when scoreFitLabeled is given a precomputed cosine similarity (`sim`,
+// 0-1) from the embedding layer. The blend judges the label off meaning+lexical, and `SEM_FLOOR` is a
+// hard eligibility gate: a role whose MEANING is far from the candidate can't be Good+ even if a single
+// generic title token overlapped ("business"/"manager") — this is what closes the feed↔gate poor_match.
+// Env-tunable; when no `sim` is passed the function behaves exactly as the pure-lexical original.
+const HYBRID_W_SEM = Number(process.env.HYBRID_W_SEM || 0.7);
+const HYBRID_W_LEX = Number(process.env.HYBRID_W_LEX || 0.3);
+const SEM_FLOOR = Number(process.env.SEM_FLOOR || 0.45);
+
 /**
  * Normalized 0-100 fit + Strong/Good/Weak label for the discovery feed. Same cheap lexical signals as
  * scoreFit (title + skills) but scaled to a stable 0-100 so a "Strong" cutoff means the same thing for
@@ -118,6 +127,7 @@ export type FitResult = {
 export function scoreFitLabeled(
   ctx: FitContext,
   opp: { title: string; skills?: string[] | null },
+  sim?: number,
 ): FitResult {
   if (ctx.empty) return { score: 0, label: 'Weak', matchedSkills: [], matchedTitleTokens: [], languageGap: [], missingCore: [] };
 
@@ -148,7 +158,11 @@ export function scoreFitLabeled(
     ? Math.min(1, skillMatches / Math.min(SKILL_FULL_CREDIT, ctx.skills.size))
     : 0;
 
-  const score = Math.round(100 * (TITLE_WEIGHT * titleFrac + SKILL_WEIGHT * skillFrac));
+  const lexScore = Math.round(100 * (TITLE_WEIGHT * titleFrac + SKILL_WEIGHT * skillFrac));
+  // With a semantic similarity supplied, judge the label off the blend; otherwise pure lexical (the
+  // original behaviour, byte-for-byte). sim ∈ [0,1].
+  const hasSim = typeof sim === 'number' && !Number.isNaN(sim);
+  const score = hasSim ? Math.round(100 * (HYBRID_W_SEM * (sim as number) + HYBRID_W_LEX * (lexScore / 100))) : lexScore;
   let label: FitLabel = score >= STRONG_MIN ? 'Strong' : score >= GOOD_MIN ? 'Good' : 'Weak';
 
   // Language-gap guard: a Strong label is wrong if the role demands a (non-English) language the
@@ -175,6 +189,10 @@ export function scoreFitLabeled(
     }
     if (missingCore.length > 0) label = 'Good';
   }
+
+  // Semantic floor: meaning too far from the candidate → not Good+, regardless of lexical overlap.
+  // This demotes the bucket-B over-promises (one generic shared word) that the lexical score can't see.
+  if (hasSim && (sim as number) < SEM_FLOOR) label = 'Weak';
 
   return { score, label, matchedSkills, matchedTitleTokens, languageGap, missingCore };
 }

@@ -3,9 +3,10 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { DiscoveryFeed } from '@/components/app/DiscoveryFeed';
-import { buildFitContext, scoreFitLabeled, type FitLabel } from '@/lib/fit-score';
+import { buildFitContext, scoreFitLabeled, type FitLabel, type FitResult } from '@/lib/fit-score';
 import { profileStamp } from '@/services/matching/assess-pairing-cached';
 import { getVerdicts, type Verdict } from '@/lib/match-verdict';
+import { getUserEmbedding, semanticPool, unembeddedRecentOpps } from '@/services/embeddings/semantic-rank';
 import './discovery-design.css';
 
 export const metadata: Metadata = {
@@ -46,28 +47,52 @@ export default async function DiscoveryPage() {
   const loopIds = myLoops.map((l) => l.id);
   const autoApplyOn = myLoops.some((l) => l.mode === 'AUTO');
 
-  const [poolOpps, poolJobs, totalToday] = await Promise.all([
-    prisma.opportunity.findMany({
-      // self-appliable (applyEmail) OR external-apply ATS roles (applyUrl) — both belong in the feed
-      where: { isActive: true, createdAt: { gte: weekAgo }, OR: [{ applyEmail: { not: null } }, { applyUrl: { not: null } }] },
-      select: { id: true, title: true, skills: true, createdAt: true },
-    }),
-    prisma.job.findMany({
-      where: { isActive: true, createdAt: { gte: weekAgo }, applyEmail: { not: null } },
-      select: { id: true, title: true, skills: true, createdAt: true },
-    }),
-    prisma.opportunity.count({ where: { isActive: true, createdAt: { gte: dayAgo } } }),
-  ]);
+  const totalToday = await prisma.opportunity.count({ where: { isActive: true, createdAt: { gte: dayAgo } } });
 
-  // Score every row, then order Strong → Good → (recency for the rest). Self-appliable only
-  // (applyEmail filter above) — "could self-apply" is the whole point.
+  // SEMANTIC ranking (behind FEED_SEMANTIC_RANK): rank by meaning (precomputed embeddings, pgvector
+  // SQL — no model call here) instead of lexical token overlap, with the semantic floor in
+  // scoreFitLabeled demoting the bucket-B over-promises. Falls back to the original lexical pool
+  // whenever the flag is off OR this user isn't embedded yet (cold start). Both produce the same row
+  // shape and the same Strong → Good → recency order.
+  const SEMANTIC = process.env.FEED_SEMANTIC_RANK === '1' || process.env.FEED_SEMANTIC_RANK === 'on';
+  const userVec = SEMANTIC ? await getUserEmbedding(session.user.id) : null;
+
   const RANK: Record<FitLabel, number> = { Strong: 0, Good: 1, Weak: 2 };
-  const ranked = [
-    ...poolOpps.map(o => ({ id: o.id, type: 'opportunity' as const, createdAt: o.createdAt, ...scoreFitLabeled(fitCtx, o) })),
-    ...poolJobs.map(j => ({ id: j.id, type: 'job' as const, createdAt: j.createdAt, ...scoreFitLabeled(fitCtx, j) })),
-  ].sort((a, b) =>
-    (RANK[a.label] - RANK[b.label]) || (b.score - a.score) || (b.createdAt.getTime() - a.createdAt.getTime()),
-  );
+  type RankedRow = { id: string; type: 'opportunity' | 'job'; createdAt: Date } & FitResult;
+  const byFit = (a: RankedRow, b: RankedRow) =>
+    (RANK[a.label] - RANK[b.label]) || (b.score - a.score) || (b.createdAt.getTime() - a.createdAt.getTime());
+
+  let ranked: RankedRow[];
+  if (userVec) {
+    // pgvector top-N by cosine, scored through the hybrid (sim passed in), plus recent not-yet-embedded
+    // opps scored lexically so a just-ingested role isn't invisible while the embed cron catches up.
+    const [{ opps, jobs }, unembedded] = await Promise.all([
+      semanticPool(userVec, { weekAgo, limit: 400 }),
+      unembeddedRecentOpps(weekAgo, 100),
+    ]);
+    ranked = [
+      ...opps.map(o => ({ id: o.id, type: 'opportunity' as const, createdAt: o.createdAt, ...scoreFitLabeled(fitCtx, { title: o.title, skills: o.skills }, o.sim) })),
+      ...jobs.map(j => ({ id: j.id, type: 'job' as const, createdAt: j.createdAt, ...scoreFitLabeled(fitCtx, { title: j.title, skills: j.skills }, j.sim) })),
+      ...unembedded.map(o => ({ id: o.id, type: 'opportunity' as const, createdAt: o.createdAt, ...scoreFitLabeled(fitCtx, { title: o.title, skills: o.skills }) })),
+    ].sort(byFit);
+  } else {
+    // Original lexical pool: pull light rows for the 7-day base, score + sort in code (no LLM).
+    const [poolOpps, poolJobs] = await Promise.all([
+      prisma.opportunity.findMany({
+        // self-appliable (applyEmail) OR external-apply ATS roles (applyUrl) — both belong in the feed
+        where: { isActive: true, createdAt: { gte: weekAgo }, OR: [{ applyEmail: { not: null } }, { applyUrl: { not: null } }] },
+        select: { id: true, title: true, skills: true, createdAt: true },
+      }),
+      prisma.job.findMany({
+        where: { isActive: true, createdAt: { gte: weekAgo }, applyEmail: { not: null } },
+        select: { id: true, title: true, skills: true, createdAt: true },
+      }),
+    ]);
+    ranked = [
+      ...poolOpps.map(o => ({ id: o.id, type: 'opportunity' as const, createdAt: o.createdAt, ...scoreFitLabeled(fitCtx, o) })),
+      ...poolJobs.map(j => ({ id: j.id, type: 'job' as const, createdAt: j.createdAt, ...scoreFitLabeled(fitCtx, j) })),
+    ].sort(byFit);
+  }
 
   type FeedItem = {
     id: string; type: 'opportunity' | 'job'; title: string; companyName: string; description: string;

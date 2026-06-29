@@ -7,6 +7,7 @@
 import { prisma } from '@/lib/db';
 import { buildFitContext, scoreFitLabeled, type FitLabel } from '@/lib/fit-score';
 import { getVerdicts } from '@/lib/match-verdict';
+import { getUserEmbedding, semanticPool } from '@/services/embeddings/semantic-rank';
 
 const RANK: Record<FitLabel, number> = { Strong: 0, Good: 1, Weak: 2 };
 
@@ -19,6 +20,9 @@ export async function prevetFeed(opts: { maxUsers?: number; perUser?: number } =
   const maxUsers = opts.maxUsers ?? Number(process.env.FEED_PREVET_MAX_USERS || 30);
   const perUser = opts.perUser ?? Number(process.env.FEED_PREVET_PER_USER || 10);
   const since = new Date(Date.now() - 3 * 86400000);
+  // When semantic ranking is on, warm the cache for the candidates the feed will actually show
+  // (sim-ranked), not the lexical top — so the LLM budget lands on the genuinely-best pairs.
+  const SEMANTIC = process.env.FEED_SEMANTIC_RANK === '1' || process.env.FEED_SEMANTIC_RANK === 'on';
 
   // Audience = users who actually touched Discovery in the last 3 days (viewed OR clicked apply in the
   // feed) AND have a résumé to match on. Small, targeted set → no rotation bookkeeping needed.
@@ -55,12 +59,29 @@ export async function prevetFeed(opts: { maxUsers?: number; perUser?: number } =
       const ctx = buildFitContext(u.parsedProfile as Record<string, unknown> | null);
       if (ctx.empty) continue;
       // Top-K Good+ candidates for this user — the same ranking the feed's closest tail uses.
-      const top = pool
-        .map((o) => ({ o, fit: scoreFitLabeled(ctx, { title: o.title, skills: o.skills }) }))
-        .filter((x) => x.fit.label !== 'Weak')
-        .sort((a, b) => (RANK[a.fit.label] - RANK[b.fit.label]) || (b.fit.score - a.fit.score))
-        .slice(0, perUser)
-        .map((x) => ({ id: x.o.id, title: x.o.title, description: x.o.description }));
+      let top: { id: string; title: string; description: string }[] | null = null;
+      if (SEMANTIC) {
+        const userVec = await getUserEmbedding(userId);
+        if (userVec) {
+          const { opps } = await semanticPool(userVec, { weekAgo, limit: perUser * 3 });
+          const picked = opps
+            .filter((o) => scoreFitLabeled(ctx, { title: o.title, skills: o.skills }, o.sim).label !== 'Weak')
+            .slice(0, perUser); // semanticPool is already sim-ordered
+          if (picked.length) {
+            const descs = await prisma.opportunity.findMany({ where: { id: { in: picked.map((p) => p.id) } }, select: { id: true, title: true, description: true } });
+            const dById = new Map(descs.map((d) => [d.id, d]));
+            top = picked.map((p) => dById.get(p.id)).filter(Boolean).map((d) => ({ id: d!.id, title: d!.title, description: d!.description }));
+          }
+        }
+      }
+      if (!top) {
+        top = pool
+          .map((o) => ({ o, fit: scoreFitLabeled(ctx, { title: o.title, skills: o.skills }) }))
+          .filter((x) => x.fit.label !== 'Weak')
+          .sort((a, b) => (RANK[a.fit.label] - RANK[b.fit.label]) || (b.fit.score - a.fit.score))
+          .slice(0, perUser)
+          .map((x) => ({ id: x.o.id, title: x.o.title, description: x.o.description }));
+      }
       if (!top.length) continue;
       // FULL vet (LLM only for the gaps) → writes MatchVerdict, which the feed reads cache-only.
       const v = await getVerdicts(
