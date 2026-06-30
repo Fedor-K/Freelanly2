@@ -401,6 +401,17 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         } else if (data.error === 'already_applied') {
           setGenError('You already applied to this project.');
           setPhase('sent');
+        } else if (data.error === 'poor_match') {
+          // The gate refuses a send here — DON'T drop into the review screen with a raw "poor_match"
+          // error and a Send button on an empty letter. Route to the honest gated summary: it shows
+          // "we don't send applications to roles this far from your profile" + better-matching roles
+          // (suggestions come back with the 422, since this path can skip the summary preflight).
+          setMatchTier('weak');
+          setMatchLabel(data.matchLabel || 'Weak');
+          setGated(true);
+          if (Array.isArray(data.suggestions)) setSuggestions(data.suggestions);
+          setGenError('');
+          setPhase('summary');
         } else {
           // Let user write their own
           setCoverLetter('');
