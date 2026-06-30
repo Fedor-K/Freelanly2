@@ -16,11 +16,15 @@ export function Toggle({ initial = false, onToggle }: { initial?: boolean; onTog
   );
 }
 
-export function SendingRules() {
-  const [sendStart, setSendStart] = useState('09:00');
-  const [sendEnd, setSendEnd] = useState('17:00');
-  const [dailyCap, setDailyCap] = useState(25);
-  const [followUp, setFollowUp] = useState('3');
+const hourToStr = (h: number) => `${String(h).padStart(2, '0')}:00`;
+const strToHour = (s: string) => {
+  const h = parseInt(s, 10);
+  return Number.isNaN(h) ? 0 : Math.max(0, Math.min(23, h));
+};
+
+export function SendingRules({ startHour = 9, endHour = 17 }: { startHour?: number; endHour?: number }) {
+  const [sendStart, setSendStart] = useState(hourToStr(startHour));
+  const [sendEnd, setSendEnd] = useState(hourToStr(endHour));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -31,7 +35,10 @@ export function SendingRules() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sendingRules: { sendStart, sendEnd, dailyCap, followUpTouches: parseInt(followUp) },
+          section: 'sendingRules',
+          sendStartHour: strToHour(sendStart),
+          sendEndHour: strToHour(sendEnd),
+          sendWeekdaysOnly: true,
         }),
       });
       setSaved(true);
@@ -49,23 +56,6 @@ export function SendingRules() {
           <span className="muted">→</span>
           <input className="field" value={sendEnd} onChange={e => setSendEnd(e.target.value)} style={{maxWidth: '100px'}} />
           <span className="meta f-mono">Mon–Fri only</span>
-        </div>
-      </div>
-      <div className="field-row">
-        <div className="lbl">Daily cap</div>
-        <div className="ctrl">
-          <input className="field" type="number" value={dailyCap} onChange={e => setDailyCap(parseInt(e.target.value) || 0)} style={{maxWidth: '100px'}} />
-          <span className="muted f-mono" style={{fontSize: '11px'}}>applications / day</span>
-        </div>
-      </div>
-      <div className="field-row">
-        <div className="lbl">Follow-up cadence</div>
-        <div className="ctrl">
-          <select className="field" style={{maxWidth: '280px'}} value={followUp} onChange={e => setFollowUp(e.target.value)}>
-            <option value="3">3 touches · day 0, +4, +8</option>
-            <option value="2">2 touches · day 0, +5</option>
-            <option value="1">1 touch · day 0 only</option>
-          </select>
         </div>
       </div>
       <div className="field-row">
