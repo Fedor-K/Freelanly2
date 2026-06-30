@@ -52,6 +52,43 @@ function isSendableRecipient(email: string | null | undefined): boolean {
   return true;
 }
 
+// Send-window guardrail. Returns true when `now` falls inside the user's configured
+// local send window (hour in [start,end)) and, if sendWeekdaysOnly, on Mon–Fri.
+// Fails OPEN: an unset timezone or unset window means "no restriction" — better to send
+// than to defer until the 24h expiry silently kills the application.
+function isWithinSendWindow(
+  u: { timezone: string | null; sendStartHour: number | null; sendEndHour: number | null; sendWeekdaysOnly: boolean },
+  now: Date,
+): boolean {
+  const start = u.sendStartHour;
+  const end = u.sendEndHour;
+  // No window configured (or a degenerate 0–0) → unrestricted.
+  if (start == null || end == null || (start === 0 && end === 0)) return true;
+  // Can't localize the clock without a timezone → fail open.
+  if (!u.timezone) return true;
+
+  let hour: number;
+  let weekday: number;
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: u.timezone,
+      hourCycle: 'h23',
+      hour: 'numeric',
+      weekday: 'short',
+    }).formatToParts(now);
+    hour = parseInt(parts.find((p) => p.type === 'hour')?.value ?? '', 10);
+    const wd = parts.find((p) => p.type === 'weekday')?.value ?? '';
+    weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(wd);
+  } catch {
+    return true; // invalid timezone string → fail open
+  }
+  if (Number.isNaN(hour)) return true;
+
+  if (u.sendWeekdaysOnly && (weekday === 0 || weekday === 6)) return false;
+  // Window may wrap past midnight (start > end), though the UI keeps start < end.
+  return start <= end ? hour >= start && hour < end : hour >= start || hour < end;
+}
+
 /**
  * Process the auto-apply queue:
  * 1. Find PENDING AutoApplications
@@ -165,6 +202,10 @@ export async function processAutoApplyQueue(): Promise<{
           freeAppliesUsedToday: true,
           lastFreeApplyReset: true,
           image: true,
+          timezone: true,
+          sendStartHour: true,
+          sendEndHour: true,
+          sendWeekdaysOnly: true,
         },
       },
       loop: {
@@ -320,6 +361,14 @@ export async function processAutoApplyQueue(): Promise<{
 
     if (!app.loop.isActive) {
       await markFailed(app.id, 'Auto-apply loop is paused');
+      skipped++;
+      continue;
+    }
+
+    // Send-window guardrail: HOLD (don't fail) applications whose owner is currently
+    // outside their configured local send window / weekday rule. They stay PENDING and
+    // ship on a later cron run once inside the window. Fails open on unset tz/window.
+    if (!isWithinSendWindow(app.user, new Date())) {
       skipped++;
       continue;
     }
