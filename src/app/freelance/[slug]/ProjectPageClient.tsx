@@ -262,7 +262,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
       // Send magic link / OTP
       const { signIn } = await import('next-auth/react');
-      await signIn('resend', { email, callbackUrl: '/dashboard', redirect: false });
+      await signIn('resend', { email, callbackUrl: '/dashboard/discovery', redirect: false });
 
       setCodeSent(true);
       setOtpCode('');
@@ -895,11 +895,11 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             <p style={{ fontSize: '13px', color: '#047857', margin: '0 0 16px' }}>✓ Saved — recruiters will see when you can start.</p>
           )}
 
-          <a href="/dashboard" style={{
+          <a href="/dashboard/discovery" style={{
             display: 'inline-block', padding: '12px 24px', background: '#C7F94A', color: '#000',
             borderRadius: '10px', fontSize: '14px', fontWeight: 600, textDecoration: 'none',
           }}>
-            Go to Dashboard →
+            See more matches →
           </a>
           <p style={{ fontSize: '13px', color: '#555', marginTop: '12px', lineHeight: 1.5 }}>
             We&apos;ll notify you when the recruiter replies and start auto-applying to up to 20 projects every day matching your profile.
