@@ -164,6 +164,18 @@ export default async function DiscoveryPage() {
       .map(v => v.opportunityId),
   );
 
+  // The verified queue only badges the user's Strong/Good+sent applications, but the apply-gate
+  // (quick-apply) blocks on ANY AutoApplication for the opp/job — so a lexical-tail card the user
+  // already applied to (self-apply, or an app outside the queueable window) showed a live "Apply"
+  // button that the server then refused with already_applied. Mirror the server's check here so those
+  // cards render "✓ Applied" instead.
+  const appliedApps = await prisma.autoApplication.findMany({
+    where: { userId: session.user.id },
+    select: { opportunityId: true, jobId: true },
+  });
+  const appliedOppIds = new Set(appliedApps.map(a => a.opportunityId).filter(Boolean));
+  const appliedJobIds = new Set(appliedApps.map(a => a.jobId).filter(Boolean));
+
   // Show only Good+ matches (label !== 'Weak') across BOTH sources: the role's profession must overlap
   // the candidate's, OR there's strong skill overlap. A single incidental shared skill (Weak, e.g. a
   // designer matching a dev role on "JavaScript") isn't enough — for LinkedIn or ATS. Off-profile users
@@ -196,7 +208,7 @@ export default async function DiscoveryPage() {
         companyName: o.company?.name || o.posterCompany || o.clientName || 'Unknown',
         description: o.description, source: o.source === 'ats_lever' ? 'Lever' : 'linkedin', createdAt: o.createdAt.toISOString(),
         skills: o.skills, location: o.location, applyEmail: o.applyEmail, applyUrl: o.applyUrl,
-        matchLabel: r.label, aiVerified: false, alreadyApplied: false,
+        matchLabel: r.label, aiVerified: false, alreadyApplied: appliedOppIds.has(o.id),
         matchScore: r.score, matchedSkills: r.matchedSkills.slice(0, 4), matchedTitleTokens: r.matchedTitleTokens,
         languageGap: r.languageGap, missingCore: r.missingCore,
       };
@@ -207,7 +219,7 @@ export default async function DiscoveryPage() {
       id: j.id, type: 'job' as const, title: j.title, companyName: j.company.name,
       description: j.description, source: j.sourceUrl?.includes('lever') ? 'Lever' : j.sourceUrl?.includes('linkedin') ? 'linkedin' : 'careers page',
       createdAt: j.createdAt.toISOString(), skills: j.skills, location: j.country, applyEmail: j.applyEmail, applyUrl: null,
-      matchLabel: r.label, aiVerified: false, alreadyApplied: false,
+      matchLabel: r.label, aiVerified: false, alreadyApplied: appliedJobIds.has(j.id),
       matchScore: r.score, matchedSkills: r.matchedSkills.slice(0, 4), matchedTitleTokens: r.matchedTitleTokens,
       languageGap: r.languageGap, missingCore: r.missingCore,
     };
