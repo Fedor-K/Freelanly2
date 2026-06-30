@@ -353,8 +353,11 @@ export async function POST(request: NextRequest) {
       // weak → honest "this one's a stretch, recruiters skip mismatches" + roles that actually fit.
       const isWeak = pairing.decision === 'NO' || /weak|poor/i.test(pairing.label || '');
       const tier = isWeak ? 'weak' : (/strong/i.test(pairing.label || '') ? 'strong' : 'good');
+      // Only the WEAK preview screen renders matchSummary/suggestions — Strong/Good now skip the
+      // preview and write the letter straight away. So don't spend the candidate-summary LLM call (or
+      // the suggestions scan) on a good match: nothing would show it.
       const [matchSummary, suggestions] = await Promise.all([
-        generateCandidateSummary(profile, opportunity.title, opportunity.description, pairing.label || null, pairing.reason || ''),
+        isWeak ? generateCandidateSummary(profile, opportunity.title, opportunity.description, pairing.label || null, pairing.reason || '') : Promise.resolve(null),
         isWeak ? findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user)) : Promise.resolve([]),
       ]);
       return NextResponse.json({
