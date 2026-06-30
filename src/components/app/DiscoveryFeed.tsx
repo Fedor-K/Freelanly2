@@ -132,6 +132,11 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
         const BLOCKING = ['poor_match', 'already_applied', 'limit_reached', 'resume_required', 'unavailable'];
         if (BLOCKING.includes(reason)) {
           setDraftBlocked({ reason, message });
+          // Server reports we've already applied here (it checks ALL of the user's applications, not just
+          // the feed's queueable set — so the card can still show "Apply"). Flip it to the Applied state
+          // now: the button turns into "✓ Applied" and can't be re-clicked into the same wall. This was
+          // ~1/3 of all feed already_applied events (repeat clicks on the same card).
+          if (reason === 'already_applied') setApplied(prev => new Set(prev).add(item.id));
         } else {
           setDraftBody(message || reason || 'Couldn\'t generate a draft — you can write your own below.');
           setDraftSubject(`Application: ${item.title}`);
