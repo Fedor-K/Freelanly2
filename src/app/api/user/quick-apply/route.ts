@@ -337,7 +337,12 @@ export async function POST(request: NextRequest) {
     // card, no letter). The weak-match card uses the `gated` flag below to not even offer the path.
     const enforceGate = process.env.MATCH_GATE_ENFORCE !== '0';
     if (!summaryOnly && enforceGate && pairing.decision === 'NO') {
-      return NextResponse.json({ error: 'poor_match', message: `This role isn't a strong enough match for your profile (${pairing.reason}).` }, { status: 422 });
+      // Attach the better-fitting roles (cheap lexical scorer, no LLM) so the apply UI can redirect the
+      // user to a real match instead of dead-ending on a raw "poor_match" with a Send button for an
+      // empty letter. Reached directly when a user applies without the summary preflight (deep-link /
+      // authed "Apply now"), so the client can't rely on suggestions already being in state.
+      const suggestions = await findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user)).catch(() => []);
+      return NextResponse.json({ error: 'poor_match', message: `This role isn't a strong enough match for your profile (${pairing.reason}).`, matchLabel: pairing.label || null, suggestions }, { status: 422 });
     }
 
     // SUMMARY-ONLY: return the candidate summary card (who they are + fit + other roles) WITHOUT
