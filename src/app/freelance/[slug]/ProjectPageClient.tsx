@@ -171,7 +171,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           setGated(!!data.gated);
           setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
           setSendTo(data.to || '');
-          setPhase('summary');
+          // Strong/Good → skip the preview, write straight away; preview only for weak (steers to
+          // better-fitting roles).
+          if (data.tier === 'weak') setPhase('summary');
+          else generateCoverLetter();
         })
         .catch(() => { setPhase('summary'); });
       return;
@@ -370,7 +373,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       setGated(!!data.gated);
       setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
       setSendTo(data.to || '');
-      setPhase('summary');
+      // Strong/Good → skip the preview, write the application straight away. The preview only earns its
+      // place on a WEAK match, where it honestly steers the user to better-fitting roles.
+      if (data.tier === 'weak') setPhase('summary');
+      else generateCoverLetter();
     } catch {
       setPhase('summary'); // fail-open: still let the user proceed to write the application
     }
