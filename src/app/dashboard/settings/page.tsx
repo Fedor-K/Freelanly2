@@ -27,6 +27,7 @@ export default async function SettingsPage() {
       stripeId: true, paymentProvider: true, payproSubscriptionId: true,
       resumeText: true, parsedProfile: true,
       resumeUrl: true, resumeFileName: true,
+      sendStartHour: true, sendEndHour: true,
     },
   });
 
@@ -162,7 +163,7 @@ export default async function SettingsPage() {
             <div className="desc">Set guardrails. Freelanly applies these to every queued send.</div>
 
             <AutoApplyOptIn loopIds={loopIds} initialOn={autoApplyOn} />
-            <SendingRules />
+            <SendingRules startHour={user.sendStartHour ?? 9} endHour={user.sendEndHour ?? 17} />
           </div>
 
           {/* Integrations */}
