@@ -25,6 +25,7 @@ import { PaymentReturnHandler } from "@/components/PaymentReturnHandler";
 import { ConversionUTMTracker } from "@/components/ConversionUTMTracker";
 import { ChatWidget } from "@/components/ChatWidget";
 import { Suspense } from "react";
+import Script from "next/script";
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -127,6 +128,23 @@ const organizationJsonLd = {
   },
 };
 
+// Yandex Metrika script (inline for SSR)
+const yandexMetrikaScript = `
+  (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+  m[i].l=1*new Date();
+  for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+  k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+  (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+  ym(103606747, "init", {
+    clickmap: true,
+    trackLinks: true,
+    accurateTrackBounce: true,
+    webvisor: true,
+    trackHash: true,
+    ecommerce: "dataLayer"
+  });
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -135,10 +153,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Third-party trackers (Yandex Metrika / GA4 / Clarity / Google Ads /
-            Leadsy) are injected by <AnalyticsScripts/> below, and only after the
-            visitor grants the matching cookie-consent category. Do not add
-            unconditional tracker <script>s here. */}
+        <script dangerouslySetInnerHTML={{ __html: yandexMetrikaScript }} />
+        <noscript>
+          <div>
+            <img src="https://mc.yandex.ru/watch/103606747" style={{ position: 'absolute', left: '-9999px' }} alt="" />
+          </div>
+        </noscript>
+        <script id="vtag-ai-js" async src="https://r2.leadsy.ai/tag.js" data-pid="XmXSR8r7W3uP84n0" data-version="062024" />
       </head>
       <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}>
         <SessionProvider>
