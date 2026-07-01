@@ -97,10 +97,11 @@ export function CookieConsentBanner() {
     setShowBanner(false);
     setShowSettings(false);
 
-    // Reload if analytics was just enabled (to initialize trackers)
-    if (consentData.analytics) {
-      window.location.reload();
-    }
+    // NOTE: no page reload here. The analytics trackers (Yandex Metrika inline in
+    // layout, AnalyticsScripts gated only on env config) already load independently
+    // of this consent cookie, so a reload initializes nothing — it only wiped
+    // in-progress client state, e.g. the inline apply form on /freelance/[slug]
+    // (uploaded resume held in memory, typed LinkedIn, selected notice period).
   };
 
   const acceptAll = () => {
