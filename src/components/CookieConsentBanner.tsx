@@ -4,17 +4,13 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { X, Settings, Cookie } from 'lucide-react';
 import Link from 'next/link';
-
-const CONSENT_COOKIE_NAME = 'cookie_consent';
-const CONSENT_VERSION = 1;
-
-interface ConsentState {
-  necessary: boolean;
-  analytics: boolean;
-  marketing: boolean;
-  preferences: boolean;
-  version: number;
-}
+import {
+  CONSENT_VERSION,
+  type ConsentState,
+  getConsentFromCookie,
+  setConsentCookie,
+  emitConsentChange,
+} from '@/lib/consent';
 
 function getVisitorId(): string {
   if (typeof window === 'undefined') return '';
@@ -25,28 +21,6 @@ function getVisitorId(): string {
     localStorage.setItem('visitor_id', visitorId);
   }
   return visitorId;
-}
-
-function getConsentFromCookie(): ConsentState | null {
-  if (typeof document === 'undefined') return null;
-
-  const match = document.cookie.match(new RegExp(`${CONSENT_COOKIE_NAME}=([^;]+)`));
-  if (match) {
-    try {
-      return JSON.parse(decodeURIComponent(match[1]));
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-function setConsentCookie(consent: ConsentState) {
-  if (typeof document === 'undefined') return;
-
-  const expires = new Date();
-  expires.setFullYear(expires.getFullYear() + 1); // 1 year
-  document.cookie = `${CONSENT_COOKIE_NAME}=${encodeURIComponent(JSON.stringify(consent))}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
 }
 
 export function CookieConsentBanner() {
@@ -79,6 +53,10 @@ export function CookieConsentBanner() {
     setConsentCookie(consentData);
     setConsent(consentData);
 
+    // Tell consent-gated components (AnalyticsScripts) to re-read the cookie and
+    // load/withhold trackers right away — no page reload needed.
+    emitConsentChange();
+
     // Save to database
     try {
       await fetch('/api/cookie-consent', {
@@ -97,11 +75,14 @@ export function CookieConsentBanner() {
     setShowBanner(false);
     setShowSettings(false);
 
-    // NOTE: no page reload here. The analytics trackers (Yandex Metrika inline in
-    // layout, AnalyticsScripts gated only on env config) already load independently
-    // of this consent cookie, so a reload initializes nothing — it only wiped
-    // in-progress client state, e.g. the inline apply form on /freelance/[slug]
-    // (uploaded resume held in memory, typed LinkedIn, selected notice period).
+    // NOTE: no page reload here. emitConsentChange() above already activates (or
+    // withholds) the consent-gated trackers in AnalyticsScripts live, so a reload
+    // initializes nothing — and skipping it preserves in-progress client state,
+    // e.g. the inline apply form on /freelance/[slug] (uploaded resume held in
+    // memory, typed LinkedIn, selected notice period). Withdrawal of an
+    // already-granted category currently has no in-session UI; if a "manage
+    // cookies" control is added later, a downgrade should reload to stop
+    // already-loaded trackers (next/script has no teardown).
   };
 
   const acceptAll = () => {

@@ -1,19 +1,41 @@
 'use client';
 
 import Script from 'next/script';
+import { useEffect, useState } from 'react';
 import { analyticsConfig } from '@/lib/analytics';
+import { getConsentFromCookie, onConsentChange, type ConsentState } from '@/lib/consent';
 
 /**
- * Компонент для вставки всех скриптов аналитики
+ * All third-party tracker scripts, gated on cookie consent.
  *
- * Добавь в app/layout.tsx:
- * <AnalyticsScripts />
+ * Nothing loads until the visitor grants the matching consent category:
+ *  - analytics  → Yandex Metrika, Google Analytics 4, Microsoft Clarity
+ *  - marketing  → Google Ads, Leadsy (vtag) visitor identification
+ *
+ * Reads the consent cookie on mount and re-reads it live on the
+ * `consentchange` event (dispatched by CookieConsentBanner), so accepting
+ * cookies activates trackers immediately — no page reload.
+ *
+ * Rendered once in app/layout.tsx.
  */
 export function AnalyticsScripts() {
+  const [consent, setConsent] = useState<ConsentState | null>(null);
+
+  useEffect(() => {
+    const read = () => setConsent(getConsentFromCookie());
+    read();
+    return onConsentChange(read);
+  }, []);
+
+  const analytics = consent?.analytics === true;
+  const marketing = consent?.marketing === true;
+
   return (
     <>
+      {/* ── Analytics category ─────────────────────────────────────── */}
+
       {/* Яндекс.Метрика */}
-      {analyticsConfig.yandexMetrika.enabled && (
+      {analytics && analyticsConfig.yandexMetrika.enabled && (
         <Script id="yandex-metrika" strategy="afterInteractive">
           {`
             (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
@@ -36,7 +58,7 @@ export function AnalyticsScripts() {
       )}
 
       {/* Google Analytics 4 */}
-      {analyticsConfig.googleAnalytics.enabled && (
+      {analytics && analyticsConfig.googleAnalytics.enabled && (
         <>
           <Script
             src={`https://www.googletagmanager.com/gtag/js?id=${analyticsConfig.googleAnalytics.id}`}
@@ -56,11 +78,26 @@ export function AnalyticsScripts() {
         </>
       )}
 
+      {/* Microsoft Clarity (session recordings + heatmaps) */}
+      {analytics && analyticsConfig.clarity.enabled && (
+        <Script id="microsoft-clarity" strategy="afterInteractive">
+          {`
+            (function(c,l,a,r,i,t,y){
+              c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+              t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+              y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+            })(window, document, "clarity", "script", "${analyticsConfig.clarity.id}");
+          `}
+        </Script>
+      )}
+
+      {/* ── Marketing category ─────────────────────────────────────── */}
+
       {/* Google Ads Conversion Tracking */}
-      {analyticsConfig.googleAds.enabled && (
+      {marketing && analyticsConfig.googleAds.enabled && (
         <>
-          {/* Если GA4 не включён, нужен свой gtag скрипт */}
-          {!analyticsConfig.googleAnalytics.enabled && (
+          {/* If GA4 isn't loaded, we need our own gtag loader */}
+          {!(analytics && analyticsConfig.googleAnalytics.enabled) && (
             <>
               <Script
                 src={`https://www.googletagmanager.com/gtag/js?id=${analyticsConfig.googleAds.id}`}
@@ -85,30 +122,15 @@ export function AnalyticsScripts() {
         </>
       )}
 
-      {/* Microsoft Clarity (бесплатные записи сессий + heatmaps) */}
-      {analyticsConfig.clarity.enabled && (
-        <Script id="microsoft-clarity" strategy="afterInteractive">
-          {`
-            (function(c,l,a,r,i,t,y){
-              c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-              t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-              y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-            })(window, document, "clarity", "script", "${analyticsConfig.clarity.id}");
-          `}
-        </Script>
-      )}
-
-      {/* Noscript fallback для Яндекс.Метрики */}
-      {analyticsConfig.yandexMetrika.enabled && (
-        <noscript>
-          <div>
-            <img
-              src={`https://mc.yandex.ru/watch/${analyticsConfig.yandexMetrika.id}`}
-              style={{ position: 'absolute', left: '-9999px' }}
-              alt=""
-            />
-          </div>
-        </noscript>
+      {/* Leadsy (vtag) visitor identification — moved out of layout <head> */}
+      {marketing && (
+        <Script
+          id="vtag-ai-js"
+          src="https://r2.leadsy.ai/tag.js"
+          strategy="afterInteractive"
+          data-pid="XmXSR8r7W3uP84n0"
+          data-version="062024"
+        />
       )}
     </>
   );
