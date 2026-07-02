@@ -189,9 +189,6 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
     });
   }
 
-  const [applyingAll, setApplyingAll] = useState(false);
-  const [applyAllResult, setApplyAllResult] = useState<string | null>(null);
-
   // Draft modal state
   const [draftItem, setDraftItem] = useState<Job | null>(null);
   const [draftSubject, setDraftSubject] = useState('');
@@ -201,33 +198,6 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   // The apply-gate refused (or the state blocks applying) — show an HONEST message, not a writable
   // "Failed to generate" draft the user could still send. poor_match is the feed↔gate divergence.
   const [draftBlocked, setDraftBlocked] = useState<{ reason: string; message: string } | null>(null);
-
-  async function handleApplyAll() {
-    const withEmail = visible.filter(i => i.applyEmail && !applied.has(i.id));
-    if (withEmail.length === 0) { alert('No applicable jobs in current view'); return; }
-    if (!confirm(`Apply to ${withEmail.length} jobs with AI cover letters?`)) return;
-    setApplyingAll(true);
-    let count = 0;
-    for (const item of withEmail.slice(0, 10)) {
-      try {
-        const res = await fetch('/api/user/quick-apply', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            opportunityId: item.type === 'opportunity' ? item.id : undefined,
-            jobId: item.type === 'job' ? item.id : undefined,
-          }),
-        });
-        if (res.ok) {
-          setApplied(prev => new Set(prev).add(item.id));
-          count++;
-        }
-      } catch { /* continue */ }
-    }
-    setApplyAllResult(`Applied to ${count} jobs!`);
-    setApplyingAll(false);
-    setTimeout(() => setApplyAllResult(null), 5000);
-  }
 
   const [sortBy, setSortBy] = useState<'newest' | 'match'>('match');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -388,20 +358,11 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
             ))}
           </div>
         </div>
-        <div className="filter-section">
-          <button
-            className="btn btn-acid"
-            style={{width: '100%', marginBottom: '8px'}}
-            onClick={handleApplyAll}
-            disabled={applyingAll}
-          >
-            {applyingAll ? 'Applying...' : 'Auto-apply to all'}
-          </button>
-          {applyAllResult && <div style={{fontSize: '12px', color: 'var(--good)', textAlign: 'center'}}>{applyAllResult}</div>}
-          {activeSkills.size > 0 && (
-            <button className="btn btn-soft" style={{width: '100%', marginTop: '8px'}} onClick={() => setActiveSkills(new Set())}>Reset filters</button>
-          )}
-        </div>
+        {activeSkills.size > 0 && (
+          <div className="filter-section">
+            <button className="btn btn-soft" style={{width: '100%'}} onClick={() => setActiveSkills(new Set())}>Reset filters</button>
+          </div>
+        )}
       </aside>
 
       {/* Results */}
