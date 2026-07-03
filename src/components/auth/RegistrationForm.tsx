@@ -87,6 +87,7 @@ export function RegistrationForm({
   const [agreedToTerms, setAgreedToTerms] = useState(true);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [githubUrl, setGithubUrl] = useState('');
   const [salaryExpectation, setSalaryExpectation] = useState('');
   const [currentRate, setCurrentRate] = useState('');
   const [workAuth, setWorkAuth] = useState('');
@@ -350,6 +351,7 @@ export function RegistrationForm({
       fd.append('file', resumeFile);
       fd.append('email', email);
       fd.append('linkedinUrl', linkedinUrl);
+      fd.append('githubUrl', githubUrl.trim());
       fd.append('salaryExpectation', salaryExpectation.trim());
       fd.append('currentRate', currentRate.trim());
       fd.append('workAuthorization', workAuth);
@@ -709,6 +711,12 @@ export function RegistrationForm({
         <div>
           <label className="field-label">LinkedIn URL <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
           <input className="text-input" type="url" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/in/yourname" />
+        </div>
+
+        {/* GitHub — optional; a verified GitHub is skills evidence for hirers */}
+        <div>
+          <label className="field-label">GitHub <span style={{ color: '#9A958A', fontWeight: 400 }}>(optional — gets you shortlisted faster)</span></label>
+          <input className="text-input" type="url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="github.com/username" />
         </div>
 
         {/* Résumé */}

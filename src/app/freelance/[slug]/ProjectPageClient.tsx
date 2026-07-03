@@ -63,6 +63,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [githubUrlField, setGithubUrlField] = useState('');
   const [salaryExpectation, setSalaryExpectation] = useState('');
   const [currentRate, setCurrentRate] = useState('');
   const [workAuth, setWorkAuth] = useState('');
@@ -353,6 +354,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       fd.append('file', resumeFile!);
       fd.append('email', email);
       fd.append('linkedinUrl', linkedinUrl);
+      fd.append('githubUrl', githubUrlField.trim());
       fd.append('salaryExpectation', salaryExpectation.trim());
       fd.append('currentRate', currentRate.trim());
       fd.append('workAuthorization', workAuth);
@@ -523,6 +525,16 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 type="url" placeholder="linkedin.com/in/yourname" value={linkedinUrl}
                 onChange={e => setLinkedinUrl(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', border: `1px solid ${fieldErrors.linkedin ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '13px' }}
+              />
+            </div>
+
+            {/* GitHub — optional; a verified GitHub is skills evidence for hirers */}
+            <div style={{ marginBottom: '8px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>GitHub <span style={{ color: '#9A958A', fontWeight: 400 }}>(optional — gets you shortlisted faster)</span></label>
+              <input
+                type="url" placeholder="github.com/username" value={githubUrlField}
+                onChange={e => setGithubUrlField(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '13px' }}
               />
             </div>
 

@@ -6,7 +6,7 @@ import OpenAI from 'openai';
 import { put } from '@vercel/blob';
 import { scrapeLinkedInProfile, mergeCandidateProfiles, normalizeLinkedInUrl, cacheProfilePhotoToBlob } from '@/lib/linkedin-profile';
 import { deriveCategorySlugs } from '@/lib/loop-routing';
-import { firstGitHubUrlFrom } from '@/lib/github-review/extract-username';
+import { firstGitHubUrlFrom, usernameFromGitHubUrl } from '@/lib/github-review/extract-username';
 import { isLocationBlocked } from '@/lib/region-block';
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'zai';
@@ -45,6 +45,10 @@ export async function POST(request: NextRequest) {
     const currentRate = (formData.get('currentRate') as string)?.trim().slice(0, 60) || null;
     const workAuthorization = (formData.get('workAuthorization') as string)?.trim().slice(0, 60) || null;
     const availableFrom = (formData.get('availableFrom') as string)?.trim().slice(0, 60) || null;
+    // Optional GitHub from the signup form — normalized; invalid input is silently dropped
+    // (never block a registration over an optional field).
+    const githubFieldUser = usernameFromGitHubUrl((formData.get('githubUrl') as string)?.trim() || null);
+    const githubExplicit = githubFieldUser ? `https://github.com/${githubFieldUser}` : null;
     // Affirmative opt-in (GDPR/CCPA) to present the profile to employers & hiring partners. Only a
     // literal 'true' counts as consent; anything else (unchecked) → no consent, no resale eligibility.
     const profileShareConsent = (formData.get('profileShareConsent') as string) === 'true';
@@ -226,8 +230,8 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
         ...(workAuthorization ? { workAuthorization } : {}),
         ...(availableFrom ? { availableFrom } : {}),
         ...(profileShareConsent ? { profileShareConsent: true, profileShareConsentAt: new Date() } : {}),
-        // fill-only-missing: auto-extract a GitHub link from the résumé text for verification.
-        ...(!user.githubUrl ? (() => { const gh = firstGitHubUrlFrom(pdfText); return gh ? { githubUrl: gh } : {}; })() : {}),
+        // fill-only-missing; the explicitly-typed signup field wins over résumé auto-extraction.
+        ...(!user.githubUrl ? (() => { const gh = githubExplicit || firstGitHubUrlFrom(pdfText); return gh ? { githubUrl: gh } : {}; })() : {}),
       },
     });
 
