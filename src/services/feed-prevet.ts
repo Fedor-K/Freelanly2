@@ -8,6 +8,7 @@ import { prisma } from '@/lib/db';
 import { buildFitContext, scoreFitLabeled, type FitLabel } from '@/lib/fit-score';
 import { getVerdicts } from '@/lib/match-verdict';
 import { getUserEmbedding, semanticPool } from '@/services/embeddings/semantic-rank';
+import { buildGateEvidence, verifiedSkillsFor, type ReviewRow } from '@/lib/github-review/evidence';
 
 const RANK: Record<FitLabel, number> = { Strong: 0, Good: 1, Weak: 2 };
 
@@ -53,10 +54,12 @@ export async function prevetFeed(opts: { maxUsers?: number; perUser?: number } =
     try {
       const u = await prisma.user.findUnique({
         where: { id: userId },
-        select: { id: true, parsedProfile: true, resumeText: true, resumeUrl: true },
+        select: { id: true, parsedProfile: true, resumeText: true, resumeUrl: true, githubUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } } },
       });
       if (!u) continue;
-      const ctx = buildFitContext(u.parsedProfile as Record<string, unknown> | null);
+      const ghUser = { githubUrl: u.githubUrl, parsedProfile: u.parsedProfile };
+      const ghReview = (u.githubReview as ReviewRow | null) ?? null;
+      const ctx = buildFitContext(u.parsedProfile as Record<string, unknown> | null, verifiedSkillsFor(ghUser, ghReview));
       if (ctx.empty) continue;
       // Top-K Good+ candidates for this user — the same ranking the feed's closest tail uses.
       let top: { id: string; title: string; description: string }[] | null = null;
@@ -85,7 +88,7 @@ export async function prevetFeed(opts: { maxUsers?: number; perUser?: number } =
       if (!top.length) continue;
       // FULL vet (LLM only for the gaps) → writes MatchVerdict, which the feed reads cache-only.
       const v = await getVerdicts(
-        { id: u.id, parsedProfile: u.parsedProfile as Record<string, unknown> | null, resumeText: u.resumeText, resumeUrl: u.resumeUrl },
+        { id: u.id, parsedProfile: u.parsedProfile as Record<string, unknown> | null, resumeText: u.resumeText, resumeUrl: u.resumeUrl, githubEvidence: buildGateEvidence(ghUser, ghReview) },
         top,
       );
       vetted += v.size;

@@ -13,6 +13,7 @@ export type PairingInput = {
   profile: Record<string, unknown> | null; // parsedProfile
   cvText: string;
   hasRealCV: boolean;
+  githubEvidence?: string | null; // buildGateEvidence() output — corroborating-only, optional
 };
 
 export type Pairing = {
@@ -66,6 +67,7 @@ export async function assessPairing(inp: PairingInput): Promise<Pairing> {
         candidateLanguages: (p.languages as string[]) || [],
         candidateSkills: (p.skills as string[]) || [],
         candidateCv: inp.cvText,
+        candidateGithub: inp.githubEvidence ?? null,
       });
       const d = assess(g, { matched: bd.matched, total: bd.total, missingCore, coreMatched }, inp.cvText, inp.jobTitle, inp.hasRealCV);
       Object.assign(matchBreakdown, {

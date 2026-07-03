@@ -8,6 +8,7 @@
 import { prisma } from '@/lib/db';
 import { parseJD, buildBreakdown } from '@/lib/match-breakdown/generate';
 import { runGate, assess } from '@/services/matching/gate';
+import { buildGateEvidence, type ReviewRow } from '@/lib/github-review/evidence';
 import { computeCaveats } from '@/lib/match-caveats';
 import { generateRecruiterRationale } from '@/services/matching/recruiter-rationale';
 import { hasRealCV } from '@/lib/resume-attachment';
@@ -62,7 +63,7 @@ async function vetCandidate(
   role: LeverPosting,
   jd: Awaited<ReturnType<typeof parseJD>>,
   jdText: string,
-  u: { id: string; name: string | null; email: string; location: string | null; linkedinUrl: string | null; image: string | null; parsedProfile: unknown; resumeText: string | null; resumeUrl: string | null },
+  u: { id: string; name: string | null; email: string; location: string | null; linkedinUrl: string | null; image: string | null; parsedProfile: unknown; resumeText: string | null; resumeUrl: string | null; githubUrl?: string | null; githubReview?: ReviewRow | null },
   lex: number,
 ): Promise<ShortlistCandidate> {
   const p = (u.parsedProfile || {}) as Record<string, unknown>;
@@ -93,6 +94,7 @@ async function vetCandidate(
       candidateLanguages: (p.languages as string[]) || [],
       candidateSkills: (p.skills as string[]) || [],
       candidateCv: cvText,
+      candidateGithub: buildGateEvidence({ githubUrl: u.githubUrl ?? null, parsedProfile: u.parsedProfile }, u.githubReview ?? null),
     });
     // Real-CV check keyed on the Blob URL (same as the worker / send path), NOT on whether résumé
     // TEXT extracted — a genuine Blob PDF whose text extraction failed must not be NO'd as "no real
@@ -150,7 +152,7 @@ export async function buildShortlistForRole(
   // Pass 2 — fetch full profiles, parse JD once, vet with bounded concurrency.
   const full = await prisma.user.findMany({
     where: { id: { in: ranked.map(r => r.id) } },
-    select: { id: true, name: true, email: true, location: true, linkedinUrl: true, image: true, parsedProfile: true, resumeText: true, resumeUrl: true },
+    select: { id: true, name: true, email: true, location: true, linkedinUrl: true, image: true, parsedProfile: true, resumeText: true, resumeUrl: true, githubUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } } },
   });
   const byId = new Map(full.map(u => [u.id, u]));
   const jd = await parseJD(jdText, role.title);

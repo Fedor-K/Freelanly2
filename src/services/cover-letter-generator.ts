@@ -75,6 +75,9 @@ interface CoverLetterInput {
   // post-filter (below) guarantees no missing skill is positively referenced — so the verdict
   // is consumed by CODE, not merely handed to the model.
   verdict?: { label?: 'Strong' | 'Good' | 'Weak'; matchedSkills?: string[]; missingCore?: string[]; missing?: string[] };
+  // One pre-built, repo-verified GitHub evidence sentence (see github-review/evidence.ts). The ONLY
+  // link allowed in the letter body; emitted near-verbatim. null/undefined → prompt unchanged.
+  githubEvidence?: string | null;
 }
 
 // Deterministic backstop for over-promising. The prompt forbids global fitness claims, but a
@@ -222,7 +225,7 @@ HONEST MODE — this is a PARTIAL / STRETCH match. Write truthfully; do NOT infl
  * everything: greeting, body, sign-off, what to mention, tone.
  */
 export async function generateCoverLetter(input: CoverLetterInput): Promise<string> {
-  const { jobTitle, jobDescription, companyName, userProfile, styleOverride } = input;
+  const { jobTitle, jobDescription, companyName, userProfile, styleOverride, githubEvidence } = input;
   const { client, model } = getAIClient();
 
   const skillsList = userProfile.skills.slice(0, 15).join(', ');
@@ -264,7 +267,7 @@ YOUR JOB:
 6. Sign off with the applicant's name.
 
 RULES:
-- OUTPUT ONLY THE EMAIL ITSELF: greeting → 2-3 short body paragraphs → sign-off with the name. NEVER paste the résumé, an experience/education/skills list, contact blocks, phone numbers, links, or any raw profile data into the email. The Background you were given is reference material to mine ONE-TWO facts from — it must NOT appear in the output.
+- OUTPUT ONLY THE EMAIL ITSELF: greeting → 2-3 short body paragraphs → sign-off with the name. NEVER paste the résumé, an experience/education/skills list, contact blocks, phone numbers, links, or any raw profile data into the email — the ONLY exception is the "GitHub evidence" line when provided below: include that ONE sentence (with its link) near-verbatim where it reads naturally. The Background you were given is reference material to mine ONE-TWO facts from — it must NOT appear in the output.
 - NO unfilled placeholders in the output (no "[...]"). If you don't know a value, omit it.
 - LEAD WITH THE APPLICANT'S STRONGEST GENUINE MATCH. NEVER mention a skill/technology the job asks for that the applicant does NOT have. Do not write "you need X — I have Y": that highlights the gap. If the overlap is partial, focus on the transferable strengths and never apologise for or draw attention to what's missing.
 - NO OVER-PROMISING. NEVER use the phrases "strong fit", "perfect fit", "ideal fit/candidate", "exactly what you're looking for", "I'm a great match", or any global self-assessment of fitness. Do NOT assert mastery of the role's core domain, nor experience/proficiency in any tool, domain, or industry that is NOT present in the applicant's Background/Skills. Open by referencing real work the applicant has DONE (not a verdict on how well they fit) — describe what they've built and let it stand on its own. Honest and specific beats confident and inflated.
@@ -290,6 +293,7 @@ Background: ${experienceSnippet}
 ${userProfile.workPreference ? `Work preference: ${userProfile.workPreference}` : ''}
 ${userProfile.bookingUrl ? `Booking: ${userProfile.bookingUrl}` : ''}
 ${userProfile.caseStudies?.length ? `Portfolio: ${userProfile.caseStudies.map(p => `${p.title}${p.url ? ` (${p.url})` : ''}`).join(', ')}` : ''}
+${githubEvidence ? `GitHub evidence (include this sentence near-verbatim, link and all): ${githubEvidence}` : ''}
 
 Write the complete email now.`;
 

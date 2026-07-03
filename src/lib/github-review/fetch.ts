@@ -78,9 +78,11 @@ export async function fetchGitHubSnapshot(username: string): Promise<FetchResult
     const cutoff = Date.now() - 90 * 864e5;
     const recent = eventsRaw.filter(e => new Date(String(e.created_at || 0)).getTime() >= cutoff);
     const pushEvents = recent.filter(e => e.type === 'PushEvent');
+    // The public events API no longer returns payload.size/commits (verified 2026-07: payload =
+    // repository_id/push_id/ref/head/before only) — count each push as ≥1 commit, an honest floor.
     const commitsEstimate90d = pushEvents.reduce((s, e) => {
       const payload = e.payload as Record<string, unknown> | undefined;
-      return s + (Number(payload?.size) || 0);
+      return s + (Number(payload?.size) || 1);
     }, 0);
     const activeDays90d = new Set(recent.map(e => String(e.created_at || '').slice(0, 10))).size;
 

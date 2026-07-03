@@ -12,8 +12,10 @@ const TTL_MS = 14 * 864e5; // 14 days — within an opportunity's 30-day lifespa
 
 /** Stable fingerprint of the candidate profile state — changes when the résumé/skills/title change,
  *  so a stale verdict for an updated profile is recomputed instead of served. */
-export function profileStamp(parts: { resumeUrl?: string | null; skills?: string[]; title?: string | null }): string {
-  const s = `${parts.resumeUrl || ''}|${(parts.skills || []).map(x => String(x).toLowerCase().trim()).filter(Boolean).sort().join(',')}|${(parts.title || '').toLowerCase().trim()}`;
+export function profileStamp(parts: { resumeUrl?: string | null; skills?: string[]; title?: string | null; githubStamp?: string | null }): string {
+  // githubStamp (= GitHubReview.profileStamp) folds GitHub-evidence state into the verdict cache key:
+  // when a review appears/changes, that user's pairs lazily recompute on next touch — no mass invalidation.
+  const s = `${parts.resumeUrl || ''}|${(parts.skills || []).map(x => String(x).toLowerCase().trim()).filter(Boolean).sort().join(',')}|${(parts.title || '').toLowerCase().trim()}|${parts.githubStamp || ''}`;
   return createHash('sha1').update(s).digest('hex').slice(0, 16);
 }
 

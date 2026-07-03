@@ -18,6 +18,8 @@ type VetUser = {
   parsedProfile: Record<string, unknown> | null;
   resumeText: string | null;
   resumeUrl: string | null;
+  // optional pre-built GitHub gate-evidence line (buildGateEvidence) — corroborating-only
+  githubEvidence?: string | null;
 };
 
 type VetOpp = { id: string; title: string; description: string };
@@ -70,7 +72,7 @@ export async function getVerdicts(
     const results = await Promise.all(
       need2.map(async (o) => ({
         o,
-        r: await assessPairing({ jobTitle: o.title, jobDescription: o.description, jobCountry: null, profile, cvText, hasRealCV: realCv }),
+        r: await assessPairing({ jobTitle: o.title, jobDescription: o.description, jobCountry: null, profile, cvText, hasRealCV: realCv, githubEvidence: user.githubEvidence ?? null }),
       })),
     );
     const toWrite = [];

@@ -24,6 +24,7 @@ type Job = {
   applyUrl: string | null;
   matchLabel: 'Strong' | 'Good' | 'Weak';
   aiVerified: boolean;
+  githubVerified?: boolean;
   alreadyApplied: boolean;
   matchScore: number;
   matchedSkills: string[];
@@ -258,6 +259,11 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
           {isVerified(item) && (
             <span className="chip chip-good" style={{fontSize: '10px'}}>
               {item.matchLabel === 'Strong' ? '★ Strong match · AI-checked' : '✓ Good match · AI-checked'}
+            </span>
+          )}
+          {item.githubVerified && (
+            <span className="chip chip-good" style={{fontSize: '10px'}} title="A skill this role needs is backed by this candidate's public GitHub">
+              ⚡ GitHub-verified
             </span>
           )}
           <span className="chip"><span className="chip-dot live"></span>{timeAgo(item.createdAt)}</span>

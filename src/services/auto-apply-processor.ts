@@ -17,6 +17,8 @@ import { isFreeEmailProvider } from '@/lib/content-quality';
 import { parseJD, buildBreakdown, type ParsedJD } from '@/lib/match-breakdown/generate';
 import { computeCaveats, breakdownToVerdict, reconcileScore } from '@/lib/match-caveats';
 import { runGate, assess } from '@/services/matching/gate';
+import { buildGateEvidence, buildLetterEvidence, type ReviewRow } from '@/lib/github-review/evidence';
+import { logActivity, ActivityAction } from '@/lib/activity-log';
 
 // Hard gate (assess) enforcement. ON by default; set MATCH_GATE_ENFORCE=0 to fall back to
 // shadow-only (compute + render caveats, but don't block) — the kill switch for cutover.
@@ -198,6 +200,8 @@ export async function processAutoApplyQueue(): Promise<{
           availableFrom: true,
           workPreference: true,
           bookingUrl: true,
+          githubUrl: true,
+          githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } },
           caseStudies: true,
           freeAppliesUsedToday: true,
           lastFreeApplyReset: true,
@@ -564,12 +568,24 @@ export async function processAutoApplyQueue(): Promise<{
       let subject = app.subject;
 
       if (!coverLetter || coverLetter === '') {
+        // GitHub line: shadow by default (log, don't emit) until GITHUB_LETTERS=on. Overlap is taken
+        // against THIS pairing's matched skills — a repo-verified skill that matters for this job.
+        const ghVerdict = breakdownToVerdict(matchBreakdown);
+        const letterEvidence = buildLetterEvidence(
+          { githubUrl: (app.user as { githubUrl?: string | null }).githubUrl ?? null, parsedProfile },
+          ((app.user as { githubReview?: ReviewRow | null }).githubReview ?? null),
+          ghVerdict?.matchedSkills,
+        );
+        if (letterEvidence && process.env.GITHUB_LETTERS !== 'on') {
+          logActivity({ userId: app.userId, action: ActivityAction.FUNNEL_STEP, details: { step: 'gh_letter_shadow', line: letterEvidence, opportunityId: app.opportunityId } }).catch(() => {});
+        }
         coverLetter = await generateCoverLetter({
           jobTitle: app.jobTitle,
           jobDescription: jobDescription.slice(0, 800),
           companyName: app.companyName,
           userProfile: { ...userProfile, recruiterEmail: app.appliedToEmail } as any,
-          verdict: breakdownToVerdict(matchBreakdown), // honest-mode + missing-strip now driven by the real breakdown
+          verdict: ghVerdict, // honest-mode + missing-strip now driven by the real breakdown
+          githubEvidence: process.env.GITHUB_LETTERS === 'on' ? letterEvidence : null,
         });
       }
 
@@ -1218,6 +1234,8 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
           workPreference: true,
           bookingUrl: true,
           caseStudies: true,
+          githubUrl: true,
+          githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } },
         },
       },
     },
@@ -1650,7 +1668,13 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
           const gYears = typeof parsedProfile?.experience_years === 'number' ? parsedProfile.experience_years as number : null;
           const gLoc = typeof parsedProfile?.location === 'string' ? parsedProfile.location as string : undefined;
           const gSkills = (parsedProfile?.skills as string[]) || [];
-          const gKey = `${listing.id}:${gTitle || ''}:${gField || ''}:${gYears ?? ''}:${gLoc || ''}:${gSkills.slice(0, 8).map((s) => String(s).toLowerCase()).sort().join(',')}`;
+          // GitHub evidence (fresh STRONG/ACTIVE reviews only) corroborates the gate; its stamp is part
+          // of the cache key so a new/changed review can't be served a pre-github verdict.
+          const gGithub = buildGateEvidence(
+            { githubUrl: (loop.user as { githubUrl?: string | null }).githubUrl ?? null, parsedProfile },
+            ((loop.user as { githubReview?: ReviewRow | null }).githubReview ?? null),
+          );
+          const gKey = `${listing.id}:${gTitle || ''}:${gField || ''}:${gYears ?? ''}:${gLoc || ''}:${gSkills.slice(0, 8).map((s) => String(s).toLowerCase()).sort().join(',')}:${((loop.user as { githubReview?: ReviewRow | null }).githubReview?.profileStamp) || ''}`;
           let g = gateCache.get(gKey);
           if (!g) {
             g = await runGate({
@@ -1659,6 +1683,7 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
               candidateLanguages: (parsedProfile?.languages as string[]) || [],
               candidateSkills: gSkills,
               candidateCv: loop.user.resumeText || '',
+              candidateGithub: gGithub,
             });
             gateCache.set(gKey, g);
           }

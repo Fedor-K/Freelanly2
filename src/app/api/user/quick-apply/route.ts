@@ -12,6 +12,8 @@ import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT } from '@/l
 import { escapeHtml } from '@/lib/html-escape';
 import { fetchResumeAttachment, hasRealCV } from '@/lib/resume-attachment';
 import { getRecruiterPortalUrl } from '@/lib/recruiter-token';
+import { buildGateEvidence, buildLetterEvidence, verifiedSkillsFor, type ReviewRow } from '@/lib/github-review/evidence';
+import { logActivity, ActivityAction } from '@/lib/activity-log';
 import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
 import { isFreeEmailProvider } from '@/lib/content-quality';
 import { buildFitContext, scoreFit } from '@/lib/fit-score';
@@ -93,6 +95,7 @@ async function findFittingOpportunities(
   profile: Record<string, unknown> | null,
   cvText: string,
   hasRealCV: boolean,
+  gh?: { evidence: string | null; verifiedSkills: string[] },
 ): Promise<{ slug: string; title: string; company: string }[]> {
   try {
     if (!profile) return [];
@@ -116,7 +119,7 @@ async function findFittingOpportunities(
     if (pool.length === 0) return [];
 
     // Stage 1 — lexical fit score (no LLM) over the whole base.
-    const fitCtx = buildFitContext(profile);
+    const fitCtx = buildFitContext(profile, gh?.verifiedSkills);
     const lex = pool
       .map((o) => ({ o, score: scoreFit(fitCtx, o) }))
       .filter(x => x.score > 0)
@@ -164,7 +167,7 @@ async function findFittingOpportunities(
         try {
           const pr = await assessPairing({
             jobTitle: o.title, jobDescription: o.description, jobCountry: o.country,
-            profile, cvText, hasRealCV,
+            profile, cvText, hasRealCV, githubEvidence: gh?.evidence ?? null,
           });
           return pr.decision !== 'NO' ? o : null;
         } catch {
@@ -220,6 +223,8 @@ export async function POST(request: NextRequest) {
         freeAppliesUsedToday: true,
         lastFreeApplyReset: true,
         userSmtp: true,
+        githubUrl: true,
+        githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } },
       },
     });
 
@@ -262,6 +267,7 @@ export async function POST(request: NextRequest) {
         clientType: true,
         posterCompany: true,
         applyEmail: true,
+        skills: true,
         category: { select: { slug: true } },
         company: { select: { name: true } },
       },
@@ -323,12 +329,17 @@ export async function POST(request: NextRequest) {
     // Assess the pairing with the SAME verifier + gate + verdict as the autonomous matcher, so a
     // self-apply gets an honest cover + a stored breakdown (no more "—" record, no over-promising).
     const profile = user.parsedProfile as Record<string, unknown> | null;
+    // GitHub evidence (positive-only, fresh reviews): corroborates the gate, boosts ranking, and —
+    // behind GITHUB_LETTERS — lands one evidence line in the letter.
+    const ghUser = { githubUrl: user.githubUrl, parsedProfile: user.parsedProfile };
+    const ghReview = (user.githubReview as ReviewRow | null) ?? null;
+    const gh = { evidence: buildGateEvidence(ghUser, ghReview), verifiedSkills: verifiedSkillsFor(ghUser, ghReview) };
     // Cached gate: reuse a recent verdict for this (user × opportunity) → no 5-7s recompute on a repeat
     // click, no repeat LLM cost, AND every verdict (incl. NO) gets persisted so the feed can hide what
     // apply would reject. Fail-open: a cache miss/error just runs the live assessment.
     const pairing = await assessPairingCached(
-      { userId: user.id, opportunityId: opportunity.id, stamp: profileStamp({ resumeUrl: user.resumeUrl, skills: profile?.skills as string[], title: profile?.current_title as string }) },
-      { jobTitle: opportunity.title, jobDescription: opportunity.description, jobCountry: null, profile, cvText: user.resumeText || '', hasRealCV: hasRealCV(user) },
+      { userId: user.id, opportunityId: opportunity.id, stamp: profileStamp({ resumeUrl: user.resumeUrl, skills: profile?.skills as string[], title: profile?.current_title as string, githubStamp: ghReview?.profileStamp }) },
+      { jobTitle: opportunity.title, jobDescription: opportunity.description, jobCountry: null, profile, cvText: user.resumeText || '', hasRealCV: hasRealCV(user), githubEvidence: gh.evidence },
     );
     // Gate: block BOTH the cover-letter generation (draftOnly) AND the send when the verdict is NO.
     // Blocking only the send wasted a cover-letter LLM call (money) and led to a contradictory UX —
@@ -341,7 +352,7 @@ export async function POST(request: NextRequest) {
       // user to a real match instead of dead-ending on a raw "poor_match" with a Send button for an
       // empty letter. Reached directly when a user applies without the summary preflight (deep-link /
       // authed "Apply now"), so the client can't rely on suggestions already being in state.
-      const suggestions = await findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user)).catch(() => []);
+      const suggestions = await findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user), gh).catch(() => []);
       return NextResponse.json({ error: 'poor_match', message: `This role isn't a strong enough match for your profile (${pairing.reason}).`, matchLabel: pairing.label || null, suggestions }, { status: 422 });
     }
 
@@ -358,7 +369,7 @@ export async function POST(request: NextRequest) {
       // the suggestions scan) on a good match: nothing would show it.
       const [matchSummary, suggestions] = await Promise.all([
         isWeak ? generateCandidateSummary(profile, opportunity.title, opportunity.description, pairing.label || null, pairing.reason || '') : Promise.resolve(null),
-        isWeak ? findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user)) : Promise.resolve([]),
+        isWeak ? findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user), gh) : Promise.resolve([]),
       ]);
       return NextResponse.json({
         ok: true,
@@ -379,6 +390,11 @@ export async function POST(request: NextRequest) {
     if (providedCoverLetter || editedCoverLetter) {
       coverLetter = providedCoverLetter || editedCoverLetter;
     } else {
+      // GitHub line in letters: shadow by default (compute + log, don't send) until GITHUB_LETTERS=on.
+      const letterEvidence = buildLetterEvidence(ghUser, ghReview, opportunity.skills);
+      if (letterEvidence && process.env.GITHUB_LETTERS !== 'on') {
+        logActivity({ userId: user.id, action: ActivityAction.FUNNEL_STEP, details: { step: 'gh_letter_shadow', line: letterEvidence, opportunityId: opportunity.id } }).catch(() => {});
+      }
       coverLetter = await generateCoverLetter({
         jobTitle: opportunity.title,
         jobDescription: opportunity.description.slice(0, 800),
@@ -391,6 +407,7 @@ export async function POST(request: NextRequest) {
           recruiterEmail: opportunity.applyEmail,
         } as any,
         verdict: pairing.verdict, // honest mode + missing-strip
+        githubEvidence: process.env.GITHUB_LETTERS === 'on' ? letterEvidence : null,
       });
     }
 

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { DiscoveryFeed } from '@/components/app/DiscoveryFeed';
 import { buildFitContext, scoreFitLabeled, type FitLabel, type FitResult } from '@/lib/fit-score';
+import { verifiedSkillsFor, type ReviewRow } from '@/lib/github-review/evidence';
 import { profileStamp } from '@/services/matching/assess-pairing-cached';
 import { getVerdicts, type Verdict } from '@/lib/match-verdict';
 import { getUserEmbedding, semanticPool, unembeddedRecentOpps } from '@/services/embeddings/semantic-rank';
@@ -33,9 +34,13 @@ export default async function DiscoveryPage() {
   // No résumé yet → send to in-app résumé onboarding, NOT an empty feed. Discovery is the post-login
   // landing now, so this guard (mirrors src/app/dashboard/page.tsx) must live here too — without a
   // parsedProfile there's nothing to match against. Also prevents the old login-loop.
-  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { parsedProfile: true, resumeUrl: true, resumeText: true } });
+  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { parsedProfile: true, resumeUrl: true, resumeText: true, githubUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } } } });
   if (!me?.resumeUrl) redirect('/dashboard/settings#profile');
-  const fitCtx = buildFitContext(me?.parsedProfile as Record<string, unknown> | null);
+  // Repo-verified skills (fresh, positive GitHub review) weigh extra in ranking + light the card badge.
+  const ghVerifiedSkills = verifiedSkillsFor({ githubUrl: me.githubUrl, parsedProfile: me.parsedProfile }, (me.githubReview as ReviewRow | null) ?? null);
+  const ghVerifiedSet = new Set(ghVerifiedSkills.map(v => v.toLowerCase().trim()));
+  const ghOverlap = (matched: string[]) => matched.some(m => ghVerifiedSet.has(String(m).toLowerCase().trim()));
+  const fitCtx = buildFitContext(me?.parsedProfile as Record<string, unknown> | null, ghVerifiedSkills);
 
   // Has this user ever applied? Drives the first-apply hero + nudge for fresh (profile-only) signups.
   const priorApplies = await prisma.autoApplication.count({ where: { userId: session.user.id, origin: 'SELF', sentAt: { not: null } } });
@@ -100,6 +105,7 @@ export default async function DiscoveryPage() {
     applyUrl: string | null;
     matchLabel: FitLabel; aiVerified: boolean; alreadyApplied: boolean; matchScore: number;
     matchedSkills: string[]; matchedTitleTokens: string[]; languageGap: string[]; missingCore: string[];
+    githubVerified: boolean;
   };
 
   // ── Verified queue: the matches the auto-apply matcher ALREADY vetted as real (Strong/Good, not
@@ -134,6 +140,7 @@ export default async function DiscoveryPage() {
       description: o.description, source: o.source === 'ats_lever' ? 'Lever' : 'linkedin', createdAt: o.createdAt.toISOString(),
       skills: o.skills, location: o.location, applyEmail: o.applyEmail, applyUrl: o.applyUrl,
       matchLabel: (a.matchLabel as FitLabel) || 'Good', aiVerified: true, alreadyApplied: SENT_STATUS.has(a.status),
+      githubVerified: ghOverlap(fit.matchedSkills),
       matchScore: 100, matchedSkills: fit.matchedSkills.slice(0, 4), matchedTitleTokens: fit.matchedTitleTokens,
       languageGap: [], missingCore: [],
     };
@@ -209,6 +216,7 @@ export default async function DiscoveryPage() {
         description: o.description, source: o.source === 'ats_lever' ? 'Lever' : 'linkedin', createdAt: o.createdAt.toISOString(),
         skills: o.skills, location: o.location, applyEmail: o.applyEmail, applyUrl: o.applyUrl,
         matchLabel: r.label, aiVerified: false, alreadyApplied: appliedOppIds.has(o.id),
+        githubVerified: ghOverlap(r.matchedSkills),
         matchScore: r.score, matchedSkills: r.matchedSkills.slice(0, 4), matchedTitleTokens: r.matchedTitleTokens,
         languageGap: r.languageGap, missingCore: r.missingCore,
       };
@@ -220,6 +228,7 @@ export default async function DiscoveryPage() {
       description: j.description, source: j.sourceUrl?.includes('lever') ? 'Lever' : j.sourceUrl?.includes('linkedin') ? 'linkedin' : 'careers page',
       createdAt: j.createdAt.toISOString(), skills: j.skills, location: j.country, applyEmail: j.applyEmail, applyUrl: null,
       matchLabel: r.label, aiVerified: false, alreadyApplied: appliedJobIds.has(j.id),
+      githubVerified: ghOverlap(r.matchedSkills),
       matchScore: r.score, matchedSkills: r.matchedSkills.slice(0, 4), matchedTitleTokens: r.matchedTitleTokens,
       languageGap: r.languageGap, missingCore: r.missingCore,
     };
@@ -280,6 +289,7 @@ export default async function DiscoveryPage() {
         description: o.description, source: o.source === 'ats_lever' ? 'Lever' : 'linkedin', createdAt: o.createdAt.toISOString(),
         skills: o.skills, location: o.location, applyEmail: o.applyEmail, applyUrl: o.applyUrl,
         matchLabel: fit.label, aiVerified: false, alreadyApplied: false,
+        githubVerified: ghOverlap(fit.matchedSkills),
         matchScore: fit.score, matchedSkills: fit.matchedSkills.slice(0, 4), matchedTitleTokens: fit.matchedTitleTokens,
         languageGap: fit.languageGap, missingCore: fit.missingCore,
       }));

@@ -45,10 +45,15 @@ function detectLanguages(...parts: string[]): Set<string> {
   return found;
 }
 
-export type FitContext = { skills: Set<string>; titleTokens: Set<string>; languages: Set<string>; empty: boolean };
+export type FitContext = { skills: Set<string>; titleTokens: Set<string>; languages: Set<string>; verifiedSkills: Set<string>; empty: boolean };
 
-/** Build the candidate side once, then score many opportunities against it. */
-export function buildFitContext(profile: Record<string, unknown> | null | undefined): FitContext {
+// A skill with public-repo evidence (GitHub review) counts this many times a merely-claimed skill in
+// the skill-credit numerator. Ranking boost only — never a gate.
+const VERIFIED_SKILL_WEIGHT = Number(process.env.VERIFIED_SKILL_WEIGHT || 2);
+
+/** Build the candidate side once, then score many opportunities against it.
+ *  `verified` — repo-verified skill names (GitHubReview.report.matchedSkills, positive verdicts only). */
+export function buildFitContext(profile: Record<string, unknown> | null | undefined, verified?: string[]): FitContext {
   const skills = new Set(
     (((profile?.skills as string[]) || []).map(s => String(s).toLowerCase().trim()).filter(Boolean)),
   );
@@ -57,7 +62,8 @@ export function buildFitContext(profile: Record<string, unknown> | null | undefi
     ...fitTokens(typeof profile?.field === 'string' ? (profile.field as string) : ''),
   ]);
   const languages = detectLanguages(...((profile?.languages as string[]) || []).map(String));
-  return { skills, titleTokens, languages, empty: skills.size === 0 && titleTokens.size === 0 };
+  const verifiedSkills = new Set((verified || []).map(s => String(s).toLowerCase().trim()).filter(Boolean));
+  return { skills, titleTokens, languages, verifiedSkills, empty: skills.size === 0 && titleTokens.size === 0 };
 }
 
 /**
@@ -73,7 +79,7 @@ export function scoreFit(ctx: FitContext, opp: { title: string; skills?: string[
   const oppTitleTokenSet = new Set(oppTitleTokens);
 
   let skillScore = 0;
-  for (const s of ctx.skills) if (oppSkills.includes(s) || skillInTitle(s, oppTitleTokenSet, titleLower)) skillScore++;
+  for (const s of ctx.skills) if (oppSkills.includes(s) || skillInTitle(s, oppTitleTokenSet, titleLower)) skillScore += ctx.verifiedSkills.has(s) ? VERIFIED_SKILL_WEIGHT : 1;
 
   let titleScore = 0;
   for (const t of oppTitleTokens) if (ctx.titleTokens.has(t)) titleScore++;
@@ -138,13 +144,16 @@ export function scoreFitLabeled(
   const oppTitleTokenSet = new Set(oppTitleTokens);
 
   // Collect the actual matched skills (display casing) so the card can explain WHY it's a match.
+  // Repo-verified skills carry extra credit in the numerator (boost only — the min(1,…) cap holds).
   const matchedSkills: string[] = [];
+  let skillMatches = 0;
   for (const s of ctx.skills) {
     const idx = oppSkills.indexOf(s);
     if (idx !== -1) matchedSkills.push(oppSkillsRaw[idx]);
     else if (skillInTitle(s, oppTitleTokenSet, titleLower)) matchedSkills.push(s); // SCORER-1: token-match, not substring
+    else continue;
+    skillMatches += ctx.verifiedSkills.has(s) ? VERIFIED_SKILL_WEIGHT : 1;
   }
-  const skillMatches = matchedSkills.length;
 
   // Candidate profession words present in the role title (in title order, so they read naturally).
   const matchedTitleTokens: string[] = [];

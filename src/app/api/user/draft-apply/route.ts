@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db';
 import { generateCoverLetter, generateSubjectLine } from '@/services/cover-letter-generator';
 import { assessPairing } from '@/services/matching/assess-pairing';
 import { hasRealCV } from '@/lib/resume-attachment';
+import { buildGateEvidence, buildLetterEvidence, type ReviewRow } from '@/lib/github-review/evidence';
+import { logActivity, ActivityAction } from '@/lib/activity-log';
 
 /**
  * POST /api/user/draft-apply
@@ -26,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { name: true, email: true, resumeText: true, resumeUrl: true, parsedProfile: true },
+      select: { name: true, email: true, resumeText: true, resumeUrl: true, parsedProfile: true, githubUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } } },
     });
 
     if (!user) {
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     const opportunity = await prisma.opportunity.findUnique({
       where: { id: opportunityId },
-      select: { title: true, description: true, clientName: true, applyEmail: true },
+      select: { id: true, title: true, description: true, clientName: true, applyEmail: true, skills: true },
     });
 
     if (!opportunity || !opportunity.applyEmail) {
@@ -56,12 +58,15 @@ export async function POST(request: NextRequest) {
 
     const profile = user.parsedProfile as Record<string, unknown> | null;
     const recruiterFirstName = opportunity.clientName.split(' ')[0];
+    const ghUser = { githubUrl: user.githubUrl, parsedProfile: user.parsedProfile };
+    const ghReview = (user.githubReview as ReviewRow | null) ?? null;
 
     // Same verifier + gate + verdict as the matcher → the draft is honest (no over-promising on a
     // missing/weak requirement). Draft is a preview, so the gate decision is surfaced, not enforced.
     const pairing = await assessPairing({
       jobTitle: opportunity.title, jobDescription: opportunity.description, jobCountry: null,
       profile, cvText: user.resumeText || '', hasRealCV: hasRealCV(user),
+      githubEvidence: buildGateEvidence(ghUser, ghReview),
     });
 
     // Style-specific prompt override
@@ -71,6 +76,11 @@ export async function POST(request: NextRequest) {
       short: 'Write a 1-2 sentence ultra-short pitch. Get straight to the point — why you\'re a fit. No greeting or signature. Under 50 words.',
     };
 
+    // GitHub line in letters: shadow by default (compute + log, don't emit) until GITHUB_LETTERS=on.
+    const letterEvidence = buildLetterEvidence(ghUser, ghReview, opportunity.skills);
+    if (letterEvidence && process.env.GITHUB_LETTERS !== 'on') {
+      logActivity({ userId: session.user.id, action: ActivityAction.FUNNEL_STEP, details: { step: 'gh_letter_shadow', line: letterEvidence, opportunityId: opportunity.id } }).catch(() => {});
+    }
     const coverLetter = await generateCoverLetter({
       jobTitle: opportunity.title,
       jobDescription: opportunity.description.slice(0, 800),
@@ -83,6 +93,7 @@ export async function POST(request: NextRequest) {
       },
       styleOverride: stylePrompts[style || 'professional'],
       verdict: pairing.verdict, // honest mode + missing-strip
+      githubEvidence: process.env.GITHUB_LETTERS === 'on' ? letterEvidence : null,
     });
 
     const subject = await generateSubjectLine({
