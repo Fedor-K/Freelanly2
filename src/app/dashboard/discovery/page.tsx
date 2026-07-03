@@ -255,6 +255,41 @@ export default async function DiscoveryPage() {
   // the few real matches; "similar" is opt-in via a button in the client).
   const items: FeedItem[] = [...queueItems, ...vettedClosest];
 
+  // ── ATS autofill-beta test boost (temporary, remove with the /autofill fake door): guarantee real
+  // Lever roles are visible in the shortlist while we measure demand for 1-click autofill. ATS cards
+  // rank low organically (their skills field is thinner than AI-extracted LinkedIn posts), so if the
+  // list has fewer than ATS_SLOTS of them, pull the user's best-fitting extra ATS roles (any skill
+  // overlap, not applied, not gate-rejected) and interleave them below the verified queue.
+  const ATS_SLOTS = 8;
+  const atsInList = items.filter(i => i.applyUrl && !i.applyEmail).length;
+  if (atsInList < ATS_SLOTS) {
+    const shownIds = new Set(items.map(i => i.id));
+    const atsPool = await prisma.opportunity.findMany({
+      where: { isActive: true, createdAt: { gte: weekAgo }, applyUrl: { not: null }, applyEmail: null },
+      select: { id: true, title: true, clientName: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, company: { select: { name: true } } },
+    });
+    const extraAts: FeedItem[] = atsPool
+      .filter(o => !shownIds.has(o.id) && !appliedOppIds.has(o.id) && !noVerdictOpps.has(o.id))
+      .map(o => ({ o, fit: scoreFitLabeled(fitCtx, { title: o.title, skills: o.skills }) }))
+      .filter(x => x.fit.score > 0)
+      .sort((a, b) => (RANK[a.fit.label] - RANK[b.fit.label]) || (b.fit.score - a.fit.score) || (b.o.createdAt.getTime() - a.o.createdAt.getTime()))
+      .slice(0, ATS_SLOTS - atsInList)
+      .map(({ o, fit }) => ({
+        id: o.id, type: 'opportunity' as const, title: o.title,
+        companyName: o.company?.name || o.posterCompany || o.clientName || 'Unknown',
+        description: o.description, source: o.source === 'ats_lever' ? 'Lever' : 'linkedin', createdAt: o.createdAt.toISOString(),
+        skills: o.skills, location: o.location, applyEmail: o.applyEmail, applyUrl: o.applyUrl,
+        matchLabel: fit.label, aiVerified: false, alreadyApplied: false,
+        matchScore: fit.score, matchedSkills: fit.matchedSkills.slice(0, 4), matchedTitleTokens: fit.matchedTitleTokens,
+        languageGap: fit.languageGap, missingCore: fit.missingCore,
+      }));
+    let pos = queueItems.length + 2;
+    for (const it of extraAts) {
+      items.splice(Math.min(pos, items.length), 0, it);
+      pos += 5;
+    }
+  }
+
   // Compute top skills with counts
   const skillCounts: Record<string, number> = {};
   for (const item of items) {

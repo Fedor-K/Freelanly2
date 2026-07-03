@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTracker } from '@/hooks/useTracker';
 import { ProcessingScreen } from '@/components/ProcessingScreen';
 
@@ -94,6 +94,18 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   const [intro, setIntro] = useState(true);
   useEffect(() => { const t = setTimeout(() => setIntro(false), 3500); return () => clearTimeout(t); }, []);
   const { track } = useTracker();
+
+  // One impression event per feed mount: how many ATS (autofill-beta) cards this render contains —
+  // the denominator for the /autofill fake-door test.
+  const atsShownLogged = useRef(false);
+  useEffect(() => {
+    if (atsShownLogged.current) return;
+    const n = items.filter(i => i.applyUrl && !i.applyEmail).length;
+    if (n > 0) {
+      atsShownLogged.current = true;
+      track('FUNNEL_STEP', { step: 'ats_cards_shown', n });
+    }
+  }, [items, track]);
 
   async function handleApply(item: Job) {
     if (!item.applyEmail) return;
@@ -300,15 +312,16 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                   {loading[item.id] === 'apply' ? 'Applying...' : 'Apply'}
                 </button>
               ) : item.applyUrl ? (
-                // ATS role — external apply on the company's site (no auto-send, no cover letter)
+                // ATS role — autofill-beta fake door: measures demand for 1-click form autofill before
+                // the extension exists. The lander keeps the real apply path open (continue to site).
                 <a
                   className="btn btn-primary btn-sm"
-                  href={`/go/ats/${item.id}`}
+                  href={`/autofill?opp=${item.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => setApplied(prev => new Set(prev).add(item.id))}
+                  onClick={() => track('FUNNEL_STEP', { step: 'autofill_beta_click', opportunityId: item.id, surface: 'card' })}
                 >
-                  Apply on company site ↗
+                  Apply with 1-click autofill ✨
                 </a>
               ) : (
                 <span className="meta" style={{fontSize: '11px'}}>No email</span>
@@ -419,8 +432,8 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                   Apply — ~30s →
                 </button>
               ) : heroItem.applyUrl ? (
-                <a className="btn btn-acid" href={`/go/ats/${heroItem.id}`} target="_blank" rel="noopener noreferrer" onClick={() => setApplied(prev => new Set(prev).add(heroItem.id))}>
-                  Apply on company site ↗
+                <a className="btn btn-acid" href={`/autofill?opp=${heroItem.id}`} target="_blank" rel="noopener noreferrer" onClick={() => track('FUNNEL_STEP', { step: 'autofill_beta_click', opportunityId: heroItem.id, surface: 'hero' })}>
+                  Apply with 1-click autofill ✨
                 </a>
               ) : null}
             </div>
