@@ -2,6 +2,8 @@ import { Metadata } from 'next';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { SalaryPrompt } from './SalaryPrompt';
+import { GitHubPrompt } from './GitHubPrompt';
+import { deriveCategorySlugs } from '@/lib/loop-routing';
 import { redirect } from 'next/navigation';
 import { ApplicationsTable } from '@/components/app/ApplicationsTable';
 import { WelcomeOnboarding } from '@/components/app/WelcomeOnboarding';
@@ -35,7 +37,7 @@ export default async function DashboardOverviewPage() {
   if (!onboardCheck?.resumeUrl) redirect('/dashboard/settings#profile');
 
   const [user, today, yesterday, month, applications, repliesTodayCount, followUps, dailyActivity, loop, queuedCount] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true, parsedProfile: true, salaryExpectation: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true, parsedProfile: true, salaryExpectation: true, githubUrl: true } }),
     prisma.autoApplication.groupBy({
       by: ['status'],
       where: { userId, sentAt: { gte: todayStart } },
@@ -96,6 +98,15 @@ export default async function DashboardOverviewPage() {
       return pending.filter(p => !blockedSet.has(p.appliedToEmail)).length;
     })(),
   ]);
+
+  // Dev-titled? — gates the GitHub prompt (a GitHub link is only meaningful evidence for tech roles).
+  const pp = user?.parsedProfile as Record<string, unknown> | null;
+  const DEV_CATEGORIES = new Set(['engineering', 'devops', 'data', 'qa', 'security']);
+  const isDev = deriveCategorySlugs({
+    currentTitle: typeof pp?.current_title === 'string' ? pp.current_title : null,
+    field: typeof pp?.field === 'string' ? pp.field : null,
+    skills: Array.isArray(pp?.skills) ? (pp.skills as unknown[]).map(String) : [],
+  }).some(s => DEV_CATEGORIES.has(s));
 
   const countByStatus = (groups: Array<{ status: string; _count: number }>, ...statuses: string[]) =>
     groups.filter(g => statuses.includes(g.status)).reduce((sum, g) => sum + g._count, 0);
@@ -231,6 +242,9 @@ export default async function DashboardOverviewPage() {
 
       {/* Salary prompt — existing users who never stated a rate (inline step only catches new applicants). */}
       {!user?.salaryExpectation && <SalaryPrompt />}
+
+      {/* GitHub prompt — dev-titled users without a GitHub link (feeds the verification report). */}
+      {isDev && !user?.githubUrl && <GitHubPrompt />}
 
       {/* PAGE HEADER */}
       <div className="page-header">

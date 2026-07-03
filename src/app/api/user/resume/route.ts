@@ -6,6 +6,7 @@ import OpenAI from 'openai';
 import { put } from '@vercel/blob';
 import { mergeCandidateProfiles } from '@/lib/linkedin-profile';
 import { deriveCategorySlugs } from '@/lib/loop-routing';
+import { firstGitHubUrlFrom } from '@/lib/github-review/extract-username';
 import { isLocationBlocked } from '@/lib/region-block';
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'zai';
@@ -141,7 +142,7 @@ IMPORTANT — "experience_years" is total YEARS OF PROFESSIONAL WORK EXPERIENCE 
 
     // Merge the résumé profile with whatever's already on the user (e.g. LinkedIn-derived data) —
     // a résumé upload must ENRICH, never WIPE, the LinkedIn part. Résumé is the authoritative base.
-    const existingUser = await prisma.user.findUnique({ where: { id: session.user.id }, select: { parsedProfile: true, email: true } });
+    const existingUser = await prisma.user.findUnique({ where: { id: session.user.id }, select: { parsedProfile: true, email: true, githubUrl: true, portfolioUrl: true } });
     const existingProfile = (existingUser?.parsedProfile as Record<string, unknown> | null) || null;
     const mergedProfile = parsedProfile
       ? mergeCandidateProfiles(parsedProfile, existingProfile, existingUser?.email || '')
@@ -167,6 +168,9 @@ IMPORTANT — "experience_years" is total YEARS OF PROFESSIONAL WORK EXPERIENCE 
         parsedProfile: (mergedProfile as object) || undefined,
         name: parsedProfile?.name || undefined,
         location: ((mergedProfile as Record<string, unknown> | null)?.location as string) || undefined,
+        // fill-only-missing: a GitHub link on the résumé (or in portfolioUrl) feeds verification;
+        // never overwrite a candidate-entered githubUrl.
+        ...(!existingUser?.githubUrl ? (() => { const gh = firstGitHubUrlFrom(existingUser?.portfolioUrl, pdfText); return gh ? { githubUrl: gh } : {}; })() : {}),
       },
     });
 

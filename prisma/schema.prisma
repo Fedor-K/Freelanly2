@@ -55,6 +55,8 @@ model User {
   currentRate         String?   // candidate-stated CURRENT pay/CTC (SELF-REPORTED) — recruiters re-ask for it; collected in the signup form, put in the first outreach email to cut the ATS "share details" round
   workAuthorization   String?   // where the candidate can legally work (e.g. "Remote – anywhere", "US authorized", "EU", "My country only") — SELF-REPORTED; recruiters re-ask (visa/work-auth); collected in the signup form
   portfolioUrl   String?   // candidate-entered portfolio / GitHub / personal site — recruiters ask for it (14%); shown on the application card
+  githubUrl      String?   // normalized https://github.com/<username> — candidate-entered (settings/prompt) or auto-extracted from resumeText/portfolioUrl; feeds GitHubReview
+  githubReview   GitHubReview?
   profileShareConsent   Boolean   @default(false) // affirmative opt-in (GDPR/CCPA) to share the candidate's profile with employers & hiring partners — REQUIRED before any third-party resale/feed; collected at signup
   profileShareConsentAt DateTime? // when consent was given (audit trail for data-subject requests)
   caseStudies    Json?     // ["notion-sync", "crdt-merge"] — AI picks best per outreach
@@ -1832,6 +1834,24 @@ model PairingVerdict {
 
   @@unique([userId, opportunityId])
   @@index([opportunityId])
+}
+
+// GitHub evidence report per candidate (verification Tier 1): is the account alive, does the real
+// stack match the claimed skills. Latest-only (upsert on userId); freshness = profileStamp match +
+// 30d TTL enforced in code (src/lib/github-review/run.ts), mirroring PairingVerdict's discipline.
+// `verdict` is denormalized out of `report` so shortlist queries can filter in SQL.
+model GitHubReview {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username     String   // github login the report is about
+  verdict      String   // STRONG | ACTIVE | WEAK | INACTIVE | MISMATCH | UNVERIFIABLE
+  report       Json     // GitHubReviewReport (versioned, render-ready)
+  snapshot     Json?    // raw GitHubSnapshot — debug / re-assess without refetch
+  profileStamp String   // sha1-16 of (githubUrl | sorted skills | title) — invalidates on profile change
+  reviewedAt   DateTime @default(now())
+
+  @@index([verdict, reviewedAt])
 }
 
 enum ActivityAction {

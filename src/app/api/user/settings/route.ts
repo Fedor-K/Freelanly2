@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { usernameFromGitHubUrl } from '@/lib/github-review/extract-username';
 
 // GET /api/user/settings - Get full user settings + loop settings
 export async function GET() {
@@ -23,6 +24,7 @@ export async function GET() {
         rateFloorProject: true,
         caseStudies: true,
         linkedinUrl: true,
+        githubUrl: true,
         resumeUrl: true,
         timezone: true,
         sendStartHour: true,
@@ -123,7 +125,23 @@ export async function PATCH(request: NextRequest) {
 
     if (section === 'profile') {
       const { name, headline, location, availability, availableFrom,
-        rateFloorHourly, rateFloorProject, caseStudies, linkedinUrl, bookingUrl } = body;
+        rateFloorHourly, rateFloorProject, caseStudies, linkedinUrl, bookingUrl, githubUrl } = body;
+
+      // githubUrl: empty clears; anything else must parse to a github.com/<user> profile and is
+      // stored normalized (feeds the GitHubReview verification pipeline).
+      let githubUrlNorm: string | null | undefined = undefined;
+      if (githubUrl !== undefined) {
+        const trimmed = String(githubUrl || '').trim();
+        if (!trimmed) {
+          githubUrlNorm = null;
+        } else {
+          const ghUser = usernameFromGitHubUrl(trimmed);
+          if (!ghUser) {
+            return NextResponse.json({ error: "That doesn't look like a GitHub profile URL" }, { status: 400 });
+          }
+          githubUrlNorm = `https://github.com/${ghUser}`;
+        }
+      }
 
       await prisma.user.update({
         where: { id: session.user.id },
@@ -138,6 +156,7 @@ export async function PATCH(request: NextRequest) {
           ...(caseStudies !== undefined && { caseStudies: caseStudies || null }),
           ...(linkedinUrl !== undefined && { linkedinUrl: linkedinUrl?.trim() || null }),
           ...(bookingUrl !== undefined && { bookingUrl: bookingUrl?.trim() || null }),
+          ...(githubUrlNorm !== undefined && { githubUrl: githubUrlNorm }),
         },
       });
       return NextResponse.json({ ok: true });

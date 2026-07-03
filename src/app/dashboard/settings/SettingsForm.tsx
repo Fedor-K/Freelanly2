@@ -22,7 +22,7 @@ export function SettingsForm({ initialData }: SettingsFormProps) {
       const res = await fetch('/api/user/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ section: 'profile', name }),
       });
 
       if (res.ok) {

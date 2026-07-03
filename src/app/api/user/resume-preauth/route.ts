@@ -6,6 +6,7 @@ import OpenAI from 'openai';
 import { put } from '@vercel/blob';
 import { scrapeLinkedInProfile, mergeCandidateProfiles, normalizeLinkedInUrl, cacheProfilePhotoToBlob } from '@/lib/linkedin-profile';
 import { deriveCategorySlugs } from '@/lib/loop-routing';
+import { firstGitHubUrlFrom } from '@/lib/github-review/extract-username';
 import { isLocationBlocked } from '@/lib/region-block';
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'zai';
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
     // Find user by email
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true },
+      select: { id: true, githubUrl: true },
     });
 
     if (!user) {
@@ -225,6 +226,8 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
         ...(workAuthorization ? { workAuthorization } : {}),
         ...(availableFrom ? { availableFrom } : {}),
         ...(profileShareConsent ? { profileShareConsent: true, profileShareConsentAt: new Date() } : {}),
+        // fill-only-missing: auto-extract a GitHub link from the résumé text for verification.
+        ...(!user.githubUrl ? (() => { const gh = firstGitHubUrlFrom(pdfText); return gh ? { githubUrl: gh } : {}; })() : {}),
       },
     });
 

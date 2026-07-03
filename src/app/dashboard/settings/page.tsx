@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { SettingsForm } from './SettingsForm';
+import { GitHubUrlField } from './GitHubUrlField';
 import { CancelSubscriptionSection } from './CancelSubscriptionSection';
 import { DeleteAccountSection } from './DeleteAccountSection';
 import { ManageSubscriptionButton } from './ManageSubscriptionButton';
@@ -28,6 +29,7 @@ export default async function SettingsPage() {
       resumeText: true, parsedProfile: true,
       resumeUrl: true, resumeFileName: true,
       sendStartHour: true, sendEndHour: true,
+      githubUrl: true,
     },
   });
 
@@ -78,6 +80,8 @@ export default async function SettingsPage() {
             <div className="desc">This is what Freelanly uses to personalize every outreach. Keep it tight.</div>
 
             <SettingsForm initialData={{ name: user.name || '', email: user.email }} />
+
+            <GitHubUrlField initial={user.githubUrl || ''} />
 
             <div className="field-row">
               <div className="lbl">Email<span className="sub">Used for login and notifications</span></div>

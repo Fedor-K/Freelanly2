@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Activity, MessageSquare, Mail } from 'lucide-react';
+import { RunGitHubReviewButton } from './RunGitHubReviewButton';
+import type { GitHubReviewReport } from '@/lib/github-review/types';
 
 // Defense-in-depth: the /admin layout already gates by email, but this page
 // exposes private user↔recruiter conversations, so re-check here too.
@@ -48,6 +50,8 @@ export default async function AdminUserDetailPage({
     select: {
       id: true, email: true, name: true, plan: true, createdAt: true,
       resumeFileName: true, parsedProfile: true,
+      githubUrl: true, portfolioUrl: true,
+      githubReview: { select: { verdict: true, report: true, reviewedAt: true } },
     },
   });
   if (!user) notFound();
@@ -132,6 +136,81 @@ export default async function AdminUserDetailPage({
           </CardContent>
         </Card>
       )}
+
+      {/* GitHub evidence (verification Tier 1) */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">
+              GitHub{' '}
+              {user.githubUrl && (
+                <a href={user.githubUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-normal text-blue-600 hover:underline">
+                  {user.githubUrl.replace('https://', '')}
+                </a>
+              )}
+            </CardTitle>
+            <RunGitHubReviewButton userId={user.id} />
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 pt-0 text-sm space-y-2">
+          {!user.githubUrl ? (
+            <div className="text-muted-foreground">
+              GitHub-ссылки нет.
+              {user.portfolioUrl ? <> Portfolio: <a href={user.portfolioUrl} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">{user.portfolioUrl}</a></> : ' В портфолио тоже пусто.'}
+            </div>
+          ) : !user.githubReview ? (
+            <div className="text-muted-foreground">Отчёта ещё нет — нажми «Проверить GitHub».</div>
+          ) : (() => {
+            const r = user.githubReview.report as unknown as GitHubReviewReport;
+            const VERDICT_COLOR: Record<string, string> = {
+              STRONG: 'bg-emerald-200 text-emerald-900',
+              ACTIVE: 'bg-green-100 text-green-700',
+              WEAK: 'bg-amber-100 text-amber-700',
+              INACTIVE: 'bg-gray-100 text-gray-600',
+              MISMATCH: 'bg-red-100 text-red-700',
+              UNVERIFIABLE: 'bg-gray-200 text-gray-700',
+            };
+            return (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className={VERDICT_COLOR[r.verdict] || 'bg-gray-100 text-gray-700'}>{r.verdict}</Badge>
+                  <span>активность: {r.activityLevel}</span>
+                  <span>· ≥{r.commits90d} коммитов / {r.activeDays90d} активных дней (~90д, нижняя оценка)</span>
+                  <span>· {r.originalRepos} своих репо из {r.publicRepos}</span>
+                  <span>· stack match {r.stackMatch}/100</span>
+                </div>
+                {r.topLanguages.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {r.topLanguages.map(l => (
+                      <span key={l.lang} className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs">{l.lang} {l.pct}%</span>
+                    ))}
+                  </div>
+                )}
+                {r.flags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {r.flags.map(f => (
+                      <span key={f} className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs">⚑ {f}</span>
+                    ))}
+                  </div>
+                )}
+                {(r.matchedSkills.length > 0 || r.unverifiedSkills.length > 0) && (
+                  <div className="text-xs text-muted-foreground">
+                    {r.matchedSkills.length > 0 && <>подтверждено: <span className="text-green-700">{r.matchedSkills.join(', ')}</span>. </>}
+                    {r.unverifiedSkills.length > 0 && <>без публичных улик (нейтрально): {r.unverifiedSkills.slice(0, 12).join(', ')}{r.unverifiedSkills.length > 12 ? '…' : ''}</>}
+                  </div>
+                )}
+                {r.evidence.length > 0 && (
+                  <ul className="list-disc pl-5 text-xs space-y-0.5">
+                    {r.evidence.map((e, i) => <li key={i}>{e}</li>)}
+                  </ul>
+                )}
+                {r.summary && <div className="text-sm">{r.summary}</div>}
+                <div className="text-xs text-muted-foreground">проверено: {fmt(user.githubReview.reviewedAt)}</div>
+              </>
+            );
+          })()}
+        </CardContent>
+      </Card>
 
       {/* Stats — only real (sent) outreach */}
       <div className="grid grid-cols-3 gap-4">

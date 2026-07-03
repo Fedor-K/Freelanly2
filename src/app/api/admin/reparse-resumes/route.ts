@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { deriveCategorySlugs } from '@/lib/loop-routing';
+import { firstGitHubUrlFrom } from '@/lib/github-review/extract-username';
 
 // Vercel: give the batch room (each résumé = one AI call ~2-5s).
 export const maxDuration = 300;
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
 
   const stuck = await prisma.user.findMany({
     where: { resumeText: { not: null }, parsedProfile: { equals: Prisma.DbNull }, createdAt: { gte: since } },
-    select: { id: true, name: true, resumeText: true },
+    select: { id: true, name: true, resumeText: true, githubUrl: true },
     orderBy: { createdAt: 'desc' },
     take: limit,
   });
@@ -81,6 +82,8 @@ export async function GET(request: NextRequest) {
       data: {
         parsedProfile: profile as object,
         ...(u.name ? {} : (typeof profile.name === 'string' && profile.name ? { name: profile.name } : {})),
+        // fill-only-missing: lift a GitHub link out of the stored résumé text for verification
+        ...(!u.githubUrl ? (() => { const gh = firstGitHubUrlFrom(u.resumeText); return gh ? { githubUrl: gh } : {}; })() : {}),
       },
     });
     parsedOk++;
