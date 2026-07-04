@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     // Check already applied — only LIVE applications count (dead queue debris must not wall a draft;
     // see quick-apply for the full rationale). The dead row itself is cleared on the send path.
     const existing = await prisma.autoApplication.findFirst({
-      where: { userId: session.user.id, opportunityId, status: { notIn: ['FAILED', 'MATCH_REJECTED', 'SKIPPED'] } },
+      where: { userId: session.user.id, opportunityId, status: { notIn: ['FAILED', 'MATCH_REJECTED', 'SKIPPED', 'REVIEW'] } },
     });
     if (existing) {
       return NextResponse.json({ error: 'already_applied', message: 'You already applied to this project.' }, { status: 409 });

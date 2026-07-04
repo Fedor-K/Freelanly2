@@ -295,10 +295,12 @@ export async function POST(request: NextRequest) {
 
     // Check if already applied — only LIVE applications wall a re-apply. Queue debris (expired
     // FAILED, matcher-declined MATCH_REJECTED, user SKIPPED) never reached a recruiter; treating it
-    // as "applied" walled ~28 real attempts/day, mostly the returning core. The unique
-    // (userId, opportunityId) index means the dead row must be cleared before a new one is created —
+    // as "applied" walled ~28 real attempts/day, mostly the returning core. REVIEW is supersedable
+    // too: it sits in a queue the user has no UI to approve and silently expires in 24h — a live
+    // MANUAL apply expresses stronger intent and sends now, so it replaces the queued row. The unique
+    // (userId, opportunityId) index means the old row must be cleared before a new one is created —
     // otherwise the send path crashes with P2002 AFTER burning a cover-letter call.
-    const DEAD_APP_STATUSES = ['FAILED', 'MATCH_REJECTED', 'SKIPPED'];
+    const DEAD_APP_STATUSES = ['FAILED', 'MATCH_REJECTED', 'SKIPPED', 'REVIEW'];
     const existing = await prisma.autoApplication.findFirst({
       where: {
         userId: user.id,
