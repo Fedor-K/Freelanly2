@@ -96,6 +96,7 @@ async function findFittingOpportunities(
   cvText: string,
   hasRealCV: boolean,
   gh?: { evidence: string | null; verifiedSkills: string[] },
+  stamp?: string,
 ): Promise<{ slug: string; title: string; company: string }[]> {
   try {
     if (!profile) return [];
@@ -165,10 +166,12 @@ async function findFittingOpportunities(
         const o = byId.get(t.id);
         if (!o) return null;
         try {
-          const pr = await assessPairing({
-            jobTitle: o.title, jobDescription: o.description, jobCountry: o.country,
-            profile, cvText, hasRealCV, githubEvidence: gh?.evidence ?? null,
-          });
+          // Cached vet (same cache the apply gate writes): a retry click after a block re-reads the
+          // verdict instantly instead of re-rolling a 5-7s LLM call that re-gated ~20% of retries.
+          const inp = { jobTitle: o.title, jobDescription: o.description, jobCountry: o.country, profile, cvText, hasRealCV, githubEvidence: gh?.evidence ?? null };
+          const pr = stamp
+            ? await assessPairingCached({ userId, opportunityId: t.id, stamp }, inp)
+            : await assessPairing(inp);
           return pr.decision !== 'NO' ? o : null;
         } catch {
           return null;
@@ -290,16 +293,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'unavailable', message: 'This project is no longer available.' }, { status: 410 });
     }
 
-    // Check if already applied
+    // Check if already applied — only LIVE applications wall a re-apply. Queue debris (expired
+    // FAILED, matcher-declined MATCH_REJECTED, user SKIPPED) never reached a recruiter; treating it
+    // as "applied" walled ~28 real attempts/day, mostly the returning core. The unique
+    // (userId, opportunityId) index means the dead row must be cleared before a new one is created —
+    // otherwise the send path crashes with P2002 AFTER burning a cover-letter call.
+    const DEAD_APP_STATUSES = ['FAILED', 'MATCH_REJECTED', 'SKIPPED'];
     const existing = await prisma.autoApplication.findFirst({
       where: {
         userId: user.id,
         opportunityId: opportunity.id,
       },
+      select: { id: true, status: true },
     });
 
-    if (existing) {
+    if (existing && !DEAD_APP_STATUSES.includes(existing.status)) {
       return NextResponse.json({ error: 'already_applied', message: 'You already applied to this project.' }, { status: 409 });
+    }
+    if (existing) {
+      await prisma.autoApplication.delete({ where: { id: existing.id } }).catch(() => {});
     }
 
     // Resolve company name vs recruiter name
@@ -337,8 +349,9 @@ export async function POST(request: NextRequest) {
     // Cached gate: reuse a recent verdict for this (user × opportunity) → no 5-7s recompute on a repeat
     // click, no repeat LLM cost, AND every verdict (incl. NO) gets persisted so the feed can hide what
     // apply would reject. Fail-open: a cache miss/error just runs the live assessment.
+    const myStamp = profileStamp({ resumeUrl: user.resumeUrl, skills: profile?.skills as string[], title: profile?.current_title as string, githubStamp: ghReview?.profileStamp });
     const pairing = await assessPairingCached(
-      { userId: user.id, opportunityId: opportunity.id, stamp: profileStamp({ resumeUrl: user.resumeUrl, skills: profile?.skills as string[], title: profile?.current_title as string, githubStamp: ghReview?.profileStamp }) },
+      { userId: user.id, opportunityId: opportunity.id, stamp: myStamp },
       { jobTitle: opportunity.title, jobDescription: opportunity.description, jobCountry: null, profile, cvText: user.resumeText || '', hasRealCV: hasRealCV(user), githubEvidence: gh.evidence },
     );
     // Gate: block BOTH the cover-letter generation (draftOnly) AND the send when the verdict is NO.
@@ -352,7 +365,7 @@ export async function POST(request: NextRequest) {
       // user to a real match instead of dead-ending on a raw "poor_match" with a Send button for an
       // empty letter. Reached directly when a user applies without the summary preflight (deep-link /
       // authed "Apply now"), so the client can't rely on suggestions already being in state.
-      const suggestions = await findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user), gh).catch(() => []);
+      const suggestions = await findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user), gh, myStamp).catch(() => []);
       return NextResponse.json({ error: 'poor_match', message: `This role isn't a strong enough match for your profile (${pairing.reason}).`, matchLabel: pairing.label || null, suggestions }, { status: 422 });
     }
 
@@ -369,7 +382,7 @@ export async function POST(request: NextRequest) {
       // the suggestions scan) on a good match: nothing would show it.
       const [matchSummary, suggestions] = await Promise.all([
         isWeak ? generateCandidateSummary(profile, opportunity.title, opportunity.description, pairing.label || null, pairing.reason || '') : Promise.resolve(null),
-        isWeak ? findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user), gh) : Promise.resolve([]),
+        isWeak ? findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user), gh, myStamp) : Promise.resolve([]),
       ]);
       return NextResponse.json({
         ok: true,

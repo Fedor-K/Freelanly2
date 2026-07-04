@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { DiscoveryFeed } from '@/components/app/DiscoveryFeed';
 import { buildFitContext, scoreFitLabeled, type FitLabel, type FitResult } from '@/lib/fit-score';
 import { verifiedSkillsFor, type ReviewRow } from '@/lib/github-review/evidence';
+import { readVettedFeed } from '@/services/feed-vet';
 import { profileStamp } from '@/services/matching/assess-pairing-cached';
 import { getVerdicts, type Verdict } from '@/lib/match-verdict';
 import { getUserEmbedding, semanticPool, unembeddedRecentOpps } from '@/services/embeddings/semantic-rank';
@@ -22,6 +23,11 @@ export default async function DiscoveryPage() {
   if (!session?.user?.id) redirect('/auth/signin');
 
   const perPage = 50;
+
+  // Vetted-only feed (two-stage gate): render ONLY gate-approved cards for flagged users.
+  // VETTED_FEED = 'all' | comma-separated user ids | unset (off).
+  const VETTED_ENV = process.env.VETTED_FEED || '';
+  const vettedFeedOn = VETTED_ENV === 'all' || VETTED_ENV.split(',').map(x => x.trim()).filter(Boolean).includes(session.user.id);
 
   const dayAgo = new Date(Date.now() - 24 * 3600000);
   const weekAgo = new Date(Date.now() - 7 * 86400000);
@@ -177,7 +183,9 @@ export default async function DiscoveryPage() {
   // button that the server then refused with already_applied. Mirror the server's check here so those
   // cards render "✓ Applied" instead.
   const appliedApps = await prisma.autoApplication.findMany({
-    where: { userId: session.user.id },
+    // Only LIVE applications paint the "Applied" chip — dead queue debris (expired/matcher-declined)
+    // was marking cards as applied that the user never actually reached a recruiter through.
+    where: { userId: session.user.id, status: { notIn: ['FAILED', 'MATCH_REJECTED', 'SKIPPED'] } },
     select: { opportunityId: true, jobId: true },
   });
   const appliedOppIds = new Set(appliedApps.map(a => a.opportunityId).filter(Boolean));
@@ -262,7 +270,7 @@ export default async function DiscoveryPage() {
 
   // Verified queue first, then the (gate-reconciled) closest tail (top N, no pagination — the feed is
   // the few real matches; "similar" is opt-in via a button in the client).
-  const items: FeedItem[] = [...queueItems, ...vettedClosest];
+  let items: FeedItem[] = [...queueItems, ...vettedClosest];
 
   // ── ATS autofill-beta test boost (temporary, remove with the /autofill fake door): guarantee real
   // Lever roles are visible in the shortlist while we measure demand for 1-click autofill. ATS cards
@@ -300,6 +308,46 @@ export default async function DiscoveryPage() {
     }
   }
 
+  // ── Vetted-only branch: replace the lexical tail with ONLY gate-approved direction items.
+  // Queue (matcher-approved) stays on top; ATS cards stay (external apply — no gate wall possible).
+  let vetStatus: { approved: number; remaining: number; poolSize: number } | null = null;
+  if (vettedFeedOn) {
+    const vf = await readVettedFeed(session.user.id);
+    if (vf) {
+      vetStatus = { approved: vf.status.approved, remaining: vf.status.remaining, poolSize: vf.status.poolSize };
+      const queueIds2 = new Set(queueItems.map(i => i.id));
+      const atsCards = items.filter(i => i.applyUrl && !i.applyEmail && !queueIds2.has(i.id));
+      const atsIds = new Set(atsCards.map(i => i.id));
+      const dirIds = vf.approvedIds.filter(id => !queueIds2.has(id) && !atsIds.has(id));
+      const dirOpps = dirIds.length ? await prisma.opportunity.findMany({
+        where: { id: { in: dirIds } },
+        select: { id: true, title: true, clientName: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, company: { select: { name: true } } },
+      }) : [];
+      const dirById = new Map(dirOpps.map(o => [o.id, o]));
+      const dirItems = dirIds.map((id) => {
+        const o = dirById.get(id); const f = vf.fits.get(id);
+        if (!o || !f) return null;
+        return {
+          id: o.id, type: 'opportunity' as const, title: o.title,
+          companyName: o.company?.name || o.posterCompany || o.clientName || 'Unknown',
+          description: o.description, source: o.source === 'ats_lever' ? 'Lever' : 'linkedin', createdAt: o.createdAt.toISOString(),
+          skills: o.skills, location: o.location, applyEmail: o.applyEmail, applyUrl: o.applyUrl,
+          matchLabel: (f.label === 'Weak' ? 'Good' : f.label) as FitLabel, // gate said SEND — at least Good
+          aiVerified: true, alreadyApplied: appliedOppIds.has(o.id),
+          githubVerified: ghOverlap(f.matchedSkills),
+          matchScore: f.score, matchedSkills: f.matchedSkills.slice(0, 4), matchedTitleTokens: f.matchedTitleTokens,
+          languageGap: f.languageGap, missingCore: f.missingCore,
+        } as FeedItem;
+      }).filter(Boolean) as FeedItem[];
+      items = [...queueItems, ...dirItems];
+      let atsPos = queueItems.length + 2;
+      for (const card of atsCards) {
+        items.splice(Math.min(atsPos, items.length), 0, card);
+        atsPos += 5;
+      }
+    }
+  }
+
   // Compute top skills with counts
   const skillCounts: Record<string, number> = {};
   for (const item of items) {
@@ -334,6 +382,8 @@ export default async function DiscoveryPage() {
           hasApplied={hasApplied}
           loopIds={loopIds}
           autoApplyOn={autoApplyOn}
+          vettedFeed={vettedFeedOn}
+          vetStatus={vetStatus}
         />
       </div>
 

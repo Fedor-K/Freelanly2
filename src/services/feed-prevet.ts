@@ -28,7 +28,7 @@ export async function prevetFeed(opts: { maxUsers?: number; perUser?: number } =
   // Audience = users who actually touched Discovery in the last 3 days (viewed OR clicked apply in the
   // feed) AND have a résumé to match on. Small, targeted set → no rotation bookkeeping needed.
   const audience = await prisma.$queryRaw<{ userId: string }[]>`
-    SELECT DISTINCT a."userId"
+    SELECT a."userId"
     FROM "ActivityLog" a
     JOIN "User" u ON u.id = a."userId"
     WHERE a."createdAt" >= ${since}
@@ -38,6 +38,8 @@ export async function prevetFeed(opts: { maxUsers?: number; perUser?: number } =
         (a.action = 'PAGE_VIEW' AND a."pageUrl" ILIKE '%discovery%')
         OR (a.action = 'OPPORTUNITY_APPLY_CLICK' AND a.details->>'method' = 'feed')
       )
+    GROUP BY a."userId"
+    ORDER BY MAX(a."createdAt") DESC
     LIMIT ${maxUsers}`;
   if (!audience.length) return { users: 0, vetted: 0 };
 

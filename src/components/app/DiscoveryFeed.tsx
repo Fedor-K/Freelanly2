@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTracker } from '@/hooks/useTracker';
 import { ProcessingScreen } from '@/components/ProcessingScreen';
 
@@ -63,15 +64,20 @@ function timeAgo(date: string): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasApplied = true, loopIds = [], autoApplyOn = true }: {
+export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasApplied = true, loopIds = [], autoApplyOn = true, vettedFeed = false, vetStatus = null }: {
   items: Job[];
   topSkills: [string, number][];
   sourceCounts: [string, number][];
   hasApplied?: boolean;
   loopIds?: string[];
   autoApplyOn?: boolean;
+  vettedFeed?: boolean;
+  vetStatus?: { approved: number; remaining: number; poolSize: number } | null;
 }) {
-  const [items] = useState(initial);
+  // No useState wrapper: router.refresh() re-renders the server component with fresh items and the
+  // vetted-feed polling relies on props actually updating.
+  const items = initial;
+  const router = useRouter();
   const [loading, setLoading] = useState<Record<string, string>>({});
   const [applied, setApplied] = useState<Set<string>>(new Set());
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
@@ -93,7 +99,46 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   // The feed is built server-side and arrives instantly, so a route-loading screen just flashes. Show
   // a guaranteed ~2.2s "scanning the feed" intro on mount instead, so the search animation is actually seen.
   const [intro, setIntro] = useState(true);
-  useEffect(() => { const t = setTimeout(() => setIntro(false), 3500); return () => clearTimeout(t); }, []);
+  const [newMatches, setNewMatches] = useState(0);
+  useEffect(() => {
+    // Vetted feed with an unfilled pool: the intro screen is REAL — poll the vetting endpoint until
+    // enough approved cards exist (or the pool is done / we time out), then re-render with fresh data.
+    if (vettedFeed && vetStatus && vetStatus.remaining > 0 && vetStatus.approved < 8) {
+      let stop = false;
+      const t0 = Date.now();
+      (async () => {
+        try {
+          for (let i = 0; i < 4 && !stop && Date.now() - t0 < 75000; i++) {
+            const res = await fetch('/api/user/feed-vet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ maxPairs: 24 }) });
+            if (!res.ok) break;
+            const st = await res.json();
+            if (st.approved >= 8 || st.remaining === 0 || st.budgetExhausted) break;
+          }
+        } catch { /* fall through to render whatever we have */ }
+        if (!stop) { setIntro(false); router.refresh(); }
+      })();
+      return () => { stop = true; };
+    }
+    const t = setTimeout(() => setIntro(false), 3500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Freshness poll while the tab is open: newly-ingested opportunities get vetted for this user in
+  // the background; when new approvals appear, offer a refresh instead of yanking the list around.
+  useEffect(() => {
+    if (!vettedFeed) return;
+    const iv = setInterval(async () => {
+      try {
+        const res = await fetch('/api/user/feed-vet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ maxPairs: 8 }) });
+        if (!res.ok) return;
+        const st = await res.json();
+        const shown = items.filter(i => i.applyEmail).length;
+        if (st.approved > shown) setNewMatches(st.approved - shown);
+      } catch { /* next tick */ }
+    }, 90000);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vettedFeed]);
   const { track } = useTracker();
 
   // One impression event per feed mount: how many ATS (autofill-beta) cards this render contains —
@@ -446,6 +491,13 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
           </div>
         )}
 
+        {newMatches > 0 && (
+          <div style={{ padding: '10px 20px', background: '#F2FADD', borderBottom: '1px solid #D8EEAA', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#3A7D00' }}>{newMatches} new verified {newMatches === 1 ? 'match' : 'matches'} for you</span>
+            <button className="btn btn-soft btn-sm" onClick={() => { setNewMatches(0); router.refresh(); }}>Refresh</button>
+          </div>
+        )}
+
         <div className="card-head">
           <div className="row gap-3">
             <h3>{inMatchMode && verifiedCount === 0 ? `${visible.length} similar` : `${visible.length} results`}</h3>
@@ -475,7 +527,16 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
           </div>
         )}
 
-        {visible.length === 0 ? (
+        {vettedFeed && visible.length === 0 ? (
+          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+            <div style={{ fontSize: '17px', fontWeight: 600, marginBottom: '8px' }}>No verified matches for your profile right now</div>
+            <div style={{ fontSize: '13.5px', color: 'var(--ink-4)', maxWidth: '460px', margin: '0 auto 16px', lineHeight: 1.55 }}>
+              Every card here is pre-checked by AI against your profile — we only show roles you can actually be sent to.
+              New projects arrive daily; we&apos;ll keep checking them for you.
+            </div>
+            <a className="btn btn-acid btn-sm" href="/dashboard/settings#profile">Improve my profile</a>
+          </div>
+        ) : visible.length === 0 ? (
           <div style={{padding: '40px 20px', textAlign: 'center', color: 'var(--ink-4)', fontSize: '13px'}}>
             No opportunities match your filters. Try removing a skill filter.
           </div>
