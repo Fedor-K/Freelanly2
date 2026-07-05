@@ -7,8 +7,8 @@ import './landing-design.css';
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: 'Freelanly — Apply to 30 freelance gigs a day on autopilot',
-  description: 'Freelanly finds fresh freelance and contract gigs, writes personalized applications, and sends them while you sleep.',
+  title: 'Freelanly — 30 matched freelance gigs a day, cover letter ready',
+  description: 'Freelanly finds fresh freelance and contract gigs matched to your profile and writes a personalized cover letter for each — you review and send in one click.',
   alternates: { canonical: siteConfig.url },
 };
 
@@ -252,9 +252,9 @@ export default async function LandingPage() {
       </div>
 
       <div className="feat feat-mid reveal">
-        <span className="feat-eyebrow">Auto-Apply</span>
-        <h3>Set criteria. Walk away.</h3>
-        <p>Tell Freelanly the stack, role, and red flags. It applies on your behalf — from your inbox, 24/7.</p>
+        <span className="feat-eyebrow">Smart matching</span>
+        <h3>Set your criteria. Skip the noise.</h3>
+        <p>Tell Freelanly the stack, role, and red flags. It filters thousands of gigs down to the ones worth your time — each with a cover letter already drafted, ready for you to review and send.</p>
         <div style={{marginTop: '22px', display: 'flex', flexDirection: 'column', gap: '12px'}}>
           <div style={{display:'flex', gap:'10px', flexWrap:'wrap'}}>
             <span className="tag" style={{borderColor: 'rgba(199,249,74,0.3)', color: 'var(--accent)'}}>+ React</span>

@@ -52,11 +52,11 @@ export default async function DiscoveryPage() {
   const priorApplies = await prisma.autoApplication.count({ where: { userId: session.user.id, origin: 'SELF', sentAt: { not: null } } });
   const hasApplied = priorApplies > 0;
 
-  // Auto-apply state: signups create a loop in MANUAL (self-apply default). Surface a one-click
-  // opt-in in onboarding, since most users register expecting auto-apply and don't know it's optional.
-  const myLoops = await prisma.autoApplyLoop.findMany({ where: { userId: session.user.id }, select: { id: true, mode: true } });
+  // Loops live in MANUAL only (auto-apply removed 2026-07-05): the matcher feeds the discovery
+  // feed, but nothing is ever sent without the user reviewing and clicking. loopIds still drive
+  // per-loop routing/vetting.
+  const myLoops = await prisma.autoApplyLoop.findMany({ where: { userId: session.user.id }, select: { id: true } });
   const loopIds = myLoops.map((l) => l.id);
-  const autoApplyOn = myLoops.some((l) => l.mode === 'AUTO');
   // Has the user connected their own inbox? Drives the SMTP banner — sending from OUR name is Strong-only,
   // so an SMTP connection is the path to send Good/Weak matches yourself, unlimited.
   const hasSmtp = !!(await prisma.userSmtp.findFirst({ where: { userId: session.user.id, verified: true }, select: { id: true } }));
@@ -415,7 +415,6 @@ export default async function DiscoveryPage() {
           sourceCounts={Object.entries(sourceCounts)}
           hasApplied={hasApplied}
           loopIds={loopIds}
-          autoApplyOn={autoApplyOn}
           vettedFeed={vettedFeedOn}
           vetStatus={vetStatus}
           hasSmtp={hasSmtp}

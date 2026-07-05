@@ -926,7 +926,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             See more matches →
           </a>
           <p style={{ fontSize: '13px', color: '#555', marginTop: '12px', lineHeight: 1.5 }}>
-            We&apos;ll notify you when the recruiter replies and start auto-applying to up to 20 projects every day matching your profile.
+            We&apos;ll notify you when the recruiter replies. Your dashboard has more gigs matched to your profile — each with a cover letter ready to review and send.
           </p>
           <a href="https://t.me/FLalarmbot" target="_blank" rel="noopener" style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',

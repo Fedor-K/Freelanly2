@@ -130,11 +130,11 @@ export default function HowItWorksPage() {
       <div className="step-copy reveal">
         <div className="step-num"><span className="step-bar"></span> Step 02 — Smart matching</div>
         <h2>Filter <span className="accent">in</span> what you want.<br/>Filter <span className="accent">out</span> the rest.</h2>
-        <p>Auto-apply runs on rules you set once. Stack, rate, role, location, language, deal-breaker keywords. Freelanly only applies when every condition matches — so you never wake up to 200 applications for jobs you&apos;d never take.</p>
+        <p>Matching runs on rules you set once. Stack, rate, role, location, language, deal-breaker keywords. Freelanly only surfaces a gig when every condition matches — so your feed is the handful worth applying to, not 200 you&apos;d never take.</p>
         <ul className="bullet-list">
           <li><Chk /> <span><strong>Positive &amp; negative filters</strong> — keywords, tech stack, company type, location</span></li>
-          <li><Chk /> <span><strong>Daily caps</strong> so you don&apos;t blast your inbox reputation</span></li>
-          <li><Chk /> <span><strong>Review mode</strong> — every draft waits for your OK before sending</span></li>
+          <li><Chk /> <span><strong>Cover letter pre-written</strong> for every match — no blank page</span></li>
+          <li><Chk /> <span><strong>You&apos;re in control</strong> — nothing goes out until you review and send</span></li>
         </ul>
       </div>
       <div className="step-visual reveal">

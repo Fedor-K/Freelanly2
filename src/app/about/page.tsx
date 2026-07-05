@@ -87,8 +87,8 @@ export default function AboutPage() {
       </div>
       <div className="tl-step">
         <div className="tl-year">May · 2025</div>
-        <h4>The auto-apply engine</h4>
-        <p>Maya joins as CTO. Builds the rules engine, the throttling system, the unified inbox. The product becomes a tool, not a hack.</p>
+        <h4>The matching engine</h4>
+        <p>Maya joins as CTO. Builds the rules engine, the cover-letter generator, the unified inbox. The product becomes a tool, not a hack.</p>
       </div>
       <div className="tl-step">
         <div className="tl-year">Today</div>

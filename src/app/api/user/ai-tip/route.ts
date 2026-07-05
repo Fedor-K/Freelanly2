@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
     let tip: { text: string; action?: string; actionLabel?: string } | null = null;
 
     if (sent === 0) {
-      tip = { text: 'Your auto-apply is set up! Applications will start going out as matching projects appear.', action: '/dashboard', actionLabel: 'View settings' };
+      tip = { text: 'Your profile is set up! Browse your matched gigs — each comes with a cover letter ready to review and send.', action: '/dashboard/discovery', actionLabel: 'Browse gigs' };
     } else if (!hasResume) {
       tip = { text: 'Upload your resume to improve match quality and get more personalized cover letters.', action: '/dashboard', actionLabel: 'Upload resume' };
     } else if (!hasSmtp && sent > 10) {

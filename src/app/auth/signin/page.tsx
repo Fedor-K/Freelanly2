@@ -81,20 +81,20 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
     if (label && count > 0) {
       headline = `${count}+ ${label} gigs\nfound this week.`;
-      subtitle = `Sign up and we'll auto-apply to matching ${label.toLowerCase()} roles for you. AI writes personalized cover letters in your voice.`;
+      subtitle = `Sign up and we'll match you to ${label.toLowerCase()} roles — each with a personalized cover letter written in your voice, ready to send.`;
     } else if (count > 0) {
       headline = `${count}+ fresh gigs\nfound today.`;
-      subtitle = "Sign up and we'll auto-apply to matching roles for you. AI writes personalized cover letters in your voice.";
+      subtitle = "Sign up and we'll match you to the right roles — each with a personalized cover letter written in your voice, ready to send.";
     }
   } else if (params.ref === 'country') {
     const country = params.country;
     if (country) {
       headline = `Remote jobs in\n${country.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}.`;
-      subtitle = "Sign up to get auto-applied to matching remote roles. AI writes personalized cover letters in your voice.";
+      subtitle = "Sign up to get matched to remote roles — each with a personalized cover letter written in your voice, ready to send.";
     }
   } else if (params.ref === 'job') {
     headline = "This job caught\nyour eye?";
-    subtitle = "Sign up and we'll auto-apply for you with a personalized cover letter. Plus 30+ similar gigs every day.";
+    subtitle = "Sign up and we'll write your cover letter for this role — plus surface 30+ similar gigs every day, ready to apply.";
   }
 
   return (

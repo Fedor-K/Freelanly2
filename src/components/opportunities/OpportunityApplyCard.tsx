@@ -62,7 +62,7 @@ export function OpportunityApplyCard({
         setDraftSubject(data.subject);
         setDraftMode(true);
       } else if (data.error === 'resume_required') {
-        setApplyError('Upload your resume first. Go to Auto-Apply settings.');
+        setApplyError('Upload your resume first in Settings.');
       } else if (data.error === 'already_applied') {
         setApplyError('You already applied to this project.');
       } else {

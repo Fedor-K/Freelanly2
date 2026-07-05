@@ -66,7 +66,7 @@ export default function PricingPage() {
           <li><Chk /> <span>Browse all live gigs</span></li>
           <li><Chk /> <span>Basic AI cover letter</span></li>
           <li><Chk /> <span>Manual send</span></li>
-          <li className="dim"><X /> <span>Auto-apply</span></li>
+          <li className="dim"><X /> <span>Premium AI cover letters</span></li>
           <li className="dim"><X /> <span>Follow-ups</span></li>
         </ul>
       </div>
@@ -75,7 +75,7 @@ export default function PricingPage() {
       <div className="price-col featured">
         <span className="featured-badge">Most popular</span>
         <div className="plan-name" style={{color: 'var(--accent)'}}>Pro</div>
-        <p className="plan-tag">For full-time freelancers. Auto-apply + AI cover letters + follow-ups, on autopilot.</p>
+        <p className="plan-tag">For full-time freelancers. More applications, premium AI cover letters, follow-ups, and send from your own inbox.</p>
         <div className="plan-price">
           <span className="currency">$</span>
           <span className="amount">29</span>
@@ -90,7 +90,7 @@ export default function PricingPage() {
         <div className="plan-section-label">Everything in Free, plus</div>
         <ul className="plan-features">
           <li><Chk /> <span><strong>500</strong> AI applications / month</span></li>
-          <li><Chk /> <span><strong>Auto-apply</strong> with smart filters</span></li>
+          <li><Chk /> <span><strong>Smart match filters</strong> (stack, rate, red flags)</span></li>
           <li><Chk /> <span><strong>Auto follow-ups</strong> after 5 days</span></li>
           <li><Chk /> <span>Premium AI model (GPT-class)</span></li>
           <li><Chk /> <span>Tracking &amp; reply analytics</span></li>
@@ -176,7 +176,7 @@ export default function PricingPage() {
 
           <tr className="group-row"><td colSpan={4}>Outreach</td></tr>
           <tr><td>AI cover letter / month</td><td>10</td><td className="col-featured">500</td><td>Unlimited</td></tr>
-          <tr><td>Auto-apply with smart filters</td><td><span className="x">—</span></td><td className="col-featured"><span className="check">●</span></td><td><span className="check">●</span></td></tr>
+          <tr><td>Smart match filters</td><td><span className="x">—</span></td><td className="col-featured"><span className="check">●</span></td><td><span className="check">●</span></td></tr>
           <tr><td>Send from your own inbox</td><td><span className="x">—</span></td><td className="col-featured"><span className="check">●</span></td><td><span className="check">●</span></td></tr>
           <tr><td>Auto follow-ups</td><td><span className="x">—</span></td><td className="col-featured"><span className="check">●</span></td><td><span className="check">●</span></td></tr>
           <tr><td>AI model</td><td>Standard</td><td className="col-featured">Premium</td><td>Premium + Custom</td></tr>

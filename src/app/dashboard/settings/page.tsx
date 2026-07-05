@@ -9,7 +9,6 @@ import { CancelSubscriptionSection } from './CancelSubscriptionSection';
 import { DeleteAccountSection } from './DeleteAccountSection';
 import { ManageSubscriptionButton } from './ManageSubscriptionButton';
 import { SendingRules, NotificationToggles } from '@/components/app/SettingsToggles';
-import { AutoApplyOptIn } from '@/components/app/AutoApplyOptIn';
 import { ResumeUploadButton } from '@/components/app/ResumeUploadButton';
 import './settings-design.css';
 
@@ -41,14 +40,6 @@ export default async function SettingsPage() {
     where: { userId: session.user.id },
     select: { email: true },
   });
-
-  // Auto-apply opt-in state: loops are MANUAL by default (self-apply); AUTO means opted in.
-  const loops = await prisma.autoApplyLoop.findMany({
-    where: { userId: session.user.id },
-    select: { id: true, mode: true },
-  });
-  const loopIds = loops.map((l) => l.id);
-  const autoApplyOn = loops.some((l) => l.mode === 'AUTO');
 
   return (
     <div className="page">
@@ -165,9 +156,8 @@ export default async function SettingsPage() {
           {/* Sending rules */}
           <div className="settings-section" id="rules">
             <h2>Sending rules</h2>
-            <div className="desc">Set guardrails. Freelanly applies these to every queued send.</div>
+            <div className="desc">The hours and days we&apos;re allowed to send the applications you submit.</div>
 
-            <AutoApplyOptIn loopIds={loopIds} initialOn={autoApplyOn} />
             <SendingRules startHour={user.sendStartHour ?? 9} endHour={user.sendEndHour ?? 17} />
           </div>
 

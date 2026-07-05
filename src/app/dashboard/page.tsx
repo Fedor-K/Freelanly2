@@ -36,7 +36,7 @@ export default async function DashboardOverviewPage() {
   const onboardCheck = await prisma.user.findUnique({ where: { id: userId }, select: { resumeUrl: true } });
   if (!onboardCheck?.resumeUrl) redirect('/dashboard/settings#profile');
 
-  const [user, today, yesterday, month, applications, repliesTodayCount, followUps, dailyActivity, loop, queuedCount] = await Promise.all([
+  const [user, today, yesterday, month, applications, repliesTodayCount, followUps, dailyActivity, loop] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true, parsedProfile: true, salaryExpectation: true, githubUrl: true } }),
     prisma.autoApplication.groupBy({
       by: ['status'],
@@ -81,22 +81,6 @@ export default async function DashboardOverviewPage() {
       where: { userId },
       select: { isActive: true, sentToday: true, dailyLimit: true, jobTitles: true, keywords: true },
     }),
-    // Count queued apps excluding blocked recruiters (10+/day)
-    (async () => {
-      const pending = await prisma.autoApplication.findMany({
-        where: { userId, status: { in: ['PENDING', 'REVIEW', 'SENDING'] } },
-        select: { appliedToEmail: true },
-      });
-      if (pending.length === 0) return 0;
-      const blockedEmails = await prisma.$queryRaw<Array<{ appliedToEmail: string }>>`
-        SELECT "appliedToEmail" FROM "AutoApplication"
-        WHERE "sentAt" >= ${todayStart}
-        GROUP BY "appliedToEmail"
-        HAVING COUNT(*) >= 10
-      `;
-      const blockedSet = new Set(blockedEmails.map(r => r.appliedToEmail));
-      return pending.filter(p => !blockedSet.has(p.appliedToEmail)).length;
-    })(),
   ]);
 
   // Dev-titled? — gates the GitHub prompt (a GitHub link is only meaningful evidence for tech roles).
@@ -231,7 +215,7 @@ export default async function DashboardOverviewPage() {
       {(needsResumeReupload || resumeFileMissing) && (
         <div style={{ margin: '0 0 16px', padding: '14px 18px', borderRadius: '12px', background: '#FEF3C7', border: '1px solid #FCD34D', color: '#78350F', fontSize: '14px', lineHeight: 1.5 }}>
           {needsResumeReupload ? (
-            <><strong>We couldn&apos;t read your résumé.</strong> No skills or languages were detected, so auto-apply isn&apos;t sending anything.{' '}
+            <><strong>We couldn&apos;t read your résumé.</strong> No skills or languages were detected, so we can&apos;t match you to gigs or write your cover letters.{' '}
             <a href="/dashboard/settings#profile" style={{ color: '#92400E', fontWeight: 600, textDecoration: 'underline' }}>Re-upload your résumé (a text-based PDF) →</a></>
           ) : (
             <><strong>Your résumé file isn&apos;t saved.</strong> It was uploaded before a recent update and isn&apos;t stored with us — so we can&apos;t attach it to your applications or replies (recruiters ask for it constantly).{' '}
@@ -251,11 +235,9 @@ export default async function DashboardOverviewPage() {
         <div className="page-title">
           <h1>{greeting}, {firstName}.</h1>
           <p>
-            {loop?.isActive ? (
-              <><span className="chip chip-acid-soft" style={{marginRight: '8px'}}><span className="chip-dot live"></span>Auto-apply running</span> {sentToday}/{loop.dailyLimit} sent today{queuedCount > 0 && ` · ${queuedCount} matches sending soon`}</>
-            ) : (
-              <span className="chip" style={{marginRight: '8px'}}>Auto-apply paused</span>
-            )}
+            {sentToday > 0
+              ? <>{sentToday} {sentToday === 1 ? 'application' : 'applications'} sent today</>
+              : <>Browse gigs and apply — we pre-write every cover letter.</>}
             {repliesTodayCount > 0 && <> · <a href="/dashboard/inbox" style={{color: 'var(--acid-deep)', fontWeight: 500}}>{repliesTodayCount} new {repliesTodayCount === 1 ? 'reply' : 'replies'} today</a></>}
           </p>
         </div>

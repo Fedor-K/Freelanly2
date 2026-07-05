@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
             + `💬 Recruiter replies — "Company X is interested!"\n`
             + `🟢 Interview invites — "They want to schedule a call"\n`
             + `📊 Daily summary — sent, opened, replied\n\n`
-            + `Your auto-apply is running. I'll ping you the moment a recruiter responds.\n\n`
+            + `I'll ping you the moment a recruiter responds to one of your applications.\n\n`
             + `Dashboard: freelanly.com/dashboard`,
           );
           return NextResponse.json({ ok: true });
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
         + `📊 Daily summary — sent, opened, replied\n\n`
         + `To connect your account:\n`
         + `<b>freelanly.com/dashboard</b> → click "Connect Telegram"\n\n`
-        + `Your auto-apply is running. I'll ping you the moment a recruiter responds.`,
+        + `I'll ping you the moment a recruiter responds to one of your applications.`,
       );
       return NextResponse.json({ ok: true });
     }

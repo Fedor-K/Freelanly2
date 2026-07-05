@@ -131,7 +131,7 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
         <div>
           {items.length === 0 ? (
             <div style={{padding: '24px 16px', textAlign: 'center', color: 'var(--ink-4)', fontSize: '13px'}}>
-              No applications in queue. <a href="/dashboard/discovery" style={{color: 'var(--acid-deep)'}}>Set up auto-apply →</a>
+              No applications yet. <a href="/dashboard/discovery" style={{color: 'var(--acid-deep)'}}>Browse gigs →</a>
             </div>
           ) : items.map((app, i) => (
             <div key={app.id} className="queue-row">

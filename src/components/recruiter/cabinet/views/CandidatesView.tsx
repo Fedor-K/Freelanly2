@@ -92,7 +92,7 @@ export function CandidatesView() {
             <div className="card"><div className="empty-state">
               <div className="empty-ico"><RIcon name="users" size={26} /></div>
               <h3>No applications yet</h3>
-              <p>As freelancers auto-apply to your roles through Freelanly, they&rsquo;ll appear here — ranked by match strength. Most roles see their first applicants within a few hours.</p>
+              <p>As freelancers apply to your roles through Freelanly, they&rsquo;ll appear here — ranked by match strength. Most roles see their first applicants within a few hours.</p>
             </div></div>
           ) : visibleGroups.length === 0 ? (
             <div className="card"><div className="empty-state">
