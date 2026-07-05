@@ -33,6 +33,7 @@ const mainNavigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { name: 'Funnel', href: '/admin/funnel', icon: TrendingDown },
   { name: 'Recruiter funnel', href: '/admin/recruiter-funnel', icon: TrendingDown },
+  { name: 'Recruiter outreach', href: '/admin/recruiter-outreach', icon: Send },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Chat', href: '/admin/chat', icon: MessageCircle },
   { name: 'Conversions', href: '/admin/conversions', icon: CreditCard },

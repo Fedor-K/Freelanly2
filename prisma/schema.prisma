@@ -2295,3 +2295,29 @@ model RecruiterOtp {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Demand-side outreach draft: one ready-to-send candidate-pitch email per ATS company+role, built
+// by the dormant Lever pipeline (buildLeverCompanyCards → buildShortlistForRole → cardEmail) and
+// surfaced in /admin/recruiter-outreach for the founder to review and send MANUALLY from his own
+// inbox (no auto-send — protects the domain). Additive raw-DDL table (prisma db push unusable here).
+model OutreachDraft {
+  id             String    @id @default(cuid())
+  companySlug    String
+  companyName    String?
+  contactEmail   String
+  contactDomain  String
+  contactMethod  String    @default("guess") // verified | catch-all | guess
+  roleTitle      String
+  roleUrl        String?
+  subject        String
+  bodyHtml       String
+  bodyText       String
+  candidates     Json      @default("[]")     // [{profession, location, label, name, userId}]
+  candidateCount Int       @default(0)
+  status         String    @default("DRAFT")  // DRAFT | SENT | SKIPPED
+  createdAt      DateTime  @default(now())
+  sentAt         DateTime?
+
+  @@unique([contactDomain, roleTitle], map: "OutreachDraft_domain_role_key")
+  @@index([status, createdAt], map: "OutreachDraft_status_created_idx")
+}
