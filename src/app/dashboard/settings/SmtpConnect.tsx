@@ -188,21 +188,6 @@ export function SmtpConnect({ initialEmail }: { initialEmail?: string }) {
             <a href={preset.twoFaUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', color: '#7A5E00', alignSelf: 'center', textDecoration: 'underline' }}>Page says &ldquo;not available&rdquo;? Turn on 2-Step first ↗</a>
           </div>
           {preset.note && <div style={{ fontSize: '11.5px', color: '#9A6B00', marginTop: '8px', fontStyle: 'italic' }}>⚠ {preset.note}</div>}
-          {preset.label === 'Gmail' && (
-            <div style={{ marginTop: '10px' }}>
-              <div style={{ fontSize: '11.5px', color: '#7A5E00', marginBottom: '6px' }}>Google will show a screen like this — copy the 16-character code:</div>
-              <svg viewBox="0 0 320 150" width="260" style={{ maxWidth: '100%', border: '1px solid #E4D9A8', borderRadius: '8px', background: '#fff' }} role="img" aria-label="Example of the Google app password screen showing a 16-character code">
-                <rect x="0" y="0" width="320" height="150" fill="#fff" />
-                <rect x="0" y="0" width="320" height="30" fill="#F1F3F4" />
-                <circle cx="18" cy="15" r="6" fill="#EA4335" />
-                <text x="34" y="19" fontSize="11" fill="#3C4043" fontFamily="Arial">Generated app password</text>
-                <text x="20" y="58" fontSize="9" fill="#5F6368" fontFamily="Arial">Your app password for Freelanly</text>
-                <rect x="20" y="68" width="220" height="40" rx="6" fill="#FEF7E0" stroke="#F9C74F" strokeWidth="1.5" />
-                <text x="34" y="93" fontSize="18" fill="#202124" fontFamily="monospace" letterSpacing="2">abcd efgh ijkl mnop</text>
-                <text x="20" y="128" fontSize="8.5" fill="#5F6368" fontFamily="Arial">Copy this code, then paste it in the App Password field above.</text>
-              </svg>
-            </div>
-          )}
         </div>
       ) : domain ? (
         <div style={{ fontSize: '12px', color: 'var(--ink-4, #8A8780)' }}>Use your provider&apos;s SMTP host and an app password (most providers require one instead of your normal password).</div>
