@@ -372,6 +372,16 @@ export default async function DiscoveryPage() {
   // they're untouched.
   items = items.filter(i => !i.alreadyApplied);
 
+  // Order by SEND-tier for the SMTP model: STRONG matches first (these send from our name), then
+  // Good/rest. The client draws a "connect your email to send these too" divider between the two
+  // tiers (only for users without SMTP). ATS external-apply cards go last (no gate / no our-name send).
+  const sendableItems = items.filter(i => i.applyEmail);
+  const atsItems = items.filter(i => i.applyUrl && !i.applyEmail);
+  const strongItems = sendableItems.filter(i => i.matchLabel === 'Strong');
+  const restItems = sendableItems.filter(i => i.matchLabel !== 'Strong');
+  items = [...strongItems, ...restItems, ...atsItems];
+  const strongCount = strongItems.length;
+
   // Compute top skills with counts
   const skillCounts: Record<string, number> = {};
   for (const item of items) {
@@ -409,6 +419,7 @@ export default async function DiscoveryPage() {
           vettedFeed={vettedFeedOn}
           vetStatus={vetStatus}
           hasSmtp={hasSmtp}
+          strongCount={strongCount}
         />
       </div>
 
