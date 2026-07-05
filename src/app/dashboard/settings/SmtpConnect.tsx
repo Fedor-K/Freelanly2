@@ -64,22 +64,23 @@ export function SmtpConnect({ initialEmail }: { initialEmail?: string }) {
     );
   }
 
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', border: '1px solid var(--line, #E4E1D9)', borderRadius: '8px', fontSize: '13px', background: '#fff', outline: 'none' };
   return (
-    <div className="integration" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '10px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '16px', border: '1px solid var(--line, #E4E1D9)', borderRadius: '12px', background: 'var(--bg-2, #FBFAF6)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div className="name">Connect your email (SMTP)</div>
-        <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', fontSize: '13px' }}>✕</button>
+        <div style={{ fontSize: '14px', fontWeight: 600 }}>✉️ Connect your email (SMTP)</div>
+        <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', fontSize: '15px' }}>✕</button>
       </div>
-      <input className="field" type="email" placeholder="you@gmail.com" value={email} onChange={e => { setEmail(e.target.value); setHost(''); }} />
-      <input className="field" type="password" placeholder="App password" value={password} onChange={e => setPassword(e.target.value)} />
+      <input style={inputStyle} type="email" placeholder="you@gmail.com" value={email} onChange={e => { setEmail(e.target.value); setHost(''); }} />
+      <input style={inputStyle} type="password" placeholder="App password (not your normal password)" value={password} onChange={e => setPassword(e.target.value)} />
       <div style={{ display: 'flex', gap: '8px' }}>
-        <input className="field" style={{ flex: 2 }} placeholder="SMTP host" value={effHost} onChange={e => setHost(e.target.value)} />
-        <input className="field" style={{ flex: 1 }} type="number" placeholder="Port" value={effPort} onChange={e => setPort(Number(e.target.value) || 587)} />
+        <input style={{ ...inputStyle, flex: 2 }} placeholder="SMTP host" value={effHost} onChange={e => setHost(e.target.value)} />
+        <input style={{ ...inputStyle, flex: 1, minWidth: 0 }} type="number" placeholder="Port" value={effPort} onChange={e => setPort(Number(e.target.value) || 587)} />
       </div>
-      {preset && <div style={{ fontSize: '12px', color: 'var(--ink-4)', lineHeight: 1.5 }}>{preset.help}</div>}
-      {!preset && domain && <div style={{ fontSize: '12px', color: 'var(--ink-4)' }}>Use your provider&apos;s SMTP host and an app password.</div>}
-      {msg && <div style={{ fontSize: '12.5px', color: msg.type === 'ok' ? 'var(--good)' : msg.type === 'err' ? 'var(--bad)' : 'var(--ink-3)' }}>{msg.text}</div>}
-      <button className="btn btn-acid btn-sm" onClick={connect} disabled={busy}>{busy ? 'Connecting…' : 'Connect & verify'}</button>
+      {preset && <div style={{ fontSize: '12px', color: 'var(--ink-4, #8A8780)', lineHeight: 1.5 }}>{preset.help}</div>}
+      {!preset && domain && <div style={{ fontSize: '12px', color: 'var(--ink-4, #8A8780)' }}>Use your provider&apos;s SMTP host and an app password.</div>}
+      {msg && <div style={{ fontSize: '12.5px', color: msg.type === 'ok' ? 'var(--good, #2E7D32)' : msg.type === 'err' ? 'var(--bad, #B91C1C)' : 'var(--ink-3, #8A8780)' }}>{msg.text}</div>}
+      <button className="btn btn-acid btn-sm" style={{ alignSelf: 'flex-start' }} onClick={connect} disabled={busy}>{busy ? 'Connecting…' : 'Connect & verify'}</button>
     </div>
   );
 }
