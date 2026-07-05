@@ -43,7 +43,14 @@ export function SmtpConnect({ initialEmail }: { initialEmail?: string }) {
         setMsg({ type: 'ok', text: '✓ Connected! You can now send from your own email, unlimited.' });
         setTimeout(() => window.location.reload(), 1200);
       } else {
-        setMsg({ type: 'err', text: td.error || 'Saved, but the test send failed — check your app password and host.' });
+        const raw = String(td.error || '');
+        const badCreds = /BadCredentials|535|Username and Password not accepted|5\.7\.8/i.test(raw);
+        setMsg({
+          type: 'err',
+          text: badCreds
+            ? `That password didn't work — Gmail/Outlook reject your normal password here. You need an App Password (a 16-character code you generate after turning on 2-Step Verification). Paste that instead.`
+            : (raw || 'Saved, but the test send failed — check your host, port, and app password.'),
+        });
       }
     } catch {
       setMsg({ type: 'err', text: 'Network error — try again.' });
