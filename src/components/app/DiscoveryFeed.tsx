@@ -472,7 +472,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                 <button className="btn btn-soft btn-sm" onClick={() => setShowSimilar(s => !s)}>
                   {showSimilar
                     ? 'Hide similar'
-                    : `Show ${similarVisible.length} similar opportunit${similarVisible.length === 1 ? 'y' : 'ies'} (not 100% matches)`}
+                    : `Show ${similarVisible.length} similar opportunit${similarVisible.length === 1 ? 'y' : 'ies'}`}
                 </button>
               </div>
             )}
