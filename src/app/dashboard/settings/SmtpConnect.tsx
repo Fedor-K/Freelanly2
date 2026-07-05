@@ -5,12 +5,33 @@ import { useState } from 'react';
 // SMTP connect form: saves via /api/user/smtp then verifies via /api/user/smtp/test (which sets
 // verified=true). Once verified, the user sends applications from their own address, unlimited, and
 // any match (bypasses the Strong-only Postal gate). Auto-fills host/port from the email domain.
-const PRESETS: Record<string, { host: string; port: number; help: string }> = {
-  'gmail.com': { host: 'smtp.gmail.com', port: 587, help: 'Gmail needs an App Password (not your normal password): myaccount.google.com → Security → 2-Step Verification → App passwords.' },
-  'outlook.com': { host: 'smtp-mail.outlook.com', port: 587, help: 'Outlook/Hotmail: create an app password at account.microsoft.com → Security.' },
-  'hotmail.com': { host: 'smtp-mail.outlook.com', port: 587, help: 'Outlook/Hotmail: create an app password at account.microsoft.com → Security.' },
-  'yahoo.com': { host: 'smtp.mail.yahoo.com', port: 587, help: 'Yahoo: generate an app password at login.yahoo.com → Account security.' },
-  'icloud.com': { host: 'smtp.mail.me.com', port: 587, help: 'iCloud: create an app-specific password at appleid.apple.com.' },
+type Preset = { label: string; host: string; port: number; appPwUrl: string; twoFaUrl: string; steps: string[] };
+const PRESETS: Record<string, Preset> = {
+  'gmail.com': { label: 'Gmail', host: 'smtp.gmail.com', port: 587, appPwUrl: 'https://myaccount.google.com/apppasswords', twoFaUrl: 'https://myaccount.google.com/signinoptions/two-step-verification', steps: [
+    'Turn on 2-Step Verification in your Google account (required — App Passwords only appear after this).',
+    'Open the App Passwords page (button below), sign in, and create one named "Freelanly".',
+    'Google shows a 16-character code like "abcd efgh ijkl mnop". Copy it and paste it above (spaces are fine).',
+  ] },
+  'outlook.com': { label: 'Outlook', host: 'smtp-mail.outlook.com', port: 587, appPwUrl: 'https://account.microsoft.com/security', twoFaUrl: 'https://account.microsoft.com/security', steps: [
+    'Turn on two-step verification at account.microsoft.com → Security.',
+    'Create an app password (button below) and copy the code.',
+    'Paste the code above.',
+  ] },
+  'hotmail.com': { label: 'Outlook', host: 'smtp-mail.outlook.com', port: 587, appPwUrl: 'https://account.microsoft.com/security', twoFaUrl: 'https://account.microsoft.com/security', steps: [
+    'Turn on two-step verification at account.microsoft.com → Security.',
+    'Create an app password (button below) and copy the code.',
+    'Paste the code above.',
+  ] },
+  'yahoo.com': { label: 'Yahoo', host: 'smtp.mail.yahoo.com', port: 587, appPwUrl: 'https://login.yahoo.com/account/security', twoFaUrl: 'https://login.yahoo.com/account/security', steps: [
+    'Turn on 2-step verification at login.yahoo.com → Account Security.',
+    'Generate an app password (button below) and copy it.',
+    'Paste it above.',
+  ] },
+  'icloud.com': { label: 'iCloud', host: 'smtp.mail.me.com', port: 587, appPwUrl: 'https://appleid.apple.com', twoFaUrl: 'https://appleid.apple.com', steps: [
+    'Sign in at appleid.apple.com (2FA must be on).',
+    'Under Sign-In & Security, create an app-specific password (button below).',
+    'Copy it and paste it above.',
+  ] },
 };
 
 export function SmtpConnected({ email }: { email: string }) {
@@ -108,9 +129,26 @@ export function SmtpConnect({ initialEmail }: { initialEmail?: string }) {
         <input style={{ ...inputStyle, flex: 2 }} placeholder="SMTP host" value={effHost} onChange={e => setHost(e.target.value)} />
         <input style={{ ...inputStyle, flex: 1, minWidth: 0 }} type="number" placeholder="Port" value={effPort} onChange={e => setPort(Number(e.target.value) || 587)} />
       </div>
-      {preset && <div style={{ fontSize: '12px', color: 'var(--ink-4, #8A8780)', lineHeight: 1.5 }}>{preset.help}</div>}
-      {!preset && domain && <div style={{ fontSize: '12px', color: 'var(--ink-4, #8A8780)' }}>Use your provider&apos;s SMTP host and an app password.</div>}
-      {msg && <div style={{ fontSize: '12.5px', color: msg.type === 'ok' ? 'var(--good, #2E7D32)' : msg.type === 'err' ? 'var(--bad, #B91C1C)' : 'var(--ink-3, #8A8780)' }}>{msg.text}</div>}
+
+      {/* Step-by-step: where to get the app password for the detected provider */}
+      {preset ? (
+        <div style={{ background: '#FFF9E8', border: '1px solid #F5E6B8', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#7A5E00', marginBottom: '8px' }}>
+            {preset.label} needs an <strong>App Password</strong> — not your normal password. Here&apos;s how:
+          </div>
+          <ol style={{ margin: '0 0 10px', paddingLeft: '18px', fontSize: '12.5px', color: '#6B5A1E', lineHeight: 1.6 }}>
+            {preset.steps.map((s, i) => <li key={i} style={{ marginBottom: '3px' }}>{s}</li>)}
+          </ol>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <a href={preset.appPwUrl} target="_blank" rel="noopener noreferrer" className="btn btn-soft btn-sm">Open {preset.label} App Passwords ↗</a>
+            <a href={preset.twoFaUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', color: '#7A5E00', alignSelf: 'center', textDecoration: 'underline' }}>Page says &ldquo;not available&rdquo;? Turn on 2-Step first ↗</a>
+          </div>
+        </div>
+      ) : domain ? (
+        <div style={{ fontSize: '12px', color: 'var(--ink-4, #8A8780)' }}>Use your provider&apos;s SMTP host and an app password (most providers require one instead of your normal password).</div>
+      ) : null}
+
+      {msg && <div style={{ fontSize: '12.5px', color: msg.type === 'ok' ? 'var(--good, #2E7D32)' : msg.type === 'err' ? 'var(--bad, #B91C1C)' : 'var(--ink-3, #8A8780)', lineHeight: 1.5 }}>{msg.text}</div>}
       <button className="btn btn-acid btn-sm" style={{ alignSelf: 'flex-start' }} onClick={connect} disabled={busy}>{busy ? 'Connecting…' : 'Connect & verify'}</button>
     </div>
   );
