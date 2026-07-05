@@ -348,9 +348,10 @@ export default async function DiscoveryPage() {
       // a small, shrinking share (background vetting converts them), and a full feed that mostly works
       // beats an empty one. Vetted-on-top grows over time as coverage improves.
       const TARGET = 24;
-      const shownIds = new Set([...queueItems, ...dirItems].map(i => i.id));
-      const fill = vettedClosest.filter(i => !shownIds.has(i.id) && !(i.applyUrl && !i.applyEmail)).slice(0, Math.max(0, TARGET - dirItems.length));
-      items = [...queueItems, ...dirItems, ...fill];
+      const actionableDir = dirItems.filter(i => !i.alreadyApplied);
+      const shownIds = new Set([...queueItems, ...actionableDir].map(i => i.id));
+      const fill = vettedClosest.filter(i => !shownIds.has(i.id) && !i.alreadyApplied && !(i.applyUrl && !i.applyEmail)).slice(0, Math.max(0, TARGET - actionableDir.length));
+      items = [...queueItems, ...actionableDir, ...fill];
       let atsPos = queueItems.length + 2;
       for (const card of atsCards) {
         items.splice(Math.min(atsPos, items.length), 0, card);
@@ -358,6 +359,13 @@ export default async function DiscoveryPage() {
       }
     }
   }
+
+  // Drop everything the user has ALREADY applied to — a feed of "✓ Applied" cards is dead weight
+  // (nothing to click) and buried fresh matches. The old "verified queue" surfaced sent applications
+  // by design (to show what the matcher applied to), but with auto-apply off that just walls the top
+  // of the feed with already-done rows. ATS cards are external-apply (alreadyApplied never set) so
+  // they're untouched.
+  items = items.filter(i => !i.alreadyApplied);
 
   // Compute top skills with counts
   const skillCounts: Record<string, number> = {};
