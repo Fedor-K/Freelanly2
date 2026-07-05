@@ -11,7 +11,7 @@ import { OUTREACH } from './recruiter-outreach';
 
 export type SendDraftResult = { sent: boolean; from?: string; reason?: string; messageId?: string };
 
-type StoredCandidate = { userId: string; label: string | null };
+export type StoredCandidate = { userId: string; label: string | null };
 
 export async function sendOutreachDraft(id: string): Promise<SendDraftResult> {
   const d = await prisma.outreachDraft.findUnique({ where: { id } });
@@ -46,12 +46,15 @@ export async function sendOutreachDraft(id: string): Promise<SendDraftResult> {
   }).catch(() => {});
 
   // Persist the shortlist so the email's portal link shows these candidates (profiles + CVs + reply).
-  await persistDraftCandidates(d.id, to, d.companyName || d.contactDomain.split('.')[0], d.roleTitle, (d.candidates as unknown as StoredCandidate[]) || []);
+  await persistDraftCandidates(to, d.companyName || d.contactDomain.split('.')[0], d.roleTitle, (d.candidates as unknown as StoredCandidate[]) || []);
 
   return { sent: true, from, messageId: res.messageId };
 }
 
-async function persistDraftCandidates(draftId: string, email: string, company: string, role: string, cands: StoredCandidate[]): Promise<void> {
+/** Persist a draft's shortlist as SHORTLIST AutoApplication rows so the recruiter landing (which reads
+ *  AutoApplication) shows them. Called at BUILD time (so a draft's landing is populated before send)
+ *  and on send. Idempotent per (candidate, recruiter, role). Never throws on a single candidate. */
+export async function persistDraftCandidates(email: string, company: string, role: string, cands: StoredCandidate[]): Promise<void> {
   for (const c of cands) {
     if (!c?.userId) continue;
     try {

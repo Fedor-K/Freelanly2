@@ -14,6 +14,7 @@ import { Prisma } from '@prisma/client';
 import { buildLeverCompanyCards } from './lever-pipeline';
 import { buildShortlistForRole, type ShortlistCandidate } from '@/services/recruiter-shortlist';
 import { cardEmail, normalizeProfession } from './recruiter-outreach';
+import { persistDraftCandidates } from './send-outreach-draft';
 import { getRecruiterPortalUrl, getRecruiterUnsubscribeUrl } from '@/lib/recruiter-token';
 
 export type BuildDraftsResult = {
@@ -78,6 +79,8 @@ export async function buildOutreachDrafts(opts: { limit?: number; randomize?: bo
           candidateCount: shortlist.length,
         },
       });
+      // Populate the recruiter landing now (reads AutoApplication), so the /r link isn't empty pre-send.
+      await persistDraftCandidates(card.contact.email!, company, role.title, shortlist.map((c) => ({ userId: c.userId, label: c.label ?? null })));
       out.created++;
     } catch {
       // Unique race (domain+role) or transient — count as existing, keep going.

@@ -13,6 +13,7 @@ import { Prisma } from '@prisma/client';
 import { resolveCompanyContact } from './company-contact';
 import { buildShortlistForRole, type ShortlistCandidate } from '@/services/recruiter-shortlist';
 import { cardEmail, normalizeProfession } from './recruiter-outreach';
+import { persistDraftCandidates } from './send-outreach-draft';
 import { getRecruiterPortalUrl, getRecruiterUnsubscribeUrl } from '@/lib/recruiter-token';
 import type { LeverPosting } from './lever-ats';
 
@@ -94,6 +95,9 @@ export async function buildAtsDayDrafts(opts: { day?: string } = {}): Promise<At
           candidateCount: shortlist.length,
         },
       });
+      // Populate the recruiter landing now (reads AutoApplication), so the draft's /r link isn't empty
+      // before it's sent.
+      await persistDraftCandidates(contact.email, companyName, o.title, shortlist.map((c) => ({ userId: c.userId, label: c.label ?? null })));
       out.created++;
     } catch { out.existing++; }
   }
