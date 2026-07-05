@@ -4,8 +4,8 @@ import { prisma } from '@/lib/db';
 import { computeCaveats, reconcileScore } from '@/lib/match-caveats';
 import { cleanReplyText } from '@/lib/clean-reply';
 import { verifyRecruiterToken } from '@/lib/recruiter-token';
-import { RecruiterCabinet } from '@/components/recruiter/cabinet/RecruiterCabinet';
-import { cleanDisplayName, type RecruiterCandidate, type RecruiterInfo } from '@/components/recruiter/cabinet/lib';
+import { RecruiterLanding, type AnonCandidate } from './RecruiterLanding';
+import { cleanDisplayName, type RecruiterCandidate } from '@/components/recruiter/cabinet/lib';
 import { hasRenderableCv, type CvProfile } from '@/lib/recruiter-cv';
 import '../../design-app.css';
 import '../recruiter.css';
@@ -102,23 +102,12 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
 
   await logVisit(email, apps.length);
 
-  // Already-registered recruiter → bump lastSeenAt + load their profile/plan. We never create a
-  // row on a mere visit, so "registered" stays a genuine engagement signal captured at reply time.
-  const recruiter = await prisma.recruiter.findUnique({ where: { email }, select: { id: true, name: true, company: true, plan: true } });
-  const needsRegistration = !recruiter;
+  // Already-registered recruiter → bump lastSeenAt (engagement signal). We never create a row on a
+  // mere visit, so "registered" stays genuine.
+  const recruiter = await prisma.recruiter.findUnique({ where: { email }, select: { company: true } });
   if (recruiter) {
     await prisma.recruiter.update({ where: { email }, data: { lastSeenAt: new Date() } }).catch(() => {});
   }
-
-  // Which candidates this recruiter has already revealed → seed the reveal state with the REAL
-  // email (already revealed to them, so fair to send back; non-revealed emails are never sent).
-  const reveals = await prisma.contactReveal.findMany({ where: { recruiterEmail: email.toLowerCase() }, select: { applicationId: true } });
-  const revealedIds = reveals.map((r) => r.applicationId);
-  const revealedRows = revealedIds.length
-    ? await prisma.autoApplication.findMany({ where: { id: { in: revealedIds } }, select: { id: true, user: { select: { email: true } } } })
-    : [];
-  const revealedContacts: Record<string, string> = {};
-  for (const r of revealedRows) if (r.user.email) revealedContacts[r.id] = r.user.email;
 
   const candidates: RecruiterCandidate[] = apps.map((a) => {
     const p = (a.user.parsedProfile ?? {}) as Record<string, unknown>;
@@ -182,21 +171,24 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
     };
   });
 
-  const info: RecruiterInfo = {
-    name: recruiter?.name || '',
-    company: recruiter?.company || guessCompany(email),
-    email,
-    plan: recruiter?.plan === 'pro' ? 'pro' : 'free',
-  };
+  // Anonymized, PII-free view for the landing (no name / avatar / CV / cover letter / contact reach
+  // the client — those are the "introduce me" reward, not the teaser).
+  const anon: AnonCandidate[] = candidates.map((c) => ({
+    appId: c.appId,
+    profession: c.profile.current_title || c.jobTitle || 'Candidate',
+    location: c.profile.location || null,
+    strength: c.strength || (c.fit && /strong|good|weak/i.test(c.fit) ? c.fit.replace(/\s*match.*/i, '') : null),
+    years: c.profile.experience_years ?? null,
+    skills: c.profile.skills || [],
+    matched: c.matchBreakdown?.matched ?? null,
+    total: c.matchBreakdown?.total ?? null,
+    availability: c.profile.availabilityHours || null,
+    rateFloorHourly: c.profile.rateFloorHourly ?? null,
+    timezone: c.profile.timezone || null,
+  }));
 
-  return (
-    <RecruiterCabinet
-      token={token}
-      recruiter={info}
-      candidates={candidates}
-      revealedContacts={revealedContacts}
-      needsRegistration={needsRegistration}
-      prefill={{ company: guessCompany(email), hiringFor: topJobTitle(apps) }}
-    />
-  );
+  const company = recruiter?.company || guessCompany(email);
+  const role = topJobTitle(apps);
+
+  return <RecruiterLanding token={token} company={company} role={role} candidates={anon} />;
 }
