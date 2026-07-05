@@ -25,14 +25,14 @@ export function SmtpConnected({ email }: { email: string }) {
     } catch { setBusy(false); }
   }
   return (
-    <div className="integration">
-      <div className="ico" style={{ background: '#EA4335', color: '#fff' }}>G</div>
-      <div>
-        <div className="name">SMTP · {email}</div>
-        <div className="meta">Sending from this address via SMTP · unlimited</div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', border: '1px solid var(--line, #E4E1D9)', borderRadius: '12px', background: 'var(--bg-2, #FBFAF6)' }}>
+      <div style={{ width: 40, height: 40, borderRadius: 10, background: '#EA4335', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, flexShrink: 0 }}>G</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '14px', fontWeight: 600 }}>SMTP · {email}</div>
+        <div style={{ fontSize: '12.5px', color: 'var(--ink-4, #8A8780)' }}>Sending from this address · unlimited</div>
       </div>
-      <span className="chip chip-good" style={{ marginRight: '8px' }}><span className="chip-dot live"></span>Active</span>
-      <button className="btn btn-soft btn-sm" onClick={disconnect} disabled={busy}>{busy ? '…' : 'Disconnect'}</button>
+      <span className="chip chip-good" style={{ flexShrink: 0 }}><span className="chip-dot live"></span>Active</span>
+      <button className="btn btn-soft btn-sm" style={{ flexShrink: 0 }} onClick={disconnect} disabled={busy}>{busy ? '…' : 'Disconnect'}</button>
     </div>
   );
 }
