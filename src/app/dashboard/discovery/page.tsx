@@ -335,7 +335,9 @@ export default async function DiscoveryPage() {
           companyName: o.company?.name || o.posterCompany || o.clientName || 'Unknown',
           description: o.description, source: o.source === 'ats_lever' ? 'Lever' : 'linkedin', createdAt: o.createdAt.toISOString(),
           skills: o.skills, location: o.location, applyEmail: o.applyEmail, applyUrl: o.applyUrl,
-          matchLabel: (f.label === 'Weak' ? 'Good' : f.label) as FitLabel, // gate said SEND — at least Good
+          // Badge from the GATE's label (what the apply gate will also use), NOT the lexical scorer —
+          // the two drift, which showed "★ Strong" cards that the send path then treated as Good.
+          matchLabel: ((vf.gateLabels.get(id) as FitLabel) || (f.label === 'Weak' ? 'Good' : f.label)) as FitLabel,
           aiVerified: true, alreadyApplied: appliedOppIds.has(o.id),
           githubVerified: ghOverlap(f.matchedSkills),
           matchScore: f.score, matchedSkills: f.matchedSkills.slice(0, 4), matchedTitleTokens: f.matchedTitleTokens,

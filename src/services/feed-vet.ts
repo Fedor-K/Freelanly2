@@ -77,6 +77,7 @@ type VetState = {
   // stage-1-surviving pool, best lexical score first
   pool: Array<{ r: PoolRow; f: ReturnType<typeof scoreFitLabeled> }>;
   verdict: Map<string, string>; // opportunityId → 'SEND' | 'NO'
+  gateLabel: Map<string, string>; // opportunityId → the GATE's label (Strong|Good|Weak) — badge from THIS, not lexical
 };
 
 /** Shared state builder: direction pool → stage-1 cut → existing verdicts (all three sources, same
@@ -107,23 +108,29 @@ async function computeVetState(userId: string): Promise<VetState | null> {
 
   const ids = pool.map(x => x.r.id);
   const verdict = new Map<string, string>();
+  const gateLabel = new Map<string, string>();
+  // Keep the STRONGEST label across sources for the badge (so a card is never under-labeled vs any
+  // verdict) — Strong > Good > Weak.
+  const rank = (l: string | null | undefined) => (/strong/i.test(l || '') ? 3 : /good/i.test(l || '') ? 2 : /weak/i.test(l || '') ? 1 : 0);
+  const setLabel = (id: string, l: string | null | undefined) => { if (l && rank(l) > rank(gateLabel.get(id))) gateLabel.set(id, l); };
   if (ids.length) {
     const [mv, pv, aa] = await Promise.all([
-      prisma.matchVerdict.findMany({ where: { userId, opportunityId: { in: ids } }, select: { opportunityId: true, decision: true } }),
-      prisma.pairingVerdict.findMany({ where: { userId, opportunityId: { in: ids } }, select: { opportunityId: true, decision: true } }),
-      prisma.autoApplication.findMany({ where: { userId, opportunityId: { in: ids }, matchLabel: { not: null } }, select: { opportunityId: true, status: true } }),
+      prisma.matchVerdict.findMany({ where: { userId, opportunityId: { in: ids } }, select: { opportunityId: true, decision: true, label: true } }),
+      prisma.pairingVerdict.findMany({ where: { userId, opportunityId: { in: ids } }, select: { opportunityId: true, decision: true, label: true } }),
+      prisma.autoApplication.findMany({ where: { userId, opportunityId: { in: ids }, matchLabel: { not: null } }, select: { opportunityId: true, status: true, matchLabel: true } }),
     ]);
-    for (const a of aa) verdict.set(a.opportunityId!, a.status === 'MATCH_REJECTED' ? 'NO' : 'SEND');
-    for (const v of pv) verdict.set(v.opportunityId, v.decision);
-    for (const v of mv) verdict.set(v.opportunityId, v.decision);
+    for (const a of aa) { verdict.set(a.opportunityId!, a.status === 'MATCH_REJECTED' ? 'NO' : 'SEND'); setLabel(a.opportunityId!, a.matchLabel); }
+    for (const v of pv) { verdict.set(v.opportunityId, v.decision); setLabel(v.opportunityId, v.label); }
+    for (const v of mv) { verdict.set(v.opportunityId, v.decision); setLabel(v.opportunityId, v.label); }
   }
-  return { user: user as VetUserRow, ghUser, ghReview, pool, verdict };
+  return { user: user as VetUserRow, ghUser, ghReview, pool, verdict, gateLabel };
 }
 
 /** Read-only view for the feed render: approved opportunity ids in score order + coverage counters. */
 export async function readVettedFeed(userId: string): Promise<{
   approvedIds: string[];
   fits: Map<string, ReturnType<typeof scoreFitLabeled>>;
+  gateLabels: Map<string, string>; // badge from the GATE's label, not the lexical scorer (they drift)
   status: Omit<FeedVetStatus, 'vettedNow' | 'budgetExhausted'>;
 } | null> {
   const st = await computeVetState(userId);
@@ -133,6 +140,7 @@ export async function readVettedFeed(userId: string): Promise<{
   return {
     approvedIds: approved.map(x => x.r.id),
     fits: new Map(st.pool.map(x => [x.r.id, x.f])),
+    gateLabels: st.gateLabel,
     status: { poolSize: st.pool.length, vetted, approved: approved.length, remaining: st.pool.length - vetted },
   };
 }
