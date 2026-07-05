@@ -43,12 +43,22 @@ function toRole(o: { title: string; description: string | null; country: string 
   };
 }
 
-export async function buildAtsDayDrafts(): Promise<AtsDayResult> {
-  const T0 = (await prisma.$queryRawUnsafe<{ d: Date }[]>(
-    `SELECT (date_trunc('day', now() AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'Europe/Moscow') d`))[0].d;
+/** MSK-day [start, end) window in UTC for `day` ('YYYY-MM-DD'), or today's MSK day if omitted. */
+export async function mskDayBounds(day?: string): Promise<{ a: Date; b: Date }> {
+  const r = day
+    ? await prisma.$queryRawUnsafe<{ a: Date; b: Date }[]>(
+        `SELECT ($1::date::timestamp AT TIME ZONE 'Europe/Moscow') a, (($1::date + 1)::timestamp AT TIME ZONE 'Europe/Moscow') b`, day)
+    : await prisma.$queryRawUnsafe<{ a: Date; b: Date }[]>(
+        `SELECT (date_trunc('day', now() AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'Europe/Moscow') a,
+                (date_trunc('day', now() AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'Europe/Moscow' + interval '1 day') b`);
+  return r[0];
+}
+
+export async function buildAtsDayDrafts(opts: { day?: string } = {}): Promise<AtsDayResult> {
+  const { a, b } = await mskDayBounds(opts.day);
 
   const opps = await prisma.opportunity.findMany({
-    where: { source: 'ats_lever', isActive: true, createdAt: { gte: T0 } },
+    where: { source: 'ats_lever', isActive: true, createdAt: { gte: a, lt: b } },
     select: { id: true, title: true, description: true, country: true, location: true, applyUrl: true, sourceId: true, createdAt: true },
     orderBy: { createdAt: 'asc' },
   });

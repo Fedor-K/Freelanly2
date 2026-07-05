@@ -16,8 +16,9 @@ async function handle(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   try {
-    const result = await buildAtsDayDrafts();
-    console.log(`[Cron] build-ats-outreach: vacancies=${result.vacancies}, created=${result.created}, noContact=${result.noContact}, noCandidates=${result.noCandidates}, existing=${result.existing}`);
+    const day = new URL(request.url).searchParams.get('date') || undefined; // YYYY-MM-DD (MSK); default today
+    const result = await buildAtsDayDrafts({ day });
+    console.log(`[Cron] build-ats-outreach${day ? ` (${day})` : ''}: vacancies=${result.vacancies}, created=${result.created}, noContact=${result.noContact}, noCandidates=${result.noCandidates}, existing=${result.existing}`);
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
     console.error('[Cron] build-ats-outreach failed:', error);
