@@ -6,6 +6,7 @@ export type AnonCandidate = {
   appId: string;
   profession: string;
   location: string | null;
+  whyFit: string | null;
   strength: string | null;      // Strong | Good | Weak
   years: number | null;
   skills: string[];
@@ -91,6 +92,11 @@ export function RecruiterLanding({ token, company, role, candidates }: {
                     {c.skills.slice(0, 8).map((sk, j) => (
                       <span key={j} style={{ fontSize: 12, background: '#f5f4ef', border: '1px solid #e6e4dd', borderRadius: 6, padding: '3px 8px' }}>{sk}</span>
                     ))}
+                  </div>
+                )}
+                {c.whyFit && (
+                  <div style={{ marginTop: 10, fontSize: 13.5, color: '#3a3a3a', lineHeight: 1.55, background: '#f8faf0', border: '1px solid #e8f0d0', borderRadius: 8, padding: '10px 12px' }}>
+                    <span style={{ fontWeight: 700, color: '#5a6b1e' }}>Why this fit: </span>{c.whyFit}
                   </div>
                 )}
               </div>

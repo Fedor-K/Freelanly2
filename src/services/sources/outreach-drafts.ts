@@ -80,7 +80,7 @@ export async function buildOutreachDrafts(opts: { limit?: number; randomize?: bo
         },
       });
       // Populate the recruiter landing now (reads AutoApplication), so the /r link isn't empty pre-send.
-      await persistDraftCandidates(card.contact.email!, company, role.title, shortlist.map((c) => ({ userId: c.userId, label: c.label ?? null })));
+      await persistDraftCandidates(card.contact.email!, company, role.title, shortlist.map((c) => ({ userId: c.userId, label: c.label ?? null, matchBreakdown: c.matchBreakdown ?? null })));
       out.created++;
     } catch {
       // Unique race (domain+role) or transient — count as existing, keep going.

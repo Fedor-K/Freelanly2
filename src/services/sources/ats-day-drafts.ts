@@ -97,7 +97,7 @@ export async function buildAtsDayDrafts(opts: { day?: string } = {}): Promise<At
       });
       // Populate the recruiter landing now (reads AutoApplication), so the draft's /r link isn't empty
       // before it's sent.
-      await persistDraftCandidates(contact.email, companyName, o.title, shortlist.map((c) => ({ userId: c.userId, label: c.label ?? null })));
+      await persistDraftCandidates(contact.email, companyName, o.title, shortlist.map((c) => ({ userId: c.userId, label: c.label ?? null, matchBreakdown: c.matchBreakdown ?? null })));
       out.created++;
     } catch { out.existing++; }
   }

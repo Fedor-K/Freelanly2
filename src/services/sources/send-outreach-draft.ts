@@ -5,13 +5,14 @@
 // deliverability kill-switch keeps seeing volume. On success it persists the shortlist as SHORTLIST
 // AutoApplication rows so the email's "View profiles & CVs" portal link actually resolves.
 import { prisma } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 import { sendEmail } from '@/lib/email';
 import { getRecruiterUnsubscribeUrl } from '@/lib/recruiter-token';
 import { OUTREACH } from './recruiter-outreach';
 
 export type SendDraftResult = { sent: boolean; from?: string; reason?: string; messageId?: string };
 
-export type StoredCandidate = { userId: string; label: string | null };
+export type StoredCandidate = { userId: string; label: string | null; matchBreakdown?: Record<string, unknown> | null };
 
 export async function sendOutreachDraft(id: string): Promise<SendDraftResult> {
   const d = await prisma.outreachDraft.findUnique({ where: { id } });
@@ -68,6 +69,8 @@ export async function persistDraftCandidates(email: string, company: string, rol
         data: {
           userId: c.userId, loopId: loop.id, appliedToEmail: email, companyName: company, jobTitle: role,
           coverLetter: '', subject: '', origin: 'SHORTLIST', status: 'SENT', matchLabel: c.label ?? null,
+          // Carry the breakdown (incl. recruiterReasoning "why this fit") so the landing can explain the pick.
+          matchBreakdown: (c.matchBreakdown ?? undefined) as Prisma.InputJsonValue | undefined,
         },
       });
     } catch { /* one candidate failing must not block the send record */ }

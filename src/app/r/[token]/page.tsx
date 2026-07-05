@@ -177,10 +177,13 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
   const anon: AnonCandidate[] = candidates.map((c, i) => {
     const u = apps[i].user;
     const verified = u.githubReview?.verdict === 'STRONG' || u.githubReview?.verdict === 'ACTIVE';
+    const bd = apps[i].matchBreakdown as Record<string, unknown> | null;
+    const whyFit = bd && typeof bd.recruiterReasoning === 'string' ? bd.recruiterReasoning : null;
     return {
       appId: c.appId,
       profession: c.profile.current_title || c.jobTitle || 'Candidate',
       location: c.profile.location || null,
+      whyFit,
       strength: c.strength || (c.fit && /strong|good|weak/i.test(c.fit) ? c.fit.replace(/\s*match.*/i, '') : null),
       years: c.profile.experience_years ?? null,
       skills: c.profile.skills || [],
