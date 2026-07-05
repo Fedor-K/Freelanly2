@@ -131,27 +131,37 @@ export function normalizeProfession(title: string | null | undefined): string {
 }
 export function cardEmail(company: string, role: string, cands: ShortlistCandidate[], portalUrl: string, unsub: string) {
   const n = cands.length;
+  // Anonymized-but-rich teaser: profession (not name), the screening facts recruiters ask for
+  // (years / timezone / start-date / availability / expected pay), a verified-GitHub / portfolio
+  // badge (badge only — the actual link would de-anonymize, so it's the reward on the portal),
+  // top skills, and the "why this fit" reasoning. Initials avatar (no photo — protects identity).
+  const chip = 'display:inline-block;font-size:12px;background:#f5f4ef;border:1px solid #e6e4dd;border-radius:6px;padding:2px 7px;margin:0 4px 4px 0;';
   const rows = cands.map(c => {
-    const skills = ((c.matchBreakdown?.lines as Array<{ label?: string }> | undefined)?.slice(0, 4).map(l => l.label).filter(Boolean).join(' · ')) || '';
-    // Photo: only embed an <img> for our persistent Blob avatars — licdn URLs expire and would render
-    // as a broken-image icon in the recruiter's client (email has no onError fallback). Otherwise a
-    // colored initials circle. No LinkedIn link (owner decision — keep the recruiter in our funnel).
-    // Anonymous teaser: show the PROFESSION, not the name — the recruiter must click through to the
-    // portal to see who the candidate is and reach them (keeps them in our funnel; protects identity).
-    const profession = normalizeProfession(c.title) || role || 'Candidate';
-    const headline = esc(profession);
-    const initials = esc(profession.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?');
-    const avatar = (c.image || '').includes('blob.vercel-storage')
-      ? `<img src="${esc(c.image || '')}" width="48" height="48" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:block;">`
-      : `<div style="width:48px;height:48px;border-radius:50%;background:#c6f135;color:#111;font-weight:700;font-size:16px;text-align:center;line-height:48px;">${initials}</div>`;
+    const profession = esc(normalizeProfession(c.title) || role || 'Candidate');
+    const initials = esc((normalizeProfession(c.title) || 'C').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?');
+    const avatar = `<div style="width:44px;height:44px;border-radius:50%;background:#c6f135;color:#111;font-weight:700;font-size:15px;text-align:center;line-height:44px;">${initials}</div>`;
+    const bits: string[] = [];
+    if (c.location) bits.push('📍 ' + esc(c.location));
+    if (c.years != null) bits.push(esc(String(c.years)) + ' yrs exp');
+    if (c.timezone) bits.push(esc(c.timezone));
+    if (c.availableFrom) bits.push('starts ' + esc(c.availableFrom));
+    if (c.availability) bits.push(esc(c.availability));
+    if (c.salaryExpectation) bits.push('exp. pay ' + esc(c.salaryExpectation));
+    const detail = bits.length ? `<div style="color:#555;font-size:13px;margin:3px 0;">${bits.join('  ·  ')}</div>` : '';
+    const badges: string[] = [];
+    if (c.githubVerified) badges.push('<span style="font-size:11px;font-weight:700;color:#166534;background:#dcfce7;border-radius:5px;padding:2px 7px;">✓ GitHub-verified</span>');
+    if (c.portfolioUrl) badges.push('<span style="font-size:11px;color:#555;background:#f0efe9;border-radius:5px;padding:2px 7px;">Portfolio available</span>');
+    const badgeHtml = badges.length ? `<div style="margin:5px 0;">${badges.join(' ')}</div>` : '';
+    const chips = (c.skills || []).slice(0, 8).map(s => `<span style="${chip}">${esc(s)}</span>`).join('');
+    const chipHtml = chips ? `<div style="margin-top:4px;">${chips}</div>` : '';
     const why = typeof c.matchBreakdown?.recruiterReasoning === 'string' ? (c.matchBreakdown.recruiterReasoning as string).trim() : '';
-    const whyHtml = why ? `<br><span style="color:#444;font-size:13px;line-height:1.5;display:inline-block;margin-top:4px;"><span style="color:#7a7a7a;">Why this fit:</span> ${esc(why)}</span>` : '';
-    return `<tr><td style="padding:12px 0;border-bottom:1px solid #eee;">
-      <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-        <td width="48" style="vertical-align:top;padding-right:12px;">${avatar}</td>
+    const whyHtml = why ? `<div style="color:#444;font-size:13px;line-height:1.5;margin-top:6px;"><span style="color:#7a7a7a;">Why this fit:</span> ${esc(why)}</div>` : '';
+    return `<tr><td style="padding:14px 0;border-bottom:1px solid #eee;">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+        <td width="44" style="vertical-align:top;padding-right:12px;">${avatar}</td>
         <td style="vertical-align:top;">
-          <strong>${headline}</strong>${c.label ? ` — <span style="color:#7a7a7a">${esc(c.label)} match</span>` : ''}<br>
-          <span style="color:#555;font-size:13px;">${esc(c.location || 'Remote')}${skills ? ' · ' + esc(skills) : ''}</span>${whyHtml}
+          <strong style="font-size:15px;">${profession}</strong>${c.label ? ` <span style="color:#7a7a7a;font-size:13px;">— ${esc(c.label)} match</span>` : ''}
+          ${detail}${badgeHtml}${chipHtml}${whyHtml}
         </td>
       </tr></table></td></tr>`;
   }).join('');
@@ -163,7 +173,14 @@ export function cardEmail(company: string, role: string, cands: ShortlistCandida
     <p style="margin-top:18px;"><a href="${esc(portalUrl)}" style="background:#c6f135;color:#111;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600;">View profiles &amp; CVs →</a></p>
     <p style="color:#888;font-size:12px;margin-top:24px;">Reply to this email to connect with any of them. Not hiring right now? <a href="${esc(unsub)}">Unsubscribe</a> and we won't email again.</p>
   </div>`;
-  const text = `Hi ${company} team,\n\nYou have an open ${role} role. ${n > 1 ? `${n} candidates` : `A candidate`} from our pool fit it:\n\n${cands.map(c => `• ${normalizeProfession(c.title) || role || 'Candidate'} — ${c.location || 'Remote'}${c.label ? ` (${c.label})` : ''}`).join('\n')}\n\nView profiles & CVs: ${portalUrl}\nReply to connect. Unsubscribe: ${unsub}`;
+  const text = `Hi ${company} team,\n\nYou have an open ${role} role. ${n > 1 ? `${n} candidates` : `A candidate`} from our pool fit it:\n\n${cands.map(c => {
+    const b: string[] = [c.location || 'Remote'];
+    if (c.years != null) b.push(`${c.years}y exp`);
+    if (c.availableFrom) b.push(`starts ${c.availableFrom}`);
+    if (c.salaryExpectation) b.push(`exp. pay ${c.salaryExpectation}`);
+    if (c.githubVerified) b.push('GitHub-verified');
+    return `• ${normalizeProfession(c.title) || role || 'Candidate'}${c.label ? ` (${c.label})` : ''} — ${b.join(', ')}${c.skills?.length ? `\n  skills: ${c.skills.slice(0, 8).join(', ')}` : ''}`;
+  }).join('\n')}\n\nView profiles & CVs: ${portalUrl}\nReply to connect. Unsubscribe: ${unsub}`;
   return { subject, html, text };
 }
 

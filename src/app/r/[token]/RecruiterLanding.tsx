@@ -12,8 +12,11 @@ export type AnonCandidate = {
   matched: number | null;
   total: number | null;
   availability: string | null;
-  rateFloorHourly: number | null;
+  availableFrom: string | null;
+  salaryExpectation: string | null;
   timezone: string | null;
+  githubVerified: boolean;
+  hasPortfolio: boolean;
 };
 
 const STRENGTH: Record<string, { c: string; bg: string }> = {
@@ -68,13 +71,21 @@ export function RecruiterLanding({ token, company, role, candidates }: {
                   <strong style={{ fontSize: 16 }}>{c.profession}</strong>
                   {c.strength && <span style={{ fontSize: 11, fontWeight: 700, color: s.c, background: s.bg, padding: '2px 9px', borderRadius: 20 }}>{c.strength} match</span>}
                 </div>
-                <div style={{ fontSize: 13.5, color: '#555', marginBottom: 10, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 13.5, color: '#555', marginBottom: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
                   {c.location && <span>📍 {c.location}</span>}
+                  {c.timezone && <span>🕒 {c.timezone}</span>}
                   {c.years != null && <span>🧭 {c.years} yr{c.years === 1 ? '' : 's'} experience</span>}
-                  {c.availability && <span>🕒 {c.availability}</span>}
-                  {c.rateFloorHourly != null && <span>💵 from ${c.rateFloorHourly}/hr</span>}
+                  {c.availableFrom && <span>▶ starts {c.availableFrom}</span>}
+                  {c.availability && <span>{c.availability}</span>}
+                  {c.salaryExpectation && <span>💵 {c.salaryExpectation} <span style={{ color: '#999' }}>(expected)</span></span>}
                   {c.matched != null && c.total != null && c.total > 0 && <span>✓ matches {c.matched} of {c.total} requirements</span>}
                 </div>
+                {(c.githubVerified || c.hasPortfolio) && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                    {c.githubVerified && <span style={{ fontSize: 11, fontWeight: 700, color: '#166534', background: '#dcfce7', borderRadius: 5, padding: '3px 8px' }}>✓ GitHub-verified</span>}
+                    {c.hasPortfolio && <span style={{ fontSize: 11, color: '#555', background: '#f0efe9', borderRadius: 5, padding: '3px 8px' }}>Portfolio available</span>}
+                  </div>
+                )}
                 {c.skills.length > 0 && (
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {c.skills.slice(0, 8).map((sk, j) => (

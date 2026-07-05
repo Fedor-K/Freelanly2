@@ -56,6 +56,16 @@ export type ShortlistCandidate = {
   decision: 'SEND' | 'NO';
   matchBreakdown: Record<string, unknown> | null;
   lexScore: number;
+  // Screening fields recruiters ask for (self-reported unless noted) — plumbed into the card + landing.
+  years: number | null;
+  skills: string[];
+  timezone: string | null;
+  availability: string | null;   // "~30 hrs/week"
+  availableFrom: string | null;  // "immediately", "mid-November"
+  salaryExpectation: string | null;
+  portfolioUrl: string | null;
+  githubUrl: string | null;
+  githubVerified: boolean;       // has a fresh STRONG/ACTIVE GitHubReview
 };
 
 // Vet one candidate against a PRE-PARSED jd (parseJD already done once for the role).
@@ -63,7 +73,7 @@ async function vetCandidate(
   role: LeverPosting,
   jd: Awaited<ReturnType<typeof parseJD>>,
   jdText: string,
-  u: { id: string; name: string | null; email: string; location: string | null; linkedinUrl: string | null; image: string | null; parsedProfile: unknown; resumeText: string | null; resumeUrl: string | null; githubUrl?: string | null; githubReview?: ReviewRow | null },
+  u: { id: string; name: string | null; email: string; location: string | null; linkedinUrl: string | null; image: string | null; parsedProfile: unknown; resumeText: string | null; resumeUrl: string | null; githubUrl?: string | null; githubReview?: ReviewRow | null; timezone?: string | null; availability?: string | null; availableFrom?: string | null; salaryExpectation?: string | null; portfolioUrl?: string | null },
   lex: number,
 ): Promise<ShortlistCandidate> {
   const p = (u.parsedProfile || {}) as Record<string, unknown>;
@@ -118,6 +128,15 @@ async function vetCandidate(
     userId: u.id, name: u.name, title: (typeof p.current_title === 'string' ? p.current_title : null),
     email: u.email, location: u.location, linkedinUrl: u.linkedinUrl, image: u.image,
     label: computeCaveats(matchBreakdown)?.strength, decision, matchBreakdown, lexScore: lex,
+    years: typeof p.experience_years === 'number' ? (p.experience_years as number) : null,
+    skills: Array.isArray(p.skills) ? (p.skills as unknown[]).map(String).slice(0, 12) : [],
+    timezone: u.timezone ?? null,
+    availability: u.availability ?? null,
+    availableFrom: u.availableFrom ?? null,
+    salaryExpectation: u.salaryExpectation ?? null,
+    portfolioUrl: u.portfolioUrl ?? null,
+    githubUrl: u.githubUrl ?? null,
+    githubVerified: !!u.githubReview && (u.githubReview.verdict === 'STRONG' || u.githubReview.verdict === 'ACTIVE'),
   };
 }
 
@@ -152,7 +171,7 @@ export async function buildShortlistForRole(
   // Pass 2 — fetch full profiles, parse JD once, vet with bounded concurrency.
   const full = await prisma.user.findMany({
     where: { id: { in: ranked.map(r => r.id) } },
-    select: { id: true, name: true, email: true, location: true, linkedinUrl: true, image: true, parsedProfile: true, resumeText: true, resumeUrl: true, githubUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } } },
+    select: { id: true, name: true, email: true, location: true, linkedinUrl: true, image: true, parsedProfile: true, resumeText: true, resumeUrl: true, githubUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } }, timezone: true, availability: true, availableFrom: true, salaryExpectation: true, portfolioUrl: true },
   });
   const byId = new Map(full.map(u => [u.id, u]));
   const jd = await parseJD(jdText, role.title);

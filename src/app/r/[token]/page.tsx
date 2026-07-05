@@ -96,7 +96,7 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
     select: {
       id: true, jobTitle: true, coverLetter: true, matchScore: true, matchLabel: true, createdAt: true,
       jobId: true, opportunityId: true, matchBreakdown: true, status: true, repliedAt: true, replyText: true,
-      user: { select: { name: true, image: true, parsedProfile: true, resumeUrl: true, lastActiveAt: true, availableFrom: true, portfolioUrl: true, salaryExpectation: true, salaryExpectationAt: true, timezone: true, availability: true, rateFloorHourly: true } },
+      user: { select: { name: true, image: true, parsedProfile: true, resumeUrl: true, lastActiveAt: true, availableFrom: true, portfolioUrl: true, salaryExpectation: true, salaryExpectationAt: true, timezone: true, availability: true, rateFloorHourly: true, githubUrl: true, githubReview: { select: { verdict: true } } } },
     },
   });
 
@@ -172,20 +172,28 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
   });
 
   // Anonymized, PII-free view for the landing (no name / avatar / CV / cover letter / contact reach
-  // the client — those are the "introduce me" reward, not the teaser).
-  const anon: AnonCandidate[] = candidates.map((c) => ({
-    appId: c.appId,
-    profession: c.profile.current_title || c.jobTitle || 'Candidate',
-    location: c.profile.location || null,
-    strength: c.strength || (c.fit && /strong|good|weak/i.test(c.fit) ? c.fit.replace(/\s*match.*/i, '') : null),
-    years: c.profile.experience_years ?? null,
-    skills: c.profile.skills || [],
-    matched: c.matchBreakdown?.matched ?? null,
-    total: c.matchBreakdown?.total ?? null,
-    availability: c.profile.availabilityHours || null,
-    rateFloorHourly: c.profile.rateFloorHourly ?? null,
-    timezone: c.profile.timezone || null,
-  }));
+  // the client — those are the "introduce me" reward, not the teaser). Screening facts recruiters ask
+  // for (years, timezone, start-date, availability, expected pay, verified-GitHub/portfolio badges).
+  const anon: AnonCandidate[] = candidates.map((c, i) => {
+    const u = apps[i].user;
+    const verified = u.githubReview?.verdict === 'STRONG' || u.githubReview?.verdict === 'ACTIVE';
+    return {
+      appId: c.appId,
+      profession: c.profile.current_title || c.jobTitle || 'Candidate',
+      location: c.profile.location || null,
+      strength: c.strength || (c.fit && /strong|good|weak/i.test(c.fit) ? c.fit.replace(/\s*match.*/i, '') : null),
+      years: c.profile.experience_years ?? null,
+      skills: c.profile.skills || [],
+      matched: c.matchBreakdown?.matched ?? null,
+      total: c.matchBreakdown?.total ?? null,
+      availability: u.availability || null,
+      availableFrom: u.availableFrom || null,
+      salaryExpectation: u.salaryExpectation || null,
+      timezone: u.timezone || null,
+      githubVerified: verified,
+      hasPortfolio: !!u.portfolioUrl,
+    };
+  });
 
   const company = recruiter?.company || guessCompany(email);
   const role = topJobTitle(apps);
