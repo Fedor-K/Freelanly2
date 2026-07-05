@@ -241,7 +241,9 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   // "Failed to generate" draft the user could still send. poor_match is the feed↔gate divergence.
   const [draftBlocked, setDraftBlocked] = useState<{ reason: string; message: string } | null>(null);
 
-  const [sortBy, setSortBy] = useState<'newest' | 'match'>('match');
+  // The feed is a curated best-first shortlist (Strong → divider → Good); a chronological "Newest"
+  // sort broke the tiering and pulled fresh-but-irrelevant roles up, so the toggle was removed.
+  const sortBy = 'match' as const;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
   const [showSimilar, setShowSimilar] = useState(false); // similar (non-100%) opps are opt-in via a button
@@ -252,18 +254,15 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
     visible = visible.filter(i => i.skills.some(s => activeSkills.has(s)));
   }
 
-  // Sort
-  if (sortBy === 'newest') {
-    visible.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  } else if (activeSkills.size > 0) {
-    // Manual skill filter is on → rank by how many of the picked skills each role matches.
+  // Sort: manual skill filter re-ranks by picked-skill overlap; otherwise keep the server's
+  // profile-fit ranking (Strong → Good, tiered) as-is.
+  if (activeSkills.size > 0) {
     visible.sort((a, b) => {
       const aMatch = a.skills.filter(s => activeSkills.has(s)).length;
       const bMatch = b.skills.filter(s => activeSkills.has(s)).length;
       return bMatch - aMatch;
     });
   }
-  // else: "My matches" with no manual filter → keep the server's profile fit ranking as-is.
 
   // The feed leads with verified matches; the unverified "similar" (not-100%) opps are split out and
   // only shown when the user opts in via a button. Other sort modes show everything inline.
@@ -454,13 +453,6 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
             )}
             <span className="chip chip-acid-soft"><span className="chip-dot live"></span>Live feed</span>
             <button className="btn btn-ghost btn-sm disco-filter-toggle" onClick={() => setShowFilters(f => !f)}>{showFilters ? 'Hide filters' : 'Filters'}</button>
-          </div>
-          <div className="row gap-2">
-            <span className="muted f-mono" style={{fontSize: '11px'}}>Sort:</span>
-            <div className="seg">
-              <button className={sortBy === 'match' ? 'active' : ''} onClick={() => setSortBy('match')}>My matches</button>
-              <button className={sortBy === 'newest' ? 'active' : ''} onClick={() => setSortBy('newest')}>Newest</button>
-            </div>
           </div>
         </div>
 
