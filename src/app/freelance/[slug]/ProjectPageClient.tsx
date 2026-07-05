@@ -93,6 +93,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [matchLabel, setMatchLabel] = useState<string | null>(null);
   const [matchTier, setMatchTier] = useState<'strong' | 'good' | 'weak'>('good');
   const [gated, setGated] = useState(false); // true = a send would be refused → don't offer the cover-letter path
+  const [smtpPrompt, setSmtpPrompt] = useState(''); // set when the block is "connect your email to send yourself"
   const [suggestions, setSuggestions] = useState<{ slug: string; title: string; company: string }[]>([]);
   const [subject, setSubject] = useState('');
   const [sendTo, setSendTo] = useState('');
@@ -409,14 +410,14 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         } else if (data.error === 'already_applied') {
           setGenError('You already applied to this project.');
           setPhase('sent');
-        } else if (data.error === 'poor_match') {
-          // The gate refuses a send here — DON'T drop into the review screen with a raw "poor_match"
-          // error and a Send button on an empty letter. Route to the honest gated summary: it shows
-          // "we don't send applications to roles this far from your profile" + better-matching roles
-          // (suggestions come back with the 422, since this path can skip the summary preflight).
-          setMatchTier('weak');
-          setMatchLabel(data.matchLabel || 'Weak');
+        } else if (data.error === 'smtp_required' || data.error === 'poor_match') {
+          // Our-name (Postal) sending is reserved for the strongest matches; anything below the bar
+          // routes to the honest gated summary with the "connect your email to send it yourself"
+          // path (and, for a genuine poor match, better-matching roles).
+          setMatchTier(data.reason === 'poor_match' || data.error === 'poor_match' ? 'weak' : 'good');
+          setMatchLabel(data.matchLabel || 'Good');
           setGated(true);
+          setSmtpPrompt(data.message || 'Connect your own email to send this yourself — from your address, no limits.');
           if (Array.isArray(data.suggestions)) setSuggestions(data.suggestions);
           setGenError('');
           setPhase('summary');
@@ -752,11 +753,16 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
               )}
 
               {gated ? (
-                // A send would be refused (hard mismatch). Don't offer a button that just burns an
-                // LLM call on a letter we won't send — be honest and point to the fitting roles.
-                <p style={{ fontSize: '12px', color: '#A8A49B', textAlign: 'center', margin: '4px 0 0', lineHeight: 1.5 }}>
-                  We don&apos;t send applications to roles this far from your profile — pick one of your matches above.
-                </p>
+                // Below the our-name (Postal) bar. Offer the honest self-send path: connect your own
+                // inbox and send this (and anything) yourself, no limits.
+                <div style={{ textAlign: 'center', margin: '4px 0 0' }}>
+                  <p style={{ fontSize: '12px', color: '#8A8780', margin: '0 0 10px', lineHeight: 1.5 }}>
+                    {smtpPrompt || 'We send our strongest matches from Freelanly. Connect your own email to send this yourself — from your address, no limits.'}
+                  </p>
+                  <a href="/dashboard/settings#integrations" style={{ display: 'inline-block', padding: '10px 18px', background: '#C7F94A', color: '#000', borderRadius: '10px', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
+                    ✉️ Connect my email →
+                  </a>
+                </div>
               ) : (
                 <button
                   onClick={generateCoverLetter}

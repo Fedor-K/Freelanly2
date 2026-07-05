@@ -242,8 +242,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'resume_required', message: 'Upload your resume first.' }, { status: 400 });
     }
 
-    // Check free daily limit
-    if (user.plan === 'FREE') {
+    // Check free daily limit — the 20/day cap applies ONLY to our-name (Postal) sends. SMTP users
+    // send from their own inbox with no limit.
+    if (user.plan === 'FREE' && !user.userSmtp?.verified) {
       const now = new Date();
       const lastReset = new Date(user.lastFreeApplyReset);
       const isNewDay = now.getUTCDate() !== lastReset.getUTCDate() ||
@@ -362,13 +363,30 @@ export async function POST(request: NextRequest) {
     // them spend on writing it: stop at the draft. summaryOnly still passes (it's just the verdict
     // card, no letter). The weak-match card uses the `gated` flag below to not even offer the path.
     const enforceGate = process.env.MATCH_GATE_ENFORCE !== '0';
-    if (!summaryOnly && enforceGate && pairing.decision === 'NO') {
-      // Attach the better-fitting roles (cheap lexical scorer, no LLM) so the apply UI can redirect the
-      // user to a real match instead of dead-ending on a raw "poor_match" with a Send button for an
-      // empty letter. Reached directly when a user applies without the summary preflight (deep-link /
-      // authed "Apply now"), so the client can't rely on suggestions already being in state.
-      const suggestions = await findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user), gh, myStamp).catch(() => []);
-      return NextResponse.json({ error: 'poor_match', message: `This role isn't a strong enough match for your profile (${pairing.reason}).`, matchLabel: pairing.label || null, suggestions }, { status: 422 });
+    // Sending from OUR domain (Postal) is RESERVED for the strongest matches — low-quality sends from
+    // our shared name land everyone in spam, so our name is a scarce reputation asset spent only on
+    // the best fits. Anything below the bar goes from the user's OWN email (SMTP): unlimited, from
+    // their address, with far better deliverability. SMTP-connected users bypass the gate entirely and
+    // can send ANY match, anywhere, with no cap. Threshold is env-tunable without a redeploy.
+    const POSTAL_TIER = (process.env.POSTAL_SEND_TIER || 'strong').toLowerCase(); // 'strong' | 'good'
+    const meetsPostalBar = pairing.decision === 'SEND' && (POSTAL_TIER === 'good'
+      ? /strong|good/i.test(pairing.label || '')
+      : /strong/i.test(pairing.label || ''));
+    if (!summaryOnly && enforceGate && !hasSmtp && !meetsPostalBar) {
+      const isPoor = pairing.decision === 'NO';
+      // For a genuine poor match, also surface better-fitting roles (cheap lexical, no LLM).
+      const suggestions = isPoor
+        ? await findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user), gh, myStamp).catch(() => [])
+        : [];
+      return NextResponse.json({
+        error: 'smtp_required',
+        reason: isPoor ? 'poor_match' : 'not_strong',
+        matchLabel: pairing.label || null,
+        message: isPoor
+          ? `This isn't a strong match for your profile — but you can still send it from your own email. Connect your inbox to apply here (and anywhere) with no limits.`
+          : `Good match! Sending from Freelanly is reserved for your strongest fits. Connect your own email to send this yourself — from your address, no limits, better replies.`,
+        suggestions,
+      }, { status: 422 });
     }
 
     // SUMMARY-ONLY: return the candidate summary card (who they are + fit + other roles) WITHOUT
@@ -515,10 +533,11 @@ export async function POST(request: NextRequest) {
     // Atomically consume the FREE daily quota slot BEFORE sending. The check at the
     // top is a fast UX pre-check only; THIS is the real gate — TOCTOU-safe and covers
     // the Postal branch, which previously never incremented the counter (→ unlimited).
-    if (!(await consumeApplyQuota(user.id, user.plan))) {
+    // Quota is only for our-name (Postal) sends; SMTP users send unlimited from their own inbox.
+    if (!hasSmtp && !(await consumeApplyQuota(user.id, user.plan))) {
       return NextResponse.json({
         error: 'limit_reached',
-        message: `Daily limit reached (${FREE_DAILY_APPLY_LIMIT}/${FREE_DAILY_APPLY_LIMIT}). Upgrade to PRO for unlimited applies.`,
+        message: `Daily limit reached (${FREE_DAILY_APPLY_LIMIT}/${FREE_DAILY_APPLY_LIMIT}). Connect your own email to send unlimited from your address.`,
       }, { status: 429 });
     }
 

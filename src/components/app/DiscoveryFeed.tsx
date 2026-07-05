@@ -182,7 +182,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
         // errors (network/5xx) still fall through to a manual-write draft.
         const reason = (data as { error?: string }).error || '';
         const message = (data as { message?: string }).message || '';
-        const BLOCKING = ['poor_match', 'already_applied', 'limit_reached', 'resume_required', 'unavailable'];
+        const BLOCKING = ['poor_match', 'already_applied', 'limit_reached', 'resume_required', 'unavailable', 'smtp_required'];
         if (BLOCKING.includes(reason)) {
           setDraftBlocked({ reason, message });
           // Server reports we've already applied here (it checks ALL of the user's applications, not just
@@ -570,21 +570,35 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                 <div style={{fontSize: '14px', marginBottom: '8px'}}>Generating your cover letter...</div>
                 <div style={{fontSize: '12px', color: '#8A8E96'}}>AI is reading the job post and matching with your profile</div>
               </div>
+            ) : draftBlocked && (draftBlocked.reason === 'smtp_required' || draftBlocked.reason === 'not_strong' || draftBlocked.reason === 'limit_reached') ? (
+              <div style={{padding: '40px 28px', textAlign: 'center'}}>
+                <div style={{fontSize: '24px', marginBottom: '10px'}}>✉️</div>
+                <div style={{fontSize: '15px', fontWeight: 600, marginBottom: '10px'}}>
+                  {draftBlocked.reason === 'limit_reached' ? 'Daily free limit reached' : 'Send this from your own email'}
+                </div>
+                <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 22px'}}>
+                  {draftBlocked.message || 'We send our strongest matches from Freelanly. Connect your own inbox to send this — and anything — yourself, from your address, with no limits and better replies.'}
+                </div>
+                <a className="btn btn-acid btn-sm" href="/dashboard/settings#integrations" style={{marginRight: '8px'}}>Connect my email →</a>
+                <button className="btn btn-ghost btn-sm" onClick={() => setDraftItem(null)}>Not now</button>
+              </div>
             ) : draftBlocked ? (
               <div style={{padding: '44px 24px', textAlign: 'center'}}>
                 <div style={{fontSize: '15px', fontWeight: 600, marginBottom: '10px'}}>
                   {draftBlocked.reason === 'poor_match' ? 'Not a strong match for your profile'
                     : draftBlocked.reason === 'already_applied' ? 'You already applied to this one'
-                    : draftBlocked.reason === 'limit_reached' ? 'Daily apply limit reached'
                     : draftBlocked.reason === 'resume_required' ? 'Add your résumé first'
                     : draftBlocked.reason === 'unavailable' ? 'This role is no longer available'
                     : "Can't apply to this one"}
                 </div>
-                <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '420px', margin: '0 auto 22px'}}>
+                <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 22px'}}>
                   {draftBlocked.reason === 'poor_match'
-                    ? "Our matcher doesn't think this role fits your background well enough — we'd rather not send a weak application to the recruiter. Try the stronger matches at the top of your feed."
+                    ? (draftBlocked.message || "Not a strong match — but you can send it yourself. Connect your own email to apply here (and anywhere) with no limits.")
                     : (draftBlocked.message || 'Applying to this role is not available right now.')}
                 </div>
+                {draftBlocked.reason === 'poor_match' && (
+                  <a className="btn btn-acid btn-sm" href="/dashboard/settings#integrations" style={{marginRight: '8px'}}>Connect my email →</a>
+                )}
                 <button className="btn btn-ghost btn-sm" onClick={() => setDraftItem(null)}>Got it</button>
               </div>
             ) : (
