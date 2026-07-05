@@ -13,6 +13,30 @@ const PRESETS: Record<string, { host: string; port: number; help: string }> = {
   'icloud.com': { host: 'smtp.mail.me.com', port: 587, help: 'iCloud: create an app-specific password at appleid.apple.com.' },
 };
 
+export function SmtpConnected({ email }: { email: string }) {
+  const [busy, setBusy] = useState(false);
+  async function disconnect() {
+    if (!confirm('Disconnect your email? Good/Weak matches will need it reconnected to send from your address.')) return;
+    setBusy(true);
+    try {
+      const res = await fetch('/api/user/smtp', { method: 'DELETE' });
+      if (res.ok) window.location.reload();
+      else setBusy(false);
+    } catch { setBusy(false); }
+  }
+  return (
+    <div className="integration">
+      <div className="ico" style={{ background: '#EA4335', color: '#fff' }}>G</div>
+      <div>
+        <div className="name">SMTP · {email}</div>
+        <div className="meta">Sending from this address via SMTP · unlimited</div>
+      </div>
+      <span className="chip chip-good" style={{ marginRight: '8px' }}><span className="chip-dot live"></span>Active</span>
+      <button className="btn btn-soft btn-sm" onClick={disconnect} disabled={busy}>{busy ? '…' : 'Disconnect'}</button>
+    </div>
+  );
+}
+
 export function SmtpConnect({ initialEmail }: { initialEmail?: string }) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState(initialEmail || '');

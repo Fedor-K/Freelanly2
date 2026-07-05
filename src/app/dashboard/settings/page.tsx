@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { SettingsForm } from './SettingsForm';
 import { GitHubUrlField } from './GitHubUrlField';
-import { SmtpConnect } from './SmtpConnect';
+import { SmtpConnect, SmtpConnected } from './SmtpConnect';
 import { CancelSubscriptionSection } from './CancelSubscriptionSection';
 import { DeleteAccountSection } from './DeleteAccountSection';
 import { ManageSubscriptionButton } from './ManageSubscriptionButton';
@@ -185,14 +185,7 @@ export default async function SettingsPage() {
               <span className="chip chip-good"><span className="chip-dot live"></span>Active</span>
             </div>
             {smtp ? (
-              <div className="integration">
-                <div className="ico" style={{background: '#EA4335', color: '#fff'}}>G</div>
-                <div>
-                  <div className="name">SMTP · {smtp.email}</div>
-                  <div className="meta">Sending from this address via SMTP</div>
-                </div>
-                <span className="chip chip-good"><span className="chip-dot live"></span>Active</span>
-              </div>
+              <SmtpConnected email={smtp.email} />
             ) : (
               <SmtpConnect initialEmail={user.email} />
             )}
