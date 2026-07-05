@@ -339,7 +339,18 @@ export default async function DiscoveryPage() {
           languageGap: f.languageGap, missingCore: f.missingCore,
         } as FeedItem;
       }).filter(Boolean) as FeedItem[];
-      items = [...queueItems, ...dirItems];
+      // HYBRID: vetted (gate-approved) cards go first — wall-proof, badged. But vetting can't keep
+      // the whole feed warm (15% approval × 7s/pair → a full vetted feed would need ~70 LLM calls per
+      // visit), so an approved-only feed rendered EMPTY for ~75% of visitors (measured 2026-07-05:
+      // median 1 card, 8/21 empty) and nobody clicked. So below the vetted core we FILL with the best
+      // lexical-tail cards that aren't already known-NO (vettedClosest already dropped cached-NO and
+      // upgraded cached-SEND) up to a full feed. Fill cards can still wall on a NOVEL pair, but that's
+      // a small, shrinking share (background vetting converts them), and a full feed that mostly works
+      // beats an empty one. Vetted-on-top grows over time as coverage improves.
+      const TARGET = 24;
+      const shownIds = new Set([...queueItems, ...dirItems].map(i => i.id));
+      const fill = vettedClosest.filter(i => !shownIds.has(i.id) && !(i.applyUrl && !i.applyEmail)).slice(0, Math.max(0, TARGET - dirItems.length));
+      items = [...queueItems, ...dirItems, ...fill];
       let atsPos = queueItems.length + 2;
       for (const card of atsCards) {
         items.splice(Math.min(atsPos, items.length), 0, card);

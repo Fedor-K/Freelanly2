@@ -101,25 +101,20 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   const [intro, setIntro] = useState(true);
   const [newMatches, setNewMatches] = useState(0);
   useEffect(() => {
-    // Vetted feed with an unfilled pool: the intro screen is REAL — poll the vetting endpoint until
-    // enough approved cards exist (or the pool is done / we time out), then re-render with fresh data.
-    if (vettedFeed && vetStatus && vetStatus.remaining > 0 && vetStatus.approved < 8) {
+    // The feed arrives full (hybrid: vetted-on-top + lexical fill), so DON'T block on the intro.
+    // Kick one background vetting slice to grow the wall-proof vetted core, then refresh once it lands
+    // — the user is already browsing a full feed meanwhile, no waiting.
+    const t = setTimeout(() => setIntro(false), 3500);
+    if (vettedFeed && vetStatus && vetStatus.remaining > 0) {
       let stop = false;
-      const t0 = Date.now();
       (async () => {
         try {
-          for (let i = 0; i < 4 && !stop && Date.now() - t0 < 75000; i++) {
-            const res = await fetch('/api/user/feed-vet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ maxPairs: 24 }) });
-            if (!res.ok) break;
-            const st = await res.json();
-            if (st.approved >= 8 || st.remaining === 0 || st.budgetExhausted) break;
-          }
-        } catch { /* fall through to render whatever we have */ }
-        if (!stop) { setIntro(false); router.refresh(); }
+          const res = await fetch('/api/user/feed-vet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ maxPairs: 24 }) });
+          if (res.ok && !stop) { const st = await res.json(); if (st.vettedNow > 0) router.refresh(); }
+        } catch { /* the freshness poll will pick it up */ }
       })();
-      return () => { stop = true; };
+      return () => { stop = true; clearTimeout(t); };
     }
-    const t = setTimeout(() => setIntro(false), 3500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
