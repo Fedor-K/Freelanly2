@@ -57,6 +57,9 @@ export default async function DiscoveryPage() {
   const myLoops = await prisma.autoApplyLoop.findMany({ where: { userId: session.user.id }, select: { id: true, mode: true } });
   const loopIds = myLoops.map((l) => l.id);
   const autoApplyOn = myLoops.some((l) => l.mode === 'AUTO');
+  // Has the user connected their own inbox? Drives the SMTP banner — sending from OUR name is Strong-only,
+  // so an SMTP connection is the path to send Good/Weak matches yourself, unlimited.
+  const hasSmtp = !!(await prisma.userSmtp.findFirst({ where: { userId: session.user.id, verified: true }, select: { id: true } }));
 
   const totalToday = await prisma.opportunity.count({ where: { isActive: true, createdAt: { gte: dayAgo } } });
 
@@ -403,6 +406,7 @@ export default async function DiscoveryPage() {
           autoApplyOn={autoApplyOn}
           vettedFeed={vettedFeedOn}
           vetStatus={vetStatus}
+          hasSmtp={hasSmtp}
         />
       </div>
 

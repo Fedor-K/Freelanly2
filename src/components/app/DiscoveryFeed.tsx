@@ -57,7 +57,7 @@ function timeAgo(date: string): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasApplied = true, loopIds = [], autoApplyOn = true, vettedFeed = false, vetStatus = null }: {
+export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasApplied = true, loopIds = [], autoApplyOn = true, vettedFeed = false, vetStatus = null, hasSmtp = false }: {
   items: Job[];
   topSkills: [string, number][];
   sourceCounts: [string, number][];
@@ -66,6 +66,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   autoApplyOn?: boolean;
   vettedFeed?: boolean;
   vetStatus?: { approved: number; remaining: number; poolSize: number } | null;
+  hasSmtp?: boolean;
 }) {
   // No useState wrapper: router.refresh() re-renders the server component with fresh items and the
   // vetted-feed polling relies on props actually updating.
@@ -90,6 +91,8 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [activeSkills, setActiveSkills] = useState<Set<string>>(new Set());
   const [newMatches, setNewMatches] = useState(0);
+  const [smtpBannerHidden, setSmtpBannerHidden] = useState(false);
+  useEffect(() => { try { if (localStorage.getItem('smtp_banner_dismissed')) setSmtpBannerHidden(true); } catch { /* ignore */ } }, []);
   useEffect(() => {
     // The feed arrives full (server-rendered, hybrid vetted+fill) — no intro screen. Kick one
     // background vetting slice to grow the wall-proof vetted core, then refresh once it lands.
@@ -368,6 +371,20 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
 
   return (
     <>
+      {/* SMTP wedge banner — sending from Freelanly is reserved for Strong matches; connecting your own
+          inbox unlocks sending ANY match yourself, unlimited. Dismissible. */}
+      {!hasSmtp && !smtpBannerHidden && (
+        <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', padding: '14px 18px', marginBottom: '14px', borderRadius: '14px', background: 'linear-gradient(90deg,#F2FADD,#EAF7C0)', border: '1px solid #D8EEAA' }}>
+          <span style={{ fontSize: '22px' }}>✉️</span>
+          <div style={{ flex: 1, minWidth: '220px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#2E3A00' }}>Send from your own email — unlimited</div>
+            <div style={{ fontSize: '12.5px', color: '#5A6B1E', lineHeight: 1.5 }}>We send only your strongest matches from Freelanly. Connect your inbox to apply to any role yourself — from your address, no daily cap, better replies.</div>
+          </div>
+          <a className="btn btn-acid btn-sm" href="/dashboard/settings#integrations" onClick={() => track('FUNNEL_STEP', { step: 'smtp_banner_click', surface: 'feed' })}>Connect my email →</a>
+          <button onClick={() => { try { localStorage.setItem('smtp_banner_dismissed', '1'); } catch { /* ignore */ } setSmtpBannerHidden(true); }} style={{ background: 'none', border: 'none', color: '#7A8B4E', fontSize: '12px', cursor: 'pointer' }}>Dismiss</button>
+        </div>
+      )}
+
       {/* Filters sidebar */}
       <aside className={`card${showFilters ? ' show' : ''}`} style={{position: 'sticky', top: '72px'}}>
         <div className="filter-section">
