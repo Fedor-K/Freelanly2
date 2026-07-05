@@ -118,12 +118,25 @@ export function SmtpConnect({ initialEmail }: { initialEmail?: string }) {
 
   async function connect() {
     if (!email || !password || !effHost) { setMsg({ type: 'err', text: 'Fill in your email, app password, and SMTP host.' }); return; }
+
+    // Gmail App Passwords are exactly 16 chars (shown as "abcd efgh ijkl mnop"). Catch the #1 failure —
+    // a normal password — BEFORE we round-trip to Gmail and eat a 535 reject. Strip the display spaces.
+    const provider = DOMAIN_TO_PROVIDER[domain];
+    let pw = password.trim();
+    if (provider === 'google') {
+      pw = pw.replace(/\s+/g, '');
+      if (pw.length !== 16) {
+        setMsg({ type: 'err', text: 'That doesn’t look like a Gmail App Password. Gmail needs a 16-character code (like "abcd efgh ijkl mnop") you generate after turning on 2-Step Verification — not your normal password. Create one with the button below and paste it here.' });
+        return;
+      }
+    }
+
     setBusy(true);
     setMsg({ type: 'info', text: 'Saving and testing your connection…' });
     try {
       const save = await fetch('/api/user/smtp', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ host: effHost, port: effPort, email, password }),
+        body: JSON.stringify({ host: effHost, port: effPort, email, password: pw }),
       });
       if (!save.ok) { const d = await save.json().catch(() => ({})); setMsg({ type: 'err', text: d.error || 'Could not save SMTP settings.' }); setBusy(false); return; }
       const test = await fetch('/api/user/smtp/test', { method: 'POST' });

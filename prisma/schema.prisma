@@ -2030,6 +2030,9 @@ model UserSmtp {
   password    String   // app password (encrypted at application level)
   verified    Boolean  @default(false)
 
+  lastError   String?  // raw error from the last failed verify (null once verified) — so we can see WHY connects fail
+  lastTriedAt DateTime? // when the last verify attempt ran
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

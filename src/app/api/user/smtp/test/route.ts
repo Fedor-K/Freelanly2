@@ -3,6 +3,18 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { testSmtpConnection } from '@/lib/smtp-sender';
 
+// Coarse bucket for the raw SMTP error, so the failure funnel is queryable (bad_credentials is the
+// Gmail app-password wall; bad_username is providers like Resend that need a fixed login, not email).
+function smtpFailReason(err: string): string {
+  const s = err || '';
+  if (/AUTH password failed|BadCredentials|535|5\.7\.8|Username and Password/i.test(s)) return 'bad_credentials';
+  if (/AUTH username failed/i.test(s)) return 'bad_username';
+  if (/AUTH LOGIN failed/i.test(s)) return 'auth_unsupported';
+  if (/STARTTLS|TLS|EHLO|greeting/i.test(s)) return 'tls_or_handshake';
+  if (/timeout|Connection error|ECONN|ENOTFOUND|EHOSTUNREACH|ETIMEDOUT/i.test(s)) return 'connection';
+  return 'other';
+}
+
 // POST /api/user/smtp/test — Test SMTP connection by sending a test email
 export async function POST() {
   try {
@@ -32,10 +44,10 @@ export async function POST() {
     });
 
     if (result.success) {
-      // Mark SMTP as verified
+      // Mark SMTP as verified; clear any prior failure reason.
       await prisma.userSmtp.update({
         where: { userId: session.user.id },
-        data: { verified: true },
+        data: { verified: true, lastError: null, lastTriedAt: new Date() },
       });
 
       console.log(`[SMTP Test] Success for user ${session.user.id}`);
@@ -50,13 +62,21 @@ export async function POST() {
         messageId: result.messageId,
       });
     } else {
-      console.error(`[SMTP Test] Failed for user ${session.user.id}: ${result.error}`);
+      const rawError = result.error || 'SMTP connection failed';
+      const reason = smtpFailReason(rawError);
+      console.error(`[SMTP Test] Failed for user ${session.user.id} (${reason}): ${rawError}`);
+
+      // Persist the failure so we can see WHY connects fail instead of guessing from Vercel logs.
+      await prisma.userSmtp.update({
+        where: { userId: session.user.id },
+        data: { verified: false, lastError: rawError.slice(0, 500), lastTriedAt: new Date() },
+      }).catch(() => {});
+      await prisma.activityLog.create({
+        data: { userId: session.user.id, action: 'FUNNEL_STEP', details: { step: 'smtp_test_failed', reason, host: smtp.host, error: rawError.slice(0, 300) } },
+      }).catch(() => {});
 
       return NextResponse.json(
-        {
-          success: false,
-          error: result.error || 'SMTP connection failed',
-        },
+        { success: false, error: rawError, reason },
         { status: 400 }
       );
     }
