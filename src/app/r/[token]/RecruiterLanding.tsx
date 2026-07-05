@@ -5,6 +5,7 @@ import { useState } from 'react';
 export type AnonCandidate = {
   appId: string;
   profession: string;
+  avatarUrl: string | null;
   location: string | null;
   whyFit: string | null;
   strength: string | null;      // Strong | Good | Weak
@@ -68,7 +69,10 @@ export function RecruiterLanding({ token, company, role, candidates }: {
             return (
               <div key={c.appId} style={{ border: '1px solid #e6e4dd', borderRadius: 14, padding: 18, background: '#fff' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
-                  <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#C7F94A', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>#{i + 1}</span>
+                  {c.avatarUrl
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={c.avatarUrl} alt="" width={38} height={38} style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                    : <span style={{ width: 38, height: 38, borderRadius: '50%', background: '#C7F94A', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>#{i + 1}</span>}
                   <strong style={{ fontSize: 16 }}>{c.profession}</strong>
                   {c.strength && <span style={{ fontSize: 11, fontWeight: 700, color: s.c, background: s.bg, padding: '2px 9px', borderRadius: 20 }}>{c.strength} match</span>}
                 </div>

@@ -182,6 +182,7 @@ export default async function RecruiterCandidatesPage({ params }: Props) {
     return {
       appId: c.appId,
       profession: c.profile.current_title || c.jobTitle || 'Candidate',
+      avatarUrl: c.avatarUrl ?? null,
       location: c.profile.location || null,
       whyFit,
       strength: c.strength || (c.fit && /strong|good|weak/i.test(c.fit) ? c.fit.replace(/\s*match.*/i, '') : null),
