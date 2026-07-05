@@ -36,8 +36,8 @@ function pickCandidate(c: ShortlistCandidate) {
   };
 }
 
-export async function buildOutreachDrafts(opts: { limit?: number } = {}): Promise<BuildDraftsResult> {
-  const cards = await buildLeverCompanyCards({ limit: opts.limit ?? 2060, requireContact: true });
+export async function buildOutreachDrafts(opts: { limit?: number; randomize?: boolean } = {}): Promise<BuildDraftsResult> {
+  const cards = await buildLeverCompanyCards({ limit: opts.limit ?? 2060, requireContact: true, randomize: opts.randomize });
   const out: BuildDraftsResult = { companies: cards.length, created: 0, existing: 0, noCandidates: 0 };
 
   for (const card of cards) {

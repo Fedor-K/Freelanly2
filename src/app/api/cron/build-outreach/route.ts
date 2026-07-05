@@ -19,8 +19,10 @@ async function handle(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   try {
-    const limit = parseInt(new URL(request.url).searchParams.get('limit') || '2060') || 2060;
-    const result = await buildOutreachDrafts({ limit });
+    const url = new URL(request.url);
+    const limit = parseInt(url.searchParams.get('limit') || '2060') || 2060;
+    const randomize = url.searchParams.get('randomize') === '1' || url.searchParams.get('randomize') === 'true';
+    const result = await buildOutreachDrafts({ limit, randomize });
     console.log(`[Cron] build-outreach: companies=${result.companies}, created=${result.created}, existing=${result.existing}, noCandidates=${result.noCandidates}`);
     return NextResponse.json({ success: true, ...result });
   } catch (error) {

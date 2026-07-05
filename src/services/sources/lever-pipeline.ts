@@ -58,8 +58,10 @@ export async function leverNameMap(slugs: string[]): Promise<Map<string, string 
 export async function buildLeverCompanyCards(opts: {
   limit?: number;
   requireContact?: boolean;
+  randomize?: boolean;   // sample across the ~2000 companies (favors SMBs, where our pool fits) instead
+                         // of always hitting the top importers; also rotates the set across runs.
 } = {}): Promise<LeverCompanyCard[]> {
-  const slugs = await getLeverSlugs(opts.limit ?? 2060);
+  const slugs = await getLeverSlugs(opts.limit ?? 2060, { randomize: opts.randomize });
   const names = await leverNameMap(slugs);
   const cards: LeverCompanyCard[] = [];
 
