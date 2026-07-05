@@ -10,6 +10,7 @@ export type DraftView = {
   contactMethod: string;
   roleTitle: string;
   roleUrl: string | null;
+  location: string | null;
   subject: string;
   bodyHtml: string;
   bodyText: string;
@@ -83,7 +84,7 @@ export function OutreachClient({ drafts: initial, counts, fromEmail }: { drafts:
       {shown.length === 0 && (
         <div style={{ padding: '40px 20px', textAlign: 'center', color: '#888', fontSize: 14, border: '1px dashed #ddd', borderRadius: 12 }}>
           {filter === 'DRAFT'
-            ? <>No drafts yet. Run the build on the worker:<br /><code style={{ fontSize: 12 }}>curl -X POST &quot;https://freelanly.com/api/cron/build-outreach&quot; -H &quot;Authorization: Bearer $CRON_SECRET&quot;</code></>
+            ? <>No ATS vacancy passed both gates today (contact + strong shortlist). Rebuild:<br /><code style={{ fontSize: 12 }}>curl -X POST &quot;https://freelanly.com/api/cron/build-ats-outreach&quot; -H &quot;Authorization: Bearer $CRON_SECRET&quot;</code></>
             : `No ${filter.toLowerCase()} drafts.`}
         </div>
       )}
@@ -96,8 +97,10 @@ export function OutreachClient({ drafts: initial, counts, fromEmail }: { drafts:
               <div style={{ flex: 1, minWidth: 240 }}>
                 <div style={{ fontSize: 15, fontWeight: 700 }}>{d.companyName} <span style={{ color: '#999', fontWeight: 400 }}>· {d.roleTitle}</span></div>
                 <div style={{ fontSize: 13, color: '#555', marginTop: 2 }}>
+                  {d.location && <span style={{ marginRight: 8 }}>📍 {d.location}</span>}
                   <span style={{ fontFamily: 'monospace' }}>{d.contactEmail}</span>
                   <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: methodColor[d.contactMethod] || '#9ca3af', textTransform: 'uppercase' }}>{d.contactMethod}</span>
+                  {d.roleUrl && <a href={d.roleUrl} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, fontSize: 12, color: '#2563eb' }}>Lever ↗</a>}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

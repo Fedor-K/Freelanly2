@@ -2302,6 +2302,7 @@ model RecruiterOtp {
 // inbox (no auto-send — protects the domain). Additive raw-DDL table (prisma db push unusable here).
 model OutreachDraft {
   id             String    @id @default(cuid())
+  opportunityId  String?   @unique(map: "OutreachDraft_opportunityId_key") // set for today's-ATS-flow drafts (links to Opportunity); null for Lever-scan drafts
   companySlug    String
   companyName    String?
   contactEmail   String
@@ -2309,6 +2310,7 @@ model OutreachDraft {
   contactMethod  String    @default("guess") // verified | catch-all | guess
   roleTitle      String
   roleUrl        String?
+  location       String?
   subject        String
   bodyHtml       String
   bodyText       String
