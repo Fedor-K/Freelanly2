@@ -369,9 +369,20 @@ export async function POST(request: NextRequest) {
     // their address, with far better deliverability. SMTP-connected users bypass the gate entirely and
     // can send ANY match, anywhere, with no cap. Threshold is env-tunable without a redeploy.
     const POSTAL_TIER = (process.env.POSTAL_SEND_TIER || 'strong').toLowerCase(); // 'strong' | 'good'
-    const meetsPostalBar = pairing.decision === 'SEND' && (POSTAL_TIER === 'good'
-      ? /strong|good/i.test(pairing.label || '')
-      : /strong/i.test(pairing.label || ''));
+    // The feed BADGES from MatchVerdict (getVerdicts), which can drift from this fresh assessPairing
+    // (two caches, computed at different times). Honor the label the user was SHOWN: if the card said
+    // Strong, treat it as Strong here too — otherwise a "★ Strong match" card confusingly turns into
+    // "actually Good, connect your email" on click. Effective label = the strongest across both sources.
+    const feedVerdict = await prisma.matchVerdict.findUnique({
+      where: { userId_opportunityId: { userId: user.id, opportunityId: opportunity.id } },
+      select: { label: true, decision: true },
+    }).catch(() => null);
+    const shownStrong = feedVerdict?.decision === 'SEND' && /strong/i.test(feedVerdict.label || '');
+    const effLabel = shownStrong ? 'Strong' : (pairing.label || '');
+    const effDecision = pairing.decision === 'SEND' || feedVerdict?.decision === 'SEND' ? 'SEND' : pairing.decision;
+    const meetsPostalBar = effDecision === 'SEND' && (POSTAL_TIER === 'good'
+      ? /strong|good/i.test(effLabel)
+      : /strong/i.test(effLabel));
     if (!summaryOnly && enforceGate && !hasSmtp && !meetsPostalBar) {
       const isPoor = pairing.decision === 'NO';
       // For a genuine poor match, also surface better-fitting roles (cheap lexical, no LLM).
