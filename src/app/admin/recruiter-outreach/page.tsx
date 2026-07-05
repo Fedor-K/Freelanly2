@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { OUTREACH } from '@/services/sources/recruiter-outreach';
 import { OutreachClient, type DraftView } from './OutreachClient';
 
 export const dynamic = 'force-dynamic';
@@ -49,7 +50,7 @@ export default async function RecruiterOutreachPage() {
         Ready-to-send candidate pitches, one per ATS company + open role. Review, copy, send from your own inbox, then mark sent.
         Contacts marked <strong>guess</strong> are unverified <code>careers@</code> — eyeball before sending.
       </p>
-      <OutreachClient drafts={drafts} counts={counts} />
+      <OutreachClient drafts={drafts} counts={counts} fromEmail={OUTREACH.fromEmail} />
     </div>
   );
 }

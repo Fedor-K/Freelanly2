@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { checkAdminSession } from '@/lib/admin-auth';
+import { sendOutreachDraft } from '@/services/sources/send-outreach-draft';
+
+// POST /api/admin/outreach/[id]  — actually SEND the draft (Postal, from the outreach domain).
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const authError = await checkAdminSession(request);
+  if (authError) return authError;
+  const { id } = await params;
+  const res = await sendOutreachDraft(id);
+  return NextResponse.json(res, { status: res.sent ? 200 : 400 });
+}
 
 // PATCH /api/admin/outreach/[id]  { action: 'sent' | 'skip' | 'draft' }
 // Founder-only status toggle for a recruiter-outreach draft (mark sent after emailing manually,
