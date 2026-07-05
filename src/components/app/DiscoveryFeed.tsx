@@ -272,12 +272,9 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   const verifiedVisible = inMatchMode ? visible.filter(isVerified) : visible;
   const similarVisible = inMatchMode ? visible.filter(i => !isVerified(i)) : [];
 
-  // First-apply driver for fresh (profile-only) signups: prominent hero on the single best applyable
-  // match + a one-time nudge, both shown only until the user makes their first apply.
+  // First-apply nudge for fresh (profile-only) signups, shown only until the first apply. (The
+  // duplicate "Your best match" hero was removed — it just repeated the feed's first card.)
   const showFirstApply = !hasApplied && applied.size === 0 && visible.length > 0;
-  const heroItem = showFirstApply
-    ? (verifiedVisible.find(i => (i.applyEmail || i.applyUrl) && !applied.has(i.id)) || visible.find(i => i.applyEmail || i.applyUrl))
-    : undefined;
 
   const renderCard = (item: Job, i: number) => (
     <div key={item.id} className="job-card" style={{cursor: 'default'}}>
@@ -439,31 +436,6 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
               <div style={{ fontSize: '12px', color: 'var(--ink-4)', marginTop: '2px' }}>We pre-write the cover letter. Just review and send.</div>
             </div>
             <button className="btn btn-ghost btn-sm" onClick={() => setNudgeDismissed(true)}>Dismiss</button>
-          </div>
-        )}
-
-        {/* Best-match hero — single, prominent, one click to apply */}
-        {showFirstApply && heroItem && (
-          <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(11,12,15,0.07)', background: '#FBFAF6' }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#7A8B1E', marginBottom: '8px' }}>★ Your best match</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-              <div className="logo" style={{ background: COLORS[0] }}>{heroItem.companyName[0]}</div>
-              <div style={{ flex: 1, minWidth: '200px' }}>
-                <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--ink-1, #0B0C0F)' }}>{heroItem.title}</div>
-                <div style={{ fontSize: '13px', color: 'var(--ink-4)', marginTop: '2px' }}>
-                  {heroItem.companyName}{matchedItems(heroItem).length > 0 && <> · {matchedItems(heroItem).slice(0, 3).join(' · ')}</>}
-                </div>
-              </div>
-              {heroItem.applyEmail ? (
-                <button className="btn btn-acid" onClick={() => handleApply(heroItem)} disabled={!!loading[heroItem.id]}>
-                  Apply — ~30s →
-                </button>
-              ) : heroItem.applyUrl ? (
-                <a className="btn btn-acid" href={`/autofill?opp=${heroItem.id}`} target="_blank" rel="noopener noreferrer" onClick={() => track('FUNNEL_STEP', { step: 'autofill_beta_click', opportunityId: heroItem.id, surface: 'hero' })}>
-                  Apply with 1-click autofill ✨
-                </a>
-              ) : null}
-            </div>
           </div>
         )}
 
