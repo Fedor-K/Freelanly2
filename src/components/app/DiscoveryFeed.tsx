@@ -3,13 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTracker } from '@/hooks/useTracker';
-import { ProcessingScreen } from '@/components/ProcessingScreen';
-
-const DISCOVERY_SCAN_STEPS = [
-  { title: 'Scanning the feed…', sub: 'Reading the freshest gigs' },
-  { title: 'Matching to your profile…', sub: 'Skills, role, languages, location' },
-  { title: 'Ranking your matches…', sub: 'Strongest fits first' },
-];
 
 type Job = {
   id: string;
@@ -96,15 +89,10 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   }
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [activeSkills, setActiveSkills] = useState<Set<string>>(new Set());
-  // The feed is built server-side and arrives instantly, so a route-loading screen just flashes. Show
-  // a guaranteed ~2.2s "scanning the feed" intro on mount instead, so the search animation is actually seen.
-  const [intro, setIntro] = useState(true);
   const [newMatches, setNewMatches] = useState(0);
   useEffect(() => {
-    // The feed arrives full (hybrid: vetted-on-top + lexical fill), so DON'T block on the intro.
-    // Kick one background vetting slice to grow the wall-proof vetted core, then refresh once it lands
-    // — the user is already browsing a full feed meanwhile, no waiting.
-    const t = setTimeout(() => setIntro(false), 3500);
+    // The feed arrives full (server-rendered, hybrid vetted+fill) — no intro screen. Kick one
+    // background vetting slice to grow the wall-proof vetted core, then refresh once it lands.
     if (vettedFeed && vetStatus && vetStatus.remaining > 0) {
       let stop = false;
       (async () => {
@@ -113,9 +101,8 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
           if (res.ok && !stop) { const st = await res.json(); if (st.vettedNow > 0) router.refresh(); }
         } catch { /* the freshness poll will pick it up */ }
       })();
-      return () => { stop = true; clearTimeout(t); };
+      return () => { stop = true; };
     }
-    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Freshness poll while the tab is open: newly-ingested opportunities get vetted for this user in
@@ -378,14 +365,6 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
       </div>
     </div>
   );
-
-  if (intro) {
-    return (
-      <div style={{ gridColumn: '1 / -1', display: 'grid', placeItems: 'center', minHeight: '60vh' }}>
-        <ProcessingScreen scan steps={DISCOVERY_SCAN_STEPS} emoji="🔍" note="Finding gigs that fit you…" />
-      </div>
-    );
-  }
 
   return (
     <>
