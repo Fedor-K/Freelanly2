@@ -5,34 +5,78 @@ import { useState } from 'react';
 // SMTP connect form: saves via /api/user/smtp then verifies via /api/user/smtp/test (which sets
 // verified=true). Once verified, the user sends applications from their own address, unlimited, and
 // any match (bypasses the Strong-only Postal gate). Auto-fills host/port from the email domain.
-type Preset = { label: string; host: string; port: number; appPwUrl: string; twoFaUrl: string; steps: string[] };
-const PRESETS: Record<string, Preset> = {
-  'gmail.com': { label: 'Gmail', host: 'smtp.gmail.com', port: 587, appPwUrl: 'https://myaccount.google.com/apppasswords', twoFaUrl: 'https://myaccount.google.com/signinoptions/two-step-verification', steps: [
+type Preset = { label: string; host: string; port: number; appPwUrl: string; twoFaUrl: string; steps: string[]; note?: string };
+
+// One config per provider; many domains (incl. regional variants) map to each.
+const PROVIDERS: Record<string, Preset> = {
+  google: { label: 'Gmail', host: 'smtp.gmail.com', port: 587, appPwUrl: 'https://myaccount.google.com/apppasswords', twoFaUrl: 'https://myaccount.google.com/signinoptions/two-step-verification', steps: [
     'Turn on 2-Step Verification in your Google account (required — App Passwords only appear after this).',
     'Open the App Passwords page (button below), sign in, and create one named "Freelanly".',
     'Google shows a 16-character code like "abcd efgh ijkl mnop". Copy it and paste it above (spaces are fine).',
   ] },
-  'outlook.com': { label: 'Outlook', host: 'smtp-mail.outlook.com', port: 587, appPwUrl: 'https://account.microsoft.com/security', twoFaUrl: 'https://account.microsoft.com/security', steps: [
-    'Turn on two-step verification at account.microsoft.com → Security.',
+  microsoft: { label: 'Outlook', host: 'smtp-mail.outlook.com', port: 587, appPwUrl: 'https://account.microsoft.com/security', twoFaUrl: 'https://account.microsoft.com/security', steps: [
+    'Turn on two-step verification at account.microsoft.com → Security → Advanced security options.',
     'Create an app password (button below) and copy the code.',
     'Paste the code above.',
-  ] },
-  'hotmail.com': { label: 'Outlook', host: 'smtp-mail.outlook.com', port: 587, appPwUrl: 'https://account.microsoft.com/security', twoFaUrl: 'https://account.microsoft.com/security', steps: [
-    'Turn on two-step verification at account.microsoft.com → Security.',
-    'Create an app password (button below) and copy the code.',
-    'Paste the code above.',
-  ] },
-  'yahoo.com': { label: 'Yahoo', host: 'smtp.mail.yahoo.com', port: 587, appPwUrl: 'https://login.yahoo.com/account/security', twoFaUrl: 'https://login.yahoo.com/account/security', steps: [
+  ], note: 'Microsoft is phasing out app passwords for personal accounts — if it fails, the account may need OAuth (contact us).' },
+  yahoo: { label: 'Yahoo', host: 'smtp.mail.yahoo.com', port: 587, appPwUrl: 'https://login.yahoo.com/account/security', twoFaUrl: 'https://login.yahoo.com/account/security', steps: [
     'Turn on 2-step verification at login.yahoo.com → Account Security.',
     'Generate an app password (button below) and copy it.',
     'Paste it above.',
   ] },
-  'icloud.com': { label: 'iCloud', host: 'smtp.mail.me.com', port: 587, appPwUrl: 'https://appleid.apple.com', twoFaUrl: 'https://appleid.apple.com', steps: [
+  icloud: { label: 'iCloud', host: 'smtp.mail.me.com', port: 587, appPwUrl: 'https://appleid.apple.com', twoFaUrl: 'https://appleid.apple.com', steps: [
     'Sign in at appleid.apple.com (2FA must be on).',
     'Under Sign-In & Security, create an app-specific password (button below).',
     'Copy it and paste it above.',
   ] },
+  zoho: { label: 'Zoho', host: 'smtp.zoho.com', port: 587, appPwUrl: 'https://accounts.zoho.com/home#security/app_password', twoFaUrl: 'https://accounts.zoho.com/home#security/mfa', steps: [
+    'Turn on Two-Factor Authentication at accounts.zoho.com → Security.',
+    'Generate an Application-Specific Password (button below) and copy it.',
+    'Paste it above.',
+  ] },
+  yandex: { label: 'Yandex', host: 'smtp.yandex.com', port: 587, appPwUrl: 'https://id.yandex.com/security/app-passwords', twoFaUrl: 'https://id.yandex.com/security', steps: [
+    'Open Yandex ID → Security → App passwords (button below).',
+    'Create an app password for "Mail" and copy it.',
+    'Paste it above.',
+  ] },
+  mailru: { label: 'Mail.ru', host: 'smtp.mail.ru', port: 465, appPwUrl: 'https://account.mail.ru/user/2-step-auth/passwords/', twoFaUrl: 'https://account.mail.ru/user/2-step-auth/', steps: [
+    'Enable 2-step verification in Mail.ru security settings.',
+    'Create a password for an external app (button below) and copy it.',
+    'Paste it above.',
+  ] },
+  gmx: { label: 'GMX', host: 'mail.gmx.com', port: 587, appPwUrl: 'https://www.gmx.com/', twoFaUrl: 'https://www.gmx.com/', steps: [
+    'In GMX settings, enable POP3/IMAP access (Home → Settings → POP3/IMAP).',
+    'Use your normal GMX password (or an app password if 2FA is on).',
+    'Paste it above.',
+  ] },
+  proton: { label: 'Proton', host: '127.0.0.1', port: 1025, appPwUrl: 'https://proton.me/mail/bridge', twoFaUrl: 'https://proton.me/mail/bridge', steps: [
+    'Proton only allows SMTP through Proton Mail Bridge (a paid-plan desktop app).',
+    'Install Bridge (link below); it gives you a local SMTP host, port and password.',
+    'Enter those here. Without Bridge, Proton cannot send via SMTP — use another address.',
+  ], note: 'Proton requires the paid Mail Bridge for SMTP.' },
 };
+
+// Domain → provider, covering the regional variants our users actually have.
+const DOMAIN_TO_PROVIDER: Record<string, keyof typeof PROVIDERS> = {
+  'gmail.com': 'google', 'googlemail.com': 'google',
+  'outlook.com': 'microsoft', 'hotmail.com': 'microsoft', 'live.com': 'microsoft', 'msn.com': 'microsoft',
+  'outlook.es': 'microsoft', 'hotmail.es': 'microsoft', 'live.com.ar': 'microsoft', 'hotmail.com.ar': 'microsoft',
+  'outlook.com.br': 'microsoft', 'hotmail.com.br': 'microsoft', 'live.com.mx': 'microsoft', 'hotmail.com.mx': 'microsoft', 'outlook.com.ar': 'microsoft',
+  'yahoo.com': 'yahoo', 'yahoo.com.mx': 'yahoo', 'yahoo.es': 'yahoo', 'yahoo.com.ar': 'yahoo', 'yahoo.com.br': 'yahoo', 'ymail.com': 'yahoo', 'rocketmail.com': 'yahoo',
+  'icloud.com': 'icloud', 'me.com': 'icloud', 'mac.com': 'icloud',
+  'zoho.com': 'zoho', 'zohomail.com': 'zoho',
+  'yandex.com': 'yandex', 'yandex.ru': 'yandex', 'ya.ru': 'yandex',
+  'mail.ru': 'mailru', 'bk.ru': 'mailru', 'inbox.ru': 'mailru', 'list.ru': 'mailru', 'internet.ru': 'mailru',
+  'gmx.com': 'gmx', 'gmx.net': 'gmx', 'gmx.de': 'gmx',
+  'protonmail.com': 'proton', 'proton.me': 'proton', 'pm.me': 'proton',
+};
+
+const PRESETS = new Proxy({} as Record<string, Preset | undefined>, {
+  get: (_t, domain: string) => {
+    const key = DOMAIN_TO_PROVIDER[domain];
+    return key ? PROVIDERS[key] : undefined;
+  },
+});
 
 export function SmtpConnected({ email }: { email: string }) {
   const [busy, setBusy] = useState(false);
@@ -143,6 +187,22 @@ export function SmtpConnect({ initialEmail }: { initialEmail?: string }) {
             <a href={preset.appPwUrl} target="_blank" rel="noopener noreferrer" className="btn btn-soft btn-sm">Open {preset.label} App Passwords ↗</a>
             <a href={preset.twoFaUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', color: '#7A5E00', alignSelf: 'center', textDecoration: 'underline' }}>Page says &ldquo;not available&rdquo;? Turn on 2-Step first ↗</a>
           </div>
+          {preset.note && <div style={{ fontSize: '11.5px', color: '#9A6B00', marginTop: '8px', fontStyle: 'italic' }}>⚠ {preset.note}</div>}
+          {preset.label === 'Gmail' && (
+            <div style={{ marginTop: '10px' }}>
+              <div style={{ fontSize: '11.5px', color: '#7A5E00', marginBottom: '6px' }}>Google will show a screen like this — copy the 16-character code:</div>
+              <svg viewBox="0 0 320 150" width="260" style={{ maxWidth: '100%', border: '1px solid #E4D9A8', borderRadius: '8px', background: '#fff' }} role="img" aria-label="Example of the Google app password screen showing a 16-character code">
+                <rect x="0" y="0" width="320" height="150" fill="#fff" />
+                <rect x="0" y="0" width="320" height="30" fill="#F1F3F4" />
+                <circle cx="18" cy="15" r="6" fill="#EA4335" />
+                <text x="34" y="19" fontSize="11" fill="#3C4043" fontFamily="Arial">Generated app password</text>
+                <text x="20" y="58" fontSize="9" fill="#5F6368" fontFamily="Arial">Your app password for Freelanly</text>
+                <rect x="20" y="68" width="220" height="40" rx="6" fill="#FEF7E0" stroke="#F9C74F" strokeWidth="1.5" />
+                <text x="34" y="93" fontSize="18" fill="#202124" fontFamily="monospace" letterSpacing="2">abcd efgh ijkl mnop</text>
+                <text x="20" y="128" fontSize="8.5" fill="#5F6368" fontFamily="Arial">Copy this code, then paste it in the App Password field above.</text>
+              </svg>
+            </div>
+          )}
         </div>
       ) : domain ? (
         <div style={{ fontSize: '12px', color: 'var(--ink-4, #8A8780)' }}>Use your provider&apos;s SMTP host and an app password (most providers require one instead of your normal password).</div>
