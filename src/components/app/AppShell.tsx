@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
+import { signOut } from 'next-auth/react';
 
 const ICONS: Record<string, string> = {
   home:    '<path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1h-5v-7h-6v7H4a1 1 0 01-1-1V9.5z"/>',
@@ -249,7 +250,7 @@ export function AppShell({ children, userName, userPlan }: { children: React.Rea
           {showUserMenu && (
             <div style={{position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: '8px', background: 'var(--bg-dark-2)', border: '1px solid var(--line-dark)', borderRadius: '10px', overflow: 'hidden', zIndex: 50}}>
               <a href="/dashboard/settings" style={{display: 'block', padding: '10px 14px', fontSize: '13px', color: 'var(--ink-on-dark)', borderBottom: '1px solid var(--line-dark)'}}>Settings</a>
-              <a href="/api/auth/signout" style={{display: 'block', padding: '10px 14px', fontSize: '13px', color: '#F87171'}}>Log out</a>
+              <button onClick={() => signOut({ callbackUrl: '/' })} style={{display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', fontSize: '13px', color: '#F87171', background: 'none', border: 'none', cursor: 'pointer'}}>Log out</button>
             </div>
           )}
         </div>
