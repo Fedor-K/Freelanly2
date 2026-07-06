@@ -502,19 +502,21 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
             ) : draftBlocked && (draftBlocked.reason === 'smtp_required' || draftBlocked.reason === 'not_strong' || draftBlocked.reason === 'limit_reached') ? (
               <div style={{padding: '40px 28px', textAlign: 'center'}}>
                 <div style={{fontSize: '24px', marginBottom: '10px'}}>✉️</div>
-                <div style={{fontSize: '15px', fontWeight: 600, marginBottom: '10px'}}>
-                  {draftBlocked.reason === 'limit_reached' ? 'Daily free limit reached' : 'Send this from your own email'}
+                <div style={{fontSize: '15px', fontWeight: 700, marginBottom: '10px'}}>
+                  {draftBlocked.reason === 'limit_reached' ? 'Daily free limit reached' : 'Send this yourself — no limits'}
                 </div>
                 <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 22px'}}>
-                  {draftBlocked.message || 'We send our strongest matches from Freelanly. Connect your own inbox to send this — and anything — yourself, from your address, with no limits and better replies.'}
+                  {draftBlocked.reason === 'limit_reached'
+                    ? (draftBlocked.message || 'You’ve hit the free daily cap. Connect your own email to keep applying — anywhere, with no limits.')
+                    : <>Connect your email and apply to <b>anything, anywhere — with zero limits</b>, sent from your own address. We write every cover letter for you and keep dropping fresh projects into your feed.</>}
                 </div>
-                <a className="btn btn-acid btn-sm" href="/dashboard/settings#integrations" style={{marginRight: '8px'}}>Connect my email →</a>
+                <a className="btn btn-acid btn-sm" href="/dashboard/settings#integrations" onClick={() => track('FUNNEL_STEP', { step: 'smtp_prompt_click', surface: 'feed_gated', reason: draftBlocked.reason })} style={{marginRight: '8px'}}>Connect my email →</a>
                 <button className="btn btn-ghost btn-sm" onClick={() => setDraftItem(null)}>Not now</button>
               </div>
             ) : draftBlocked ? (
               <div style={{padding: '44px 24px', textAlign: 'center'}}>
-                <div style={{fontSize: '15px', fontWeight: 600, marginBottom: '10px'}}>
-                  {draftBlocked.reason === 'poor_match' ? 'Not a strong match for your profile'
+                <div style={{fontSize: '15px', fontWeight: 700, marginBottom: '10px'}}>
+                  {draftBlocked.reason === 'poor_match' ? 'You’re not a fit for this one'
                     : draftBlocked.reason === 'already_applied' ? 'You already applied to this one'
                     : draftBlocked.reason === 'resume_required' ? 'Add your résumé first'
                     : draftBlocked.reason === 'unavailable' ? 'This role is no longer available'
@@ -522,11 +524,11 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                 </div>
                 <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 22px'}}>
                   {draftBlocked.reason === 'poor_match'
-                    ? (draftBlocked.message || "Not a strong match — but you can send it yourself. Connect your own email to apply here (and anywhere) with no limits.")
+                    ? <>So we won’t put your name forward here — recruiters bin mismatches. But connect your email and apply to <b>anything, anywhere — with zero limits</b>; we still write every cover letter for you and keep dropping fresh projects into your feed.</>
                     : (draftBlocked.message || 'Applying to this role is not available right now.')}
                 </div>
                 {draftBlocked.reason === 'poor_match' && (
-                  <a className="btn btn-acid btn-sm" href="/dashboard/settings#integrations" style={{marginRight: '8px'}}>Connect my email →</a>
+                  <a className="btn btn-acid btn-sm" href="/dashboard/settings#integrations" onClick={() => track('FUNNEL_STEP', { step: 'smtp_prompt_click', surface: 'feed_poor', reason: draftBlocked.reason })} style={{marginRight: '8px'}}>Connect my email →</a>
                 )}
                 <button className="btn btn-ghost btn-sm" onClick={() => setDraftItem(null)}>Got it</button>
               </div>

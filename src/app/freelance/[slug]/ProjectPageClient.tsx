@@ -94,7 +94,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [matchLabel, setMatchLabel] = useState<string | null>(null);
   const [matchTier, setMatchTier] = useState<'strong' | 'good' | 'weak'>('good');
   const [gated, setGated] = useState(false); // true = a send would be refused → don't offer the cover-letter path
-  const [smtpPrompt, setSmtpPrompt] = useState(''); // set when the block is "connect your email to send yourself"
   const [suggestions, setSuggestions] = useState<{ slug: string; title: string; company: string }[]>([]);
   const [subject, setSubject] = useState('');
   const [sendTo, setSendTo] = useState('');
@@ -445,7 +444,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           setMatchTier(data.reason === 'poor_match' || data.error === 'poor_match' ? 'weak' : 'good');
           setMatchLabel(data.matchLabel || 'Good');
           setGated(true);
-          setSmtpPrompt(data.message || 'Connect your own email to send this yourself — from your address, no limits.');
           if (Array.isArray(data.suggestions)) setSuggestions(data.suggestions);
           setGenError('');
           setPhase('summary');
@@ -740,6 +738,25 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       const badgeColor = weak ? '#92400E' : '#3F6212';
       const badgeBg = weak ? '#FDE9C8' : '#D9F99D';
 
+      // The self-send pitch, shown whenever this match is below our-name (Postal) bar: connect your own
+      // inbox → apply anywhere with no limits, we still write every letter and keep feeding you projects.
+      // Shared by weak- AND good-gated (a Good match blocked by the wall must see it too, not loop on
+      // "Write my application").
+      const connectEmailBlock = (
+        <div style={{ textAlign: 'center', margin: '4px 0 0', padding: '16px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '12px' }}>
+          <p style={{ fontSize: '15px', color: '#1A1A17', margin: '0 0 6px', lineHeight: 1.45, fontWeight: 700 }}>
+            {weak ? 'But you don’t have to stop here.' : 'Send this one yourself — no limits.'}
+          </p>
+          <p style={{ fontSize: '13px', color: '#3F6212', margin: '0 0 14px', lineHeight: 1.55 }}>
+            Connect your email and apply to <b>anything, anywhere — with zero limits</b>, sent from your own address.
+            We write every cover letter for you and keep dropping fresh projects into your feed.
+          </p>
+          <a href="/dashboard/settings#integrations" onClick={() => track('FUNNEL_STEP', { step: 'smtp_prompt_click', surface: weak ? 'project_weak' : 'project_good', opportunityId: project.id })} style={{ display: 'inline-block', padding: '12px 22px', background: '#C7F94A', color: '#000', borderRadius: '10px', fontSize: '14px', fontWeight: 700, textDecoration: 'none' }}>
+            ✉️ Connect my email →
+          </a>
+        </div>
+      );
+
       return (
         <div>
           <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>
@@ -770,9 +787,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
           {weak ? (
             <>
-              <p style={{ fontSize: '13px', color: '#6B6862', lineHeight: 1.55, margin: '0 0 14px' }}>
-                We could fire off an application here — but recruiters skip mismatches, and it would just
-                burn one of your daily applies. You&apos;ll get a real reply faster from roles that actually fit you.
+              <p style={{ fontSize: '13.5px', color: '#6B6862', lineHeight: 1.55, margin: '0 0 14px' }}>
+                <b style={{ color: '#92400E' }}>You&apos;re not a fit for this one</b> — so we won&apos;t put your name forward here.
+                Recruiters bin mismatches, and it&apos;d just burn a send for nothing.
               </p>
 
               {suggestions.length > 0 && (
@@ -789,18 +806,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 </div>
               )}
 
-              {gated ? (
-                // Below the our-name (Postal) bar. Offer the honest self-send path: connect your own
-                // inbox and send this (and anything) yourself, no limits.
-                <div style={{ textAlign: 'center', margin: '4px 0 0' }}>
-                  <p style={{ fontSize: '12px', color: '#8A8780', margin: '0 0 10px', lineHeight: 1.5 }}>
-                    {smtpPrompt || 'We send our strongest matches from Freelanly. Connect your own email to send this yourself — from your address, no limits.'}
-                  </p>
-                  <a href="/dashboard/settings#integrations" style={{ display: 'inline-block', padding: '10px 18px', background: '#C7F94A', color: '#000', borderRadius: '10px', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
-                    ✉️ Connect my email →
-                  </a>
-                </div>
-              ) : (
+              {gated ? connectEmailBlock : (
                 <button
                   onClick={generateCoverLetter}
                   style={{ width: '100%', padding: '12px', background: 'transparent', color: '#8A8780', border: '1px solid #E4E1D9', borderRadius: '10px', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}
@@ -809,7 +815,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 </button>
               )}
             </>
-          ) : (
+          ) : gated ? connectEmailBlock : (
             <button
               onClick={generateCoverLetter}
               style={{ width: '100%', padding: '14px', background: '#C7F94A', color: '#000', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}
