@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTracker } from '@/hooks/useTracker';
 import { SalaryPicker } from '@/components/SalaryPicker';
 import { ProcessingScreen } from '@/components/ProcessingScreen';
+import { SmtpConnectModal } from '@/app/dashboard/settings/SmtpConnect';
 import { categories, languages } from '@/config/site';
 
 interface ProjectProps {
@@ -58,6 +59,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
   // Auth state
   const [email, setEmail] = useState('');
+  const [smtpModal, setSmtpModal] = useState(false); // "Connect my email" popup on the gated screen
   const [isExisting, setIsExisting] = useState<boolean | null>(null);
   const [hasResume, setHasResume] = useState<boolean | null>(null);
   const [checkingEmail, setCheckingEmail] = useState(false);
@@ -751,9 +753,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             Connect your email and apply to <b>anything, anywhere — with zero limits</b>, sent from your own address.
             We write every cover letter for you and keep dropping fresh projects into your feed.
           </p>
-          <a href="/dashboard/settings#integrations" onClick={() => track('FUNNEL_STEP', { step: 'smtp_prompt_click', surface: weak ? 'project_weak' : 'project_good', opportunityId: project.id })} style={{ display: 'inline-block', padding: '12px 22px', background: '#C7F94A', color: '#000', borderRadius: '10px', fontSize: '14px', fontWeight: 700, textDecoration: 'none' }}>
+          <button onClick={() => { track('FUNNEL_STEP', { step: 'smtp_prompt_click', surface: weak ? 'project_weak' : 'project_good', opportunityId: project.id }); setSmtpModal(true); }} style={{ display: 'inline-block', padding: '12px 22px', background: '#C7F94A', color: '#000', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>
             ✉️ Connect my email →
-          </a>
+          </button>
         </div>
       );
 
@@ -985,6 +987,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
+      <SmtpConnectModal open={smtpModal} onClose={() => setSmtpModal(false)} initialEmail={email} />
       <style>{`
         @media (max-width: 768px) {
           .project-layout {

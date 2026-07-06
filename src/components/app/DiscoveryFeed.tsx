@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTracker } from '@/hooks/useTracker';
+import { SmtpConnectModal } from '@/app/dashboard/settings/SmtpConnect';
 
 type Job = {
   id: string;
@@ -233,6 +234,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
   const [showSimilar, setShowSimilar] = useState(false); // similar (non-100%) opps are opt-in via a button
+  const [smtpModal, setSmtpModal] = useState(false); // "Connect my email" popup on the gated draft screen
 
   // Apply filters
   let visible = items.filter(i => !skipped.has(i.id));
@@ -352,6 +354,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
 
   return (
     <>
+      <SmtpConnectModal open={smtpModal} onClose={() => setSmtpModal(false)} />
       {/* Filters sidebar */}
       <aside className={`card${showFilters ? ' show' : ''}`} style={{position: 'sticky', top: '72px'}}>
         <div className="filter-section">
@@ -510,7 +513,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                     ? (draftBlocked.message || 'You’ve hit the free daily cap. Connect your own email to keep applying — anywhere, with no limits.')
                     : <>Connect your email and apply to <b>anything, anywhere — with zero limits</b>, sent from your own address. We write every cover letter for you and keep dropping fresh projects into your feed.</>}
                 </div>
-                <a className="btn btn-acid btn-sm" href="/dashboard/settings#integrations" onClick={() => track('FUNNEL_STEP', { step: 'smtp_prompt_click', surface: 'feed_gated', reason: draftBlocked.reason })} style={{marginRight: '8px'}}>Connect my email →</a>
+                <button className="btn btn-acid btn-sm" onClick={() => { track('FUNNEL_STEP', { step: 'smtp_prompt_click', surface: 'feed_gated', reason: draftBlocked.reason }); setSmtpModal(true); }} style={{marginRight: '8px'}}>Connect my email →</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => setDraftItem(null)}>Not now</button>
               </div>
             ) : draftBlocked ? (
@@ -528,7 +531,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                     : (draftBlocked.message || 'Applying to this role is not available right now.')}
                 </div>
                 {draftBlocked.reason === 'poor_match' && (
-                  <a className="btn btn-acid btn-sm" href="/dashboard/settings#integrations" onClick={() => track('FUNNEL_STEP', { step: 'smtp_prompt_click', surface: 'feed_poor', reason: draftBlocked.reason })} style={{marginRight: '8px'}}>Connect my email →</a>
+                  <button className="btn btn-acid btn-sm" onClick={() => { track('FUNNEL_STEP', { step: 'smtp_prompt_click', surface: 'feed_poor', reason: draftBlocked.reason }); setSmtpModal(true); }} style={{marginRight: '8px'}}>Connect my email →</button>
                 )}
                 <button className="btn btn-ghost btn-sm" onClick={() => setDraftItem(null)}>Got it</button>
               </div>
