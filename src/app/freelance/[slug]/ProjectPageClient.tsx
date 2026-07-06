@@ -353,11 +353,13 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     }
     setFieldErrors({});
     setAuthError('');
-    // ONE continuous process (no page reload): build the profile (résumé upload + LinkedIn scrape +
-    // AI parse + loop), then immediately assess the match — both stages under a single processing
-    // screen so it reads as one flow, not two jarring screens.
-    setIsAuthed(true);
-    setPhase('analyzing');
+    // STAGE 1 — save the profile (résumé upload + LinkedIn scrape + AI parse). Keep the form MOUNTED
+    // (loading state on the button, NOT phase='analyzing') so that if the save fails, the user stays on
+    // the form with everything they typed intact — leaving to a processing screen and coming back was
+    // remounting the form (and SalaryPicker's onChange-on-mount wiped the rate/salary), i.e. the "form
+    // reset on Continue" bug. Only a SUCCESSFUL save advances to the processing screen.
+    setAuthLoading(true);
+    let pre: Response | null = null;
     try {
       const fd = new FormData();
       fd.append('file', resumeFile!);
@@ -370,9 +372,22 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       fd.append('availableFrom', noticeForm);
       fd.append('profileShareConsent', shareConsent ? 'true' : 'false');
       if (regToken) fd.append('regToken', regToken); // resume-preauth mints the session once this saves
-      try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* proceed — dashboard handles a missing profile */ }
+      pre = await fetch('/api/user/resume-preauth', { method: 'POST', body: fd });
+    } catch { pre = null; }
+    if (!pre || !pre.ok) {
+      const d = pre ? await pre.json().catch(() => ({})) : {};
+      setAuthLoading(false);
+      setAuthError(typeof (d as { error?: string }).error === 'string' ? (d as { error?: string }).error! : 'Could not save your profile — check your résumé and try again.');
+      setFieldErrors({ resume: true });
+      return; // form stays mounted → every field (incl. rate/salary) is preserved
+    }
 
-      // Assess the match (no cover letter yet — summaryOnly). Session cookie was set at verify.
+    // STAGE 2 — profile saved. NOW move to the processing screen and assess the match. If assessment
+    // itself fails we fail-open to the write screen (the résumé is already saved).
+    setIsAuthed(true);
+    setAuthLoading(false);
+    setPhase('analyzing');
+    try {
       const res = await fetch('/api/user/quick-apply', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ opportunityId: project.id, summaryOnly: true }),

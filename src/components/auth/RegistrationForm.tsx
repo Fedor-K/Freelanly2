@@ -359,7 +359,15 @@ export function RegistrationForm({
       fd.append('availableFrom', noticeForm);
       fd.append('profileShareConsent', shareConsent ? 'true' : 'false');
       if (regToken) fd.append('regToken', regToken); // resume-preauth mints the session once this saves
-      try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* dashboard handles a missing profile */ }
+      // Don't navigate away if the profile didn't save — stay on the form (values intact) with the error,
+      // instead of dumping the user in a résumé-less dashboard.
+      const pre = await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }).catch(() => null);
+      if (!pre || !pre.ok) {
+        const d = pre ? await pre.json().catch(() => ({})) : {};
+        setProfileSubmitting(false);
+        setError(typeof (d as { error?: string }).error === 'string' ? (d as { error?: string }).error! : 'Could not save your profile — check your résumé and try again.');
+        return;
+      }
       window.location.href = callbackUrl || '/dashboard/discovery';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
