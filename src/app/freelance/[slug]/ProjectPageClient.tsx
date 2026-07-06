@@ -807,8 +807,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           {weak ? (
             <>
               <p style={{ fontSize: '13.5px', color: '#6B6862', lineHeight: 1.55, margin: '0 0 14px' }}>
-                <b style={{ color: '#92400E' }}>You&apos;re not a fit for this one</b> — so we won&apos;t put your name forward here.
-                Recruiters bin mismatches, and it&apos;d just burn a send for nothing.
+                This isn&apos;t a <b>Strong</b> match, so we don&apos;t send it from our name — but you can send it
+                yourself, from your own email, with no limits. Or try one of the better-fitting roles below.
               </p>
 
               {suggestions.length > 0 && (
@@ -825,14 +825,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 </div>
               )}
 
-              {gated ? connectEmailBlock : (
-                <button
-                  onClick={generateCoverLetter}
-                  style={{ width: '100%', padding: '12px', background: 'transparent', color: '#8A8780', border: '1px solid #E4E1D9', borderRadius: '10px', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}
-                >
-                  Apply here anyway
-                </button>
-              )}
+              {connectEmailBlock}
             </>
           ) : gated ? connectEmailBlock : (
             <button
