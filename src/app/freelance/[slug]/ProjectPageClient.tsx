@@ -163,6 +163,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         .then(r => r.json())
         .then(data => {
           if (data.error === 'already_applied') {
+            track('APPLY_DRAFT', { method: 'project', ok: false, reason: 'already_applied', opportunityId: project.id });
             setGenError('You already applied to this project.');
             setPhase('sent');
             return;
@@ -174,9 +175,11 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
           setSendTo(data.to || '');
           // Strong/Good → skip the preview, write straight away; preview only for weak (steers to
-          // better-fitting roles).
-          if (data.tier === 'weak') setPhase('summary');
-          else generateCoverLetter();
+          // better-fitting roles). Log the weak-gate outcome here (generateCoverLetter logs the rest).
+          if (data.tier === 'weak') {
+            track('APPLY_DRAFT', { method: 'project', ok: false, reason: 'poor_match', opportunityId: project.id });
+            setPhase('summary');
+          } else generateCoverLetter();
         })
         .catch(() => { setPhase('summary'); });
       return;
@@ -396,6 +399,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         body: JSON.stringify({ opportunityId: project.id, draftOnly: true }),
       });
       const data = await res.json();
+      // Outcome of the draft step (so the project page's apply funnel isn't a blind spot like the feed's):
+      // ok = draft generated (sendable); else the block reason (smtp_required / poor_match / already_applied
+      // / resume_required). This is what lets us break down project-page applies by why they don't send.
+      track('APPLY_DRAFT', { method: 'project', ok: res.ok, status: res.status, reason: res.ok ? null : (data.error || null), opportunityId: project.id });
       if (res.ok) {
         setCoverLetter(data.coverLetter || '');
         setSubject(data.subject || `Application: ${project.title}`);
@@ -477,7 +484,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             AI writes a personalized application in 19 seconds. Just upload your resume.
           </p>
           <button onClick={() => {
-            track('OPPORTUNITY_APPLY_CLICK', { projectId: project.id });
+            // method='project' distinguishes this from feed clicks; authed=true means it's a real send
+            // attempt (→ draft), authed=false means it kicks off registration (not a send attempt).
+            track('OPPORTUNITY_APPLY_CLICK', { projectId: project.id, method: 'project', authed: isAuthed });
             if (isAuthed) {
               setPhase('generating');
               generateCoverLetter();
