@@ -40,6 +40,7 @@ export default async function ProjectPage({ params }: Props) {
       id: true, title: true, slug: true, description: true,
       skills: true, location: true, locationType: true, country: true, level: true,
       clientName: true, clientHeadline: true, clientAvatar: true, clientLinkedIn: true,
+      applyEmail: true, applyUrl: true,
       sourceUrl: true, createdAt: true, isActive: true,
       company: { select: { name: true } },
       categoryId: true,
@@ -86,6 +87,10 @@ export default async function ProjectPage({ params }: Props) {
         category: opp.category?.name || null,
         postedAgo,
         sourceUrl: opp.sourceUrl,
+        // URL-apply opportunities (ATS/Lever — no email, apply on the company's site). When set, the
+        // apply flow registers the candidate with us first, then hands them this external link instead
+        // of the (impossible) email-send form.
+        externalApplyUrl: (!opp.applyEmail && opp.applyUrl) ? opp.applyUrl : null,
         poster: opp.clientName ? {
           name: opp.clientName,
           headline: opp.clientHeadline,

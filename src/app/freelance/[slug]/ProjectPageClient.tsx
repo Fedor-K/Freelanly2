@@ -21,13 +21,14 @@ interface ProjectProps {
     category: string | null;
     postedAgo: string;
     sourceUrl: string | null;
+    externalApplyUrl: string | null;
     poster: { name: string; headline: string | null; avatar: string | null; linkedIn: string | null } | null;
   };
   signals: { applicationCount: number; isEarly: boolean; totalProjects: number };
   similar: Array<{ slug: string; title: string; companyName: string; skills: string[] }>;
 }
 
-type Phase = 'guest' | 'auth' | 'analyzing' | 'summary' | 'generating' | 'review' | 'sent';
+type Phase = 'guest' | 'auth' | 'analyzing' | 'summary' | 'generating' | 'review' | 'sent' | 'external';
 
 // One continuous status sequence covering the whole flow: building the profile (résumé + LinkedIn)
 // AND assessing the match — shown on a single processing screen so it reads as one process.
@@ -153,6 +154,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       url.searchParams.delete('apply');
       window.history.replaceState({}, '', url.toString());
       setIsAuthed(true);
+      // URL-apply (ATS) opportunity: skip the email flow, hand over the external link.
+      if (startExternalApply()) return;
       // First analyze the profile and show the match summary — the user reads "who you are / fit /
       // other roles" and clicks through to WRITE the application (cover letter) themselves. We do
       // NOT generate the cover letter yet (summaryOnly), so no LLM spend until they proceed.
@@ -383,10 +386,13 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       return; // form stays mounted → every field (incl. rate/salary) is preserved
     }
 
-    // STAGE 2 — profile saved. NOW move to the processing screen and assess the match. If assessment
-    // itself fails we fail-open to the write screen (the résumé is already saved).
+    // STAGE 2 — profile saved. The registration (the whole point for ATS opps) is done.
     setIsAuthed(true);
     setAuthLoading(false);
+    // URL-apply (ATS) opportunity: no email to send — hand over the external link now.
+    if (startExternalApply()) return;
+    // NOW move to the processing screen and assess the match. If assessment itself fails we fail-open
+    // to the write screen (the résumé is already saved).
     setPhase('analyzing');
     try {
       const res = await fetch('/api/user/quick-apply', {
@@ -408,6 +414,16 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     } catch {
       setPhase('summary'); // fail-open: still let the user proceed to write the application
     }
+  }
+
+  // URL-apply opportunities (ATS/Lever) have no email — our cover-letter/email flow can't send them.
+  // The value is the registration we just captured; from here we hand the candidate the working
+  // external link. Returns true if it took over the flow (caller must not start the email path).
+  function startExternalApply(): boolean {
+    if (!project.externalApplyUrl) return false;
+    track('FUNNEL_STEP', { step: 'ats_external_apply', opportunityId: project.id });
+    setPhase('external');
+    return true;
   }
 
   // Generate AI cover letter
@@ -509,6 +525,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             // attempt (→ draft), authed=false means it kicks off registration (not a send attempt).
             track('OPPORTUNITY_APPLY_CLICK', { projectId: project.id, method: 'project', authed: isAuthed });
             if (isAuthed) {
+              if (startExternalApply()) return;
               setPhase('generating');
               generateCoverLetter();
             } else {
@@ -900,6 +917,34 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             {sending ? 'Sending...' : 'Send application →'}
           </button>
 
+        </div>
+      );
+    }
+
+    // PHASE: EXTERNAL — URL-apply (ATS/Lever). We captured the registration; this role is applied to
+    // on the company's own site, so hand over the working external link (no email flow).
+    if (phase === 'external') {
+      return (
+        <div style={{ textAlign: 'center', padding: '16px 0' }}>
+          <div style={{ width: '48px', height: '48px', background: '#ECFDF5', borderRadius: '50%', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#047857" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          </div>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '6px' }}>You&apos;re all set</h2>
+          <p style={{ fontSize: '13.5px', color: '#6B6862', lineHeight: 1.55, margin: '0 auto 18px', maxWidth: '320px' }}>
+            This role is hosted on the company&apos;s own site. Finish your application there — it opens in a new tab.
+          </p>
+          <a
+            href={project.externalApplyUrl || '#'}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => track('FUNNEL_STEP', { step: 'ats_external_open', opportunityId: project.id })}
+            style={{ display: 'inline-block', width: '100%', boxSizing: 'border-box', padding: '14px', background: '#C7F94A', color: '#000', borderRadius: '10px', fontSize: '15px', fontWeight: 700, textDecoration: 'none' }}
+          >
+            Apply on company site ↗
+          </a>
+          <p style={{ fontSize: '12px', color: '#8A8780', margin: '16px 0 0' }}>
+            We&apos;ll keep matching you to roles you can apply to right here — <a href="/dashboard/discovery" style={{ color: '#3F6212', fontWeight: 600 }}>see your feed →</a>
+          </p>
         </div>
       );
     }
