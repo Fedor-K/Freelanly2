@@ -529,12 +529,13 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 onClick={() => { const inp = document.getElementById('resume-input') as HTMLInputElement; inp?.click(); }}
                 style={{ padding: '10px 14px', border: `1px dashed ${fieldErrors.resume ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '13px', color: resumeFile ? '#047857' : '#8A8780', cursor: 'pointer', background: resumeFile ? '#ECFDF5' : '#fff' }}
               >
-                {resumeFile ? `✓ ${resumeFile.name}` : 'Click to upload PDF'}
-                <input id="resume-input" type="file" accept="application/pdf,.pdf" hidden onChange={e => {
+                {resumeFile ? `✓ ${resumeFile.name}` : 'Click to upload PDF or DOCX'}
+                <input id="resume-input" type="file" accept="application/pdf,.pdf,.docx" hidden onChange={e => {
                   const f = e.target.files?.[0];
-                  // The backend only parses PDFs (resume-preauth rejects non-.pdf), so never let a .docx
-                  // through the picker — it silently failed to save and left the user stuck.
-                  if (f && !f.name.toLowerCase().endsWith('.pdf')) { setAuthError('Please upload a PDF — .docx isn’t supported yet.'); setFieldErrors(p => ({ ...p, resume: true })); e.target.value = ''; return; }
+                  const nm = (f?.name || '').toLowerCase();
+                  // Backend parses PDF (unpdf) + DOCX (mammoth); reject anything else at the picker so the
+                  // user gets told, not silently 400'd on submit.
+                  if (f && !(nm.endsWith('.pdf') || nm.endsWith('.docx'))) { setAuthError('Please upload a PDF or DOCX résumé.'); setFieldErrors(p => ({ ...p, resume: true })); e.target.value = ''; return; }
                   setFieldErrors(p => { const n = { ...p }; delete n.resume; return n; }); setAuthError(''); setResumeFile(f || null);
                 }} />
               </div>

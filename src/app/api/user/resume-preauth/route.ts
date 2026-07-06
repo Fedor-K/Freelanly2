@@ -60,8 +60,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email required' }, { status: 400 });
     }
 
-    if (file && (file.size > 5 * 1024 * 1024 || !file.name.toLowerCase().endsWith('.pdf'))) {
-      return NextResponse.json({ error: 'PDF under 5MB required' }, { status: 400 });
+    const fname = (file?.name || '').toLowerCase();
+    const isDocx = fname.endsWith('.docx');
+    const isPdf = fname.endsWith('.pdf');
+    if (file && (file.size > 5 * 1024 * 1024 || (!isPdf && !isDocx))) {
+      return NextResponse.json({ error: 'PDF or DOCX under 5MB required' }, { status: 400 });
     }
 
     // LinkedIn is a COMPLEMENT to the résumé, not a substitute: require BOTH. The résumé is the
@@ -99,10 +102,18 @@ export async function POST(request: NextRequest) {
     if (file) {
       buffer = new Uint8Array(await file.arrayBuffer());
       try {
-        // Pass a COPY: extractText (pdf.js) transfers/detaches the ArrayBuffer to a
-        // worker, which would later break the Blob put() on the same buffer.
-        const { text } = await extractText(new Uint8Array(buffer!), { mergePages: true });
-        pdfText = typeof text === 'string' ? text : (text as string[]).join('\n');
+        if (isDocx) {
+          // .docx → raw text via mammoth (unpdf is PDF-only). Buffer.from copies, so the Blob put()
+          // below still has the original bytes.
+          const mammoth = (await import('mammoth')).default;
+          const { value } = await mammoth.extractRawText({ buffer: Buffer.from(buffer) });
+          pdfText = value || '';
+        } else {
+          // Pass a COPY: extractText (pdf.js) transfers/detaches the ArrayBuffer to a
+          // worker, which would later break the Blob put() on the same buffer.
+          const { text } = await extractText(new Uint8Array(buffer!), { mergePages: true });
+          pdfText = typeof text === 'string' ? text : (text as string[]).join('\n');
+        }
       } catch {
         // Continue — LinkedIn might still work
       }
@@ -185,7 +196,7 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
       try {
         const blob = await put(`resumes/${user.id}/${file.name}`, Buffer.from(buffer), {
           access: 'public',
-          contentType: 'application/pdf',
+          contentType: isDocx ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf',
           allowOverwrite: true,
         });
         blobUrl = blob.url;
