@@ -200,6 +200,7 @@ export function RegistrationForm({
 
   // Has resume flag from check-email API
   const [hasResume, setHasResume] = useState<boolean | null>(null);
+  const [regToken, setRegToken] = useState<string | null>(null); // deferred-session proof from verify-code
 
   // Debounced email check on typing
   useEffect(() => {
@@ -357,6 +358,7 @@ export function RegistrationForm({
       fd.append('workAuthorization', workAuth);
       fd.append('availableFrom', noticeForm);
       fd.append('profileShareConsent', shareConsent ? 'true' : 'false');
+      if (regToken) fd.append('regToken', regToken); // resume-preauth mints the session once this saves
       try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* dashboard handles a missing profile */ }
       window.location.href = callbackUrl || '/dashboard/discovery';
     } catch (err) {
@@ -551,14 +553,16 @@ export function RegistrationForm({
       const res = await fetch('/api/auth/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: fullCode, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+        // flow:'register' → verify-code confirms the OTP but DEFERS the session (no login until the
+        // résumé + required fields are saved); resume-preauth mints it with the returned regToken.
+        body: JSON.stringify({ email, code: fullCode, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, flow: (hasResume === false && isExistingUser === false) ? 'register' : undefined }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
         // Email confirmed. Users who still need a profile go to the 'profile' step (collect
         // résumé/LinkedIn/categories/salary/Telegram, then apply); everyone else (existing user
         // with a résumé) just enters their account.
-        if (hasResume === false) { setStep('profile'); setOtpLoading(false); return; }
+        if (hasResume === false) { if (data.regToken) setRegToken(data.regToken); setStep('profile'); setOtpLoading(false); return; }
         window.location.href = callbackUrl || data.callbackUrl || '/dashboard/discovery';
       } else {
         setOtpError(data.error || 'Invalid code');

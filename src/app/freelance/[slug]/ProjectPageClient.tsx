@@ -62,6 +62,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [hasResume, setHasResume] = useState<boolean | null>(null);
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [regToken, setRegToken] = useState<string | null>(null); // deferred-session proof from verify-code
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [githubUrlField, setGithubUrlField] = useState('');
   const [salaryExpectation, setSalaryExpectation] = useState('');
@@ -291,7 +292,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       const res = await fetch('/api/auth/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+        // flow:'register' for new (résumé-less) users → verify-code confirms the OTP but DEFERS the
+        // session; it hands back a regToken that resume-preauth uses to create the session once the
+        // profile is complete. So no session exists until the résumé + required fields are saved.
+        body: JSON.stringify({ email, code, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, flow: (hasResume === false && isExisting === false) ? 'register' : undefined }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -299,6 +303,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         // résumé/LinkedIn/categories — nothing was collected before this point. Existing users who
         // already have a résumé skip straight to applying.
         if (hasResume === false) {
+          if (data.regToken) setRegToken(data.regToken); // needed to mint the session after the résumé
           setProfileStep(true);
           return; // finally{} clears otpLoading; the fields step renders next
         }
@@ -364,6 +369,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       fd.append('workAuthorization', workAuth);
       fd.append('availableFrom', noticeForm);
       fd.append('profileShareConsent', shareConsent ? 'true' : 'false');
+      if (regToken) fd.append('regToken', regToken); // resume-preauth mints the session once this saves
       try { await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }); } catch { /* proceed — dashboard handles a missing profile */ }
 
       // Assess the match (no cover letter yet — summaryOnly). Session cookie was set at verify.

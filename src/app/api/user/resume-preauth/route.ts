@@ -8,6 +8,8 @@ import { scrapeLinkedInProfile, mergeCandidateProfiles, normalizeLinkedInUrl, ca
 import { deriveCategorySlugs } from '@/lib/loop-routing';
 import { firstGitHubUrlFrom, usernameFromGitHubUrl } from '@/lib/github-review/extract-username';
 import { isLocationBlocked } from '@/lib/region-block';
+import { verifyRegToken } from '@/lib/reg-token';
+import { createUserSession } from '@/lib/create-session';
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'zai';
 
@@ -52,6 +54,7 @@ export async function POST(request: NextRequest) {
     // Affirmative opt-in (GDPR/CCPA) to present the profile to employers & hiring partners. Only a
     // literal 'true' counts as consent; anything else (unchecked) → no consent, no resale eligibility.
     const profileShareConsent = (formData.get('profileShareConsent') as string) === 'true';
+    const regToken = (formData.get('regToken') as string) || null; // proof of a fresh OTP → create the session once the profile is saved
 
     if (!email) {
       return NextResponse.json({ error: 'Email required' }, { status: 400 });
@@ -291,7 +294,22 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
 
     console.log(`[ResumePreAuth] Resume uploaded for ${email}: ${parsedProfile?.name || 'unknown'}`);
 
-    return NextResponse.json({ success: true });
+    // Deferred-session completion: the profile is now saved (résumé + required fields), so a user who
+    // registered under the "session only after résumé" flow gets their session HERE — but only if the
+    // regToken proves this same email just passed OTP (resume-preauth IDs by email alone, so without
+    // this check minting a session would be an OTP bypass) and a résumé file was actually provided.
+    let sessionCreated = false;
+    if (file && verifyRegToken(regToken) === email) {
+      try {
+        await createUserSession(user.id);
+        sessionCreated = true;
+        await prisma.activityLog.create({
+          data: { userId: user.id, action: 'LOGIN', details: { email, provider: 'otp_code', deferred: true } },
+        }).catch(() => {});
+      } catch (e) { console.error('[ResumePreAuth] session create failed:', (e as Error)?.message); }
+    }
+
+    return NextResponse.json({ success: true, sessionCreated });
   } catch (error) {
     console.error('[ResumePreAuth] Error:', error);
     return NextResponse.json({ error: 'Failed' }, { status: 500 });

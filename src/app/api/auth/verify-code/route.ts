@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
 import { rateLimit, getClientIp, sanitizeEmail } from '@/lib/rate-limit';
+import { signRegToken } from '@/lib/reg-token';
 
 /**
  * POST /api/auth/verify-code
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, code, timezone } = await request.json();
+    const { email, code, timezone, flow } = await request.json();
 
     if (!email || !code) {
       return NextResponse.json(
@@ -88,41 +89,36 @@ export async function POST(request: NextRequest) {
       await prisma.user.update({ where: { id: user.id }, data: updateData });
     }
 
+    // Delete the used verification token (OTP is single-use regardless of what happens next).
+    await prisma.verificationToken.delete({
+      where: { identifier_token: { identifier: token.identifier, token: token.token } },
+    });
+
+    // DEFER THE SESSION for the registration flow of a résumé-less user: the OTP is confirmed, but the
+    // account isn't "registered" until the résumé + required fields are saved. resume-preauth creates
+    // the session once the profile is complete (carrying the signed regToken below as proof of this
+    // OTP). Everyone with a résumé (returning login) — and any flow that doesn't ask to defer — gets
+    // the session right here, exactly as before. FAIL-SAFE: if the deferral can't issue a token we fall
+    // through and create the session, so registration is never blocked.
+    let regToken: string | null = null;
+    if (flow === 'register' && !user.resumeUrl) {
+      try { regToken = signRegToken(normalizedEmail); } catch { regToken = null; }
+    }
+    if (regToken) {
+      return NextResponse.json({ success: true, needsProfile: true, regToken });
+    }
+
     // Create a session (same as NextAuth would do after magic link click)
     const sessionToken = randomUUID();
     const sessionExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-
-    await prisma.session.create({
-      data: {
-        sessionToken,
-        userId: user.id,
-        expires: sessionExpiry,
-      },
-    });
-
-    // Delete the used verification token
-    await prisma.verificationToken.delete({
-      where: {
-        identifier_token: {
-          identifier: token.identifier,
-          token: token.token,
-        },
-      },
-    });
+    await prisma.session.create({ data: { sessionToken, userId: user.id, expires: sessionExpiry } });
 
     // Set the session cookie (same name NextAuth uses)
     const cookieStore = await cookies();
     const isSecure = process.env.NODE_ENV === 'production';
-    const cookieName = isSecure
-      ? '__Secure-authjs.session-token'
-      : 'authjs.session-token';
-
+    const cookieName = isSecure ? '__Secure-authjs.session-token' : 'authjs.session-token';
     cookieStore.set(cookieName, sessionToken, {
-      expires: sessionExpiry,
-      httpOnly: true,
-      secure: isSecure,
-      sameSite: 'lax',
-      path: '/',
+      expires: sessionExpiry, httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/',
     });
 
     // Log login activity
