@@ -731,13 +731,14 @@ export function RegistrationForm({
             onClick={(e) => { const inp = (e.currentTarget as HTMLElement).querySelector('input[type="file"]') as HTMLInputElement; if (inp && (e.target as HTMLElement).tagName !== 'INPUT') inp.click(); }}
             onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }}
             onDragLeave={(e) => { e.currentTarget.classList.remove('drag-over'); }}
-            onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drag-over'); const file = e.dataTransfer.files?.[0]; if (file && (file.name.endsWith('.pdf') || file.name.endsWith('.docx'))) setResumeFile(file); }}
+            onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drag-over'); const file = e.dataTransfer.files?.[0]; if (file && file.name.toLowerCase().endsWith('.pdf')) { setError(''); setResumeFile(file); } else if (file) { setError('Please upload a PDF — .docx isn’t supported yet.'); } }}
           >
             <div style={{ flex: 1 }}>
               <div className="up-ttl">{resumeFile ? resumeFile.name : 'Drag & drop your résumé here'}</div>
-              <div className="up-sub">{resumeFile ? 'Ready to upload' : 'PDF or DOCX · or click to choose'}</div>
+              <div className="up-sub">{resumeFile ? 'Ready to upload' : 'PDF · or click to choose'}</div>
             </div>
-            <input type="file" accept=".pdf,.docx" style={{ display: 'none' }} onChange={(e) => setResumeFile(e.target.files?.[0] || null)} />
+            {/* Backend only parses PDFs — never accept .docx here or it silently fails to save. */}
+            <input type="file" accept="application/pdf,.pdf" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f && !f.name.toLowerCase().endsWith('.pdf')) { setError('Please upload a PDF — .docx isn’t supported yet.'); e.target.value = ''; return; } setError(''); setResumeFile(f || null); }} />
             {resumeFile ? <span style={{ fontSize: '11.5px', color: '#047857' }}>✓</span> : <span style={{ fontSize: '11.5px', color: '#5C6068' }}>Choose →</span>}
           </div>
         </div>

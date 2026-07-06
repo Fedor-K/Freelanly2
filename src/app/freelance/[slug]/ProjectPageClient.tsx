@@ -530,7 +530,13 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 style={{ padding: '10px 14px', border: `1px dashed ${fieldErrors.resume ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '13px', color: resumeFile ? '#047857' : '#8A8780', cursor: 'pointer', background: resumeFile ? '#ECFDF5' : '#fff' }}
               >
                 {resumeFile ? `✓ ${resumeFile.name}` : 'Click to upload PDF'}
-                <input id="resume-input" type="file" accept=".pdf,.docx" hidden onChange={e => setResumeFile(e.target.files?.[0] || null)} />
+                <input id="resume-input" type="file" accept="application/pdf,.pdf" hidden onChange={e => {
+                  const f = e.target.files?.[0];
+                  // The backend only parses PDFs (resume-preauth rejects non-.pdf), so never let a .docx
+                  // through the picker — it silently failed to save and left the user stuck.
+                  if (f && !f.name.toLowerCase().endsWith('.pdf')) { setAuthError('Please upload a PDF — .docx isn’t supported yet.'); setFieldErrors(p => ({ ...p, resume: true })); e.target.value = ''; return; }
+                  setFieldErrors(p => { const n = { ...p }; delete n.resume; return n; }); setAuthError(''); setResumeFile(f || null);
+                }} />
               </div>
             </div>
 
