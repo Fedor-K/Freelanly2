@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { generateCoverLetter, generateSubjectLine } from '@/services/cover-letter-generator';
+import { generateCoverLetter, generateSubjectLine, stripTrailingSignoff } from '@/services/cover-letter-generator';
 import { assessPairing } from '@/services/matching/assess-pairing';
 import { hasRealCV } from '@/lib/resume-attachment';
 import { buildGateEvidence, buildLetterEvidence, type ReviewRow } from '@/lib/github-review/evidence';
@@ -105,7 +105,8 @@ export async function POST(request: NextRequest) {
     const greeting = `Dear ${recruiterFirstName},`;
     const replyEmail = user.email;
     const signature = `Best regards,\n${user.name || 'Applicant'}\n${replyEmail}`;
-    const fullLetter = `${greeting}\n\n${coverLetter}\n\n${signature}`;
+    // Strip any sign-off the AI appended so our signature doesn't duplicate the candidate's name.
+    const fullLetter = `${greeting}\n\n${stripTrailingSignoff(coverLetter, user.name)}\n\n${signature}`;
 
     return NextResponse.json({
       coverLetter: fullLetter,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { generateCoverLetter, generateSubjectLine } from '@/services/cover-letter-generator';
+import { generateCoverLetter, generateSubjectLine, stripTrailingSignoff } from '@/services/cover-letter-generator';
 import { assessPairing } from '@/services/matching/assess-pairing';
 import { assessPairingCached, profileStamp } from '@/services/matching/assess-pairing-cached';
 import { generateRecruiterRationale } from '@/services/matching/recruiter-rationale';
@@ -466,22 +466,26 @@ export async function POST(request: NextRequest) {
     // contact the user directly, off-platform.
     // The AI-generated letter already opens with a greeting; only prepend one when the
     // body lacks it (e.g. user-pasted text) — otherwise we get "Hi X,\nHi there," dupes.
-    const hasGreeting = /^\s*(hi|hello|dear|hey)\b/i.test(coverLetter);
+    // Strip any sign-off the AI appended (closing + name) so our single signature doesn't duplicate the name.
+    const bodyText = stripTrailingSignoff(coverLetter, user.name);
+    const hasGreeting = /^\s*(hi|hello|dear|hey)\b/i.test(bodyText);
     const greeting = hasGreeting ? '' : (recruiterName ? `Hi ${recruiterName},\n\n` : 'Hi there,\n\n');
     const signature = `Best regards,\n${user.name || 'Applicant'}`;
+    // Treat literal "null"/"undefined"/empty as absent so the footer never prints "Location: null".
+    const clean = (v: string | null | undefined) => { const s = (v || '').trim(); return s && !/^(null|undefined)$/i.test(s) ? s : null; };
     // ATS-checklist footer: the exact fields recruiters re-ask for on the first reply (location, work
     // auth, current + expected pay, availability). Collected in the signup form; attached here so the
     // recruiter has them up front and skips the "share these details" round. No email/phone (replies
     // route through us). Each is the candidate's OWN self-reported value — never an email.
     const details = [
-      user.location && `Location: ${user.location}`,
-      user.workAuthorization && `Work authorization: ${user.workAuthorization}`,
-      user.currentRate && `Current rate: ${user.currentRate}`,
-      user.salaryExpectation && `Expected rate: ${user.salaryExpectation}`,
-      user.availableFrom && `Availability: ${user.availableFrom}`,
+      clean(user.location) && `Location: ${clean(user.location)}`,
+      clean(user.workAuthorization) && `Work authorization: ${clean(user.workAuthorization)}`,
+      clean(user.currentRate) && `Current rate: ${clean(user.currentRate)}`,
+      clean(user.salaryExpectation) && `Expected rate: ${clean(user.salaryExpectation)}`,
+      clean(user.availableFrom) && `Availability: ${clean(user.availableFrom)}`,
     ].filter(Boolean);
     const detailsBlock = details.length ? `\n\n—\n${details.join('\n')}` : '';
-    const fullLetter = `${greeting}${coverLetter}\n\n${signature}${detailsBlock}`;
+    const fullLetter = `${greeting}${bodyText}\n\n${signature}${detailsBlock}`;
 
     // Draft-only mode: return full letter as user will see it
     if (draftOnly) {

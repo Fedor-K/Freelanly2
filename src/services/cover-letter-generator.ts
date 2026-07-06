@@ -396,7 +396,7 @@ export async function generateSubjectLine(params: {
       messages: [
         {
           role: 'system',
-          content: 'Generate a short professional email subject line for a job application. Max 60 chars. Return ONLY the subject line, nothing else. Do NOT use "Application:" prefix — make it sound like a reply to their post.',
+          content: 'Generate a short professional email subject line for a job application. Max 60 chars. Return ONLY the subject line, nothing else. Do NOT use an "Application:" or "Re:" prefix — this is a first-touch email, not a reply. Make it specific and engaging.',
         },
         { role: 'user', content: `Role: ${jobTitle}, Applicant: ${userName}` },
       ],
@@ -407,10 +407,26 @@ export async function generateSubjectLine(params: {
     content = content.replace(/^["']|["']$/g, '');
     // Remove AI placeholders
     content = content.replace(/\[Company Name\]/gi, '').replace(/\[Your Name\]/gi, userName).replace(/\s{2,}/g, ' ').trim();
+    // Belt-and-suspenders: strip a leading Re:/Fwd: the model may still add — this is a first touch.
+    content = content.replace(/^\s*(re|fwd|fw)\s*:\s*/i, '').trim();
     return content;
   } catch {
     return `${jobTitle} — ${userName}`;
   }
+}
+
+/** Strip a trailing sign-off (closing phrase + name) the AI may have appended to a cover-letter body,
+ *  so callers can add their own single signature without duplicating the candidate's name. */
+export function stripTrailingSignoff(text: string, name?: string | null): string {
+  const closings = /^(best regards|best|regards|kind regards|warm regards|sincerely|yours sincerely|yours truly|thanks|thank you|cheers)[,.!]?$/i;
+  const nameLc = (name || '').trim().toLowerCase();
+  const lines = text.replace(/\s+$/, '').split('\n');
+  while (lines.length) {
+    const last = lines[lines.length - 1].trim();
+    if (last === '' || closings.test(last) || (nameLc && last.toLowerCase() === nameLc)) lines.pop();
+    else break;
+  }
+  return lines.join('\n').trimEnd();
 }
 
 /**
