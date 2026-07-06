@@ -147,9 +147,10 @@ async function findFittingOpportunities(
       }
     }
 
-    // Vet DEEPER than the top handful: even after re-rank, gate in score-order batches and stop as soon
-    // as 4 pass — cheap for the common case (fits sit at the top), deep enough to rescue the niche case.
-    const VET_CAP = 24, VET_BATCH = 8, WANT = 4;
+    // Vet the top candidates in ONE parallel batch (not up to 3 sequential batches of 8 → ~21s of LLM
+    // that stalls "Preparing your summary"). 12 covers the lexical+semantic top well; capping to a
+    // single batch makes the step deterministically ~one gate-call deep (~7s) instead of up to three.
+    const VET_CAP = 12, VET_BATCH = 12, WANT = 4;
     const cand = ordered.slice(0, VET_CAP).map(x => x.o);
     const full = await prisma.opportunity.findMany({
       where: { id: { in: cand.map(t => t.id) } },
@@ -185,6 +186,12 @@ async function findFittingOpportunities(
   } catch {
     return [];
   }
+}
+
+/** Cap any promise's wait so a degraded LLM (per-call 20s + retries) can never stall the apply
+ *  response — return the fallback once `ms` passes. Used to bound the suggestions scan. */
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([promise, new Promise<T>((r) => setTimeout(() => r(fallback), ms))]);
 }
 
 /**
@@ -387,7 +394,7 @@ export async function POST(request: NextRequest) {
       const isPoor = pairing.decision === 'NO';
       // For a genuine poor match, also surface better-fitting roles (cheap lexical, no LLM).
       const suggestions = isPoor
-        ? await findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user), gh, myStamp).catch(() => [])
+        ? await withTimeout(findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user), gh, myStamp).catch(() => []), 11000, [])
         : [];
       return NextResponse.json({
         error: 'smtp_required',
@@ -412,8 +419,8 @@ export async function POST(request: NextRequest) {
       // preview and write the letter straight away. So don't spend the candidate-summary LLM call (or
       // the suggestions scan) on a good match: nothing would show it.
       const [matchSummary, suggestions] = await Promise.all([
-        isWeak ? generateCandidateSummary(profile, opportunity.title, opportunity.description, pairing.label || null, pairing.reason || '') : Promise.resolve(null),
-        isWeak ? findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user), gh, myStamp) : Promise.resolve([]),
+        isWeak ? withTimeout(generateCandidateSummary(profile, opportunity.title, opportunity.description, pairing.label || null, pairing.reason || '').catch(() => null), 11000, null) : Promise.resolve(null),
+        isWeak ? withTimeout(findFittingOpportunities(user.id, opportunity.id, profile, user.resumeText || '', hasRealCV(user), gh, myStamp).catch(() => []), 11000, []) : Promise.resolve([]),
       ]);
       return NextResponse.json({
         ok: true,
