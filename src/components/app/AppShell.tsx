@@ -27,20 +27,12 @@ function SvgIcon({ name, size = 18 }: { name: string; size?: number }) {
 }
 
 type NavItem = { id: string; href: string; label: string; icon: string; count?: number };
+// Sidebar trimmed to just the feed — the one page that matters. Everything else
+// (Settings/SMTP, Inbox, etc.) stays reachable via the user menu + notification bell,
+// and the pages still exist by URL.
 const NAV: { label: string; items: NavItem[] }[] = [
-  { label: 'PRIMARY', items: [
-    { id: 'dashboard', href: '/dashboard',            label: 'Dashboard',  icon: 'home' },
+  { label: '', items: [
     { id: 'discovery', href: '/dashboard/discovery',   label: 'Discovery', icon: 'compass' },
-    { id: 'inbox',     href: '/dashboard/inbox',        label: 'Inbox',     icon: 'inbox' },
-    { id: 'pipeline',  href: '/dashboard/pipeline',     label: 'Pipeline',  icon: 'columns' },
-  ]},
-  { label: 'CONTENT', items: [
-    { id: 'templates', href: '/dashboard/templates',    label: 'Templates', icon: 'edit' },
-    { id: 'analytics', href: '/dashboard/analytics',    label: 'Analytics', icon: 'bar' },
-  ]},
-  { label: 'ACCOUNT', items: [
-    { id: 'settings', href: '/dashboard/settings',      label: 'Settings', icon: 'cog' },
-    { id: 'billing',  href: '/dashboard/billing',       label: 'Billing',  icon: 'card' },
   ]},
 ];
 
@@ -214,7 +206,7 @@ export function AppShell({ children, userName, userPlan }: { children: React.Rea
 
         {NAV.map(group => (
           <div key={group.label}>
-            <div className="sb-section-label">{group.label}</div>
+            {group.label && <div className="sb-section-label">{group.label}</div>}
             <ul className="sb-nav">
               {group.items.map(item => (
                 <li key={item.id}>
