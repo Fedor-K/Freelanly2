@@ -450,10 +450,11 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
         ) : (
           <>
             {verifiedVisible.map((item, i) => {
-              // Divider between the STRONG tier (sent from our name) and the Good/rest tier (needs the
-              // user's own SMTP). Server orders Strong-first, so insert it before the first non-Strong
-              // card — only for users who haven't connected SMTP.
-              const showDivider = !hasSmtp && item.matchLabel !== 'Strong' && (i === 0 || verifiedVisible[i - 1].matchLabel === 'Strong');
+              // ONE divider between the STRONG tier (sent from our name) and the Good/rest tier (needs
+              // the user's own SMTP). The feed gets re-ranked (semantic / fit-score), so Strong and
+              // non-Strong interleave instead of staying cleanly Strong-first — show the banner just
+              // ONCE, before the first non-Strong card, not at every Strong→non-Strong transition.
+              const showDivider = !hasSmtp && verifiedVisible.findIndex(x => x.matchLabel !== 'Strong') === i;
               return (
                 <div key={item.id}>
                   {showDivider && (
@@ -463,7 +464,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                         <div style={{ fontSize: '14px', fontWeight: 700, color: '#2E3A00' }}>{strongCount > 0 ? 'To apply to the roles below, send from your own email' : 'Send from your own email — unlimited'}</div>
                         <div style={{ fontSize: '12.5px', color: '#5A6B1E', lineHeight: 1.5 }}>We send only your strongest matches from Freelanly. Connect your inbox to apply to these too — from your address, no daily cap, better replies.</div>
                       </div>
-                      <a className="btn btn-acid btn-sm" href="/dashboard/settings#integrations" onClick={() => track('FUNNEL_STEP', { step: 'smtp_banner_click', surface: 'feed_divider' })}>Connect my email →</a>
+                      <button className="btn btn-acid btn-sm" onClick={() => { track('FUNNEL_STEP', { step: 'smtp_banner_click', surface: 'feed_divider' }); setSmtpModal(true); }}>Connect my email →</button>
                     </div>
                   )}
                   {renderCard(item, i)}
