@@ -345,6 +345,7 @@ export function RegistrationForm({
     if (!currentRate.trim()) { setError('Please add your current rate / pay'); return; }
     if (!salaryExpectation.trim()) { setError('Please add your expected salary'); return; }
     if (!noticeForm) { setError('Please select your notice period'); return; }
+    if (!shareConsent) { setError('Please accept the Terms & Privacy Policy and authorize sharing to continue'); return; }
     setError('');
     setProfileSubmitting(true);
     try {
@@ -793,11 +794,12 @@ export function RegistrationForm({
           </button>
         </div>
 
-        {/* Affirmative opt-in to share the profile with employers/partners (GDPR/CCPA). Positive
-            framing — most job-seekers want to be contacted — but unchecked by default for valid consent. */}
+        {/* REQUIRED: accept Terms + Privacy AND authorize sharing in one. Sharing IS the service (we apply
+            and represent the candidate to employers), so it's part of what they agree to, not an optional
+            add-on — a non-shareable registrant can't be served. Mirrors the inline apply form. */}
         <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '12.5px', color: '#555', cursor: 'pointer', lineHeight: 1.4 }}>
           <input type="checkbox" checked={shareConsent} onChange={(e) => setShareConsent(e.target.checked)} style={{ marginTop: '2px', flexShrink: 0 }} />
-          <span>Let Freelanly share my profile with employers and hiring partners so they can reach out about jobs.</span>
+          <span>I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#3F6212', textDecoration: 'underline' }}>Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#3F6212', textDecoration: 'underline' }}>Privacy Policy</a>, and authorize Freelanly to apply to jobs and share my profile with employers and hiring partners on my behalf. <span style={{ color: '#B91C1C' }}>*</span></span>
         </label>
 
         {error && <p style={{ fontSize: '13px', color: '#B91C1C' }}>{error}</p>}

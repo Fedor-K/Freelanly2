@@ -350,9 +350,12 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     if (!currentRate.trim()) errors.currentRate = true;
     if (!salaryExpectation.trim()) errors.salary = true;
     if (!noticeForm) errors.notice = true;
+    if (!shareConsent) errors.consent = true;
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
-      setAuthError('Please fill in all required fields');
+      setAuthError(errors.consent && Object.keys(errors).length === 1
+        ? 'Please accept the Terms & Privacy Policy to continue'
+        : 'Please fill in all required fields');
       return;
     }
     setFieldErrors({});
@@ -639,10 +642,12 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
               </button>
             </div>
 
-            {/* Affirmative opt-in to share profile with employers/partners (GDPR/CCPA) — unchecked by default. */}
-            <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '12px', color: '#555', cursor: 'pointer', lineHeight: 1.4, marginBottom: '10px' }}>
-              <input type="checkbox" checked={shareConsent} onChange={e => setShareConsent(e.target.checked)} style={{ marginTop: '2px', flexShrink: 0 }} />
-              <span>Let Freelanly share my profile with employers and hiring partners so they can reach out about jobs.</span>
+            {/* REQUIRED: accept Terms + Privacy AND authorize sharing in one. Sharing IS the service (we
+                apply and represent the candidate to employers), so it's part of what they agree to, not an
+                optional add-on — a non-shareable registrant can't be served. */}
+            <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '12px', color: fieldErrors.consent ? '#B91C1C' : '#555', cursor: 'pointer', lineHeight: 1.4, marginBottom: '10px' }}>
+              <input type="checkbox" checked={shareConsent} onChange={e => { setShareConsent(e.target.checked); setFieldErrors(prev => ({ ...prev, consent: false })); }} style={{ marginTop: '2px', flexShrink: 0 }} />
+              <span>I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#3F6212', textDecoration: 'underline' }}>Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#3F6212', textDecoration: 'underline' }}>Privacy Policy</a>, and authorize Freelanly to apply to jobs and share my profile with employers and hiring partners on my behalf. <span style={{ color: '#B91C1C' }}>*</span></span>
             </label>
 
             <div style={{ fontSize: '11px', color: '#8A8780', marginBottom: '8px' }}><span style={{ color: '#B91C1C' }}>*</span> Required fields</div>
