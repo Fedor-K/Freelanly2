@@ -811,6 +811,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 yourself, from your own email, with no limits. Or try one of the better-fitting roles below.
               </p>
 
+              {/* SMTP self-send path comes FIRST — it's the primary action for a below-bar match. */}
+              <div style={{ marginBottom: '16px' }}>{connectEmailBlock}</div>
+
               {suggestions.length > 0 && (
                 <div style={{ marginBottom: '16px' }}>
                   <div style={{ fontSize: '11px', fontWeight: 600, color: '#8A8780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>Better matches for you</div>
@@ -824,8 +827,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                   </div>
                 </div>
               )}
-
-              {connectEmailBlock}
             </>
           ) : gated ? connectEmailBlock : (
             <button
