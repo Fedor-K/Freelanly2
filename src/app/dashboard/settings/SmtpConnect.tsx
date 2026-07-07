@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { trackEvent } from '@/hooks/useTracker';
 
 // SMTP connect form: saves via /api/user/smtp then verifies via /api/user/smtp/test (which sets
 // verified=true). Once verified, the user sends applications from their own address, unlimited, and
@@ -125,6 +126,10 @@ export function SmtpConnectForm({ initialEmail, onClose, onConnected }: { initia
   const effHost = host || preset?.host || '';
   const effPort = port || preset?.port || 587;
 
+  // Per-step funnel: log each wizard screen the user reaches, so the drop-off (2FA vs app-password vs
+  // paste) is measurable. Fires on mount ('email') and every step change. Verified/fail logged in connect().
+  useEffect(() => { trackEvent('FUNNEL_STEP', { step: `smtp_wizard_${step}`, provider: provider || 'other' }); }, [step, provider]);
+
   async function connect() {
     if (!email || !password || !effHost) { setMsg({ type: 'err', text: 'Fill in your email, app password, and SMTP host.' }); return; }
 
@@ -150,12 +155,14 @@ export function SmtpConnectForm({ initialEmail, onClose, onConnected }: { initia
       const test = await fetch('/api/user/smtp/test', { method: 'POST' });
       const td = await test.json().catch(() => ({}));
       if (test.ok && td.success !== false) {
+        trackEvent('FUNNEL_STEP', { step: 'smtp_wizard_verified', provider: provider || 'other' });
         setMsg({ type: 'ok', text: '✓ Connected! You can now send from your own email, unlimited.' });
         onConnected?.();
         setTimeout(() => window.location.reload(), 1200);
       } else {
         const raw = String(td.error || '');
         const badCreds = /BadCredentials|535|Username and Password not accepted|5\.7\.8/i.test(raw);
+        trackEvent('FUNNEL_STEP', { step: 'smtp_wizard_verify_fail', provider: provider || 'other', badCreds });
         setMsg({
           type: 'err',
           text: badCreds
