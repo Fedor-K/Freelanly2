@@ -18,12 +18,13 @@ async function handle(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const day = url.searchParams.get('date') || undefined; // YYYY-MM-DD (MSK); default today
-    // limit = max NEW drafts per call (batching, so ~85 roles × AI vet stays under maxDuration). The
-    // nightly worker loops the endpoint with a limit until `remaining` hits 0. 0/absent = whole day.
-    const limitRaw = parseInt(url.searchParams.get('limit') || '', 10);
-    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined;
-    const result = await buildAtsDayDrafts({ day, limit });
-    console.log(`[Cron] build-ats-outreach${day ? ` (${day})` : ''}${limit ? ` limit=${limit}` : ''}: vacancies=${result.vacancies}, created=${result.created}, noContact=${result.noContact}, noCandidates=${result.noCandidates}, existing=${result.existing}, remaining=${result.remaining}`);
+    // offset+limit = a window of roles to vet this call (batching under Vercel's ~60s cap). The nightly
+    // worker loops with offset += limit until `remaining` = 0. No offset/limit = whole day (manual run).
+    const int = (k: string) => { const n = parseInt(url.searchParams.get(k) || '', 10); return Number.isFinite(n) && n > 0 ? n : undefined; };
+    const offset = int('offset');
+    const limit = int('limit');
+    const result = await buildAtsDayDrafts({ day, offset, limit });
+    console.log(`[Cron] build-ats-outreach${day ? ` (${day})` : ''} off=${offset ?? 0} lim=${limit ?? 'all'}: vacancies=${result.vacancies}, created=${result.created}, noContact=${result.noContact}, noCandidates=${result.noCandidates}, existing=${result.existing}, remaining=${result.remaining}`);
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
     console.error('[Cron] build-ats-outreach failed:', error);

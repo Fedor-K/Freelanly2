@@ -60,10 +60,12 @@ export async function mskDayBounds(day?: string): Promise<{ a: Date; b: Date }> 
   return r[0];
 }
 
-// opts.limit — process at most `limit` NEW drafts per call (batching: the AI vet is too slow to do a
-// whole day's ~85 roles inside one Vercel maxDuration). Already-drafted opps are skipped for free, so
-// successive calls resume where the last stopped; `remaining` reaches 0 when the day is fully swept.
-export async function buildAtsDayDrafts(opts: { day?: string; limit?: number } = {}): Promise<AtsDayResult> {
+// Batching via OFFSET+LIMIT window over the day's roles (ordered by createdAt). The AI vet is too
+// slow to do a whole day's ~85 roles inside Vercel's ~60s function cap, so the nightly worker cron
+// calls this with a fixed window (offset += limit each call) until `remaining` hits 0. Limiting the
+// WINDOW (not drafts-created) is essential: most roles yield no shortlist, so a drafts-created cap
+// would re-vet the same barren roles every call and never converge. No offset/limit = whole day.
+export async function buildAtsDayDrafts(opts: { day?: string; offset?: number; limit?: number } = {}): Promise<AtsDayResult> {
   const { a, b } = await mskDayBounds(opts.day);
 
   const opps = await prisma.opportunity.findMany({
@@ -72,12 +74,12 @@ export async function buildAtsDayDrafts(opts: { day?: string; limit?: number } =
     orderBy: { createdAt: 'asc' },
   });
 
-  const out: AtsDayResult = { vacancies: opps.length, noContact: 0, noCandidates: 0, created: 0, existing: 0, remaining: 0 };
+  const total = opps.length;
+  const offset = opts.offset && opts.offset > 0 ? opts.offset : 0;
+  const slice = opts.limit && opts.limit > 0 ? opps.slice(offset, offset + opts.limit) : opps.slice(offset);
+  const out: AtsDayResult = { vacancies: total, noContact: 0, noCandidates: 0, created: 0, existing: 0, remaining: Math.max(0, total - (offset + slice.length)) };
 
-  let processed = 0;
-  for (const o of opps) {
-    if (opts.limit && out.created >= opts.limit) break; // batch full — leave the rest for the next call
-    processed++;
+  for (const o of slice) {
     const already = await prisma.outreachDraft.findUnique({ where: { opportunityId: o.id }, select: { id: true } }).catch(() => null);
     if (already) { out.existing++; continue; }
 
@@ -114,6 +116,5 @@ export async function buildAtsDayDrafts(opts: { day?: string; limit?: number } =
       out.created++;
     } catch { out.existing++; }
   }
-  out.remaining = opps.length - processed; // 0 = day fully swept; >0 = a limit batch stopped early
   return out;
 }
