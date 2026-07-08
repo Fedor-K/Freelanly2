@@ -154,8 +154,21 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       url.searchParams.delete('apply');
       window.history.replaceState({}, '', url.toString());
       setIsAuthed(true);
-      // URL-apply (ATS) opportunity: skip the email flow, hand over the external link.
-      if (startExternalApply()) return;
+      // URL-apply (ATS) opportunity: skip the email flow, hand over the external link — but only if the
+      // session actually has a résumé. A re-login session can be résumé-less, and ?apply=1 skips the
+      // settings check above, so confirm the résumé here before handing over any external apply link;
+      // otherwise route the user to the profile step to add a résumé first.
+      if (project.externalApplyUrl) {
+        fetch('/api/user/settings', { method: 'GET', credentials: 'include' })
+          .then(async r => {
+            const d = r.ok ? await r.json().catch(() => null) : null;
+            if (d?.profile?.email) setEmail(d.profile.email);
+            if (d?.profile?.resumeUrl) { setHasResume(true); startExternalApply(); }
+            else { setHasResume(false); setPhase('auth'); setProfileStep(true); }
+          })
+          .catch(() => { setPhase('auth'); setProfileStep(true); });
+        return;
+      }
       // First analyze the profile and show the match summary — the user reads "who you are / fit /
       // other roles" and clicks through to WRITE the application (cover letter) themselves. We do
       // NOT generate the cover letter yet (summaryOnly), so no LLM spend until they proceed.
@@ -190,9 +203,17 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       return;
     }
 
-    // Normal auth check
+    // Normal auth check. A session can exist with NO résumé (re-login of an email-only account, or a
+    // deferred profile) — so read the résumé + email here too, not just "is there a session". The apply
+    // entry points gate on hasResume to keep a résumé-less user out of apply (ATS "You're all set" too).
     fetch('/api/user/settings', { method: 'GET', credentials: 'include' })
-      .then(r => { if (r.ok) setIsAuthed(true); })
+      .then(async r => {
+        if (!r.ok) return;
+        setIsAuthed(true);
+        const d = await r.json().catch(() => null);
+        setHasResume(d?.profile?.resumeUrl ? true : false);
+        if (d?.profile?.email) setEmail(d.profile.email); // profile step submits the résumé by email
+      })
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -404,6 +425,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
     // STAGE 2 — profile saved. The registration (the whole point for ATS opps) is done.
     setIsAuthed(true);
+    setHasResume(true); // résumé now on file → apply entry points won't re-gate to the profile step
     setAuthLoading(false);
     // URL-apply (ATS) opportunity: no email to send — hand over the external link now.
     if (startExternalApply()) return;
@@ -541,6 +563,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             // attempt (→ draft), authed=false means it kicks off registration (not a send attempt).
             track('OPPORTUNITY_APPLY_CLICK', { projectId: project.id, method: 'project', authed: isAuthed });
             if (isAuthed) {
+              // A session can be résumé-less (re-login of an email-only account). Never let such a user
+              // reach apply (ATS "You're all set" included) — route them to the profile step first.
+              if (hasResume === false) { setPhase('auth'); setProfileStep(true); return; }
               if (startExternalApply()) return;
               setPhase('generating');
               generateCoverLetter();
