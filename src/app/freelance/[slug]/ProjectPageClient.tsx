@@ -333,7 +333,11 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         // flow:'register' for new (résumé-less) users → verify-code confirms the OTP but DEFERS the
         // session; it hands back a regToken that resume-preauth uses to create the session once the
         // profile is complete. So no session exists until the résumé + required fields are saved.
-        body: JSON.stringify({ email, code, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, flow: (hasResume === false && isExisting === false) ? 'register' : undefined }),
+        // Defer the session for ANY résumé-less user, not just brand-new ones: re-login of an existing
+        // email-only account (isExisting=true, no résumé) would otherwise get a live session with an
+        // empty profile — the exact "authed but résumé-less" state that leaked into apply. flow='register'
+        // makes verify-code withhold the session until resume-preauth saves the résumé.
+        body: JSON.stringify({ email, code, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, flow: hasResume === false ? 'register' : undefined }),
       });
       const data = await res.json();
       if (res.ok && data.success) {

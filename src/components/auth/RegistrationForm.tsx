@@ -573,7 +573,11 @@ export function RegistrationForm({
         headers: { 'Content-Type': 'application/json' },
         // flow:'register' → verify-code confirms the OTP but DEFERS the session (no login until the
         // résumé + required fields are saved); resume-preauth mints it with the returned regToken.
-        body: JSON.stringify({ email, code: fullCode, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, flow: (hasResume === false && isExistingUser === false) ? 'register' : undefined }),
+        // Defer the session for ANY résumé-less user, not just brand-new ones: re-login of an existing
+        // email-only account (isExistingUser=true, no résumé) would otherwise get a live session with an
+        // empty profile. flow='register' makes verify-code withhold the session until resume-preauth saves
+        // the résumé (mirrors the inline apply form — see two-signup-forms-parity).
+        body: JSON.stringify({ email, code: fullCode, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, flow: hasResume === false ? 'register' : undefined }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
