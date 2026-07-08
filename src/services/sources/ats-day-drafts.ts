@@ -21,8 +21,9 @@ export type AtsDayResult = {
   vacancies: number;   // today's ATS opportunities considered
   noContact: number;   // dropped: no resolvable company contact
   noCandidates: number;// dropped: no candidate cleared the strong-shortlist floor
-  created: number;     // drafts persisted
+  created: number;     // drafts persisted THIS call
   existing: number;    // already drafted for this opportunity (skipped)
+  remaining: number;   // opps not yet processed (>0 only when a `limit` batch stopped early)
 };
 
 const leverSlug = (applyUrl: string | null): string | null => {
@@ -55,7 +56,10 @@ export async function mskDayBounds(day?: string): Promise<{ a: Date; b: Date }> 
   return r[0];
 }
 
-export async function buildAtsDayDrafts(opts: { day?: string } = {}): Promise<AtsDayResult> {
+// opts.limit — process at most `limit` NEW drafts per call (batching: the AI vet is too slow to do a
+// whole day's ~85 roles inside one Vercel maxDuration). Already-drafted opps are skipped for free, so
+// successive calls resume where the last stopped; `remaining` reaches 0 when the day is fully swept.
+export async function buildAtsDayDrafts(opts: { day?: string; limit?: number } = {}): Promise<AtsDayResult> {
   const { a, b } = await mskDayBounds(opts.day);
 
   const opps = await prisma.opportunity.findMany({
@@ -64,9 +68,12 @@ export async function buildAtsDayDrafts(opts: { day?: string } = {}): Promise<At
     orderBy: { createdAt: 'asc' },
   });
 
-  const out: AtsDayResult = { vacancies: opps.length, noContact: 0, noCandidates: 0, created: 0, existing: 0 };
+  const out: AtsDayResult = { vacancies: opps.length, noContact: 0, noCandidates: 0, created: 0, existing: 0, remaining: 0 };
 
+  let processed = 0;
   for (const o of opps) {
+    if (opts.limit && out.created >= opts.limit) break; // batch full — leave the rest for the next call
+    processed++;
     const already = await prisma.outreachDraft.findUnique({ where: { opportunityId: o.id }, select: { id: true } }).catch(() => null);
     if (already) { out.existing++; continue; }
 
@@ -101,5 +108,6 @@ export async function buildAtsDayDrafts(opts: { day?: string } = {}): Promise<At
       out.created++;
     } catch { out.existing++; }
   }
+  out.remaining = opps.length - processed; // 0 = day fully swept; >0 = a limit batch stopped early
   return out;
 }

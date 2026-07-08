@@ -16,9 +16,14 @@ async function handle(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   try {
-    const day = new URL(request.url).searchParams.get('date') || undefined; // YYYY-MM-DD (MSK); default today
-    const result = await buildAtsDayDrafts({ day });
-    console.log(`[Cron] build-ats-outreach${day ? ` (${day})` : ''}: vacancies=${result.vacancies}, created=${result.created}, noContact=${result.noContact}, noCandidates=${result.noCandidates}, existing=${result.existing}`);
+    const url = new URL(request.url);
+    const day = url.searchParams.get('date') || undefined; // YYYY-MM-DD (MSK); default today
+    // limit = max NEW drafts per call (batching, so ~85 roles × AI vet stays under maxDuration). The
+    // nightly worker loops the endpoint with a limit until `remaining` hits 0. 0/absent = whole day.
+    const limitRaw = parseInt(url.searchParams.get('limit') || '', 10);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined;
+    const result = await buildAtsDayDrafts({ day, limit });
+    console.log(`[Cron] build-ats-outreach${day ? ` (${day})` : ''}${limit ? ` limit=${limit}` : ''}: vacancies=${result.vacancies}, created=${result.created}, noContact=${result.noContact}, noCandidates=${result.noCandidates}, existing=${result.existing}, remaining=${result.remaining}`);
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
     console.error('[Cron] build-ats-outreach failed:', error);
