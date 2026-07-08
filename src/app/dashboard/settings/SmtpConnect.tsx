@@ -164,7 +164,9 @@ export function SmtpConnectForm({ initialEmail, onClose, onConnected }: { initia
     setBusy(false);
   }
 
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', border: '1px solid var(--line, #E4E1D9)', borderRadius: '8px', fontSize: '13px', background: '#fff', outline: 'none' };
+  // 16px inputs, NOT 13px: iOS Safari auto-zooms the page when a focused input's font-size is <16px,
+  // which blew the layout past the viewport (cut-off right edge) on phones.
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', border: '1px solid var(--line, #E4E1D9)', borderRadius: '8px', fontSize: '16px', background: '#fff', outline: 'none' };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '16px', border: '1px solid var(--line, #E4E1D9)', borderRadius: '12px', background: 'var(--bg-2, #FBFAF6)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -226,7 +228,9 @@ export function SmtpConnect({ initialEmail }: { initialEmail?: string }) {
 export function SmtpConnectModal({ open, onClose, initialEmail, onConnected }: { open: boolean; onClose: () => void; initialEmail?: string; onConnected?: () => void }) {
   if (!open) return null;
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '16px' }}>
+    // flex-start (not center): a centered modal ends up UNDER the software keyboard on phones the
+    // moment an input focuses — top-aligned keeps the form visible; overflowY lets it scroll if tight.
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 2000, padding: '24px 16px 16px', overflowY: 'auto' }}>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '460px', maxHeight: '92vh', overflowY: 'auto', borderRadius: '14px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
         <SmtpConnectForm initialEmail={initialEmail} onClose={onClose} onConnected={onConnected} />
       </div>
