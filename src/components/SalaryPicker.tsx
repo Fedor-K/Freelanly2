@@ -11,51 +11,60 @@ const CURRENCIES: { code: string; sym: string }[] = [
   { code: 'SGD', sym: 'S$' }, { code: 'ZAR', sym: 'R' }, { code: 'EGP', sym: 'E£' },
 ];
 
-const inputStyle: React.CSSProperties = {
+// Pay ranges by period. lo/hi in the period's own units; hi=null => "lo+". Native <select> ranges
+// beat free-text on mobile: one tap, no keyboard, no width/truncation issues, standardized buckets.
+type Bucket = { lo: number; hi: number | null };
+const MONTHLY: Bucket[] = [
+  { lo: 0, hi: 1000 }, { lo: 1000, hi: 2000 }, { lo: 2000, hi: 3000 }, { lo: 3000, hi: 4000 },
+  { lo: 4000, hi: 5000 }, { lo: 5000, hi: 7000 }, { lo: 7000, hi: 10000 }, { lo: 10000, hi: null },
+];
+const YEARLY: Bucket[] = [
+  { lo: 0, hi: 20000 }, { lo: 20000, hi: 40000 }, { lo: 40000, hi: 60000 }, { lo: 60000, hi: 80000 },
+  { lo: 80000, hi: 100000 }, { lo: 100000, hi: 130000 }, { lo: 130000, hi: 160000 }, { lo: 160000, hi: null },
+];
+
+const f = (n: number) => n.toLocaleString('en-US');
+function bucketLabel(b: Bucket, sym: string): string {
+  if (b.lo === 0) return `Under ${sym}${f(b.hi as number)}`;
+  if (b.hi === null) return `${sym}${f(b.lo)}+`;
+  return `${sym}${f(b.lo)}–${f(b.hi)}`;
+}
+
+const selectStyle: React.CSSProperties = {
   padding: '10px 10px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '13px',
-  width: '100%', background: '#fff', color: '#0A0B0F', minWidth: 0,
+  background: '#fff', color: '#0A0B0F', minWidth: 0, cursor: 'pointer',
 };
 
 /**
- * Structured desired-pay picker: currency + min–max range + period. Emits a single human-readable
- * string (e.g. "$2,000–3,000/mo") through onChange so it stores in the existing free-text
- * User.salaryExpectation. Manages its own sub-state; the parent just holds the composed string.
+ * Desired-pay picker as native selects: currency + range bucket + period. Emits a single
+ * human-readable string (e.g. "$2,000–3,000/mo") through onChange, stored in the free-text
+ * User.salaryExpectation. `single` only tweaks the placeholder ("rate" vs "range").
  */
 export function SalaryPicker({ onChange, single = false }: { onChange: (composed: string) => void; single?: boolean }) {
   const [currency, setCurrency] = useState('USD');
-  const [min, setMin] = useState('');
-  const [max, setMax] = useState('');
   const [period, setPeriod] = useState<'mo' | 'yr'>('mo');
+  const [bucketIdx, setBucketIdx] = useState(''); // index into the current period's buckets, '' = none
+
+  const buckets = period === 'yr' ? YEARLY : MONTHLY;
+  const sym = CURRENCIES.find(c => c.code === currency)?.sym || currency;
 
   useEffect(() => {
-    const sym = CURRENCIES.find(c => c.code === currency)?.sym || currency;
-    const fmt = (s: string) => { const n = s.replace(/[^\d]/g, ''); return n ? Number(n).toLocaleString('en-US') : ''; };
-    const lo = fmt(min), hi = fmt(max);
-    let composed = '';
-    if (single) composed = lo ? `${sym}${lo}/${period}` : ''; // one amount → "$2,000/mo"
-    else if (lo && hi) composed = `${sym}${lo}–${hi}/${period}`;
-    else if (lo) composed = `${sym}${lo}+/${period}`;
-    else if (hi) composed = `up to ${sym}${hi}/${period}`;
-    onChange(composed);
+    if (bucketIdx === '') { onChange(''); return; }
+    const b = buckets[Number(bucketIdx)];
+    onChange(b ? `${bucketLabel(b, sym)}/${period}` : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currency, min, max, period]);
+  }, [currency, period, bucketIdx]);
 
-  // flexWrap + a real min-width on the number fields: on narrow phones (≤360px, and with the global
-  // 16px mobile font) the 5-in-a-row range squeezed the amount inputs to ~30px, truncating "2,000" to
-  // "2". Now the amounts hold ≥56px (grow to fill), and the row wraps to a second line rather than
-  // shrinking anything unreadably.
-  const amtStyle: React.CSSProperties = { ...inputStyle, width: 'auto', flex: '1 1 64px', minWidth: '56px' };
   return (
     <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-      <select value={currency} onChange={e => setCurrency(e.target.value)} style={{ ...inputStyle, width: 'auto', flex: '0 0 auto', cursor: 'pointer' }}>
+      <select value={currency} onChange={e => setCurrency(e.target.value)} style={{ ...selectStyle, width: 'auto', flex: '0 0 auto' }}>
         {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
       </select>
-      <input type="text" inputMode="numeric" value={min} onChange={e => setMin(e.target.value)} placeholder={single ? 'amount' : 'from'} style={amtStyle} />
-      {!single && <>
-        <span style={{ color: '#8A8780', flex: '0 0 auto' }}>–</span>
-        <input type="text" inputMode="numeric" value={max} onChange={e => setMax(e.target.value)} placeholder="to" style={amtStyle} />
-      </>}
-      <select value={period} onChange={e => setPeriod(e.target.value as 'mo' | 'yr')} style={{ ...inputStyle, width: 'auto', flex: '0 0 auto', cursor: 'pointer' }}>
+      <select value={bucketIdx} onChange={e => setBucketIdx(e.target.value)} style={{ ...selectStyle, flex: '1 1 130px', minWidth: '120px' }}>
+        <option value="">{single ? 'Select rate…' : 'Select range…'}</option>
+        {buckets.map((b, i) => <option key={i} value={String(i)}>{bucketLabel(b, sym)}</option>)}
+      </select>
+      <select value={period} onChange={e => { setPeriod(e.target.value as 'mo' | 'yr'); setBucketIdx(''); }} style={{ ...selectStyle, width: 'auto', flex: '0 0 auto' }}>
         <option value="mo">/mo</option>
         <option value="yr">/yr</option>
       </select>
