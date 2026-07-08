@@ -40,15 +40,20 @@ export function SalaryPicker({ onChange, single = false }: { onChange: (composed
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currency, min, max, period]);
 
+  // flexWrap + a real min-width on the number fields: on narrow phones (≤360px, and with the global
+  // 16px mobile font) the 5-in-a-row range squeezed the amount inputs to ~30px, truncating "2,000" to
+  // "2". Now the amounts hold ≥56px (grow to fill), and the row wraps to a second line rather than
+  // shrinking anything unreadably.
+  const amtStyle: React.CSSProperties = { ...inputStyle, width: 'auto', flex: '1 1 64px', minWidth: '56px' };
   return (
-    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
       <select value={currency} onChange={e => setCurrency(e.target.value)} style={{ ...inputStyle, width: 'auto', flex: '0 0 auto', cursor: 'pointer' }}>
         {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.sym} {c.code}</option>)}
       </select>
-      <input type="text" inputMode="numeric" value={min} onChange={e => setMin(e.target.value)} placeholder={single ? 'amount' : 'from'} style={inputStyle} />
+      <input type="text" inputMode="numeric" value={min} onChange={e => setMin(e.target.value)} placeholder={single ? 'amount' : 'from'} style={amtStyle} />
       {!single && <>
         <span style={{ color: '#8A8780', flex: '0 0 auto' }}>–</span>
-        <input type="text" inputMode="numeric" value={max} onChange={e => setMax(e.target.value)} placeholder="to" style={inputStyle} />
+        <input type="text" inputMode="numeric" value={max} onChange={e => setMax(e.target.value)} placeholder="to" style={amtStyle} />
       </>}
       <select value={period} onChange={e => setPeriod(e.target.value as 'mo' | 'yr')} style={{ ...inputStyle, width: 'auto', flex: '0 0 auto', cursor: 'pointer' }}>
         <option value="mo">/mo</option>
