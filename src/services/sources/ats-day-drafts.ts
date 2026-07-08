@@ -26,6 +26,10 @@ export type AtsDayResult = {
   remaining: number;   // opps not yet processed (>0 only when a `limit` batch stopped early)
 };
 
+// Prerank depth per role for the outreach vet (default 10). Kept small so a batch fits Vercel's 60s
+// function cap (limit × pre AI calls); env-tunable if latency/quality shifts.
+const OUTREACH_PRE = Number(process.env.OUTREACH_SHORTLIST_PRE) || 10;
+
 const leverSlug = (applyUrl: string | null): string | null => {
   const m = (applyUrl || '').match(/jobs\.lever\.co\/([^/?#]+)/i);
   return m ? m[1].toLowerCase().trim() : null;
@@ -84,7 +88,9 @@ export async function buildAtsDayDrafts(opts: { day?: string; limit?: number } =
     if (!contact.email) { out.noContact++; continue; }   // strict: must have a contact
 
     let shortlist: ShortlistCandidate[] = [];
-    try { shortlist = await buildShortlistForRole(toRole(o, slug), { limit: 3 }); } catch { shortlist = []; }
+    // Small prerank (default 10, not 25) so a batch of roles' AI vetting fits Vercel's 60s function
+    // cap: each role = pre vet calls, so limit×pre must clear ~60s at Z.ai latency. Tunable via env.
+    try { shortlist = await buildShortlistForRole(toRole(o, slug), { limit: 3, pre: OUTREACH_PRE }); } catch { shortlist = []; }
     if (!shortlist.length) { out.noCandidates++; continue; } // strict: must have a strong shortlist
 
     const company = contact.domain.split('.')[0];
