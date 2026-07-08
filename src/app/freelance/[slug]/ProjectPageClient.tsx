@@ -987,6 +987,17 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   return (
     <div style={{ minHeight: '100vh', background: '#FAFAF7' }}>
       <SmtpConnectModal open={smtpModal} onClose={() => setSmtpModal(false)} initialEmail={email} />
+      {/* Full-screen takeover for every "working" moment (profile setup + fit assessment + letter
+          writing). The whole viewport is the process screen so attention can't scatter over the form
+          or the job post — a real problem on mobile where the inline card was lost in the page. The
+          form stays MOUNTED underneath (no re-mount reset); this just covers it opaquely. */}
+      {(authLoading || phase === 'analyzing' || phase === 'generating') && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 3000, background: '#FAFAF7', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div style={{ width: '100%', maxWidth: 440 }}>
+            <ProcessingScreen steps={phase === 'generating' ? GEN_STEPS : ANALYZE_STEPS} emoji={phase === 'generating' ? '✍️' : '🔍'} />
+          </div>
+        </div>
+      )}
       <style>{`
         @media (max-width: 768px) {
           .project-layout {
