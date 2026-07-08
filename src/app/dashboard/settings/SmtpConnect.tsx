@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { trackEvent } from '@/hooks/useTracker';
+import { useState } from 'react';
 
 // SMTP connect form: saves via /api/user/smtp then verifies via /api/user/smtp/test (which sets
 // verified=true). Once verified, the user sends applications from their own address, unlimited, and
@@ -114,27 +113,18 @@ export function SmtpConnectForm({ initialEmail, onClose, onConnected }: { initia
   const [port, setPort] = useState(587);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err' | 'info'; text: string } | null>(null);
-  // Step-by-step wizard: one action per screen. 'email' detects the provider, then app-password
-  // providers get a 2FA step + an app-password step before the paste step; unknown providers skip
-  // straight to a manual paste (email/password/host/port).
-  const [step, setStep] = useState<'email' | '2fa' | 'apppw' | 'code'>('email');
-  const [advanced, setAdvanced] = useState(false);
 
   const domain = email.split('@')[1]?.toLowerCase() || '';
   const preset = PRESETS[domain];
-  const provider = DOMAIN_TO_PROVIDER[domain];
   const effHost = host || preset?.host || '';
   const effPort = port || preset?.port || 587;
-
-  // Per-step funnel: log each wizard screen the user reaches, so the drop-off (2FA vs app-password vs
-  // paste) is measurable. Fires on mount ('email') and every step change. Verified/fail logged in connect().
-  useEffect(() => { trackEvent('FUNNEL_STEP', { step: `smtp_wizard_${step}`, provider: provider || 'other' }); }, [step, provider]);
 
   async function connect() {
     if (!email || !password || !effHost) { setMsg({ type: 'err', text: 'Fill in your email, app password, and SMTP host.' }); return; }
 
     // Gmail App Passwords are exactly 16 chars (shown as "abcd efgh ijkl mnop"). Catch the #1 failure —
     // a normal password — BEFORE we round-trip to Gmail and eat a 535 reject. Strip the display spaces.
+    const provider = DOMAIN_TO_PROVIDER[domain];
     let pw = password.trim();
     if (provider === 'google') {
       pw = pw.replace(/\s+/g, '');
@@ -155,14 +145,12 @@ export function SmtpConnectForm({ initialEmail, onClose, onConnected }: { initia
       const test = await fetch('/api/user/smtp/test', { method: 'POST' });
       const td = await test.json().catch(() => ({}));
       if (test.ok && td.success !== false) {
-        trackEvent('FUNNEL_STEP', { step: 'smtp_wizard_verified', provider: provider || 'other' });
         setMsg({ type: 'ok', text: '✓ Connected! You can now send from your own email, unlimited.' });
         onConnected?.();
         setTimeout(() => window.location.reload(), 1200);
       } else {
         const raw = String(td.error || '');
         const badCreds = /BadCredentials|535|Username and Password not accepted|5\.7\.8/i.test(raw);
-        trackEvent('FUNNEL_STEP', { step: 'smtp_wizard_verify_fail', provider: provider || 'other', badCreds });
         setMsg({
           type: 'err',
           text: badCreds
@@ -177,109 +165,40 @@ export function SmtpConnectForm({ initialEmail, onClose, onConnected }: { initia
   }
 
   const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', border: '1px solid var(--line, #E4E1D9)', borderRadius: '8px', fontSize: '13px', background: '#fff', outline: 'none' };
-  const primaryBtn: React.CSSProperties = { background: '#C7F94A', color: '#000', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' };
-  const ghostBtn: React.CSSProperties = { background: 'transparent', color: 'var(--ink-3, #8A8780)', border: '1px solid var(--line, #E4E1D9)', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', cursor: 'pointer' };
-
-  // Ordered steps depend on the provider: app-password providers get the 2FA + app-password screens.
-  const stepList: Array<typeof step> = preset ? ['email', '2fa', 'apppw', 'code'] : ['email', 'code'];
-  const stepNum = Math.max(0, stepList.indexOf(step)) + 1;
-  const gpw = password.replace(/\s+/g, '');
-  const googleShort = provider === 'google' && gpw.length > 0 && gpw.length !== 16;
-
-  function goFromEmail() {
-    const d = email.split('@')[1]?.toLowerCase();
-    if (!email || !email.includes('@') || !d) { setMsg({ type: 'err', text: 'Enter a valid email address.' }); return; }
-    setMsg(null);
-    setStep(PRESETS[d] ? '2fa' : 'code');
-  }
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', border: '1px solid var(--line, #E4E1D9)', borderRadius: '12px', background: 'var(--bg-2, #FBFAF6)' }}>
-      {/* Header: progress + close */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '16px', border: '1px solid var(--line, #E4E1D9)', borderRadius: '12px', background: 'var(--bg-2, #FBFAF6)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ink-4, #8A8780)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Connect email · Step {stepNum} of {stepList.length}</div>
+        <div style={{ fontSize: '14px', fontWeight: 600 }}>✉️ Connect your email (SMTP)</div>
         {onClose && <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', fontSize: '15px' }}>✕</button>}
       </div>
-      {/* Progress bar */}
-      <div style={{ height: 4, borderRadius: 999, background: 'var(--line, #E4E1D9)', overflow: 'hidden' }}>
-        <div style={{ width: `${(stepNum / stepList.length) * 100}%`, height: '100%', background: '#C7F94A', transition: 'width .3s ease' }} />
+      <input style={inputStyle} type="email" placeholder="you@gmail.com" value={email} onChange={e => { setEmail(e.target.value); setHost(''); }} />
+      <input style={inputStyle} type="password" placeholder="App password (not your normal password)" value={password} onChange={e => setPassword(e.target.value)} />
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <input style={{ ...inputStyle, flex: 2 }} placeholder="SMTP host" value={effHost} onChange={e => setHost(e.target.value)} />
+        <input style={{ ...inputStyle, flex: 1, minWidth: 0 }} type="number" placeholder="Port" value={effPort} onChange={e => setPort(Number(e.target.value) || 587)} />
       </div>
 
-      {/* STEP 1 — email + trust */}
-      {step === 'email' && (
-        <>
-          <div style={{ fontSize: '15px', fontWeight: 700 }}>Send from your own email</div>
-          <div style={{ fontSize: '12.5px', color: 'var(--ink-4, #8A8780)', lineHeight: 1.5 }}>
-            Apply from your own address — unlimited, and your applications land better. We only use it to <b>send</b> your applications; we never read your inbox.
+      {/* Step-by-step: where to get the app password for the detected provider */}
+      {preset ? (
+        <div style={{ background: '#FFF9E8', border: '1px solid #F5E6B8', borderRadius: '10px', padding: '12px 14px' }}>
+          <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#7A5E00', marginBottom: '8px' }}>
+            {preset.label} needs an <strong>App Password</strong> — not your normal password. Here&apos;s how:
           </div>
-          <input style={inputStyle} type="email" placeholder="you@gmail.com" value={email} onChange={e => { setEmail(e.target.value); setHost(''); }} onKeyDown={e => { if (e.key === 'Enter') goFromEmail(); }} autoFocus />
-          {msg && <div style={{ fontSize: '12.5px', color: msg.type === 'err' ? 'var(--bad, #B91C1C)' : 'var(--ink-3, #8A8780)' }}>{msg.text}</div>}
-          <button style={primaryBtn} onClick={goFromEmail}>Continue →</button>
-        </>
-      )}
-
-      {/* STEP 2 — turn on 2FA (app-password providers) */}
-      {step === '2fa' && preset && (
-        <>
-          <div style={{ fontSize: '15px', fontWeight: 700 }}>Turn on 2-Step Verification</div>
-          <div style={{ fontSize: '12.5px', color: 'var(--ink-4, #8A8780)', lineHeight: 1.5 }}>
-            {preset.label} only lets you create an app password once 2-Step Verification is on. Open the page, turn it on, then come back. Already on? Skip.
-          </div>
-          <a href={preset.twoFaUrl} target="_blank" rel="noopener noreferrer" style={{ ...primaryBtn, display: 'inline-block', textAlign: 'center', textDecoration: 'none' }}>Open {preset.label} 2-Step page ↗</a>
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between' }}>
-            <button style={ghostBtn} onClick={() => setStep('email')}>← Back</button>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button style={ghostBtn} onClick={() => setStep('apppw')}>Already on — skip</button>
-              <button style={primaryBtn} onClick={() => setStep('apppw')}>Done → Next</button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* STEP 3 — create the app password */}
-      {step === 'apppw' && preset && (
-        <>
-          <div style={{ fontSize: '15px', fontWeight: 700 }}>Create an app password</div>
-          <div style={{ fontSize: '12.5px', color: 'var(--ink-4, #8A8780)', lineHeight: 1.5 }}>
-            {preset.label} needs a one-time <b>app password</b> (not your normal password). Open the page and create one named &ldquo;Freelanly&rdquo;:
-          </div>
-          <ol style={{ margin: 0, paddingLeft: '18px', fontSize: '12.5px', color: 'var(--ink-3, #6B5A1E)', lineHeight: 1.6 }}>
+          <ol style={{ margin: '0 0 10px', paddingLeft: '18px', fontSize: '12.5px', color: '#6B5A1E', lineHeight: 1.6 }}>
             {preset.steps.map((s, i) => <li key={i} style={{ marginBottom: '3px' }}>{s}</li>)}
           </ol>
-          <a href={preset.appPwUrl} target="_blank" rel="noopener noreferrer" style={{ ...primaryBtn, display: 'inline-block', textAlign: 'center', textDecoration: 'none' }}>Open {preset.label} app-passwords ↗</a>
-          {preset.note && <div style={{ fontSize: '11.5px', color: '#9A6B00', fontStyle: 'italic' }}>⚠ {preset.note}</div>}
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between' }}>
-            <button style={ghostBtn} onClick={() => setStep('2fa')}>← Back</button>
-            <button style={primaryBtn} onClick={() => setStep('code')}>I&apos;ve copied the code →</button>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <a href={preset.appPwUrl} target="_blank" rel="noopener noreferrer" className="btn btn-soft btn-sm">Open {preset.label} App Passwords ↗</a>
+            <a href={preset.twoFaUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', color: '#7A5E00', alignSelf: 'center', textDecoration: 'underline' }}>Page says &ldquo;not available&rdquo;? Turn on 2-Step first ↗</a>
           </div>
-        </>
-      )}
+          {preset.note && <div style={{ fontSize: '11.5px', color: '#9A6B00', marginTop: '8px', fontStyle: 'italic' }}>⚠ {preset.note}</div>}
+        </div>
+      ) : domain ? (
+        <div style={{ fontSize: '12px', color: 'var(--ink-4, #8A8780)' }}>Use your provider&apos;s SMTP host and an app password (most providers require one instead of your normal password).</div>
+      ) : null}
 
-      {/* STEP 4 — paste code + verify (also the manual step for unknown providers) */}
-      {step === 'code' && (
-        <>
-          <div style={{ fontSize: '15px', fontWeight: 700 }}>{preset ? 'Paste your app password' : 'Enter your SMTP details'}</div>
-          <div style={{ fontSize: '12.5px', color: 'var(--ink-4, #8A8780)', lineHeight: 1.5 }}>
-            {preset ? `Paste the ${preset.label} app password you just copied.` : 'Enter your email password (or app password) and your provider’s SMTP host.'}
-          </div>
-          <input style={inputStyle} type="password" placeholder={preset ? 'App password (16 characters)' : 'Password / app password'} value={password} onChange={e => setPassword(e.target.value)} autoFocus />
-          {provider === 'google' && password.length > 0 && (
-            <div style={{ fontSize: '11.5px', color: googleShort ? 'var(--bad, #B91C1C)' : 'var(--good, #2E7D32)' }}>{gpw.length}/16 characters{googleShort ? ' — a Gmail app password is exactly 16' : ' ✓'}</div>
-          )}
-          {(!preset || advanced) && (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input style={{ ...inputStyle, flex: 2 }} placeholder="SMTP host" value={effHost} onChange={e => setHost(e.target.value)} />
-              <input style={{ ...inputStyle, flex: 1, minWidth: 0 }} type="number" placeholder="Port" value={effPort} onChange={e => setPort(Number(e.target.value) || 587)} />
-            </div>
-          )}
-          {preset && !advanced && <button onClick={() => setAdvanced(true)} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: 'var(--ink-4, #8A8780)', fontSize: '11.5px', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>Advanced: set host / port</button>}
-          {msg && <div style={{ fontSize: '12.5px', color: msg.type === 'ok' ? 'var(--good, #2E7D32)' : msg.type === 'err' ? 'var(--bad, #B91C1C)' : 'var(--ink-3, #8A8780)', lineHeight: 1.5 }}>{msg.text}</div>}
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between' }}>
-            <button style={ghostBtn} onClick={() => setStep(preset ? 'apppw' : 'email')} disabled={busy}>← Back</button>
-            <button style={{ ...primaryBtn, opacity: busy ? 0.6 : 1 }} onClick={connect} disabled={busy}>{busy ? 'Verifying…' : 'Connect & verify'}</button>
-          </div>
-        </>
-      )}
+      {msg && <div style={{ fontSize: '12.5px', color: msg.type === 'ok' ? 'var(--good, #2E7D32)' : msg.type === 'err' ? 'var(--bad, #B91C1C)' : 'var(--ink-3, #8A8780)', lineHeight: 1.5 }}>{msg.text}</div>}
+      <button className="btn btn-acid btn-sm" style={{ alignSelf: 'flex-start', background: '#C7F94A', color: '#000', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }} onClick={connect} disabled={busy}>{busy ? 'Connecting…' : 'Connect & verify'}</button>
     </div>
   );
 }
