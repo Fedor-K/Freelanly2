@@ -217,3 +217,12 @@
 .prose .not-prose a {
   text-decoration: none;
 }
+
+/* iOS Safari auto-zooms the page when a focused form control has font-size <16px, which blows the
+   layout past the viewport (cut-off right edge) on phones. Our forms use 13px inline styles in ~50
+   places; this one rule neutralizes the zoom everywhere on mobile instead of touching each input. */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
