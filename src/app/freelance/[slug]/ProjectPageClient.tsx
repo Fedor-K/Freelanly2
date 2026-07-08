@@ -959,54 +959,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           {sendTo && <p style={{ fontSize: '13px', color: '#8A8780', marginBottom: '16px' }}>Sent to {sendTo}</p>}
           {genError && <p style={{ fontSize: '13px', color: '#8A8780', marginBottom: '16px' }}>{genError}</p>}
 
-          {/* Optional, OFF the critical path — expected rate fills the recruiter breakdown's salary line. */}
-          {!salarySaved ? (
-            <div style={{ background: '#FFFFFF', border: '1px solid #E8E5DC', borderRadius: '12px', padding: '14px', margin: '0 0 16px', textAlign: 'left' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600 }}>Add your expected rate</div>
-              <div style={{ fontSize: '12px', color: '#8A8780', margin: '2px 0 10px' }}>Recruiters prioritize candidates who state it — optional.</div>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <select value={salaryCur} onChange={e => setSalaryCur(e.target.value)} aria-label="Currency"
-                  style={{ padding: '9px', border: '1px solid #E8E5DC', borderRadius: '8px', fontSize: '13px' }}>
-                  {SALARY_CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <input value={salaryAmt} onChange={e => setSalaryAmt(e.target.value)} inputMode="numeric" placeholder="e.g. 1500"
-                  style={{ flex: 1, minWidth: 0, padding: '9px 11px', border: '1px solid #E8E5DC', borderRadius: '8px', fontSize: '13px' }} />
-                <select value={salaryPer} onChange={e => setSalaryPer(e.target.value)}
-                  style={{ padding: '9px', border: '1px solid #E8E5DC', borderRadius: '8px', fontSize: '13px' }}>
-                  <option value="mo">/ month</option><option value="hr">/ hour</option><option value="yr">/ year</option>
-                </select>
-                <button onClick={saveSalary} disabled={salarySaving || !salaryAmt.trim()}
-                  style={{ padding: '9px 14px', background: '#0B0C0F', color: '#fff', border: 0, borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: salarySaving || !salaryAmt.trim() ? 'default' : 'pointer', opacity: salarySaving || !salaryAmt.trim() ? 0.5 : 1 }}>
-                  {salarySaving ? '…' : 'Save'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p style={{ fontSize: '13px', color: '#047857', margin: '0 0 16px' }}>✓ Saved — recruiters will see your expected rate.</p>
-          )}
-
-          {/* Two more fields recruiters ask for most after the CV — start date & portfolio. Optional. */}
-          {!extraSaved ? (
-            <div style={{ background: '#FFFFFF', border: '1px solid #E8E5DC', borderRadius: '12px', padding: '14px', margin: '0 0 16px', textAlign: 'left' }}>
-              <div style={{ fontSize: '13px', fontWeight: 600 }}>When can you start? + portfolio</div>
-              <div style={{ fontSize: '12px', color: '#8A8780', margin: '2px 0 10px' }}>The next things recruiters ask — answer once, they’ll see it. Optional.</div>
-              <select value={noticeFrom} onChange={e => setNoticeFrom(e.target.value)}
-                style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', border: '1px solid #E8E5DC', borderRadius: '8px', fontSize: '13px', marginBottom: '8px', background: '#fff' }}>
-                <option value="">When can you start?</option>
-                {NOTICE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <input value={portfolio} onChange={e => setPortfolio(e.target.value)} placeholder="Portfolio / GitHub / site (optional)"
-                  style={{ flex: 1, minWidth: 0, padding: '9px 11px', border: '1px solid #E8E5DC', borderRadius: '8px', fontSize: '13px' }} />
-                <button onClick={saveExtra} disabled={extraSaving || (!noticeFrom && !portfolio.trim())}
-                  style={{ padding: '9px 14px', background: '#0B0C0F', color: '#fff', border: 0, borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: extraSaving || (!noticeFrom && !portfolio.trim()) ? 'default' : 'pointer', opacity: extraSaving || (!noticeFrom && !portfolio.trim()) ? 0.5 : 1 }}>
-                  {extraSaving ? '…' : 'Save'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p style={{ fontSize: '13px', color: '#047857', margin: '0 0 16px' }}>✓ Saved — recruiters will see when you can start.</p>
-          )}
+          {/* Post-send data collection (expected rate / start date / portfolio) removed: the signup form
+              now collects salary + rate + notice period (required) and GitHub, so these were duplicate
+              re-asks for every fresh registrant. */}
 
           <a href="/dashboard/discovery" style={{
             display: 'inline-block', padding: '12px 24px', background: '#C7F94A', color: '#000',
