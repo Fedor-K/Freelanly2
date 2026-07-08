@@ -109,6 +109,18 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   // Check if already authenticated + auto-apply on ?apply=1
   const [isAuthed, setIsAuthed] = useState(false);
 
+  // The full-screen processing takeover is a MOBILE fix (inline card gets lost under the keyboard/post).
+  // On desktop it's a tiny spinner marooned in a 1920px white void — so gate it to small screens; desktop
+  // uses the inline processing renders (phase 'analyzing'/'generating') + the profile button's loading state.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
   // Post-submit (optional, off the critical path): expected pay → fills the breakdown's salary line.
   const SALARY_CURRENCIES = ['USD', 'EUR', 'GBP', 'INR', 'PKR', 'PHP', 'IDR', 'NGN', 'BDT', 'BRL', 'EGP', 'AED', 'CAD', 'AUD'];
   const [salaryAmt, setSalaryAmt] = useState('');
@@ -1033,7 +1045,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           writing). The whole viewport is the process screen so attention can't scatter over the form
           or the job post — a real problem on mobile where the inline card was lost in the page. The
           form stays MOUNTED underneath (no re-mount reset); this just covers it opaquely. */}
-      {((authLoading && profileStep) || phase === 'analyzing' || phase === 'generating') && (
+      {isMobile && ((authLoading && profileStep) || phase === 'analyzing' || phase === 'generating') && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 3000, background: '#FAFAF7', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
           <div style={{ width: '100%', maxWidth: 440 }}>
             <ProcessingScreen steps={phase === 'generating' ? GEN_STEPS : ANALYZE_STEPS} emoji={phase === 'generating' ? '✍️' : '🔍'} />
