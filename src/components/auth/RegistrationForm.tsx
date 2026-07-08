@@ -219,8 +219,8 @@ export function RegistrationForm({
   const showTranslationFields = selectedCategories.includes('translation');
 
   // Check email on blur — determines if user exists
-  const checkEmailExists = async (emailToCheck: string) => {
-    if (!emailToCheck || !emailToCheck.includes('@')) return;
+  const checkEmailExists = async (emailToCheck: string): Promise<{ exists: boolean; hasResume: boolean } | null> => {
+    if (!emailToCheck || !emailToCheck.includes('@')) return null;
 
     setIsCheckingEmail(true);
     try {
@@ -232,9 +232,11 @@ export function RegistrationForm({
       const data = await res.json();
       setIsExistingUser(data.exists);
       setHasResume(data.hasResume ?? false);
+      return { exists: !!data.exists, hasResume: data.hasResume ?? false };
     } catch {
       setIsExistingUser(null);
       setHasResume(null);
+      return null;
     } finally {
       setIsCheckingEmail(false);
     }
@@ -254,11 +256,20 @@ export function RegistrationForm({
     setError('');
 
     try {
+      // Resolve exists/hasRésumé HERE if the debounced check hasn't landed yet (fast tap within the
+      // 500ms) — never leave the send blocked on it. Use the returned value (setState isn't in-scope).
+      let exists = isExistingUser;
+      let hasRes = hasResume;
+      if (exists === null) {
+        const r = await checkEmailExists(email);
+        if (!r) { setError('Could not verify that email — please try again.'); return; }
+        exists = r.exists; hasRes = r.hasResume;
+      }
       // EMAIL-FIRST: register the new user with email ONLY. Résumé / LinkedIn / categories / salary
       // are collected AFTER the OTP code is confirmed (the 'profile' step) — same mechanic as the
       // inline apply flow. Categories only fed suspended job-alerts and the loop derives its own
       // from the résumé, so an empty list here is fine. Existing users skip register entirely.
-      if (hasResume === false && isExistingUser === false) {
+      if (hasRes === false && exists === false) {
         const regRes = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -290,11 +301,11 @@ export function RegistrationForm({
         setStep('sent');
         onEmailSent?.(email);
         // Track signup complete for new users
-        if (isExistingUser === false) {
+        if (exists === false) {
           trackDb('SIGNUP_COMPLETE', { source: jobId ? 'job_page' : 'direct', categories: selectedCategories });
         }
         // Track signup conversion in Google Ads (new users only)
-        if (isExistingUser === false && typeof window !== 'undefined' && (window as any).gtag) {
+        if (exists === false && typeof window !== 'undefined' && (window as any).gtag) {
           (window as any).gtag('event', 'conversion', {
             send_to: `${process.env.NEXT_PUBLIC_GOOGLE_ADS_ID}/${process.env.NEXT_PUBLIC_GADS_CONV_SIGNUP}`,
           });
@@ -312,9 +323,7 @@ export function RegistrationForm({
   const handleEmailKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (isExistingUser !== null) {
-        handleSendMagicLink();
-      }
+      handleSendMagicLink();
     }
   };
 
@@ -697,9 +706,9 @@ export function RegistrationForm({
         <button
           className="primary-btn"
           onClick={handleSendMagicLink}
-          disabled={isLoading || isExistingUser === null}
+          disabled={isLoading || !email.includes('@')}
         >
-          {isLoading ? 'Sending...' : isExistingUser ? 'Send me a code' : 'Send me a code'}
+          {isLoading ? 'Sending...' : 'Send me a code'}
           <span style={{transition: 'transform 140ms'}}>→</span>
         </button>
 

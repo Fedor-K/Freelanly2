@@ -222,8 +222,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   }, []);
 
   // Check email on blur
-  async function checkEmail() {
-    if (!email || !email.includes('@') || !email.includes('.')) return;
+  async function checkEmail(): Promise<{ exists: boolean; hasResume: boolean } | null> {
+    if (!email || !email.includes('@') || !email.includes('.')) return null;
     setCheckingEmail(true);
     try {
       const res = await fetch('/api/auth/check-email', {
@@ -234,9 +234,11 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       const data = await res.json();
       setIsExisting(data.exists);
       setHasResume(data.hasResume ?? false);
+      return { exists: !!data.exists, hasResume: data.hasResume ?? false };
     } catch {
       setIsExisting(null);
       setHasResume(null);
+      return null;
     } finally {
       setCheckingEmail(false);
     }
@@ -244,16 +246,27 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
   // Send OTP code
   async function handleSendCode() {
-    if (!email || isExisting === null) return;
+    if (!email || !email.includes('@')) return;
     setAuthLoading(true);
     setAuthError('');
 
     try {
+      // Resolve whether this email exists / has a résumé HERE, on submit — not as a button gate. On
+      // mobile the input stays focused (keyboard up), so the onBlur check often never fired, leaving
+      // isExisting=null and the button dead. Now the button is enabled on a valid email and we run the
+      // check at click time (using the returned value, since setState wouldn't be visible in-scope).
+      let exists = isExisting;
+      let hasRes = hasResume;
+      if (exists === null) {
+        const r = await checkEmail();
+        if (!r) { setAuthError('Could not verify that email — please try again.'); setAuthLoading(false); return; }
+        exists = r.exists; hasRes = r.hasResume;
+      }
       // STEP 1 = EMAIL ONLY. No résumé/LinkedIn/category fields here — they're collected only
       // AFTER the user confirms the OTP code (see profileStep / handleProfileSubmit). Email
       // verification is the gate: an unconfirmed visitor never even sees the fields, and we
       // process nothing for them. Register the new user with email only and trigger the code.
-      if (hasResume === false && isExisting === false) {
+      if (hasRes === false && exists === false) {
         const regRes = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -717,7 +730,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             type="email" placeholder="you@email.com" value={email}
             onChange={e => { setEmail(e.target.value); setIsExisting(null); setHasResume(null); }}
             onBlur={checkEmail}
-            onKeyDown={e => e.key === 'Enter' && isExisting !== null && handleSendCode()}
+            onKeyDown={e => { if (e.key === 'Enter') handleSendCode(); }}
             autoFocus
             style={{ width: '100%', padding: '12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '14px', marginBottom: '8px' }}
           />
@@ -730,11 +743,11 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
           <button
             onClick={handleSendCode}
-            disabled={authLoading || isExisting === null}
+            disabled={authLoading || !email.includes('@')}
             style={{
               width: '100%', padding: '14px', background: '#C7F94A', color: '#000', border: 'none',
               borderRadius: '10px', fontSize: '15px', fontWeight: 600, cursor: 'pointer', marginTop: '8px',
-              opacity: authLoading || isExisting === null ? 0.6 : 1,
+              opacity: authLoading || !email.includes('@') ? 0.6 : 1,
             }}
           >
             {authLoading ? 'Sending code...' : 'Send me a code →'}
