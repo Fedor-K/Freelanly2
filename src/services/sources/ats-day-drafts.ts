@@ -77,9 +77,7 @@ export async function buildAtsDayDrafts(opts: { day?: string } = {}): Promise<At
     if (!contact.email) { out.noContact++; continue; }   // strict: must have a contact
 
     let shortlist: ShortlistCandidate[] = [];
-    // allowWeak: demand-side pitch shows best-available (recruiter decides) — includes Weak-labelled
-    // fits, still decision=SEND + ≥1 matched requirement. Strict Strong/Good-only produced 0 pitches.
-    try { shortlist = await buildShortlistForRole(toRole(o, slug), { limit: 3, allowWeak: true }); } catch { shortlist = []; }
+    try { shortlist = await buildShortlistForRole(toRole(o, slug), { limit: 3 }); } catch { shortlist = []; }
     if (!shortlist.length) { out.noCandidates++; continue; } // strict: must have a strong shortlist
 
     const company = contact.domain.split('.')[0];

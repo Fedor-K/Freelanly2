@@ -24,16 +24,11 @@ const LABEL_RANK: Record<string, number> = { Strong: 0, Good: 1, Weak: 2 };
 // Env-overridable: SHORTLIST_ALLOW_WEAK=true keeps Weak; SHORTLIST_MIN_RATIO sets the ratio floor.
 const ALLOW_WEAK = process.env.SHORTLIST_ALLOW_WEAK === 'true';
 const MIN_RATIO = (() => { const n = parseFloat(process.env.SHORTLIST_MIN_RATIO || ''); return Number.isFinite(n) ? n : 0.0001; })();
-const OK_STRICT = new Set(['Strong', 'Good']);
-const OK_WITH_WEAK = new Set(['Strong', 'Good', 'Weak']);
+const OK_LABELS = new Set(ALLOW_WEAK ? ['Strong', 'Good', 'Weak'] : ['Strong', 'Good']);
 
-// allowWeak: the DEMAND-side outreach pitch uses this. Pitching to a recruiter is "here are our best
-// available candidates — you decide", so we include Weak-labelled fits (still decision=SEND and ≥1
-// matched requirement — never a zero-overlap candidate). The candidate-side gate stays strict.
-function clearsQualityFloor(c: ShortlistCandidate, allowWeak = false): boolean {
-  if (c.decision !== 'SEND') return false;                      // genuine mismatch — never pitched
-  const ok = (ALLOW_WEAK || allowWeak) ? OK_WITH_WEAK : OK_STRICT;
-  if (!ok.has(c.label || '')) return false;
+function clearsQualityFloor(c: ShortlistCandidate): boolean {
+  if (c.decision !== 'SEND') return false;
+  if (!OK_LABELS.has(c.label || '')) return false;             // drop Weak/unlabeled (unless ALLOW_WEAK)
   const ratio = Number((c.matchBreakdown as { ratio?: unknown } | null)?.ratio ?? 0);
   return ratio >= MIN_RATIO;                                   // require ≥1 matched requirement
 }
@@ -158,7 +153,7 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (x: T) => Promise<R
 /** Pick the top `limit` vetted candidates for a Lever role. */
 export async function buildShortlistForRole(
   role: LeverPosting,
-  opts: { pre?: number; limit?: number; concurrency?: number; allowWeak?: boolean } = {},
+  opts: { pre?: number; limit?: number; concurrency?: number } = {},
 ): Promise<ShortlistCandidate[]> {
   const pre = opts.pre ?? 25;
   const limit = opts.limit ?? 3;
@@ -185,7 +180,7 @@ export async function buildShortlistForRole(
     vetCandidate(role, jd, jdText, byId.get(r.id)!, r.s));
 
   const top = vetted
-    .filter(c => clearsQualityFloor(c, opts.allowWeak))
+    .filter(clearsQualityFloor)
     .sort((a, b) => (LABEL_RANK[a.label || 'Weak'] - LABEL_RANK[b.label || 'Weak']) || (b.lexScore - a.lexScore))
     .slice(0, limit);
 
