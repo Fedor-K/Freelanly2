@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // SMTP connect form: saves via /api/user/smtp then verifies via /api/user/smtp/test (which sets
 // verified=true). Once verified, the user sends applications from their own address, unlimited, and
@@ -113,6 +113,25 @@ export function SmtpConnectForm({ initialEmail, onClose, onConnected }: { initia
   const [port, setPort] = useState(587);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err' | 'info'; text: string } | null>(null);
+  const [showManual, setShowManual] = useState(false); // app-password fallback, hidden behind the 1-click Google path
+
+  // One-click Gmail OAuth (gmail.send) — the primary connect path. Full-page redirect; the callback
+  // returns the user to where they started. Removes the app-password wall for the Gmail majority.
+  const connectGmail = () => {
+    const ret = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/dashboard/settings';
+    window.location.href = '/api/user/gmail-oauth/start?return=' + encodeURIComponent(ret);
+  };
+
+  // Reflect the OAuth callback outcome (?gmail=connected|denied|error|unconfigured) back to the user.
+  useEffect(() => {
+    const g = new URLSearchParams(window.location.search).get('gmail');
+    if (!g) return;
+    if (g === 'connected') { setMsg({ type: 'ok', text: '✓ Gmail connected! Your applications now send from your own inbox.' }); onConnected?.(); }
+    else if (g === 'denied') setMsg({ type: 'err', text: 'Google access was declined. Try again, or use an app password.' });
+    else if (g === 'unconfigured') setMsg({ type: 'err', text: 'Google sign-in isn’t available right now — use an app password below.' });
+    else setMsg({ type: 'err', text: 'Could not connect Gmail. Try again, or use an app password.' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const domain = email.split('@')[1]?.toLowerCase() || '';
   const preset = PRESETS[domain];
@@ -170,9 +189,26 @@ export function SmtpConnectForm({ initialEmail, onClose, onConnected }: { initia
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '16px', border: '1px solid var(--line, #E4E1D9)', borderRadius: '12px', background: 'var(--bg-2, #FBFAF6)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: '14px', fontWeight: 600 }}>✉️ Connect your email (SMTP)</div>
+        <div style={{ fontSize: '14px', fontWeight: 600 }}>✉️ Connect your email to send</div>
         {onClose && <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', fontSize: '15px' }}>✕</button>}
       </div>
+
+      {/* PRIMARY: one-click Gmail (OAuth gmail.send) — no app password. */}
+      <button onClick={connectGmail} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '12px', background: '#fff', color: '#1F1F1F', border: '1px solid #DADCE0', borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+        <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Sign in with Google to send
+      </button>
+      <div style={{ fontSize: '12px', color: 'var(--ink-4, #8A8780)', lineHeight: 1.45 }}>
+        Sends from your own Gmail — best delivery, no daily limit. One click, no app password.
+      </div>
+
+      {/* SECONDARY: app-password fallback (other providers, or if you prefer manual SMTP) */}
+      {!showManual ? (
+        <button onClick={() => setShowManual(true)} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: 'var(--ink-3, #8A8780)', textDecoration: 'underline', cursor: 'pointer', fontSize: '12.5px', padding: 0 }}>
+          Not Gmail? Connect with an app password instead
+        </button>
+      ) : (
+      <>
       <input style={inputStyle} type="email" placeholder="you@gmail.com" value={email} onChange={e => { setEmail(e.target.value); setHost(''); }} />
       <input style={inputStyle} type="password" placeholder="App password (not your normal password)" value={password} onChange={e => setPassword(e.target.value)} />
       <div style={{ display: 'flex', gap: '8px' }}>
@@ -201,6 +237,8 @@ export function SmtpConnectForm({ initialEmail, onClose, onConnected }: { initia
 
       {msg && <div style={{ fontSize: '12.5px', color: msg.type === 'ok' ? 'var(--good, #2E7D32)' : msg.type === 'err' ? 'var(--bad, #B91C1C)' : 'var(--ink-3, #8A8780)', lineHeight: 1.5 }}>{msg.text}</div>}
       <button className="btn btn-acid btn-sm" style={{ alignSelf: 'flex-start', background: '#C7F94A', color: '#000', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }} onClick={connect} disabled={busy}>{busy ? 'Connecting…' : 'Connect & verify'}</button>
+      </>
+      )}
     </div>
   );
 }

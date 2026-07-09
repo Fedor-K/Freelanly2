@@ -37,6 +37,7 @@ export async function GET() {
         voiceSamples: true,
         plan: true,
         userSmtp: { select: { host: true, email: true, verified: true } },
+        gmailAuth: { select: { email: true, verified: true } },
         autoApplyLoops: {
           where: { isActive: true },
           take: 1,
@@ -97,6 +98,7 @@ export async function GET() {
       },
       integrations: {
         smtp: user.userSmtp ? { host: user.userSmtp.host, email: user.userSmtp.email, verified: user.userSmtp.verified } : null,
+        gmail: user.gmailAuth ? { email: user.gmailAuth.email, verified: user.gmailAuth.verified } : null,
         linkedin: user.linkedinUrl ? { connected: true, url: user.linkedinUrl } : null,
       },
       notifications: {

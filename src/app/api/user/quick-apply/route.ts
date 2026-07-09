@@ -7,6 +7,7 @@ import { assessPairing } from '@/services/matching/assess-pairing';
 import { assessPairingCached, profileStamp } from '@/services/matching/assess-pairing-cached';
 import { generateRecruiterRationale } from '@/services/matching/recruiter-rationale';
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
+import { sendViaGmail } from '@/lib/gmail-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
@@ -233,6 +234,7 @@ export async function POST(request: NextRequest) {
         freeAppliesUsedToday: true,
         lastFreeApplyReset: true,
         userSmtp: true,
+        gmailAuth: true,
         githubUrl: true,
         githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } },
       },
@@ -243,15 +245,19 @@ export async function POST(request: NextRequest) {
     }
 
     const hasSmtp = !!user.userSmtp?.verified;
+    // Gmail-OAuth users send from their own inbox via the Gmail API — same "own email" tier as SMTP:
+    // no daily cap, no strong-gate. Preferred channel when present (best deliverability).
+    const hasGmail = !!user.gmailAuth;
+    const ownInbox = hasSmtp || hasGmail;
 
     // Check resume
     if (!user.resumeText && !user.parsedProfile) {
       return NextResponse.json({ error: 'resume_required', message: 'Upload your resume first.' }, { status: 400 });
     }
 
-    // Check free daily limit — the 20/day cap applies ONLY to our-name (Postal) sends. SMTP users
-    // send from their own inbox with no limit.
-    if (user.plan === 'FREE' && !user.userSmtp?.verified) {
+    // Check free daily limit — the 20/day cap applies ONLY to our-name (Postal) sends. Own-inbox users
+    // (SMTP or Gmail-OAuth) send from their own address with no limit.
+    if (user.plan === 'FREE' && !ownInbox) {
       const now = new Date();
       const lastReset = new Date(user.lastFreeApplyReset);
       const isNewDay = now.getUTCDate() !== lastReset.getUTCDate() ||
@@ -390,7 +396,7 @@ export async function POST(request: NextRequest) {
     const meetsPostalBar = effDecision === 'SEND' && (POSTAL_TIER === 'good'
       ? /strong|good/i.test(effLabel)
       : /strong/i.test(effLabel));
-    if (!summaryOnly && enforceGate && !hasSmtp && !meetsPostalBar) {
+    if (!summaryOnly && enforceGate && !ownInbox && !meetsPostalBar) {
       const isPoor = pairing.decision === 'NO';
       // For a genuine poor match, also surface better-fitting roles (cheap lexical, no LLM).
       const suggestions = isPoor
@@ -555,18 +561,38 @@ export async function POST(request: NextRequest) {
     // Atomically consume the FREE daily quota slot BEFORE sending. The check at the
     // top is a fast UX pre-check only; THIS is the real gate — TOCTOU-safe and covers
     // the Postal branch, which previously never incremented the counter (→ unlimited).
-    // Quota is only for our-name (Postal) sends; SMTP users send unlimited from their own inbox.
-    if (!hasSmtp && !(await consumeApplyQuota(user.id, user.plan))) {
+    // Quota is only for our-name (Postal) sends; own-inbox users (SMTP/Gmail) send unlimited.
+    if (!ownInbox && !(await consumeApplyQuota(user.id, user.plan))) {
       return NextResponse.json({
         error: 'limit_reached',
         message: `Daily limit reached (${FREE_DAILY_APPLY_LIMIT}/${FREE_DAILY_APPLY_LIMIT}). Connect your own email to send unlimited from your address.`,
       }, { status: 429 });
     }
 
-    // Send via user's SMTP or Postal
+    // Send channel priority: Gmail-OAuth → SMTP → our-name (Postal). The first two send from the user's
+    // own inbox (best deliverability); both fall through to the shared own-inbox record block below.
     let result: { success: boolean; messageId?: string; error?: string };
 
-    if (hasSmtp) {
+    if (hasGmail) {
+      const g = user.gmailAuth!;
+      result = await sendViaGmail(
+        { email: g.email, refreshToken: g.refreshToken },
+        {
+          from: `${user.name || 'Applicant'} <${g.email}>`,
+          to: opportunity.applyEmail,
+          replyTo: g.email,
+          subject,
+          html,
+          text,
+          attachmentBase64: cv?.base64,
+          attachmentFilename: cv?.filename,
+        }
+      );
+      // Token revoked/expired → clear the grant so the UI prompts a reconnect instead of silently failing.
+      if (!result.success && result.error === 'gmail_token_invalid') {
+        await prisma.gmailAuth.update({ where: { userId: user.id }, data: { verified: false, lastError: result.error } }).catch(() => {});
+      }
+    } else if (hasSmtp) {
       const smtp = user.userSmtp!;
       result = await sendEmailViaSMTP(
         { host: smtp.host, port: smtp.port, email: smtp.email, password: smtp.password },
@@ -635,7 +661,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'send_failed', message: result.error }, { status: 500 });
     }
 
-    // Create AutoApplication record for SMTP users
+    // Create AutoApplication record for own-inbox users (Gmail-OAuth or SMTP)
     let loop = await prisma.autoApplyLoop.findFirst({
       where: { userId: user.id },
     });
@@ -665,7 +691,7 @@ export async function POST(request: NextRequest) {
         coverLetter,
         subject,
         status: 'SENT',
-        sentVia: 'smtp',
+        sentVia: hasGmail ? 'gmail' : 'smtp',
         sentAt: new Date(),
         matchLabel: pairing.label ?? undefined,
         matchBreakdown: pairing.matchBreakdown ? (pairing.matchBreakdown as Prisma.InputJsonValue) : undefined,

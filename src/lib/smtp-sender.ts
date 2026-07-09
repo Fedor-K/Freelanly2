@@ -8,7 +8,7 @@ interface SmtpConfig {
   password: string;
 }
 
-interface SendEmailOptions {
+export interface SendEmailOptions {
   from: string;
   to: string;
   replyTo?: string;
@@ -20,7 +20,7 @@ interface SendEmailOptions {
   attachmentFilename?: string; // Filename for base64 attachment
 }
 
-interface SmtpResult {
+export interface SmtpResult {
   success: boolean;
   messageId?: string;
   error?: string;
@@ -29,7 +29,7 @@ interface SmtpResult {
 /**
  * Generate a unique message ID
  */
-function generateMessageId(domain: string): string {
+export function generateMessageId(domain: string): string {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 10);
   return `<${timestamp}.${random}@${domain}>`;
@@ -126,7 +126,7 @@ async function downloadAsBase64(url: string): Promise<{ data: string; filename: 
 /**
  * Build MIME message with optional PDF attachment
  */
-function buildMimeMessage(options: {
+export function buildMimeMessage(options: {
   from: string;
   to: string;
   replyTo?: string;

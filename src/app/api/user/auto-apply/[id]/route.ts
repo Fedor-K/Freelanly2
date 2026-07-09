@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { generateCoverLetter, generateSubjectLine } from '@/services/cover-letter-generator';
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
+import { sendViaGmail } from '@/lib/gmail-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { buildApplicationEmailHtml } from '@/services/auto-apply-processor';
 
@@ -294,7 +295,7 @@ export async function POST(
       // Fetch full user data for sending
       const fullUser = await prisma.user.findUnique({
         where: { id: session.user.id },
-        select: { name: true, email: true, plan: true, userSmtp: true },
+        select: { name: true, email: true, plan: true, userSmtp: true, gmailAuth: true },
       });
       if (!fullUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
@@ -314,6 +315,8 @@ export async function POST(
       }
 
       const hasSmtp = !!fullUser.userSmtp?.verified;
+      const hasGmail = !!fullUser.gmailAuth;
+      const ownInbox = hasSmtp || hasGmail;
       const html = buildApplicationEmailHtml({
         coverLetter,
         userName: fullUser.name || 'Applicant',
@@ -321,12 +324,21 @@ export async function POST(
         companyName: app.companyName,
         recruiterName: '',
         applicationId: id,
-        recruiterEmail: hasSmtp ? undefined : app.appliedToEmail,
+        recruiterEmail: ownInbox ? undefined : app.appliedToEmail,
       });
 
       let result: { success: boolean; messageId?: string; error?: string };
 
-      if (hasSmtp) {
+      if (hasGmail) {
+        const g = fullUser.gmailAuth!;
+        result = await sendViaGmail(
+          { email: g.email, refreshToken: g.refreshToken },
+          { from: `${fullUser.name || 'Applicant'} <${g.email}>`, to: app.appliedToEmail, replyTo: g.email, subject, html, text: coverLetter }
+        );
+        if (!result.success && result.error === 'gmail_token_invalid') {
+          await prisma.gmailAuth.update({ where: { userId: session.user.id }, data: { verified: false, lastError: result.error } }).catch(() => {});
+        }
+      } else if (hasSmtp) {
         const smtp = fullUser.userSmtp!;
         result = await sendEmailViaSMTP(
           { host: smtp.host, port: smtp.port, email: smtp.email, password: smtp.password },
@@ -347,7 +359,7 @@ export async function POST(
       if (result.success) {
         await prisma.autoApplication.update({
           where: { id },
-          data: { status: 'SENT', sentVia: hasSmtp ? 'smtp' : 'postal', coverLetter, subject, sentAt: new Date() },
+          data: { status: 'SENT', sentVia: hasGmail ? 'gmail' : hasSmtp ? 'smtp' : 'postal', coverLetter, subject, sentAt: new Date() },
         });
         // Increment sentToday
         if (app.loopId) {

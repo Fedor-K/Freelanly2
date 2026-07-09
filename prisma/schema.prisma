@@ -134,6 +134,7 @@ model User {
 
   // Auto-Apply
   userSmtp              UserSmtp?
+  gmailAuth             GmailAuth?
   autoApplyLoops        AutoApplyLoop[]
   autoApplications      AutoApplication[]
   matchVerdicts         MatchVerdict[]
@@ -2036,6 +2037,23 @@ model UserSmtp {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// User's Gmail OAuth grant (gmail.send scope) — send applications from their own inbox via the Gmail
+// API, no app password. One per user; refreshToken stored plaintext (same posture as UserSmtp.password).
+model GmailAuth {
+  id           String   @id @default(cuid())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String   @unique
+
+  email        String   // the connected Gmail address (the From/sender)
+  refreshToken String   // Google OAuth refresh token (durable in Production)
+  verified     Boolean  @default(true) // true once we've successfully minted an access token
+  lastError    String?  // last send/refresh failure (e.g. token revoked → prompt reconnect)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 // Auto-apply "Loop" — a set of filters + settings

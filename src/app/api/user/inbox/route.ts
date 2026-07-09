@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import OpenAI from 'openai';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
+import { sendViaGmail } from '@/lib/gmail-sender';
 import { fetchResumeAttachment } from '@/lib/resume-attachment';
 
 function getAIClient() {
@@ -154,7 +155,7 @@ export async function POST(request: NextRequest) {
     const app = await prisma.autoApplication.findFirst({
       where: { id: applicationId, userId: session.user.id },
       include: {
-        user: { select: { name: true, email: true, userSmtp: true, resumeUrl: true, resumeFileName: true, plan: true, freeReplyUsed: true } },
+        user: { select: { name: true, email: true, userSmtp: true, gmailAuth: true, resumeUrl: true, resumeFileName: true, plan: true, freeReplyUsed: true } },
       },
     });
 
@@ -243,8 +244,18 @@ export async function POST(request: NextRequest) {
 
       let result;
       const hasSmtp = !!app.user.userSmtp?.verified;
+      const hasGmail = !!app.user.gmailAuth;
 
-      if (hasSmtp) {
+      if (hasGmail) {
+        const g = app.user.gmailAuth!;
+        result = await sendViaGmail(
+          { email: g.email, refreshToken: g.refreshToken },
+          { from: `${app.user.name} <${g.email}>`, to: app.appliedToEmail, replyTo: g.email, subject, html, text: outgoing, attachmentBase64: attBase64, attachmentFilename: attFilename }
+        );
+        if (!result.success && result.error === 'gmail_token_invalid') {
+          await prisma.gmailAuth.update({ where: { userId: session.user.id }, data: { verified: false, lastError: result.error } }).catch(() => {});
+        }
+      } else if (hasSmtp) {
         const smtp = app.user.userSmtp!;
         result = await sendEmailViaSMTP(
           { host: smtp.host, port: smtp.port, email: smtp.email, password: smtp.password },
