@@ -1,5 +1,6 @@
 import { buildMimeMessage, generateMessageId, type SendEmailOptions, type SmtpResult } from './smtp-sender';
 import { accessTokenFromRefresh } from './gmail-oauth';
+import { decryptToken } from './token-crypto';
 
 const GMAIL_SEND_ENDPOINT = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send';
 
@@ -13,7 +14,8 @@ export async function sendViaGmail(
   gmailAuth: { email: string; refreshToken: string },
   options: SendEmailOptions
 ): Promise<SmtpResult> {
-  const accessToken = await accessTokenFromRefresh(gmailAuth.refreshToken);
+  const refreshToken = decryptToken(gmailAuth.refreshToken); // stored encrypted at rest; legacy plaintext passes through
+  const accessToken = refreshToken ? await accessTokenFromRefresh(refreshToken) : null;
   if (!accessToken) {
     // refresh token revoked/expired, or OAuth client misconfigured → caller should prompt reconnect
     return { success: false, error: 'gmail_token_invalid' };

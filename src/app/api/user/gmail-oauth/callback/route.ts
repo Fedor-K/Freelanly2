@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { exchangeCode, verifyState } from '@/lib/gmail-oauth';
+import { encryptToken } from '@/lib/token-crypto';
 
 // GET /api/user/gmail-oauth/callback?code=...&state=...
 // Google redirects here after consent. Store the refresh token, then bounce back to where they started.
@@ -29,12 +30,12 @@ export async function GET(request: NextRequest) {
     create: {
       userId: state.userId,
       email: tokens.email || session.user.email || '',
-      refreshToken: tokens.refreshToken,
+      refreshToken: encryptToken(tokens.refreshToken),
       verified: true,
     },
     update: {
       email: tokens.email || session.user.email || '',
-      refreshToken: tokens.refreshToken,
+      refreshToken: encryptToken(tokens.refreshToken),
       verified: true,
       lastError: null,
     },
