@@ -118,7 +118,11 @@ export function SmtpConnectForm({ initialEmail, onClose, onConnected }: { initia
   // One-click Gmail OAuth (gmail.send) — the primary connect path. Full-page redirect; the callback
   // returns the user to where they started. Removes the app-password wall for the Gmail majority.
   const connectGmail = () => {
-    const ret = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/dashboard/settings';
+    // On a project page, come back with ?apply=1 so the application AUTO-RESUMES after connecting —
+    // otherwise the user lands back on the page and has to click "Apply now" again (friction leak).
+    // Elsewhere (Settings), just return to where they were.
+    const path = typeof window !== 'undefined' ? window.location.pathname : '/dashboard/settings';
+    const ret = path.startsWith('/freelance/') ? `${path}?apply=1` : path + window.location.search;
     window.location.href = '/api/user/gmail-oauth/start?return=' + encodeURIComponent(ret);
   };
 
