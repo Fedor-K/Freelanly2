@@ -810,6 +810,11 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     // through to write the application. The cover letter is generated only on that click.
     if (phase === 'summary') {
       const weak = matchTier === 'weak';
+      // A Good (non-weak) match that's gated: it's a real fit we recommend, but our-name (Postal) sending
+      // is reserved for the strongest, so this one is self-send only. The screen MUST be honest about that
+      // — never promise "write your application" here (there's no our-name send button), or it reads as a
+      // broken dead-end. It stays in the feed; we just tell the truth about how to send it.
+      const gatedGood = !weak && gated;
       // Card palette by tier: green for a real fit, amber for "this one's a stretch".
       const cardBg = weak ? '#FFF8EC' : '#F6FAEF';
       const cardBorder = weak ? '#F2D9A8' : '#DDEBC4';
@@ -838,11 +843,13 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       return (
         <div>
           <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>
-            {weak ? 'Honest take on this one' : 'Here’s your match'}
+            {weak ? 'Honest take on this one' : gatedGood ? 'Good match ✓' : 'Here’s your match'}
           </h2>
           <p style={{ fontSize: '13px', color: '#8A8780', marginBottom: '14px' }}>
             {weak
               ? 'We read your résumé & LinkedIn — and we won’t send a mismatch on your behalf.'
+              : gatedGood
+              ? 'We read your résumé & LinkedIn — solid fit. From our name we send only your strongest matches, so send this one yourself, from your own inbox — no limits.'
               : 'We read your résumé & LinkedIn. Review, then write your application.'}
           </p>
 
@@ -860,7 +867,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 </div>
               </div>
             )}
-            {!matchSummary && <p style={{ fontSize: '13px', color: '#8A8780', margin: 0 }}>Profile ready — let&apos;s write your application.</p>}
+            {!matchSummary && <p style={{ fontSize: '13px', color: '#8A8780', margin: 0 }}>{gatedGood ? 'A good fit for your profile.' : 'Profile ready — let’s write your application.'}</p>}
           </div>
 
           {weak ? (
