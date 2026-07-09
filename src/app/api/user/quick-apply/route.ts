@@ -255,9 +255,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'resume_required', message: 'Upload your resume first.' }, { status: 400 });
     }
 
-    // Check free daily limit — the 20/day cap applies ONLY to our-name (Postal) sends. Own-inbox users
-    // (SMTP or Gmail-OAuth) send from their own address with no limit.
-    if (user.plan === 'FREE' && !ownInbox) {
+    // Daily send cap (20/UTC-day) — applies to EVERY channel now. For our-name (Postal) it protects our
+    // shared domain reputation; for own-inbox (Gmail/SMTP) it protects the USER'S OWN account — bulk
+    // sending from a personal Gmail gets it flagged/suspended by Google's anti-spam, so own-inbox is
+    // capped at the same 20/day, NOT "unlimited". (Fast UX pre-check; the atomic gate is below.)
+    if (user.plan === 'FREE') {
       const now = new Date();
       const lastReset = new Date(user.lastFreeApplyReset);
       const isNewDay = now.getUTCDate() !== lastReset.getUTCDate() ||
@@ -268,7 +270,9 @@ export async function POST(request: NextRequest) {
       if (usedToday >= FREE_DAILY_LIMIT) {
         return NextResponse.json({
           error: 'limit_reached',
-          message: `Daily limit reached (${FREE_DAILY_LIMIT}/${FREE_DAILY_LIMIT}). Upgrade to PRO for unlimited applies.`,
+          message: ownInbox
+            ? `Daily limit reached (${FREE_DAILY_LIMIT}/${FREE_DAILY_LIMIT}). We cap daily sends to keep your email account safe — try again tomorrow.`
+            : `Daily limit reached (${FREE_DAILY_LIMIT}/${FREE_DAILY_LIMIT}). Upgrade to PRO for unlimited applies.`,
         }, { status: 429 });
       }
     }
@@ -561,11 +565,15 @@ export async function POST(request: NextRequest) {
     // Atomically consume the FREE daily quota slot BEFORE sending. The check at the
     // top is a fast UX pre-check only; THIS is the real gate — TOCTOU-safe and covers
     // the Postal branch, which previously never incremented the counter (→ unlimited).
-    // Quota is only for our-name (Postal) sends; own-inbox users (SMTP/Gmail) send unlimited.
-    if (!ownInbox && !(await consumeApplyQuota(user.id, user.plan))) {
+    // Atomically consume the daily slot BEFORE sending (TOCTOU-safe). The 20/day cap now covers EVERY
+    // channel: our-name (domain reputation) AND own-inbox Gmail/SMTP (protects the user's own account
+    // from spam-flagging by bulk sends). PRO stays unlimited inside consumeApplyQuota.
+    if (!(await consumeApplyQuota(user.id, user.plan))) {
       return NextResponse.json({
         error: 'limit_reached',
-        message: `Daily limit reached (${FREE_DAILY_APPLY_LIMIT}/${FREE_DAILY_APPLY_LIMIT}). Connect your own email to send unlimited from your address.`,
+        message: ownInbox
+          ? `Daily limit reached (${FREE_DAILY_APPLY_LIMIT}/${FREE_DAILY_APPLY_LIMIT}). Sends are capped daily to keep your email account safe.`
+          : `Daily limit reached (${FREE_DAILY_APPLY_LIMIT}/${FREE_DAILY_APPLY_LIMIT}). Upgrade to PRO for unlimited applies.`,
       }, { status: 429 });
     }
 
