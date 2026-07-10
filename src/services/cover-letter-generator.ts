@@ -116,6 +116,11 @@ export function softenTemplate(text: string): string {
     .replace(/\bI(?:'m|’m| am| was| have been)\s+(?:excited|thrilled|delighted|passionate)\s+(?:about|by|for)\b/gi, (m) => /\bwas\b|have been/i.test(m) ? 'I was drawn to' : 'I’m keen on')
     .replace(/\beager\s+to\b/gi, 'ready to')
     .replace(/\bI\s+believe\s+I\s+align\b/gi, 'my background aligns')
+    // The two most template-smelling closers (audit 07-10: half of all sent letters ended with
+    // these verbatim — a recruiter-visible tell AND a Gmail near-duplicate signal). Replace with a
+    // short human closer; the prompt now also instructs a varied closing, this is the backstop.
+    .replace(/\bI(?:'d|’d| would)\s+(?:welcome|appreciate)\s+the\s+(?:opportunity|chance)\s+to\s+discuss\s+how\s+my\s+[^.!?]*[.!?]\s*/gi, 'Happy to talk whenever works for you.\n')
+    .replace(/[ \t]*Thank\s+you\s+for\s+your\s+time\s+and\s+consideration[.!]?[ \t]*/gi, '')
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
@@ -247,7 +252,18 @@ export async function generateCoverLetter(input: CoverLetterInput): Promise<stri
     { label: 'medium', words: '120-160', paragraphs: '2-3' },
     { label: 'detailed', words: '180-220', paragraphs: '3-4' },
   ];
+  // Closers vary too — the audit found half of all sent letters ending with the identical
+  // "I would welcome the opportunity to discuss how my background aligns with your needs",
+  // a template tell for recruiters AND a near-duplicate signal for Gmail.
+  const CLOSERS = [
+    'End with ONE specific question about the role or project (scope, stack, timeline).',
+    'End by proposing a concrete next step: a quick call this week, or sending a relevant work sample.',
+    'End with a short, confident availability line: when you can start and how to reach you.',
+    'End by naming the FIRST thing you would deliver for them, in one sentence.',
+    'End with a brief, warm one-liner — no formal "I would welcome the opportunity" phrasing.',
+  ];
   const style = STYLES[Math.floor(Math.random() * STYLES.length)];
+  const closer = CLOSERS[Math.floor(Math.random() * CLOSERS.length)];
   const length = LENGTHS[Math.floor(Math.random() * LENGTHS.length)];
 
   // Verdict-aware honest mode + deterministic missing-skill guarantee (the "wire").
@@ -256,6 +272,7 @@ export async function generateCoverLetter(input: CoverLetterInput): Promise<stri
   const buildSystem = (extra: string) => (styleOverride || `You are writing a job application email on behalf of someone. You receive ALL raw data about the job and the applicant. Write the COMPLETE email ready to send.
 
 STYLE FOR THIS EMAIL: ${style}
+CLOSING FOR THIS EMAIL: ${closer}
 LENGTH: ${length.label} — aim for ${length.words} words, ${length.paragraphs} paragraphs.
 
 YOUR JOB:
@@ -275,6 +292,7 @@ RULES:
 - NEVER ECHO THE JOB POST AS THE APPLICANT'S OWN WORK. The job description tells you what they NEED, not what the applicant has done. Every proof point must come from the applicant's Background, never from the job post — do not restate the role's responsibilities (its tools, systems, or tasks) as things the applicant has already built, not even in paraphrase. If the applicant hasn't done it, don't narrate doing it.
 - ALWAYS write in FIRST PERSON (I/my/me). NEVER use third person or refer to the applicant by name in the body. "I have experience" NOT "John has experience".
 - NEVER say "I am excited", "I am eager", "I am confident", "I am writing to express interest", "I believe I align".
+- NEVER close with "I would welcome the opportunity/chance to discuss how my background/experience aligns with your needs" or "Thank you for your time and consideration" — these are the two most template-smelling closers in existence. FOLLOW THE CLOSING INSTRUCTION ABOVE.
 - Sound like a real person writing a confident, specific note to someone they want to work with — not a template.
 - Follow the LENGTH instruction above (${length.label}: ${length.words} words, ${length.paragraphs} paragraphs). Never pad with filler.
 - Include line breaks between greeting, body paragraphs, and sign-off.`) + honestBlock + extra;

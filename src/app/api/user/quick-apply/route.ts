@@ -500,7 +500,9 @@ export async function POST(request: NextRequest) {
     const details = [
       clean(user.location) && `Location: ${clean(user.location)}`,
       clean(user.workAuthorization) && `Work authorization: ${clean(user.workAuthorization)}`,
-      clean(user.currentRate) && `Current rate: ${clean(user.currentRate)}`,
+      // Current rate intentionally NOT disclosed (negotiation 101: it anchors low and the audited
+      // letters shipped nonsense like "current $600 → expected $300-600"). Recruiters only need
+      // the expected rate — their actual screening question.
       clean(user.salaryExpectation) && `Expected rate: ${clean(user.salaryExpectation)}`,
       clean(user.availableFrom) && `Availability: ${clean(user.availableFrom)}`,
     ].filter(Boolean);

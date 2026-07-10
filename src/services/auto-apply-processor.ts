@@ -673,7 +673,8 @@ export async function processAutoApplyQueue(): Promise<{
       // facts as a plaintext footer (mirrors the HTML card's ATS table) for text-only clients.
       const atsLines = [
         app.user.workAuthorization && `Work authorization: ${app.user.workAuthorization}`,
-        app.user.currentRate && `Current rate: ${app.user.currentRate}`,
+        // Current rate intentionally not disclosed (anchors low; audited letters shipped nonsense
+        // like "current $600 → expected $300-600"). Expected rate is the screening answer.
         app.user.salaryExpectation && `Expected rate: ${app.user.salaryExpectation}`,
         app.user.availableFrom && `Availability: ${app.user.availableFrom}`,
       ].filter(Boolean);
@@ -1946,7 +1947,7 @@ export function buildApplicationEmailHtml(params: {
     // expected rate / availability up front instead of replying to ask. Only renders rows we have.
     const atsRows: Array<[string, string]> = [];
     if (atsDetails?.workAuthorization) atsRows.push(['Work authorization', atsDetails.workAuthorization]);
-    if (atsDetails?.currentRate) atsRows.push(['Current rate', atsDetails.currentRate]);
+    // Current rate intentionally omitted — never disclose the candidate's current pay to recruiters.
     if (atsDetails?.salaryExpectation) atsRows.push(['Expected rate', atsDetails.salaryExpectation]);
     if (atsDetails?.availableFrom) atsRows.push(['Availability', atsDetails.availableFrom]);
     const atsBlock = atsRows.length > 0
