@@ -6,6 +6,7 @@ import { categories, countries, languages } from '@/config/site';
 import { getStoredClickId, getStoredUtmSource, getStoredUtmParams } from '@/components/analytics/GclidCapture';
 import { SalaryPicker } from '@/components/SalaryPicker';
 import { ProcessingScreen, PROFILE_BUILD_STEPS } from '@/components/ProcessingScreen';
+import { GoogleAuthButton } from '@/components/GoogleAuthButton';
 
 /** Read UTM params from current page URL as fallback when localStorage is empty */
 function getUtmFromUrl(): { source?: string; utmMedium?: string; utmCampaign?: string; utmContent?: string; gclid?: string } {
@@ -54,6 +55,9 @@ export interface RegistrationFormProps {
   onEmailSent?: (email: string) => void;
   showJobContext?: boolean;
   prefillEmail?: string;
+  /** Jump straight to a step on mount — used after Google signup (session already exists,
+   *  email verified, gmail.send granted) to collect the profile (résumé + consent). */
+  initialStep?: 'profile';
 }
 
 type FormStep = 'email' | 'login' | 'register' | 'sent' | 'profile';
@@ -71,11 +75,12 @@ export function RegistrationForm({
   onEmailSent,
   showJobContext = false,
   prefillEmail,
+  initialStep,
 }: RegistrationFormProps) {
   const { track: trackDb } = useTracker();
 
   // Form step
-  const [step, setStep] = useState<FormStep>('email');
+  const [step, setStep] = useState<FormStep>(initialStep || 'email');
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
   // Form fields
@@ -674,7 +679,14 @@ export function RegistrationForm({
   if (step === 'email') {
     return (
       <div className="field-group">
-        {/* Email only — no Google OAuth */}
+        {/* PRIMARY: one Google click = verified email + name + send-from-your-Gmail grant — no OTP
+            code (which lands in spam for cold users). Email/code below stays as the fallback. */}
+        <GoogleAuthButton returnPath={`/auth/signin?gmail=connected${callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ flex: 1, height: 1, background: '#E4E1D9' }} />
+          <span style={{ fontSize: '12px', color: '#8A8780' }}>or continue with email</span>
+          <div style={{ flex: 1, height: 1, background: '#E4E1D9' }} />
+        </div>
 
         {/* Job context */}
         {showJobContext && jobTitle && companyName && (

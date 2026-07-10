@@ -24,24 +24,27 @@ export function redirectUri(): string {
   return `${base.replace(/\/$/, '')}/api/user/gmail-oauth/callback`;
 }
 
-// --- signed state (CSRF + carries userId & return path) ---
+// --- signed state (CSRF + carries userId OR signup flag & return path) ---
 function sign(data: string): string {
   return createHmac('sha256', SECRET).update(data).digest('hex').slice(0, 32);
 }
-export function signState(userId: string, returnPath: string): string {
-  const payload = JSON.stringify({ u: userId, r: returnPath, e: Date.now() + STATE_TTL_MS });
+/** Connect mode: pass the session userId. Signup mode: userId=null + signup=true — the callback will
+ *  find-or-create the user from Google's id_token (verified email) and mint the session itself. */
+export function signState(userId: string | null, returnPath: string, signup = false): string {
+  const payload = JSON.stringify({ u: userId || '', s: signup ? 1 : 0, r: returnPath, e: Date.now() + STATE_TTL_MS });
   const b64 = Buffer.from(payload).toString('base64url');
   return `${b64}.${sign(b64)}`;
 }
-export function verifyState(state: string | null | undefined): { userId: string; returnPath: string } | null {
+export function verifyState(state: string | null | undefined): { userId: string | null; signup: boolean; returnPath: string } | null {
   if (!state || typeof state !== 'string' || !state.includes('.')) return null;
   try {
     const [b64, mac] = state.split('.');
     const expected = sign(b64);
     if (mac.length !== expected.length || !timingSafeEqual(Buffer.from(mac), Buffer.from(expected))) return null;
-    const { u, r, e } = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
-    if (!u || Date.now() > Number(e)) return null;
-    return { userId: u, returnPath: typeof r === 'string' && r.startsWith('/') ? r : '/dashboard/settings' };
+    const { u, s, r, e } = JSON.parse(Buffer.from(b64, 'base64url').toString('utf8'));
+    if (Date.now() > Number(e)) return null;
+    if (!u && s !== 1) return null; // must be either a connect (userId) or an explicit signup
+    return { userId: u || null, signup: s === 1, returnPath: typeof r === 'string' && r.startsWith('/') ? r : '/dashboard/settings' };
   } catch {
     return null;
   }
@@ -55,7 +58,8 @@ export function buildAuthUrl(state: string, loginHint?: string): string | null {
     client_id: client.clientId,
     redirect_uri: redirectUri(),
     response_type: 'code',
-    scope: `openid email ${GMAIL_SEND_SCOPE}`,
+    // `profile` gives us the user's name in the id_token — needed by signup mode to create the account.
+    scope: `openid email profile ${GMAIL_SEND_SCOPE}`,
     access_type: 'offline',
     prompt: 'consent',
     include_granted_scopes: 'true',
@@ -65,8 +69,9 @@ export function buildAuthUrl(state: string, loginHint?: string): string | null {
   return `${AUTH_ENDPOINT}?${p.toString()}`;
 }
 
-/** Exchange an authorization code for tokens. Returns refresh_token + the connected Gmail address. */
-export async function exchangeCode(code: string): Promise<{ refreshToken: string; email: string | null } | null> {
+/** Exchange an authorization code for tokens. Returns refresh_token + the Google identity (email must
+ *  be verified by Google before signup mode may trust it). */
+export async function exchangeCode(code: string): Promise<{ refreshToken: string; email: string | null; emailVerified: boolean; name: string | null } | null> {
   const client = googleClient();
   if (!client) return null;
   const res = await fetch(TOKEN_ENDPOINT, {
@@ -83,7 +88,8 @@ export async function exchangeCode(code: string): Promise<{ refreshToken: string
   if (!res.ok) return null;
   const data = await res.json().catch(() => null);
   if (!data?.refresh_token) return null; // prompt=consent should always return one
-  return { refreshToken: data.refresh_token, email: decodeIdTokenEmail(data.id_token) };
+  const id = decodeIdToken(data.id_token);
+  return { refreshToken: data.refresh_token, email: id.email, emailVerified: id.emailVerified, name: id.name };
 }
 
 /** Refresh an access token from a stored refresh token (used by the send path). */
@@ -105,13 +111,18 @@ export async function accessTokenFromRefresh(refreshToken: string): Promise<stri
   return data?.access_token || null;
 }
 
-/** Decode the `email` claim from a Google id_token (no signature check needed — it came from Google's token endpoint over TLS). */
-function decodeIdTokenEmail(idToken?: string): string | null {
-  if (!idToken || typeof idToken !== 'string') return null;
+/** Decode identity claims from a Google id_token (no signature check needed — it came straight from
+ *  Google's token endpoint over TLS, not from the browser). */
+function decodeIdToken(idToken?: string): { email: string | null; emailVerified: boolean; name: string | null } {
+  if (!idToken || typeof idToken !== 'string') return { email: null, emailVerified: false, name: null };
   try {
     const payload = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64url').toString('utf8'));
-    return typeof payload.email === 'string' ? payload.email : null;
+    return {
+      email: typeof payload.email === 'string' ? payload.email : null,
+      emailVerified: payload.email_verified === true || payload.email_verified === 'true',
+      name: typeof payload.name === 'string' ? payload.name : null,
+    };
   } catch {
-    return null;
+    return { email: null, emailVerified: false, name: null };
   }
 }

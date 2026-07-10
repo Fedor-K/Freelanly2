@@ -24,6 +24,7 @@ interface SignInPageProps {
     utm_source?: string;
     email?: string;
     projectId?: string;
+    gmail?: string;
   }>;
 }
 
@@ -54,11 +55,19 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   // A logged-in user must never see the signup form — that was the reported login
   // loop (verify code → /dashboard → no résumé → /auth/signin → signup form again).
   // Route them into the app: to résumé onboarding if they still need one.
+  // EXCEPTION: fresh "Continue with Google" signup (?gmail=connected) — the session + verified email
+  // + gmail.send grant already exist, but the profile (résumé + consent) doesn't. Render the form
+  // jumped to the profile step instead of bouncing them to settings.
+  let googleProfileStep: { email: string } | null = null;
   if (session?.user?.id) {
     const u = await prisma.user
-      .findUnique({ where: { id: session.user.id }, select: { resumeUrl: true } })
+      .findUnique({ where: { id: session.user.id }, select: { resumeUrl: true, email: true } })
       .catch(() => null);
-    redirect(u?.resumeUrl ? '/dashboard/discovery' : '/dashboard/settings#profile');
+    if (params.gmail === 'connected' && u && !u.resumeUrl) {
+      googleProfileStep = { email: u.email };
+    } else {
+      redirect(u?.resumeUrl ? '/dashboard/discovery' : '/dashboard/settings#profile');
+    }
   }
 
   // Personalized headline based on ref source
@@ -123,7 +132,11 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           )}
 
           {/* Registration form */}
-          <RegistrationForm callbackUrl={params.callbackUrl} prefillEmail={params.email} />
+          <RegistrationForm
+            callbackUrl={params.callbackUrl}
+            prefillEmail={googleProfileStep?.email || params.email}
+            initialStep={googleProfileStep ? 'profile' : undefined}
+          />
 
           {/* Legal */}
           <div className="legal">

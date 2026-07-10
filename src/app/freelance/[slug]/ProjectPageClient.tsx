@@ -5,6 +5,7 @@ import { useTracker } from '@/hooks/useTracker';
 import { SalaryPicker } from '@/components/SalaryPicker';
 import { ProcessingScreen } from '@/components/ProcessingScreen';
 import { SmtpConnectModal } from '@/app/dashboard/settings/SmtpConnect';
+import { GoogleAuthButton } from '@/components/GoogleAuthButton';
 import { categories, languages } from '@/config/site';
 
 interface ProjectProps {
@@ -158,7 +159,43 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     } catch { /* optional step — never block */ } finally { setExtraSaving(false); }
   };
   useEffect(() => {
-    const hasApplyFlag = new URLSearchParams(window.location.search).get('apply') === '1';
+    const sp = new URLSearchParams(window.location.search);
+    const hasApplyFlag = sp.get('apply') === '1';
+    const gmailReturn = sp.get('gmail'); // set by the Google OAuth callback (connected|denied|error)
+
+    // Back from "Continue with Google" signup: session + verified email + gmail.send grant already
+    // exist — route straight to the profile step (résumé + fields + consent). If the account turns out
+    // to already have a résumé (existing user using Google as LOGIN), just continue like ?apply=1.
+    if (gmailReturn) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('gmail');
+      window.history.replaceState({}, '', url.toString());
+      if (gmailReturn === 'connected') {
+        track('FUNNEL_STEP', { step: 'google_signup_done', opportunityId: project.id });
+        fetch('/api/user/settings', { method: 'GET', credentials: 'include' })
+          .then(async r => {
+            const d = r.ok ? await r.json().catch(() => null) : null;
+            if (!d) { setPhase('auth'); return; }
+            setIsAuthed(true);
+            if (d.profile?.email) setEmail(d.profile.email);
+            if (d.profile?.resumeUrl) {
+              // Existing full account — proceed to apply exactly like ?apply=1 would.
+              setHasResume(true);
+              window.location.href = `${window.location.pathname}?apply=1`;
+            } else {
+              setHasResume(false);
+              setPhase('auth');
+              setProfileStep(true); // "Email confirmed ✓ — now tell us about you"
+            }
+          })
+          .catch(() => { setPhase('auth'); });
+      } else {
+        track('FUNNEL_STEP', { step: gmailReturn === 'denied' ? 'google_signup_denied' : 'google_signup_error', opportunityId: project.id });
+        setPhase('auth');
+        setAuthError(gmailReturn === 'denied' ? 'Google sign-in was cancelled — you can try again or continue with email.' : 'Google sign-in didn’t work — continue with email below.');
+      }
+      return;
+    }
 
     // If ?apply=1, skip settings check and go straight to cover letter
     if (hasApplyFlag) {
@@ -765,7 +802,17 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       // Email + onboarding fields
       return (
         <div>
-          <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '12px' }}>Enter your email to apply</h2>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '12px' }}>Sign in to apply</h2>
+
+          {/* PRIMARY: one Google click = verified email + name + send-from-your-Gmail grant (3× replies,
+              no OTP code that lands in spam). The callback returns here with ?gmail=connected and the
+              mount effect routes straight to the profile step. */}
+          <GoogleAuthButton returnPath={`${typeof window !== 'undefined' ? window.location.pathname : ''}?gmail=connected`} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '12px 0' }}>
+            <div style={{ flex: 1, height: 1, background: '#E4E1D9' }} />
+            <span style={{ fontSize: '12px', color: '#8A8780' }}>or continue with email</span>
+            <div style={{ flex: 1, height: 1, background: '#E4E1D9' }} />
+          </div>
 
           <input
             type="email" placeholder="you@email.com" value={email}
