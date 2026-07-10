@@ -6,6 +6,7 @@ import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { sendViaGmail } from '@/lib/gmail-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { buildApplicationEmailHtml } from '@/services/auto-apply-processor';
+import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
 
 function cleanReplyText(text: string | null): string | null {
   if (!text) return null;
@@ -292,12 +293,35 @@ export async function POST(
         return NextResponse.json({ error: 'Can only send queued applications' }, { status: 400 });
       }
 
+      // Dedup: don't send twice to the same listing (a second queued row for the same opportunity,
+      // or a re-click racing the first send). Mirrors quick-apply's already_applied guard — this
+      // route previously had NO such check.
+      const dupe = await prisma.autoApplication.findFirst({
+        where: {
+          userId: session.user.id,
+          id: { not: id },
+          sentAt: { not: null },
+          ...(app.opportunityId ? { opportunityId: app.opportunityId } : { appliedToEmail: app.appliedToEmail, jobTitle: app.jobTitle }),
+        },
+        select: { id: true },
+      });
+      if (dupe) {
+        await prisma.autoApplication.update({ where: { id }, data: { status: 'SKIPPED' } }).catch(() => {});
+        return NextResponse.json({ error: 'already_applied', message: 'You already applied to this role.' }, { status: 409 });
+      }
+
       // Fetch full user data for sending
       const fullUser = await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { name: true, email: true, plan: true, userSmtp: true, gmailAuth: true },
       });
       if (!fullUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+      // Daily send cap (same 20/UTC-day as quick-apply — this route previously bypassed it entirely).
+      // Atomic consume before sending; refunded below if the send fails.
+      if (!(await consumeApplyQuota(session.user.id, fullUser.plan))) {
+        return NextResponse.json({ error: 'limit_reached', message: 'Daily send limit reached — try again tomorrow.' }, { status: 429 });
+      }
 
       // Generate cover letter if missing
       let coverLetter = app.coverLetter;
@@ -367,6 +391,7 @@ export async function POST(
         }
         return NextResponse.json({ ok: true, message: 'Sent!', sentTo: app.appliedToEmail });
       } else {
+        await refundApplyQuota(session.user.id, fullUser.plan); // send failed — give the slot back
         return NextResponse.json({ error: 'Send failed', message: result.error }, { status: 500 });
       }
     }

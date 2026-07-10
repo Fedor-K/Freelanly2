@@ -122,7 +122,7 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
         <div className="card-head">
           <div className="row gap-3">
             <h3>Today&apos;s queue</h3>
-            <span className="chip chip-acid-soft"><span className="chip-dot live"></span>Auto-send active</span>
+            <span className="chip chip-acid-soft"><span className="chip-dot live"></span>Ready to send</span>
           </div>
           <div className="row gap-2">
             <span className="meta">{pendingCount} queued · {sentToday} sent today</span>
@@ -145,6 +145,12 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
               <div className="actions">
                 <button
                   className="btn btn-ghost btn-sm"
+                  onClick={() => handleAction(app.id, 'skip')}
+                  disabled={!!loading[app.id] || app.status === 'SENT'}
+                  title="Not interested — remove from queue"
+                >{loading[app.id] === 'skip' ? '…' : 'Skip'}</button>
+                <button
+                  className="btn btn-ghost btn-sm"
                   onClick={() => openEdit(app)}
                   disabled={!!loading[app.id]}
                 >Edit draft</button>
@@ -162,7 +168,7 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
               <div className="logo" style={{background: '#34D399'}}>+</div>
               <div>
                 <div className="title">+{pendingCount - items.length} more queued</div>
-                <div className="meta">will auto-send on schedule</div>
+                <div className="meta">waiting for your review</div>
               </div>
               <span></span>
               <div className="actions">

@@ -7,6 +7,7 @@ import { deriveCategorySlugs } from '@/lib/loop-routing';
 import { redirect } from 'next/navigation';
 import { ApplicationsTable } from '@/components/app/ApplicationsTable';
 import { WelcomeOnboarding } from '@/components/app/WelcomeOnboarding';
+import { DashboardQueue } from '@/components/app/DashboardQueue';
 import './dashboard-design.css';
 import './welcome-design.css';
 
@@ -81,6 +82,20 @@ export default async function DashboardOverviewPage() {
       where: { userId },
       select: { isActive: true, sentToday: true, dailyLimit: true, jobTitles: true, keywords: true },
     }),
+  ]);
+
+  // Today's ready-queue: matcher-prepared applications (status REVIEW, letter already written) from
+  // the last 24h (they expire to FAILED after 24h, so this window IS "today"). PRO reviews & sends
+  // them one click at a time; FREE sees a teaser with the count.
+  const queueWindow = new Date(now.getTime() - 24 * 3600000);
+  const [queueItems, queueCount] = await Promise.all([
+    prisma.autoApplication.findMany({
+      where: { userId, status: 'REVIEW', createdAt: { gte: queueWindow } },
+      orderBy: [{ matchScore: 'desc' }, { createdAt: 'desc' }],
+      take: 8,
+      select: { id: true, companyName: true, jobTitle: true, matchScore: true, status: true, createdAt: true, coverLetter: true, subject: true },
+    }),
+    prisma.autoApplication.count({ where: { userId, status: 'REVIEW', createdAt: { gte: queueWindow } } }),
   ]);
 
   // Dev-titled? — gates the GitHub prompt (a GitHub link is only meaningful evidence for tech roles).
@@ -341,6 +356,37 @@ export default async function DashboardOverviewPage() {
           )}
         </div>
       )}
+
+      {/* Today's ready-queue: PRO gets the full review-and-send list; FREE sees an honest teaser. */}
+      {queueCount > 0 && (user?.plan === 'PRO' ? (
+        <div className="mb-4">
+          <DashboardQueue
+            items={queueItems.map(q => ({
+              id: q.id, companyName: q.companyName, jobTitle: q.jobTitle, matchScore: q.matchScore,
+              status: q.status, createdAt: q.createdAt.toISOString(), coverLetter: q.coverLetter || '', subject: q.subject || '',
+            }))}
+            pendingCount={queueCount}
+            sentToday={sentToday}
+          />
+        </div>
+      ) : (
+        <div className="card mb-4">
+          <div className="card-head">
+            <div className="row gap-3">
+              <h3>Today&apos;s queue</h3>
+              <span className="chip chip-acid-soft">PRO</span>
+            </div>
+            <span className="meta">{queueCount} ready to send</span>
+          </div>
+          <div style={{ padding: '20px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ fontSize: '13.5px', color: 'var(--ink-2)', lineHeight: 1.5, maxWidth: '540px' }}>
+              <strong>{queueCount} application{queueCount === 1 ? '' : 's'} already written</strong> for your top matches —
+              personalized letter, ready to review. Upgrade to open the queue and send each one in one click.
+            </div>
+            <a href="/dashboard/billing?from=queue" className="btn btn-acid">Unlock the queue →</a>
+          </div>
+        </div>
+      ))}
 
       {/* Applications table — full width */}
       <div className="card mb-4">
