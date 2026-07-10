@@ -281,9 +281,9 @@ export default function FeaturesPage() {
         <ul>
           <li>Fresh posts arrive within hours of posting</li>
           <li>AI drafts a personalized letter in 2 seconds</li>
-          <li>Sent from your inbox at the right time</li>
-          <li>2 follow-ups, tracking, A/B testing — automatic</li>
-          <li>Runs forever, even on the weeks you don&apos;t</li>
+          <li>Sent from your own inbox in one click</li>
+          <li>2 follow-ups and reply tracking — automatic</li>
+          <li>Fresh matches keep coming, even on the weeks you don&apos;t look</li>
         </ul>
       </div>
     </div>

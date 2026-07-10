@@ -165,7 +165,7 @@ export default async function DashboardOverviewPage() {
         const r = await client.chat.completions.create({
           model, temperature: 0.3, max_tokens: 80,
           messages: [
-            { role: 'system', content: 'Write a 1-2 sentence summary of what kind of jobs we will apply to for this person. Be specific and encouraging. Address the user as "you". Example: "We\'ll apply to Senior React Developer and Full-Stack roles. Your 5 years with TypeScript and Node.js are a strong match for remote engineering positions."' },
+            { role: 'system', content: 'Write a 1-2 sentence summary of what kind of jobs this person will see matched. Be specific and encouraging. Address the user as "you". Example: "You\'ll see Senior React Developer and Full-Stack roles. Your 5 years with TypeScript and Node.js are a strong match for remote engineering positions."' },
             { role: 'user', content: `Titles: ${loopTitles.join(', ')}\nSkills: ${loopKeywords}\nProfile: ${JSON.stringify(profile || {}).slice(0, 500)}` },
           ],
         });
@@ -294,11 +294,11 @@ export default async function DashboardOverviewPage() {
               <span className="welcome-pulse"></span>
               <span>Starting &middot; setting up your loop</span>
             </div>
-            <h1>We&apos;re queueing your first wave of applications.</h1>
-            <p className="sub">Freelanly is scanning fresh postings against your profile and writing personal openers for the strongest matches. The first batch goes out within 30 minutes.</p>
+            <h1>We&apos;re lining up your first matches.</h1>
+            <p className="sub">Freelanly is scanning fresh postings against your profile and pre-writing applications for the strongest matches. Open Discovery in a few minutes — review and send in one click.</p>
             <div className="welcome-ai">
               <span className="ai-label">AI &middot; matched from your r&eacute;sum&eacute;</span>
-              {aiProfileSummary || `We'll apply to ${loopTitles.slice(0, 3).join(' and ') || 'matching'} roles based on your resume and experience.`}
+              {aiProfileSummary || `You'll see ${loopTitles.slice(0, 3).join(' and ') || 'matching'} roles matched to your resume and experience.`}
             </div>
           </header>
           <div className="welcome-stats">

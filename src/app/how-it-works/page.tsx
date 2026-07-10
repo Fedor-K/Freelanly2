@@ -175,8 +175,8 @@ export default function HowItWorksPage() {
             </div>
             <div style={{display:'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: '10px', background: 'rgba(199,249,74,0.04)'}}>
               <div>
-                <div style={{fontSize: '13px', color: 'var(--ink)', fontWeight: 500}}>Send mode</div>
-                <div style={{fontSize: '11.5px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", marginTop: '2px'}}>Auto · drafts go out at 09:00 your TZ</div>
+                <div style={{fontSize: '13px', color: 'var(--ink)', fontWeight: 500}}>Ready queue</div>
+                <div style={{fontSize: '11.5px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", marginTop: '2px'}}>Drafts prepared · you review &amp; send</div>
               </div>
               <div style={{width: '36px', height: '20px', background: 'var(--accent)', borderRadius: '999px', position: 'relative'}}><div style={{position:'absolute', right:'2px', top:'2px', width:'16px', height:'16px', background: '#000', borderRadius: '999px'}}></div></div>
             </div>

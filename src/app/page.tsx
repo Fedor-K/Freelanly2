@@ -59,7 +59,7 @@ export default async function LandingPage() {
         <span className="accent">Win</span> the project.
       </h1>
       <p className="hero-sub">
-        Freelanly catches new freelance gigs the moment they&apos;re posted on LinkedIn and <strong>{totalCompanies.toLocaleString()}+</strong> company sites — then sends a personalized AI application for you. <strong>500+ applications</strong> go out daily. <strong>5%</strong> get a reply.
+        Freelanly catches new freelance gigs the moment they&apos;re posted on LinkedIn and <strong>{totalCompanies.toLocaleString()}+</strong> company sites — then writes a personalized application for every strong match. <strong>You review it and hit Send</strong> — straight from your own Gmail.
       </p>
       <div className="hero-cta">
         <a href="/auth/signin" className="btn btn-primary btn-lg">
