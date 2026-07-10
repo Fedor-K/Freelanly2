@@ -102,6 +102,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [matchLabel, setMatchLabel] = useState<string | null>(null);
   const [matchTier, setMatchTier] = useState<'strong' | 'good' | 'weak'>('good');
   const [gated, setGated] = useState(false); // true = a send would be refused → don't offer the cover-letter path
+  const [ownInbox, setOwnInbox] = useState(false); // Gmail OAuth or SMTP already connected → never pitch "Connect my email" again
   const [suggestions, setSuggestions] = useState<{ slug: string; title: string; company: string }[]>([]);
   const [subject, setSubject] = useState('');
   const [sendTo, setSendTo] = useState('');
@@ -243,6 +244,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           setMatchLabel(data.matchLabel || null);
           setMatchTier(data.tier || 'good');
           setGated(!!data.gated);
+          setOwnInbox(!!data.ownInbox);
           setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
           setSendTo(data.to || '');
           // Strong/Good → skip the preview, write straight away; preview only for weak (steers to
@@ -501,6 +503,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       setMatchLabel(data.matchLabel || null);
       setMatchTier(data.tier || 'good');
       setGated(!!data.gated);
+      setOwnInbox(!!data.ownInbox);
       setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
       setSendTo(data.to || '');
       // Strong/Good → skip the preview, write the application straight away. The preview only earns its
@@ -915,6 +918,24 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         </div>
       );
 
+      // Inbox already connected (Gmail OAuth / SMTP): pitching "Connect my email" again was the loop
+      // that bounced users back through Google consent 2-3 times in a row. The real next action for
+      // them is writing the letter — it sends from their own address, which the gate allows.
+      const writeAnywayBlock = (
+        <div style={{ textAlign: 'center', margin: '4px 0 0', padding: '16px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '12px' }}>
+          <p style={{ fontSize: '15px', color: '#1A1A17', margin: '0 0 6px', lineHeight: 1.45, fontWeight: 700 }}>
+            Your email is connected ✓
+          </p>
+          <p style={{ fontSize: '13px', color: '#3F6212', margin: '0 0 14px', lineHeight: 1.55 }}>
+            We won’t send a below-bar match from our name — but you can. This application goes out from
+            your own address, where replies land best.
+          </p>
+          <button onClick={() => { track('FUNNEL_STEP', { step: 'weak_write_anyway', opportunityId: project.id }); generateCoverLetter(); }} style={{ display: 'inline-block', padding: '12px 22px', background: '#C7F94A', color: '#000', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>
+            ✍️ Write my application anyway →
+          </button>
+        </div>
+      );
+
       return (
         <div>
           <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>
@@ -952,8 +973,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 yourself, from your own email. Or try one of the better-fitting roles below.
               </p>
 
-              {/* SMTP self-send path comes FIRST — it's the primary action for a below-bar match. */}
-              <div style={{ marginBottom: '16px' }}>{connectEmailBlock}</div>
+              {/* Self-send path comes FIRST — it's the primary action for a below-bar match. Already-
+                  connected users get the write button, NOT another connect pitch (Google-consent loop). */}
+              <div style={{ marginBottom: '16px' }}>{ownInbox ? writeAnywayBlock : connectEmailBlock}</div>
 
               {suggestions.length > 0 && (
                 <div style={{ marginBottom: '16px' }}>
@@ -969,7 +991,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 </div>
               )}
             </>
-          ) : gated ? connectEmailBlock : (
+          ) : gated && !ownInbox ? connectEmailBlock : (
             <button
               onClick={generateCoverLetter}
               style={{ width: '100%', padding: '14px', background: '#C7F94A', color: '#000', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}

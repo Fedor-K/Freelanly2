@@ -442,7 +442,11 @@ export async function POST(request: NextRequest) {
         // gated = a real SEND would be refused (hard NO + gate on). The card uses this to NOT offer
         // "Apply here anyway" (which would only generate a letter and then be blocked). A weak-but-
         // sendable verdict (decision !== NO) leaves gated=false, so "Apply here anyway" still works.
-        gated: enforceGate && pairing.decision === 'NO',
+        // Own-inbox users are NEVER gated — the send gate below waves them through, so telling the
+        // client "gated" here only produced the connect-your-email wall for already-connected users
+        // (who then looped through Google consent again and again).
+        gated: enforceGate && pairing.decision === 'NO' && !ownInbox,
+        ownInbox,
         to: opportunity.applyEmail,
       });
     }

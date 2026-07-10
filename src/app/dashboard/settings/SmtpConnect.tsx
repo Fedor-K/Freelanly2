@@ -113,6 +113,21 @@ export function SmtpConnectForm({ initialEmail, onClose, onConnected }: { initia
   const [port, setPort] = useState(587);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err' | 'info'; text: string } | null>(null);
+  // Guard: if an inbox is ALREADY connected (Gmail OAuth or verified SMTP), say so instead of
+  // rendering the connect form — every surface that opens this form blindly (feed walls, project
+  // walls) was re-sending connected users through Google consent in a loop.
+  const [alreadyConnected, setAlreadyConnected] = useState<string | null>(null);
+  useEffect(() => {
+    fetch('/api/user/settings', { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        const g = d?.integrations?.gmail;
+        const s = d?.integrations?.smtp;
+        if (g?.verified) setAlreadyConnected(g.email || 'your Gmail');
+        else if (s?.verified) setAlreadyConnected(s.email || 'your email');
+      })
+      .catch(() => {});
+  }, []);
   const [showManual, setShowManual] = useState(false); // app-password fallback, hidden behind the 1-click Google path
 
   // One-click Gmail OAuth (gmail.send) — the primary connect path. Full-page redirect; the callback
@@ -185,6 +200,26 @@ export function SmtpConnectForm({ initialEmail, onClose, onConnected }: { initia
       setMsg({ type: 'err', text: 'Network error — try again.' });
     }
     setBusy(false);
+  }
+
+  // Already connected → say so and stop. Re-showing the connect UI here is what looped users back
+  // through Google's consent screen ("I connected — why is it asking again?").
+  if (alreadyConnected) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '16px', border: '1px solid var(--line, #E4E1D9)', borderRadius: '12px', background: 'var(--bg-2, #FBFAF6)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: '14px', fontWeight: 600 }}>✓ Your email is already connected</div>
+          {onClose && <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', fontSize: '15px' }}>✕</button>}
+        </div>
+        <div style={{ fontSize: '13px', color: 'var(--ink-3, #6B6862)', lineHeight: 1.55 }}>
+          Applications send from <b>{alreadyConnected}</b> — nothing else to set up. Just write and send your application.
+        </div>
+        {onClose && <button className="btn btn-acid btn-sm" style={{ alignSelf: 'flex-start', background: '#C7F94A', color: '#000', border: 'none', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }} onClick={onClose}>Got it</button>}
+        <button onClick={() => setAlreadyConnected(null)} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: 'var(--ink-3, #8A8780)', textDecoration: 'underline', cursor: 'pointer', fontSize: '12.5px', padding: 0 }}>
+          Connect a different email instead
+        </button>
+      </div>
+    );
   }
 
   // 16px inputs, NOT 13px: iOS Safari auto-zooms the page when a focused input's font-size is <16px,
