@@ -287,8 +287,8 @@ export default async function DashboardOverviewPage() {
         </div>
         <div className="kpi">
           <div className="kpi-label">Daily limit</div>
-          <div className="kpi-value tabular">{Math.min(sentToday, loop?.dailyLimit || 20)} <span className="unit">/ {loop?.dailyLimit || 20}</span></div>
-          <div className="kpi-delta up">{Math.max(0, (loop?.dailyLimit || 20) - sentToday)} remaining</div>
+          <div className="kpi-value tabular">{Math.min(sentToday, 20)} <span className="unit">/ 20</span></div>
+          <div className="kpi-delta up">{Math.max(0, 20 - sentToday)} remaining</div>
         </div>
       </div>
 
@@ -322,25 +322,25 @@ export default async function DashboardOverviewPage() {
           </header>
           <div className="welcome-stats">
             <div className="welcome-stat">
-              <div className="label">Matches found today</div>
-              <div className="value">{matchingCount || '50+'}</div>
+              <div className="label">New opportunities today</div>
+              <div className="value">{matchingCount || '—'}</div>
               <div className="hint"><span className="live">scanning &middot; live</span></div>
             </div>
             <div className="welcome-stat">
               <div className="label">Applications / day</div>
-              <div className="value">{loop?.dailyLimit || 20}</div>
-              <div className="hint">Free plan &middot; max for your tier</div>
+              <div className="value">20</div>
+              <div className="hint">daily cap &middot; all accounts</div>
             </div>
             <div className="welcome-stat">
-              <div className="label">Avg reply rate</div>
-              <div className="value">~6<span className="u">%</span></div>
-              <div className="hint">Last 30 days across platform</div>
+              <div className="label">Replies land best from</div>
+              <div className="value">Gmail</div>
+              <div className="hint">connect yours in one click</div>
             </div>
           </div>
           <div className="welcome-foot">
             <div className="note">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-              <span><b>First applications within 30 minutes.</b> Most recruiters respond within 1&ndash;3 days. We&apos;ll route every reply to your inbox so nothing slips.</span>
+              <span><b>First drafts ready within 30 minutes.</b> Review and send in one click — we&apos;ll route every reply to your inbox so nothing slips.</span>
             </div>
             {!user?.telegramChatId && (
               <a className="btn-tg" href={`https://t.me/FLalarmbot?start=direct_${userId.slice(0, 12)}`} target="_blank" rel="noopener noreferrer">
@@ -404,7 +404,7 @@ export default async function DashboardOverviewPage() {
         <ApplicationsTable
           rows={appRows}
           sentToday={loop?.sentToday || 0}
-          dailyLimit={loop?.dailyLimit || 20}
+          dailyLimit={20}
           isPro={user?.plan === 'PRO'}
         />
       </div>

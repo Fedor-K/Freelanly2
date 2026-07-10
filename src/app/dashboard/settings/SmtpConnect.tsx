@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 
 // SMTP connect form: saves via /api/user/smtp then verifies via /api/user/smtp/test (which sets
-// verified=true). Once verified, the user sends applications from their own address, unlimited, and
+// verified=true). Once verified, the user sends applications from their own address (any match, same 20/day cap), and
 // any match (bypasses the Strong-only Postal gate). Auto-fills host/port from the email domain.
 type Preset = { label: string; host: string; port: number; appPwUrl: string; twoFaUrl: string; steps: string[]; note?: string };
 
@@ -94,7 +94,7 @@ export function SmtpConnected({ email }: { email: string }) {
       <div style={{ width: 40, height: 40, borderRadius: 10, background: '#EA4335', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, flexShrink: 0 }}>G</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: '14px', fontWeight: 600 }}>SMTP · {email}</div>
-        <div style={{ fontSize: '12.5px', color: 'var(--ink-4, #8A8780)' }}>Sending from this address · unlimited</div>
+        <div style={{ fontSize: '12.5px', color: 'var(--ink-4, #8A8780)' }}>Sending from this address · any match, better replies</div>
       </div>
       <span className="chip chip-good" style={{ flexShrink: 0 }}><span className="chip-dot live"></span>Active</span>
       <button className="btn btn-soft btn-sm" style={{ flexShrink: 0 }} onClick={disconnect} disabled={busy}>{busy ? '…' : 'Disconnect'}</button>
@@ -168,7 +168,7 @@ export function SmtpConnectForm({ initialEmail, onClose, onConnected }: { initia
       const test = await fetch('/api/user/smtp/test', { method: 'POST' });
       const td = await test.json().catch(() => ({}));
       if (test.ok && td.success !== false) {
-        setMsg({ type: 'ok', text: '✓ Connected! You can now send from your own email, unlimited.' });
+        setMsg({ type: 'ok', text: '✓ Connected! Your applications now send from your own email — any match, better replies.' });
         onConnected?.();
         setTimeout(() => window.location.reload(), 1200);
       } else {
@@ -203,7 +203,7 @@ export function SmtpConnectForm({ initialEmail, onClose, onConnected }: { initia
         Sign in with Google to send
       </button>
       <div style={{ fontSize: '12px', color: 'var(--ink-4, #8A8780)', lineHeight: 1.45 }}>
-        Sends from your own Gmail — best delivery, no daily limit. One click, no app password.
+        Sends from your own Gmail — best delivery, any match. One click, no app password.
       </div>
 
       {/* SECONDARY: app-password fallback (other providers, or if you prefer manual SMTP) */}
@@ -256,7 +256,7 @@ export function SmtpConnect({ initialEmail }: { initialEmail?: string }) {
         <div className="ico" style={{ background: 'var(--bg-2)', color: 'var(--ink-3)', border: '1px solid var(--line)' }}>✉</div>
         <div>
           <div className="name">Email (SMTP)</div>
-          <div className="meta">Send applications from your own address — unlimited, any match</div>
+          <div className="meta">Send applications from your own address — any match, better replies</div>
         </div>
         <button className="btn btn-acid btn-sm" onClick={() => setOpen(true)}>Connect</button>
       </div>

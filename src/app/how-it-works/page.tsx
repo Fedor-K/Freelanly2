@@ -63,11 +63,11 @@ export default function HowItWorksPage() {
       <div className="step-copy reveal">
         <div className="step-num"><span className="step-bar"></span> Step 01 — Discovery</div>
         <h2>Catch <span className="accent">hiring posts</span> before they hit the boards.</h2>
-        <p>Every 3 hours, Freelanly scrapes LinkedIn for fresh &quot;we&apos;re hiring a...&quot; posts and crawls 3,400+ company career pages. We surface jobs <strong>18–48 hours before</strong> they reach Indeed, Upwork, or LinkedIn Jobs.</p>
+        <p>Every 3 hours, Freelanly scrapes LinkedIn for fresh &quot;we&apos;re hiring a...&quot; posts and crawls company career pages. Fresh roles land in your feed within hours — often before they hit the big boards.</p>
         <ul className="bullet-list">
-          <li><Chk /> <span><strong>3,400+ company pages</strong> crawled every 3 hours</span></li>
+          <li><Chk /> <span><strong>Company career pages</strong> crawled every few hours</span></li>
           <li><Chk /> <span><strong>LinkedIn signal extraction</strong> — hiring manager posts, not just &quot;Open to work&quot;</span></li>
-          <li><Chk /> <span><strong>Direct contact</strong> — email or LinkedIn of the actual hiring manager when available</span></li>
+          <li><Chk /> <span><strong>Direct contact</strong> — the application email from the post, when one is listed</span></li>
         </ul>
       </div>
       <div className="step-visual reveal">
@@ -170,7 +170,7 @@ export default function HowItWorksPage() {
               </div>
               <div style={{border: '1px solid var(--line-2)', padding: '14px', borderRadius: '10px'}}>
                 <div style={{fontFamily: "'Geist Mono', monospace", fontSize: '10px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: '6px'}}>Daily cap</div>
-                <div style={{fontSize: '22px', fontWeight: 600, color: 'var(--accent)', letterSpacing: '-0.02em'}}>25<span style={{fontSize: '13px', color: 'var(--ink-3)', fontWeight: 400}}> apps</span></div>
+                <div style={{fontSize: '22px', fontWeight: 600, color: 'var(--accent)', letterSpacing: '-0.02em'}}>20<span style={{fontSize: '13px', color: 'var(--ink-3)', fontWeight: 400}}> apps</span></div>
               </div>
             </div>
             <div style={{display:'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: '10px', background: 'rgba(199,249,74,0.04)'}}>
@@ -194,10 +194,10 @@ export default function HowItWorksPage() {
       <div className="step-copy reveal">
         <div className="step-num"><span className="step-bar"></span> Step 03 — AI cover letter</div>
         <h2>A letter that sounds like <span className="accent">you</span>,<br/>not a template.</h2>
-        <p>The AI reads the job post, scrapes public info on the company and (when possible) the hiring manager, then writes a 90-word opener that references specifics from <strong>your portfolio</strong> and <strong>their work</strong>. No &quot;I hope this email finds you well.&quot; No buzzwords.</p>
+        <p>The AI reads the full job post and writes a short application that references specifics from <strong>your real background</strong> — then a second AI reviewer critiques it against the job&apos;s requirements before you ever see it. No &quot;I hope this email finds you well.&quot; No buzzwords.</p>
         <ul className="bullet-list">
           <li><Chk /> <span><strong>Hooks from real specifics</strong> — they mentioned X? Your letter references X.</span></li>
-          <li><Chk /> <span><strong>Learns your voice</strong> from 3 sample emails on setup</span></li>
+          <li><Chk /> <span><strong>Reviewer pass</strong> — a second AI checks every draft against the job&apos;s requirements</span></li>
           <li><Chk /> <span><strong>Drafted in &lt;2 seconds</strong>, but always editable</span></li>
         </ul>
       </div>
@@ -209,8 +209,7 @@ export default function HowItWorksPage() {
           </div>
           <div className="letter-tabs">
             <span className="letter-tab active">Draft</span>
-            <span className="letter-tab">Variant B</span>
-            <span className="letter-tab">Variant C</span>
+            <span className="letter-tab">Reviewed &#10003;</span>
             <span className="letter-tab" style={{marginLeft: 'auto'}}>+ Regenerate</span>
           </div>
           <div className="letter-body">
@@ -229,7 +228,7 @@ export default function HowItWorksPage() {
             <span className="meta-pill">&#10003; References job specifics</span>
             <span className="meta-pill">&#10003; Portfolio links</span>
             <span className="meta-pill">&#10003; Sounds human (97%)</span>
-            <span className="meta-pill" style={{color: 'var(--accent)', borderColor: 'rgba(199,249,74,0.3)'}}>&#8627; 11.2% reply rate</span>
+            <span className="meta-pill" style={{color: 'var(--accent)', borderColor: 'rgba(199,249,74,0.3)'}}>&#10003; Covers 7/9 requirements</span>
           </div>
         </div>
       </div>
@@ -244,9 +243,9 @@ export default function HowItWorksPage() {
       <div className="step-copy reveal">
         <div className="step-num"><span className="step-bar"></span> Step 04 — Send &amp; inbox</div>
         <h2>From <span className="accent">your</span> inbox.<br/>Tracked end-to-end.</h2>
-        <p>Connect Gmail or Outlook and Freelanly sends as you, not from a bulk-mail domain. Every send is rate-limited to look human (max 25/day, throttled across business hours, randomized timing). Replies land back in a unified inbox.</p>
+        <p>Connect your Gmail in one click and Freelanly sends as you, not from a bulk-mail domain. Every send is rate-limited to look human (max 20/day, sent inside your business hours). Replies land back in a unified inbox.</p>
         <ul className="bullet-list">
-          <li><Chk /> <span><strong>Sends from your email</strong> via OAuth — Gmail, Outlook, Fastmail, custom SMTP</span></li>
+          <li><Chk /> <span><strong>Sends from your email</strong> — Gmail in one click (OAuth), or any inbox via SMTP app password</span></li>
           <li><Chk /> <span><strong>Human-cadence throttling</strong> protects your sender reputation</span></li>
           <li><Chk /> <span><strong>Unified inbox</strong> — replies route back, labeled by job &amp; status</span></li>
         </ul>
@@ -317,12 +316,12 @@ export default function HowItWorksPage() {
     <div className="step-grid">
       <div className="step-copy reveal">
         <div className="step-num"><span className="step-bar"></span> Step 05 — Follow-up &amp; tracking</div>
-        <h2><span className="accent">80%</span> of replies come<br/>from the follow-up.</h2>
-        <p>If they go quiet for 5 days, Freelanly sends one short, polite nudge. If they go quiet again, one more. Then it stops. You see open, reply, and interview rates per template — so you can double down on what&apos;s working.</p>
+        <h2>Many replies come<br/>from the <span className="accent">follow-up</span>.</h2>
+        <p>If they go quiet for 5 days, Freelanly sends one short, polite nudge. If they go quiet again, one more. Then it stops. Opens and replies are tracked per application in your pipeline.</p>
         <ul className="bullet-list">
           <li><Chk /> <span><strong>2 follow-ups max</strong>, then stops automatically</span></li>
           <li><Chk /> <span><strong>Pauses the moment they reply</strong> — no awkward double-sends</span></li>
-          <li><Chk /> <span><strong>Per-template analytics</strong> — see which openers earn replies, which don&apos;t</span></li>
+          <li><Chk /> <span><strong>Open &amp; reply tracking</strong> on every application in your pipeline</span></li>
         </ul>
       </div>
       <div className="step-visual reveal">

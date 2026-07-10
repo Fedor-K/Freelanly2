@@ -12,10 +12,10 @@ interface PublicStats {
 
 export function TrustPanel() {
   const [stats, setStats] = useState<PublicStats>({
-    signingUpNow: 2,
-    totalFreelancers: 10000,
-    projectsToday: 500,
-    replyRate: 4.8,
+    signingUpNow: 1,
+    totalFreelancers: 6000,
+    projectsToday: 300,
+    replyRate: 2.0,
     medianTimeToSpot: '~15 min',
   });
 
@@ -79,12 +79,12 @@ export function TrustPanel() {
               MR
             </div>
             <div>
-              <div className="text-[13.5px] font-medium">Maya R.</div>
-              <div className="text-[12px] text-[#9C9EA2]">Brand designer · NYC</div>
+              <div className="text-[13.5px] font-medium">Fresh-source discovery</div>
+              <div className="text-[12px] text-[#9C9EA2]">LinkedIn posts · career pages</div>
             </div>
           </div>
           <div className="text-[13.5px] leading-relaxed">
-            &quot;Signed <span className="px-1 rounded bg-[rgba(199,249,74,0.12)] text-[#C7F94A]">two projects</span> in my first month. Freelanly catches gigs in DMs and LinkedIn posts I&apos;d never find scrolling.&quot;
+            Freelanly catches hiring posts on LinkedIn and career pages I&apos;d never find scrolling — and the cover letter is already written when I open a match.
           </div>
         </div>
 
@@ -97,12 +97,12 @@ export function TrustPanel() {
               JK
             </div>
             <div>
-              <div className="text-[13.5px] font-medium">Jakub K.</div>
-              <div className="text-[12px] text-[#9C9EA2]">React contractor · Warsaw</div>
+              <div className="text-[13.5px] font-medium">Send from your Gmail</div>
+              <div className="text-[12px] text-[#9C9EA2]">one-click connect</div>
             </div>
           </div>
           <div className="text-[13.5px] leading-relaxed">
-            &quot;Booked a call within <span className="px-1 rounded bg-[rgba(199,249,74,0.12)] text-[#C7F94A]">12 minutes</span> of the post going live. Replies feel personal because they are.&quot;
+            Applications send from your own Gmail — recruiters reply to a real inbox, and it shows.
           </div>
         </div>
       </div>

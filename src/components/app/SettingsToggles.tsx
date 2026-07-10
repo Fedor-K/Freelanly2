@@ -86,12 +86,8 @@ export function NotificationToggles() {
         <div className="ctrl"><Toggle initial={true} onToggle={v => saveNotif('newReply', v)} /><span style={{fontSize: '13px'}}>Email notification</span></div>
       </div>
       <div className="field-row">
-        <div className="lbl">Daily digest</div>
-        <div className="ctrl"><Toggle initial={true} onToggle={v => saveNotif('dailyDigest', v)} /><span style={{fontSize: '13px'}}>Email at 09:00</span></div>
-      </div>
-      <div className="field-row">
-        <div className="lbl">Weekly insights</div>
-        <div className="ctrl"><Toggle initial={true} onToggle={v => saveNotif('weeklyInsights', v)} /><span style={{fontSize: '13px'}}>Performance + template suggestions</span></div>
+        <div className="lbl">Daily recap</div>
+        <div className="ctrl"><Toggle initial={true} onToggle={v => saveNotif('dailyDigest', v)} /><span style={{fontSize: '13px'}}>Email on days you send applications</span></div>
       </div>
     </>
   );

@@ -60,7 +60,12 @@ export async function POST(request: NextRequest) {
 
       // === DAILY DIGEST ===
       try {
-        const digest = dailyRecapEmail({ userName: user.name || 'there', sent: sentYesterday, opened: openedYesterday, replies: repliedYesterday, weekSent: sentYesterday, weekReplies: repliedYesterday, replyRate: sentYesterday > 0 ? (repliedYesterday / sentYesterday * 100).toFixed(1) : '0', pendingReplies: [] });
+        // real 7-day counts (was passing yesterday's numbers as "This week" — audit fix)
+        const [wkSent, wkReplied] = await Promise.all([
+          prisma.autoApplication.count({ where: { userId: user.id, sentAt: { gte: weekAgo } } }),
+          prisma.autoApplication.count({ where: { userId: user.id, status: { in: ['REPLIED', 'INTERVIEW', 'OFFER'] }, repliedAt: { gte: weekAgo } } }),
+        ]);
+        const digest = dailyRecapEmail({ userName: user.name || 'there', sent: sentYesterday, opened: openedYesterday, replies: repliedYesterday, weekSent: wkSent, weekReplies: wkReplied, replyRate: wkSent > 0 ? (wkReplied / wkSent * 100).toFixed(1) : '0', pendingReplies: [] });
         await sendEmail({ to: user.email, subject: digest.subject, html: digest.html, text: digest.text });
         dailySent++;
       } catch (e) {

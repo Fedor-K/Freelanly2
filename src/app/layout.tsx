@@ -97,14 +97,8 @@ const websiteJsonLd = {
   publisher: {
     '@id': `${siteConfig.url}/#organization`,
   },
-  potentialAction: {
-    '@type': 'SearchAction',
-    target: {
-      '@type': 'EntryPoint',
-      urlTemplate: `${siteConfig.url}/jobs?q={search_term_string}`,
-    },
-    'query-input': 'required name=search_term_string',
-  },
+  // SearchAction removed: /jobs 301s to /auth/signin and drops the query — a sitelinks searchbox
+  // pointing there was functionally broken.
 };
 
 const organizationJsonLd = {

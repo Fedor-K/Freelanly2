@@ -461,8 +461,8 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                     <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', padding: '16px 20px', margin: '4px 0', background: 'linear-gradient(90deg,#F2FADD,#EAF7C0)', borderTop: '1px solid #D8EEAA', borderBottom: '1px solid #D8EEAA' }}>
                       <span style={{ fontSize: '22px' }}>✉️</span>
                       <div style={{ flex: 1, minWidth: '220px' }}>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#2E3A00' }}>{strongCount > 0 ? 'To apply to the roles below, send from your own email' : 'Send from your own email — unlimited'}</div>
-                        <div style={{ fontSize: '12.5px', color: '#5A6B1E', lineHeight: 1.5 }}>We send only your strongest matches from Freelanly. Connect your inbox to apply to these too — from your address, no daily cap, better replies.</div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#2E3A00' }}>{strongCount > 0 ? 'To apply to the roles below, send from your own email' : 'Send from your own email — any match'}</div>
+                        <div style={{ fontSize: '12.5px', color: '#5A6B1E', lineHeight: 1.5 }}>We send only your strongest matches from Freelanly. Connect your inbox to apply to these too — from your address, better replies.</div>
                       </div>
                       <button className="btn btn-acid btn-sm" onClick={() => { track('FUNNEL_STEP', { step: 'smtp_banner_click', surface: 'feed_divider' }); setSmtpModal(true); }}>Connect my email →</button>
                     </div>
@@ -507,12 +507,12 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
               <div style={{padding: '40px 28px', textAlign: 'center'}}>
                 <div style={{fontSize: '24px', marginBottom: '10px'}}>✉️</div>
                 <div style={{fontSize: '15px', fontWeight: 700, marginBottom: '10px'}}>
-                  {draftBlocked.reason === 'limit_reached' ? 'Daily free limit reached' : 'Send this yourself — no limits'}
+                  {draftBlocked.reason === 'limit_reached' ? 'Daily free limit reached' : 'Send this yourself — from your own email'}
                 </div>
                 <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 22px'}}>
                   {draftBlocked.reason === 'limit_reached'
-                    ? (draftBlocked.message || 'You’ve hit the free daily cap. Connect your own email to keep applying — anywhere, with no limits.')
-                    : <>Connect your email and apply to <b>anything, anywhere — with zero limits</b>, sent from your own address. We write every cover letter for you and keep dropping fresh projects into your feed.</>}
+                    ? (draftBlocked.message || 'You’ve hit today’s 20-application cap (it protects deliverability for everyone). It resets tomorrow.')
+                    : <>Connect your email and apply to <b>any match, anywhere</b> — sent from your own address, where replies land best. We write every cover letter for you and keep dropping fresh projects into your feed.</>}
                 </div>
                 <button className="btn btn-acid btn-sm" onClick={() => { track('FUNNEL_STEP', { step: 'smtp_prompt_click', surface: 'feed_gated', reason: draftBlocked.reason }); setSmtpModal(true); }} style={{marginRight: '8px'}}>Connect my email →</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => setDraftItem(null)}>Not now</button>
@@ -528,7 +528,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                 </div>
                 <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 22px'}}>
                   {draftBlocked.reason === 'poor_match'
-                    ? <>So we won’t put your name forward here — recruiters bin mismatches. But connect your email and apply to <b>anything, anywhere — with zero limits</b>; we still write every cover letter for you and keep dropping fresh projects into your feed.</>
+                    ? <>So we won’t put your name forward here — recruiters bin mismatches. But connect your email and apply to <b>any match, anywhere</b> from your own address; we still write every cover letter for you and keep dropping fresh projects into your feed.</>
                     : (draftBlocked.message || 'Applying to this role is not available right now.')}
                 </div>
                 {draftBlocked.reason === 'poor_match' && (

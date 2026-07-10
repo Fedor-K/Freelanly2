@@ -37,6 +37,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error('[PublicStats] Error:', error);
-    return NextResponse.json({ signingUpNow: 2, totalFreelancers: 10000, projectsToday: 500, applicationsToday: 1000, totalCompanies: 3500, replyRate: 4.8, totalReplies: 100 });
+    return NextResponse.json({ signingUpNow: 1, totalFreelancers: 6000, projectsToday: 300, applicationsToday: 40, totalCompanies: 3500, replyRate: 2.0, totalReplies: 100 });
   }
 }

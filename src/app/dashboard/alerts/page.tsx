@@ -31,8 +31,11 @@ export default async function AlertsPage() {
         <div className="mb-8">
           <h1 className="text-2xl font-bold">Job Alerts</h1>
           <p className="text-gray-600 mt-1">
-            Get notified when new jobs match your criteria
+            Saved search criteria for your matches
           </p>
+          <div className="mt-3 px-4 py-3 rounded-lg border border-amber-200 bg-amber-50 text-sm text-amber-800">
+            Email alerts are currently <strong>paused</strong> — your saved criteria still shape your Discovery feed, but no alert emails are being sent right now.
+          </div>
         </div>
 
         <AlertsList

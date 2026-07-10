@@ -115,7 +115,7 @@ export function OnboardingClient({ firstName, hasResume, hasLinkedin }: { firstN
       <main className="onboard-main">
         <div className="onboard-eyebrow">Step {hasResume ? '2' : '1'} of 3</div>
         <h1 className="onboard-h">What kind of work are you looking for?</h1>
-        <p className="onboard-sub">Pick a starting profile. Freelanly will tune the discovery feed and pre-load 4–5 templates that match. You can adjust anything later.</p>
+        <p className="onboard-sub">Pick a starting profile — it helps us understand what you do. You can adjust anything later.</p>
 
         <div className="role-grid">
           {ROLES.map(role => (

@@ -404,7 +404,7 @@ export default async function DiscoveryPage() {
       <div className="page-header">
         <div className="page-title">
           <h1>Discovery <span style={{fontSize: '16px', color: 'var(--ink-4)', fontWeight: 400, fontFamily: "'Geist Mono', monospace"}}>· {totalToday} new today</span></h1>
-          <p>Live feed across LinkedIn posts, career pages, and freelance boards. Updated every 3 hours.</p>
+          <p>Live feed across LinkedIn hiring posts and company career pages. Updated every 3 hours.</p>
         </div>
       </div>
 

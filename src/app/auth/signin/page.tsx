@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Sign Up — Freelanly',
-  description: 'AI finds matching gigs and writes every application in your voice — you review and send in one click.',
+  description: 'AI finds matching gigs and writes a personalized application for each — you review and send in one click.',
 };
 
 interface SignInPageProps {
@@ -72,7 +72,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
   // Personalized headline based on ref source
   let headline = 'Fresh gigs. Applications\nalready written.';
-  let subtitle = "Takes 60 seconds. We find matching projects daily and write every application in your voice — you just hit Send.";
+  let subtitle = "Takes 60 seconds. We find matching projects daily and pre-write every application — you just hit Send.";
 
   if (params.ref === 'jobs' || params.ref === 'freelance') {
     const category = params.category;
@@ -90,20 +90,20 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
     if (label && count > 0) {
       headline = `${count}+ ${label} gigs\nfound this week.`;
-      subtitle = `Sign up and we'll match you to ${label.toLowerCase()} roles — each with a personalized cover letter written in your voice, ready to send.`;
+      subtitle = `Sign up and we'll match you to ${label.toLowerCase()} roles — each with a personalized cover letter already written, ready to send.`;
     } else if (count > 0) {
       headline = `${count}+ fresh gigs\nfound today.`;
-      subtitle = "Sign up and we'll match you to the right roles — each with a personalized cover letter written in your voice, ready to send.";
+      subtitle = "Sign up and we'll match you to the right roles — each with a personalized cover letter already written, ready to send.";
     }
   } else if (params.ref === 'country') {
     const country = params.country;
     if (country) {
       headline = `Remote jobs in\n${country.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}.`;
-      subtitle = "Sign up to get matched to remote roles — each with a personalized cover letter written in your voice, ready to send.";
+      subtitle = "Sign up to get matched to remote roles — each with a personalized cover letter already written, ready to send.";
     }
   } else if (params.ref === 'job') {
     headline = "This job caught\nyour eye?";
-    subtitle = "Sign up and we'll write your cover letter for this role — plus surface 30+ similar gigs every day, ready to apply.";
+    subtitle = "Sign up and we'll write your cover letter for this role — plus keep fresh matched gigs landing in your feed daily.";
   }
 
   return (
@@ -143,7 +143,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             By signing up you agree to our{' '}
             <a href="/terms">Terms</a> and{' '}
             <a href="/privacy">Privacy Policy</a>.<br/>
-            We don&apos;t share your résumé with employers — only the applications you approve.
+            Your profile is shared only with employers whose open roles match your background.
           </div>
         </div>
       </div>

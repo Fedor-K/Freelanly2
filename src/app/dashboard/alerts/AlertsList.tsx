@@ -524,7 +524,7 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
             No job alerts yet
           </h2>
           <p className="text-gray-600 mb-6">
-            Create an alert to get notified about new jobs matching your criteria
+            Save your criteria — they help shape your Discovery feed (email alerts are currently paused)
           </p>
           <button
             onClick={() => setIsCreating(true)}
@@ -590,7 +590,7 @@ export function AlertsList({ initialAlerts, categories, countries, levels }: Ale
 
                     <div className="flex items-center gap-3 mt-2">
                       <span className="text-sm text-gray-500">
-                        {alert.frequency.toLowerCase()} emails
+                        {alert.frequency.toLowerCase()} · emails paused
                       </span>
                       <span
                         className={`px-2 py-0.5 text-xs rounded ${

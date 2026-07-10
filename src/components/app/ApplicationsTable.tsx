@@ -264,7 +264,7 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 20, isPro 
                       }</span>
                       {['PENDING', 'REVIEW', 'SENDING'].includes(app.status) && (
                         <div style={{ fontSize: '10.5px', color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace", marginTop: '2px' }}>
-                          {limitReached ? 'tomorrow' : 'sending soon'}
+                          awaiting your review
                         </div>
                       )}
                     </td>
@@ -443,7 +443,7 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 20, isPro 
               Daily limit reached ({sentToday}/{dailyLimit})
             </div>
             <div style={{ fontSize: '13px', color: '#A16207', marginTop: '2px' }}>
-              More matches found — upgrade to send unlimited applications today
+              It resets tomorrow — PRO gets a morning queue of pre-written applications
             </div>
           </div>
           <a href="/pricing" style={{

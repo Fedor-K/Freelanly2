@@ -4,8 +4,8 @@ import '../marketing-styles.css';
 import './features-design.css';
 
 export const metadata: Metadata = {
-  title: 'Features — Freelanly · 24 tools across discovery, outreach, tracking',
-  description: 'Every feature in Freelanly: real-time gig discovery, AI personalization, A/B-tested templates, pipeline tracking, inbox routing, analytics, and more.',
+  title: 'Features — Freelanly · discovery, AI applications, tracking',
+  description: 'Every feature in Freelanly: real-time gig discovery, AI-written applications with a reviewer pass, tailored CVs, pipeline tracking, inbox routing, and more.',
   alternates: { canonical: `${siteConfig.url}/features` },
 };
 
@@ -72,22 +72,22 @@ export default function FeaturesPage() {
         <div className="icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>
         </div>
-        <h3>3,400+ career-page monitors</h3>
-        <p>We watch Greenhouse, Lever, Ashby, Workable, and custom career pages — and ping you the moment a new role appears.</p>
+        <h3>Career-page monitoring</h3>
+        <p>We watch LinkedIn hiring posts and company career pages — new roles land in your feed within hours of being posted.</p>
       </div>
       <div className="feat-card reveal">
         <div className="icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
         </div>
-        <h3>Real-time signal mining</h3>
-        <p>Detects funding announcements, team-page changes, and new careers-page posts — leading indicators that a job post is coming.</p>
+        <h3>Requirements coverage check</h3>
+        <p>Every application is checked against the job&apos;s actual requirements before you send — you see &quot;Covers 7 of 9 requirements&quot; right on the review screen.</p>
       </div>
       <div className="feat-card reveal">
         <div className="icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
         </div>
-        <h3>Contact enrichment</h3>
-        <p>Surfaces the actual hiring manager&apos;s email or LinkedIn — not a generic <code style={{fontFamily:"'Geist Mono',monospace", fontSize: '12px', color: 'var(--accent)'}}>careers@</code> address. No ATS black holes.</p>
+        <h3>Direct contact from the post</h3>
+        <p>When the hiring post lists a real application email, we surface it — your application lands in the inbox the poster actually reads.</p>
       </div>
       <div className="feat-card reveal">
         <div className="icon">
@@ -138,8 +138,8 @@ export default function FeaturesPage() {
         <div className="icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
         </div>
-        <h3>Voice training</h3>
-        <p>Paste 3 of your real emails on setup. The AI matches your sentence length, vocabulary, and &quot;this is how I sign off.&quot;</p>
+        <h3>Reviewer pass on every letter</h3>
+        <p>Two AI passes, not one: a drafter writes your application, then a second reviewer critiques it against the job&apos;s requirements and your real background — before you ever see it.</p>
       </div>
       <div className="feat-card reveal">
         <div className="icon">
@@ -197,8 +197,8 @@ export default function FeaturesPage() {
         <div className="icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
         </div>
-        <h3>Template A/B testing</h3>
-        <p>Run two cover-letter variants on the same role type. Freelanly picks the winner once one has enough data, kills the other.</p>
+        <h3>Tailored CV per application</h3>
+        <p>PRO rebuilds your r&eacute;sum&eacute; for each role — summary angled to the job, most relevant skills first. Same facts, sharper story, attached automatically.</p>
       </div>
       <div className="feat-card reveal">
         <div className="icon">
@@ -235,8 +235,8 @@ export default function FeaturesPage() {
         <div className="icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
         </div>
-        <h3>Calendar booking</h3>
-        <p>Embed your Calendly / Cal.com link directly in cover letters. Replies that say &quot;yes&quot; go straight to a booked call.</p>
+        <h3>Booking link in every letter</h3>
+        <p>Add your Calendly / Cal.com link once — we include it in your applications so interested recruiters can grab time with you directly.</p>
       </div>
       <div className="feat-card reveal">
         <div className="icon">

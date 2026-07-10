@@ -636,7 +636,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             Apply now — free
           </button>
           <div style={{ marginTop: '16px', fontSize: '12px', color: '#8A8780', textAlign: 'center' }}>
-            No credit card · First 20 applications free
+            No credit card · Free — 20 applications a day
           </div>
         </>
       );
@@ -873,16 +873,16 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       const badgeBg = weak ? '#FDE9C8' : '#D9F99D';
 
       // The self-send pitch, shown whenever this match is below our-name (Postal) bar: connect your own
-      // inbox → apply anywhere with no limits, we still write every letter and keep feeding you projects.
+      // inbox → apply to any match from their own address, we still write every letter and keep feeding you projects.
       // Shared by weak- AND good-gated (a Good match blocked by the wall must see it too, not loop on
       // "Write my application").
       const connectEmailBlock = (
         <div style={{ textAlign: 'center', margin: '4px 0 0', padding: '16px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '12px' }}>
           <p style={{ fontSize: '15px', color: '#1A1A17', margin: '0 0 6px', lineHeight: 1.45, fontWeight: 700 }}>
-            {weak ? 'But you don’t have to stop here.' : 'Send this one yourself — no limits.'}
+            {weak ? 'But you don’t have to stop here.' : 'Send this one yourself — from your own email.'}
           </p>
           <p style={{ fontSize: '13px', color: '#3F6212', margin: '0 0 14px', lineHeight: 1.55 }}>
-            Connect your email and apply to <b>anything, anywhere — with zero limits</b>, sent from your own address.
+            Connect your email and apply to <b>any match, anywhere</b> — sent from your own address, where replies land best.
             We write every cover letter for you and keep dropping fresh projects into your feed.
           </p>
           <button onClick={() => { track('FUNNEL_STEP', { step: 'smtp_prompt_click', surface: weak ? 'project_weak' : 'project_good', opportunityId: project.id }); setSmtpModal(true); }} style={{ display: 'inline-block', padding: '12px 22px', background: '#C7F94A', color: '#000', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>
@@ -900,7 +900,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             {weak
               ? 'We read your résumé & LinkedIn — and we won’t send a mismatch on your behalf.'
               : gatedGood
-              ? 'We read your résumé & LinkedIn — solid fit. From our name we send only your strongest matches, so send this one yourself, from your own inbox — no limits.'
+              ? 'We read your résumé & LinkedIn — solid fit. From our name we send only your strongest matches, so send this one yourself, from your own inbox.'
               : 'We read your résumé & LinkedIn. Review, then write your application.'}
           </p>
 
@@ -925,7 +925,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             <>
               <p style={{ fontSize: '13.5px', color: '#6B6862', lineHeight: 1.55, margin: '0 0 14px' }}>
                 This isn&apos;t a <b>Strong</b> match, so we don&apos;t send it from our name — but you can send it
-                yourself, from your own email, with no limits. Or try one of the better-fitting roles below.
+                yourself, from your own email. Or try one of the better-fitting roles below.
               </p>
 
               {/* SMTP self-send path comes FIRST — it's the primary action for a below-bar match. */}

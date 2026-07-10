@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
+import { QueueUpgradeButton } from '@/components/app/QueueUpgradeButton';
 import './billing-design.css';
 
 export const metadata: Metadata = {
@@ -43,7 +44,7 @@ export default async function BillingPage() {
   ]);
 
   const isPro = user.plan === 'PRO';
-  const appLimit = isPro ? 800 : 150;
+  const appLimit = 600; // 20/day × 30 — the real enforced cap, same for every plan
   const usagePct = Math.min((sentThisMonth / appLimit) * 100, 100);
 
   return (
@@ -69,7 +70,7 @@ export default async function BillingPage() {
           <div className="eyebrow mb-2">Applications this cycle</div>
           <div className="row between mb-2">
             <span style={{fontFamily: "'Geist Mono', monospace", fontSize: '22px', fontWeight: 600}}>{sentThisMonth}</span>
-            <span className="meta">/ {isPro ? '800' : '150'}</span>
+            <span className="meta">/ 600 (20/day)</span>
           </div>
           <div className={`usage-bar${usagePct > 80 ? ' warn' : ''}`}><div className="fill" style={{width: `${usagePct}%`}}></div></div>
           <div className="meta mt-2">Resets in {daysLeft} days · {nextReset.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
@@ -78,16 +79,16 @@ export default async function BillingPage() {
           <div className="eyebrow mb-2">Inboxes</div>
           <div className="row between mb-2">
             <span style={{fontFamily: "'Geist Mono', monospace", fontSize: '22px', fontWeight: 600}}>{smtpCount}</span>
-            <span className="meta">/ {isPro ? '3' : '1'} included</span>
+            <span className="meta">connected</span>
           </div>
-          <div className="usage-bar"><div className="fill" style={{width: `${Math.min((smtpCount / (isPro ? 3 : 1)) * 100, 100)}%`}}></div></div>
+          <div className="usage-bar"><div className="fill" style={{width: `${Math.min(smtpCount * 100, 100)}%`}}></div></div>
           <div className="meta mt-2">{user.email}</div>
         </div>
         <div className="card card-pad">
           <div className="eyebrow mb-2">Templates</div>
           <div className="row between mb-2">
             <span style={{fontFamily: "'Geist Mono', monospace", fontSize: '22px', fontWeight: 600}}>{templateCount}</span>
-            <span className="meta">{isPro ? 'Unlimited' : '3 max'}</span>
+            <span className="meta">saved</span>
           </div>
           <div className="usage-bar"><div className="fill" style={{width: '100%'}}></div></div>
           <div className="meta mt-2"><a href="/dashboard/templates" style={{color: 'var(--acid-deep)'}}>Manage templates →</a></div>
@@ -118,7 +119,7 @@ export default async function BillingPage() {
             </div>
             <div className="name">Free</div>
             <div className="price">$0<span className="unit">/mo</span></div>
-            <div className="desc">600 applications/mo · 1 inbox · 3 templates · Basic analytics</div>
+            <div className="desc">20 applications/day · AI cover letters with reviewer pass · Send from your own Gmail</div>
             {user.plan !== 'FREE' && user.stripeId && (
               <form action="/api/stripe/portal" method="POST">
                 <button type="submit" className="btn btn-soft btn-sm mt-3" style={{width: '100%'}}>Downgrade</button>
@@ -131,8 +132,8 @@ export default async function BillingPage() {
               {user.plan === 'PRO' ? '★ Current plan' : '↑ Upgrade'}
             </div>
             <div className="name">Pro</div>
-            <div className="price">€15<span className="unit">/mo</span></div>
-            <div className="desc">Unlimited applications · Full inbox · AI replies · Follow-ups · Priority support</div>
+            <div className="price">$5<span className="unit">/mo</span></div>
+            <div className="desc">Morning ready-queue — applications pre-written for your top matches · CV tailored to every role</div>
             {user.plan === 'PRO' ? (
               <div className="row gap-2 mt-3">
                 {user.stripeId && (
@@ -142,17 +143,10 @@ export default async function BillingPage() {
                 )}
               </div>
             ) : (
-              <a href="/pricing" className="btn btn-acid btn-sm mt-3" style={{width: '100%', display: 'block', textAlign: 'center'}}>Upgrade to Pro</a>
+              <div className="mt-3"><QueueUpgradeButton source="billing" label="Upgrade to Pro →" /></div>
             )}
           </div>
 
-          <div className="plan-card">
-            <div className="badge" style={{color: 'var(--ink-4)'}}>↑ Upgrade</div>
-            <div className="name">Agency</div>
-            <div className="price">$89<span className="unit">/mo</span></div>
-            <div className="desc">Unlimited applications · 10 inboxes · 5 seats · Shared templates · Dedicated success manager</div>
-            <a href="/pricing" className="btn btn-soft btn-sm mt-3" style={{width: '100%', display: 'block', textAlign: 'center'}}>Contact sales</a>
-          </div>
 
         </div>
       </div>

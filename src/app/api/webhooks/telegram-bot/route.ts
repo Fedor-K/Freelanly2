@@ -55,8 +55,8 @@ export async function POST(request: NextRequest) {
             await prisma.user.update({ where: { id: user.id }, data: { telegramChatId: String(chatId) } });
             await reply(chatId,
               `✅ Connected! Hey ${user.name || firstName}!\n\n`
-              + `You'll get instant notifications here when recruiters reply to your applications.\n\n`
-              + `💬 Replies\n📨 Applications sent\n🟢 Interview invites`,
+              + `You'll get pinged here the moment a recruiter wants to interview you.\n\n`
+              + `🟢 Interview invites — straight to this chat`,
             );
             return NextResponse.json({ ok: true });
           }
@@ -75,12 +75,11 @@ export async function POST(request: NextRequest) {
           const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
           await reply(chatId,
             `👋 Welcome to Freelanly, ${user?.name || firstName}!\n\n`
-            + `I'll send you instant notifications when recruiters reply to your applications.\n\n`
+            + `I'll ping you here the moment a recruiter wants to interview you.\n\n`
             + `Here's what to expect:\n`
             + `💬 Recruiter replies — "Company X is interested!"\n`
             + `🟢 Interview invites — "They want to schedule a call"\n`
-            + `📊 Daily summary — sent, opened, replied\n\n`
-            + `I'll ping you the moment a recruiter responds to one of your applications.\n\n`
+            + `I'll ping you the moment a recruiter wants to interview you.\n\n`
             + `Dashboard: freelanly.com/dashboard`,
           );
           return NextResponse.json({ ok: true });
@@ -94,18 +93,18 @@ export async function POST(request: NextRequest) {
         await reply(chatId,
           `✅ You're already connected${linked.name ? `, ${linked.name}` : ''}!\n\n`
           + `I'll ping you here the moment a recruiter replies to your applications.\n\n`
-          + `💬 Recruiter replies  🟢 Interview invites  📊 Daily summary\n\n`
+          + `🟢 Interview invites — instant pings\n\n`
           + `Dashboard: freelanly.com/dashboard`,
         );
         return NextResponse.json({ ok: true });
       }
       await reply(chatId,
         `👋 Hey ${firstName}! Welcome to Freelanly.\n\n`
-        + `I'll send you instant notifications when recruiters reply to your applications.\n\n`
+        + `I'll ping you here the moment a recruiter wants to interview you.\n\n`
         + `Here's what to expect:\n`
         + `💬 Recruiter replies — "Company X is interested!"\n`
         + `🟢 Interview invites — "They want to schedule a call"\n`
-        + `📊 Daily summary — sent, opened, replied\n\n`
+        
         + `To connect your account:\n`
         + `<b>freelanly.com/dashboard</b> → click "Connect Telegram"\n\n`
         + `I'll ping you the moment a recruiter responds to one of your applications.`,

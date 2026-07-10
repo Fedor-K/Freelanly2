@@ -133,7 +133,7 @@ export function replyNotificationEmail(params: {
     <div style="display:flex;gap:10px;">
       <a href="${ctaUrl}" style="display:inline-block;padding:12px 22px;background:${BRAND.acid};color:#000;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;">Open in Freelanly →</a>
     </div>
-    <p style="margin-top:22px;font-size:12.5px;color:${BRAND.ink3};">Reply quickly — early responses get 38% more bookings.</p>
+    <p style="margin-top:22px;font-size:12.5px;color:${BRAND.ink3};">Reply quickly — recruiters move fast on early responses.</p>
     ${replyTrackPixel(appId, userId)}
   `);
   const text = `${recruiterName} at ${company} replied to your ${jobTitle} application: ${replySignal || replyPreview?.slice(0, 100)}. Open: ${ctaUrl}`;
@@ -218,7 +218,7 @@ export function dailyRecapEmail(params: {
     ${pendingHtml}
     <div style="margin-top:20px;padding:14px 16px;background:${BRAND.bg2};border-radius:10px;font-size:12.5px;color:${BRAND.ink3};line-height:1.5;">
       📊 This week: ${weekSent} sent · ${weekReplies} replies · ${replyRate}% reply rate<br/>
-      Tomorrow we'll send more applications matching your profile.
+      Tomorrow we'll have fresh matches ready for you to review and send.
     </div>
     <a href="https://freelanly.com/dashboard/inbox" style="display:inline-block;padding:12px 24px;background:${BRAND.acid};color:#000;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px;">Open Dashboard →</a>
     <div style="margin-top:24px;padding:14px 16px;background:#E0F2FE;border:1px solid #BAE6FD;border-radius:10px;text-align:center;">
@@ -244,7 +244,7 @@ export function weeklyReportEmail(params: {
   const subject = `📈 Weekly: ${sent} sent, ${replies} replies (${replyRate}%) — Freelanly`;
   const html = emailShell('Weekly report', `
     <h1 style="font-size:24px;font-weight:500;margin:0 0 16px;">Good week, ${firstName}.</h1>
-    <p style="color:${BRAND.ink3};font-size:13px;">Sequences ran for 7 days. Here's what landed.</p>
+    <p style="color:${BRAND.ink3};font-size:13px;">Here's what landed over the last 7 days.</p>
     <div style="background:${BRAND.ink};color:#FAFAF7;border-radius:12px;padding:22px 24px;margin:18px 0;">
       <table style="width:100%;text-align:center;"><tr>
         <td><div style="font-size:28px;font-weight:500;">${sent}</div><div style="font-family:monospace;font-size:10px;color:rgba(250,250,247,0.6);text-transform:uppercase;">Sent</div></td>

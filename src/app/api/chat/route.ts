@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { prisma } from '@/lib/db';
-import { getPriceCents, formatPrice } from '@/lib/geo-pricing';
 import { rateLimitByDb, getClientIp } from '@/lib/rate-limit';
 
 const SYSTEM_PROMPT = `You are Freelanly's friendly support assistant. You help users find remote jobs and understand how Freelanly works.
@@ -42,10 +41,9 @@ Key links (ALWAYS include relevant links in your responses):
 - Marketing projects: https://freelanly.com/freelance?category=marketing
 - Writing projects: https://freelanly.com/freelance?category=writing
 - Data projects: https://freelanly.com/freelance?category=data
-- All jobs (ATS): https://freelanly.com/jobs
 - Pricing / Upgrade to PRO: https://freelanly.com/pricing
 - Sign up free: https://freelanly.com/auth/signin
-- Dashboard / Manage alerts: https://freelanly.com/dashboard/alerts
+- Dashboard: https://freelanly.com/dashboard
 - Contact: info@freelanly.com
 
 Rules:
@@ -61,12 +59,12 @@ Rules:
 SALES RULES (important!):
 - Your main goal is to help users and get anonymous visitors to SIGN UP
 - After answering their question, add a call-to-action:
-  - For anonymous users: push to sign up ("Sign up free — we'll start sending applications for you: https://freelanly.com/auth/signin")
+  - For anonymous users: push to sign up ("Sign up free — we'll prepare ready-to-send applications for you, you review and hit Send: https://freelanly.com/auth/signin")
   - For FREE users: be helpful, answer their question. Everything works on FREE. Don't push PRO.
   - For PRO users: be helpful
 - NEVER say users need PRO to attach CV, reply to recruiters, or use basic features — these are ALL FREE
 - Ask engaging follow-up questions: "What category are you looking for?", "Which country do you prefer?"
-- Mention specific numbers: "We send 20 applications per day for you automatically"
+- Mention specific numbers accurately: "You can send up to 20 applications a day — every cover letter is pre-written for you"
 - Never be pushy or annoying — be naturally helpful`;
 
 // Add user status context to the system prompt
@@ -211,7 +209,7 @@ function formatOpportunitiesList(
   _isPro: boolean = false
 ): string {
   if (opportunities.length === 0) {
-    return `No active ${categoryLabel.toLowerCase()} projects found right now. New projects are added multiple times per day — [sign up for instant alerts](${addUtmSource('https://freelanly.com/auth/signin')}) to be the first to know!`;
+    return `No active ${categoryLabel.toLowerCase()} projects found right now. New projects are added multiple times per day — [sign up free](${addUtmSource('https://freelanly.com/auth/signin')}) and check your Discovery feed!`;
   }
 
   const lines = opportunities.map((opp, i) => {
@@ -222,22 +220,12 @@ function formatOpportunitiesList(
   return `Here are the latest ${categoryLabel.toLowerCase()} projects:\n\n${lines.join('\n\n')}\n\nWant to see more or refine your search?`;
 }
 
-function getProPricingMessage(countryCode: string | null): string {
-  const priceCents = getPriceCents(countryCode);
-  const pricePerContact = formatPrice(priceCents);
-
-  return `\u{1F680} **PRO gives you the unfair advantage:**\n\n` +
-    `\u2705 Direct contact details for every job\n` +
-    `\u2705 Apply before others see the job\n` +
-    `\u2705 Salary insights (full range + percentiles)\n` +
-    `\u2705 Instant alerts for new matching jobs\n` +
-    `\u2705 Single contact unlock for just ${pricePerContact}\n\n` +
-    `**Pricing:**\n` +
-    `\u2022 Monthly: \u20AC15/month (\u20AC0.50/day)\n` +
-    `\u2022 Quarterly: \u20AC35/3 months (\u20AC0.39/day — save 22%)\n` +
-    `\u2022 Annual: \u20AC150/year (\u20AC0.41/day — save 17%)\n\n` +
-    `Cancel anytime. Jobs get filled fast \u2014 PRO members apply first!\n\n` +
-    `${addUtmSource('https://freelanly.com/pricing')}`;
+function getProPricingMessage(_countryCode: string | null): string {
+  return `\u{1F680} **PRO — $5/month:**\n\n` +
+    `\u2705 Morning ready-queue: applications pre-written for your top matches — review and send in one click\n` +
+    `\u2705 CV tailored to every role you apply to, attached automatically\n\n` +
+    `Applying itself is free for everyone — 20 applications a day with AI-written cover letters.\n\n` +
+    `Cancel anytime: ${addUtmSource('https://freelanly.com/dashboard/billing')}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -420,7 +408,7 @@ export async function POST(request: NextRequest) {
           const categoryLabel = lastCategory || 'all';
           const reply = opportunities.length > 0
             ? formatOpportunitiesList(opportunities, categoryLabel, userStatus === 'PRO')
-            : `That's all the ${categoryLabel.toLowerCase()} projects we have right now. New projects are added multiple times per day!\n\n[Sign up for instant alerts](${addUtmSource('https://freelanly.com/auth/signin')}) to never miss a new one!`;
+            : `That's all the ${categoryLabel.toLowerCase()} projects we have right now. New projects are added multiple times per day!\n\n[Sign up free](${addUtmSource('https://freelanly.com/auth/signin')}) and they'll land in your Discovery feed.`;
 
           const buttons = opportunities.length > 0
             ? [
@@ -500,16 +488,14 @@ export async function POST(request: NextRequest) {
             { label: 'Different category', value: 'Different category' },
           ];
         } else if (userStatus === 'FREE') {
-          const priceCents = getPriceCents(userCountry);
-          const pricePerContact = formatPrice(priceCents);
-          reply = `You need PRO to see contact details and apply directly. PRO members apply before others see the job!\n\nUnlock contacts from just ${pricePerContact} per job, or get unlimited access with a PRO subscription.\n\n${addUtmSource('https://freelanly.com/pricing')}`;
+          reply = `Applying is free \u2014 open the project and hit Apply, the cover letter is already written for you (up to 20/day).\n\nBrowse your matches: ${addUtmSource('https://freelanly.com/dashboard/discovery')}`;
           buttons = [
             { label: 'See PRO pricing', value: 'See PRO pricing' },
             { label: 'Maybe later', value: 'Maybe later' },
           ];
         } else {
           // anonymous
-          reply = `To apply, you need a free account. It takes 30 seconds and you'll get instant alerts for new ${categoryText} projects! \u{1F680}\n\nSign up here: ${addUtmSource('https://freelanly.com/auth/signin')}`;
+          reply = `To apply, you need a free account. It takes 30 seconds \u2014 fresh ${categoryText} projects land in your feed daily! \u{1F680}\n\nSign up here: ${addUtmSource('https://freelanly.com/auth/signin')}`;
           buttons = [
             { label: 'Sign up free', value: 'Sign up free' },
             { label: 'Tell me about PRO', value: 'Tell me about PRO' },
@@ -570,7 +556,7 @@ export async function POST(request: NextRequest) {
 
       // ----- Step: Upgrade now -----
       if (flowStep === 'upgrade') {
-        const reply = `Great choice! \u{1F389} Head to our pricing page to pick your plan:\n\n${addUtmSource('https://freelanly.com/pricing')}\n\nYou'll get instant access to contact details, apply to jobs, and salary insights.`;
+        const reply = `Great choice! \u{1F389} PRO is $5/month \u2014 a morning queue of pre-written applications plus a CV tailored to every role:\n\n${addUtmSource('https://freelanly.com/dashboard/billing')}`;
         const buttons = [
           { label: 'Browse projects', value: 'Browse projects' },
         ];
@@ -599,7 +585,7 @@ export async function POST(request: NextRequest) {
 
       // ----- Step: Sign up free -----
       if (flowStep === 'signup') {
-        const reply = `Awesome! Create your free account in 30 seconds:\n\n[Sign up free](${addUtmSource('https://freelanly.com/auth/signin')})\n\nYou'll get instant email alerts when new matching projects appear. \u{1F4E9}`;
+        const reply = `Awesome! Create your free account in 30 seconds:\n\n[Sign up free](${addUtmSource('https://freelanly.com/auth/signin')})\n\nFresh matching projects land in your Discovery feed every few hours. \u{1F4E9}`;
         const buttons = [
           { label: 'Tell me about PRO', value: 'Tell me about PRO' },
           { label: 'Browse projects', value: 'Browse projects' },

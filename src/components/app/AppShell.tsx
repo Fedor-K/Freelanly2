@@ -228,7 +228,7 @@ export function AppShell({ children, userName, userPlan }: { children: React.Rea
             <div className="label">Free plan</div>
             <div className="days">20 applies / day</div>
             <div className="bar"><div></div></div>
-            <a href="/pricing" className="upgrade">Upgrade → €15/mo</a>
+            <a href="/dashboard/billing" className="upgrade">PRO $5/mo — morning ready-queue</a>
           </div>
         )}
 

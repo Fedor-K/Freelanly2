@@ -7,7 +7,7 @@ import './landing-design.css';
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: 'Freelanly — 30 matched freelance gigs a day, cover letter ready',
+  title: 'Freelanly — fresh matched freelance gigs, cover letter ready',
   description: 'Freelanly finds fresh freelance and contract gigs matched to your profile and writes a personalized cover letter for each — you review and send in one click.',
   alternates: { canonical: siteConfig.url },
 };
@@ -75,7 +75,7 @@ export default async function LandingPage() {
         </span>
         <span className="hero-meta-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-          First 25 applications free
+          Free — 20 applications a day
         </span>
         <span className="hero-meta-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
@@ -131,7 +131,7 @@ export default async function LandingPage() {
         <div>
           <div className="stat-float-num tabular" style={{color: 'var(--ink)'}}>4</div>
           <div className="stat-float-label">Replies</div>
-          <div className="stat-float-sub">▲ 8.5% rate</div>
+          <div className="stat-float-sub">▲ this week</div>
         </div>
       </div>
     </div>
@@ -140,7 +140,7 @@ export default async function LandingPage() {
 
 {/* MARQUEE */}
 <section className="marquee">
-  <div className="marquee-label">Freelancers landing gigs from</div>
+  <div className="marquee-label">Tracking fresh openings from</div>
   <div className="marquee-track">
     {[...Array(2)].flatMap((_, i) => ['Linear','·','Vercel','·','Stripe','·','Notion','·','Figma','·','Shopify','·','GitLab','·','Railway','·','Supabase','·','Automattic','·','Cloudflare','·'].map((name, j) => (
       <span key={`${i}-${j}`} className="marquee-item">{name}</span>
@@ -154,19 +154,19 @@ export default async function LandingPage() {
     <div className="stats-strip">
       <div className="stat">
         <div className="stat-num">{(totalUsers / 1000).toFixed(1)}K+</div>
-        <div className="stat-label">Freelancers using daily</div>
+        <div className="stat-label">Freelancers signed up</div>
       </div>
       <div className="stat">
-        <div className="stat-num">500+</div>
-        <div className="stat-label">Apps sent every day</div>
+        <div className="stat-num">3h</div>
+        <div className="stat-label">Feed refresh cycle</div>
       </div>
       <div className="stat">
         <div className="stat-num">{totalCompanies.toLocaleString()}+</div>
         <div className="stat-label">Companies tracked</div>
       </div>
       <div className="stat">
-        <div className="stat-num"><span className="accent">5%</span></div>
-        <div className="stat-label">Average reply rate</div>
+        <div className="stat-num"><span className="accent">3×</span></div>
+        <div className="stat-label">More replies from your own inbox</div>
       </div>
       <div className="stat">
         <div className="stat-num">90+</div>
@@ -182,7 +182,7 @@ export default async function LandingPage() {
     <div className="section-head reveal">
       <span className="eyebrow">— How it works</span>
       <h2>Three steps. Zero busywork.</h2>
-      <p>Set your filters once. We hunt, write, and send while you do real work.</p>
+      <p>Set your filters once. We hunt and write — you review and hit Send.</p>
     </div>
 
     <div className="how-preview reveal">
@@ -239,7 +239,7 @@ export default async function LandingPage() {
       <div className="feat feat-big reveal">
         <span className="feat-eyebrow">AI Cover Letter</span>
         <h3>Sounds like you. Hits the specifics.</h3>
-        <p>Reads the job post, scans the hiring manager&apos;s profile, pulls from your portfolio, and writes an opener they actually want to read.</p>
+        <p>Reads the full job post, pulls from your real background, and writes an opener they actually want to read — then a second AI reviews it against the job&apos;s requirements.</p>
         <div className="feat-visual">
           <div className="cover-card">
             <span style={{color: 'var(--ink-4)', fontSize: '11px'}}>{'// generated 2s ago'}</span><br/>
@@ -271,7 +271,7 @@ export default async function LandingPage() {
             <div style={{height:'1px', background: 'var(--line)', margin: '10px 0'}}></div>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
               <span>Daily cap</span>
-              <span style={{color: 'var(--accent)'}}>25 applications</span>
+              <span style={{color: 'var(--accent)'}}>20 applications</span>
             </div>
           </div>
         </div>
@@ -325,41 +325,6 @@ export default async function LandingPage() {
   </div>
 </section>
 
-{/* TESTIMONIALS */}
-<section className="section">
-  <div className="container">
-    <div className="section-head reveal">
-      <span className="eyebrow">— Real freelancers</span>
-      <h2>Less refreshing job boards. More billable work.</h2>
-    </div>
-    <div className="testi-grid">
-      <div className="testi reveal">
-        <svg className="testi-quote-mark" viewBox="0 0 24 24" fill="currentColor"><path d="M3 21c3 0 7-1 7-8V5c0-1.3-.7-2-2-2H4C2.7 3 2 3.7 2 5v6c0 1.3.7 2 2 2h2v1c0 3-1 4-3 4v3zm14 0c3 0 7-1 7-8V5c0-1.3-.7-2-2-2h-4c-1.3 0-2 .7-2 2v6c0 1.3.7 2 2 2h2v1c0 3-1 4-3 4v3z"/></svg>
-        <blockquote>I went from 4 client emails a month to 6 in a week. The cover letters genuinely sound like me — half my reply rate is &quot;wait, did a human write this?&quot;</blockquote>
-        <div className="testi-author">
-          <div className="testi-avatar">AK</div>
-          <div><div className="testi-name">Alex Kowalski</div><div className="testi-role">Full-stack freelancer · Warsaw</div></div>
-        </div>
-      </div>
-      <div className="testi reveal">
-        <svg className="testi-quote-mark" viewBox="0 0 24 24" fill="currentColor"><path d="M3 21c3 0 7-1 7-8V5c0-1.3-.7-2-2-2H4C2.7 3 2 3.7 2 5v6c0 1.3.7 2 2 2h2v1c0 3-1 4-3 4v3zm14 0c3 0 7-1 7-8V5c0-1.3-.7-2-2-2h-4c-1.3 0-2 .7-2 2v6c0 1.3.7 2 2 2h2v1c0 3-1 4-3 4v3z"/></svg>
-        <blockquote>The &quot;first in the inbox&quot; thing is real. I landed a Stripe brand sprint because Freelanly caught the post 18 hours before it hit LinkedIn jobs.</blockquote>
-        <div className="testi-author">
-          <div className="testi-avatar" style={{background:'#FF6B6B', color:'#000'}}>SD</div>
-          <div><div className="testi-name">Sofia Duarte</div><div className="testi-role">Brand designer · Lisbon</div></div>
-        </div>
-      </div>
-      <div className="testi reveal">
-        <svg className="testi-quote-mark" viewBox="0 0 24 24" fill="currentColor"><path d="M3 21c3 0 7-1 7-8V5c0-1.3-.7-2-2-2H4C2.7 3 2 3.7 2 5v6c0 1.3.7 2 2 2h2v1c0 3-1 4-3 4v3zm14 0c3 0 7-1 7-8V5c0-1.3-.7-2-2-2h-4c-1.3 0-2 .7-2 2v6c0 1.3.7 2 2 2h2v1c0 3-1 4-3 4v3z"/></svg>
-        <blockquote>I paid for one month to test it and got two retainers in the same week. The auto-follow-up alone is worth the subscription.</blockquote>
-        <div className="testi-author">
-          <div className="testi-avatar" style={{background:'#6EE7FF', color:'#000'}}>RT</div>
-          <div><div className="testi-name">Ravi Thakkar</div><div className="testi-role">iOS developer · Bangalore</div></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
 
 {/* FINAL CTA */}
 <section className="final-cta" id="signup">
@@ -367,7 +332,7 @@ export default async function LandingPage() {
   <div className="container final-cta-inner reveal">
     <span className="eyebrow eyebrow-accent">— Start today</span>
     <h2 style={{marginTop: '16px'}}>Your next client is <span className="accent">already posting.</span><br/>Get there first.</h2>
-    <p>Free for your first 25 applications. No credit card. Plug in your inbox, pick your filters, and see what comes back this week.</p>
+    <p>Free — 20 applications a day. No credit card. Plug in your inbox, pick your filters, and see what comes back this week.</p>
     <div className="hero-cta">
       <a href="/auth/signin" className="btn btn-primary btn-lg">
         Start free
@@ -407,8 +372,7 @@ export default async function LandingPage() {
       <div className="footer-col">
         <h5>Resources</h5>
         <ul>
-          <li><a href="/freelance">Browse Jobs</a></li>
-          <li><a href="/companies">Companies</a></li>
+          <li><a href="/auth/signin">Start free</a></li>
           <li><a href="/recruiter/login">Recruiter login</a></li>
         </ul>
       </div>

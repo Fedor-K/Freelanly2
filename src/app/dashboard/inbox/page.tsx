@@ -66,7 +66,7 @@ export default async function InboxPage() {
       <div className="page-header">
         <div className="page-title">
           <h1>Inbox <span style={{fontSize: '16px', color: 'var(--ink-4)', fontWeight: 400, fontFamily: "'Geist Mono', monospace"}}>· {replies.length} repl{replies.length === 1 ? 'y' : 'ies'}</span></h1>
-          <p>All replies routed to one place. Calls auto-booked when prospects pick a time.</p>
+          <p>All recruiter replies routed to one place — answer without leaving Freelanly.</p>
         </div>
       </div>
 
