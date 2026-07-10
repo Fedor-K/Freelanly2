@@ -8,6 +8,7 @@ import { redirect } from 'next/navigation';
 import { ApplicationsTable } from '@/components/app/ApplicationsTable';
 import { WelcomeOnboarding } from '@/components/app/WelcomeOnboarding';
 import { DashboardQueue } from '@/components/app/DashboardQueue';
+import { QueueUpgradeButton } from '@/components/app/QueueUpgradeButton';
 import './dashboard-design.css';
 import './welcome-design.css';
 
@@ -88,7 +89,7 @@ export default async function DashboardOverviewPage() {
   // the last 24h (they expire to FAILED after 24h, so this window IS "today"). PRO reviews & sends
   // them one click at a time; FREE sees a teaser with the count.
   const queueWindow = new Date(now.getTime() - 24 * 3600000);
-  const [queueItems, queueCount] = await Promise.all([
+  const [queueItems, queueCount, weeklyMatched] = await Promise.all([
     prisma.autoApplication.findMany({
       where: { userId, status: 'REVIEW', createdAt: { gte: queueWindow } },
       orderBy: [{ matchScore: 'desc' }, { createdAt: 'desc' }],
@@ -96,6 +97,9 @@ export default async function DashboardOverviewPage() {
       select: { id: true, companyName: true, jobTitle: true, matchScore: true, status: true, createdAt: true, coverLetter: true, subject: true },
     }),
     prisma.autoApplication.count({ where: { userId, status: 'REVIEW', createdAt: { gte: queueWindow } } }),
+    // Honest supply-check for the upgrade pitch: matcher-vetted matches over the last 7 days —
+    // never sell the queue to a profile the matcher can't feed (thin-supply tail = refunds).
+    prisma.autoApplication.count({ where: { userId, status: { in: ['REVIEW', 'SENT', 'OPENED', 'REPLIED'] }, createdAt: { gte: weekAgo } } }),
   ]);
 
   // Dev-titled? — gates the GitHub prompt (a GitHub link is only meaningful evidence for tech roles).
@@ -382,8 +386,11 @@ export default async function DashboardOverviewPage() {
             <div style={{ fontSize: '13.5px', color: 'var(--ink-2)', lineHeight: 1.5, maxWidth: '540px' }}>
               <strong>{queueCount} application{queueCount === 1 ? '' : 's'} already written</strong> for your top matches —
               personalized letter, ready to review. Upgrade to open the queue and send each one in one click.
+              <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--ink-4)' }}>
+                Your profile matched {weeklyMatched} role{weeklyMatched === 1 ? '' : 's'} in the last 7 days.
+              </div>
             </div>
-            <a href="/dashboard/billing?from=queue" className="btn btn-acid">Unlock the queue →</a>
+            <QueueUpgradeButton />
           </div>
         </div>
       ))}
