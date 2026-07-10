@@ -55,6 +55,11 @@ export async function POST(request: NextRequest) {
     // literal 'true' counts as consent; anything else (unchecked) → no consent, no resale eligibility.
     const profileShareConsent = (formData.get('profileShareConsent') as string) === 'true';
     const regToken = (formData.get('regToken') as string) || null; // proof of a fresh OTP → create the session once the profile is saved
+    // "Build my CV from my links" (mobile no-file path, owner-approved 2026-07-10): the user has no
+    // r\u00e9sum\u00e9 file on their phone — we scrape LinkedIn (+GitHub/portfolio links) and GENERATE the CV
+    // PDF ourselves. Requires the LinkedIn scrape to actually return a profile (quality bar holds).
+    const buildFromLinks = (formData.get('buildFromLinks') as string) === 'true';
+    const portfolioUrl = (formData.get('portfolioUrl') as string)?.trim().slice(0, 200) || null;
 
     if (!email) {
       return NextResponse.json({ error: 'Email required' }, { status: 400 });
@@ -69,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     // LinkedIn is a COMPLEMENT to the résumé, not a substitute: require BOTH. The résumé is the
     // authoritative base; the LinkedIn URL is the credibility signal + enrichment source.
-    if (!file) {
+    if (!file && !buildFromLinks) {
       return NextResponse.json({ error: 'Résumé (PDF) is required' }, { status: 400 });
     }
     if (!linkedinUrl) {
@@ -169,6 +174,17 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
       return NextResponse.json({ error: 'Could not extract profile data' }, { status: 400 });
     }
 
+    // No-file path: the LinkedIn scrape IS the profile source — if it returned nothing, we have no
+    // facts to build a CV from. Fail clearly so the user uploads a file instead of getting an empty CV.
+    if (!file && buildFromLinks && !liProfile) {
+      return NextResponse.json({ error: 'We couldn\u2019t read your LinkedIn profile just now — please upload your r\u00e9sum\u00e9 file instead (PDF or DOCX).' }, { status: 400 });
+    }
+    // Stash the extra links into the profile so the generated CV (and recruiters) can see them.
+    if (parsedProfile) {
+      if (portfolioUrl) parsedProfile.portfolio = portfolioUrl;
+      if (buildFromLinks) parsedProfile._cvGenerated = true;
+    }
+
     // Backstop for the age-as-experience mix-up (glm sometimes ignores the prompt): anything implausible
     // as professional tenure is almost certainly age / a birth year / an ID — drop it to null (unknown)
     // rather than ship "34 years experience" for a 34-year-old.
@@ -192,6 +208,37 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
     // registration (form retry, applying to a second role); without allowOverwrite the second
     // put() throws and clobbers the first (good) Blob URL with an "uploaded:" placeholder.
     let blobUrl = file ? `uploaded:${file.name}` : linkedinUrl || undefined;
+    let generatedFileName: string | null = null;
+    if (!file && buildFromLinks && parsedProfile) {
+      // Compose resumeText from the scraped profile so cover-letter generation has real material,
+      // then render + store OUR generated CV PDF — downstream (attachments, hasRealCV, apply gates)
+      // sees a normal Blob r\u00e9sum\u00e9, indistinguishable from an upload.
+      const pp = parsedProfile as Record<string, unknown>;
+      const roles = Array.isArray(pp.experience) ? pp.experience as Array<Record<string, string>> : [];
+      const composed = [
+        `${pp.name || ''} — ${pp.current_title || pp.field || ''}`,
+        pp.summary ? `Summary: ${pp.summary}` : '',
+        Array.isArray(pp.skills) ? `Skills: ${(pp.skills as string[]).join(', ')}` : '',
+        ...roles.map(r => `${r.title || ''} at ${r.company || ''} (${r.dates || ''}): ${r.description || ''}`),
+        Array.isArray(pp.languages) ? `Languages: ${(pp.languages as string[]).join(', ')}` : '',
+      ].filter(Boolean).join('\n');
+      if (!pdfText) pdfText = composed;
+      try {
+        const { renderCvPdf } = await import('@/lib/tailored-cv');
+        const links = [savedLinkedinUrl || normalizedLinkedin, githubExplicit, portfolioUrl].filter(Boolean) as string[];
+        const cv = await renderCvPdf({ profile: pp as import('@/lib/recruiter-cv').CvProfile, userName: (pp.name as string) || '', links });
+        if (cv) {
+          const blob = await put(`resumes/${user.id}/${cv.filename}`, cv.buffer, {
+            access: 'public', contentType: 'application/pdf', allowOverwrite: true,
+          });
+          blobUrl = blob.url;
+          generatedFileName = cv.filename;
+          console.log(`[ResumePreAuth] Generated CV from links → ${blob.url}`);
+        }
+      } catch (e) {
+        console.warn('[ResumePreAuth] CV generation failed (profile still saved):', e);
+      }
+    }
     if (file && buffer) {
       try {
         const blob = await put(`resumes/${user.id}/${file.name}`, Buffer.from(buffer), {
@@ -233,7 +280,7 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
       data: {
         resumeUrl: blobUrl,
         resumeText: pdfText ? pdfText.substring(0, 10000) : undefined,
-        resumeFileName: file?.name || undefined,
+        resumeFileName: file?.name || generatedFileName || undefined,
         parsedProfile: parsedProfile == null ? undefined : (parsedProfile as Prisma.InputJsonValue),
         name: parsedProfile?.name || undefined,
         location: resolvedLocation,

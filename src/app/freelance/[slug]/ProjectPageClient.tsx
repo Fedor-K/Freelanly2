@@ -66,6 +66,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [hasResume, setHasResume] = useState<boolean | null>(null);
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [cvFromLinks, setCvFromLinks] = useState(false); // mobile no-file path: we build the CV from LinkedIn/GitHub/portfolio
+  const [portfolioUrl, setPortfolioUrl] = useState('');
   const [regToken, setRegToken] = useState<string | null>(null); // deferred-session proof from verify-code
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [githubUrlField, setGithubUrlField] = useState('');
@@ -433,7 +435,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   // the code step and never see these fields.
   async function handleProfileSubmit() {
     const errors: Record<string, boolean> = {};
-    if (!resumeFile) errors.resume = true;
+    if (!resumeFile && !cvFromLinks) errors.resume = true;
     if (!linkedinUrl) errors.linkedin = true;
     if (!workAuth) errors.workAuth = true;
     if (!currentRate.trim()) errors.currentRate = true;
@@ -458,10 +460,11 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     let pre: Response | null = null;
     try {
       const fd = new FormData();
-      fd.append('file', resumeFile!);
+      if (resumeFile) fd.append('file', resumeFile);
       fd.append('email', email);
       fd.append('linkedinUrl', linkedinUrl);
       fd.append('githubUrl', githubUrlField.trim());
+      if (cvFromLinks) { fd.append('buildFromLinks', 'true'); if (portfolioUrl.trim()) fd.append('portfolioUrl', portfolioUrl.trim()); }
       fd.append('salaryExpectation', salaryExpectation.trim());
       fd.append('currentRate', currentRate.trim());
       fd.append('workAuthorization', workAuth);
@@ -652,9 +655,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>Email confirmed ✓</h2>
             <p style={{ fontSize: '13px', color: '#8A8780', marginBottom: '12px' }}>Now tell us about you so we can apply.</p>
 
-            {/* Resume upload */}
+            {/* Resume upload — OR build the CV from links (mobile no-file path) */}
             <div style={{ marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.resume ? '#B91C1C' : '#555', display: 'block', marginBottom: '4px' }}>Resume (PDF) <span style={{ color: '#B91C1C' }}>*</span></label>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.resume ? '#B91C1C' : '#555', display: 'block', marginBottom: '4px' }}>Resume (PDF) {!cvFromLinks && <span style={{ color: '#B91C1C' }}>*</span>}</label>
+              {!cvFromLinks && (
               <div
                 onClick={() => { const inp = document.getElementById('resume-input') as HTMLInputElement; inp?.click(); }}
                 style={{ padding: '10px 14px', border: `1px dashed ${fieldErrors.resume ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '13px', color: resumeFile ? '#047857' : '#8A8780', cursor: 'pointer', background: resumeFile ? '#ECFDF5' : '#fff' }}
@@ -669,6 +673,15 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                   setFieldErrors(p => { const n = { ...p }; delete n.resume; return n; }); setAuthError(''); setResumeFile(f || null);
                 }} />
               </div>
+              )}
+              {cvFromLinks && (
+                <div style={{ padding: '10px 14px', border: '1px solid #DDEBC4', borderRadius: '8px', fontSize: '12.5px', color: '#3F6212', background: '#F6FAEF', lineHeight: 1.5 }}>
+                  ✓ We&apos;ll build your CV from your LinkedIn{githubUrlField ? ', GitHub' : ''}{portfolioUrl ? ' and portfolio' : ''} — you can replace it with your own file anytime.
+                </div>
+              )}
+              <button type="button" onClick={() => { setCvFromLinks(v => !v); setFieldErrors(prev => { const n = { ...prev }; delete n.resume; return n; }); }} style={{ background: 'none', border: 'none', padding: 0, marginTop: '5px', fontSize: '12px', color: '#3F6212', textDecoration: 'underline', cursor: 'pointer' }}>
+                {cvFromLinks ? '← I have a file — upload it instead' : 'No CV file on your phone? Build it from my links →'}
+              </button>
             </div>
 
             {/* LinkedIn */}
@@ -690,6 +703,17 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '13px' }}
               />
             </div>
+
+            {cvFromLinks && (
+              <div style={{ marginBottom: '8px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Portfolio / website <span style={{ color: '#9A958A', fontWeight: 400 }}>(optional — anywhere your work lives)</span></label>
+                <input
+                  type="url" placeholder="yoursite.com / behance.net/you / drive link" value={portfolioUrl}
+                  onChange={e => setPortfolioUrl(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '13px' }}
+                />
+              </div>
+            )}
 
             {/* The fields recruiters re-ask for on every reply (work auth, current + expected pay,
                 notice). Captured up front and put in the first outreach email → no "share details"

@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   skills: { fontSize: 10 },
 });
 
-function CvDoc({ p, name }: { p: CvProfile; name: string }) {
+function CvDoc({ p, name, links }: { p: CvProfile; name: string; links?: string[] }) {
   const roles = (arr(p.experience) as Array<{ title?: string; company?: string; dates?: string; description?: string }>)
     .filter(r => r.title || r.company || r.description);
   const edu = (arr(p.education) as Array<{ degree?: string; title?: string; institution?: string; school?: string; dates?: string; year?: string }>)
@@ -114,6 +114,7 @@ function CvDoc({ p, name }: { p: CvProfile; name: string }) {
         <Text style={styles.contact}>
           {[s(p.email), s(p.location), p.experience_years ? `${p.experience_years}+ years experience` : ''].filter(Boolean).join('  ·  ')}
         </Text>
+        {links && links.length ? <Text style={{ ...styles.contact, marginTop: -8 }}>{links.join('  ·  ')}</Text> : null}
         {p.summary ? (<><Text style={styles.section}>Summary</Text><Text style={styles.para}>{s(p.summary)}</Text></>) : null}
         {skills.length ? (<><Text style={styles.section}>Skills</Text><Text style={{ ...styles.skills, ...styles.para }}>{skills.join('  ·  ')}</Text></>) : null}
         {roles.length ? (
@@ -144,6 +145,29 @@ function CvDoc({ p, name }: { p: CvProfile; name: string }) {
       </Page>
     </Document>
   );
+}
+
+/**
+ * Render a STOCK CV PDF straight from the parsed profile (no LLM) — used by the "build my CV from
+ * my links" signup path, where the profile comes from the LinkedIn/GitHub scrape and the user has
+ * no r\u00e9sum\u00e9 file on their device. Facts render verbatim from the profile.
+ */
+export async function renderCvPdf(params: {
+  profile: CvProfile;
+  userName: string;
+  links?: string[];
+}): Promise<{ base64: string; buffer: Buffer; filename: string } | null> {
+  try {
+    const { profile, userName, links } = params;
+    if (!profile || !(arr(profile.skills).length || arr(profile.experience).length || profile.summary)) return null;
+    const name = userName || s(profile.name) || 'Candidate';
+    const buf = await renderToBuffer(<CvDoc p={profile} name={name} links={links} />);
+    const safe = (x: string) => x.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+    return { base64: Buffer.from(buf).toString('base64'), buffer: Buffer.from(buf), filename: `${safe(name) || 'CV'}_CV.pdf` };
+  } catch (e) {
+    console.error('[StockCV] render failed:', e);
+    return null;
+  }
 }
 
 /**

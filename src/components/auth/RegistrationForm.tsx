@@ -91,6 +91,8 @@ export function RegistrationForm({
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [agreedToTerms, setAgreedToTerms] = useState(true);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [cvFromLinks, setCvFromLinks] = useState(false); // mobile no-file path: build the CV from LinkedIn/GitHub/portfolio
+  const [portfolioUrl, setPortfolioUrl] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
   const [salaryExpectation, setSalaryExpectation] = useState('');
@@ -353,7 +355,7 @@ export function RegistrationForm({
   // salary, build the profile, then enter the account. Mirror of the inline apply flow — the only
   // difference is the final action (here: go to the dashboard; inline: generate + send the apply).
   async function handleProfileSubmit() {
-    if (!resumeFile) { setError('Please upload your résumé (PDF)'); return; }
+    if (!resumeFile && !cvFromLinks) { setError('Please upload your résumé (PDF)'); return; }
     if (!linkedinUrl) { setError('Please add your LinkedIn profile URL'); return; }
     if (!workAuth) { setError('Please select where you can legally work'); return; }
     if (!currentRate.trim()) { setError('Please add your current rate / pay'); return; }
@@ -364,7 +366,8 @@ export function RegistrationForm({
     setProfileSubmitting(true);
     try {
       const fd = new FormData();
-      fd.append('file', resumeFile);
+      if (resumeFile) fd.append('file', resumeFile);
+      if (cvFromLinks) { fd.append('buildFromLinks', 'true'); if (portfolioUrl.trim()) fd.append('portfolioUrl', portfolioUrl.trim()); }
       fd.append('email', email);
       fd.append('linkedinUrl', linkedinUrl);
       fd.append('githubUrl', githubUrl.trim());
@@ -757,9 +760,24 @@ export function RegistrationForm({
           <input className="text-input" type="url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="github.com/username" />
         </div>
 
-        {/* Résumé */}
+        {/* Résumé — or build it from links (mobile no-file path) */}
         <div>
-          <label className="field-label">Résumé (PDF) <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
+          <label className="field-label">Résumé (PDF) {!cvFromLinks && <span className="required" style={{ color: '#B91C1C' }}>*</span>}</label>
+          {cvFromLinks && (
+            <div style={{ padding: '10px 14px', border: '1px solid #DDEBC4', borderRadius: '8px', fontSize: '12.5px', color: '#3F6212', background: '#F6FAEF', lineHeight: 1.5 }}>
+              ✓ We&apos;ll build your CV from your LinkedIn{githubUrl ? ', GitHub' : ''}{portfolioUrl ? ' and portfolio' : ''} — you can replace it with your own file anytime.
+            </div>
+          )}
+          {cvFromLinks && (
+            <div style={{ marginTop: '8px' }}>
+              <label className="field-label">Portfolio / website <span style={{ color: '#9A958A', fontWeight: 400 }}>(optional)</span></label>
+              <input className="text-input" type="url" value={portfolioUrl} onChange={e => setPortfolioUrl(e.target.value)} placeholder="yoursite.com / behance.net/you" />
+            </div>
+          )}
+          <button type="button" onClick={() => { setCvFromLinks(v => !v); setError(''); }} style={{ background: 'none', border: 'none', padding: 0, margin: '6px 0', fontSize: '12px', color: '#3F6212', textDecoration: 'underline', cursor: 'pointer', display: 'block' }}>
+            {cvFromLinks ? '← I have a file — upload it instead' : 'No CV file on your phone? Build it from my links →'}
+          </button>
+          {!cvFromLinks && (
           <div
             className={`upload-zone${resumeFile ? ' has-file' : ''}`}
             onClick={(e) => { const inp = (e.currentTarget as HTMLElement).querySelector('input[type="file"]') as HTMLInputElement; if (inp && (e.target as HTMLElement).tagName !== 'INPUT') inp.click(); }}
@@ -775,6 +793,7 @@ export function RegistrationForm({
             <input type="file" accept="application/pdf,.pdf,.docx" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; const nm = (f?.name || '').toLowerCase(); if (f && !(nm.endsWith('.pdf') || nm.endsWith('.docx'))) { setError('Please upload a PDF or DOCX résumé.'); e.target.value = ''; return; } setError(''); setResumeFile(f || null); }} />
             {resumeFile ? <span style={{ fontSize: '11.5px', color: '#047857' }}>✓</span> : <span style={{ fontSize: '11.5px', color: '#5C6068' }}>Choose →</span>}
           </div>
+          )}
         </div>
 
         {/* Fields recruiters re-ask on every reply (work auth, current + expected pay, notice) —
