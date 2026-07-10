@@ -38,7 +38,7 @@ export default async function DashboardOverviewPage() {
   const onboardCheck = await prisma.user.findUnique({ where: { id: userId }, select: { resumeUrl: true } });
   if (!onboardCheck?.resumeUrl) redirect('/dashboard/settings#profile');
 
-  const [user, today, yesterday, month, applications, repliesTodayCount, followUps, dailyActivity, loop] = await Promise.all([
+  const [user, today, yesterday, month, applications, repliesTodayCount, dailyActivity, loop] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true, parsedProfile: true, salaryExpectation: true, githubUrl: true } }),
     prisma.autoApplication.groupBy({
       by: ['status'],
@@ -68,9 +68,6 @@ export default async function DashboardOverviewPage() {
     }),
     prisma.autoApplication.count({
       where: { userId, status: { in: ['REPLIED', 'INTERVIEW'] }, repliedAt: { gte: todayStart } },
-    }),
-    prisma.autoApplication.count({
-      where: { userId, followUpSentAt: { gte: weekAgo }, followUpCount: { gt: 0 } },
     }),
     prisma.$queryRaw<Array<{ day: Date; cnt: bigint }>>`
       SELECT DATE("sentAt") as day, COUNT(*) as cnt
@@ -222,7 +219,7 @@ export default async function DashboardOverviewPage() {
     status: a.status,
     subject: a.subject,
     date: (a.sentAt || a.createdAt).toISOString(),
-    followUp: a.followUpSentAt ? 'sent' : (a.sentAt && !a.followUpSentAt && ['SENT', 'DELIVERED', 'OPENED'].includes(a.status) ? (() => { const days = Math.floor((now.getTime() - a.sentAt!.getTime()) / 86400000); return days >= 3 ? null : `in ${3 - days}d`; })() : null),
+    followUp: a.followUpSentAt ? 'sent' : null, // auto follow-ups killed 2026-07-11 — 'sent' kept for historical threads only
     replyCategory: a.replyCategory,
     matchScore: a.matchScore,
   }));

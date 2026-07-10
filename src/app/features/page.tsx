@@ -145,8 +145,8 @@ export default function FeaturesPage() {
         <div className="icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.4 8.4 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.4 8.4 0 013.8-.9h.5a8.5 8.5 0 018 8v.5z"/></svg>
         </div>
-        <h3>Auto follow-ups</h3>
-        <p>If they go quiet for 5 days, one polite nudge. Five days later, one more. Then it stops. Pauses the second they reply.</p>
+        <h3>Open tracking</h3>
+        <p>See the moment a recruiter opens your application — so you know which threads are warm and worth a personal nudge from your inbox.</p>
       </div>
       <div className="feat-card reveal">
         <div className="icon">
@@ -271,7 +271,7 @@ export default function FeaturesPage() {
           <li>Refresh job boards, miss the fresh posts</li>
           <li>Write each cover letter from scratch</li>
           <li>Send, then forget about it</li>
-          <li>No follow-ups, no tracking, no learning</li>
+          <li>No tracking, no signal, no learning</li>
           <li>Burn out after 2 weeks of consistency</li>
         </ul>
       </div>
@@ -282,7 +282,7 @@ export default function FeaturesPage() {
           <li>Fresh posts arrive within hours of posting</li>
           <li>AI drafts a personalized letter in 2 seconds</li>
           <li>Sent from your own inbox in one click</li>
-          <li>2 follow-ups and reply tracking — automatic</li>
+          <li>Open &amp; reply tracking on every application</li>
           <li>Fresh matches keep coming, even on the weeks you don&apos;t look</li>
         </ul>
       </div>

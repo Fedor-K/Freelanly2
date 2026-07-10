@@ -2286,6 +2286,12 @@ export async function matchAndQueueAutoApplies(): Promise<number> {
  * with no reply. Maximum 1 follow-up per application.
  */
 export async function processFollowUps(): Promise<{ sent: number; failed: number }> {
+  // AUTO FOLLOW-UPS KILLED (owner decision 2026-07-11): with own-inbox (Gmail) sends we cannot see
+  // recruiter replies, so the 3-day nudge was firing at recruiters who had already answered the
+  // candidate directly — from OUR domain, outside the original thread. Bot-looking + domain burn.
+  // Entirely off; users nudge from their own inbox if they want to. (Worker copy patched same day.)
+  return { sent: 0, failed: 0 };
+  // eslint-disable-next-line no-unreachable
   let sent = 0;
   let failed = 0;
 

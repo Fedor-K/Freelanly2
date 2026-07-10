@@ -5,7 +5,7 @@ import './hiw-design.css';
 
 export const metadata: Metadata = {
   title: 'How Freelanly works — from discovery to signed contract',
-  description: 'See the full pipeline: real-time gig discovery, AI personalization, smart sending, follow-ups, and reply tracking — explained step by step.',
+  description: 'See the full pipeline: real-time gig discovery, AI personalization, smart sending, and reply tracking — explained step by step.',
   alternates: { canonical: `${siteConfig.url}/how-it-works` },
 };
 
@@ -49,7 +49,7 @@ export default function HowItWorksPage() {
           <li><a href="#match">Smart matching</a></li>
           <li><a href="#write">AI cover letter</a></li>
           <li><a href="#send">Send &amp; inbox</a></li>
-          <li><a href="#followup">Follow-up &amp; tracking</a></li>
+          <li><a href="#followup">Tracking &amp; replies</a></li>
         </ol>
       </nav>
     </div>
@@ -310,18 +310,18 @@ export default function HowItWorksPage() {
   </div>
 </section>
 
-{/* STEP 5 — Follow-up & tracking */}
+{/* STEP 5 — Tracking & replies */}
 <section className="step-section" id="followup" style={{borderBottom: 'none'}}>
   <div className="container">
     <div className="step-grid">
       <div className="step-copy reveal">
-        <div className="step-num"><span className="step-bar"></span> Step 05 — Follow-up &amp; tracking</div>
-        <h2>Many replies come<br/>from the <span className="accent">follow-up</span>.</h2>
-        <p>If they go quiet for 5 days, Freelanly sends one short, polite nudge. If they go quiet again, one more. Then it stops. Opens and replies are tracked per application in your pipeline.</p>
+        <div className="step-num"><span className="step-bar"></span> Step 05 — Tracking &amp; replies</div>
+        <h2>Know what happens<br/>after you hit <span className="accent">Send</span>.</h2>
+        <p>Every application is tracked: you see when it&apos;s opened and when a reply lands. Warm thread gone quiet? Nudge it yourself from your own inbox — it&apos;s your conversation.</p>
         <ul className="bullet-list">
-          <li><Chk /> <span><strong>2 follow-ups max</strong>, then stops automatically</span></li>
-          <li><Chk /> <span><strong>Pauses the moment they reply</strong> — no awkward double-sends</span></li>
-          <li><Chk /> <span><strong>Open &amp; reply tracking</strong> on every application in your pipeline</span></li>
+          <li><Chk /> <span><strong>Open tracking</strong> — see the moment a recruiter reads your application</span></li>
+          <li><Chk /> <span><strong>Replies land in your own inbox</strong> — you answer directly, no middleman</span></li>
+          <li><Chk /> <span><strong>Pipeline view</strong> of every application: sent → opened → replied</span></li>
         </ul>
       </div>
       <div className="step-visual reveal">
@@ -336,8 +336,8 @@ export default function HowItWorksPage() {
               <div className="msg-body" style={{color: 'var(--ink-3)'}}>Hey Sarah, saw your post about hiring a React dev for the mobile sync engine…</div>
             </div>
             <div className="msg followup">
-              <div className="msg-head"><span className="from">Auto follow-up sent</span><span className="when">Sat 09:00 (+5d)</span></div>
-              <div className="msg-body">Hey Sarah — quick bump on the React role. If timing&apos;s off, totally cool — happy to circle back in a month. — Alex</div>
+              <div className="msg-head"><span className="from">Opened by recruiter</span><span className="when">Tue 11:32 (+1d)</span></div>
+              <div className="msg-body" style={{color: 'var(--ink-4)'}}>Sarah viewed your application — warm thread.</div>
             </div>
             <div className="msg" style={{borderColor: 'rgba(74,222,128,0.3)', background: 'rgba(74,222,128,0.04)'}}>
               <div className="msg-head"><span className="from" style={{color: 'var(--good)'}}>Sarah replied</span><span className="when">Sat 14:22 · 5h later</span></div>

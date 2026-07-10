@@ -96,12 +96,11 @@ export async function GET(
         })
       : [];
 
-    // Follow-up schedule
-    const followUpSchedule = app.loop.followUpEnabled ? [
+    // Auto follow-ups killed 2026-07-11 (owner decision) — no scheduled touches, only what actually happened.
+    const followUpSchedule = [
       { touch: 1, day: 0, label: 'Initial outreach', status: app.sentAt ? 'sent' : 'pending', date: app.sentAt },
-      { touch: 2, day: app.loop.followUpDay1, label: 'Soft bump if no reply', status: app.followUpSentAt ? 'sent' : 'scheduled', date: app.sentAt ? new Date(app.sentAt.getTime() + app.loop.followUpDay1 * 86400000) : null },
-      { touch: 3, day: app.loop.followUpDay2, label: 'Final breakup email', status: 'scheduled', date: app.sentAt ? new Date(app.sentAt.getTime() + app.loop.followUpDay2 * 86400000) : null },
-    ] : [];
+      ...(app.followUpSentAt ? [{ touch: 2, day: 0, label: 'Follow-up (historical)', status: 'sent', date: app.followUpSentAt }] : []),
+    ];
 
     // "Why matched" — explain match reasons
     const userProfile = app.user?.parsedProfile as Record<string, unknown> | null;

@@ -66,7 +66,6 @@ export default function PricingPage() {
           <li><Chk /> <span>&quot;Covers N of M requirements&quot; check before you send</span></li>
           <li><Chk /> <span>Send from your own Gmail — one-click connect</span></li>
           <li><Chk /> <span>Up to <strong>20 applications a day</strong></span></li>
-          <li><Chk /> <span>2 automatic follow-ups per application</span></li>
           <li><Chk /> <span>Unified reply inbox + pipeline tracking</span></li>
         </ul>
       </div>
@@ -112,7 +111,7 @@ export default function PricingPage() {
     <div className="faq-list reveal">
       <div className="faq-item">
         <div className="faq-q">Is applying really free?</div>
-        <div className="faq-a">Yes. Matching, AI cover letters (with the reviewer pass), sending from your own Gmail, follow-ups, and the reply inbox are all free — up to 20 applications a day. PRO doesn&apos;t unlock applying; it saves you the time of doing it one by one.</div>
+        <div className="faq-a">Yes. Matching, AI cover letters (with the reviewer pass), sending from your own Gmail, and the reply inbox are all free — up to 20 applications a day. PRO doesn&apos;t unlock applying; it saves you the time of doing it one by one.</div>
       </div>
       <div className="faq-item">
         <div className="faq-q">What exactly does PRO add?</div>
@@ -120,7 +119,7 @@ export default function PricingPage() {
       </div>
       <div className="faq-item">
         <div className="faq-q">Does Freelanly send anything without me?</div>
-        <div className="faq-a">No. Every application is sent by you, with one click, after you&apos;ve seen it. The only automatic emails are up to 2 polite follow-ups on applications you already sent — and they stop the moment someone replies.</div>
+        <div className="faq-a">No. Nothing is ever emailed on your behalf without your click — every application is sent by you, after you&apos;ve seen it, from your own inbox.</div>
       </div>
       <div className="faq-item">
         <div className="faq-q">Will recruiters know it&apos;s AI-written?</div>

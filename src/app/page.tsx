@@ -206,7 +206,7 @@ export default async function LandingPage() {
         <div className="how-step-icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
         </div>
-        <div className="how-num">03 — Send &amp; follow up</div>
+        <div className="how-num">03 — Review &amp; send</div>
         <h3>From your inbox. Tracked. Followed up.</h3>
         <p>Applications go out from your own email. We track opens, replies, and send a nudge after 5 days if they go quiet. You see everything in one dashboard.</p>
       </div>
@@ -289,13 +289,13 @@ export default async function LandingPage() {
       </div>
 
       <div className="feat feat-small reveal">
-        <span className="feat-eyebrow">Auto Follow-Up</span>
-        <h3>Nudge without nagging.</h3>
-        <p>If they don&apos;t reply in 5 days, we send a short, polite follow-up. Stops the moment they respond.</p>
+        <span className="feat-eyebrow">Open Tracking</span>
+        <h3>Know when they look.</h3>
+        <p>See when a recruiter opens your application — so you know which ones are warm and worth a nudge from your own inbox.</p>
         <div className="followup-vis">
-          <div className="followup-step done"><div className="followup-time">Day 0 — 09:14</div><div className="followup-text">Initial application sent</div></div>
-          <div className="followup-step done"><div className="followup-time">Day 5 — 09:00</div><div className="followup-text">Follow-up #1 sent automatically</div></div>
-          <div className="followup-step"><div className="followup-time">Day 9</div><div className="followup-text" style={{color: 'var(--ink-4)'}}>Stops at 2 nudges or first reply</div></div>
+          <div className="followup-step done"><div className="followup-time">Day 0 — 09:14</div><div className="followup-text">Application sent from your Gmail</div></div>
+          <div className="followup-step done"><div className="followup-time">Day 1 — 11:32</div><div className="followup-text">Recruiter opened your application</div></div>
+          <div className="followup-step"><div className="followup-time">Your move</div><div className="followup-text" style={{color: 'var(--ink-4)'}}>Reply lands straight in your inbox</div></div>
         </div>
       </div>
 
