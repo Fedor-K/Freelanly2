@@ -458,7 +458,9 @@ export async function POST(request: NextRequest) {
       }
       coverLetter = await generateCoverLetter({
         jobTitle: opportunity.title,
-        jobDescription: opportunity.description.slice(0, 800),
+        // Full-ish JD (was 800 chars — starved the model of the actual requirements; the generator
+        // itself caps at 2500 too).
+        jobDescription: opportunity.description.slice(0, 2500),
         companyName,
         userProfile: {
           name: user.name || 'Applicant',
@@ -507,7 +509,13 @@ export async function POST(request: NextRequest) {
     // Draft-only mode: return full letter as user will see it
     if (draftOnly) {
       // Summary card is fetched separately first (summaryOnly) — here we only return the letter.
-      return NextResponse.json({ ok: true, coverLetter: fullLetter, subject, to: opportunity.applyEmail });
+      // coverage = the deterministic requirements check (matchBreakdown matched/total) — rendered as
+      // the "Covers N/M requirements" badge on the review screen, visible proof of letter quality.
+      const mb = pairing.matchBreakdown as { matched?: number; total?: number } | null;
+      const coverage = mb && typeof mb.matched === 'number' && typeof mb.total === 'number' && mb.total > 0
+        ? { matched: mb.matched, total: mb.total }
+        : null;
+      return NextResponse.json({ ok: true, coverLetter: fullLetter, subject, to: opportunity.applyEmail, coverage });
     }
 
     // Recruiter-voice rationale for the admin audit card — generated ONLY on a real send (after the

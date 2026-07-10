@@ -281,7 +281,7 @@ RULES:
 
   const userContent = `=== JOB POST ===
 Title: ${jobTitle}
-Description: ${jobDescription.slice(0, 800)}
+Description: ${jobDescription.slice(0, 2500)}
 Recruiter email: ${(userProfile as any).recruiterEmail || 'unknown'}
 Company/poster: ${companyName}
 
@@ -366,6 +366,33 @@ Write the complete email now.`;
           : `Hi there,\n\nI'd welcome the chance to be considered for the ${jobTitle} role — my background in ${(matchedSkills.length ? matchedSkills : userProfile.skills).slice(0, 3).join(', ') || 'closely related work'} lines up well, and I'd be glad to share how it could help your team.\n\n${userProfile.name}`;
       }
     }
+    // REVIEWER PASS (drafter→reviewer, the ai-job-search recipe): one extra call critiques the draft
+    // against the job's actual requirements and the applicant's real facts, and returns an improved
+    // rewrite. Post-checked by the same deterministic guards (forbidden skills, unsourced metrics,
+    // substantive) — any violation falls back to the already-validated draft, so the reviewer can
+    // only make letters better, never break the guarantees. Also structurally varies letters between
+    // users (anti near-duplicate for own-inbox Gmail sends). Kill switch: LETTER_REVIEWER=off.
+    if (process.env.LETTER_REVIEWER !== 'off') {
+      try {
+        const reviewed = await reviewAndRevise({
+          draft: content,
+          jobTitle,
+          jobDescription,
+          applicantFacts: `Skills: ${skillsList}\nBackground: ${experienceSnippet}`,
+          client, model,
+        });
+        if (
+          reviewed &&
+          isSubstantiveLetter(reviewed) &&
+          !(forbidden.length && mentionsAny(reviewed, forbidden).length) &&
+          !findUnsourcedMetrics(reviewed, backgroundText).length
+        ) {
+          content = reviewed;
+        }
+      } catch {
+        /* reviewer is best-effort — the validated draft stands */
+      }
+    }
     return softenTemplate(softenOverpromise(content));
   } catch (error) {
     // FAIL CLOSED when the provider is down / out of balance: propagate so the matcher skips this
@@ -376,6 +403,53 @@ Write the complete email now.`;
     const topSkills = userProfile.skills.slice(0, 3).join(', ');
     return `Hi there,\n\nI saw your post for ${jobTitle}. I have experience with ${topSkills} and would love to discuss how I can help. Happy to chat anytime.\n\n${userProfile.name}`;
   }
+}
+
+/**
+ * Reviewer pass: a hiring-manager proxy critiques the draft against the job's requirements and the
+ * applicant's REAL facts, then returns an improved rewrite (or the draft unchanged if already strong).
+ * Single call — critique and rewrite fused for cost. The caller re-runs the deterministic guards on
+ * the output and falls back to the draft on any violation, so this can only improve, never regress.
+ */
+async function reviewAndRevise(params: {
+  draft: string;
+  jobTitle: string;
+  jobDescription: string;
+  applicantFacts: string;
+  client: ReturnType<typeof getZaiClient>;
+  model: string;
+}): Promise<string | null> {
+  const { draft, jobTitle, jobDescription, applicantFacts, client, model } = params;
+  const response = await client.chat.completions.create({
+    model,
+    temperature: 0.4,
+    max_tokens: 600,
+    messages: [
+      {
+        role: 'system',
+        content: `You are a hiring manager reading a job application email. Improve it so a real recruiter for THIS role would reply.
+
+CRITIQUE THE DRAFT FOR:
+1. Missed requirements — the job's top requirements the applicant GENUINELY covers (per their facts) but the draft never mentions. Work the strongest one in.
+2. Generic/passive phrasing — rewrite low-energy sentences to be concrete and active.
+3. Job-post echo — remove any claim that restates the job's own duties as the applicant's past work when their facts don't back it.
+4. Flow — greeting, 2-3 tight paragraphs, sign-off preserved.
+
+HARD RULES (violating any = failure):
+- NEVER add a skill, tool, number, metric, or experience that is not literally in the applicant's facts. Gaps stay unmentioned — no apologies, no "although I haven't".
+- Keep roughly the same length and the same language as the draft.
+- Keep the greeting style and the sign-off name exactly as in the draft.
+- Never use "strong fit", "perfect fit", "I am excited", "I am eager", "I am confident".
+- Output ONLY the final improved email, nothing else. If the draft is already strong, output it unchanged.`,
+      },
+      {
+        role: 'user',
+        content: `=== JOB ===\nTitle: ${jobTitle}\nDescription: ${jobDescription.slice(0, 2500)}\n\n=== APPLICANT FACTS (the only permitted source of claims) ===\n${applicantFacts}\n\n=== DRAFT EMAIL ===\n${draft}\n\nRewrite it now (or return unchanged if already strong).`,
+      },
+    ],
+  });
+  const out = (response.choices[0]?.message?.content || '').trim();
+  return out || null;
 }
 
 /**
