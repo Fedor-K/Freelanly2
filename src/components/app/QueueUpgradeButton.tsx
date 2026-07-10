@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTracker } from '@/hooks/useTracker';
 
 /** Teaser CTA → Stripe checkout for the $5 ready-queue plan. Tracks intent clicks (the WTP signal). */
@@ -8,6 +8,13 @@ export function QueueUpgradeButton({ source = 'queue_teaser', label = 'Unlock th
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const { track } = useTracker();
+
+  // Impression, once per mount. Without it, zero checkout clicks is unreadable — "offer rejected"
+  // and "offer never seen" (teaser only renders when the queue is non-empty) look identical.
+  useEffect(() => {
+    track('FUNNEL_STEP', { step: 'pro5_teaser_shown', source });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const go = async () => {
     setBusy(true);
