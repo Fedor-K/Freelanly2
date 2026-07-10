@@ -85,7 +85,9 @@ export default async function DashboardOverviewPage() {
   // Today's ready-queue: matcher-prepared applications (status REVIEW, letter already written) from
   // the last 24h (they expire to FAILED after 24h, so this window IS "today"). PRO reviews & sends
   // them one click at a time; FREE sees a teaser with the count.
-  const queueWindow = new Date(now.getTime() - 24 * 3600000);
+  // 48h (was 24h): the queue was starving the $5 teaser — only 4 of 55 FREE dashboard visitors had a
+  // non-empty queue. Keep in sync with the worker's REVIEW expiry (auto-apply-processor.ts, 48h).
+  const queueWindow = new Date(now.getTime() - 48 * 3600000);
   const [queueItems, queueCount, weeklyMatched] = await Promise.all([
     prisma.autoApplication.findMany({
       where: { userId, status: 'REVIEW', createdAt: { gte: queueWindow } },

@@ -30,6 +30,7 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
 }) {
   const [items, setItems] = useState(initialItems);
   const [loading, setLoading] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [editSubject, setEditSubject] = useState('');
@@ -53,8 +54,14 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
           }, 2000);
         }
       } else {
-        // Show error state briefly
-        setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'FAILED' } : i));
+        // Honest blocks (Postal bar, daily limit, dupe) come with a message — show it instead of a
+        // mute FAILED flip, so the user knows WHAT to do (connect email / wait for reset).
+        const data = await res.json().catch(() => ({} as { message?: string; error?: string }));
+        if (data.message) {
+          setErrors(prev => ({ ...prev, [id]: data.message }));
+        } else {
+          setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'FAILED' } : i));
+        }
       }
     } catch (e) {
       console.error(e);
@@ -160,6 +167,11 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
                   disabled={!!loading[app.id] || app.status === 'SENT'}
                 >{app.status === 'SENT' ? '✓ Sent!' : app.status === 'FAILED' ? '✗ Failed' : loading[app.id] === 'send-now' ? 'Sending...' : 'Send now'}</button>
               </div>
+              {errors[app.id] && (
+                <div style={{ gridColumn: '1 / -1', fontSize: '12.5px', color: '#92400E', background: '#FFF8EC', border: '1px solid #F2D9A8', borderRadius: '8px', padding: '8px 10px', marginTop: '6px', lineHeight: 1.5 }}>
+                  {errors[app.id]}
+                </div>
+              )}
             </div>
           ))}
           {pendingCount > items.length && (

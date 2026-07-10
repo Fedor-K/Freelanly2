@@ -318,6 +318,26 @@ export async function POST(
       });
       if (!fullUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
+      // Postal bar (mirrors quick-apply): our-name sending is reserved for the strongest matches.
+      // The queue now contains honest Weak rows too (matcher queues evidence-bar misses for review),
+      // and those may only go out from the user's OWN inbox — never from our domain.
+      {
+        const hasOwn = !!fullUser.userSmtp?.verified || !!fullUser.gmailAuth;
+        if (!hasOwn) {
+          const POSTAL_TIER = (process.env.POSTAL_SEND_TIER || 'strong').toLowerCase(); // 'strong' | 'good'
+          const bdDecision = String((app.matchBreakdown as { decision?: string } | null)?.decision || 'SEND'); // legacy rows without a breakdown: fail-open
+          const label = String(app.matchLabel || '');
+          const meetsPostalBar = bdDecision === 'SEND' && (POSTAL_TIER === 'good' ? /strong|good/i.test(label) : /strong/i.test(label));
+          if (!meetsPostalBar) {
+            return NextResponse.json({
+              error: 'smtp_required',
+              reason: 'not_strong',
+              message: 'Sending from Freelanly is reserved for your strongest fits. Connect your own email (Settings → Integrations) to send this one yourself — from your address, no limits.',
+            }, { status: 422 });
+          }
+        }
+      }
+
       // Daily send cap (same 20/UTC-day as quick-apply — this route previously bypassed it entirely).
       // Atomic consume before sending; refunded below if the send fails.
       if (!(await consumeApplyQuota(session.user.id, fullUser.plan))) {
