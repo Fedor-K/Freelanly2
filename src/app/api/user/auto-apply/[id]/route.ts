@@ -7,6 +7,8 @@ import { sendViaGmail } from '@/lib/gmail-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { buildApplicationEmailHtml } from '@/services/auto-apply-processor';
 import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
+import { fetchResumeAttachment } from '@/lib/resume-attachment';
+import { generateTailoredCv } from '@/lib/tailored-cv';
 
 function cleanReplyText(text: string | null): string | null {
   if (!text) return null;
@@ -313,7 +315,7 @@ export async function POST(
       // Fetch full user data for sending
       const fullUser = await prisma.user.findUnique({
         where: { id: session.user.id },
-        select: { name: true, email: true, plan: true, userSmtp: true, gmailAuth: true },
+        select: { name: true, email: true, plan: true, userSmtp: true, gmailAuth: true, resumeUrl: true, resumeFileName: true },
       });
       if (!fullUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
@@ -351,13 +353,27 @@ export async function POST(
         recruiterEmail: ownInbox ? undefined : app.appliedToEmail,
       });
 
+      // Attach the CV — this route used to send queue items with NO résumé attached (unlike
+      // quick-apply), the recruiters' #1 ask. PRO gets the per-role tailored PDF; everyone else
+      // (and any tailoring failure) falls back to the stock résumé.
+      let cv = fullUser.plan === 'PRO'
+        ? await generateTailoredCv({
+            profile: (app.user?.parsedProfile ?? null) as import('@/lib/recruiter-cv').CvProfile | null,
+            userName: fullUser.name || '',
+            jobTitle: app.jobTitle,
+            jobDescription,
+            companyName: app.companyName,
+          })
+        : null;
+      if (!cv) cv = await fetchResumeAttachment(fullUser.resumeUrl, fullUser.resumeFileName || undefined);
+
       let result: { success: boolean; messageId?: string; error?: string };
 
       if (hasGmail) {
         const g = fullUser.gmailAuth!;
         result = await sendViaGmail(
           { email: g.email, refreshToken: g.refreshToken },
-          { from: `${fullUser.name || 'Applicant'} <${g.email}>`, to: app.appliedToEmail, replyTo: g.email, subject, html, text: coverLetter }
+          { from: `${fullUser.name || 'Applicant'} <${g.email}>`, to: app.appliedToEmail, replyTo: g.email, subject, html, text: coverLetter, attachmentBase64: cv?.base64, attachmentFilename: cv?.filename }
         );
         if (!result.success && result.error === 'gmail_token_invalid') {
           await prisma.gmailAuth.update({ where: { userId: session.user.id }, data: { verified: false, lastError: result.error } }).catch(() => {});
@@ -366,7 +382,7 @@ export async function POST(
         const smtp = fullUser.userSmtp!;
         result = await sendEmailViaSMTP(
           { host: smtp.host, port: smtp.port, email: smtp.email, password: smtp.password },
-          { from: `${fullUser.name || 'Applicant'} <${smtp.email}>`, to: app.appliedToEmail, replyTo: smtp.email, subject, html, text: coverLetter }
+          { from: `${fullUser.name || 'Applicant'} <${smtp.email}>`, to: app.appliedToEmail, replyTo: smtp.email, subject, html, text: coverLetter, attachmentBase64: cv?.base64, attachmentFilename: cv?.filename }
         );
       } else {
         result = await sendAutoApplyViaPostal({
@@ -377,6 +393,8 @@ export async function POST(
           html,
           text: coverLetter,
           applicationId: id,
+          attachmentBase64: cv?.base64,
+          attachmentFilename: cv?.filename,
         });
       }
 

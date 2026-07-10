@@ -12,6 +12,7 @@ import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
 import { fetchResumeAttachment, hasRealCV } from '@/lib/resume-attachment';
+import { generateTailoredCv } from '@/lib/tailored-cv';
 import { getRecruiterPortalUrl } from '@/lib/recruiter-token';
 import { buildGateEvidence, buildLetterEvidence, verifiedSkillsFor, type ReviewRow } from '@/lib/github-review/evidence';
 import { logActivity, ActivityAction } from '@/lib/activity-log';
@@ -515,7 +516,7 @@ export async function POST(request: NextRequest) {
       const coverage = mb && typeof mb.matched === 'number' && typeof mb.total === 'number' && mb.total > 0
         ? { matched: mb.matched, total: mb.total }
         : null;
-      return NextResponse.json({ ok: true, coverLetter: fullLetter, subject, to: opportunity.applyEmail, coverage });
+      return NextResponse.json({ ok: true, coverLetter: fullLetter, subject, to: opportunity.applyEmail, coverage, pro: user.plan === 'PRO' });
     }
 
     // Recruiter-voice rationale for the admin audit card — generated ONLY on a real send (after the
@@ -538,7 +539,18 @@ export async function POST(request: NextRequest) {
 
     // Attach the candidate's CV (Blob PDF) + link the recruiter portal — so self-apply carries the
     // same payload the auto-apply card did (CV + "view all candidates"), the two biggest recruiter asks.
-    const cv = await fetchResumeAttachment(user.resumeUrl, user.resumeFileName || undefined);
+    // PRO: tailored-per-role CV (summary/skills/emphasis rebuilt for THIS posting, facts untouched);
+    // any failure falls back to the stock résumé — never block a send on tailoring.
+    let cv = user.plan === 'PRO'
+      ? await generateTailoredCv({
+          profile: profile as import('@/lib/recruiter-cv').CvProfile,
+          userName: user.name || '',
+          jobTitle: opportunity.title,
+          jobDescription: opportunity.description,
+          companyName,
+        })
+      : null;
+    if (!cv) cv = await fetchResumeAttachment(user.resumeUrl, user.resumeFileName || undefined);
     const portalUrl = getRecruiterPortalUrl(opportunity.applyEmail);
     const safeName = escapeHtml(user.name || 'this candidate');
     // Subtle, professional footer — Gmail already shows the attachment chip, so don't repeat "CV

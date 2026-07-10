@@ -95,6 +95,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   // Cover letter state
   const [coverLetter, setCoverLetter] = useState('');
   const [coverage, setCoverage] = useState<{ matched: number; total: number } | null>(null); // "Covers N/M requirements" badge
+  const [isProPlan, setIsProPlan] = useState(false); // PRO → "tailored CV attached" note on review
   const [matchSummary, setMatchSummary] = useState<{ who: string; fit: string; otherRoles: string[] } | null>(null);
   const [matchLabel, setMatchLabel] = useState<string | null>(null);
   const [matchTier, setMatchTier] = useState<'strong' | 'good' | 'weak'>('good');
@@ -540,6 +541,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         setMatchSummary(data.matchSummary || null);
         setMatchLabel(data.matchLabel || null);
         setCoverage(data.coverage || null);
+        setIsProPlan(!!data.pro);
         setPhase('review');
       } else {
         if (data.error === 'resume_required') {
@@ -996,8 +998,13 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
           {/* Visible proof of letter quality: deterministic requirements-coverage from matchBreakdown. */}
           {coverage && coverage.matched > 0 && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 10px', background: '#F0FBE0', border: '1px solid #DDEBC4', borderRadius: '999px', fontSize: '12px', color: '#3F6212', fontWeight: 600, marginBottom: '10px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 10px', background: '#F0FBE0', border: '1px solid #DDEBC4', borderRadius: '999px', fontSize: '12px', color: '#3F6212', fontWeight: 600, marginBottom: '10px', marginRight: '6px' }}>
               ✓ Covers {coverage.matched} of {coverage.total} job requirements
+            </div>
+          )}
+          {isProPlan && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 10px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '999px', fontSize: '12px', color: '#3F6212', fontWeight: 600, marginBottom: '10px' }}>
+              📎 CV tailored to this role — attached on send
             </div>
           )}
 
