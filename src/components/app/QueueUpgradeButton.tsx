@@ -19,7 +19,11 @@ export function QueueUpgradeButton({ source = 'queue_teaser', label = 'Unlock th
   const go = async () => {
     setBusy(true);
     setErr('');
-    track('FUNNEL_STEP', { step: 'pro5_checkout_click', source });
+    // The money-intent event must SURVIVE the imminent Stripe redirect — send it as an immediate
+    // beacon (the queued tracker path was losing it on iOS, where beforeunload never fires).
+    try {
+      navigator.sendBeacon('/api/track', new Blob([JSON.stringify({ events: [{ action: 'FUNNEL_STEP', details: { step: 'pro5_checkout_click', source }, pageUrl: window.location.pathname }] })], { type: 'application/json' }));
+    } catch { track('FUNNEL_STEP', { step: 'pro5_checkout_click', source }); }
     try {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',

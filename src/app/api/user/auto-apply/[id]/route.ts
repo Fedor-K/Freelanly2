@@ -180,11 +180,16 @@ export async function POST(
       // like any other — first one free, then PRO. Manual editing (update-draft) stays free.
       const meter = await prisma.user.findUnique({ where: { id: session.user.id }, select: { plan: true, aiGenerationsUsed: true } });
       const FREE_GENERATIONS = Number(process.env.FREE_AI_GENERATIONS ?? 1);
+      const NOSEND_GEN_CAP = Number(process.env.FREE_AI_GENERATIONS_NOSEND ?? 3);
       if (meter && meter.plan === 'FREE' && (meter.aiGenerationsUsed ?? 0) >= FREE_GENERATIONS) {
-        return NextResponse.json({
-          error: 'generation_limit',
-          message: 'Your free AI application is used. Upgrade to PRO ($5/mo) for unlimited AI-written letters and tailored CVs — or edit the draft yourself, sending is always free.',
-        }, { status: 402 });
+        // Paywall arms only after the first real send (see quick-apply) — same rule here.
+        const hasSent = (await prisma.autoApplication.count({ where: { userId: session.user.id, sentAt: { not: null } } })) > 0;
+        if (hasSent || (meter.aiGenerationsUsed ?? 0) >= NOSEND_GEN_CAP) {
+          return NextResponse.json({
+            error: 'generation_limit',
+            message: 'Your free AI application is used. Upgrade to PRO ($5/mo) for unlimited AI-written letters and tailored CVs — or edit the draft yourself, sending is always free.',
+          }, { status: 402 });
+        }
       }
       // Load full opportunity/job data for AI context
       let fullDescription = jobDescription;

@@ -147,11 +147,13 @@ function enqueueEvent(event: TrackEvent) {
  *   track('JOB_VIEW', { jobId: '123', title: 'Developer' });
  */
 export function useTracker() {
-  // Flush on unmount / page leave
+  // Flush on unmount / page leave. iOS Safari NEVER fires beforeunload — a queued event followed by
+  // a hard navigation (e.g. the Stripe checkout redirect) was silently lost, which is exactly how
+  // the first real pro5 checkout click vanished from the funnel. pagehide + visibilitychange(hidden)
+  // are the events mobile Safari actually fires.
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const beaconFlush = () => {
       if (eventQueue.length > 0) {
-        // Use sendBeacon as fallback for page unload
         const data = JSON.stringify({ events: eventQueue });
         eventQueue = [];
         try {
@@ -161,10 +163,15 @@ export function useTracker() {
         }
       }
     };
+    const onVisibility = () => { if (document.visibilityState === 'hidden') beaconFlush(); };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('beforeunload', beaconFlush);
+    window.addEventListener('pagehide', beaconFlush);
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('beforeunload', beaconFlush);
+      window.removeEventListener('pagehide', beaconFlush);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
 

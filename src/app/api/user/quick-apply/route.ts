@@ -457,18 +457,25 @@ export async function POST(request: NextRequest) {
     if (providedCoverLetter || editedCoverLetter) {
       coverLetter = providedCoverLetter || editedCoverLetter;
     } else {
-      // GENERATION PAYWALL (owner decision 2026-07-12): the first AI application (letter + tailored
-      // CV) is free — full magic on the first apply. Every following AI GENERATION is PRO. Sends are
-      // never gated: the user can always write the letter themselves and send for free (own text
-      // arrives as providedCoverLetter above and skips this gate entirely).
+      // GENERATION PAYWALL (owner decision 2026-07-12): the first FULL application is free — magic
+      // through to the SEND. The paywall arms only after the user has actually sent something: night-1
+      // data showed a fresh user burn his free generation on a draft he never sent, then sit locked
+      // with ZERO sent applications (never tasted the magic). So: until the first send, generation
+      // stays open (hard cap FREE_AI_GENERATIONS_NOSEND protects LLM spend); after ≥1 send, every
+      // generation past the meter is PRO. Sends are never gated: user-written text arrives as
+      // providedCoverLetter above and skips this gate entirely.
       const FREE_GENERATIONS = Number(process.env.FREE_AI_GENERATIONS ?? 1);
+      const NOSEND_GEN_CAP = Number(process.env.FREE_AI_GENERATIONS_NOSEND ?? 3);
       if (user.plan === 'FREE' && (user.aiGenerationsUsed ?? 0) >= FREE_GENERATIONS) {
-        logActivity({ userId: user.id, action: ActivityAction.FUNNEL_STEP, details: { step: 'generation_paywall_shown', opportunityId: opportunity.id } }).catch(() => {});
-        return NextResponse.json({
-          error: 'generation_limit',
-          message: 'Your free AI application is used. Upgrade to PRO ($5/mo) for unlimited AI-written letters and a CV tailored to every role — or write this one yourself below, sending is always free.',
-          to: opportunity.applyEmail,
-        }, { status: 402 });
+        const hasSent = (await prisma.autoApplication.count({ where: { userId: user.id, sentAt: { not: null } } })) > 0;
+        if (hasSent || (user.aiGenerationsUsed ?? 0) >= NOSEND_GEN_CAP) {
+          logActivity({ userId: user.id, action: ActivityAction.FUNNEL_STEP, details: { step: 'generation_paywall_shown', opportunityId: opportunity.id } }).catch(() => {});
+          return NextResponse.json({
+            error: 'generation_limit',
+            message: 'Your free AI application is used. Upgrade to PRO ($5/mo) for unlimited AI-written letters and a CV tailored to every role — or write this one yourself below, sending is always free.',
+            to: opportunity.applyEmail,
+          }, { status: 402 });
+        }
       }
       // GitHub line in letters: shadow by default (compute + log, don't send) until GITHUB_LETTERS=on.
       const letterEvidence = buildLetterEvidence(ghUser, ghReview, opportunity.skills);
