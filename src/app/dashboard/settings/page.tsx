@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { SettingsForm } from './SettingsForm';
 import { GitHubUrlField } from './GitHubUrlField';
+import { MessengerField } from './MessengerField';
 import { SmtpConnect, SmtpConnected } from './SmtpConnect';
 import { CancelSubscriptionSection } from './CancelSubscriptionSection';
 import { DeleteAccountSection } from './DeleteAccountSection';
@@ -29,7 +30,7 @@ export default async function SettingsPage() {
       resumeText: true, parsedProfile: true,
       resumeUrl: true, resumeFileName: true,
       sendStartHour: true, sendEndHour: true,
-      githubUrl: true,
+      githubUrl: true, messenger: true,
     },
   });
 
@@ -74,6 +75,8 @@ export default async function SettingsPage() {
             <SettingsForm initialData={{ name: user.name || '', email: user.email }} />
 
             <GitHubUrlField initial={user.githubUrl || ''} />
+
+            <MessengerField initial={user.messenger || ''} />
 
             <div className="field-row">
               <div className="lbl">Email<span className="sub">Used for login and notifications</span></div>

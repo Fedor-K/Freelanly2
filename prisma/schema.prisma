@@ -55,6 +55,7 @@ model User {
   currentRate         String?   // candidate-stated CURRENT pay/CTC (SELF-REPORTED) — recruiters re-ask for it; collected in the signup form, put in the first outreach email to cut the ATS "share details" round
   workAuthorization   String?   // where the candidate can legally work (e.g. "Remote – anywhere", "US authorized", "EU", "My country only") — SELF-REPORTED; recruiters re-ask (visa/work-auth); collected in the signup form
   portfolioUrl   String?   // candidate-entered portfolio / GitHub / personal site — recruiters ask for it (14%); shown on the application card
+  messenger      String?   // WhatsApp (intl phone) or Telegram @handle — SELF-REPORTED, collected on the signup profile step (LATAM lives in WhatsApp); reachability for reply follow-ups + placement ops (opt-in calls, anti-ghost)
   githubUrl      String?   // normalized https://github.com/<username> — candidate-entered (settings/prompt) or auto-extracted from resumeText/portfolioUrl; feeds GitHubReview
   githubReview   GitHubReview?
   profileShareConsent   Boolean   @default(false) // affirmative opt-in (GDPR/CCPA) to share the candidate's profile with employers & hiring partners — REQUIRED before any third-party resale/feed; collected at signup

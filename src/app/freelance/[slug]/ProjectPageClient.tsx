@@ -70,6 +70,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [portfolioUrl, setPortfolioUrl] = useState('');
   const [regToken, setRegToken] = useState<string | null>(null); // deferred-session proof from verify-code
   const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [messenger, setMessenger] = useState(''); // WhatsApp (intl phone) or Telegram @handle — reachability
   const [githubUrlField, setGithubUrlField] = useState('');
   const [salaryExpectation, setSalaryExpectation] = useState('');
   const [currentRate, setCurrentRate] = useState('');
@@ -441,6 +442,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     const errors: Record<string, boolean> = {};
     if (!resumeFile && !cvFromLinks) errors.resume = true;
     if (!linkedinUrl) errors.linkedin = true;
+    if (!messenger.trim()) errors.messenger = true;
     if (!workAuth) errors.workAuth = true;
     if (!currentRate.trim()) errors.currentRate = true;
     if (!salaryExpectation.trim()) errors.salary = true;
@@ -467,6 +469,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       if (resumeFile) fd.append('file', resumeFile);
       fd.append('email', email);
       fd.append('linkedinUrl', linkedinUrl);
+      fd.append('messenger', messenger.trim());
       fd.append('githubUrl', githubUrlField.trim());
       if (cvFromLinks) { fd.append('buildFromLinks', 'true'); if (portfolioUrl.trim()) fd.append('portfolioUrl', portfolioUrl.trim()); }
       fd.append('salaryExpectation', salaryExpectation.trim());
@@ -697,6 +700,16 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 type="url" placeholder="linkedin.com/in/yourname" value={linkedinUrl}
                 onChange={e => setLinkedinUrl(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', border: `1px solid ${fieldErrors.linkedin ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '13px' }}
+              />
+            </div>
+
+            {/* WhatsApp / Telegram — reachability: recruiter replies get lost in email; LATAM lives in WhatsApp */}
+            <div style={{ marginBottom: '8px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.messenger ? '#B91C1C' : '#555', display: 'block', marginBottom: '4px' }}>WhatsApp or Telegram <span style={{ color: '#B91C1C' }}>*</span> <span style={{ color: '#9A958A', fontWeight: 400 }}>(so a recruiter reply never gets lost)</span></label>
+              <input
+                type="text" placeholder="+52 1 55 1234 5678 or @username" value={messenger}
+                onChange={e => setMessenger(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', border: `1px solid ${fieldErrors.messenger ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '13px' }}
               />
             </div>
 

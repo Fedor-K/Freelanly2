@@ -25,6 +25,7 @@ export async function GET() {
         caseStudies: true,
         linkedinUrl: true,
         githubUrl: true,
+        messenger: true,
         resumeUrl: true,
         timezone: true,
         sendStartHour: true,
@@ -76,6 +77,7 @@ export async function GET() {
         rateFloorProject: user.rateFloorProject,
         caseStudies: user.caseStudies,
         linkedinUrl: user.linkedinUrl,
+        messenger: user.messenger,
         resumeUrl: user.resumeUrl,
         bookingUrl: user.bookingUrl,
         voiceSamples: user.voiceSamples,
@@ -127,7 +129,7 @@ export async function PATCH(request: NextRequest) {
 
     if (section === 'profile') {
       const { name, headline, location, availability, availableFrom,
-        rateFloorHourly, rateFloorProject, caseStudies, linkedinUrl, bookingUrl, githubUrl } = body;
+        rateFloorHourly, rateFloorProject, caseStudies, linkedinUrl, bookingUrl, githubUrl, messenger } = body;
 
       // githubUrl: empty clears; anything else must parse to a github.com/<user> profile and is
       // stored normalized (feeds the GitHubReview verification pipeline).
@@ -157,6 +159,7 @@ export async function PATCH(request: NextRequest) {
           ...(rateFloorProject !== undefined && { rateFloorProject: rateFloorProject ? parseInt(rateFloorProject) : null }),
           ...(caseStudies !== undefined && { caseStudies: caseStudies || null }),
           ...(linkedinUrl !== undefined && { linkedinUrl: linkedinUrl?.trim() || null }),
+          ...(messenger !== undefined && { messenger: String(messenger || '').trim().slice(0, 80) || null }),
           ...(bookingUrl !== undefined && { bookingUrl: bookingUrl?.trim() || null }),
           ...(githubUrlNorm !== undefined && { githubUrl: githubUrlNorm }),
         },

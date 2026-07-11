@@ -47,6 +47,9 @@ export async function POST(request: NextRequest) {
     const currentRate = (formData.get('currentRate') as string)?.trim().slice(0, 60) || null;
     const workAuthorization = (formData.get('workAuthorization') as string)?.trim().slice(0, 60) || null;
     const availableFrom = (formData.get('availableFrom') as string)?.trim().slice(0, 60) || null;
+    // WhatsApp phone (intl) or Telegram @handle — LATAM lives in WhatsApp; reachability for reply
+    // follow-ups + placement ops. Free-text, optional server-side (never block a signup over it).
+    const messenger = (formData.get('messenger') as string)?.trim().slice(0, 80) || null;
     // Optional GitHub from the signup form — normalized; invalid input is silently dropped
     // (never block a registration over an optional field).
     const githubFieldUser = usernameFromGitHubUrl((formData.get('githubUrl') as string)?.trim() || null);
@@ -290,6 +293,7 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
         ...(currentRate ? { currentRate } : {}),
         ...(workAuthorization ? { workAuthorization } : {}),
         ...(availableFrom ? { availableFrom } : {}),
+        ...(messenger ? { messenger } : {}),
         ...(profileShareConsent ? { profileShareConsent: true, profileShareConsentAt: new Date() } : {}),
         // fill-only-missing; the explicitly-typed signup field wins over résumé auto-extraction.
         ...(!user.githubUrl ? (() => { const gh = githubExplicit || firstGitHubUrlFrom(pdfText); return gh ? { githubUrl: gh } : {}; })() : {}),

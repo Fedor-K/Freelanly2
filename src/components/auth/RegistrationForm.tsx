@@ -94,6 +94,7 @@ export function RegistrationForm({
   const [cvFromLinks, setCvFromLinks] = useState(false); // mobile no-file path: build the CV from LinkedIn/GitHub/portfolio
   const [portfolioUrl, setPortfolioUrl] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [messenger, setMessenger] = useState(''); // WhatsApp (intl phone) or Telegram @handle — reachability
   const [githubUrl, setGithubUrl] = useState('');
   const [salaryExpectation, setSalaryExpectation] = useState('');
   const [currentRate, setCurrentRate] = useState('');
@@ -357,6 +358,7 @@ export function RegistrationForm({
   async function handleProfileSubmit() {
     if (!resumeFile && !cvFromLinks) { setError('Please upload your résumé (PDF)'); return; }
     if (!linkedinUrl) { setError('Please add your LinkedIn profile URL'); return; }
+    if (!messenger.trim()) { setError('Please add your WhatsApp number or Telegram — so a recruiter reply never gets lost'); return; }
     if (!workAuth) { setError('Please select where you can legally work'); return; }
     if (!currentRate.trim()) { setError('Please add your current rate / pay'); return; }
     if (!salaryExpectation.trim()) { setError('Please add your expected salary'); return; }
@@ -370,6 +372,7 @@ export function RegistrationForm({
       if (cvFromLinks) { fd.append('buildFromLinks', 'true'); if (portfolioUrl.trim()) fd.append('portfolioUrl', portfolioUrl.trim()); }
       fd.append('email', email);
       fd.append('linkedinUrl', linkedinUrl);
+      fd.append('messenger', messenger.trim());
       fd.append('githubUrl', githubUrl.trim());
       fd.append('salaryExpectation', salaryExpectation.trim());
       fd.append('currentRate', currentRate.trim());
@@ -752,6 +755,12 @@ export function RegistrationForm({
         <div>
           <label className="field-label">LinkedIn URL <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
           <input className="text-input" type="url" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/in/yourname" />
+        </div>
+
+        {/* WhatsApp / Telegram — reachability: recruiter replies get lost in email; LATAM lives in WhatsApp */}
+        <div>
+          <label className="field-label">WhatsApp or Telegram <span className="required" style={{ color: '#B91C1C' }}>*</span> <span style={{ color: '#9A958A', fontWeight: 400 }}>(so a recruiter reply never gets lost)</span></label>
+          <input className="text-input" type="text" value={messenger} onChange={(e) => setMessenger(e.target.value)} placeholder="+52 1 55 1234 5678 or @username" />
         </div>
 
         {/* GitHub — optional; a verified GitHub is skills evidence for hirers */}
