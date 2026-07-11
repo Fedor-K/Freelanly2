@@ -247,9 +247,11 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           setOwnInbox(!!data.ownInbox);
           setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
           setSendTo(data.to || '');
-          // Strong/Good → skip the preview, write straight away; preview only for weak (steers to
-          // better-fitting roles). Log the weak-gate outcome here (generateCoverLetter logs the rest).
-          if (data.tier === 'weak') {
+          // Strong/Good → skip the preview, write straight away. The weak preview (steers to
+          // better-fitting roles) is ONLY for users without their own inbox — OWNER RULE 2026-07-11:
+          // once a user connects their own email we do not interfere with what they send in any way;
+          // the only limit that remains is the 20/day anti-spam cap.
+          if (data.tier === 'weak' && !data.ownInbox) {
             track('APPLY_DRAFT', { method: 'project', ok: false, reason: 'poor_match', opportunityId: project.id });
             setPhase('summary');
           } else generateCoverLetter();
@@ -506,9 +508,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       setOwnInbox(!!data.ownInbox);
       setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
       setSendTo(data.to || '');
-      // Strong/Good → skip the preview, write the application straight away. The preview only earns its
-      // place on a WEAK match, where it honestly steers the user to better-fitting roles.
-      if (data.tier === 'weak') setPhase('summary');
+      // Strong/Good → skip the preview, write the application straight away. The weak preview is
+      // ONLY for users without their own inbox (owner rule 2026-07-11: own inbox = zero interference,
+      // just the 20/day cap).
+      if (data.tier === 'weak' && !data.ownInbox) setPhase('summary');
       else generateCoverLetter();
     } catch {
       setPhase('summary'); // fail-open: still let the user proceed to write the application
