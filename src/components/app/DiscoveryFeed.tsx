@@ -429,16 +429,9 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
           </div>
         </div>
 
-        {inMatchMode && verifiedCount === 0 && visible.length > 0 && (
-          <div style={{padding: '16px 20px', borderBottom: '1px solid rgba(11,12,15,0.07)', background: '#FBFAF6'}}>
-            <div style={{fontSize: '14px', fontWeight: 600, color: 'var(--ink-1, #0B0C0F)'}}>No strong matches right now</div>
-            <div style={{fontSize: '12px', color: 'var(--ink-4)', marginTop: '3px', lineHeight: 1.5}}>
-              The matcher hasn&apos;t verified a strong match for you in the current pool. Below are the
-              closest opportunities — similar to your profile, but <strong>not verified matches</strong>.
-              New gigs land every few hours, so check back.
-            </div>
-          </div>
-        )}
+        {/* "No strong matches right now" banner REMOVED (owner 2026-07-12: "нахуя это писать") —
+            opening the feed with a paragraph of "nothing for you" kills appetite before the first
+            card. Per-card honesty stays: "Why you're seeing this" + verified/AI-checked chips. */}
 
         {vettedFeed && visible.length === 0 ? (
           <div style={{ padding: '48px 24px', textAlign: 'center' }}>
