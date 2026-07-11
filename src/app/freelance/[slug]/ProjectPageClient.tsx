@@ -5,6 +5,7 @@ import { useTracker } from '@/hooks/useTracker';
 import { SalaryPicker } from '@/components/SalaryPicker';
 import { ProcessingScreen } from '@/components/ProcessingScreen';
 import { SmtpConnectModal } from '@/app/dashboard/settings/SmtpConnect';
+import { QueueUpgradeButton } from '@/components/app/QueueUpgradeButton';
 import { GoogleAuthButton } from '@/components/GoogleAuthButton';
 import { categories, languages } from '@/config/site';
 
@@ -104,6 +105,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [matchTier, setMatchTier] = useState<'strong' | 'good' | 'weak'>('good');
   const [gated, setGated] = useState(false); // true = a send would be refused → don't offer the cover-letter path
   const [ownInbox, setOwnInbox] = useState(false); // Gmail OAuth or SMTP already connected → never pitch "Connect my email" again
+  const [genPaywall, setGenPaywall] = useState(false); // free AI generation spent → PRO pitch on the review screen (writing manually stays free)
   const [suggestions, setSuggestions] = useState<{ slug: string; title: string; company: string }[]>([]);
   const [subject, setSubject] = useState('');
   const [sendTo, setSendTo] = useState('');
@@ -565,6 +567,14 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         } else if (data.error === 'already_applied') {
           setGenError('You already applied to this project.');
           setPhase('sent');
+        } else if (data.error === 'generation_limit') {
+          // Free AI generation spent → review screen with the PRO pitch; manual writing + sending free.
+          setGenPaywall(true);
+          setCoverLetter('');
+          setSubject(`Application: ${project.title}`);
+          setSendTo(data.to || '');
+          setGenError('');
+          setPhase('review');
         } else if (data.error === 'smtp_required' || data.error === 'poor_match') {
           // Our-name (Postal) sending is reserved for the strongest matches; anything below the bar
           // routes to the honest gated summary with the "connect your email to send it yourself"
@@ -1057,6 +1067,19 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       return (
         <div>
           <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '12px' }}>Review & send</h2>
+
+          {/* Generation paywall (owner funnel 2026-07-12): free AI application spent → sell unlimited
+              generation at the moment of peak intent. Sending stays free — the textarea below works. */}
+          {genPaywall && (
+            <div style={{ padding: '14px 16px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '12px', marginBottom: '14px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A17', marginBottom: '4px' }}>Your free AI application is used ✨</div>
+              <div style={{ fontSize: '12.5px', color: '#3F6212', lineHeight: 1.5, marginBottom: '10px' }}>
+                PRO writes the letter <b>and tailors your CV to every role</b> — unlimited, $5/month, cancel anytime.
+                Or write this one yourself below — <b>sending is always free</b>.
+              </div>
+              <QueueUpgradeButton source="generation_paywall" label="Unlock unlimited AI applications →" />
+            </div>
+          )}
 
           {sendTo && (
             <div style={{ fontSize: '12px', color: '#8A8780', marginBottom: '8px', fontFamily: "'Geist Mono', monospace" }}>

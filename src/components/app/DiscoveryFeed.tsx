@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTracker } from '@/hooks/useTracker';
 import { SmtpConnectModal } from '@/app/dashboard/settings/SmtpConnect';
+import { QueueUpgradeButton } from '@/components/app/QueueUpgradeButton';
 
 type Job = {
   id: string;
@@ -158,7 +159,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
         // errors (network/5xx) still fall through to a manual-write draft.
         const reason = (data as { error?: string }).error || '';
         const message = (data as { message?: string }).message || '';
-        const BLOCKING = ['poor_match', 'already_applied', 'limit_reached', 'resume_required', 'unavailable', 'smtp_required'];
+        const BLOCKING = ['poor_match', 'already_applied', 'limit_reached', 'resume_required', 'unavailable', 'smtp_required', 'generation_limit'];
         if (BLOCKING.includes(reason)) {
           setDraftBlocked({ reason, message });
           // Server reports we've already applied here (it checks ALL of the user's applications, not just
@@ -502,6 +503,21 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
               <div style={{padding: '60px 24px', textAlign: 'center', color: '#5C6068'}}>
                 <div style={{fontSize: '14px', marginBottom: '8px'}}>Generating your cover letter...</div>
                 <div style={{fontSize: '12px', color: '#8A8E96'}}>AI is reading the job post and matching with your profile</div>
+              </div>
+            ) : draftBlocked && draftBlocked.reason === 'generation_limit' ? (
+              /* Generation paywall (owner funnel 2026-07-12): free AI application spent — sell unlimited
+                 generation at peak intent. Manual writing + sending stays free via "write it myself". */
+              <div style={{padding: '40px 28px', textAlign: 'center'}}>
+                <div style={{fontSize: '24px', marginBottom: '10px'}}>✨</div>
+                <div style={{fontSize: '15px', fontWeight: 700, marginBottom: '10px'}}>Your free AI application is used</div>
+                <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 18px'}}>
+                  PRO writes the letter <b>and tailors your CV to every role</b> — unlimited, $5/month, cancel anytime.
+                  Or write this one yourself — <b>sending is always free</b>.
+                </div>
+                <div style={{display: 'flex', justifyContent: 'center', gap: '10px', alignItems: 'center', flexWrap: 'wrap'}}>
+                  <QueueUpgradeButton source="generation_paywall_feed" label="Unlock unlimited AI applications →" />
+                  <button className="btn btn-ghost btn-sm" onClick={() => { setDraftBlocked(null); setDraftBody(''); setDraftSubject(`Application: ${draftItem?.title || ''}`); }}>I&apos;ll write it myself</button>
+                </div>
               </div>
             ) : draftBlocked && (draftBlocked.reason === 'smtp_required' || draftBlocked.reason === 'not_strong' || draftBlocked.reason === 'limit_reached') ? (
               <div style={{padding: '40px 28px', textAlign: 'center'}}>

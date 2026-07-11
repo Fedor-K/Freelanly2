@@ -176,6 +176,16 @@ export async function POST(
     const parsedProfile = app.user.parsedProfile as Record<string, unknown> | null;
 
     if (action === 'regenerate') {
+      // Generation paywall (owner decision 2026-07-12): regenerating a letter is an AI generation
+      // like any other — first one free, then PRO. Manual editing (update-draft) stays free.
+      const meter = await prisma.user.findUnique({ where: { id: session.user.id }, select: { plan: true, aiGenerationsUsed: true } });
+      const FREE_GENERATIONS = Number(process.env.FREE_AI_GENERATIONS ?? 1);
+      if (meter && meter.plan === 'FREE' && (meter.aiGenerationsUsed ?? 0) >= FREE_GENERATIONS) {
+        return NextResponse.json({
+          error: 'generation_limit',
+          message: 'Your free AI application is used. Upgrade to PRO ($5/mo) for unlimited AI-written letters and tailored CVs — or edit the draft yourself, sending is always free.',
+        }, { status: 402 });
+      }
       // Load full opportunity/job data for AI context
       let fullDescription = jobDescription;
       let posterName = app.companyName;
@@ -276,6 +286,7 @@ export async function POST(
         where: { id },
         data: { coverLetter },
       });
+      prisma.user.update({ where: { id: session.user.id }, data: { aiGenerationsUsed: { increment: 1 } } }).catch(() => {});
 
       return NextResponse.json({ ok: true, coverLetter, tone });
     }

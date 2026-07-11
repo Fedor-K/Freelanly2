@@ -233,6 +233,7 @@ export async function POST(request: NextRequest) {
         salaryExpectation: true,
         availableFrom: true,
         freeAppliesUsedToday: true,
+        aiGenerationsUsed: true,
         lastFreeApplyReset: true,
         userSmtp: true,
         gmailAuth: true,
@@ -456,6 +457,19 @@ export async function POST(request: NextRequest) {
     if (providedCoverLetter || editedCoverLetter) {
       coverLetter = providedCoverLetter || editedCoverLetter;
     } else {
+      // GENERATION PAYWALL (owner decision 2026-07-12): the first AI application (letter + tailored
+      // CV) is free — full magic on the first apply. Every following AI GENERATION is PRO. Sends are
+      // never gated: the user can always write the letter themselves and send for free (own text
+      // arrives as providedCoverLetter above and skips this gate entirely).
+      const FREE_GENERATIONS = Number(process.env.FREE_AI_GENERATIONS ?? 1);
+      if (user.plan === 'FREE' && (user.aiGenerationsUsed ?? 0) >= FREE_GENERATIONS) {
+        logActivity({ userId: user.id, action: ActivityAction.FUNNEL_STEP, details: { step: 'generation_paywall_shown', opportunityId: opportunity.id } }).catch(() => {});
+        return NextResponse.json({
+          error: 'generation_limit',
+          message: 'Your free AI application is used. Upgrade to PRO ($5/mo) for unlimited AI-written letters and a CV tailored to every role — or write this one yourself below, sending is always free.',
+          to: opportunity.applyEmail,
+        }, { status: 402 });
+      }
       // GitHub line in letters: shadow by default (compute + log, don't send) until GITHUB_LETTERS=on.
       const letterEvidence = buildLetterEvidence(ghUser, ghReview, opportunity.skills);
       if (letterEvidence && process.env.GITHUB_LETTERS !== 'on') {
@@ -477,6 +491,9 @@ export async function POST(request: NextRequest) {
         verdict: pairing.verdict, // honest mode + missing-strip
         githubEvidence: process.env.GITHUB_LETTERS === 'on' ? letterEvidence : null,
       });
+      // Meter the generation (fire-and-forget; PRO counted too — it's usage data, the gate above
+      // only ever reads it for FREE).
+      prisma.user.update({ where: { id: user.id }, data: { aiGenerationsUsed: { increment: 1 } } }).catch(() => {});
     }
 
     const subject = providedSubject || editedSubject || await generateSubjectLine({
