@@ -483,7 +483,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     if (!pre || !pre.ok) {
       const d = pre ? await pre.json().catch(() => ({})) : {};
       setAuthLoading(false);
-      setAuthError(typeof (d as { error?: string }).error === 'string' ? (d as { error?: string }).error! : 'Could not save your profile — check your résumé and try again.');
+      // 413 = Vercel body limit hit before our code ran (no JSON) — name the real cause.
+      setAuthError(pre?.status === 413
+        ? 'Your résumé file is too large (max 4 MB) — compress it or use “Build it from my links”.'
+        : typeof (d as { error?: string }).error === 'string' ? (d as { error?: string }).error! : 'Could not save your profile — check your résumé and try again.');
       setFieldErrors({ resume: true });
       return; // form stays mounted → every field (incl. rate/salary) is preserved
     }
@@ -679,6 +682,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                   // Backend parses PDF (unpdf) + DOCX (mammoth); reject anything else at the picker so the
                   // user gets told, not silently 400'd on submit.
                   if (f && !(nm.endsWith('.pdf') || nm.endsWith('.docx'))) { setAuthError('Please upload a PDF or DOCX résumé.'); setFieldErrors(p => ({ ...p, resume: true })); e.target.value = ''; return; }
+                  // Vercel rejects bodies >4.5MB with an HTML 413 BEFORE our code runs — the user only saw
+                  // a useless generic error. Catch the oversized file at the picker with a way out.
+                  if (f && f.size > 4 * 1024 * 1024) { setAuthError('That PDF is over 4 MB — please compress it (e.g. ilovepdf.com/compress_pdf) or use “Build it from my links” below.'); setFieldErrors(p => ({ ...p, resume: true })); e.target.value = ''; return; }
                   setFieldErrors(p => { const n = { ...p }; delete n.resume; return n; }); setAuthError(''); setResumeFile(f || null);
                 }} />
               </div>

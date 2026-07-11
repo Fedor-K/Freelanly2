@@ -386,7 +386,10 @@ export function RegistrationForm({
       if (!pre || !pre.ok) {
         const d = pre ? await pre.json().catch(() => ({})) : {};
         setProfileSubmitting(false);
-        setError(typeof (d as { error?: string }).error === 'string' ? (d as { error?: string }).error! : 'Could not save your profile — check your résumé and try again.');
+        // 413 = Vercel body limit hit before our code ran (no JSON) — name the real cause.
+        setError(pre?.status === 413
+          ? 'Your résumé file is too large (max 4 MB) — compress it or use “Build it from my links”.'
+          : typeof (d as { error?: string }).error === 'string' ? (d as { error?: string }).error! : 'Could not save your profile — check your résumé and try again.');
         return;
       }
       window.location.href = callbackUrl || '/dashboard/discovery';
@@ -792,14 +795,14 @@ export function RegistrationForm({
             onClick={(e) => { const inp = (e.currentTarget as HTMLElement).querySelector('input[type="file"]') as HTMLInputElement; if (inp && (e.target as HTMLElement).tagName !== 'INPUT') inp.click(); }}
             onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }}
             onDragLeave={(e) => { e.currentTarget.classList.remove('drag-over'); }}
-            onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drag-over'); const file = e.dataTransfer.files?.[0]; const nm = (file?.name || '').toLowerCase(); if (file && (nm.endsWith('.pdf') || nm.endsWith('.docx'))) { setError(''); setResumeFile(file); } else if (file) { setError('Please upload a PDF or DOCX résumé.'); } }}
+            onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drag-over'); const file = e.dataTransfer.files?.[0]; const nm = (file?.name || '').toLowerCase(); if (file && file.size > 4 * 1024 * 1024) { setError('That PDF is over 4 MB — please compress it (e.g. ilovepdf.com/compress_pdf) or use “Build it from my links”.'); } else if (file && (nm.endsWith('.pdf') || nm.endsWith('.docx'))) { setError(''); setResumeFile(file); } else if (file) { setError('Please upload a PDF or DOCX résumé.'); } }}
           >
             <div style={{ flex: 1 }}>
               <div className="up-ttl">{resumeFile ? resumeFile.name : 'Drag & drop your résumé here'}</div>
               <div className="up-sub">{resumeFile ? 'Ready to upload' : 'PDF or DOCX · or click to choose'}</div>
             </div>
             {/* Backend parses PDF (unpdf) + DOCX (mammoth). */}
-            <input type="file" accept="application/pdf,.pdf,.docx" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; const nm = (f?.name || '').toLowerCase(); if (f && !(nm.endsWith('.pdf') || nm.endsWith('.docx'))) { setError('Please upload a PDF or DOCX résumé.'); e.target.value = ''; return; } setError(''); setResumeFile(f || null); }} />
+            <input type="file" accept="application/pdf,.pdf,.docx" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; const nm = (f?.name || '').toLowerCase(); if (f && !(nm.endsWith('.pdf') || nm.endsWith('.docx'))) { setError('Please upload a PDF or DOCX résumé.'); e.target.value = ''; return; } if (f && f.size > 4 * 1024 * 1024) { setError('That PDF is over 4 MB — please compress it (e.g. ilovepdf.com/compress_pdf) or use “Build it from my links”.'); e.target.value = ''; return; } setError(''); setResumeFile(f || null); }} />
             {resumeFile ? <span style={{ fontSize: '11.5px', color: '#047857' }}>✓</span> : <span style={{ fontSize: '11.5px', color: '#5C6068' }}>Choose →</span>}
           </div>
           )}
