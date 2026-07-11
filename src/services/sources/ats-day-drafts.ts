@@ -21,10 +21,16 @@ export type AtsDayResult = {
   vacancies: number;   // today's ATS opportunities considered
   noContact: number;   // dropped: no resolvable company contact
   noCandidates: number;// dropped: no candidate cleared the strong-shortlist floor
+  excluded: number;    // dropped: staffing/recruiting firm posting on someone else's behalf
   created: number;     // drafts persisted THIS call
   existing: number;    // already drafted for this opportunity (skipped)
   remaining: number;   // opps not yet processed (>0 only when a `limit` batch stopped early)
 };
+
+// Staffing/recruiting/consulting firms post roles they don't own — MPC-mailing THEM sells candidates
+// to a middleman who won't pay a fee (the 06.2026 recruiter-outreach lesson: 1728 emails → 0 paying,
+// all bodyshops). Sales-intelligence practice is to exclude them from ATS-derived target lists.
+const STAFFING_FIRM = /(staff|recruit|talent|hiring|headhunt|outsourc|consultan|bodyshop|rpo\b|hr[-_ ]?(solutions|services|tech))/i;
 
 // Prerank depth per role for the outreach vet (default 10). Kept small so a batch fits Vercel's 60s
 // function cap (limit × pre AI calls); env-tunable if latency/quality shifts.
@@ -77,7 +83,7 @@ export async function buildAtsDayDrafts(opts: { day?: string; offset?: number; l
   const total = opps.length;
   const offset = opts.offset && opts.offset > 0 ? opts.offset : 0;
   const slice = opts.limit && opts.limit > 0 ? opps.slice(offset, offset + opts.limit) : opps.slice(offset);
-  const out: AtsDayResult = { vacancies: total, noContact: 0, noCandidates: 0, created: 0, existing: 0, remaining: Math.max(0, total - (offset + slice.length)) };
+  const out: AtsDayResult = { vacancies: total, noContact: 0, noCandidates: 0, excluded: 0, created: 0, existing: 0, remaining: Math.max(0, total - (offset + slice.length)) };
 
   for (const o of slice) {
     const already = await prisma.outreachDraft.findUnique({ where: { opportunityId: o.id }, select: { id: true } }).catch(() => null);
@@ -85,6 +91,7 @@ export async function buildAtsDayDrafts(opts: { day?: string; offset?: number; l
 
     const slug = leverSlug(o.applyUrl);
     if (!slug) { out.noContact++; continue; }
+    if (STAFFING_FIRM.test(slug)) { out.excluded++; continue; } // middlemen don't pay fees
 
     const contact = await resolveCompanyContact({ slug, name: null });
     if (!contact.email) { out.noContact++; continue; }   // strict: must have a contact

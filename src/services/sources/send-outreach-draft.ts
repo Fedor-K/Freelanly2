@@ -28,6 +28,13 @@ export async function sendOutreachDraft(id: string): Promise<SendDraftResult> {
     if (sup) return { sent: false, reason: 'suppressed (opted out / bounced)' };
   } catch { return { sent: false, reason: 'suppression check failed' }; }
 
+  // Guessed careers@ contacts bounce hard, and bounce-rate is what kills a sending domain (research
+  // floor: pause at >2-3%). Send verified/catch-all only; guesses need the worker's port-25 verify
+  // first, or an explicit override.
+  if (d.contactMethod === 'guess' && process.env.OUTREACH_ALLOW_GUESS !== 'true') {
+    return { sent: false, reason: 'guessed contact (careers@) — run port-25 verify on the worker first, or set OUTREACH_ALLOW_GUESS=true' };
+  }
+
   const from = OUTREACH.fromEmail;
   let res: { success: boolean; messageId?: string; error?: string };
   try {

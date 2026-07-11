@@ -170,6 +170,7 @@ export function cardEmail(company: string, role: string, cands: ShortlistCandida
     <p>Hi ${esc(company)} team,</p>
     <p>You have an open <strong>${esc(role)}</strong> role. ${n > 1 ? `Here are ${n} candidates` : `Here is a candidate`} from our pool who fit it — already vetted, available, and reachable:</p>
     <table style="width:100%;border-collapse:collapse;">${rows}</table>
+    <p style="margin-top:14px;color:#444;font-size:13.5px;line-height:1.55;">How this works: viewing profiles and interviewing costs nothing — a flat placement fee applies only if you hire, replacement guarantee included. Before any intro we re-confirm the candidate's availability directly, so you won't chase ghosts.</p>
     <p style="margin-top:18px;"><a href="${esc(portalUrl)}" style="background:#c6f135;color:#111;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600;">View profiles &amp; CVs →</a></p>
     <p style="color:#888;font-size:12px;margin-top:24px;">Reply to this email to connect with any of them. Not hiring right now? <a href="${esc(unsub)}">Unsubscribe</a> and we won't email again.</p>
   </div>`;
@@ -180,7 +181,7 @@ export function cardEmail(company: string, role: string, cands: ShortlistCandida
     if (c.salaryExpectation) b.push(`exp. pay ${c.salaryExpectation}`);
     if (c.githubVerified) b.push('GitHub-verified');
     return `• ${normalizeProfession(c.title) || role || 'Candidate'}${c.label ? ` (${c.label})` : ''} — ${b.join(', ')}${c.skills?.length ? `\n  skills: ${c.skills.slice(0, 8).join(', ')}` : ''}`;
-  }).join('\n')}\n\nView profiles & CVs: ${portalUrl}\nReply to connect. Unsubscribe: ${unsub}`;
+  }).join('\n')}\n\nHow it works: viewing profiles and interviewing is free — a flat placement fee applies only if you hire (replacement guarantee included). We re-confirm each candidate's availability before any intro.\n\nView profiles & CVs: ${portalUrl}\nReply to connect. Unsubscribe: ${unsub}`;
   return { subject, html, text };
 }
 
