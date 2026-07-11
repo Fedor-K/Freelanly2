@@ -1093,11 +1093,11 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
               ✓ Covers {coverage.matched} of {coverage.total} job requirements
             </div>
           )}
-          {isProPlan && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 10px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '999px', fontSize: '12px', color: '#3F6212', fontWeight: 600, marginBottom: '10px' }}>
-              📎 CV tailored to this role — attached on send
-            </div>
-          )}
+          {/* Résumé attachment — recruiters' #1 ask; we DO attach it on every send, so say it for
+              everyone (FREE saw no hint at all and hit Send blind). */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 10px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '999px', fontSize: '12px', color: '#3F6212', fontWeight: 600, marginBottom: '10px' }}>
+            {isProPlan ? '📎 CV tailored to this role — attached on send' : '📎 Your résumé is attached on send'}
+          </div>
 
           <div style={{ marginBottom: '8px' }}>
             <label style={{ fontSize: '11px', fontWeight: 500, color: '#8A8780', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Subject</label>

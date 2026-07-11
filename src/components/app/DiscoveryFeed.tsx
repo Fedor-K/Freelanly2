@@ -154,6 +154,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
       if (res.ok) {
         setDraftSubject((data as { subject?: string }).subject || `Application: ${item.title}`);
         setDraftBody((data as { coverLetter?: string }).coverLetter || '');
+        setDraftPro(!!(data as { pro?: boolean }).pro);
       } else {
         // Gate/state refusals are HONEST blocks — don't present a writable failed draft (the user
         // would just send garbage to a recruiter on a role the gate already rejected). Recoverable
@@ -229,6 +230,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   // The apply-gate refused (or the state blocks applying) — show an HONEST message, not a writable
   // "Failed to generate" draft the user could still send. poor_match is the feed↔gate divergence.
   const [draftBlocked, setDraftBlocked] = useState<{ reason: string; message: string } | null>(null);
+  const [draftPro, setDraftPro] = useState(false); // PRO = tailored-CV wording on the attachment line
 
   // The feed is a curated best-first shortlist (Strong → divider → Good); a chronological "Newest"
   // sort broke the tiering and pulled fresh-but-irrelevant roles up, so the toggle was removed.
@@ -570,6 +572,13 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                     rows={10}
                     style={{width: '100%', border: '1px solid rgba(11,12,15,0.12)', borderRadius: '10px', padding: '14px', fontSize: '14px', lineHeight: 1.6, resize: 'vertical', outline: 'none', fontFamily: 'inherit'}}
                   />
+                </div>
+
+                {/* Résumé attachment — recruiters' #1 ask; the send DOES attach it, so SAY it (the
+                    user was hitting Send blind, not knowing whether their CV goes along). */}
+                <div style={{padding: '0 24px 14px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#3F6212'}}>
+                  <span>📎</span>
+                  <span>{draftPro ? <>Your CV, <b>tailored to this role</b>, is attached on send</> : <>Your résumé is attached on send</>}</span>
                 </div>
 
                 {/* Actions */}
