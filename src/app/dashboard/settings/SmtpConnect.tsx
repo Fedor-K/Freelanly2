@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 // SMTP connect form: saves via /api/user/smtp then verifies via /api/user/smtp/test (which sets
 // verified=true). Once verified, the user sends applications from their own address (any match, same 20/day cap), and
@@ -303,14 +304,16 @@ export function SmtpConnect({ initialEmail }: { initialEmail?: string }) {
 // Popup version — the "Connect my email" CTA on the feed / project page opens this instead of
 // bouncing the user to Settings. Same form, in a centered overlay; click the backdrop or ✕ to close.
 export function SmtpConnectModal({ open, onClose, initialEmail, onConnected }: { open: boolean; onClose: () => void; initialEmail?: string; onConnected?: () => void }) {
-  if (!open) return null;
-  return (
-    // flex-start (not center): a centered modal ends up UNDER the software keyboard on phones the
-    // moment an input focuses — top-aligned keeps the form visible; overflowY lets it scroll if tight.
+  if (!open || typeof document === 'undefined') return null;
+  return createPortal(
+    // PORTALED to <body>: iOS re-anchors position:fixed to transformed ancestors (modal floated
+    // mid-scroll on phones). flex-start (not center): a centered modal ends up UNDER the software
+    // keyboard on phones the moment an input focuses — top-aligned keeps the form visible.
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 2000, padding: '24px 16px 16px', overflowY: 'auto' }}>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '460px', maxHeight: '92vh', overflowY: 'auto', borderRadius: '14px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
         <SmtpConnectForm initialEmail={initialEmail} onClose={onClose} onConnected={onConnected} />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useTracker } from '@/hooks/useTracker';
 import { SmtpConnectModal } from '@/app/dashboard/settings/SmtpConnect';
@@ -489,10 +490,13 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
         )}
       </div>
 
-      {/* Draft preview modal */}
-      {draftItem && (
-        <div style={{position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'grid', placeItems: 'center'}} onClick={() => !draftGenerating && !draftSending && setDraftItem(null)}>
-          <div style={{background: '#fff', borderRadius: '14px', padding: '0', width: '100%', maxWidth: '640px', maxHeight: '85vh', overflow: 'auto', border: '1px solid rgba(11,12,15,0.12)'}} onClick={e => e.stopPropagation()}>
+      {/* Draft preview modal. PORTALED to <body>: iOS Safari re-anchors position:fixed to any
+          transformed/filtered ancestor, which left this modal floating mid-scroll with an undimmed
+          bottom half on phones. Top-aligned (not centered) so the edit textarea stays visible above
+          the software keyboard — same lesson as SmtpConnectModal. */}
+      {draftItem && typeof document !== 'undefined' && createPortal(
+        <div style={{position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 2000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 12px 16px', overflowY: 'auto'}} onClick={() => !draftGenerating && !draftSending && setDraftItem(null)}>
+          <div style={{background: '#fff', borderRadius: '14px', padding: '0', width: '100%', maxWidth: '640px', maxHeight: '92vh', overflow: 'auto', border: '1px solid rgba(11,12,15,0.12)'}} onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div style={{padding: '16px 24px', borderBottom: '1px solid rgba(11,12,15,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
               <div>
@@ -597,7 +601,8 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
