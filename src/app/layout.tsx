@@ -30,6 +30,10 @@ import Script from "next/script";
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  // iOS auto-zooms on input focus and the page STAYS zoomed after (cut-off right edge, buttons off
+  // screen). maximumScale stops the auto-zoom; Safari still allows manual pinch-zoom (it ignores
+  // this cap for user gestures since iOS 10), so accessibility is preserved.
+  maximumScale: 1,
   themeColor: '#ffffff',
 };
 
