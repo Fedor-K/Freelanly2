@@ -17,6 +17,17 @@
 @media (max-width: 1100px) { .disco-filter-toggle { display: inline-flex; } }
 
 .job-card { padding: 16px 20px; border-bottom: 1px solid var(--line); transition: background 140ms; cursor: pointer; display: grid; grid-template-columns: 40px 1fr auto; gap: 16px; }
+/* Grid children default to min-width:auto and refuse to shrink below their content — on phones the
+   1fr content column + the `auto` Skip/Apply column pushed the card past the viewport (right edge
+   cut off, buttons off-screen; Safari sometimes masked it by shrink-to-fit zoom). min-width:0 lets
+   the content column actually shrink; the title row wraps its chips instead of forcing width. */
+.job-card > div { min-width: 0; }
+.job-card .row { flex-wrap: wrap; }
+@media (max-width: 640px) {
+  /* Stack on phones: logo + content on top, Skip/Apply as a full-width row underneath. */
+  .job-card { grid-template-columns: 40px 1fr; gap: 12px; }
+  .job-card .job-right { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: flex-end; text-align: left; }
+}
 .job-card:hover { background: var(--bg-2); }
 .job-card:last-child { border-bottom: none; }
 .job-card .logo { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-weight: 700; font-size: 16px; color: #000; font-family: 'Geist Mono', monospace; }
