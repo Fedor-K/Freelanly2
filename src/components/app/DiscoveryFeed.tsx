@@ -235,10 +235,9 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   const sortBy = 'match' as const;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
-  // Similar (non-verified) opps are VISIBLE by default — owner order 2026-07-12: "показывать, ничего
-  // нигде не прятать". Honesty lives in the labeling (the "not verified matches" note + card labels),
-  // not in hiding cards behind a click. The button remains only as a collapse toggle.
-  const [showSimilar, setShowSimilar] = useState(true);
+  // Similar (non-verified) opps are ALWAYS visible — owner order 2026-07-12: "показывать, ничего
+  // нигде не прятать" (no hide toggle either). Honesty lives in the labeling (the "not verified
+  // matches" note + card labels), not in hiding cards.
   const [smtpModal, setSmtpModal] = useState(false); // "Connect my email" popup on the gated draft screen
 
   // Apply filters
@@ -476,16 +475,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                 </div>
               );
             })}
-            {similarVisible.length > 0 && (
-              <div style={{padding: '14px 20px', borderTop: '1px solid rgba(11,12,15,0.07)', textAlign: 'center'}}>
-                <button className="btn btn-soft btn-sm" onClick={() => setShowSimilar(s => !s)}>
-                  {showSimilar
-                    ? `Hide ${similarVisible.length} similar`
-                    : `Show ${similarVisible.length} similar opportunit${similarVisible.length === 1 ? 'y' : 'ies'}`}
-                </button>
-              </div>
-            )}
-            {showSimilar && similarVisible.map((item, i) => renderCard(item, verifiedVisible.length + i))}
+            {similarVisible.map((item, i) => renderCard(item, verifiedVisible.length + i))}
           </>
         )}
       </div>
