@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { DiscoveryFeed } from '@/components/app/DiscoveryFeed';
+import { ProfileBoostNudge } from '@/components/app/ProfileBoostNudge';
+import { deriveCategorySlugs } from '@/lib/loop-routing';
 import { buildFitContext, scoreFitLabeled, type FitLabel, type FitResult } from '@/lib/fit-score';
 import { verifiedSkillsFor, type ReviewRow } from '@/lib/github-review/evidence';
 import { readVettedFeed } from '@/services/feed-vet';
@@ -40,7 +42,7 @@ export default async function DiscoveryPage() {
   // No résumé yet → send to in-app résumé onboarding, NOT an empty feed. Discovery is the post-login
   // landing now, so this guard (mirrors src/app/dashboard/page.tsx) must live here too — without a
   // parsedProfile there's nothing to match against. Also prevents the old login-loop.
-  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { parsedProfile: true, resumeUrl: true, resumeText: true, githubUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } } } });
+  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { parsedProfile: true, resumeUrl: true, resumeText: true, githubUrl: true, videoIntroUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } } } });
   if (!me?.resumeUrl) redirect('/dashboard/settings#profile');
   // Repo-verified skills (fresh, positive GitHub review) weigh extra in ranking + light the card badge.
   const ghVerifiedSkills = verifiedSkillsFor({ githubUrl: me.githubUrl, parsedProfile: me.parsedProfile }, (me.githubReview as ReviewRow | null) ?? null);
@@ -407,6 +409,18 @@ export default async function DiscoveryPage() {
           <p>Live feed across LinkedIn hiring posts and company career pages. Updated every 3 hours.</p>
         </div>
       </div>
+
+      {/* Profile boost (video intro / GitHub) — duplicated here because Discovery is where users
+          actually live; /dashboard alone was unreachable from the trimmed mobile nav. */}
+      {(() => {
+        const pp = me.parsedProfile as Record<string, unknown> | null;
+        const isDev = deriveCategorySlugs({
+          currentTitle: typeof pp?.current_title === 'string' ? (pp.current_title as string) : null,
+          field: typeof pp?.field === 'string' ? (pp.field as string) : null,
+          skills: Array.isArray(pp?.skills) ? (pp.skills as unknown[]).map(String) : [],
+        }).some(sl => ['engineering', 'devops', 'data', 'qa', 'security'].includes(sl));
+        return <ProfileBoostNudge askVideo={!me.videoIntroUrl} askGithub={isDev && !me.githubUrl} />;
+      })()}
 
       <div className="disco-grid">
         <DiscoveryFeed

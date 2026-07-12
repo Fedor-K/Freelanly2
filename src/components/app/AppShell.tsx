@@ -27,12 +27,14 @@ function SvgIcon({ name, size = 18 }: { name: string; size?: number }) {
 }
 
 type NavItem = { id: string; href: string; label: string; icon: string; count?: number };
-// Sidebar trimmed to just the feed — the one page that matters. Everything else
-// (Settings/SMTP, Inbox, etc.) stays reachable via the user menu + notification bell,
-// and the pages still exist by URL.
+// Sidebar: Discovery (where users live) + Dashboard (the ready-queue, the $5 teaser and the
+// profile-boost card live there — since the 07-2026 monetization it's a money surface, and a page
+// unreachable from nav doesn't exist on mobile). Everything else (Settings/SMTP, Inbox, etc.)
+// stays reachable via the user menu + notification bell, and the pages still exist by URL.
 const NAV: { label: string; items: NavItem[] }[] = [
   { label: '', items: [
     { id: 'discovery', href: '/dashboard/discovery',   label: 'Discovery', icon: 'compass' },
+    { id: 'dashboard', href: '/dashboard',             label: 'Dashboard', icon: 'home' },
   ]},
 ];
 
