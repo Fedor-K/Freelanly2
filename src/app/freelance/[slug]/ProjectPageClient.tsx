@@ -995,7 +995,11 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 </div>
               </div>
             )}
-            {!matchSummary && <p style={{ fontSize: '13px', color: '#8A8780', margin: 0 }}>{gatedGood ? 'A good fit for your profile.' : 'Profile ready — let’s write your application.'}</p>}
+            {/* Fallback when the AI summary didn't generate. Must NOT say "let's write your application"
+                on a WEAK match — the whole screen is telling the user this ISN'T a strong fit, so the
+                upbeat write-CTA contradicted itself (the "Weak match + let's write" clash). On weak we
+                stay silent here (the honest paragraph below already explains it). */}
+            {!matchSummary && !weak && <p style={{ fontSize: '13px', color: '#8A8780', margin: 0 }}>{gatedGood ? 'A good fit for your profile.' : 'Profile ready — let’s write your application.'}</p>}
           </div>
 
           {weak ? (
