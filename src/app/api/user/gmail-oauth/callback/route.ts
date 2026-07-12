@@ -60,28 +60,19 @@ export async function GET(request: NextRequest) {
     }).catch(() => {});
   }
 
-  // verified = the grant can actually SEND. If the user completed Google sign-in but declined the
-  // "send email" permission, tokens.canSend is false → store the identity grant but mark it NOT
-  // sendable (verified=false), so the send path routes to Postal instead of 403-ing forever.
-  await prisma.gmailAuth.upsert({
-    where: { userId },
-    create: {
-      userId,
-      email: tokens.email || '',
-      refreshToken: encryptToken(tokens.refreshToken),
-      verified: tokens.canSend,
-      lastError: tokens.canSend ? null : 'gmail.send permission not granted',
-    },
-    update: {
-      email: tokens.email || '',
-      refreshToken: encryptToken(tokens.refreshToken),
-      verified: tokens.canSend,
-      lastError: tokens.canSend ? null : 'gmail.send permission not granted',
-    },
-  });
+  // Record a GmailAuth grant ONLY when gmail.send was actually granted (verified ⟺ can send). Plain
+  // identity signup/login (no send scope) records NO grant — the user just gets an account + session
+  // and sends via Postal until they explicitly connect Gmail for sending. This is what keeps the
+  // "verified" flag honest and stops the 403 "connected but can't send" class of bug entirely.
+  if (tokens.canSend) {
+    await prisma.gmailAuth.upsert({
+      where: { userId },
+      create: { userId, email: tokens.email || '', refreshToken: encryptToken(tokens.refreshToken), verified: true, lastError: null },
+      update: { email: tokens.email || '', refreshToken: encryptToken(tokens.refreshToken), verified: true, lastError: null },
+    });
+  }
 
-  // Always return 'connected' — the user IS signed in either way; the flow must proceed normally.
-  // When gmail.send was declined we stored verified=false above, so sends auto-route to Postal
-  // instead of 403-ing. (A "reconnect to send from your own Gmail" nudge can come later.)
+  // Always return 'connected' — the user IS signed in either way; the flow proceeds normally. If the
+  // send scope wasn't granted, no grant was stored, so sends auto-route to Postal.
   return back('connected');
 }

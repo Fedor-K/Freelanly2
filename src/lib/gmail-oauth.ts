@@ -50,8 +50,12 @@ export function verifyState(state: string | null | undefined): { userId: string 
   }
 }
 
-/** Build the Google consent URL. `access_type=offline` + `prompt=consent` force a durable refresh_token. */
-export function buildAuthUrl(state: string, loginHint?: string): string | null {
+/** Build the Google consent URL. `access_type=offline` + `prompt=consent` force a durable refresh_token.
+ *  includeSend: request the sensitive gmail.send scope. FALSE for plain sign-up/login (identity only —
+ *  a non-scary consent that ~100% grant), TRUE only for the explicit "connect Gmail to send" flow,
+ *  where the value is obvious so the grant rate is far higher. Bundling gmail.send into signup caused
+ *  ~72% to decline it (measured 2026-07-12), leaving grants that can't actually send. */
+export function buildAuthUrl(state: string, loginHint?: string, includeSend = false): string | null {
   const client = googleClient();
   if (!client) return null;
   const p = new URLSearchParams({
@@ -59,7 +63,7 @@ export function buildAuthUrl(state: string, loginHint?: string): string | null {
     redirect_uri: redirectUri(),
     response_type: 'code',
     // `profile` gives us the user's name in the id_token — needed by signup mode to create the account.
-    scope: `openid email profile ${GMAIL_SEND_SCOPE}`,
+    scope: includeSend ? `openid email profile ${GMAIL_SEND_SCOPE}` : 'openid email profile',
     access_type: 'offline',
     prompt: 'consent',
     include_granted_scopes: 'true',

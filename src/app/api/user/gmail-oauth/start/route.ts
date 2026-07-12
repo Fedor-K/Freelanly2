@@ -26,7 +26,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth/signin', request.url));
   }
 
-  const url = buildAuthUrl(state, session?.user?.email || undefined);
+  // Ask for the sensitive gmail.send scope ONLY in the explicit connect flow (a logged-in user who
+  // deliberately wants to send from their Gmail). Plain signup/login stays identity-only — asking to
+  // "send email on your behalf" on the signup screen made ~72% decline it (broken, non-sending grants).
+  const includeSend = !!session?.user?.id;
+  const url = buildAuthUrl(state, session?.user?.email || undefined, includeSend);
   if (!url) {
     // GOOGLE_CLIENT_ID/SECRET not configured
     return NextResponse.redirect(new URL(`${safeReturn}${safeReturn.includes('?') ? '&' : '?'}gmail=unconfigured`, request.url));
