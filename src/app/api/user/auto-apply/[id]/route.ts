@@ -376,7 +376,9 @@ export async function POST(
       }
 
       const hasSmtp = !!fullUser.userSmtp?.verified;
-      const hasGmail = !!fullUser.gmailAuth;
+      // verified required: a grant where the user declined gmail.send exists but 403s on send. Route
+      // those to Postal instead of hard-failing (same fix as quick-apply).
+      const hasGmail = !!fullUser.gmailAuth?.verified;
       const ownInbox = hasSmtp || hasGmail;
       const html = buildApplicationEmailHtml({
         coverLetter,

@@ -71,7 +71,7 @@ export function buildAuthUrl(state: string, loginHint?: string): string | null {
 
 /** Exchange an authorization code for tokens. Returns refresh_token + the Google identity (email must
  *  be verified by Google before signup mode may trust it). */
-export async function exchangeCode(code: string): Promise<{ refreshToken: string; email: string | null; emailVerified: boolean; name: string | null } | null> {
+export async function exchangeCode(code: string): Promise<{ refreshToken: string; email: string | null; emailVerified: boolean; name: string | null; canSend: boolean } | null> {
   const client = googleClient();
   if (!client) return null;
   const res = await fetch(TOKEN_ENDPOINT, {
@@ -89,7 +89,11 @@ export async function exchangeCode(code: string): Promise<{ refreshToken: string
   const data = await res.json().catch(() => null);
   if (!data?.refresh_token) return null; // prompt=consent should always return one
   const id = decodeIdToken(data.id_token);
-  return { refreshToken: data.refresh_token, email: id.email, emailVerified: id.emailVerified, name: id.name };
+  // Google returns the ACTUALLY-granted scopes (space-separated). A user can complete Google sign-in
+  // while UNCHECKING the "send email on your behalf" box → we get identity but NOT gmail.send. If we
+  // don't check this, we mark the grant sendable and every send later 403s "insufficient scopes".
+  const canSend = typeof data.scope === 'string' && data.scope.split(/\s+/).includes(GMAIL_SEND_SCOPE);
+  return { refreshToken: data.refresh_token, email: id.email, emailVerified: id.emailVerified, name: id.name, canSend };
 }
 
 /** Refresh an access token from a stored refresh token (used by the send path). */

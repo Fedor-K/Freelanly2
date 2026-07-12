@@ -247,9 +247,11 @@ export async function POST(request: NextRequest) {
     }
 
     const hasSmtp = !!user.userSmtp?.verified;
-    // Gmail-OAuth users send from their own inbox via the Gmail API — same "own email" tier as SMTP:
-    // no daily cap, no strong-gate. Preferred channel when present (best deliverability).
-    const hasGmail = !!user.gmailAuth;
+    // Gmail-OAuth users send from their own inbox via the Gmail API — same "own email" tier as SMTP.
+    // MUST require verified=true: a grant where the user declined the gmail.send scope exists but can't
+    // send (403 insufficient scopes) — routing to it would hard-fail every application. Unverified
+    // grants fall through to Postal instead.
+    const hasGmail = !!user.gmailAuth?.verified;
     const ownInbox = hasSmtp || hasGmail;
 
     // Check resume
@@ -646,9 +648,26 @@ export async function POST(request: NextRequest) {
           attachmentFilename: cv?.filename,
         }
       );
-      // Token revoked/expired → clear the grant so the UI prompts a reconnect instead of silently failing.
-      if (!result.success && result.error === 'gmail_token_invalid') {
-        await prisma.gmailAuth.update({ where: { userId: user.id }, data: { verified: false, lastError: result.error } }).catch(() => {});
+      // Permanent Gmail failure — token revoked/expired OR the gmail.send scope was never granted
+      // (403 "insufficient scopes"). Clear the grant (so future sends route to Postal + the UI can
+      // prompt a proper reconnect) AND fall back to Postal NOW so THIS application still goes out
+      // instead of hard-failing. This is the "shows sending but nothing sends" bug.
+      const gmailPermFail = !result.success && (result.error === 'gmail_token_invalid' || /gmail_send_403|insufficient/i.test(result.error || ''));
+      if (gmailPermFail) {
+        await prisma.gmailAuth.update({ where: { userId: user.id }, data: { verified: false, lastError: (result.error || '').slice(0, 200) } }).catch(() => {});
+        let loop = await prisma.autoApplyLoop.findFirst({ where: { userId: user.id } });
+        if (!loop) loop = await prisma.autoApplyLoop.create({ data: { userId: user.id, name: 'Quick Apply', jobTitles: [], dailyLimit: 50, mode: 'MANUAL', isActive: false } });
+        const appRecord = await prisma.autoApplication.create({
+          data: { origin: 'SELF', userId: user.id, loopId: loop.id, opportunityId: opportunity.id, companyName: opportunity.clientName, jobTitle: opportunity.title, appliedToEmail: opportunity.applyEmail, coverLetter, subject, status: 'SENDING', sentVia: 'postal', matchLabel: pairing.label ?? undefined, matchBreakdown: pairing.matchBreakdown ? (pairing.matchBreakdown as Prisma.InputJsonValue) : undefined },
+        });
+        const pr = await sendAutoApplyViaPostal({ userName: user.name || 'Applicant', userEmail: user.email, to: opportunity.applyEmail, subject, html, text, applicationId: appRecord.id, attachmentBase64: cv?.base64, attachmentFilename: cv?.filename });
+        if (pr.success) {
+          await prisma.autoApplication.update({ where: { id: appRecord.id }, data: { status: 'SENT', sentAt: new Date() } });
+          return NextResponse.json({ success: true, coverLetter: fullLetter, subject, sentTo: opportunity.applyEmail });
+        }
+        await prisma.autoApplication.update({ where: { id: appRecord.id }, data: { status: 'FAILED', errorMessage: pr.error?.slice(0, 500) } });
+        await refundApplyQuota(user.id, user.plan);
+        return NextResponse.json({ error: 'send_failed', message: pr.error }, { status: 500 });
       }
     } else if (hasSmtp) {
       const smtp = user.userSmtp!;
