@@ -9,6 +9,7 @@ import { ApplicationsTable } from '@/components/app/ApplicationsTable';
 import { WelcomeOnboarding } from '@/components/app/WelcomeOnboarding';
 import { DashboardQueue } from '@/components/app/DashboardQueue';
 import { QueueUpgradeButton } from '@/components/app/QueueUpgradeButton';
+import { ProfileBoostNudge } from '@/components/app/ProfileBoostNudge';
 import './dashboard-design.css';
 import './welcome-design.css';
 
@@ -39,7 +40,7 @@ export default async function DashboardOverviewPage() {
   if (!onboardCheck?.resumeUrl) redirect('/dashboard/settings#profile');
 
   const [user, today, yesterday, month, applications, repliesTodayCount, dailyActivity, loop] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true, parsedProfile: true, salaryExpectation: true, githubUrl: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true, parsedProfile: true, salaryExpectation: true, githubUrl: true, videoIntroUrl: true, resumeUrl: true } }),
     prisma.autoApplication.groupBy({
       by: ['status'],
       where: { userId, sentAt: { gte: todayStart } },
@@ -358,6 +359,12 @@ export default async function DashboardOverviewPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Profile boost: video intro (everyone with a résumé) + GitHub (engineers only) — the two
+          artifacts that turn a résumé into a sellable candidate. Shown only when missing. */}
+      {user?.resumeUrl && (
+        <ProfileBoostNudge askVideo={!user.videoIntroUrl} askGithub={isDev && !user.githubUrl} />
       )}
 
       {/* Today's ready-queue: PRO gets the full review-and-send list; FREE sees an honest teaser. */}

@@ -66,6 +66,7 @@ export type ShortlistCandidate = {
   portfolioUrl: string | null;
   githubUrl: string | null;
   githubVerified: boolean;       // has a fresh STRONG/ACTIVE GitHubReview
+  videoIntro: boolean;           // has a self-intro video link (badge on anonymous cards; link revealed with identity)
 };
 
 // Vet one candidate against a PRE-PARSED jd (parseJD already done once for the role).
@@ -73,7 +74,7 @@ async function vetCandidate(
   role: LeverPosting,
   jd: Awaited<ReturnType<typeof parseJD>>,
   jdText: string,
-  u: { id: string; name: string | null; email: string; location: string | null; linkedinUrl: string | null; image: string | null; parsedProfile: unknown; resumeText: string | null; resumeUrl: string | null; githubUrl?: string | null; githubReview?: ReviewRow | null; timezone?: string | null; availability?: string | null; availableFrom?: string | null; salaryExpectation?: string | null; portfolioUrl?: string | null },
+  u: { id: string; name: string | null; email: string; location: string | null; linkedinUrl: string | null; image: string | null; parsedProfile: unknown; resumeText: string | null; resumeUrl: string | null; githubUrl?: string | null; githubReview?: ReviewRow | null; timezone?: string | null; availability?: string | null; availableFrom?: string | null; salaryExpectation?: string | null; portfolioUrl?: string | null; videoIntroUrl?: string | null },
   lex: number,
 ): Promise<ShortlistCandidate> {
   const p = (u.parsedProfile || {}) as Record<string, unknown>;
@@ -137,6 +138,7 @@ async function vetCandidate(
     portfolioUrl: u.portfolioUrl ?? null,
     githubUrl: u.githubUrl ?? null,
     githubVerified: !!u.githubReview && (u.githubReview.verdict === 'STRONG' || u.githubReview.verdict === 'ACTIVE'),
+    videoIntro: !!u.videoIntroUrl,
   };
 }
 
@@ -171,7 +173,7 @@ export async function buildShortlistForRole(
   // Pass 2 — fetch full profiles, parse JD once, vet with bounded concurrency.
   const full = await prisma.user.findMany({
     where: { id: { in: ranked.map(r => r.id) } },
-    select: { id: true, name: true, email: true, location: true, linkedinUrl: true, image: true, parsedProfile: true, resumeText: true, resumeUrl: true, githubUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } }, timezone: true, availability: true, availableFrom: true, salaryExpectation: true, portfolioUrl: true },
+    select: { id: true, name: true, email: true, location: true, linkedinUrl: true, image: true, parsedProfile: true, resumeText: true, resumeUrl: true, githubUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } }, timezone: true, availability: true, availableFrom: true, salaryExpectation: true, portfolioUrl: true, videoIntroUrl: true },
   });
   const byId = new Map(full.map(u => [u.id, u]));
   const jd = await parseJD(jdText, role.title);

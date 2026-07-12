@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { SettingsForm } from './SettingsForm';
 import { GitHubUrlField } from './GitHubUrlField';
 import { MessengerField } from './MessengerField';
+import { VideoIntroField } from './VideoIntroField';
 import { SmtpConnect, SmtpConnected } from './SmtpConnect';
 import { CancelSubscriptionSection } from './CancelSubscriptionSection';
 import { DeleteAccountSection } from './DeleteAccountSection';
@@ -30,7 +31,7 @@ export default async function SettingsPage() {
       resumeText: true, parsedProfile: true,
       resumeUrl: true, resumeFileName: true,
       sendStartHour: true, sendEndHour: true,
-      githubUrl: true, messenger: true,
+      githubUrl: true, messenger: true, videoIntroUrl: true,
     },
   });
 
@@ -77,6 +78,8 @@ export default async function SettingsPage() {
             <GitHubUrlField initial={user.githubUrl || ''} />
 
             <MessengerField initial={user.messenger || ''} />
+
+            <VideoIntroField initial={user.videoIntroUrl || ''} />
 
             <div className="field-row">
               <div className="lbl">Email<span className="sub">Used for login and notifications</span></div>

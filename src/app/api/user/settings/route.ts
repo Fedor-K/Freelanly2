@@ -26,6 +26,7 @@ export async function GET() {
         linkedinUrl: true,
         githubUrl: true,
         messenger: true,
+        videoIntroUrl: true,
         resumeUrl: true,
         timezone: true,
         sendStartHour: true,
@@ -78,6 +79,7 @@ export async function GET() {
         caseStudies: user.caseStudies,
         linkedinUrl: user.linkedinUrl,
         messenger: user.messenger,
+        videoIntroUrl: user.videoIntroUrl,
         resumeUrl: user.resumeUrl,
         bookingUrl: user.bookingUrl,
         voiceSamples: user.voiceSamples,
@@ -129,7 +131,18 @@ export async function PATCH(request: NextRequest) {
 
     if (section === 'profile') {
       const { name, headline, location, availability, availableFrom,
-        rateFloorHourly, rateFloorProject, caseStudies, linkedinUrl, bookingUrl, githubUrl, messenger } = body;
+        rateFloorHourly, rateFloorProject, caseStudies, linkedinUrl, bookingUrl, githubUrl, messenger, videoIntroUrl } = body;
+
+      // videoIntroUrl: empty clears; anything else must at least parse as an http(s) URL.
+      let videoUrlNorm: string | null | undefined = undefined;
+      if (videoIntroUrl !== undefined) {
+        const trimmed = String(videoIntroUrl || '').trim();
+        if (!trimmed) videoUrlNorm = null;
+        else {
+          try { const u = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`); videoUrlNorm = u.toString().slice(0, 300); }
+          catch { return NextResponse.json({ error: "That doesn't look like a video link" }, { status: 400 }); }
+        }
+      }
 
       // githubUrl: empty clears; anything else must parse to a github.com/<user> profile and is
       // stored normalized (feeds the GitHubReview verification pipeline).
@@ -160,6 +173,7 @@ export async function PATCH(request: NextRequest) {
           ...(caseStudies !== undefined && { caseStudies: caseStudies || null }),
           ...(linkedinUrl !== undefined && { linkedinUrl: linkedinUrl?.trim() || null }),
           ...(messenger !== undefined && { messenger: String(messenger || '').trim().slice(0, 80) || null }),
+          ...(videoUrlNorm !== undefined && { videoIntroUrl: videoUrlNorm }),
           ...(bookingUrl !== undefined && { bookingUrl: bookingUrl?.trim() || null }),
           ...(githubUrlNorm !== undefined && { githubUrl: githubUrlNorm }),
         },

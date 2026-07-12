@@ -150,6 +150,7 @@ export function cardEmail(company: string, role: string, cands: ShortlistCandida
     const detail = bits.length ? `<div style="color:#555;font-size:13px;margin:3px 0;">${bits.join('  ·  ')}</div>` : '';
     const badges: string[] = [];
     if (c.githubVerified) badges.push('<span style="font-size:11px;font-weight:700;color:#166534;background:#dcfce7;border-radius:5px;padding:2px 7px;">✓ GitHub-verified</span>');
+    if (c.videoIntro) badges.push('<span style="font-size:11px;font-weight:700;color:#1D4ED8;background:#DBEAFE;border-radius:5px;padding:2px 7px;">▶ Video intro available</span>');
     if (c.portfolioUrl) badges.push('<span style="font-size:11px;color:#555;background:#f0efe9;border-radius:5px;padding:2px 7px;">Portfolio available</span>');
     const badgeHtml = badges.length ? `<div style="margin:5px 0;">${badges.join(' ')}</div>` : '';
     const chips = (c.skills || []).slice(0, 8).map(s => `<span style="${chip}">${esc(s)}</span>`).join('');
