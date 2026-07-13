@@ -204,7 +204,12 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
         setDraftItem(null);
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to send');
+        // Application paywall (send blocked past the free first) → swap the editor for the upgrade wall.
+        if (data.error === 'application_limit') {
+          setDraftBlocked({ reason: 'application_limit', message: data.message || '' });
+        } else {
+          alert(data.error || 'Failed to send');
+        }
       }
     } catch {
       alert('Network error');
@@ -496,19 +501,17 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                 <div style={{fontSize: '14px', marginBottom: '8px'}}>Generating your cover letter...</div>
                 <div style={{fontSize: '12px', color: '#8A8E96'}}>AI is reading the job post and matching with your profile</div>
               </div>
-            ) : draftBlocked && draftBlocked.reason === 'generation_limit' ? (
-              /* Generation paywall (owner funnel 2026-07-12): free AI application spent — sell unlimited
-                 generation at peak intent. Manual writing + sending stays free via "write it myself". */
+            ) : draftBlocked && draftBlocked.reason === 'application_limit' ? (
+              /* Application paywall (owner decision 2026-07-13): first application free, every send after
+                 requires PRO. No free manual escape — pay to send, period. */
               <div style={{padding: '40px 28px', textAlign: 'center'}}>
                 <div style={{fontSize: '24px', marginBottom: '10px'}}>✨</div>
-                <div style={{fontSize: '15px', fontWeight: 700, marginBottom: '10px'}}>Your free AI application is used</div>
+                <div style={{fontSize: '15px', fontWeight: 700, marginBottom: '10px'}}>Your free application is used</div>
                 <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 18px'}}>
-                  PRO writes the letter <b>and tailors your CV to every role</b> — unlimited, $5/month, cancel anytime.
-                  Or write this one yourself — <b>sending is always free</b>.
+                  Keep applying with <b>PRO — $5/month</b>: unlimited applications, a CV tailored to every role, cancel anytime.
                 </div>
-                <div style={{display: 'flex', justifyContent: 'center', gap: '10px', alignItems: 'center', flexWrap: 'wrap'}}>
-                  <QueueUpgradeButton source="generation_paywall_feed" label="Unlock unlimited AI applications →" />
-                  <button className="btn btn-ghost btn-sm" onClick={() => { setDraftBlocked(null); setDraftBody(''); setDraftSubject(`Application: ${draftItem?.title || ''}`); }}>I&apos;ll write it myself</button>
+                <div style={{display: 'flex', justifyContent: 'center'}}>
+                  <QueueUpgradeButton source="application_paywall_feed" label="Upgrade to keep applying →" />
                 </div>
               </div>
             ) : draftBlocked && (draftBlocked.reason === 'smtp_required' || draftBlocked.reason === 'not_strong' || draftBlocked.reason === 'limit_reached') ? (

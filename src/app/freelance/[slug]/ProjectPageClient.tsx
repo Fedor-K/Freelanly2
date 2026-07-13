@@ -617,6 +617,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         setSendTo(data.sentTo || sendTo);
         setPhase('sent');
         track('JOB_APPLY', { projectId: project.id, method: 'project_page' });
+      } else if (data.error === 'application_limit') {
+        // First application free; every send after is PRO. Show the paywall banner on the review screen.
+        setGenPaywall(true);
+        setSendError('');
       } else {
         setSendError(data.message || data.error || 'Failed to send');
       }
@@ -1072,16 +1076,15 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         <div>
           <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '12px' }}>Review & send</h2>
 
-          {/* Generation paywall (owner funnel 2026-07-12): free AI application spent → sell unlimited
-              generation at the moment of peak intent. Sending stays free — the textarea below works. */}
+          {/* Application paywall (owner decision 2026-07-13): first application free, every send after
+              is PRO. No free manual path — pay to send. */}
           {genPaywall && (
             <div style={{ padding: '14px 16px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '12px', marginBottom: '14px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A17', marginBottom: '4px' }}>Your free AI application is used ✨</div>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A17', marginBottom: '4px' }}>Your free application is used ✨</div>
               <div style={{ fontSize: '12.5px', color: '#3F6212', lineHeight: 1.5, marginBottom: '10px' }}>
-                PRO writes the letter <b>and tailors your CV to every role</b> — unlimited, $5/month, cancel anytime.
-                Or write this one yourself below — <b>sending is always free</b>.
+                Keep applying with <b>PRO — $5/month</b>: unlimited applications + a CV tailored to every role. Cancel anytime.
               </div>
-              <QueueUpgradeButton source="generation_paywall" label="Unlock unlimited AI applications →" />
+              <QueueUpgradeButton source="application_paywall" label="Upgrade to keep applying →" />
             </div>
           )}
 

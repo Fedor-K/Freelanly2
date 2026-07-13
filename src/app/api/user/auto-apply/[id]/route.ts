@@ -176,21 +176,7 @@ export async function POST(
     const parsedProfile = app.user.parsedProfile as Record<string, unknown> | null;
 
     if (action === 'regenerate') {
-      // Generation paywall (owner decision 2026-07-12): regenerating a letter is an AI generation
-      // like any other — first one free, then PRO. Manual editing (update-draft) stays free.
-      const meter = await prisma.user.findUnique({ where: { id: session.user.id }, select: { plan: true, aiGenerationsUsed: true } });
-      const FREE_GENERATIONS = Number(process.env.FREE_AI_GENERATIONS ?? 1);
-      const NOSEND_GEN_CAP = Number(process.env.FREE_AI_GENERATIONS_NOSEND ?? 3);
-      if (meter && meter.plan === 'FREE' && (meter.aiGenerationsUsed ?? 0) >= FREE_GENERATIONS) {
-        // Paywall arms only after the first real send (see quick-apply) — same rule here.
-        const hasSent = (await prisma.autoApplication.count({ where: { userId: session.user.id, sentAt: { not: null } } })) > 0;
-        if (hasSent || (meter.aiGenerationsUsed ?? 0) >= NOSEND_GEN_CAP) {
-          return NextResponse.json({
-            error: 'generation_limit',
-            message: 'Your free AI application is used. Upgrade to PRO ($5/mo) for unlimited AI-written letters and tailored CVs — or edit the draft yourself, sending is always free.',
-          }, { status: 402 });
-        }
-      }
+      // Generation is free now (owner decision 2026-07-13) — the paywall moved to the SEND (send-now).
       // Load full opportunity/job data for AI context
       let fullDescription = jobDescription;
       let posterName = app.companyName;
@@ -333,6 +319,19 @@ export async function POST(
         select: { name: true, email: true, plan: true, userSmtp: true, gmailAuth: true, resumeUrl: true, resumeFileName: true },
       });
       if (!fullUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+      // APPLICATION PAYWALL (owner decision 2026-07-13): first application free, every send after
+      // requires PRO. Same gate as quick-apply.
+      const FREE_APPLICATIONS = Number(process.env.FREE_APPLICATIONS ?? 1);
+      if (fullUser.plan === 'FREE') {
+        const priorSends = await prisma.autoApplication.count({ where: { userId: session.user.id, sentAt: { not: null } } });
+        if (priorSends >= FREE_APPLICATIONS) {
+          return NextResponse.json({
+            error: 'application_limit',
+            message: 'Your free application is used. Upgrade to PRO ($5/mo) to keep applying.',
+          }, { status: 402 });
+        }
+      }
 
       // Postal bar (mirrors quick-apply): our-name sending is reserved for the strongest matches.
       // The queue now contains honest Weak rows too (matcher queues evidence-bar misses for review),
