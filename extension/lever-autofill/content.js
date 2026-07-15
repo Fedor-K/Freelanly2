@@ -61,21 +61,84 @@
   }
 
   // Lever custom question cards: name="cards[<uuid>][fieldN]". Answer text ones with AI from the
-  // profile; anything we can't answer (or non-text controls) gets highlighted for the human.
-  async function fillCustomQuestions(jobContext) {
-    const inputs = Array.from(document.querySelectorAll('input[name^="cards["], textarea[name^="cards["]'));
+  // profile; anything we can't answer gets highlighted for the human.
+
+  // Questions we NEVER auto-answer: demographics/D&I, consents, legal declarations. Those are the
+  // human's alone — highlight and move on.
+  const SENSITIVE = /pronoun|gender|lgbt|race|ethnic|color\/|self-declare|disabilit|veteran|consent|i declare|agree to|terms of|privacy|autorizo|concordo|declaro|acknowledg|criminal|background check/i;
+
+  function questionLabel(el) {
+    const card = el.closest('.application-question, li, .custom-question, fieldset');
+    if (!card) return { card: null, label: '' };
+    const label = (card.querySelector('.application-label, .text, label, legend')?.textContent || '').trim();
+    return { card, label };
+  }
+
+  // Text inputs + textareas in custom cards → free-text AI answer from the profile.
+  async function fillTextQuestions(jobContext) {
+    const inputs = Array.from(document.querySelectorAll('input[name^="cards["], textarea[name^="cards["]'))
+      .filter((el) => el.tagName !== 'SELECT' && el.type !== 'radio' && el.type !== 'checkbox' && el.type !== 'file');
     let ai = 0, manual = 0;
     for (const el of inputs) {
-      if (el.type === 'radio' || el.type === 'checkbox' || el.type === 'file') { manual++; mark(el.closest('.application-question') || el, 'needs'); continue; }
       if (el.value) continue; // don't overwrite anything the user typed
-      const card = el.closest('.application-question, li, .custom-question');
-      const label = card ? (card.querySelector('.application-label, .text, label')?.textContent || '').trim() : '';
-      if (!label) { manual++; mark(el, 'needs'); continue; }
+      const { card, label } = questionLabel(el);
+      if (!label || SENSITIVE.test(label)) { manual++; mark(card || el, 'needs'); continue; }
       const res = await send({ type: 'answer', question: label, jobContext });
       if (res && res.answer) { setValue(el, res.answer); mark(el, 'ok'); ai++; }
       else { manual++; mark(card || el, 'needs'); }
     }
     return { ai, manual };
+  }
+
+  // Dropdowns → multiple-choice AI: send the option list, the server returns one option verbatim.
+  async function fillSelects(jobContext) {
+    const selects = Array.from(document.querySelectorAll('select')).filter((el) => !el.value);
+    let ai = 0, manual = 0;
+    for (const el of selects) {
+      const { card, label } = questionLabel(el);
+      const options = Array.from(el.options).map((o) => o.text.trim()).filter((t) => t && !/^select\b|^choose\b|^--/i.test(t));
+      if (!label || SENSITIVE.test(label) || options.length === 0) { manual++; mark(card || el, 'needs'); continue; }
+      const res = await send({ type: 'answer', question: label, options, jobContext });
+      const pick = res && res.answer ? Array.from(el.options).find((o) => o.text.trim() === res.answer) : null;
+      if (pick) {
+        const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+        setter.call(el, pick.value);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        mark(el, 'ok'); ai++;
+      } else { manual++; mark(card || el, 'needs'); }
+    }
+    return { ai, manual };
+  }
+
+  // Radio groups → same multiple-choice AI; click the winning radio.
+  async function fillRadios(jobContext) {
+    const groups = new Map();
+    document.querySelectorAll('input[type="radio"]').forEach((r) => {
+      if (!r.name) return;
+      if (!groups.has(r.name)) groups.set(r.name, []);
+      groups.get(r.name).push(r);
+    });
+    let ai = 0, manual = 0;
+    for (const radios of groups.values()) {
+      if (radios.some((r) => r.checked)) continue;
+      const { card, label } = questionLabel(radios[0]);
+      const optionText = (r) => ((r.closest('label') || r.parentElement)?.textContent || '').trim();
+      const options = radios.map(optionText).filter(Boolean);
+      if (!label || SENSITIVE.test(label) || options.length < 2) { manual++; mark(card || radios[0], 'needs'); continue; }
+      const res = await send({ type: 'answer', question: label, options, jobContext });
+      const idx = res && res.answer ? options.findIndex((t) => t === res.answer) : -1;
+      if (idx >= 0) { radios[idx].click(); mark(radios[idx].closest('label') || radios[idx], 'ok'); ai++; }
+      else { manual++; mark(card || radios[0], 'needs'); }
+    }
+    return { ai, manual };
+  }
+
+  async function fillCustomQuestions(jobContext) {
+    const t = await fillTextQuestions(jobContext);
+    const s = await fillSelects(jobContext);
+    const r = await fillRadios(jobContext);
+    return { ai: t.ai + s.ai + r.ai, manual: t.manual + s.manual + r.manual };
   }
 
   async function autofill() {

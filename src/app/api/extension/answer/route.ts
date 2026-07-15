@@ -30,10 +30,16 @@ export async function POST(req: NextRequest) {
   const question = String(body.question || '').trim();
   if (!question) return NextResponse.json({ error: 'no_question', answer: '' }, { status: 400, headers: CORS });
 
+  // Multiple-choice mode: the extension sends the dropdown/radio options and we pick ONE verbatim.
+  const options: string[] = Array.isArray(body.options)
+    ? (body.options as unknown[]).map(String).map((s) => s.trim()).filter(Boolean).slice(0, 40)
+    : [];
+
   const pp = (u.parsedProfile || {}) as Record<string, unknown>;
   const ctx = [
     u.name ? `Name: ${u.name}` : '',
     typeof pp.current_title === 'string' ? `Title: ${pp.current_title}` : '',
+    typeof pp.current_company === 'string' ? `Current company: ${pp.current_company}` : '',
     typeof pp.experience_years === 'number' ? `Years experience: ${pp.experience_years}` : '',
     u.location ? `Location: ${u.location}` : '',
     Array.isArray(pp.skills) ? `Skills: ${(pp.skills as unknown[]).map(String).slice(0, 20).join(', ')}` : '',
@@ -45,6 +51,20 @@ export async function POST(req: NextRequest) {
     u.resumeText ? `Resume:\n${u.resumeText.slice(0, 2000)}` : '',
   ].filter(Boolean).join('\n');
 
-  const answer = await answerApplicationQuestion(question, ctx, typeof body.jobContext === 'string' ? body.jobContext : undefined);
+  const jobContext = typeof body.jobContext === 'string' ? body.jobContext : undefined;
+
+  if (options.length > 0) {
+    const raw = await answerApplicationQuestion(
+      `${question}\n\nPick EXACTLY ONE of these options (reply with the option text verbatim, nothing else):\n${options.map((o) => `- ${o}`).join('\n')}`,
+      ctx,
+      jobContext,
+    );
+    // Canonicalize: only return an option that actually exists in the control.
+    const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+    const hit = raw ? options.find((o) => norm(o) === norm(raw)) || options.find((o) => norm(raw).includes(norm(o)) || norm(o).includes(norm(raw))) : undefined;
+    return NextResponse.json({ answer: hit || '' }, { headers: CORS });
+  }
+
+  const answer = await answerApplicationQuestion(question, ctx, jobContext);
   return NextResponse.json({ answer }, { headers: CORS });
 }
