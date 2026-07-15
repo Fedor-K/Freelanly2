@@ -342,17 +342,28 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                   {loading[item.id] === 'apply' ? 'Applying...' : 'Apply'}
                 </button>
               ) : item.applyUrl ? (
-                // ATS role — autofill-beta fake door: measures demand for 1-click form autofill before
-                // the extension exists. The lander keeps the real apply path open (continue to site).
-                <a
-                  className="btn btn-primary btn-sm"
-                  href={`/autofill?opp=${item.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => track('FUNNEL_STEP', { step: 'autofill_beta_click', opportunityId: item.id, surface: 'card' })}
-                >
-                  Apply with 1-click autofill ✨
-                </a>
+                // ATS role — the extension is real now (2026-07-15): go straight to the company's
+                // apply page, where the ⚡ Autofill button lives. Small install link for those without.
+                <span style={{display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
+                  <a
+                    className="btn btn-primary btn-sm"
+                    href={`/go/ats/${item.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => track('FUNNEL_STEP', { step: 'autofill_beta_click', opportunityId: item.id, surface: 'card' })}
+                  >
+                    Apply on company site ⚡
+                  </a>
+                  <a
+                    href={`/autofill?opp=${item.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{fontSize: '11px', color: '#8A8E96', textDecoration: 'underline', whiteSpace: 'nowrap'}}
+                    onClick={() => track('FUNNEL_STEP', { step: 'autofill_install_click', opportunityId: item.id, surface: 'card' })}
+                  >
+                    get 1-click autofill
+                  </a>
+                </span>
               ) : (
                 <span className="meta" style={{fontSize: '11px'}}>No email</span>
               )}
