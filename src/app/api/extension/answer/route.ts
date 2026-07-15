@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     select: { plan: true, name: true, resumeText: true, parsedProfile: true, linkedinUrl: true, githubUrl: true, salaryExpectation: true, availableFrom: true, workAuthorization: true, location: true },
   });
   if (!u) return NextResponse.json({ error: 'invalid_token' }, { status: 401, headers: CORS });
-  if (u.plan !== 'PRO' && u.plan !== 'ENTERPRISE') return NextResponse.json({ error: 'pro_required', answer: '' }, { status: 402, headers: CORS });
+  // FREE-FOR-ALL (owner 2026-07-15): AI answers open to everyone while we grow adoption.
 
   const body = await req.json().catch(() => ({}));
   const question = String(body.question || '').trim();

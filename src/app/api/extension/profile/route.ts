@@ -30,13 +30,14 @@ export async function GET(req: NextRequest) {
   });
   if (!u) return NextResponse.json({ error: 'invalid_token' }, { status: 401, headers: CORS });
 
-  const pro = u.plan === 'PRO' || u.plan === 'ENTERPRISE';
+  // FREE-FOR-ALL (owner 2026-07-15): autofill is open to everyone while we grow adoption — the
+  // `pro` flag is still returned so the extension can re-gate later without an update.
+  const pro = true;
   const pp = (u.parsedProfile || {}) as Record<string, unknown>;
   const fullName = (u.name || (typeof pp.name === 'string' ? pp.name : '') || '').trim();
   const [firstName, ...restName] = fullName.split(/\s+/);
 
-  // Only send the autofill payload to PRO — FREE gets the flag so the extension can prompt upgrade.
-  const profile = pro ? {
+  const profile = {
     fullName,
     firstName: firstName || '',
     lastName: restName.join(' '),
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
     workAuthorization: u.workAuthorization || '',
     resumeUrl: u.resumeUrl && /^https?:\/\//.test(u.resumeUrl) ? u.resumeUrl : null,
     resumeFileName: u.resumeFileName || 'resume.pdf',
-  } : null;
+  };
 
   return NextResponse.json({ pro, profile }, { headers: CORS });
 }

@@ -88,9 +88,10 @@
       if (btn) { btn.disabled = false; btn.textContent = '⚡ Autofill with Freelanly'; }
       return;
     }
-    if (!res.pro) {
-      toast('Autofill is a PRO feature ($5/mo). Upgrade at freelanly.com → Billing, then try again.');
-      window.open('https://freelanly.com/dashboard/billing?src=extension', '_blank');
+    // Free for all while we grow adoption (owner 2026-07-15). Server still returns `pro` so a
+    // future re-gate is just a server change — no extension update needed.
+    if (!res.profile) {
+      toast('Could not load your profile — log in at freelanly.com and try again.');
       if (btn) { btn.disabled = false; btn.textContent = '⚡ Autofill with Freelanly'; }
       return;
     }

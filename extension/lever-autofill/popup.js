@@ -13,8 +13,7 @@ async function refresh() {
     const r = await fetch('https://freelanly.com/api/extension/profile', { headers: { Authorization: `Bearer ${token}` } });
     const d = await r.json();
     if (d.error) { statusEl.textContent = 'Token invalid — paste a fresh one'; statusEl.className = 'bad'; }
-    else if (d.pro) { statusEl.textContent = '✓ Connected — PRO'; statusEl.className = 'ok'; }
-    else { statusEl.textContent = 'Connected, but autofill needs PRO ($5/mo)'; statusEl.className = 'bad'; }
+    else { statusEl.textContent = '✓ Connected'; statusEl.className = 'ok'; }
   } catch {
     statusEl.textContent = 'Network error';
     statusEl.className = 'bad';
