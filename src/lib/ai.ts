@@ -818,3 +818,25 @@ export async function isJobPosting(postContent: string, retryCount = 0): Promise
 }
 
 // Legacy exports for backwards compatibility
+// Answer an ATS application screening question from the candidate's profile (browser autofill
+// extension, PRO). Concise, first-person, grounded ONLY in the provided profile — never fabricate.
+// Returns '' on failure so the extension leaves the field for the user to fill manually.
+export async function answerApplicationQuestion(question: string, profileContext: string, jobContext?: string): Promise<string> {
+  try {
+    const { client } = getAIClient();
+    const res = await client.chat.completions.create({
+      model: 'glm-4-32b-0414-128k',
+      messages: [
+        { role: 'system', content: `You fill in a job-application form field for the candidate, in first person. Answer the question using ONLY facts from their profile below. Be concise and natural (1-3 sentences unless the field clearly wants more). If the profile lacks the info, reply with the exact token NEEDS_USER so the field is left for the human. Never invent facts (no fake numbers, employers, dates).\n\nCANDIDATE PROFILE:\n${profileContext.slice(0, 3000)}${jobContext ? `\n\nROLE CONTEXT:\n${jobContext.slice(0, 800)}` : ''}` },
+        { role: 'user', content: question.slice(0, 500) },
+      ],
+      temperature: 0.4,
+      max_tokens: 300,
+    });
+    const out = (res.choices[0]?.message?.content || '').trim();
+    return out === 'NEEDS_USER' || out.includes('NEEDS_USER') ? '' : out;
+  } catch (e) {
+    console.error('[AI] answerApplicationQuestion failed:', (e as Error)?.message);
+    return '';
+  }
+}
