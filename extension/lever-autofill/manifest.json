@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Freelanly Autofill \u2014 Lever",
-  "version": "0.4.0",
-  "description": "Autofill Lever job applications from your Freelanly profile (resume, LinkedIn, GitHub). PRO feature.",
+  "version": "0.5.0",
+  "description": "Fill Lever job application forms from your Freelanly profile: contact fields, links, resume PDF, and AI-drafted answers to screening questions. You review and submit yourself.",
   "permissions": [
     "storage"
   ],
@@ -30,6 +30,18 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Freelanly Autofill"
+    "default_title": "Freelanly Autofill",
+    "default_icon": {
+      "16": "icon16.png",
+      "32": "icon32.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
   }
 }
