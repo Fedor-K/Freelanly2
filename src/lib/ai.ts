@@ -45,6 +45,7 @@ function getAIProvider(): AIProvider {
 
 // Lazy initialization to avoid build-time errors
 let _zai: OpenAI | null = null;
+let _deepseek: OpenAI | null = null;
 
 function getZaiClient(): OpenAI {
   if (!_zai) {
@@ -58,11 +59,45 @@ function getZaiClient(): OpenAI {
   return _zai;
 }
 
-// Get the active AI client (Z.ai GLM-4-32B)
-function getAIClient(): { client: OpenAI; model: string; provider: AIProvider } {
+// DeepSeek FALLBACK (OpenAI-compatible) — used automatically when Z.ai fails (empty balance / 429 /
+// timeout / 5xx). Prevents a Z.ai outage from silently killing all generation for hours (it did,
+// 2026-07-15, ~8h undetected). Only kicks in on Z.ai error; costs nothing while Z.ai is healthy.
+function getDeepseekClient(): OpenAI {
+  if (!_deepseek) {
+    _deepseek = new OpenAI({
+      apiKey: process.env.DEEPSEEK_API_KEY || 'dummy-key-for-build',
+      baseURL: 'https://api.deepseek.com',
+      timeout: 30000,
+      maxRetries: 1,
+    });
+  }
+  return _deepseek;
+}
+
+type ChatParams = OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming;
+type ChatResult = OpenAI.Chat.Completions.ChatCompletion;
+
+// Try Z.ai first; on ANY failure, retry the SAME request on DeepSeek. The caller-supplied `model` is
+// ignored — each provider gets its own model. All getAIClient() call sites route through here, so the
+// fallback covers every AI call (extraction, matching, cover letters, classification) with no per-site
+// change.
+async function aiCreateWithFallback(params: ChatParams): Promise<ChatResult> {
+  const { model: _ignored, ...rest } = params as ChatParams & { model?: string };
+  try {
+    return await getZaiClient().chat.completions.create({ ...rest, model: 'glm-4-32b-0414-128k' }) as ChatResult;
+  } catch (e) {
+    console.error('[AI] Z.ai failed → DeepSeek fallback:', (e as Error)?.message);
+    return await getDeepseekClient().chat.completions.create({ ...rest, model: 'deepseek-chat' }) as ChatResult;
+  }
+}
+
+// Get the active AI client. The returned `client` is a thin shim whose chat.completions.create runs
+// Z.ai-then-DeepSeek fallback (see aiCreateWithFallback); the shape matches the OpenAI SDK so all
+// existing call sites work unchanged.
+function getAIClient(): { client: { chat: { completions: { create: typeof aiCreateWithFallback } } }; model: string; provider: AIProvider } {
   return {
-    client: getZaiClient(),
-    model: 'glm-4-32b-0414-128k', // $0.10/$0.10 per 1M tokens
+    client: { chat: { completions: { create: aiCreateWithFallback } } },
+    model: 'glm-4-32b-0414-128k', // ignored by the shim; kept so call sites that read `model` still work
     provider: 'zai',
   };
 }
