@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { width: 300px; margin: 0; padding: 16px; font: 13px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a17; }
+    h1 { font-size: 15px; margin: 0 0 4px; }
+    p { margin: 6px 0; color: #555; }
+    input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 12px; }
+    button { width: 100%; margin-top: 8px; padding: 9px; border: none; border-radius: 8px; background: #1a1a17; color: #fff; font-weight: 600; cursor: pointer; }
+    button:hover { background: #333; }
+    a { color: #2563eb; }
+    #status { font-weight: 600; }
+    .ok { color: #4d7c0f; } .bad { color: #b45309; }
+  </style>
+</head>
+<body>
+  <h1>Freelanly Autofill</h1>
+  <p id="status">Checking…</p>
+  <p>Paste your extension token (get it at <a href="https://freelanly.com/api/extension/token" target="_blank">freelanly.com → token</a> while logged in):</p>
+  <input id="token" type="text" placeholder="fx_..." />
+  <button id="save">Save</button>
+  <p>Then open any Lever job page and hit <b>⚡ Autofill</b>.</p>
+  <script src="popup.js"></script>
+</body>
+</html>
