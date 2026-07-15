@@ -21,6 +21,33 @@
   <input id="token" type="text" placeholder="fx_..." />
   <button id="save">Save</button>
   <p>Then open any Lever job page and hit <b>⚡ Autofill</b>.</p>
+  <hr style="border:none;border-top:1px solid #eee;margin:14px 0" />
+  <p style="margin-bottom:2px"><b>Demographics (optional)</b> — stored <b>only in your browser</b>, never sent to Freelanly. Used to fill EEO/D&amp;I questions; leave blank to answer them manually.</p>
+  <label style="display:block;margin-top:8px;font-weight:600">Gender
+    <select id="d-gender" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:8px;margin-top:2px">
+      <option value="">— leave for me —</option>
+      <option>Male</option><option>Female</option><option>Non-binary</option><option>Prefer not to say</option>
+    </select>
+  </label>
+  <label style="display:block;margin-top:8px;font-weight:600">Race / ethnicity
+    <select id="d-race" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:8px;margin-top:2px">
+      <option value="">— leave for me —</option>
+      <option>Hispanic or Latino</option><option>White</option><option>Black or African American</option><option>Asian</option><option>American Indian or Alaska Native</option><option>Native Hawaiian or Other Pacific Islander</option><option>Two or More Races</option><option>Prefer not to say</option>
+    </select>
+  </label>
+  <label style="display:block;margin-top:8px;font-weight:600">Disability
+    <select id="d-disability" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:8px;margin-top:2px">
+      <option value="">— leave for me —</option>
+      <option>No</option><option>Yes</option><option>Prefer not to say</option>
+    </select>
+  </label>
+  <label style="display:block;margin-top:8px;font-weight:600">Veteran status
+    <select id="d-veteran" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:8px;margin-top:2px">
+      <option value="">— leave for me —</option>
+      <option>No</option><option>Yes</option><option>Prefer not to say</option>
+    </select>
+  </label>
+  <button id="save-demo">Save demographics</button>
   <script src="popup.js"></script>
 </body>
 </html>

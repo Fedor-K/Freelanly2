@@ -28,3 +28,18 @@ document.getElementById('save').addEventListener('click', async () => {
 });
 
 refresh();
+
+// Demographics: user-declared once, stored ONLY in chrome.storage (never sent to Freelanly).
+const DEMO_IDS = ['gender', 'race', 'disability', 'veteran'];
+(async () => {
+  const { demo } = await chrome.storage.sync.get('demo');
+  if (demo) DEMO_IDS.forEach((k) => { const el = document.getElementById(`d-${k}`); if (el && demo[k]) el.value = demo[k]; });
+})();
+document.getElementById('save-demo').addEventListener('click', async () => {
+  const demo = {};
+  DEMO_IDS.forEach((k) => { const v = document.getElementById(`d-${k}`).value; if (v) demo[k] = v; });
+  await chrome.storage.sync.set({ demo });
+  const btn = document.getElementById('save-demo');
+  btn.textContent = '✓ Saved';
+  setTimeout(() => { btn.textContent = 'Save demographics'; }, 1500);
+});

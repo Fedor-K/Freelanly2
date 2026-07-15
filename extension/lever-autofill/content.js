@@ -63,9 +63,35 @@
   // Lever custom question cards: name="cards[<uuid>][fieldN]". Answer text ones with AI from the
   // profile; anything we can't answer gets highlighted for the human.
 
-  // Questions we NEVER auto-answer: demographics/D&I, consents, legal declarations. Those are the
-  // human's alone — highlight and move on.
+  // Sensitive questions are never AI-guessed. Demographics CAN be filled from the user's own
+  // one-time declarations (popup → stored in chrome.storage ONLY, never sent to the server);
+  // consents/legal declarations are ALWAYS the human's.
   const SENSITIVE = /pronoun|gender|lgbt|race|ethnic|color\/|self-declare|disabilit|veteran|consent|i declare|agree to|terms of|privacy|autorizo|concordo|declaro|acknowledg|criminal|background check/i;
+  const CONSENT = /consent|i declare|agree to|terms of|privacy|autorizo|concordo|declaro|acknowledg|criminal|background check|lgbt|pronoun/i;
+
+  function demoKind(label) {
+    if (/gender|\bsex\b/i.test(label)) return 'gender';
+    if (/race|ethnic|color/i.test(label)) return 'race';
+    if (/disabilit/i.test(label)) return 'disability';
+    if (/veteran|military/i.test(label)) return 'veteran';
+    return null;
+  }
+
+  const DEMO_SYNONYMS = {
+    gender: { Male: /^male\b|^man\b|masculin/i, Female: /^female\b|^woman\b|feminin/i, 'Non-binary': /non.?binary|não.?binár/i },
+    disability: { No: /^no\b|^não\b|do not have/i, Yes: /^yes\b|^sim\b/i },
+    veteran: { No: /^no\b|not a protected veteran|não/i, Yes: /^yes\b|identify as.*veteran|^sim\b/i },
+  };
+
+  // Match the user's stored demographic value to one of the form's options.
+  function demoMatch(kind, value, options) {
+    const n = (s) => s.toLowerCase().trim();
+    if (/prefer not/i.test(value)) return options.find((o) => /prefer not|decline|don.?t wish|rather not|prefiro não/i.test(o)) || null;
+    const exact = options.find((o) => n(o) === n(value)) || options.find((o) => n(o).includes(n(value)) || n(value).includes(n(o)));
+    if (exact) return exact;
+    const syn = DEMO_SYNONYMS[kind] && DEMO_SYNONYMS[kind][value];
+    return syn ? options.find((o) => syn.test(o)) || null : null;
+  }
 
   function questionLabel(el) {
     const card = el.closest('.application-question, li, .custom-question, fieldset');
@@ -90,29 +116,41 @@
     return { ai, manual };
   }
 
-  // Dropdowns → multiple-choice AI: send the option list, the server returns one option verbatim.
-  async function fillSelects(jobContext) {
+  function setSelect(el, optionText) {
+    const pick = Array.from(el.options).find((o) => o.text.trim() === optionText);
+    if (!pick) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+    setter.call(el, pick.value);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }
+
+  // Dropdowns → multiple-choice AI (or local demographics): pick ONE existing option, never invent.
+  async function fillSelects(jobContext, demo) {
     const selects = Array.from(document.querySelectorAll('select')).filter((el) => !el.value);
     let ai = 0, manual = 0;
     for (const el of selects) {
       const { card, label } = questionLabel(el);
       const options = Array.from(el.options).map((o) => o.text.trim()).filter((t) => t && !/^select\b|^choose\b|^--/i.test(t));
-      if (!label || SENSITIVE.test(label) || options.length === 0) { manual++; mark(card || el, 'needs'); continue; }
+      if (!label || options.length === 0) { manual++; mark(card || el, 'needs'); continue; }
+      if (SENSITIVE.test(label)) {
+        // Demographics: fill from the user's OWN declaration (local only). Consent/legal: never.
+        const kind = CONSENT.test(label) ? null : demoKind(label);
+        const stored = kind && demo && demo[kind];
+        const hit = stored ? demoMatch(kind, stored, options) : null;
+        if (hit && setSelect(el, hit)) { mark(el, 'ok'); ai++; } else { manual++; mark(card || el, 'needs'); }
+        continue;
+      }
       const res = await send({ type: 'answer', question: label, options, jobContext });
-      const pick = res && res.answer ? Array.from(el.options).find((o) => o.text.trim() === res.answer) : null;
-      if (pick) {
-        const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
-        setter.call(el, pick.value);
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-        mark(el, 'ok'); ai++;
-      } else { manual++; mark(card || el, 'needs'); }
+      if (res && res.answer && setSelect(el, res.answer)) { mark(el, 'ok'); ai++; }
+      else { manual++; mark(card || el, 'needs'); }
     }
     return { ai, manual };
   }
 
-  // Radio groups → same multiple-choice AI; click the winning radio.
-  async function fillRadios(jobContext) {
+  // Radio groups → same logic; click the winning radio.
+  async function fillRadios(jobContext, demo) {
     const groups = new Map();
     document.querySelectorAll('input[type="radio"]').forEach((r) => {
       if (!r.name) return;
@@ -125,9 +163,17 @@
       const { card, label } = questionLabel(radios[0]);
       const optionText = (r) => ((r.closest('label') || r.parentElement)?.textContent || '').trim();
       const options = radios.map(optionText).filter(Boolean);
-      if (!label || SENSITIVE.test(label) || options.length < 2) { manual++; mark(card || radios[0], 'needs'); continue; }
-      const res = await send({ type: 'answer', question: label, options, jobContext });
-      const idx = res && res.answer ? options.findIndex((t) => t === res.answer) : -1;
+      if (!label || options.length < 2) { manual++; mark(card || radios[0], 'needs'); continue; }
+      let winner = null;
+      if (SENSITIVE.test(label)) {
+        const kind = CONSENT.test(label) ? null : demoKind(label);
+        const stored = kind && demo && demo[kind];
+        winner = stored ? demoMatch(kind, stored, options) : null;
+      } else {
+        const res = await send({ type: 'answer', question: label, options, jobContext });
+        winner = res && res.answer ? options.find((t) => t === res.answer) || null : null;
+      }
+      const idx = winner ? options.indexOf(winner) : -1;
       if (idx >= 0) { radios[idx].click(); mark(radios[idx].closest('label') || radios[idx], 'ok'); ai++; }
       else { manual++; mark(card || radios[0], 'needs'); }
     }
@@ -135,9 +181,10 @@
   }
 
   async function fillCustomQuestions(jobContext) {
+    const { demo } = await chrome.storage.sync.get('demo');
     const t = await fillTextQuestions(jobContext);
-    const s = await fillSelects(jobContext);
-    const r = await fillRadios(jobContext);
+    const s = await fillSelects(jobContext, demo);
+    const r = await fillRadios(jobContext, demo);
     return { ai: t.ai + s.ai + r.ai, manual: t.manual + s.manual + r.manual };
   }
 
