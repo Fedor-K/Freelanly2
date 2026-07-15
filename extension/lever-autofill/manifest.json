@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Freelanly Autofill \u2014 Lever",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Autofill Lever job applications from your Freelanly profile (resume, LinkedIn, GitHub). PRO feature.",
   "permissions": [
     "storage"

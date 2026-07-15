@@ -83,6 +83,44 @@
     veteran: { No: /^no\b|not a protected veteran|não/i, Yes: /^yes\b|identify as.*veteran|^sim\b/i },
   };
 
+  // Normalize a captured answer to a canonical value so it transfers across forms and languages
+  // ("Masculino" learned on a PT form → fills "Male" on the next EN form).
+  function canonicalizeDemo(kind, text) {
+    if (/prefer not|decline|don.?t wish|rather not|prefiro não/i.test(text)) return 'Prefer not to say';
+    if (kind === 'gender') {
+      if (/^male\b|^man\b|masculin/i.test(text)) return 'Male';
+      if (/^female\b|^woman\b|feminin/i.test(text)) return 'Female';
+      if (/non.?binary|não.?binár/i.test(text)) return 'Non-binary';
+    }
+    if (kind === 'disability' || kind === 'veteran') {
+      if (/^no\b|^não\b|not a protected|do not have/i.test(text)) return 'No';
+      if (/^yes\b|^sim\b|identify as/i.test(text)) return 'Yes';
+    }
+    return text; // race etc. — store as-is; contains-match handles reuse
+  }
+
+  // LEARN from the user's own manual picks: when the human selects a demographic value in a real
+  // form (isTrusted event — our programmatic fills are not trusted), remember it locally and reuse
+  // it on every next form. The declaration stays the user's own; it just stops repeating.
+  function captureDemographics() {
+    document.addEventListener('change', (e) => {
+      if (!e.isTrusted) return;
+      const el = e.target;
+      let value = '';
+      if (el instanceof HTMLSelectElement) value = (el.selectedOptions[0]?.text || '').trim();
+      else if (el instanceof HTMLInputElement && el.type === 'radio' && el.checked) value = ((el.closest('label') || el.parentElement)?.textContent || '').trim();
+      else return;
+      if (!value || /^select\b|^choose\b|^--/i.test(value)) return;
+      const { label } = questionLabel(el);
+      if (!label || CONSENT.test(label)) return;
+      const kind = demoKind(label);
+      if (!kind) return;
+      chrome.storage.sync.get('demo').then(({ demo }) => {
+        chrome.storage.sync.set({ demo: { ...(demo || {}), [kind]: canonicalizeDemo(kind, value) } });
+      });
+    }, true);
+  }
+
   // Match the user's stored demographic value to one of the form's options.
   function demoMatch(kind, value, options) {
     const n = (s) => s.toLowerCase().trim();
@@ -255,6 +293,7 @@
   }
 
   injectButton();
+  captureDemographics();
   // Lever pages are static, but the apply form can render after load on some templates.
   const obs = new MutationObserver(() => injectButton());
   obs.observe(document.body, { childList: true, subtree: true });
