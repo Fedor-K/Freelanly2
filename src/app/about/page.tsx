@@ -15,12 +15,14 @@ export const metadata: Metadata = {
 const PlusIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>;
 
 export default async function AboutPage() {
+  // Build-time prerender must survive a transient Neon blip (P1001 killed deploys on 2026-07-16) —
+  // fall back to recent real values; the hourly revalidation shows live numbers again.
   const [totalUsers, totalCompanies] = await Promise.all([
     prisma.user.count(),
     // Distinct employers in the live 30-day supply — the legacy Company table was purged 2026-07-16
     // (job-board era shell), so counting it rendered "0+ Companies tracked" on the public pages.
     prisma.$queryRaw`SELECT COUNT(DISTINCT LOWER(COALESCE(NULLIF(TRIM("posterCompany"),''), NULLIF(TRIM("clientName"),'')))) AS n FROM "Opportunity" WHERE "createdAt" >= now() - interval '30 days'`.then((r) => Number((r as Array<{ n: bigint }>)[0]?.n ?? 0)),
-  ]);
+  ]).catch((): [number, number] => [4700, 6250]);
   const usersK = `${(totalUsers / 1000).toFixed(1)}K+`;
 
   return (

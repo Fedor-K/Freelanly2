@@ -21,13 +21,16 @@ export const metadata: Metadata = {
 };
 
 export default async function LandingPage() {
+  // These stats prerender at BUILD time (revalidate=300) — a transient Neon blip mid-build was
+  // killing whole deploys (P1001 on prerender, twice on 2026-07-16). Fall back to recent real
+  // values instead; the next successful revalidation shows live numbers again.
   const [totalUsers, totalCompanies, totalOpps] = await Promise.all([
     prisma.user.count(),
     // Distinct employers in the live 30-day supply — the legacy Company table was purged 2026-07-16
     // (job-board era shell), so counting it rendered "0+ Companies tracked" on the public pages.
     prisma.$queryRaw`SELECT COUNT(DISTINCT LOWER(COALESCE(NULLIF(TRIM("posterCompany"),''), NULLIF(TRIM("clientName"),'')))) AS n FROM "Opportunity" WHERE "createdAt" >= now() - interval '30 days'`.then((r) => Number((r as Array<{ n: bigint }>)[0]?.n ?? 0)),
     prisma.opportunity.count({ where: { createdAt: { gte: new Date(Date.now() - 24 * 3600000) } } }),
-  ]);
+  ]).catch((): [number, number, number] => [4700, 6250, 800]);
 
   return (
     <>
