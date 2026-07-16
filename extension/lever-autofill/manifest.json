@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Freelanly Autofill \u2014 Lever",
-  "version": "0.5.0",
-  "description": "Fill Lever job application forms from your Freelanly profile: contact fields, links, resume PDF, and AI-drafted answers to screening questions. You review and submit yourself.",
+  "name": "Freelanly Autofill \u2014 ATS",
+  "version": "0.6.0",
+  "description": "Autofill job-application (ATS) forms from your Freelanly profile: contact fields, links, resume, and AI-drafted answers. You review.",
   "permissions": [
     "storage"
   ],
@@ -17,7 +17,13 @@
     {
       "matches": [
         "https://jobs.lever.co/*",
-        "https://jobs.eu.lever.co/*"
+        "https://jobs.eu.lever.co/*",
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://*.greenhouse.io/*",
+        "https://jobs.ashbyhq.com/*",
+        "https://apply.workable.com/*",
+        "https://jobs.workable.com/*"
       ],
       "js": [
         "content.js"

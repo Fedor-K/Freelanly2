@@ -1,18 +1,25 @@
-// Freelanly Autofill — Lever content script.
-// Fills the standardized Lever application form (jobs.lever.co/<company>/<id>/apply) from the
+// Freelanly Autofill — ATS content script.
+// Fills standard application forms (Lever, Greenhouse, Ashby, Workable, and other ATS) from the
 // user's Freelanly profile. AUTO-FILL ONLY: the user reviews and clicks Submit themselves.
 // Unknown/unanswerable fields get highlighted for manual entry.
+//
+// Design: instead of hardcoding one ATS's field names, we detect fields by their *label signals*
+// (visible label + name + id + placeholder + autocomplete + aria-label). That makes standard-field
+// detection work across ATS DOMs. Custom questions are answered by AI from the profile.
 
 (function () {
   'use strict';
 
-  // Only act on pages that actually contain the application form.
+  // ---- form detection -------------------------------------------------------------------------
+  // We only run on ATS apply hosts (see manifest), so a nearby email or file input is a good
+  // enough signal that an application form is on the page.
   function findForm() {
-    return document.querySelector('input[name="name"], input[name="email"]')
-      ? (document.querySelector('form#application-form') || document.querySelector('form[action*="apply"]') || document.body)
+    return document.querySelector('input[type="email"], input[name*="email" i], input[type="file"]')
+      ? document.body
       : null;
   }
 
+  // ---- primitives -----------------------------------------------------------------------------
   function setValue(el, value) {
     if (!el || !value) return false;
     const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
@@ -23,8 +30,18 @@
     return true;
   }
 
+  function setSelect(el, optionText) {
+    const pick = Array.from(el.options).find((o) => o.text.trim() === optionText);
+    if (!pick) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+    setter.call(el, pick.value);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }
+
   function mark(el, kind) {
-    el.classList.add(kind === 'ok' ? 'fx-filled' : 'fx-needs-you');
+    if (el) el.classList.add(kind === 'ok' ? 'fx-filled' : 'fx-needs-you');
   }
 
   function toast(text, ms = 6000) {
@@ -43,8 +60,100 @@
     return new Promise((resolve) => chrome.runtime.sendMessage(msg, resolve));
   }
 
+  function isVisible(el) {
+    return el && !el.disabled && !el.readOnly && el.type !== 'hidden' && el.offsetParent !== null;
+  }
+
+  // ---- label extraction (ATS-agnostic) --------------------------------------------------------
+  function labelText(el) {
+    if (el.id) {
+      try {
+        const l = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+        if (l && l.textContent.trim()) return l.textContent.trim();
+      } catch (_) { /* bad id */ }
+    }
+    const wrap = el.closest('label');
+    if (wrap && wrap.textContent.trim()) return wrap.textContent.trim();
+    const lb = el.getAttribute('aria-labelledby');
+    if (lb) {
+      const t = lb.split(/\s+/).map((id) => (document.getElementById(id)?.textContent || '')).join(' ').trim();
+      if (t) return t;
+    }
+    const card = el.closest('.application-question, .field, fieldset, [class*="field"], [class*="question"], li');
+    if (card) {
+      const lab = card.querySelector('.application-label, .text, label, legend, [class*="label"]');
+      if (lab && lab.textContent.trim()) return lab.textContent.trim();
+    }
+    return (el.getAttribute('aria-label') || el.placeholder || '').trim();
+  }
+
+  function questionLabel(el) {
+    const card = el.closest('.application-question, .field, fieldset, [class*="question"], li') || el.parentElement;
+    return { card, label: labelText(el) };
+  }
+
+  // Full signal string used to classify standard fields.
+  function fieldSignals(el) {
+    return [labelText(el), el.name, el.id, el.placeholder, el.getAttribute('autocomplete'), el.getAttribute('aria-label')]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .replace(/[_\-\[\]]/g, ' ');
+  }
+
+  // ---- standard-field classification ----------------------------------------------------------
+  // Returns a profile key for a text-like input, or null. Order matters (first/last before full,
+  // linkedin/github before generic portfolio).
+  function stdKind(el) {
+    const type = (el.type || '').toLowerCase();
+    if (type === 'email') return 'email';
+    if (type === 'tel') return 'phone';
+    const s = fieldSignals(el);
+    if (!s) return null;
+
+    if (/first ?name|given ?name|\bfname\b|forename/.test(s)) return 'firstName';
+    if (/last ?name|surname|family ?name|\blname\b/.test(s)) return 'lastName';
+    if (/linkedin/.test(s)) return 'linkedin';
+    if (/github/.test(s)) return 'github';
+    if (/portfolio|personal (site|website)|dribbble|behance|your (site|website)/.test(s)) return 'portfolio';
+    if (/e ?mail/.test(s)) return 'email';
+    if (/phone|mobile|\btel\b|cell/.test(s)) return 'phone';
+    if (/current (company|employer)|\bcompany\b|organization|organisation|employer|where do you work/.test(s)) return 'company';
+    if (/location|\bcity\b|current location|where are you|country|address/.test(s)) return 'location';
+    if (/website|\bwebsite\b|\bwww\b/.test(s)) return 'portfolio';
+    // Full name last, and only when it isn't actually a company/username field.
+    if (/full ?name|your name|applicant name|^name$|\bname\b/.test(s) &&
+        !/company|organization|organisation|employer|user ?name|display name|screen ?name/.test(s)) {
+      return 'fullName';
+    }
+    return null;
+  }
+
+  function stdValue(kind, p) {
+    const parts = (p.fullName || '').trim().split(/\s+/);
+    switch (kind) {
+      case 'fullName': return p.fullName;
+      case 'firstName': return parts[0] || '';
+      case 'lastName': return parts.slice(1).join(' ') || '';
+      case 'email': return p.email;
+      case 'phone': return p.phone;
+      case 'linkedin': return p.linkedinUrl;
+      case 'github': return p.githubUrl;
+      case 'portfolio': return p.portfolioUrl;
+      case 'company': return p.currentCompany;
+      case 'location': return p.location;
+      default: return '';
+    }
+  }
+
+  // ---- resume ---------------------------------------------------------------------------------
+  function findResumeInput() {
+    const files = Array.from(document.querySelectorAll('input[type="file"]'));
+    return files.find((f) => /resume|résumé|\bcv\b|curriculum/i.test(fieldSignals(f))) || files[0] || null;
+  }
+
   async function attachResume(profile) {
-    const fileInput = document.querySelector('input[type="file"][name="resume"], input[type="file"]#resume-upload-input, input[type="file"]');
+    const fileInput = findResumeInput();
     if (!fileInput || !profile.resumeUrl) return false;
     const res = await send({ type: 'resume', url: profile.resumeUrl });
     if (!res || res.error || !res.base64) return false;
@@ -60,12 +169,10 @@
     return true;
   }
 
-  // Lever custom question cards: name="cards[<uuid>][fieldN]". Answer text ones with AI from the
-  // profile; anything we can't answer gets highlighted for the human.
-
+  // ---- sensitive / demographics (unchanged policy) --------------------------------------------
   // Sensitive questions are never AI-guessed. Demographics CAN be filled from the user's own
-  // one-time declarations (popup → stored in chrome.storage ONLY, never sent to the server);
-  // consents/legal declarations are ALWAYS the human's.
+  // one-time declarations (popup / learned locally — chrome.storage ONLY, never sent to the
+  // server); consents/legal declarations are ALWAYS the human's.
   const SENSITIVE = /pronoun|gender|lgbt|race|ethnic|color\/|self-declare|disabilit|veteran|consent|i declare|agree to|terms of|privacy|autorizo|concordo|declaro|acknowledg|criminal|background check/i;
   const CONSENT = /consent|i declare|agree to|terms of|privacy|autorizo|concordo|declaro|acknowledg|criminal|background check|lgbt|pronoun/i;
 
@@ -83,8 +190,6 @@
     veteran: { No: /^no\b|not a protected veteran|não/i, Yes: /^yes\b|identify as.*veteran|^sim\b/i },
   };
 
-  // Normalize a captured answer to a canonical value so it transfers across forms and languages
-  // ("Masculino" learned on a PT form → fills "Male" on the next EN form).
   function canonicalizeDemo(kind, text) {
     if (/prefer not|decline|don.?t wish|rather not|prefiro não/i.test(text)) return 'Prefer not to say';
     if (kind === 'gender') {
@@ -96,12 +201,9 @@
       if (/^no\b|^não\b|not a protected|do not have/i.test(text)) return 'No';
       if (/^yes\b|^sim\b|identify as/i.test(text)) return 'Yes';
     }
-    return text; // race etc. — store as-is; contains-match handles reuse
+    return text;
   }
 
-  // LEARN from the user's own manual picks: when the human selects a demographic value in a real
-  // form (isTrusted event — our programmatic fills are not trusted), remember it locally and reuse
-  // it on every next form. The declaration stays the user's own; it just stops repeating.
   function captureDemographics() {
     document.addEventListener('change', (e) => {
       if (!e.isTrusted) return;
@@ -121,7 +223,6 @@
     }, true);
   }
 
-  // Match the user's stored demographic value to one of the form's options.
   function demoMatch(kind, value, options) {
     const n = (s) => s.toLowerCase().trim();
     if (/prefer not/i.test(value)) return options.find((o) => /prefer not|decline|don.?t wish|rather not|prefiro não/i.test(o)) || null;
@@ -131,17 +232,15 @@
     return syn ? options.find((o) => syn.test(o)) || null : null;
   }
 
-  function questionLabel(el) {
-    const card = el.closest('.application-question, li, .custom-question, fieldset');
-    if (!card) return { card: null, label: '' };
-    const label = (card.querySelector('.application-label, .text, label, legend')?.textContent || '').trim();
-    return { card, label };
-  }
-
-  // Text inputs + textareas in custom cards → free-text AI answer from the profile.
-  async function fillTextQuestions(jobContext) {
-    const inputs = Array.from(document.querySelectorAll('input[name^="cards["], textarea[name^="cards["]'))
-      .filter((el) => el.tagName !== 'SELECT' && el.type !== 'radio' && el.type !== 'checkbox' && el.type !== 'file');
+  // ---- custom questions -----------------------------------------------------------------------
+  // Free-text inputs/textareas that are NOT standard fields → AI free-text answer from the profile.
+  async function fillTextQuestions(jobContext, consumed) {
+    const inputs = Array.from(document.querySelectorAll('input, textarea')).filter((el) => {
+      if (consumed.has(el) || !isVisible(el)) return false;
+      const type = (el.tagName === 'TEXTAREA') ? 'textarea' : (el.type || 'text').toLowerCase();
+      if (!['text', 'textarea', 'search', ''].includes(type)) return false;
+      return stdKind(el) === null; // standard fields handled elsewhere
+    });
     let ai = 0, manual = 0;
     for (const el of inputs) {
       if (el.value) continue; // don't overwrite anything the user typed
@@ -154,26 +253,15 @@
     return { ai, manual };
   }
 
-  function setSelect(el, optionText) {
-    const pick = Array.from(el.options).find((o) => o.text.trim() === optionText);
-    if (!pick) return false;
-    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
-    setter.call(el, pick.value);
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-    return true;
-  }
-
   // Dropdowns → multiple-choice AI (or local demographics): pick ONE existing option, never invent.
-  async function fillSelects(jobContext, demo) {
-    const selects = Array.from(document.querySelectorAll('select')).filter((el) => !el.value);
+  async function fillSelects(jobContext, demo, consumed) {
+    const selects = Array.from(document.querySelectorAll('select')).filter((el) => isVisible(el) && !el.value && !consumed.has(el));
     let ai = 0, manual = 0;
     for (const el of selects) {
       const { card, label } = questionLabel(el);
       const options = Array.from(el.options).map((o) => o.text.trim()).filter((t) => t && !/^select\b|^choose\b|^--/i.test(t));
       if (!label || options.length === 0) { manual++; mark(card || el, 'needs'); continue; }
       if (SENSITIVE.test(label)) {
-        // Demographics: fill from the user's OWN declaration (local only). Consent/legal: never.
         const kind = CONSENT.test(label) ? null : demoKind(label);
         const stored = kind && demo && demo[kind];
         const hit = stored ? demoMatch(kind, stored, options) : null;
@@ -191,7 +279,7 @@
   async function fillRadios(jobContext, demo) {
     const groups = new Map();
     document.querySelectorAll('input[type="radio"]').forEach((r) => {
-      if (!r.name) return;
+      if (!r.name || !isVisible(r)) return;
       if (!groups.has(r.name)) groups.set(r.name, []);
       groups.get(r.name).push(r);
     });
@@ -218,14 +306,15 @@
     return { ai, manual };
   }
 
-  async function fillCustomQuestions(jobContext) {
+  async function fillCustomQuestions(jobContext, consumed) {
     const { demo } = await chrome.storage.sync.get('demo');
-    const t = await fillTextQuestions(jobContext);
-    const s = await fillSelects(jobContext, demo);
+    const t = await fillTextQuestions(jobContext, consumed);
+    const s = await fillSelects(jobContext, demo, consumed);
     const r = await fillRadios(jobContext, demo);
     return { ai: t.ai + s.ai + r.ai, manual: t.manual + s.manual + r.manual };
   }
 
+  // ---- orchestration --------------------------------------------------------------------------
   async function autofill() {
     const btn = document.getElementById('fx-fill-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'Filling…'; }
@@ -236,8 +325,6 @@
       if (btn) { btn.disabled = false; btn.textContent = '⚡ Autofill with Freelanly'; }
       return;
     }
-    // Free for all while we grow adoption (owner 2026-07-15). Server still returns `pro` so a
-    // future re-gate is just a server change — no extension update needed.
     if (!res.profile) {
       toast('Could not load your profile — log in at freelanly.com and try again.');
       if (btn) { btn.disabled = false; btn.textContent = '⚡ Autofill with Freelanly'; }
@@ -245,34 +332,33 @@
     }
 
     const p = res.profile;
+    const consumed = new Set();
     let filled = 0;
 
-    const std = [
-      ['input[name="name"]', p.fullName],
-      ['input[name="email"]', p.email],
-      ['input[name="phone"]', p.phone],
-      ['input[name="org"]', p.currentCompany],
-      ['input[name="urls[LinkedIn]"]', p.linkedinUrl],
-      ['input[name="urls[GitHub]"]', p.githubUrl],
-      ['input[name="urls[Github]"]', p.githubUrl],
-      ['input[name="urls[Portfolio]"]', p.portfolioUrl],
-      ['input[name="urls[Other]"]', p.portfolioUrl],
-      ['input[name="location"]', p.location],
-    ];
-    for (const [sel, val] of std) {
-      const el = document.querySelector(sel);
-      if (el && !el.value && setValue(el, val)) { mark(el, 'ok'); filled++; }
+    // Standard text-like fields, classified by label signals across ATS.
+    const textEls = Array.from(document.querySelectorAll('input, textarea')).filter((el) => {
+      if (!isVisible(el)) return false;
+      const type = (el.type || 'text').toLowerCase();
+      return !['file', 'checkbox', 'radio', 'submit', 'button', 'reset', 'password', 'hidden'].includes(type);
+    });
+    for (const el of textEls) {
+      const kind = stdKind(el);
+      if (!kind) continue;
+      consumed.add(el); // a standard field — keep custom-question passes off it
+      if (el.value) continue; // respect anything the user already typed
+      const val = stdValue(kind, p);
+      if (val && setValue(el, val)) { mark(el, 'ok'); filled++; }
     }
 
     const resumeOk = await attachResume(p);
     if (resumeOk) filled++;
 
-    const jobContext = `${document.title} — ${(document.querySelector('.posting-headline h2, h2')?.textContent || '').trim()}`;
-    const q = await fillCustomQuestions(jobContext);
+    const jobContext = `${document.title} — ${(document.querySelector('h1, .posting-headline h2, h2')?.textContent || '').trim()}`;
+    const q = await fillCustomQuestions(jobContext, consumed);
 
     // Anything still empty and required → highlight.
     document.querySelectorAll('input[required], textarea[required], select[required]').forEach((el) => {
-      if (!el.value && el.type !== 'hidden') mark(el.closest('.application-question') || el, 'needs');
+      if (!el.value && el.type !== 'hidden') mark(el.closest('.application-question, .field') || el, 'needs');
     });
 
     toast(`Filled ${filled + q.ai} fields (${q.ai} AI answers)${q.manual ? ` — ${q.manual} highlighted for you` : ''}. Review everything, then click Submit yourself.`, 9000);
@@ -294,8 +380,8 @@
 
   injectButton();
   captureDemographics();
-  // Lever pages are static, but the apply form can render after load on some templates.
+  // Many ATS (Greenhouse embed, Ashby, Workable) render the form client-side after load.
   const obs = new MutationObserver(() => injectButton());
   obs.observe(document.body, { childList: true, subtree: true });
-  setTimeout(() => obs.disconnect(), 15000);
+  setTimeout(() => obs.disconnect(), 20000);
 })();

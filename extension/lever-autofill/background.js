@@ -23,7 +23,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const r = await fetch(`${API}/answer`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: msg.question, jobContext: msg.jobContext }),
+          body: JSON.stringify({ question: msg.question, jobContext: msg.jobContext, options: msg.options }),
         });
         return sendResponse(await r.json());
       }
