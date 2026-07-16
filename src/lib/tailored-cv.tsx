@@ -5,11 +5,29 @@
 // re-phrasings of each existing role description — companies, titles, dates and the entry list are
 // copied from the original profile verbatim, so nothing can be invented into the factual skeleton.
 import React from 'react';
+import path from 'path';
 import OpenAI from 'openai';
-import { Document, Page, Text, View, StyleSheet, renderToBuffer } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Font, renderToBuffer } from '@react-pdf/renderer';
 import type { CvProfile } from '@/lib/recruiter-cv';
 
-const s = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' : String(v));
+// Unicode font (Latin + Greek + Cyrillic). The built-in Helvetica is WinAnsi-only, so any
+// Cyrillic in a profile ("английский") rendered as mojibake with overlapping glyphs.
+// Files are force-included in the lambda via outputFileTracingIncludes (next.config.ts).
+Font.register({
+  family: 'NotoSans',
+  fonts: [
+    { src: path.join(process.cwd(), 'src/lib/fonts/NotoSans-Regular.ttf'), fontWeight: 400 },
+    { src: path.join(process.cwd(), 'src/lib/fonts/NotoSans-Bold.ttf'), fontWeight: 700 },
+  ],
+});
+
+// Résumé parsers sometimes emit the STRING "null"/"undefined" for absent fields; those are
+// truthy and rendered literally ("null — Frances King"), so treat them as empty here.
+const s = (v: unknown): string => {
+  const str = typeof v === 'string' ? v : v == null ? '' : String(v);
+  const t = str.trim();
+  return /^(null|undefined|n\/a)$/i.test(t) ? '' : t;
+};
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
 type TailorResult = {
@@ -87,12 +105,12 @@ function mergeTailored(profile: CvProfile, t: TailorResult | null): CvProfile {
 }
 
 const styles = StyleSheet.create({
-  page: { padding: 42, fontSize: 10, fontFamily: 'Helvetica', color: '#1a1a1a', lineHeight: 1.45 },
-  name: { fontSize: 20, fontFamily: 'Helvetica-Bold', marginBottom: 2 },
+  page: { padding: 42, fontSize: 10, fontFamily: 'NotoSans', color: '#1a1a1a', lineHeight: 1.45 },
+  name: { fontSize: 20, fontFamily: 'NotoSans', fontWeight: 700, lineHeight: 1.2, marginBottom: 4 },
   headline: { fontSize: 11, color: '#444', marginBottom: 2 },
   contact: { fontSize: 9, color: '#666', marginBottom: 14 },
-  section: { fontSize: 11, fontFamily: 'Helvetica-Bold', marginTop: 12, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.8, color: '#333', borderBottomWidth: 0.5, borderBottomColor: '#ccc', paddingBottom: 3 },
-  roleTitle: { fontFamily: 'Helvetica-Bold', fontSize: 10.5 },
+  section: { fontSize: 11, fontFamily: 'NotoSans', fontWeight: 700, marginTop: 12, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.8, color: '#333', borderBottomWidth: 0.5, borderBottomColor: '#ccc', paddingBottom: 3 },
+  roleTitle: { fontFamily: 'NotoSans', fontWeight: 700, fontSize: 10.5 },
   roleMeta: { fontSize: 9, color: '#666', marginBottom: 3 },
   para: { marginBottom: 8 },
   skills: { fontSize: 10 },
@@ -100,9 +118,9 @@ const styles = StyleSheet.create({
 
 function CvDoc({ p, name, links }: { p: CvProfile; name: string; links?: string[] }) {
   const roles = (arr(p.experience) as Array<{ title?: string; company?: string; dates?: string; description?: string }>)
-    .filter(r => r.title || r.company || r.description);
+    .filter(r => s(r.title) || s(r.company) || s(r.description));
   const edu = (arr(p.education) as Array<{ degree?: string; title?: string; institution?: string; school?: string; dates?: string; year?: string }>)
-    .filter(e => e.degree || e.title || e.institution || e.school);
+    .filter(e => s(e.degree) || s(e.title) || s(e.institution) || s(e.school));
   const skills = arr(p.skills).map(s).filter(Boolean);
   const langs = arr(p.languages).map(s).filter(Boolean);
   const certs = arr(p.certifications).map(s).filter(Boolean);
@@ -110,12 +128,12 @@ function CvDoc({ p, name, links }: { p: CvProfile; name: string; links?: string[
     <Document>
       <Page size="A4" style={styles.page}>
         <Text style={styles.name}>{name}</Text>
-        {(p.current_title || p.field) ? <Text style={styles.headline}>{s(p.current_title) || s(p.field)}</Text> : null}
+        {(s(p.current_title) || s(p.field)) ? <Text style={styles.headline}>{s(p.current_title) || s(p.field)}</Text> : null}
         <Text style={styles.contact}>
           {[s(p.email), s(p.location), p.experience_years ? `${p.experience_years}+ years experience` : ''].filter(Boolean).join('  ·  ')}
         </Text>
         {links && links.length ? <Text style={{ ...styles.contact, marginTop: -8 }}>{links.join('  ·  ')}</Text> : null}
-        {p.summary ? (<><Text style={styles.section}>Summary</Text><Text style={styles.para}>{s(p.summary)}</Text></>) : null}
+        {s(p.summary) ? (<><Text style={styles.section}>Summary</Text><Text style={styles.para}>{s(p.summary)}</Text></>) : null}
         {skills.length ? (<><Text style={styles.section}>Skills</Text><Text style={{ ...styles.skills, ...styles.para }}>{skills.join('  ·  ')}</Text></>) : null}
         {roles.length ? (
           <>
@@ -123,8 +141,8 @@ function CvDoc({ p, name, links }: { p: CvProfile; name: string; links?: string[
             {roles.map((r, i) => (
               <View key={i} style={styles.para} wrap={false}>
                 <Text style={styles.roleTitle}>{[s(r.title), s(r.company)].filter(Boolean).join(' — ')}</Text>
-                {r.dates ? <Text style={styles.roleMeta}>{s(r.dates)}</Text> : null}
-                {r.description ? <Text>{s(r.description)}</Text> : null}
+                {s(r.dates) ? <Text style={styles.roleMeta}>{s(r.dates)}</Text> : null}
+                {s(r.description) ? <Text>{s(r.description)}</Text> : null}
               </View>
             ))}
           </>
@@ -135,7 +153,7 @@ function CvDoc({ p, name, links }: { p: CvProfile; name: string; links?: string[
             {edu.map((e, i) => (
               <View key={i} style={{ marginBottom: 5 }}>
                 <Text style={styles.roleTitle}>{[s(e.degree) || s(e.title), s(e.institution) || s(e.school)].filter(Boolean).join(' — ')}</Text>
-                {(e.dates || e.year) ? <Text style={styles.roleMeta}>{s(e.dates) || s(e.year)}</Text> : null}
+                {(s(e.dates) || s(e.year)) ? <Text style={styles.roleMeta}>{s(e.dates) || s(e.year)}</Text> : null}
               </View>
             ))}
           </>

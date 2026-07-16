@@ -21,6 +21,15 @@ const nextConfig: NextConfig = {
   // @react-pdf/renderer needs to be external for server-side rendering
   serverExternalPackages: ['@react-pdf/renderer'],
 
+  // CV PDF rendering (tailored-cv.tsx) reads Unicode TTFs at runtime — force them into the
+  // lambdas of every route that renders a CV, or Vercel's file tracing drops them and the
+  // render throws (send then falls back to the stock résumé, silently untailored).
+  outputFileTracingIncludes: {
+    '/api/user/quick-apply': ['./src/lib/fonts/**/*'],
+    '/api/user/auto-apply/[id]': ['./src/lib/fonts/**/*'],
+    '/api/user/resume-preauth': ['./src/lib/fonts/**/*'],
+  },
+
   // Enforce no trailing slashes — prevents duplicate URLs
   // /company/x/jobs/y/ → 301 → /company/x/jobs/y
   trailingSlash: false,
