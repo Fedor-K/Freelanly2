@@ -520,7 +520,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                   Apply with <b>PRO — $5/month</b>: unlimited applications, AI-written letters, your CV attached to every one. Cancel anytime.
                 </div>
                 <div style={{display: 'flex', justifyContent: 'center'}}>
-                  <QueueUpgradeButton source="application_paywall_feed" label="Upgrade to keep applying →" />
+                  <QueueUpgradeButton source="application_paywall_feed" label="Upgrade to apply →" />
                 </div>
               </div>
             ) : draftBlocked && (draftBlocked.reason === 'smtp_required' || draftBlocked.reason === 'not_strong' || draftBlocked.reason === 'limit_reached') ? (

@@ -662,10 +662,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             width: '100%', padding: '14px', background: '#C7F94A', color: '#000', border: 'none',
             borderRadius: '10px', fontSize: '15px', fontWeight: 600, cursor: 'pointer',
           }}>
-            Apply now — free
+            Apply now
           </button>
           <div style={{ marginTop: '16px', fontSize: '12px', color: '#8A8780', textAlign: 'center' }}>
-            No credit card · Free — 20 applications a day
+            Sign up free to see your matches
           </div>
         </>
       );
@@ -1072,21 +1072,27 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
     // PHASE: REVIEW
     if (phase === 'review') {
+      // Application paywall (owner decision 2026-07-16, FREE_APPLICATIONS=0): sending is PRO-only,
+      // so a walled user gets ONLY the wall — no editor, no Send button. The old banner-over-a-live-
+      // form UX came from the generation paywall era ("write it yourself — sending is free"), which
+      // no longer exists; a form the server will 402 is a trap, not an option.
+      if (genPaywall) {
+        return (
+          <div style={{ textAlign: 'center', padding: '12px 4px' }}>
+            <div style={{ fontSize: '24px', marginBottom: '10px' }}>✨</div>
+            <h2 style={{ fontSize: '17px', fontWeight: 700, marginBottom: '8px' }}>Applying is a PRO feature</h2>
+            <p style={{ fontSize: '13px', color: '#5C6068', lineHeight: 1.6, margin: '0 auto 16px', maxWidth: '320px' }}>
+              Apply with <b>PRO — $5/month</b>: unlimited applications, AI-written letters, your CV attached to every one. Cancel anytime.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <QueueUpgradeButton source="application_paywall" label="Upgrade to apply →" />
+            </div>
+          </div>
+        );
+      }
       return (
         <div>
           <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '12px' }}>Review & send</h2>
-
-          {/* Application paywall (owner decision 2026-07-13): first application free, every send after
-              is PRO. No free manual path — pay to send. */}
-          {genPaywall && (
-            <div style={{ padding: '14px 16px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '12px', marginBottom: '14px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A17', marginBottom: '4px' }}>Applying is a PRO feature ✨</div>
-              <div style={{ fontSize: '12.5px', color: '#3F6212', lineHeight: 1.5, marginBottom: '10px' }}>
-                Apply with <b>PRO — $5/month</b>: unlimited applications + your CV attached to every one. Cancel anytime.
-              </div>
-              <QueueUpgradeButton source="application_paywall" label="Upgrade to keep applying →" />
-            </div>
-          )}
 
           {sendTo && (
             <div style={{ fontSize: '12px', color: '#8A8780', marginBottom: '8px', fontFamily: "'Geist Mono', monospace" }}>
