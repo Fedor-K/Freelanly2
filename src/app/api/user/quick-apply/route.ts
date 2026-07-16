@@ -454,6 +454,23 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // APPLICATION PAYWALL, draft stage (owner decision 2026-07-16): a FREE user past the free send
+    // now hits the wall on the Apply click — BEFORE we generate a letter they cannot send. Previously
+    // generation ran anyway ("free preview") and the wall only appeared on Send, so every attempt
+    // burned tokens and threw away a finished letter the user had already invested in. The send-path
+    // gate below stays as the real enforcement (this is UX + cost, not security).
+    if (draftOnly && user.plan === 'FREE') {
+      const priorSends = await prisma.autoApplication.count({ where: { userId: user.id, sentAt: { not: null } } });
+      if (priorSends >= Number(process.env.FREE_APPLICATIONS ?? 1)) {
+        logActivity({ userId: user.id, action: ActivityAction.FUNNEL_STEP, details: { step: 'application_paywall_shown', surface: 'draft', opportunityId: opportunity.id } }).catch(() => {});
+        return NextResponse.json({
+          error: 'application_limit',
+          message: 'Your free application is used. Upgrade to PRO ($5/mo) to keep applying — unlimited applications, your CV attached to every one.',
+          to: opportunity.applyEmail,
+        }, { status: 402 });
+      }
+    }
+
     // Use provided text or generate new
     let coverLetter: string;
     if (providedCoverLetter || editedCoverLetter) {

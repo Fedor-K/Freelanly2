@@ -160,7 +160,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
         // errors (network/5xx) still fall through to a manual-write draft.
         const reason = (data as { error?: string }).error || '';
         const message = (data as { message?: string }).message || '';
-        const BLOCKING = ['poor_match', 'already_applied', 'limit_reached', 'resume_required', 'unavailable', 'smtp_required', 'generation_limit'];
+        const BLOCKING = ['poor_match', 'already_applied', 'limit_reached', 'resume_required', 'unavailable', 'smtp_required', 'generation_limit', 'application_limit'];
         if (BLOCKING.includes(reason)) {
           setDraftBlocked({ reason, message });
           // Server reports we've already applied here (it checks ALL of the user's applications, not just

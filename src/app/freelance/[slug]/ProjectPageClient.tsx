@@ -565,8 +565,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         } else if (data.error === 'already_applied') {
           setGenError('You already applied to this project.');
           setPhase('sent');
-        } else if (data.error === 'generation_limit') {
-          // Free AI generation spent → review screen with the PRO pitch; manual writing + sending free.
+        } else if (data.error === 'generation_limit' || data.error === 'application_limit') {
+          // generation_limit: free AI generation spent → review screen with the PRO pitch.
+          // application_limit: free send spent → the wall now fires on Apply, BEFORE generating a
+          // letter the user can't send (same PRO pitch banner; the send path enforces it anyway).
           setGenPaywall(true);
           setCoverLetter('');
           setSubject(`Application: ${project.title}`);
