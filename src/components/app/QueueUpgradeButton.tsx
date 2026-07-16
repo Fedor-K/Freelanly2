@@ -44,7 +44,17 @@ export function QueueUpgradeButton({ source = 'queue_teaser', label = 'Unlock th
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-      <button className="btn btn-acid" onClick={go} disabled={busy}>
+      {/* Inline styles, not .btn classes — this renders on surfaces that don't load the dashboard
+          stylesheet (public /freelance/[slug]), where the classes silently resolve to plain text. */}
+      <button
+        onClick={go}
+        disabled={busy}
+        style={{
+          padding: '12px 22px', background: '#C7F94A', color: '#000', border: 'none',
+          borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: busy ? 'default' : 'pointer',
+          opacity: busy ? 0.6 : 1,
+        }}
+      >
         {busy ? 'Opening checkout…' : label}
       </button>
       <span style={{ fontSize: '11.5px', color: 'var(--ink-4)' }}>$5/month · cancel anytime</span>
