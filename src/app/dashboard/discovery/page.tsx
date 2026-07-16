@@ -196,12 +196,13 @@ export default async function DiscoveryPage() {
   const appliedOppIds = new Set(appliedApps.map(a => a.opportunityId).filter(Boolean));
   const appliedJobIds = new Set(appliedApps.map(a => a.jobId).filter(Boolean));
 
-  // Show only Good+ matches (label !== 'Weak') across BOTH sources: the role's profession must overlap
-  // the candidate's, OR there's strong skill overlap. A single incidental shared skill (Weak, e.g. a
-  // designer matching a dev role on "JavaScript") isn't enough — for LinkedIn or ATS. Off-profile users
-  // get a thin honest feed instead of noise; "Newest" stays on the client sort toggle.
+  // Show EVERYTHING with any overlap, honestly labeled (owner decision 2026-07-16: "label, don't
+  // hide"). Weak cards stay in the feed with a Weak chip — sends are manual (and paid), so the user
+  // decides; hiding them just rendered empty feeds for off-profile users. Only score-0 (zero overlap,
+  // pure noise) is dropped. Gate-rejected pairs (noVerdictOpps / cached NO below) are shown too,
+  // demoted to Weak, instead of vanishing.
   const queueIds = new Set(queueItems.map(i => i.id));
-  const closestRanked = ranked.filter(r => !queueIds.has(r.id) && r.label !== 'Weak' && !noVerdictOpps.has(r.id));
+  const closestRanked = ranked.filter(r => !queueIds.has(r.id) && r.score > 0);
   const closestSlice = closestRanked.slice(0, perPage);
 
   const oppIds = closestSlice.filter(r => r.type === 'opportunity').map(r => r.id);
@@ -228,7 +229,7 @@ export default async function DiscoveryPage() {
         companyName: o.company?.name || o.posterCompany || o.clientName || 'Unknown',
         description: o.description, source: o.source === 'ats_lever' ? 'Lever' : 'linkedin', createdAt: o.createdAt.toISOString(),
         skills: o.skills, location: o.location, applyEmail: o.applyEmail, applyUrl: o.applyUrl,
-        matchLabel: r.label, aiVerified: false, alreadyApplied: appliedOppIds.has(o.id),
+        matchLabel: noVerdictOpps.has(o.id) ? 'Weak' : r.label, aiVerified: false, alreadyApplied: appliedOppIds.has(o.id),
         githubVerified: ghOverlap(r.matchedSkills),
         matchScore: r.score, matchedSkills: r.matchedSkills.slice(0, 4), matchedTitleTokens: r.matchedTitleTokens,
         languageGap: r.languageGap, missingCore: r.missingCore,
@@ -268,7 +269,7 @@ export default async function DiscoveryPage() {
   }
   const vettedClosest = closestItems.flatMap(i => {
     const v = tailVerdicts.get(i.id);
-    if (v?.decision === 'NO') return [];                                              // matcher already rejected → don't over-promise
+    if (v?.decision === 'NO') return [{ ...i, matchLabel: 'Weak' as FitLabel }];      // matcher rejected → show, honestly demoted (label, don't hide)
     if (v?.decision === 'SEND') return [{ ...i, aiVerified: true, matchLabel: v.label }]; // confirmed fit → honest badge
     return [i];                                                                       // no cached verdict → lexical fallback
   });

@@ -283,6 +283,11 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
               {item.matchLabel === 'Strong' ? '★ Strong match · AI-checked' : '✓ Good match · AI-checked'}
             </span>
           )}
+          {!isVerified(item) && item.matchLabel === 'Weak' && (
+            <span className="chip" style={{fontSize: '10px', color: '#B45309'}} title="Low overlap with your profile — a reply is less likely">
+              Weak match
+            </span>
+          )}
           {item.githubVerified && (
             <span className="chip chip-good" style={{fontSize: '10px'}} title="A skill this role needs is backed by this candidate's public GitHub">
               ⚡ GitHub-verified
