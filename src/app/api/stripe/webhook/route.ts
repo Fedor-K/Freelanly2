@@ -186,6 +186,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       stripeId: customerId,
       stripeSubscriptionId: subscriptionId,
       plan: 'PRO',
+      paymentProvider: 'stripe',
       subscriptionEndsAt,
       ...conversionData,
     },
@@ -458,7 +459,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   if (user.plan !== 'PRO') {
     await prisma.user.update({
       where: { id: user.id },
-      data: { plan: 'PRO' },
+      data: { plan: 'PRO', paymentProvider: 'stripe' },
     });
   }
 
