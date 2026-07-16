@@ -133,7 +133,7 @@ export default async function BillingPage() {
             </div>
             <div className="name">Pro</div>
             <div className="price">$5<span className="unit">/mo</span></div>
-            <div className="desc">Morning ready-queue — applications pre-written for your top matches · CV tailored to every role</div>
+            <div className="desc">Morning ready-queue — applications pre-written for your top matches · your CV attached to every send</div>
             {user.plan === 'PRO' ? (
               <div className="row gap-2 mt-3">
                 {user.stripeId && (

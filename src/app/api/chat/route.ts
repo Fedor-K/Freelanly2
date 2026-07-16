@@ -223,7 +223,7 @@ function formatOpportunitiesList(
 function getProPricingMessage(_countryCode: string | null): string {
   return `\u{1F680} **PRO — $5/month:**\n\n` +
     `\u2705 Morning ready-queue: applications pre-written for your top matches — review and send in one click\n` +
-    `\u2705 CV tailored to every role you apply to, attached automatically\n\n` +
+    `\u2705 Your CV attached automatically to every application\n\n` +
     `Applying itself is free for everyone — 20 applications a day with AI-written cover letters.\n\n` +
     `Cancel anytime: ${addUtmSource('https://freelanly.com/dashboard/billing')}`;
 }
@@ -556,7 +556,7 @@ export async function POST(request: NextRequest) {
 
       // ----- Step: Upgrade now -----
       if (flowStep === 'upgrade') {
-        const reply = `Great choice! \u{1F389} PRO is $5/month \u2014 a morning queue of pre-written applications plus a CV tailored to every role:\n\n${addUtmSource('https://freelanly.com/dashboard/billing')}`;
+        const reply = `Great choice! \u{1F389} PRO is $5/month \u2014 a morning queue of pre-written applications, with your CV attached to every send:\n\n${addUtmSource('https://freelanly.com/dashboard/billing')}`;
         const buttons = [
           { label: 'Browse projects', value: 'Browse projects' },
         ];

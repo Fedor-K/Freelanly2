@@ -279,7 +279,7 @@ export async function sendActivationEmail(
     // WELCOME (fires from the Stripe webhook on every PRO purchase): self-contained honest email.
     // The old path pulled from the dormant `Job` table — always empty since the pivot — so new PRO
     // payers silently got NO welcome at all, and the template promised "unlimited access" + linked
-    // deleted /company pages. This one promises exactly what PRO is: the ready-queue + tailored CV.
+    // deleted /company pages. This one promises exactly what PRO is: the ready-queue + CV on every send.
     if (type === 'WELCOME') {
       const firstName = (user.name || '').split(' ')[0] || 'there';
       const dashUrl = `${APP_URL}/dashboard?utm_source=welcome_email`;
@@ -289,12 +289,12 @@ export async function sendActivationEmail(
           <p style="font-size:14px;line-height:1.6;color:#444;">Here's what just switched on for you:</p>
           <ul style="font-size:14px;line-height:1.8;color:#444;padding-left:20px;">
             <li><strong>Morning ready-queue</strong> — applications pre-written for your top matches. Open your dashboard, review each one, hit Send.</li>
-            <li><strong>Tailored CV</strong> — your r&eacute;sum&eacute; is rebuilt for every role you apply to (same facts, sharper story) and attached automatically.</li>
+            <li><strong>Your CV on every send</strong> — your r&eacute;sum&eacute; is attached automatically to every application.</li>
           </ul>
           <a href="${dashUrl}" style="display:inline-block;padding:12px 24px;background:#C7F94A;color:#000;border-radius:8px;text-decoration:none;font-weight:600;margin-top:12px;">Open your queue →</a>
           <p style="font-size:12px;color:#888;margin-top:24px;">Questions? Just reply to this email.</p>
         </div>`;
-      const welcomeText = `Welcome to PRO, ${firstName}!\n\nWhat switched on:\n- Morning ready-queue: applications pre-written for your top matches — review and send in one click.\n- Tailored CV: your resume rebuilt for every role, attached automatically.\n\nOpen your queue: ${dashUrl}`;
+      const welcomeText = `Welcome to PRO, ${firstName}!\n\nWhat switched on:\n- Morning ready-queue: applications pre-written for your top matches — review and send in one click.\n- Your CV on every send: your resume attached automatically to every application.\n\nOpen your queue: ${dashUrl}`;
       const res = await sendApplicationEmail({
         to: user.email,
         subject: `Welcome to Freelanly PRO — your queue is ready`,

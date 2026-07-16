@@ -37,7 +37,7 @@ export const STRIPE_PRICES = {
   monthly: 'price_1Sk2G8KHJU6KLxM31y73p1lD',    // €15/month
   quarterly: 'price_1Sk2I0KHJU6KLxM33CN9mn0E',  // €35/3 months
   annual: 'price_1Sk2JYKHJU6KLxM3QE0ffgxt',     // €150/year
-  // PRO $5/mo — the ready-queue plan (morning queue + tailored CV), priced for LATAM. Created live
+  // PRO $5/mo — the ready-queue plan (morning queue, CV attached to every send), priced for LATAM. Created live
   // 2026-07-10 (product prod_UrOKkzeEAukgZD). Webhook sets plan='PRO' regardless of price key.
   pro5: 'price_1TrfY7KHJU6KLxM3Sme6WLZi',       // $5/month
 } as const;
@@ -103,7 +103,7 @@ export const PRICE_INFO: Record<PriceKey, {
     pricePerDay: '$0.17',
     period: 'month',
     periodLabel: 'per month',
-    description: 'Morning ready-queue + tailored CV per application',
+    description: 'Morning ready-queue + your CV attached to every application',
     hasTrial: false,
     popular: true,
   },

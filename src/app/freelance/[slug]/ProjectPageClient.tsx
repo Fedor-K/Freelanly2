@@ -99,7 +99,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   // Cover letter state
   const [coverLetter, setCoverLetter] = useState('');
   const [coverage, setCoverage] = useState<{ matched: number; total: number } | null>(null); // "Covers N/M requirements" badge
-  const [isProPlan, setIsProPlan] = useState(false); // PRO → "tailored CV attached" note on review
   const [matchSummary, setMatchSummary] = useState<{ who: string; fit: string; otherRoles: string[] } | null>(null);
   const [matchLabel, setMatchLabel] = useState<string | null>(null);
   const [matchTier, setMatchTier] = useState<'strong' | 'good' | 'weak'>('good');
@@ -558,7 +557,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         setMatchSummary(data.matchSummary || null);
         setMatchLabel(data.matchLabel || null);
         setCoverage(data.coverage || null);
-        setIsProPlan(!!data.pro);
         setPhase('review');
       } else {
         if (data.error === 'resume_required') {
@@ -1082,7 +1080,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             <div style={{ padding: '14px 16px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '12px', marginBottom: '14px' }}>
               <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A17', marginBottom: '4px' }}>Your free application is used ✨</div>
               <div style={{ fontSize: '12.5px', color: '#3F6212', lineHeight: 1.5, marginBottom: '10px' }}>
-                Keep applying with <b>PRO — $5/month</b>: unlimited applications + a CV tailored to every role. Cancel anytime.
+                Keep applying with <b>PRO — $5/month</b>: unlimited applications + your CV attached to every one. Cancel anytime.
               </div>
               <QueueUpgradeButton source="application_paywall" label="Upgrade to keep applying →" />
             </div>
@@ -1103,7 +1101,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           {/* Résumé attachment — recruiters' #1 ask; we DO attach it on every send, so say it for
               everyone (FREE saw no hint at all and hit Send blind). */}
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 10px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '999px', fontSize: '12px', color: '#3F6212', fontWeight: 600, marginBottom: '10px' }}>
-            {isProPlan ? '📎 CV tailored to this role — attached on send' : '📎 Your résumé is attached on send'}
+            {'📎 Your résumé is attached on send'}
           </div>
 
           <div style={{ marginBottom: '8px' }}>

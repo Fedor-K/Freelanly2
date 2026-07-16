@@ -390,18 +390,19 @@ export async function POST(
       });
 
       // Attach the CV — this route used to send queue items with NO résumé attached (unlike
-      // quick-apply), the recruiters' #1 ask. PRO gets the per-role tailored PDF; everyone else
-      // (and any tailoring failure) falls back to the stock résumé.
-      let cv = fullUser.plan === 'PRO'
-        ? await generateTailoredCv({
-            profile: (app.user?.parsedProfile ?? null) as import('@/lib/recruiter-cv').CvProfile | null,
-            userName: fullUser.name || '',
-            jobTitle: app.jobTitle,
-            jobDescription,
-            companyName: app.companyName,
-          })
-        : null;
-      if (!cv) cv = await fetchResumeAttachment(fullUser.resumeUrl, fullUser.resumeFileName || undefined);
+      // quick-apply), the recruiters' #1 ask. The user's OWN résumé file always wins (owner decision
+      // 2026-07-16): a generated CV is built from the lossy parsedProfile and amplifies its parsing
+      // defects. Generation is a fallback for users with no real file only.
+      let cv = await fetchResumeAttachment(fullUser.resumeUrl, fullUser.resumeFileName || undefined);
+      if (!cv) {
+        cv = await generateTailoredCv({
+          profile: (app.user?.parsedProfile ?? null) as import('@/lib/recruiter-cv').CvProfile | null,
+          userName: fullUser.name || '',
+          jobTitle: app.jobTitle,
+          jobDescription,
+          companyName: app.companyName,
+        });
+      }
 
       let result: { success: boolean; messageId?: string; error?: string };
 

@@ -553,18 +553,19 @@ export async function POST(request: NextRequest) {
 
     // Attach the candidate's CV (Blob PDF) + link the recruiter portal — so self-apply carries the
     // same payload the auto-apply card did (CV + "view all candidates"), the two biggest recruiter asks.
-    // PRO: tailored-per-role CV (summary/skills/emphasis rebuilt for THIS posting, facts untouched);
-    // any failure falls back to the stock résumé — never block a send on tailoring.
-    let cv = user.plan === 'PRO'
-      ? await generateTailoredCv({
-          profile: profile as import('@/lib/recruiter-cv').CvProfile,
-          userName: user.name || '',
-          jobTitle: opportunity.title,
-          jobDescription: opportunity.description,
-          companyName,
-        })
-      : null;
-    if (!cv) cv = await fetchResumeAttachment(user.resumeUrl, user.resumeFileName || undefined);
+    // The user's OWN résumé file always wins (owner decision 2026-07-16): a generated CV is built from
+    // the lossy parsedProfile and amplifies its parsing defects, while the real file is the candidate's
+    // best self-presentation. Generation is a fallback for users with no real file only.
+    let cv = await fetchResumeAttachment(user.resumeUrl, user.resumeFileName || undefined);
+    if (!cv) {
+      cv = await generateTailoredCv({
+        profile: profile as import('@/lib/recruiter-cv').CvProfile,
+        userName: user.name || '',
+        jobTitle: opportunity.title,
+        jobDescription: opportunity.description,
+        companyName,
+      });
+    }
     const portalUrl = getRecruiterPortalUrl(opportunity.applyEmail);
     const safeName = escapeHtml(user.name || 'this candidate');
     // Subtle, professional footer — Gmail already shows the attachment chip, so don't repeat "CV
@@ -606,7 +607,7 @@ export async function POST(request: NextRequest) {
         logActivity({ userId: user.id, action: ActivityAction.FUNNEL_STEP, details: { step: 'application_paywall_shown', opportunityId: opportunity.id } }).catch(() => {});
         return NextResponse.json({
           error: 'application_limit',
-          message: 'Your free application is used. Upgrade to PRO ($5/mo) to keep applying — unlimited applications, tailored CV per role.',
+          message: 'Your free application is used. Upgrade to PRO ($5/mo) to keep applying — unlimited applications, your CV attached to every one.',
           to: opportunity.applyEmail,
         }, { status: 402 });
       }
