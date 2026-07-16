@@ -9,7 +9,15 @@ export const revalidate = 300;
 export const metadata: Metadata = {
   title: 'Freelanly — Personal AI Assistant for Vacancies & Projects Application',
   description: 'Freelanly finds fresh vacancies and freelance projects matched to your profile and drafts a tailored cover letter for each — you review and send from your own inbox.',
-  alternates: { canonical: siteConfig.url },
+  alternates: {
+    canonical: siteConfig.url,
+    languages: {
+      en: siteConfig.url,
+      es: `${siteConfig.url}/es`,
+      pt: `${siteConfig.url}/pt`,
+      'x-default': siteConfig.url,
+    },
+  },
 };
 
 export default async function LandingPage() {
