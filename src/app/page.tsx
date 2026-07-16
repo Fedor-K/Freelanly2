@@ -23,7 +23,9 @@ export const metadata: Metadata = {
 export default async function LandingPage() {
   const [totalUsers, totalCompanies, totalOpps] = await Promise.all([
     prisma.user.count(),
-    prisma.company.count(),
+    // Distinct employers in the live 30-day supply — the legacy Company table was purged 2026-07-16
+    // (job-board era shell), so counting it rendered "0+ Companies tracked" on the public pages.
+    prisma.$queryRaw`SELECT COUNT(DISTINCT LOWER(COALESCE(NULLIF(TRIM("posterCompany"),''), NULLIF(TRIM("clientName"),'')))) AS n FROM "Opportunity" WHERE "createdAt" >= now() - interval '30 days'`.then((r) => Number((r as Array<{ n: bigint }>)[0]?.n ?? 0)),
     prisma.opportunity.count({ where: { createdAt: { gte: new Date(Date.now() - 24 * 3600000) } } }),
   ]);
 

@@ -17,7 +17,9 @@ const PlusIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="non
 export default async function AboutPage() {
   const [totalUsers, totalCompanies] = await Promise.all([
     prisma.user.count(),
-    prisma.company.count(),
+    // Distinct employers in the live 30-day supply — the legacy Company table was purged 2026-07-16
+    // (job-board era shell), so counting it rendered "0+ Companies tracked" on the public pages.
+    prisma.$queryRaw`SELECT COUNT(DISTINCT LOWER(COALESCE(NULLIF(TRIM("posterCompany"),''), NULLIF(TRIM("clientName"),'')))) AS n FROM "Opportunity" WHERE "createdAt" >= now() - interval '30 days'`.then((r) => Number((r as Array<{ n: bigint }>)[0]?.n ?? 0)),
   ]);
   const usersK = `${(totalUsers / 1000).toFixed(1)}K+`;
 
