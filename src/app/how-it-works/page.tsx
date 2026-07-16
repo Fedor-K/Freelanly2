@@ -243,7 +243,7 @@ export default function HowItWorksPage() {
       <div className="step-copy reveal">
         <div className="step-num"><span className="step-bar"></span> Step 04 — Send &amp; inbox</div>
         <h2>From <span className="accent">your</span> inbox.<br/>Tracked end-to-end.</h2>
-        <p>Connect your Gmail in one click and Freelanly sends as you, not from a bulk-mail domain. Every send is rate-limited to look human (max 20/day, sent inside your business hours). Replies land back in a unified inbox.</p>
+        <p>Connect your Gmail in one click and Freelanly sends as you, not from a bulk-mail domain. Sends are rate-limited to human cadence inside your business hours — it protects your sender reputation. Replies land back in a unified inbox.</p>
         <ul className="bullet-list">
           <li><Chk /> <span><strong>Sends from your email</strong> — Gmail in one click (OAuth), or any inbox via SMTP app password</span></li>
           <li><Chk /> <span><strong>Human-cadence throttling</strong> protects your sender reputation</span></li>
@@ -387,7 +387,7 @@ export default function HowItWorksPage() {
     <div className="footer-grid">
       <div className="footer-col footer-brand">
         <a href="/" className="logo"><span className="logo-mark">F</span><span>Freelanly</span></a>
-        <p>AI outreach engine for freelancers. Be first in the inbox. Win the project.</p>
+        <p>Personal AI assistant for vacancies and projects application. Be first in the inbox. Win the project.</p>
       </div>
       <div className="footer-col">
         <h5>Product</h5>
@@ -403,13 +403,6 @@ export default function HowItWorksPage() {
           <li><a href="/about">About</a></li>
           <li><a href="/about#faq">FAQ</a></li>
           <li><a href="/blog">Blog</a></li>
-        </ul>
-      </div>
-      <div className="footer-col">
-        <h5>Resources</h5>
-        <ul>
-          <li><a href="/freelance">Browse Jobs</a></li>
-          <li><a href="/companies">Companies</a></li>
         </ul>
       </div>
       <div className="footer-col">

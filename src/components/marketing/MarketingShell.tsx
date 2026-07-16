@@ -49,11 +49,11 @@ export function MarketingFooter() {
             <Link href="/" className="flex items-center gap-2.5 font-semibold mb-4">
               <span className="w-[26px] h-[26px] rounded-[7px] grid place-items-center font-mono font-bold text-sm" style={{ background: '#C7F94A', color: '#000' }}>F</span>Freelanly
             </Link>
-            <p className="text-[14px] text-[#A1A1AA] max-w-[260px]">AI outreach engine for freelancers.</p>
+            <p className="text-[14px] text-[#A1A1AA] max-w-[260px]">Personal AI assistant for vacancies and projects application.</p>
           </div>
           {[
             { t: 'Product', l: [['How it works', '/how-it-works'], ['Features', '/features'], ['Pricing', '/pricing']] },
-            { t: 'Resources', l: [['Blog', '/blog'], ['Browse Jobs', '/freelance'], ['Companies', '/companies']] },
+            { t: 'Resources', l: [['Blog', '/blog'], ['About', '/about'], ['FAQ', '/about#faq']] },
             { t: 'Legal', l: [['Privacy', '/privacy'], ['Terms', '/terms']] },
           ].map(c => (
             <div key={c.t}>

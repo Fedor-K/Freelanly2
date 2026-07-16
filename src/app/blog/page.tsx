@@ -183,17 +183,17 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
             )}
           </section>
 
-          {/* Newsletter CTA */}
+          {/* Product CTA */}
           <section className="mt-16 bg-muted rounded-lg p-8 text-center">
-            <h2 className="text-2xl font-bold mb-2">Stay Updated</h2>
+            <h2 className="text-2xl font-bold mb-2">Reading Tips Is Good. Applying Is Better.</h2>
             <p className="text-muted-foreground mb-4">
-              Get the latest remote work tips and job opportunities delivered to your inbox.
+              Freelanly finds matched vacancies and projects and drafts every application for you — you review and send. First one is free.
             </p>
             <Link
-              href="/dashboard/alerts"
+              href="/auth/signin"
               className="inline-flex items-center px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90"
             >
-              Set Up Job Alerts
+              Try the AI application assistant
             </Link>
           </section>
         </div>

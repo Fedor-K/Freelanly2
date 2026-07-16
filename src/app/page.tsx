@@ -7,8 +7,8 @@ import './landing-design.css';
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: 'Freelanly — fresh matched freelance gigs, cover letter ready',
-  description: 'Freelanly finds fresh freelance and contract gigs matched to your profile and writes a personalized cover letter for each — you review and send in one click.',
+  title: 'Freelanly — Personal AI Assistant for Vacancies & Projects Application',
+  description: 'Freelanly finds fresh vacancies and freelance projects matched to your profile and drafts a tailored cover letter for each — you review and send from your own inbox.',
   alternates: { canonical: siteConfig.url },
 };
 
@@ -55,11 +55,11 @@ export default async function LandingPage() {
         {totalOpps.toLocaleString()} fresh gigs · updated every 3 hours
       </span>
       <h1>
-        Be first in the inbox.<br/>
-        <span className="accent">Win</span> the project.
+        Your personal <span className="accent">AI assistant</span><br/>
+        for job &amp; project applications.
       </h1>
       <p className="hero-sub">
-        Freelanly catches new freelance gigs the moment they&apos;re posted on LinkedIn and <strong>{totalCompanies.toLocaleString()}+</strong> company sites — then writes a personalized application for every strong match. <strong>You review it and hit Send</strong> — straight from your own Gmail.
+        Be first in the inbox — win the project. Freelanly catches new vacancies and freelance gigs the moment they&apos;re posted on LinkedIn and <strong>{totalCompanies.toLocaleString()}+</strong> company sites, then drafts a personalized application for every strong match. <strong>You review it and hit Send</strong> — straight from your own Gmail.
       </p>
       <div className="hero-cta">
         <a href="/auth/signin" className="btn btn-primary btn-lg">
@@ -75,7 +75,7 @@ export default async function LandingPage() {
         </span>
         <span className="hero-meta-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-          Free — 20 applications a day
+          First application free
         </span>
         <span className="hero-meta-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
@@ -102,13 +102,14 @@ export default async function LandingPage() {
       </div>
       <div className="feed">
         <div className="feed-inner">
+          {/* Illustrative sample of the product UI — fictional roles/companies, no real brands implied. */}
           {[...Array(2)].flatMap((_, setIdx) => [
-            { logo: 'L', color: '#FF6B6B', title: 'Senior React Developer · Linear', meta: 'via LinkedIn · 2 min ago', status: '● sending', cls: 'sending' },
-            { logo: 'V', color: '#A8E024', title: 'Full-Stack Engineer · Vercel', meta: 'careers page · 6 min ago', status: '✓ applied', cls: 'applied' },
-            { logo: 'S', color: '#6EE7FF', title: 'Brand Designer · Stripe', meta: 'via LinkedIn · contract · 8 min ago', status: '✦ reply!', cls: 'reply' },
-            { logo: 'N', color: '#FFB951', title: 'Product Designer · Notion', meta: 'via LinkedIn · 11 min ago', status: '✓ applied', cls: 'applied' },
-            { logo: 'F', color: '#F87171', title: 'iOS Engineer · Figma', meta: 'careers page · 14 min ago', status: '✓ applied', cls: 'applied' },
-            { logo: 'R', color: '#A78BFA', title: 'DevOps Engineer · Railway', meta: 'via LinkedIn · 18 min ago', status: '● sending', cls: 'sending' },
+            { logo: 'S', color: '#FF6B6B', title: 'Senior React Developer · SaaS startup', meta: 'via LinkedIn · 2 min ago', status: '● drafted', cls: 'sending' },
+            { logo: 'D', color: '#A8E024', title: 'Full-Stack Engineer · dev agency', meta: 'careers page · 6 min ago', status: '✓ sent by you', cls: 'applied' },
+            { logo: 'B', color: '#6EE7FF', title: 'Brand Designer · e-commerce brand', meta: 'via LinkedIn · contract · 8 min ago', status: '✦ reply!', cls: 'reply' },
+            { logo: 'P', color: '#FFB951', title: 'Product Designer · fintech startup', meta: 'via LinkedIn · 11 min ago', status: '✓ sent by you', cls: 'applied' },
+            { logo: 'M', color: '#F87171', title: 'iOS Engineer · mobile studio', meta: 'careers page · 14 min ago', status: '✓ sent by you', cls: 'applied' },
+            { logo: 'C', color: '#A78BFA', title: 'DevOps Engineer · cloud consultancy', meta: 'via LinkedIn · 18 min ago', status: '● drafted', cls: 'sending' },
           ].map((item, i) => (
             <div key={`${setIdx}-${i}`} className="feed-item">
               <div className="feed-logo" style={{background: item.color}}>{item.logo}</div>
@@ -140,9 +141,9 @@ export default async function LandingPage() {
 
 {/* MARQUEE */}
 <section className="marquee">
-  <div className="marquee-label">Tracking fresh openings from</div>
+  <div className="marquee-label">Fresh openings across</div>
   <div className="marquee-track">
-    {[...Array(2)].flatMap((_, i) => ['Linear','·','Vercel','·','Stripe','·','Notion','·','Figma','·','Shopify','·','GitLab','·','Railway','·','Supabase','·','Automattic','·','Cloudflare','·'].map((name, j) => (
+    {[...Array(2)].flatMap((_, i) => ['Engineering','·','Design','·','Marketing','·','Data','·','DevOps','·','Product','·','Writing','·','Translation','·','Mobile','·','QA','·','Sales','·'].map((name, j) => (
       <span key={`${i}-${j}`} className="marquee-item">{name}</span>
     )))}
   </div>
@@ -207,8 +208,8 @@ export default async function LandingPage() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
         </div>
         <div className="how-num">03 — Review &amp; send</div>
-        <h3>From your inbox. Tracked. Followed up.</h3>
-        <p>Applications go out from your own email. We track opens, replies, and send a nudge after 5 days if they go quiet. You see everything in one dashboard.</p>
+        <h3>From your inbox. Tracked end-to-end.</h3>
+        <p>Applications go out from your own email. We track opens and replies, so you know which threads are warm and worth a personal nudge. You see everything in one dashboard.</p>
       </div>
     </div>
 
@@ -332,7 +333,7 @@ export default async function LandingPage() {
   <div className="container final-cta-inner reveal">
     <span className="eyebrow eyebrow-accent">— Start today</span>
     <h2 style={{marginTop: '16px'}}>Your next client is <span className="accent">already posting.</span><br/>Get there first.</h2>
-    <p>Free — 20 applications a day. No credit card. Plug in your inbox, pick your filters, and see what comes back this week.</p>
+    <p>Sign up free — your first application is on us, no credit card. Plug in your inbox, pick your filters, and see what comes back this week.</p>
     <div className="hero-cta">
       <a href="/auth/signin" className="btn btn-primary btn-lg">
         Start free
@@ -352,7 +353,7 @@ export default async function LandingPage() {
           <span className="logo-mark">F</span>
           <span>Freelanly</span>
         </a>
-        <p>AI outreach engine for freelancers. Be first in the inbox. Win the project.</p>
+        <p>Personal AI assistant for vacancies and projects application. Be first in the inbox. Win the project.</p>
       </div>
       <div className="footer-col">
         <h5>Product</h5>

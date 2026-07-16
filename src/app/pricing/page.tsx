@@ -4,8 +4,8 @@ import '../marketing-styles.css';
 import './pricing-design.css';
 
 export const metadata: Metadata = {
-  title: 'Pricing — Freelanly · free to apply · PRO $5/mo',
-  description: 'Applying is free — 20 applications a day, cover letters written for you. PRO ($5/mo) adds a morning ready-queue and a CV tailored to every role.',
+  title: 'Pricing — Freelanly · first application free · PRO $5/mo',
+  description: 'Try Freelanly free — your first application is on us, cover letter written for you. PRO ($5/mo) unlocks unlimited applications, a morning ready-queue, and a tailored CV per role.',
   alternates: { canonical: `${siteConfig.url}/pricing` },
 };
 
@@ -37,8 +37,8 @@ export default function PricingPage() {
   <div className="page-head-bg"></div>
   <div className="container">
     <span className="eyebrow">— Pricing</span>
-    <h1>Applying is <span className="accent">free</span>.<br/>PRO saves you the hour a day.</h1>
-    <p className="lede">Every account gets 20 applications a day with AI-written cover letters, sent from your own inbox. PRO adds a morning queue of pre-written applications and a CV tailored to every role — for less than a coffee.</p>
+    <h1>Your first application is <span className="accent">free</span>.<br/>PRO keeps them coming.</h1>
+    <p className="lede">Sign up, get matched, and send your first AI-drafted application on us — no credit card. PRO ($5/mo) unlocks unlimited applications, a morning queue of pre-written drafts, and a CV tailored to every role — for less than a coffee.</p>
   </div>
 </header>
 
@@ -50,22 +50,22 @@ export default function PricingPage() {
       {/* FREE */}
       <div className="price-col">
         <div className="plan-name">Free</div>
-        <p className="plan-tag">Everything you need to apply — really.</p>
+        <p className="plan-tag">Try the whole flow — first application on us.</p>
         <div className="plan-price">
           <span className="currency">$</span>
           <span className="amount">0</span>
         </div>
-        <div className="plan-monthly-eq">forever, on us</div>
+        <div className="plan-monthly-eq">no credit card</div>
         <div className="plan-cta">
           <a href="/auth/signin" className="btn btn-ghost">Start free</a>
         </div>
         <div className="plan-section-label">What&apos;s included</div>
         <ul className="plan-features">
-          <li><Chk /> <span>Fresh matched gigs in your feed daily</span></li>
+          <li><Chk /> <span>Fresh matched vacancies &amp; projects in your feed daily</span></li>
           <li><Chk /> <span>AI cover letter for every match — with a second <strong>reviewer pass</strong></span></li>
           <li><Chk /> <span>&quot;Covers N of M requirements&quot; check before you send</span></li>
           <li><Chk /> <span>Send from your own Gmail — one-click connect</span></li>
-          <li><Chk /> <span>Up to <strong>20 applications a day</strong></span></li>
+          <li><Chk /> <span><strong>First application free</strong> — see the full flow end to end</span></li>
           <li><Chk /> <span>Unified reply inbox + pipeline tracking</span></li>
         </ul>
       </div>
@@ -87,16 +87,16 @@ export default function PricingPage() {
         </div>
         <div className="plan-section-label">Everything in Free, plus</div>
         <ul className="plan-features">
+          <li><Chk /> <span><strong>Unlimited applications</strong> — apply as much as your search needs</span></li>
           <li><Chk /> <span><strong>Morning ready-queue</strong> — applications pre-written for your top matches; review &amp; send in one click</span></li>
           <li><Chk /> <span><strong>Tailored CV per application</strong> — your r&eacute;sum&eacute; rebuilt for each role, attached automatically</span></li>
-          <li><Chk /> <span>Priority matching for your profile</span></li>
         </ul>
       </div>
 
     </div>
 
     <p className="reveal" style={{textAlign: 'center', marginTop: '28px', fontSize: '13px', color: 'var(--ink-4)'}}>
-      Both plans send from your own inbox. The 20/day cap applies to every account — it keeps deliverability high for everyone.
+      Both plans send from your own inbox. Own-inbox sends have a daily safety cap — it protects your email account&apos;s reputation.
     </p>
   </div>
 </section>
@@ -110,12 +110,12 @@ export default function PricingPage() {
     </div>
     <div className="faq-list reveal">
       <div className="faq-item">
-        <div className="faq-q">Is applying really free?</div>
-        <div className="faq-a">Yes. Matching, AI cover letters (with the reviewer pass), sending from your own Gmail, and the reply inbox are all free — up to 20 applications a day. PRO doesn&apos;t unlock applying; it saves you the time of doing it one by one.</div>
+        <div className="faq-q">What&apos;s actually free?</div>
+        <div className="faq-a">Everything up to and including your first sent application: matching, the AI cover letter (with the reviewer pass), sending from your own Gmail, and the reply inbox. You see the entire flow work end to end before paying a cent. From the second application on, you&apos;ll need PRO.</div>
       </div>
       <div className="faq-item">
         <div className="faq-q">What exactly does PRO add?</div>
-        <div className="faq-a">Two things. A <strong>morning ready-queue</strong>: applications pre-written for your top matches, so you review and hit Send instead of hunting and drafting. And a <strong>tailored CV</strong>: your r&eacute;sum&eacute; is rebuilt for each specific role — same facts, sharper emphasis — and attached automatically.</div>
+        <div className="faq-a">Three things. <strong>Unlimited applications</strong> — the $5 covers your whole search, not per-send fees. A <strong>morning ready-queue</strong>: applications pre-written for your top matches, so you review and hit Send instead of hunting and drafting. And a <strong>tailored CV</strong>: your r&eacute;sum&eacute; rebuilt for each specific role — same facts, sharper emphasis — attached automatically.</div>
       </div>
       <div className="faq-item">
         <div className="faq-q">Does Freelanly send anything without me?</div>
@@ -155,7 +155,7 @@ export default function PricingPage() {
     <div className="footer-grid">
       <div className="footer-col footer-brand">
         <a href="/" className="logo"><span className="logo-mark">F</span><span>Freelanly</span></a>
-        <p>AI application engine for freelancers. Be first in the inbox. Win the project.</p>
+        <p>Personal AI assistant for vacancies and projects application. Be first in the inbox. Win the project.</p>
       </div>
       <div className="footer-col">
         <h5>Product</h5>

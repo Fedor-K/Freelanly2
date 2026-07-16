@@ -277,12 +277,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
                 {/* CTA */}
                 <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                  <h4 className="font-semibold mb-2">Find Your Remote Job</h4>
+                  <h4 className="font-semibold mb-2">Apply Smarter, Not Longer</h4>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Browse thousands of remote positions updated daily.
+                    Freelanly matches you to fresh vacancies and projects and drafts the cover letter — you review and send.
                   </p>
                   <Button className="w-full" asChild>
-                    <Link href="/">Browse Jobs</Link>
+                    <Link href="/">Try the AI application assistant</Link>
                   </Button>
                 </div>
               </div>
@@ -301,14 +301,14 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             </section>
           )}
 
-          {/* Newsletter CTA */}
+          {/* Product CTA */}
           <section className="mt-16 bg-muted rounded-lg p-8 text-center">
-            <h2 className="text-2xl font-bold mb-2">Get More Tips Like This</h2>
+            <h2 className="text-2xl font-bold mb-2">Spend the Saved Hour on Real Work</h2>
             <p className="text-muted-foreground mb-4">
-              Set up job alerts and never miss the perfect opportunity.
+              Freelanly finds matched vacancies and projects and drafts every application — you review and send. First one is free.
             </p>
             <Button asChild>
-              <Link href="/dashboard/alerts">Set Up Job Alerts</Link>
+              <Link href="/auth/signin">Start free</Link>
             </Button>
           </section>
         </article>

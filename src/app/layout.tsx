@@ -39,7 +39,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: `${siteConfig.name} - Remote Jobs from Social Media & Top Companies`,
+    default: `${siteConfig.name} — Personal AI Assistant for Vacancies & Projects Application`,
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: siteConfig.url,
-    title: `${siteConfig.name} - Find Remote Jobs`,
+    title: `${siteConfig.name} — Personal AI Assistant for Job & Project Applications`,
     description: siteConfig.description,
     siteName: siteConfig.name,
     images: [
@@ -62,13 +62,13 @@ export const metadata: Metadata = {
         url: siteConfig.ogImage,
         width: 1200,
         height: 630,
-        alt: `${siteConfig.name} - Remote Jobs`,
+        alt: `${siteConfig.name} — AI application assistant`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${siteConfig.name} - Remote Jobs`,
+    title: `${siteConfig.name} — Personal AI Assistant for Job & Project Applications`,
     description: siteConfig.description,
     images: [siteConfig.ogImage],
     creator: "@freelanly",
@@ -86,7 +86,7 @@ export const metadata: Metadata = {
     google: process.env.GOOGLE_SITE_VERIFICATION || '',
     // yandex: process.env.YANDEX_VERIFICATION || '',
   },
-  category: 'jobs',
+  category: 'productivity',
   manifest: '/manifest.json',
 };
 
@@ -126,23 +126,6 @@ const organizationJsonLd = {
   },
 };
 
-// Yandex Metrika script (inline for SSR)
-const yandexMetrikaScript = `
-  (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-  m[i].l=1*new Date();
-  for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-  k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
-  (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-  ym(103606747, "init", {
-    clickmap: true,
-    trackLinks: true,
-    accurateTrackBounce: true,
-    webvisor: true,
-    trackHash: true,
-    ecommerce: "dataLayer"
-  });
-`;
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -151,12 +134,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: yandexMetrikaScript }} />
-        <noscript>
-          <div>
-            <img src="https://mc.yandex.ru/watch/103606747" style={{ position: 'absolute', left: '-9999px' }} alt="" />
-          </div>
-        </noscript>
+        {/* Yandex Metrika + all other trackers load once via <AnalyticsScripts /> in <body> —
+            the inline duplicate that double-counted visits was removed 2026-07-16. */}
         <script id="vtag-ai-js" async src="https://r2.leadsy.ai/tag.js" data-pid="XmXSR8r7W3uP84n0" data-version="062024" />
       </head>
       <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}>

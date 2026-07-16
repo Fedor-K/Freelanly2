@@ -3,7 +3,7 @@ import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
-  description: 'Terms of Service for Freelanly - Read our terms and conditions for using our job board platform.',
+  description: 'Terms of Service for Freelanly — read the terms and conditions for using our AI application assistant service.',
   alternates: {
     canonical: `${siteConfig.url}/terms`,
   },
