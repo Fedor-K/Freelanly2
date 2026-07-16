@@ -83,7 +83,7 @@ export default async function LandingPage() {
         </span>
         <span className="hero-meta-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-          First application free
+          Free to browse your matches
         </span>
         <span className="hero-meta-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
@@ -341,7 +341,7 @@ export default async function LandingPage() {
   <div className="container final-cta-inner reveal">
     <span className="eyebrow eyebrow-accent">— Start today</span>
     <h2 style={{marginTop: '16px'}}>Your next client is <span className="accent">already posting.</span><br/>Get there first.</h2>
-    <p>Sign up free — your first application is on us, no credit card. Plug in your inbox, pick your filters, and see what comes back this week.</p>
+    <p>Sign up free and see fresh projects matched to your profile — no credit card. PRO ($5/mo) unlocks applying: AI-written letters, your CV attached, sent from your own inbox.</p>
     <div className="hero-cta">
       <a href="/auth/signin" className="btn btn-primary btn-lg">
         Start free

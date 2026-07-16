@@ -328,7 +328,7 @@ export async function POST(
         if (priorSends >= FREE_APPLICATIONS) {
           return NextResponse.json({
             error: 'application_limit',
-            message: 'Your free application is used. Upgrade to PRO ($5/mo) to keep applying.',
+            message: 'Applying is a PRO feature ($5/mo) — unlimited applications, your CV attached to every one.',
           }, { status: 402 });
         }
       }

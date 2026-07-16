@@ -1080,9 +1080,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
               is PRO. No free manual path — pay to send. */}
           {genPaywall && (
             <div style={{ padding: '14px 16px', background: '#F6FAEF', border: '1px solid #DDEBC4', borderRadius: '12px', marginBottom: '14px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A17', marginBottom: '4px' }}>Your free application is used ✨</div>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A17', marginBottom: '4px' }}>Applying is a PRO feature ✨</div>
               <div style={{ fontSize: '12.5px', color: '#3F6212', lineHeight: 1.5, marginBottom: '10px' }}>
-                Keep applying with <b>PRO — $5/month</b>: unlimited applications + your CV attached to every one. Cancel anytime.
+                Apply with <b>PRO — $5/month</b>: unlimited applications + your CV attached to every one. Cancel anytime.
               </div>
               <QueueUpgradeButton source="application_paywall" label="Upgrade to keep applying →" />
             </div>

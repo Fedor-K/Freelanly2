@@ -4,8 +4,8 @@ import '../marketing-styles.css';
 import './pricing-design.css';
 
 export const metadata: Metadata = {
-  title: 'Pricing — Freelanly · first application free · PRO $5/mo',
-  description: 'Try Freelanly free — your first application is on us, cover letter written for you. PRO ($5/mo) unlocks unlimited applications and a morning ready-queue, with your CV attached to every send.',
+  title: 'Pricing — Freelanly · browse free · PRO $5/mo',
+  description: 'Browse fresh matched projects free. PRO ($5/mo) unlocks applying: unlimited applications with AI-written letters, a morning ready-queue, and your CV attached to every send.',
   alternates: { canonical: `${siteConfig.url}/pricing` },
 };
 
@@ -37,8 +37,8 @@ export default function PricingPage() {
   <div className="page-head-bg"></div>
   <div className="container">
     <span className="eyebrow">— Pricing</span>
-    <h1>Your first application is <span className="accent">free</span>.<br/>PRO keeps them coming.</h1>
-    <p className="lede">Sign up, get matched, and send your first AI-drafted application on us — no credit card. PRO ($5/mo) unlocks unlimited applications and a morning queue of pre-written drafts, with your CV attached to every send — for less than a coffee.</p>
+    <h1>Browsing is <span className="accent">free</span>.<br/>Applying is $5/month.</h1>
+    <p className="lede">Sign up, get matched, and see fresh projects for your profile — no credit card. PRO ($5/mo) unlocks applying: unlimited applications with AI-written letters and your CV attached, sent from your own inbox — for less than a coffee.</p>
   </div>
 </header>
 
@@ -50,7 +50,7 @@ export default function PricingPage() {
       {/* FREE */}
       <div className="price-col">
         <div className="plan-name">Free</div>
-        <p className="plan-tag">Try the whole flow — first application on us.</p>
+        <p className="plan-tag">See who&apos;s hiring for your profile.</p>
         <div className="plan-price">
           <span className="currency">$</span>
           <span className="amount">0</span>
@@ -62,10 +62,8 @@ export default function PricingPage() {
         <div className="plan-section-label">What&apos;s included</div>
         <ul className="plan-features">
           <li><Chk /> <span>Fresh matched vacancies &amp; projects in your feed daily</span></li>
-          <li><Chk /> <span>AI cover letter for every match — with a second <strong>reviewer pass</strong></span></li>
-          <li><Chk /> <span>&quot;Covers N of M requirements&quot; check before you send</span></li>
-          <li><Chk /> <span>Send from your own Gmail — one-click connect</span></li>
-          <li><Chk /> <span><strong>First application free</strong> — see the full flow end to end</span></li>
+          <li><Chk /> <span>Why-you-match reasons on every card</span></li>
+          <li><Chk /> <span>R&eacute;sum&eacute; parsing + profile built from your CV and LinkedIn</span></li>
           <li><Chk /> <span>Unified reply inbox + pipeline tracking</span></li>
         </ul>
       </div>
@@ -88,8 +86,10 @@ export default function PricingPage() {
         <div className="plan-section-label">Everything in Free, plus</div>
         <ul className="plan-features">
           <li><Chk /> <span><strong>Unlimited applications</strong> — apply as much as your search needs</span></li>
+          <li><Chk /> <span><strong>AI cover letter for every application</strong> — with a second <strong>reviewer pass</strong> and a &quot;covers N of M requirements&quot; check</span></li>
           <li><Chk /> <span><strong>Morning ready-queue</strong> — applications pre-written for your top matches; review &amp; send in one click</span></li>
           <li><Chk /> <span><strong>Your CV on every application</strong> — your r&eacute;sum&eacute; attached automatically to each send</span></li>
+          <li><Chk /> <span>Send from your own Gmail — one-click connect</span></li>
         </ul>
       </div>
 
@@ -111,11 +111,11 @@ export default function PricingPage() {
     <div className="faq-list reveal">
       <div className="faq-item">
         <div className="faq-q">What&apos;s actually free?</div>
-        <div className="faq-a">Everything up to and including your first sent application: matching, the AI cover letter (with the reviewer pass), sending from your own Gmail, and the reply inbox. You see the entire flow work end to end before paying a cent. From the second application on, you&apos;ll need PRO.</div>
+        <div className="faq-a">Everything up to the Send button: signing up, r&eacute;sum&eacute; parsing, daily matched projects with why-you-match reasons, and the reply inbox. You see exactly who&apos;s hiring for your profile before paying a cent. Applying — the AI letter, your CV attached, the send itself — is PRO.</div>
       </div>
       <div className="faq-item">
         <div className="faq-q">What exactly does PRO add?</div>
-        <div className="faq-a">Three things. <strong>Unlimited applications</strong> — the $5 covers your whole search, not per-send fees. A <strong>morning ready-queue</strong>: applications pre-written for your top matches, so you review and hit Send instead of hunting and drafting. And <strong>your CV on every send</strong> — your r&eacute;sum&eacute; attached automatically to each application.</div>
+        <div className="faq-a">Applying, end to end. <strong>Unlimited applications</strong> — the $5 covers your whole search, not per-send fees. <strong>AI-written letters</strong> with a reviewer pass for every one. A <strong>morning ready-queue</strong>: applications pre-written for your top matches, so you review and hit Send instead of hunting and drafting. And <strong>your CV on every send</strong> — attached automatically.</div>
       </div>
       <div className="faq-item">
         <div className="faq-q">Does Freelanly send anything without me?</div>

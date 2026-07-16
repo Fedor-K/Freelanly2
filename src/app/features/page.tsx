@@ -295,7 +295,7 @@ export default function FeaturesPage() {
   <div style={{position:'absolute', width:'900px', height:'600px', background: 'radial-gradient(ellipse, rgba(199,249,74,0.16), transparent 60%)', filter: 'blur(40px)', top: 0, left: '50%', transform: 'translateX(-50%)', pointerEvents:'none'}}></div>
   <div className="container" style={{position:'relative', textAlign:'center'}}>
     <span className="eyebrow eyebrow-accent">— Try the whole stack</span>
-    <h2 style={{fontSize: 'clamp(40px, 5.5vw, 68px)', letterSpacing: '-0.035em', marginTop: '16px', marginBottom: '22px'}}>Sign up free — <span style={{color:'var(--accent)', fontStyle: 'italic', fontWeight: 500}}>first application on us.</span></h2>
+    <h2 style={{fontSize: 'clamp(40px, 5.5vw, 68px)', letterSpacing: '-0.035em', marginTop: '16px', marginBottom: '22px'}}>Sign up free — <span style={{color:'var(--accent)', fontStyle: 'italic', fontWeight: 500}}>see your matches in minutes.</span></h2>
     <p style={{fontSize: '18px', color: 'var(--ink-3)', maxWidth: '540px', margin: '0 auto 32px'}}>No credit card. Cancel any time. Take your data with you if you go.</p>
     <div style={{display:'flex', gap: '12px', justifyContent:'center', flexWrap:'wrap'}}>
       <a href="/auth/signin" className="btn btn-primary btn-lg">Start free

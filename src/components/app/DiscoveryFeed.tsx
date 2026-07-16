@@ -515,9 +515,9 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                  requires PRO. No free manual escape — pay to send, period. */
               <div style={{padding: '40px 28px', textAlign: 'center'}}>
                 <div style={{fontSize: '24px', marginBottom: '10px'}}>✨</div>
-                <div style={{fontSize: '15px', fontWeight: 700, marginBottom: '10px'}}>Your free application is used</div>
+                <div style={{fontSize: '15px', fontWeight: 700, marginBottom: '10px'}}>Applying is a PRO feature</div>
                 <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 18px'}}>
-                  Keep applying with <b>PRO — $5/month</b>: unlimited applications, your CV attached to every one, cancel anytime.
+                  Apply with <b>PRO — $5/month</b>: unlimited applications, AI-written letters, your CV attached to every one. Cancel anytime.
                 </div>
                 <div style={{display: 'flex', justifyContent: 'center'}}>
                   <QueueUpgradeButton source="application_paywall_feed" label="Upgrade to keep applying →" />

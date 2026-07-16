@@ -224,7 +224,7 @@ function getProPricingMessage(_countryCode: string | null): string {
   return `\u{1F680} **PRO — $5/month:**\n\n` +
     `\u2705 Morning ready-queue: applications pre-written for your top matches — review and send in one click\n` +
     `\u2705 Your CV attached automatically to every application\n\n` +
-    `Applying itself is free for everyone — 20 applications a day with AI-written cover letters.\n\n` +
+    `Browsing your matched projects is free for everyone — applying (AI-written letters + send) is part of PRO.\n\n` +
     `Cancel anytime: ${addUtmSource('https://freelanly.com/dashboard/billing')}`;
 }
 

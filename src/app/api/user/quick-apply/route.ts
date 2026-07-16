@@ -349,7 +349,7 @@ export async function POST(request: NextRequest) {
         logActivity({ userId: user.id, action: ActivityAction.FUNNEL_STEP, details: { step: 'application_paywall_shown', surface: 'draft', opportunityId: opportunity.id } }).catch(() => {});
         return NextResponse.json({
           error: 'application_limit',
-          message: 'Your free application is used. Upgrade to PRO ($5/mo) to keep applying — unlimited applications, your CV attached to every one.',
+          message: 'Applying is a PRO feature ($5/mo) — unlimited applications, AI-written letters, your CV attached to every one.',
           to: opportunity.applyEmail,
         }, { status: 402 });
       }
@@ -624,7 +624,7 @@ export async function POST(request: NextRequest) {
         logActivity({ userId: user.id, action: ActivityAction.FUNNEL_STEP, details: { step: 'application_paywall_shown', opportunityId: opportunity.id } }).catch(() => {});
         return NextResponse.json({
           error: 'application_limit',
-          message: 'Your free application is used. Upgrade to PRO ($5/mo) to keep applying — unlimited applications, your CV attached to every one.',
+          message: 'Applying is a PRO feature ($5/mo) — unlimited applications, AI-written letters, your CV attached to every one.',
           to: opportunity.applyEmail,
         }, { status: 402 });
       }

@@ -30,7 +30,7 @@ export function MarketingCTA() {
       <div className="max-w-[800px] mx-auto px-8 text-center relative z-10">
         <span className="font-mono text-xs tracking-widest uppercase text-[#C7F94A]">— Start today</span>
         <h2 className="text-[clamp(36px,4.4vw,56px)] font-semibold tracking-tighter mt-4 mb-5">Your next client is <span className="text-[#C7F94A]">already posting.</span><br />Get there first.</h2>
-        <p className="text-[#D4D4D8] text-lg mb-8 max-w-[50ch] mx-auto">Sign up free — your first application is on us. No credit card required.</p>
+        <p className="text-[#D4D4D8] text-lg mb-8 max-w-[50ch] mx-auto">Sign up free and see fresh projects matched to your profile. No credit card required.</p>
         <div className="flex gap-3 justify-center flex-wrap">
           <Link href="/auth/signin" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-semibold text-[15px] hover:-translate-y-px transition-transform" style={{ background: '#C7F94A', color: '#0A0B0F' }}>Start free →</Link>
           <Link href="/pricing" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full text-[15px] border hover:bg-white/5 transition-colors" style={{ borderColor: 'rgba(255,255,255,0.14)' }}>See pricing</Link>
