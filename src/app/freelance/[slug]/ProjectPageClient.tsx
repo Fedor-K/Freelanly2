@@ -633,8 +633,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
               // reach apply (ATS "You're all set" included) — route them to the profile step first.
               if (hasResume === false) { setPhase('auth'); setProfileStep(true); return; }
               if (startExternalApply()) return;
-              setPhase('generating');
-              generateCoverLetter();
+              // Authed user on a public page → into the ACCOUNT (owner call 2026-07-17, same as the
+              // post-registration flow): the discovery feed with this project auto-opened in the apply
+              // modal. The server skips the modal for walled users, so nobody lands on a paywall.
+              window.location.href = `/dashboard/discovery?apply=${project.id}`;
             } else {
               setPhase('auth');
             }
