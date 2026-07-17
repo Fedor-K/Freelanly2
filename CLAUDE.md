@@ -16,7 +16,7 @@
 - **БД (снимок):** ~5,768 юзеров (после чистки 6,114 мёртвых), ~1,117 активных auto-apply лупов.
 
 **Crons (2 хоста):**
-- *Hetzner:* `match */5`, `send */2`, `replies */15`, `inbound */1`, `recap 0 5,16 * * *` (UTC → 08:00/19:00 MSK).
+- *Hetzner:* `match */5`, `send */2`, `replies */15`, `inbound */1`, `recap 0 5,16 * * *` (UTC → 08:00/19:00 MSK), `day1-matches 0 * * * *` (hourly; шлёт day+1 письмо «N new roles match your profile» юзерам в их локальные 09:00–11:59, один раз за жизнь аккаунта).
 - *Vercel (`vercel.json`):* `post-to-social`, `submit-to-index`, `cleanup-stale-alerts`, `send-auto-apply-digest`, `hot-lead-reminders`. (ATS-кроны `fetch-sources`/`discover-lever`/`discover-greenhouse` удалены.)
 
 ## Quick Summary
