@@ -408,9 +408,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           setProfileStep(true);
           return; // finally{} clears otpLoading; the fields step renders next
         }
-        const url = new URL(window.location.href);
-        url.searchParams.set('apply', '1');
-        window.location.href = url.toString();
+        // Verified & résumé already on file → land in the ACCOUNT (owner flow 2026-07-17): the
+        // discovery feed with THIS project auto-opened in the apply modal — the user sees their real
+        // matched feed behind the draft/wall instead of a single dead-end page.
+        window.location.href = `/dashboard/discovery?apply=${project.id}`;
         return;
       } else {
         setOtpError(data.error || 'Invalid code');
@@ -498,31 +499,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     setAuthLoading(false);
     // URL-apply (ATS) opportunity: no email to send — hand over the external link now.
     if (startExternalApply()) return;
-    // NOW move to the processing screen and assess the match. If assessment itself fails we fail-open
-    // to the write screen (the résumé is already saved).
-    setPhase('analyzing');
-    try {
-      const res = await fetch('/api/user/quick-apply', {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ opportunityId: project.id, summaryOnly: true }),
-      });
-      const data = await res.json();
-      if (data.error === 'already_applied') { setGenError('You already applied to this project.'); setPhase('sent'); return; }
-      setMatchSummary(data.matchSummary || null);
-      setMatchLabel(data.matchLabel || null);
-      setMatchTier(data.tier || 'good');
-      setGated(!!data.gated);
-      setOwnInbox(!!data.ownInbox);
-      setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
-      setSendTo(data.to || '');
-      // Strong/Good → skip the preview, write the application straight away. The weak preview is
-      // ONLY for users without their own inbox (owner rule 2026-07-11: own inbox = zero interference,
-      // just the 20/day cap).
-      if (data.tier === 'weak' && !data.ownInbox) setPhase('summary');
-      else generateCoverLetter();
-    } catch {
-      setPhase('summary'); // fail-open: still let the user proceed to write the application
-    }
+    // Registration complete → land in the ACCOUNT (owner flow 2026-07-17): the discovery feed with
+    // THIS project auto-opened in the apply modal. The user finishes the apply there, with their
+    // real matched cards visible behind it — not on a single dead-end public page.
+    window.location.href = `/dashboard/discovery?apply=${project.id}`;
   }
 
   // URL-apply opportunities (ATS/Lever) have no email — our cover-letter/email flow can't send them.

@@ -20,9 +20,12 @@ export const metadata: Metadata = {
 // Per-user fit ranking — must never be cached across users.
 export const dynamic = 'force-dynamic';
 
-export default async function DiscoveryPage() {
+export default async function DiscoveryPage({ searchParams }: { searchParams?: Promise<{ apply?: string }> }) {
   const session = await auth();
   if (!session?.user?.id) redirect('/auth/signin');
+  // ?apply={oppId} — arrival project (owner flow 2026-07-17): the project the user registered from
+  // on /freelance/[slug]; the client auto-opens the apply modal for it on top of the live feed.
+  const arrivalId = (await searchParams)?.apply || null;
 
   const perPage = 50;
 
@@ -375,6 +378,31 @@ export default async function DiscoveryPage() {
   // they're untouched.
   items = items.filter(i => !i.alreadyApplied);
 
+  // Arrival project → a FeedItem for the client to auto-open in the apply modal. Fetched separately:
+  // it may not be in the top-50 (or even in the user's direction pool) — it's the project the user
+  // came for, so it opens regardless of rank. External-apply-only (no applyEmail) opps are skipped —
+  // the modal flow needs an email path; those already got the external link during registration.
+  let arrivalItem: FeedItem | null = null;
+  if (arrivalId) {
+    const ao = await prisma.opportunity.findUnique({
+      where: { id: arrivalId },
+      select: { id: true, title: true, clientName: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, isActive: true, company: { select: { name: true } } },
+    });
+    if (ao && ao.isActive && ao.applyEmail) {
+      const fit = scoreFitLabeled(fitCtx, { title: ao.title, skills: ao.skills });
+      arrivalItem = {
+        id: ao.id, type: 'opportunity', title: ao.title,
+        companyName: ao.company?.name || ao.posterCompany || ao.clientName || 'Unknown',
+        description: ao.description, source: ao.source === 'ats_lever' ? 'Lever' : 'linkedin', createdAt: ao.createdAt.toISOString(),
+        skills: ao.skills, location: ao.location, applyEmail: ao.applyEmail, applyUrl: ao.applyUrl,
+        matchLabel: fit.label, aiVerified: false, alreadyApplied: appliedOppIds.has(ao.id),
+        githubVerified: ghOverlap(fit.matchedSkills),
+        matchScore: fit.score, matchedSkills: fit.matchedSkills.slice(0, 4), matchedTitleTokens: fit.matchedTitleTokens,
+        languageGap: fit.languageGap, missingCore: fit.missingCore,
+      };
+    }
+  }
+
   // Order by SEND-tier for the SMTP model: STRONG matches first (these send from our name), then
   // Good/rest. The client draws a "connect your email to send these too" divider between the two
   // tiers (only for users without SMTP). ATS external-apply cards go last (no gate / no our-name send).
@@ -434,6 +462,7 @@ export default async function DiscoveryPage() {
           vetStatus={vetStatus}
           hasSmtp={hasSmtp}
           strongCount={strongCount}
+          arrivalItem={arrivalItem}
         />
       </div>
 

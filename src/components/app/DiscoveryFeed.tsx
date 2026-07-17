@@ -60,7 +60,7 @@ function timeAgo(date: string): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasApplied = true, loopIds = [], vettedFeed = false, vetStatus = null, hasSmtp = false, strongCount = 0 }: {
+export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasApplied = true, loopIds = [], vettedFeed = false, vetStatus = null, hasSmtp = false, strongCount = 0, arrivalItem = null }: {
   items: Job[];
   topSkills: [string, number][];
   sourceCounts: [string, number][];
@@ -70,6 +70,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   vetStatus?: { approved: number; remaining: number; poolSize: number } | null;
   hasSmtp?: boolean;
   strongCount?: number;
+  arrivalItem?: Job | null;
 }) {
   // No useState wrapper: router.refresh() re-renders the server component with fresh items and the
   // vetted-feed polling relies on props actually updating.
@@ -113,6 +114,24 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vettedFeed]);
   const { track } = useTracker();
+
+  // Arrival project (owner flow 2026-07-17): the user just registered from /freelance/[slug] and was
+  // redirected here with ?apply={oppId} — auto-open the apply modal for THAT project on top of the
+  // feed, so the first apply happens with their real matched cards visible behind it. Once only;
+  // strip the param so refresh/back doesn't re-open the modal.
+  const arrivalOpened = useRef(false);
+  useEffect(() => {
+    if (!arrivalItem || arrivalOpened.current || arrivalItem.alreadyApplied) return;
+    arrivalOpened.current = true;
+    track('FUNNEL_STEP', { step: 'arrival_modal_opened', opportunityId: arrivalItem.id });
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('apply');
+      window.history.replaceState({}, '', url.toString());
+    } catch { /* cosmetic */ }
+    handleApply(arrivalItem);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // One impression event per feed mount: how many ATS (autofill-beta) cards this render contains —
   // the denominator for the /autofill fake-door test.
