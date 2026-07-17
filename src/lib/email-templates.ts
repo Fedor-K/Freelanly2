@@ -350,3 +350,55 @@ export function recruiterShortlistNudgeEmail(params: {
   const text = `${many ? `${candidateCount} candidates have applied to your ${jobTitle} role.` : `View ${candidateName}'s profile and CV.`} Open your candidates (no password needed): ${portalUrl}\n\nUnsubscribe: ${unsubscribeUrl}`;
   return { subject, html, text };
 }
+
+/**
+ * Day+1 "your new matched roles" one-shot (2026-07-17): sent once, ~24h after registration,
+ * at ~09:00 user-local time. Honest volume hook — N and the cards are real fit-scored matches
+ * from the last 48h (service: src/services/day1-matches.ts). Unsubscribe: the shell footer's
+ * generic link is NOT enough for a marketing send — the tokenized footer is appended in content
+ * and the caller passes listUnsubscribe for RFC-8058 one-click headers.
+ */
+export function day1MatchesEmail(params: {
+  firstName: string | null;
+  totalMatches: number;
+  roles: Array<{
+    id: string;
+    title: string;
+    company: string;
+    location: string | null;
+    matchedSkills: string[];
+    url: string; // pre-built /freelance/{slug} + utm
+  }>;
+  feedUrl: string; // pre-built /dashboard/discovery + utm
+  unsubscribeFooterHtml: string; // tokenized, from @/lib/unsubscribe (kept as a param — no import cycle)
+}): { subject: string; html: string; text: string } {
+  const { firstName, totalMatches, roles, feedUrl, unsubscribeFooterHtml } = params;
+  const name = firstName ? escapeHtml(firstName) : null;
+  const subject = name
+    ? `${totalMatches} new roles match your profile, ${firstName}`
+    : `${totalMatches} new roles match your profile on Freelanly`;
+
+  const cards = roles.map(r => `
+    <a href="${r.url}" style="display:block;text-decoration:none;color:inherit;border:1px solid ${BRAND.line};border-radius:12px;padding:16px 18px;margin-bottom:12px;">
+      <div style="font-size:15px;font-weight:600;color:${BRAND.ink};line-height:1.4;">${escapeHtml(r.title)}</div>
+      <div style="font-size:12.5px;color:${BRAND.ink3};margin-top:3px;">${escapeHtml(r.company)}${r.location ? ` · ${escapeHtml(r.location)}` : ''}</div>
+      ${r.matchedSkills.length ? `<div style="font-size:12px;color:${BRAND.ink4};margin-top:6px;">Matches your skills: ${r.matchedSkills.slice(0, 4).map(s => escapeHtml(s)).join(', ')}</div>` : ''}
+      <div style="margin-top:10px;"><span style="display:inline-block;background:${BRAND.ink};color:${BRAND.acid};font-size:12px;font-weight:600;padding:7px 14px;border-radius:8px;">Apply →</span></div>
+    </a>`).join('');
+
+  const content = `
+    <h1 style="font-size:19px;font-weight:600;margin:0 0 10px;line-height:1.35;">${totalMatches} new roles match your profile</h1>
+    <p style="font-size:13.5px;color:${BRAND.ink3};line-height:1.6;margin:0 0 20px;">Hi${name ? ` ${name}` : ''}, you created your profile yesterday. Since then, <strong style="color:${BRAND.ink};">${totalMatches} new roles</strong> matching your skills went live. Top picks:</p>
+    ${cards}
+    <div style="text-align:center;margin:22px 0 6px;">
+      <a href="${feedUrl}" style="display:inline-block;background:${BRAND.acid};color:${BRAND.ink};font-size:14px;font-weight:600;padding:12px 22px;border-radius:10px;text-decoration:none;">See all ${totalMatches} in your feed →</a>
+    </div>
+    <p style="font-size:11.5px;color:${BRAND.ink4};text-align:center;margin:10px 0 0;">New roles are added all day — your feed is sorted by match strength.</p>
+    ${unsubscribeFooterHtml}`;
+
+  const text = `${totalMatches} new roles match your profile\n\n` +
+    roles.map((r, i) => `${i + 1}. ${r.title} — ${r.company}\n   ${r.url}`).join('\n') +
+    `\n\nSee all ${totalMatches} in your feed: ${feedUrl}`;
+
+  return { subject, html: emailShell('New matches', content), text };
+}

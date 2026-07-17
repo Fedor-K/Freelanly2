@@ -54,3 +54,22 @@ export function formatReplyNotification(params: {
 
   return { text, markup };
 }
+
+/**
+ * Day+1 "new matched roles" Telegram duplicate (2026-07-17) — sent right after the email of the
+ * same name (service: src/services/day1-matches.ts), only to users with a linked bot chat.
+ * Telegram HTML is stricter than email HTML — escape everything scraped.
+ */
+export function formatDay1MatchesTG(params: {
+  totalMatches: number;
+  roles: Array<{ title: string; company: string; url: string }>; // top 3, utm_medium=telegram
+  feedUrl: string;
+}): { text: string; markup: object } {
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const lines = params.roles
+    .map((r, i) => `${i + 1}. <a href="${r.url}">${esc(r.title)}</a> — ${esc(r.company)}`)
+    .join('\n');
+  const text = `🎯 <b>${params.totalMatches} new roles match your profile</b>\n\n${lines}`;
+  const markup = { inline_keyboard: [[{ text: 'Open your feed →', url: params.feedUrl }]] };
+  return { text, markup };
+}

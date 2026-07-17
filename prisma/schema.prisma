@@ -101,6 +101,7 @@ model User {
 
   // FOMO email tracking (sent 3 days after registration)
   fomoEmailSentAt        DateTime?        // When FOMO email was sent (null = not sent)
+  day1DigestSentAt       DateTime?        // Day+1 "new matched roles" one-shot sent/evaluated (null = pending). Column added via raw DDL 2026-07-17 (scripts/day1-matches-migrate.sql)
 
   // Email preferences
   unsubscribedFromMarketing Boolean @default(false)  // User opted out of marketing emails
