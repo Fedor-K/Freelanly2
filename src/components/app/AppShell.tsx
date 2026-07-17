@@ -225,12 +225,13 @@ export function AppShell({ children, userName, userPlan }: { children: React.Rea
 
         <div className="sb-spacer"></div>
 
+        {/* FREE reality is "first application free, then PRO" — the old "20 applies / day" line
+            described the send cap (now the ALL-plans cap), not the free tier, and read as a promise. */}
         {userPlan === 'FREE' && (
           <div className="sb-trial">
             <div className="label">Free plan</div>
-            <div className="days">20 applies / day</div>
-            <div className="bar"><div></div></div>
-            <a href="/dashboard/billing" className="upgrade">PRO $5/mo — morning ready-queue</a>
+            <div className="days">First application free</div>
+            <a href="/dashboard/billing" className="upgrade">PRO $5/mo — up to 20 applies a day</a>
           </div>
         )}
 
