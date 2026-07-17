@@ -149,7 +149,11 @@ export async function processDay1Matches(opts: {
           company: t.company?.name || t.posterCompany || t.clientName || 'Company',
           location: t.location,
           matchedSkills: (fitById.get(id)?.matchedSkills || []).slice(0, 4),
-          url: `${APP_URL}/freelance/${t.slug}?utm_source=day1_matches&utm_medium=email&utm_content=opp_${t.id}`,
+          // Into the ACCOUNT, not the public page (owner call 2026-07-17): the feed with this
+          // project auto-opened in the apply modal (arrival flow). Day-1 recipients registered
+          // yesterday — the 30-day session is almost always alive on the device that opens the
+          // email; a logged-out click goes through signin and lands in the same feed+modal.
+          url: `${APP_URL}/dashboard/discovery?apply=${t.id}&utm_source=day1_matches&utm_medium=email&utm_content=opp_${t.id}`,
         };
       }).filter(Boolean) as Array<{ id: string; title: string; company: string; location: string | null; matchedSkills: string[]; url: string }>;
       if (roles.length < MIN_MATCHES) { await stampEvaluated(user.id, dryRun, testEmail); stats.skippedThin++; continue; }
