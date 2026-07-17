@@ -45,7 +45,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
   // No résumé yet → send to in-app résumé onboarding, NOT an empty feed. Discovery is the post-login
   // landing now, so this guard (mirrors src/app/dashboard/page.tsx) must live here too — without a
   // parsedProfile there's nothing to match against. Also prevents the old login-loop.
-  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { parsedProfile: true, resumeUrl: true, resumeText: true, githubUrl: true, videoIntroUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } } } });
+  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { plan: true, parsedProfile: true, resumeUrl: true, resumeText: true, githubUrl: true, videoIntroUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } } } });
   if (!me?.resumeUrl) redirect('/dashboard/settings#profile');
   // Repo-verified skills (fresh, positive GitHub review) weigh extra in ranking + light the card badge.
   const ghVerifiedSkills = verifiedSkillsFor({ githubUrl: me.githubUrl, parsedProfile: me.parsedProfile }, (me.githubReview as ReviewRow | null) ?? null);
@@ -383,7 +383,19 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
   // came for, so it opens regardless of rank. External-apply-only (no applyEmail) opps are skipped —
   // the modal flow needs an email path; those already got the external link during registration.
   let arrivalItem: FeedItem | null = null;
+  // Only auto-open the modal when the apply would actually PROCEED (owner call 2026-07-17: a
+  // day+1 email click must land on the feed, not on a paywall-in-the-face). A FREE user past the
+  // free send would get the wall as their very first screen — for them, plain feed instead.
+  // Mirrors the quick-apply wall condition (ALL sends counted, no origin filter).
+  let arrivalWouldWall = false;
   if (arrivalId) {
+    const mePlan = me.plan || 'FREE';
+    if (mePlan === 'FREE') {
+      const totalSends = await prisma.autoApplication.count({ where: { userId: session.user.id, sentAt: { not: null } } });
+      arrivalWouldWall = totalSends >= Number(process.env.FREE_APPLICATIONS ?? 1);
+    }
+  }
+  if (arrivalId && !arrivalWouldWall) {
     const ao = await prisma.opportunity.findUnique({
       where: { id: arrivalId },
       select: { id: true, title: true, clientName: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, isActive: true, company: { select: { name: true } } },
