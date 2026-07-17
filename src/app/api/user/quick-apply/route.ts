@@ -263,7 +263,8 @@ export async function POST(request: NextRequest) {
     // shared domain reputation; for own-inbox (Gmail/SMTP) it protects the USER'S OWN account — bulk
     // sending from a personal Gmail gets it flagged/suspended by Google's anti-spam, so own-inbox is
     // capped at the same 20/day, NOT "unlimited". (Fast UX pre-check; the atomic gate is below.)
-    if (user.plan === 'FREE') {
+    {
+      // ALL plans (owner decision 2026-07-17): with the match gate off, 20/day is the only anti-spam brake.
       const now = new Date();
       const lastReset = new Date(user.lastFreeApplyReset);
       const isNewDay = now.getUTCDate() !== lastReset.getUTCDate() ||
@@ -274,9 +275,7 @@ export async function POST(request: NextRequest) {
       if (usedToday >= FREE_DAILY_LIMIT) {
         return NextResponse.json({
           error: 'limit_reached',
-          message: ownInbox
-            ? `Daily limit reached (${FREE_DAILY_LIMIT}/${FREE_DAILY_LIMIT}). We cap daily sends to keep your email account safe — try again tomorrow.`
-            : `Daily limit reached (${FREE_DAILY_LIMIT}/${FREE_DAILY_LIMIT}). Upgrade to PRO for unlimited applies.`,
+          message: `Daily limit reached (${FREE_DAILY_LIMIT}/${FREE_DAILY_LIMIT}). The cap keeps sends out of spam folders — it resets tomorrow.`,
         }, { status: 429 });
       }
     }
@@ -349,7 +348,7 @@ export async function POST(request: NextRequest) {
         logActivity({ userId: user.id, action: ActivityAction.FUNNEL_STEP, details: { step: 'application_paywall_shown', surface: 'draft', opportunityId: opportunity.id } }).catch(() => {});
         return NextResponse.json({
           error: 'application_limit',
-          message: 'Applying is a PRO feature ($5/mo) — unlimited applications, AI-written letters, your CV attached to every one.',
+          message: 'Applying is a PRO feature ($5/mo) — up to 20 applications a day, AI-written letters, your CV attached to every one.',
           to: opportunity.applyEmail,
         }, { status: 402 });
       }
@@ -624,7 +623,7 @@ export async function POST(request: NextRequest) {
         logActivity({ userId: user.id, action: ActivityAction.FUNNEL_STEP, details: { step: 'application_paywall_shown', opportunityId: opportunity.id } }).catch(() => {});
         return NextResponse.json({
           error: 'application_limit',
-          message: 'Applying is a PRO feature ($5/mo) — unlimited applications, AI-written letters, your CV attached to every one.',
+          message: 'Applying is a PRO feature ($5/mo) — up to 20 applications a day, AI-written letters, your CV attached to every one.',
           to: opportunity.applyEmail,
         }, { status: 402 });
       }
@@ -641,7 +640,7 @@ export async function POST(request: NextRequest) {
         error: 'limit_reached',
         message: ownInbox
           ? `Daily limit reached (${FREE_DAILY_APPLY_LIMIT}/${FREE_DAILY_APPLY_LIMIT}). Sends are capped daily to keep your email account safe.`
-          : `Daily limit reached (${FREE_DAILY_APPLY_LIMIT}/${FREE_DAILY_APPLY_LIMIT}). Upgrade to PRO for unlimited applies.`,
+          : `Daily limit reached (${FREE_DAILY_APPLY_LIMIT}/${FREE_DAILY_APPLY_LIMIT}). The cap keeps sends out of spam folders — it resets tomorrow.`,
       }, { status: 429 });
     }
 

@@ -5,7 +5,7 @@ import './pricing-design.css';
 
 export const metadata: Metadata = {
   title: 'Pricing — Freelanly · browse free · PRO $5/mo',
-  description: 'Browse fresh matched projects free. PRO ($5/mo) unlocks applying: unlimited applications with AI-written letters, a morning ready-queue, and your CV attached to every send.',
+  description: 'Browse fresh matched projects free. PRO ($5/mo) unlocks applying: up to 20 applications a day with AI-written letters, a morning ready-queue, and your CV attached to every send.',
   alternates: { canonical: `${siteConfig.url}/pricing` },
 };
 
@@ -38,7 +38,7 @@ export default function PricingPage() {
   <div className="container">
     <span className="eyebrow">— Pricing</span>
     <h1>Browsing is <span className="accent">free</span>.<br/>Applying is $5/month.</h1>
-    <p className="lede">Sign up, get matched, and see fresh projects for your profile — no credit card. PRO ($5/mo) unlocks applying: unlimited applications with AI-written letters and your CV attached, sent from your own inbox — for less than a coffee.</p>
+    <p className="lede">Sign up, get matched, and see fresh projects for your profile — no credit card. PRO ($5/mo) unlocks applying: up to 20 applications a day with AI-written letters and your CV attached, sent from your own inbox — for less than a coffee.</p>
   </div>
 </header>
 
@@ -85,7 +85,7 @@ export default function PricingPage() {
         </div>
         <div className="plan-section-label">Everything in Free, plus</div>
         <ul className="plan-features">
-          <li><Chk /> <span><strong>Unlimited applications</strong> — apply as much as your search needs</span></li>
+          <li><Chk /> <span><strong>20 applications a day</strong> — enough to cover your whole search; the cap keeps sends out of spam folders</span></li>
           <li><Chk /> <span><strong>AI cover letter for every application</strong> — with a second <strong>reviewer pass</strong> and a &quot;covers N of M requirements&quot; check</span></li>
           <li><Chk /> <span><strong>Morning ready-queue</strong> — applications pre-written for your top matches; review &amp; send in one click</span></li>
           <li><Chk /> <span><strong>Your CV on every application</strong> — your r&eacute;sum&eacute; attached automatically to each send</span></li>
@@ -115,7 +115,7 @@ export default function PricingPage() {
       </div>
       <div className="faq-item">
         <div className="faq-q">What exactly does PRO add?</div>
-        <div className="faq-a">Applying, end to end. <strong>Unlimited applications</strong> — the $5 covers your whole search, not per-send fees. <strong>AI-written letters</strong> with a reviewer pass for every one. A <strong>morning ready-queue</strong>: applications pre-written for your top matches, so you review and hit Send instead of hunting and drafting. And <strong>your CV on every send</strong> — attached automatically.</div>
+        <div className="faq-a">Applying, end to end. <strong>Up to 20 applications a day</strong> — the $5 covers your whole search, not per-send fees. <strong>AI-written letters</strong> with a reviewer pass for every one. A <strong>morning ready-queue</strong>: applications pre-written for your top matches, so you review and hit Send instead of hunting and drafting. And <strong>your CV on every send</strong> — attached automatically.</div>
       </div>
       <div className="faq-item">
         <div className="faq-q">Does Freelanly send anything without me?</div>

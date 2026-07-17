@@ -146,7 +146,7 @@ export const PLAN_FEATURES = {
   ],
   agency: [
     'Everything in Pro, plus:',
-    'Unlimited applications',
+    'Up to 20 applications a day',
     '5 seats ($15/extra seat)',
     'Shared template library',
     'Team analytics & pipeline view',

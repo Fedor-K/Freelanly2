@@ -520,7 +520,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                   {items.length >= 5 ? `${items.length} roles in your feed match your profile` : 'Applying is a PRO feature'}
                 </div>
                 <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 18px'}}>
-                  Fresh matched roles land in your feed every day. Apply to any of them with <b>PRO — $5/month</b>: unlimited applications, AI-written letters, your CV attached to every one. Cancel anytime.
+                  Fresh matched roles land in your feed every day. Apply to any of them with <b>PRO — $5/month</b>: up to 20 applications a day, AI-written letters, your CV attached to every one. Cancel anytime.
                 </div>
                 <div style={{display: 'flex', justifyContent: 'center'}}>
                   <QueueUpgradeButton source="application_paywall_feed" label="Upgrade to apply →" />
