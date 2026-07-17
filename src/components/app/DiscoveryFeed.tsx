@@ -511,13 +511,16 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                 <div style={{fontSize: '12px', color: '#8A8E96'}}>AI is reading the job post and matching with your profile</div>
               </div>
             ) : draftBlocked && draftBlocked.reason === 'application_limit' ? (
-              /* Application paywall (owner decision 2026-07-13): first application free, every send after
-                 requires PRO. No free manual escape — pay to send, period. */
+              /* Application paywall (paid-first, owner decision 2026-07-16; volume-first copy 2026-07-17):
+                 sell the SUPPLY, not the restriction — the user's own feed count is the honest hook
+                 (median inflow ~225 eligible/day, so the number is real, never inflated). */
               <div style={{padding: '40px 28px', textAlign: 'center'}}>
                 <div style={{fontSize: '24px', marginBottom: '10px'}}>✨</div>
-                <div style={{fontSize: '15px', fontWeight: 700, marginBottom: '10px'}}>Applying is a PRO feature</div>
+                <div style={{fontSize: '15px', fontWeight: 700, marginBottom: '10px'}}>
+                  {items.length >= 5 ? `${items.length} roles in your feed match your profile` : 'Applying is a PRO feature'}
+                </div>
                 <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 18px'}}>
-                  Apply with <b>PRO — $5/month</b>: unlimited applications, AI-written letters, your CV attached to every one. Cancel anytime.
+                  Fresh matched roles land in your feed every day. Apply to any of them with <b>PRO — $5/month</b>: unlimited applications, AI-written letters, your CV attached to every one. Cancel anytime.
                 </div>
                 <div style={{display: 'flex', justifyContent: 'center'}}>
                   <QueueUpgradeButton source="application_paywall_feed" label="Upgrade to apply →" />

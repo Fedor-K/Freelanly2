@@ -1077,12 +1077,16 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       // form UX came from the generation paywall era ("write it yourself — sending is free"), which
       // no longer exists; a form the server will 402 is a trap, not an option.
       if (genPaywall) {
+        // Volume-first wall copy (owner decision 2026-07-17): sell the supply. totalProjects is the
+        // real 14-day live count the page header already shows — same number, same honesty.
         return (
           <div style={{ textAlign: 'center', padding: '12px 4px' }}>
             <div style={{ fontSize: '24px', marginBottom: '10px' }}>✨</div>
-            <h2 style={{ fontSize: '17px', fontWeight: 700, marginBottom: '8px' }}>Applying is a PRO feature</h2>
+            <h2 style={{ fontSize: '17px', fontWeight: 700, marginBottom: '8px' }}>
+              This role — and {signals.totalProjects.toLocaleString()} more live right now
+            </h2>
             <p style={{ fontSize: '13px', color: '#5C6068', lineHeight: 1.6, margin: '0 auto 16px', maxWidth: '320px' }}>
-              Apply with <b>PRO — $5/month</b>: unlimited applications, AI-written letters, your CV attached to every one. Cancel anytime.
+              Apply to any of them with <b>PRO — $5/month</b>: unlimited applications, AI-written letters, your CV attached to every one. Cancel anytime.
             </p>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <QueueUpgradeButton source="application_paywall" label="Upgrade to apply →" />
