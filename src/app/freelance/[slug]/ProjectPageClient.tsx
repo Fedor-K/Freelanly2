@@ -662,10 +662,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             width: '100%', padding: '14px', background: '#C7F94A', color: '#000', border: 'none',
             borderRadius: '10px', fontSize: '15px', fontWeight: 600, cursor: 'pointer',
           }}>
-            Apply now
+            Apply now — free
           </button>
           <div style={{ marginTop: '16px', fontSize: '12px', color: '#8A8780', textAlign: 'center' }}>
-            Sign up free to see your matches
+            No credit card · First application free
           </div>
         </>
       );
