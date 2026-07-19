@@ -52,7 +52,7 @@ export function MarketingFooter() {
             <p className="text-[14px] text-[#A1A1AA] max-w-[260px]">Personal AI assistant for vacancies and projects application.</p>
           </div>
           {[
-            { t: 'Product', l: [['How it works', '/how-it-works'], ['Features', '/features'], ['Pricing', '/pricing']] },
+            { t: 'Product', l: [['How it works', '/how-it-works'], ['Features', '/features'], ['Pricing', '/pricing'], ['Remote jobs', '/remote-jobs']] },
             { t: 'Resources', l: [['Blog', '/blog'], ['Apply Guides', '/apply-guides'], ['About', '/about'], ['FAQ', '/about#faq']] },
             { t: 'Legal', l: [['Privacy', '/privacy'], ['Terms', '/terms']] },
           ].map(c => (

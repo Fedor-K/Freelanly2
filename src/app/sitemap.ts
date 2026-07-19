@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
+import { SEO_NICHES } from '@/config/seo-niches';
 
 export const revalidate = 3600;
 
@@ -27,6 +28,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/pt`, lastModified: now, changeFrequency: 'weekly', priority: 0.85 },
     { url: `${baseUrl}/privacy`, lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
     { url: `${baseUrl}/terms`, lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
+    // Per-role niche hubs (live filtered feeds) — SEO vertical landing pages (2026-07-19).
+    { url: `${baseUrl}/remote-jobs`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
+    ...SEO_NICHES.map((n) => ({
+      url: `${baseUrl}/remote-jobs/${n.slug}`,
+      lastModified: now,
+      changeFrequency: 'daily' as const,
+      priority: 0.8,
+    })),
   ];
 
   // Blog posts + categories
