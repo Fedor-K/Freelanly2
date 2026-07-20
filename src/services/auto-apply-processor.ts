@@ -7,7 +7,7 @@ import { fetchResumeAttachment, hasRealCV } from '@/lib/resume-attachment';
 import { isAiUnavailable } from '@/lib/ai-errors';
 import { looksLikeCompanyBrochure } from '@/lib/resume-quality';
 import { AutoApplyStatus, Prisma } from '@prisma/client';
-import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT } from '@/lib/apply-quota';
+import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT, OWN_ACCOUNT_DAILY_LIMIT, getOwnAccountUserIds } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
 import { isScamRecipient } from '@/lib/scam-filter';
 import { getRecruiterPortalUrl } from '@/lib/recruiter-token';
@@ -128,10 +128,16 @@ export async function processAutoApplyQueue(): Promise<{
   // user verified — it stays PENDING (held), and ships once they confirm the code.
   const availableLoops = await prisma.autoApplyLoop.findMany({
     where: { isActive: true, user: { emailVerified: { not: null } } },
-    select: { id: true, sentToday: true, dailyLimit: true },
+    select: { id: true, userId: true, sentToday: true, dailyLimit: true },
   });
+  // Own-account senders (their own Gmail/SMTP) don't touch the shared Postal domain, so the 20/day
+  // brake that protects it doesn't apply — lift their effective daily cap to OWN_ACCOUNT_DAILY_LIMIT.
+  // Postal senders keep their configured loop dailyLimit. Computed once for the whole batch.
+  const ownAccountUserIds = await getOwnAccountUserIds([...new Set(availableLoops.map(l => l.userId))]);
+  const effectiveDailyLimit = (userId: string, loopDailyLimit: number) =>
+    ownAccountUserIds.has(userId) ? Math.max(loopDailyLimit, OWN_ACCOUNT_DAILY_LIMIT) : loopDailyLimit;
   const availableLoopIds = availableLoops
-    .filter(l => l.sentToday < l.dailyLimit)
+    .filter(l => l.sentToday < effectiveDailyLimit(l.userId, l.dailyLimit))
     .map(l => l.id);
 
   if (availableLoopIds.length === 0) {
@@ -443,8 +449,8 @@ export async function processAutoApplyQueue(): Promise<{
       app.loop.sentToday = 0;
     }
 
-    // Check daily limit
-    if (app.loop.sentToday >= app.loop.dailyLimit) {
+    // Check daily limit (own-account senders get the higher effective cap — see ownAccountUserIds).
+    if (app.loop.sentToday >= effectiveDailyLimit(app.userId, app.loop.dailyLimit)) {
       skipped++;
       continue;
     }
@@ -1279,6 +1285,12 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
     for (const g of groups) pendingByUser.set(g.userId, g._count._all);
   }
 
+  // Own-account senders (own Gmail/SMTP) drain a higher daily cap, so let their PENDING backlog build
+  // past the shared-domain default — otherwise the 20-deep cap would starve their higher send rate.
+  const ownAccountUserIds = await getOwnAccountUserIds([...new Set(activeLoops.map((l) => l.userId))]);
+  const pendingCapFor = (userId: string) =>
+    ownAccountUserIds.has(userId) ? Math.max(MAX_PENDING_PER_USER, OWN_ACCOUNT_DAILY_LIMIT) : MAX_PENDING_PER_USER;
+
   // Skip recruiters already at/near their daily send cap. The sender caps each recruiter
   // at MAX_PER_RECIPIENT_PER_DAY/day; queuing beyond that just creates PENDING that gets
   // blocked and expires (was ~89% of all expirations). "Load" = sent today + still-pending
@@ -1375,7 +1387,7 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
       if (excludes.some((ex) => haystack.includes(ex))) continue;
     }
     // Don't queue past the user's drainable backlog — extra PENDING just expires unsent.
-    if ((pendingByUser.get(loop.userId) || 0) >= MAX_PENDING_PER_USER) continue;
+    if ((pendingByUser.get(loop.userId) || 0) >= pendingCapFor(loop.userId)) continue;
 
     const userProfile = loop.user.parsedProfile as Record<string, unknown> | null;
     const userSkills = (userProfile?.skills as string[]) || [];
@@ -1596,7 +1608,7 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
   for (const m of matched) {
     if (queued >= budget) break;
     const loop = m.cand.loop;
-    if ((pendingByUser.get(loop.userId) || 0) >= MAX_PENDING_PER_USER) continue;
+    if ((pendingByUser.get(loop.userId) || 0) >= pendingCapFor(loop.userId)) continue;
 
     // Language gate BEFORE the AI cover-letter call: an interpreter/translator listing in a
     // language the candidate doesn't have would only be marked FAILED at send time anyway, after
