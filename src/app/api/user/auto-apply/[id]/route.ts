@@ -463,10 +463,21 @@ export async function POST(
 
       if (result.success) {
         sent = true; // email is out; from here a throw must not trigger a refund
-        await prisma.autoApplication.update({
-          where: { id },
-          data: { status: 'SENT', sentVia: hasGmail ? 'gmail' : hasSmtp ? 'smtp' : 'postal', coverLetter, subject, sentAt: new Date() },
-        });
+        // The email is delivered — persist SENT reliably (retry a few times). If this write is lost, the
+        // row keeps status REVIEW/PENDING/SENDING with sentAt=null and the send-now guard would let a
+        // manual retry re-send it (double email) AND re-consume a credit (double charge). Retrying closes
+        // that: once sentAt is set, the dupe check blocks any re-send.
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            await prisma.autoApplication.update({
+              where: { id },
+              data: { status: 'SENT', sentVia: hasGmail ? 'gmail' : hasSmtp ? 'smtp' : 'postal', coverLetter, subject, sentAt: new Date() },
+            });
+            break;
+          } catch (e) {
+            if (attempt === 2) console.error('[AutoApply] SENT write failed after retries (email WAS delivered):', (e as Error)?.message);
+          }
+        }
         // Increment sentToday
         if (app.loopId) {
           await prisma.autoApplyLoop.update({ where: { id: app.loopId }, data: { sentToday: { increment: 1 } } }).catch(() => {});

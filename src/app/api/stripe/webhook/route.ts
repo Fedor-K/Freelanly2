@@ -641,7 +641,23 @@ async function handleCreditsClawback(
 
   const grant = await prisma.revenueEvent.findFirst({ where: { stripeEventId: paymentIntentId } });
   const meta = grant?.metadata as { kind?: string; credits?: number } | null;
-  if (!grant || meta?.kind !== 'apply_credits') return; // not one of our credit-pack PIs
+  if (!grant) {
+    // Out-of-order delivery: a refund/dispute can arrive before the grant's payment_intent.succeeded was
+    // recorded. If this PI IS one of our credit packs, throw so Stripe retries later (grant will be
+    // committed by then); otherwise it's a subscription/other refund → ignore.
+    try {
+      const { getStripe } = await import('@/lib/stripe');
+      const pi = await getStripe().paymentIntents.retrieve(paymentIntentId);
+      if (pi.metadata?.type === 'apply_credits') {
+        throw new Error(`RETRY: apply_credits grant not yet recorded for ${paymentIntentId}`);
+      }
+    } catch (e) {
+      if ((e as Error)?.message?.startsWith('RETRY:')) throw e;
+      // retrieve failed for another reason — don't block the webhook, just ignore this event
+    }
+    return;
+  }
+  if (meta?.kind !== 'apply_credits') return; // grant exists but isn't a credit pack
 
   const grantedCredits = Number(meta?.credits || 0);
   const originalAmount = grant.amount || 0;

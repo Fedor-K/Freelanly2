@@ -704,7 +704,8 @@ export async function POST(request: NextRequest) {
         });
         const pr = await sendAutoApplyViaPostal({ userName: user.name || 'Applicant', userEmail: user.email, to: opportunity.applyEmail, subject, html, text, applicationId: appRecord.id, attachmentBase64: cv?.base64, attachmentFilename: cv?.filename });
         if (pr.success) {
-          await prisma.autoApplication.update({ where: { id: appRecord.id }, data: { status: 'SENT', sentAt: new Date() } });
+          sent = true; // Postal delivered — a throw on the status write must NOT refund a real send
+          await prisma.autoApplication.update({ where: { id: appRecord.id }, data: { status: 'SENT', sentAt: new Date() } }).catch(() => {});
           return NextResponse.json({ success: true, coverLetter: fullLetter, subject, sentTo: opportunity.applyEmail });
         }
         await refundConsumed(); // refund FIRST (guaranteed), then mark the row FAILED best-effort
@@ -759,10 +760,11 @@ export async function POST(request: NextRequest) {
       });
 
       if (result.success) {
+        sent = true; // Postal delivered — a throw on the status write must NOT refund a real send
         await prisma.autoApplication.update({
           where: { id: appRecord.id },
           data: { status: 'SENT', sentAt: new Date() },
-        });
+        }).catch(() => {});
       } else {
         await refundConsumed(); // send failed — refund FIRST, then mark FAILED best-effort
         await prisma.autoApplication.update({
