@@ -356,6 +356,24 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
 
     console.log(`[ResumePreAuth] Resume uploaded for ${email}: ${parsedProfile?.name || 'unknown'}`);
 
+    // Instant feed: embed the user on Qwen (Hetzner box) + KNN-fill their feed synchronously, so they
+    // land on /dashboard/discovery with a full semantic feed instead of waiting ~2 min for the embed +
+    // qwen-fill crons. Best-effort: wrapped in try/catch with a short timeout — on ANY failure (box down,
+    // timeout) registration completes normally and the crons fill the feed as before. Runs after the loop
+    // is created (the fill requires an active AutoApplyLoop).
+    try {
+      const embedNowUrl = process.env.EMBED_NOW_URL || 'https://postal.freelanly.com/embed-now';
+      const r = await fetch(embedNowUrl, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.CRON_SECRET || ''}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+        signal: AbortSignal.timeout(9000),
+      });
+      console.log(`[ResumePreAuth] instant embed-fill for ${email}: ${r.status} ${await r.text().catch(() => '')}`.slice(0, 200));
+    } catch (e) {
+      console.warn('[ResumePreAuth] instant embed-fill skipped (crons will fill):', (e as Error)?.message);
+    }
+
     // Deferred-session completion: the profile is now saved (résumé + required fields), so a user who
     // registered under the "session only after résumé" flow gets their session HERE — but only if the
     // regToken proves this same email just passed OTP (resume-preauth IDs by email alone, so without
