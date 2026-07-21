@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTracker } from '@/hooks/useTracker';
 import { SmtpConnectModal } from '@/app/dashboard/settings/SmtpConnect';
 import { QueueUpgradeButton } from '@/components/app/QueueUpgradeButton';
+import { ApplyPaywallModal } from '@/components/app/ApplyPaywallModal';
 
 type Job = {
   id: string;
@@ -181,7 +182,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
         const message = (data as { message?: string }).message || '';
         const BLOCKING = ['poor_match', 'already_applied', 'limit_reached', 'resume_required', 'unavailable', 'smtp_required', 'generation_limit', 'application_limit'];
         if (BLOCKING.includes(reason)) {
-          setDraftBlocked({ reason, message });
+          setDraftBlocked({ reason, message, offer: (data as { offer?: string }).offer, packSize: (data as { packSize?: number }).packSize, packPriceCents: (data as { packPriceCents?: number }).packPriceCents });
           // Server reports we've already applied here (it checks ALL of the user's applications, not just
           // the feed's queueable set — so the card can still show "Apply"). Flip it to the Applied state
           // now: the button turns into "✓ Applied" and can't be re-clicked into the same wall. This was
@@ -224,7 +225,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
         const data = await res.json();
         // Application paywall (send blocked past the free first) → swap the editor for the upgrade wall.
         if (data.error === 'application_limit') {
-          setDraftBlocked({ reason: 'application_limit', message: data.message || '' });
+          setDraftBlocked({ reason: 'application_limit', message: data.message || '', offer: data.offer, packSize: data.packSize, packPriceCents: data.packPriceCents });
         } else {
           alert(data.error || 'Failed to send');
         }
@@ -252,7 +253,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   const [draftSending, setDraftSending] = useState(false);
   // The apply-gate refused (or the state blocks applying) — show an HONEST message, not a writable
   // "Failed to generate" draft the user could still send. poor_match is the feed↔gate divergence.
-  const [draftBlocked, setDraftBlocked] = useState<{ reason: string; message: string } | null>(null);
+  const [draftBlocked, setDraftBlocked] = useState<{ reason: string; message: string; offer?: string; packSize?: number; packPriceCents?: number } | null>(null);
 
   // The feed is a curated best-first shortlist (Strong → divider → Good); a chronological "Newest"
   // sort broke the tiering and pulled fresh-but-irrelevant roles up, so the toggle was removed.
@@ -530,21 +531,30 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                 <div style={{fontSize: '12px', color: '#8A8E96'}}>AI is reading the job post and matching with your profile</div>
               </div>
             ) : draftBlocked && draftBlocked.reason === 'application_limit' ? (
-              /* Application paywall (paid-first, owner decision 2026-07-16; volume-first copy 2026-07-17):
-                 sell the SUPPLY, not the restriction — the user's own feed count is the honest hook
-                 (median inflow ~225 eligible/day, so the number is real, never inflated). */
-              <div style={{padding: '40px 28px', textAlign: 'center'}}>
-                <div style={{fontSize: '24px', marginBottom: '10px'}}>✨</div>
-                <div style={{fontSize: '15px', fontWeight: 700, marginBottom: '10px'}}>
-                  {items.length >= 5 ? `${items.length} roles in your feed match your profile` : 'Your free application is used'}
+              /* Application paywall. offer:'credits' (CREDITS_ENABLED) → inline $3/6 charge; otherwise the
+                 legacy $5/mo redirect. Copy sells the SUPPLY (feed count is the honest hook). */
+              draftBlocked.offer === 'credits' ? (
+                <ApplyPaywallModal
+                  message={items.length >= 5 ? `${items.length} roles in your feed match your profile` : (draftBlocked.message || 'Your free application is used')}
+                  packSize={draftBlocked.packSize}
+                  packPriceCents={draftBlocked.packPriceCents}
+                  source="application_paywall_feed"
+                  onCreditsReady={() => { setDraftBlocked(null); handleSendDraft(); }}
+                />
+              ) : (
+                <div style={{padding: '40px 28px', textAlign: 'center'}}>
+                  <div style={{fontSize: '24px', marginBottom: '10px'}}>✨</div>
+                  <div style={{fontSize: '15px', fontWeight: 700, marginBottom: '10px'}}>
+                    {items.length >= 5 ? `${items.length} roles in your feed match your profile` : 'Your free application is used'}
+                  </div>
+                  <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 18px'}}>
+                    Fresh matched roles land in your feed every day. Apply to any of them with <b>PRO — $5/month</b>: up to 20 applications a day, AI-written letters, your CV attached to every one. Cancel anytime.
+                  </div>
+                  <div style={{display: 'flex', justifyContent: 'center'}}>
+                    <QueueUpgradeButton source="application_paywall_feed" label="Upgrade to apply →" />
+                  </div>
                 </div>
-                <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 18px'}}>
-                  Fresh matched roles land in your feed every day. Apply to any of them with <b>PRO — $5/month</b>: up to 20 applications a day, AI-written letters, your CV attached to every one. Cancel anytime.
-                </div>
-                <div style={{display: 'flex', justifyContent: 'center'}}>
-                  <QueueUpgradeButton source="application_paywall_feed" label="Upgrade to apply →" />
-                </div>
-              </div>
+              )
             ) : draftBlocked && (draftBlocked.reason === 'smtp_required' || draftBlocked.reason === 'not_strong' || draftBlocked.reason === 'limit_reached') ? (
               <div style={{padding: '40px 28px', textAlign: 'center'}}>
                 <div style={{fontSize: '24px', marginBottom: '10px'}}>✉️</div>

@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
 import { constructWebhookEvent } from '@/lib/stripe';
 import { revokeApplyCredits } from '@/lib/apply-quota';
+import { grantApplyCreditsForPI } from '@/lib/apply-credits';
 import { sendActivationEmail } from '@/services/activation-emails';
 import { uploadOfflineConversion } from '@/lib/google-ads';
 import { ActivityAction } from '@prisma/client';
@@ -574,59 +575,8 @@ async function handleSetupIntentSucceeded(si: Stripe.SetupIntent) {
 // credit increment, so a re-delivered event (Stripe can send an event more than once) rolls back and
 // never double-grants. Subscription-invoice PIs have no `apply_credits` metadata and are ignored.
 async function handleApplyCreditsPaid(pi: Stripe.PaymentIntent) {
-  if (pi.metadata?.type !== 'apply_credits') return;
-  const userId = pi.metadata.userId;
-  const credits = Number(pi.metadata.credits || 0);
-  if (!userId || !(credits > 0)) {
-    console.error('[Stripe Webhook] apply_credits PI missing userId/credits', pi.id);
-    return;
-  }
-
-  const pmId = (pi.payment_method as string) || null;
-  const customerId = (pi.customer as string) || null;
-
-  try {
-    await prisma.$transaction([
-      // Claim: unique stripeEventId blocks a second grant for the same PaymentIntent.
-      prisma.revenueEvent.create({
-        data: {
-          type: 'ONE_TIME_PAYMENT',
-          amount: pi.amount_received || pi.amount || 0,
-          currency: (pi.currency || 'usd').toUpperCase(),
-          userId,
-          stripeEventId: pi.id,
-          stripeCustomerId: customerId || undefined,
-          metadata: { kind: 'apply_credits', credits },
-        },
-      }),
-      prisma.user.update({
-        where: { id: userId },
-        data: {
-          applyCredits: { increment: credits },
-          // fresh-card path: setup_future_usage saved the PM on this PI — persist it for next time.
-          ...(pmId ? { stripePaymentMethodId: pmId } : {}),
-          ...(customerId ? { stripeId: customerId } : {}),
-        },
-      }),
-    ]);
-  } catch (e) {
-    if ((e as { code?: string }).code === 'P2002') {
-      console.log(`[Stripe Webhook] apply_credits already granted for PI ${pi.id}`);
-      return;
-    }
-    console.error('[Stripe Webhook] Failed to grant apply-credits:', e);
-    throw e; // let Stripe retry
-  }
-
-  await prisma.activityLog.create({
-    data: {
-      userId,
-      action: ActivityAction.CHECKOUT_COMPLETE,
-      details: { type: 'apply_credits', credits, amount: (pi.amount || 0) / 100 },
-    },
-  }).catch(() => {});
-
-  console.log(`[Stripe Webhook] Granted ${credits} apply-credits to user ${userId} (PI ${pi.id})`);
+  // Idempotent grant shared with the client-confirm endpoint (either can win the race safely).
+  await grantApplyCreditsForPI(pi);
 }
 
 // Pay-per-apply: a credit-pack charge was refunded or disputed → revoke the granted credits (clamped at
