@@ -9,7 +9,7 @@ import { generateRecruiterRationale } from '@/services/matching/recruiter-ration
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { sendViaGmail } from '@/lib/gmail-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
-import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT } from '@/lib/apply-quota';
+import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT, hasApplyAllowance, consumeApplyCredit, refundApplyCredit, refundFreeSend, applyLimitResponse } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
 import { fetchResumeAttachment, hasRealCV } from '@/lib/resume-attachment';
 import { generateTailoredCv } from '@/lib/tailored-cv';
@@ -203,6 +203,16 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
  * Returns: { success, coverLetter, subject } or error
  */
 export async function POST(request: NextRequest) {
+  // Money-gate refund state, hoisted to FUNCTION scope so the outer catch (an exception AFTER the
+  // consume — e.g. a P2002 from a concurrent duplicate, or a transient DB error) can give everything
+  // back. try-block-scoped vars aren't visible in the sibling catch, which is exactly how a consumed
+  // credit could leak on a throw.
+  let refundUserId: string | null = null;
+  let refundPlan = 'FREE';
+  let creditConsumed = false;
+  let freeReserved = false;
+  let refunded = false; // idempotency guard so the branch closure and the outer catch can't double-refund
+  let sent = false;     // an own-inbox email already went out — a later throw (e.g. P2002 on the record) must NOT refund it
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -343,14 +353,10 @@ export async function POST(request: NextRequest) {
     // ("free preview") and the wall only appeared on Send, discarding a finished letter the user had
     // already invested in. The send-path gate below stays as the real enforcement.
     if (draftOnly && user.plan === 'FREE') {
-      const priorSends = await prisma.autoApplication.count({ where: { userId: user.id, sentAt: { not: null } } });
-      if (priorSends >= Number(process.env.FREE_APPLICATIONS ?? 1)) {
+      // Read-only pre-check (no consume): past free AND no credits → show the paywall before any LLM call.
+      if (!(await hasApplyAllowance(user.id, user.plan))) {
         logActivity({ userId: user.id, action: ActivityAction.FUNNEL_STEP, details: { step: 'application_paywall_shown', surface: 'draft', opportunityId: opportunity.id } }).catch(() => {});
-        return NextResponse.json({
-          error: 'application_limit',
-          message: 'Your free application is used. Keep applying with PRO ($5/mo) — up to 20 applications a day, AI-written letters, your CV attached to every one.',
-          to: opportunity.applyEmail,
-        }, { status: 402 });
+        return NextResponse.json(applyLimitResponse(opportunity.applyEmail), { status: 402 });
       }
     }
 
@@ -613,20 +619,13 @@ export async function POST(request: NextRequest) {
 
     const text = finalText + footerText;
 
-    // APPLICATION PAYWALL (owner decision 2026-07-13): the FIRST application is free — every send
-    // after that requires PRO. No free manual-write escape anymore: pay to send, period. Gate is on
-    // the SEND (this path), so a FREE user can still preview the letter but can't send #2+.
-    const FREE_APPLICATIONS = Number(process.env.FREE_APPLICATIONS ?? 1);
-    if (user.plan === 'FREE') {
-      const priorSends = await prisma.autoApplication.count({ where: { userId: user.id, sentAt: { not: null } } });
-      if (priorSends >= FREE_APPLICATIONS) {
-        logActivity({ userId: user.id, action: ActivityAction.FUNNEL_STEP, details: { step: 'application_paywall_shown', opportunityId: opportunity.id } }).catch(() => {});
-        return NextResponse.json({
-          error: 'application_limit',
-          message: 'Your free application is used. Keep applying with PRO ($5/mo) — up to 20 applications a day, AI-written letters, your CV attached to every one.',
-          to: opportunity.applyEmail,
-        }, { status: 402 });
-      }
+    // APPLICATION PAYWALL (owner decision 2026-07-13, credits 2026-07-21): the FIRST application is
+    // free — every send after needs a purchased credit ($3/pack) or PRO. Read-only pre-check here so a
+    // walled user gets the paywall without a wasted send; the ATOMIC credit consume is right before the
+    // send below (so no other early-return sits between consume and the irreversible send).
+    if (user.plan === 'FREE' && !(await hasApplyAllowance(user.id, user.plan))) {
+      logActivity({ userId: user.id, action: ActivityAction.FUNNEL_STEP, details: { step: 'application_paywall_shown', opportunityId: opportunity.id } }).catch(() => {});
+      return NextResponse.json(applyLimitResponse(opportunity.applyEmail), { status: 402 });
     }
 
     // Atomically consume the FREE daily quota slot BEFORE sending. The check at the
@@ -643,6 +642,34 @@ export async function POST(request: NextRequest) {
           : `Daily limit reached (${FREE_DAILY_APPLY_LIMIT}/${FREE_DAILY_APPLY_LIMIT}). The cap keeps sends out of spam folders — it resets tomorrow.`,
       }, { status: 429 });
     }
+    // Arm the refund sentinel the instant the daily slot is taken — BEFORE consumeApplyCredit, so a
+    // throw inside it (transient DB error) is refunded by the outer catch (creditConsumed/freeReserved
+    // are still false there, so only the daily slot is returned — exactly right).
+    refundUserId = user.id;
+    refundPlan = user.plan;
+
+    // MONEY GATE: consume one apply-credit atomically, immediately before the irreversible send and
+    // AFTER every other gate has passed — so nothing can early-return between consume and send. A wall
+    // here is only the rare race (credits hit 0 after the pre-check); we've already taken the daily slot,
+    // so give it back. `creditConsumed` tells the send-failure handlers below whether to refund a credit.
+    const _creditGate = await consumeApplyCredit(user.id, user.plan);
+    if (!_creditGate.allowed) {
+      await refundApplyQuota(user.id, user.plan); // hand back the daily slot taken just above
+      return NextResponse.json(applyLimitResponse(opportunity.applyEmail), { status: 402 });
+    }
+    // Record what we took so BOTH the send-failure branches below AND the outer catch (exception path)
+    // can give it back — nothing may leak a paid credit / free slot on a throw or a failed send.
+    creditConsumed = _creditGate.creditConsumed;
+    freeReserved = _creditGate.freeReserved;
+    refundUserId = user.id;
+    refundPlan = user.plan;
+    const refundConsumed = async () => {
+      if (refunded) return;
+      refunded = true;
+      await refundApplyQuota(user.id, user.plan);
+      if (creditConsumed) await refundApplyCredit(user.id);
+      if (freeReserved) await refundFreeSend(user.id);
+    };
 
     // Send channel priority: Gmail-OAuth → SMTP → our-name (Postal). The first two send from the user's
     // own inbox (best deliverability); both fall through to the shared own-inbox record block below.
@@ -677,11 +704,12 @@ export async function POST(request: NextRequest) {
         });
         const pr = await sendAutoApplyViaPostal({ userName: user.name || 'Applicant', userEmail: user.email, to: opportunity.applyEmail, subject, html, text, applicationId: appRecord.id, attachmentBase64: cv?.base64, attachmentFilename: cv?.filename });
         if (pr.success) {
-          await prisma.autoApplication.update({ where: { id: appRecord.id }, data: { status: 'SENT', sentAt: new Date() } });
+          sent = true; // Postal delivered — a throw on the status write must NOT refund a real send
+          await prisma.autoApplication.update({ where: { id: appRecord.id }, data: { status: 'SENT', sentAt: new Date() } }).catch(() => {});
           return NextResponse.json({ success: true, coverLetter: fullLetter, subject, sentTo: opportunity.applyEmail });
         }
-        await prisma.autoApplication.update({ where: { id: appRecord.id }, data: { status: 'FAILED', errorMessage: pr.error?.slice(0, 500) } });
-        await refundApplyQuota(user.id, user.plan);
+        await refundConsumed(); // refund FIRST (guaranteed), then mark the row FAILED best-effort
+        await prisma.autoApplication.update({ where: { id: appRecord.id }, data: { status: 'FAILED', errorMessage: pr.error?.slice(0, 500) } }).catch(() => {});
         return NextResponse.json({ error: 'send_failed', message: pr.error }, { status: 500 });
       }
     } else if (hasSmtp) {
@@ -732,16 +760,17 @@ export async function POST(request: NextRequest) {
       });
 
       if (result.success) {
+        sent = true; // Postal delivered — a throw on the status write must NOT refund a real send
         await prisma.autoApplication.update({
           where: { id: appRecord.id },
           data: { status: 'SENT', sentAt: new Date() },
-        });
+        }).catch(() => {});
       } else {
+        await refundConsumed(); // send failed — refund FIRST, then mark FAILED best-effort
         await prisma.autoApplication.update({
           where: { id: appRecord.id },
           data: { status: 'FAILED', errorMessage: result.error?.slice(0, 500) },
-        });
-        await refundApplyQuota(user.id, user.plan); // send failed — give the slot back
+        }).catch(() => {});
         return NextResponse.json({ error: 'send_failed', message: result.error }, { status: 500 });
       }
 
@@ -749,9 +778,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (!result.success) {
-      await refundApplyQuota(user.id, user.plan); // send failed — give the slot back
+      await refundConsumed(); // send failed — give the slots/credit back
       return NextResponse.json({ error: 'send_failed', message: result.error }, { status: 500 });
     }
+    // The own-inbox (Gmail/SMTP) email has now gone out. Mark it so a throw on the record-create below
+    // (e.g. a P2002 from a concurrent duplicate) does NOT refund a credit/slot for a real send.
+    sent = true;
 
     // Create AutoApplication record for own-inbox users (Gmail-OAuth or SMTP)
     let loop = await prisma.autoApplyLoop.findFirst({
@@ -800,6 +832,19 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[QuickApply] Error:', error);
+    // Exception AFTER the money-gate consume (e.g. a P2002 from a concurrent duplicate send, or a
+    // transient DB error at autoApplication.create) must not leak a paid credit / free slot / daily slot.
+    if (refundUserId && !refunded && !sent) {
+      refunded = true;
+      await refundApplyQuota(refundUserId, refundPlan);
+      if (creditConsumed) await refundApplyCredit(refundUserId);
+      if (freeReserved) await refundFreeSend(refundUserId);
+    }
+    // Concurrent duplicate to the SAME opportunity races the unique (userId, opportunityId) index →
+    // surface it as already_applied rather than a generic 500 (and we've just refunded the loser).
+    if ((error as { code?: string })?.code === 'P2002') {
+      return NextResponse.json({ error: 'already_applied', message: 'You already applied to this project.' }, { status: 409 });
+    }
     return NextResponse.json({ error: 'Failed to apply' }, { status: 500 });
   }
 }

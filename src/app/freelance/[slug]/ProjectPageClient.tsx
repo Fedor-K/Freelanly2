@@ -6,6 +6,8 @@ import { SalaryPicker } from '@/components/SalaryPicker';
 import { ProcessingScreen } from '@/components/ProcessingScreen';
 import { SmtpConnectModal } from '@/app/dashboard/settings/SmtpConnect';
 import { QueueUpgradeButton } from '@/components/app/QueueUpgradeButton';
+import { ApplyPaywallModal } from '@/components/app/ApplyPaywallModal';
+import { OnboardingCardStep } from '@/components/app/OnboardingCardStep';
 import { GoogleAuthButton } from '@/components/GoogleAuthButton';
 import { categories, languages } from '@/config/site';
 
@@ -105,6 +107,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [gated, setGated] = useState(false); // true = a send would be refused → don't offer the cover-letter path
   const [ownInbox, setOwnInbox] = useState(false); // Gmail OAuth or SMTP already connected → never pitch "Connect my email" again
   const [genPaywall, setGenPaywall] = useState(false); // free AI generation spent → PRO pitch on the review screen (writing manually stays free)
+  const [paywallInfo, setPaywallInfo] = useState<{ offer?: string; packSize?: number; packPriceCents?: number }>({}); // from the 402: offer:'credits' → inline $3 charge, else legacy $5/mo
+  const [cardStep, setCardStep] = useState(false); // optional "save a card" step after registration (hybrid)
+  const [pendingRedirect, setPendingRedirect] = useState('');
   const [suggestions, setSuggestions] = useState<{ slug: string; title: string; company: string }[]>([]);
   const [subject, setSubject] = useState('');
   const [sendTo, setSendTo] = useState('');
@@ -502,7 +507,15 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     // Registration complete → land in the ACCOUNT (owner flow 2026-07-17): the discovery feed with
     // THIS project auto-opened in the apply modal. The user finishes the apply there, with their
     // real matched cards visible behind it — not on a single dead-end public page.
-    window.location.href = `/dashboard/discovery?apply=${project.id}`;
+    const redirectUrl = `/dashboard/discovery?apply=${project.id}`;
+    // Optional card-capture step (hybrid, CREDITS_ENABLED): saving a card now makes the first $3 pack
+    // one-tap at the wall. Fully skippable, so registration completion is never gated on a card.
+    if (process.env.NEXT_PUBLIC_CREDITS_ENABLED === 'true') {
+      setPendingRedirect(redirectUrl);
+      setCardStep(true);
+      return;
+    }
+    window.location.href = redirectUrl;
   }
 
   // URL-apply opportunities (ATS/Lever) have no email — our cover-letter/email flow can't send them.
@@ -550,6 +563,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           // application_limit: free send spent → the wall now fires on Apply, BEFORE generating a
           // letter the user can't send (same PRO pitch banner; the send path enforces it anyway).
           setGenPaywall(true);
+          setPaywallInfo({ offer: data.offer, packSize: data.packSize, packPriceCents: data.packPriceCents });
           setCoverLetter('');
           setSubject(`Application: ${project.title}`);
           setSendTo(data.to || '');
@@ -598,8 +612,9 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         setPhase('sent');
         track('JOB_APPLY', { projectId: project.id, method: 'project_page' });
       } else if (data.error === 'application_limit') {
-        // First application free; every send after is PRO. Show the paywall banner on the review screen.
+        // First application free; every send after needs a credit ($3/6) or PRO. Show the wall.
         setGenPaywall(true);
+        setPaywallInfo({ offer: data.offer, packSize: data.packSize, packPriceCents: data.packPriceCents });
         setSendError('');
       } else {
         setSendError(data.message || data.error || 'Failed to send');
@@ -655,6 +670,11 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
     // PHASE: AUTH — email + onboarding fields + OTP
     if (phase === 'auth') {
+      // STEP 3.5 (optional): save a card for one-tap applies, after the profile is saved. Both Save and
+      // Skip proceed to the feed. Only reached when CREDITS_ENABLED (see handleProfileSubmit).
+      if (cardStep) {
+        return <OnboardingCardStep onDone={() => { window.location.href = pendingRedirect || `/dashboard/discovery?apply=${project.id}`; }} />;
+      }
       // STEP 3: profile fields — reached ONLY after the OTP code is confirmed (profileStep=true).
       // An unverified visitor never gets here.
       if (profileStep) {
@@ -1059,8 +1079,19 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       // form UX came from the generation paywall era ("write it yourself — sending is free"), which
       // no longer exists; a form the server will 402 is a trap, not an option.
       if (genPaywall) {
-        // Volume-first wall copy (owner decision 2026-07-17): sell the supply. totalProjects is the
-        // real 14-day live count the page header already shows — same number, same honesty.
+        // offer:'credits' (CREDITS_ENABLED) → inline $3/6 charge, retry the send on success. Otherwise
+        // the legacy $5/mo redirect wall. Volume-first copy: totalProjects is the real 14-day live count.
+        if (paywallInfo.offer === 'credits') {
+          return (
+            <ApplyPaywallModal
+              message={`This role — and ${signals.totalProjects.toLocaleString()} more live right now`}
+              packSize={paywallInfo.packSize}
+              packPriceCents={paywallInfo.packPriceCents}
+              source="application_paywall"
+              onCreditsReady={() => { setGenPaywall(false); handleSend(); }}
+            />
+          );
+        }
         return (
           <div style={{ textAlign: 'center', padding: '12px 4px' }}>
             <div style={{ fontSize: '24px', marginBottom: '10px' }}>✨</div>
