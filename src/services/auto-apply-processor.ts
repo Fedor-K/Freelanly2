@@ -24,6 +24,14 @@ import { logActivity, ActivityAction } from '@/lib/activity-log';
 // shadow-only (compute + render caveats, but don't block) — the kill switch for cutover.
 const ENFORCE_GATE = process.env.MATCH_GATE_ENFORCE !== '0';
 
+// Geo pre-filter kill switch. OFF by default (2026-07-21): the fail-closed geo cut was rejecting
+// ~85% of ALL matcher pairs — US-remote roles for LATAM/India candidates, and every unknown-location
+// candidate (~40%) — i.e. exactly the nearshore audience this product exists to place. It left paying
+// users with near-empty feeds (e.g. a Brazil full-stack dev: 702 evaluated → 702 geo-rejected → 2 in
+// feed). Removed. Set MATCH_GEO_PREFILTER=1 to re-enable if it ever floods obviously-unreachable roles;
+// the downstream assess() location gate still blocks explicit onsite/work-auth cases regardless.
+const GEO_PREFILTER = process.env.MATCH_GEO_PREFILTER === '1';
+
 // Anti-spam: max emails to the same recruiter per UTC day. Used by the sender as the
 // hard cap AND at match time to skip already-saturated recruiters (so we don't queue
 // applications that would just be blocked and expire).
@@ -1453,7 +1461,7 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
   // candidate country is also cut (we won't fire a guaranteed-mismatch US-W2/onsite application on a
   // blind guess — 40% of candidates have no resolvable location). Scoped: only listings that carry a
   // hard signal are touched; everything else passes through untouched.
-  {
+  if (GEO_PREFILTER) {
     const hardJd = `${listing.title}\n${listing.description}`;
     // (A) US-only hard signals in the JD text.
     const jdUsOnly = /\b(w-?2(?:\s*(?:only|basis|position|role))?|us citizen|u\.?s\.?\s*citizen|green\s?card|gc\/?usc|usc\/?gc|must be (?:authorized|located|based)[^.]{0,30}\b(?:us|u\.s\.?|united states)\b|authorized to work in (?:the )?(?:us|united states)|no (?:h-?1b|sponsorship|c2c)\b|onsite in (?:the )?(?:us|united states)|day-?1 onsite|locals? only|need locals?)\b/i.test(hardJd);
@@ -1504,7 +1512,7 @@ async function queueAutoApplyForListing(listing: ListingData, onlyLoopId?: strin
     if (!uc) return false;
     return listing.country === 'EU' ? !PREFILTER_EU.has(uc) : uc !== listing.country;
   };
-  if (listingCountryBound && candidates.some(geoMismatch)) {
+  if (GEO_PREFILTER && listingCountryBound && candidates.some(geoMismatch)) {
     try {
       const jdText = `${listing.title}\n${listing.description}`;
       qParsedJD = qParsedJD ?? (await parseJDForListing(listing));
