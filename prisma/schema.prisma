@@ -30,6 +30,13 @@ model User {
   plan                Plan      @default(FREE)
   subscriptionEndsAt  DateTime? // When current period ends
 
+  // Pay-per-apply (owner decision 2026-07-21): first apply free, then $3 buys a pack of apply credits
+  // ($0.50/apply). Charged on-session via inline Stripe Elements (no redirect) — replaces the $5/mo
+  // subscription redirect that abandoned 97% at the Stripe hosted page. Gated by CREDITS_ENABLED env.
+  applyCredits          Int       @default(0)  // remaining purchased apply-credit balance
+  stripePaymentMethodId String?                // saved card (SetupIntent) for one-tap on-session charges
+  freeSendsUsed         Int       @default(0)  // lifetime free sends claimed (atomic first-free gate; backfilled from sent history so existing users aren't re-granted a free send)
+
   // Limits tracking
   jobViewsToday Int       @default(0)
   lastViewReset DateTime  @default(now())

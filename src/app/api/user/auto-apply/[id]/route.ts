@@ -6,7 +6,7 @@ import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { sendViaGmail } from '@/lib/gmail-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
 import { buildApplicationEmailHtml } from '@/services/auto-apply-processor';
-import { consumeApplyQuota, refundApplyQuota } from '@/lib/apply-quota';
+import { consumeApplyQuota, refundApplyQuota, hasApplyAllowance, consumeApplyCredit, refundApplyCredit, refundFreeSend, applyLimitResponse } from '@/lib/apply-quota';
 import { fetchResumeAttachment } from '@/lib/resume-attachment';
 import { generateTailoredCv } from '@/lib/tailored-cv';
 
@@ -146,6 +146,14 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Money-gate refund state, hoisted to FUNCTION scope so the outer catch (an exception after the
+  // consume) can give back a paid credit / free slot / daily slot instead of leaking it.
+  let refundUserId: string | null = null;
+  let refundPlan = 'FREE';
+  let creditConsumed = false;
+  let freeReserved = false;
+  let refunded = false;
+  let sent = false; // the email already went out — a later throw (e.g. the SENT status update) must NOT refund it
   try {
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -320,24 +328,18 @@ export async function POST(
       });
       if (!fullUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-      // APPLICATION PAYWALL (owner decision 2026-07-13): first application free, every send after
-      // requires PRO. Same gate as quick-apply.
-      const FREE_APPLICATIONS = Number(process.env.FREE_APPLICATIONS ?? 1);
-      if (fullUser.plan === 'FREE') {
-        const priorSends = await prisma.autoApplication.count({ where: { userId: session.user.id, sentAt: { not: null } } });
-        if (priorSends >= FREE_APPLICATIONS) {
-          return NextResponse.json({
-            error: 'application_limit',
-            message: 'Your free application is used. Keep applying with PRO ($5/mo) — up to 20 applications a day, your CV attached to every one.',
-          }, { status: 402 });
-        }
+      // APPLICATION PAYWALL (owner decision 2026-07-13, credits 2026-07-21): first application free,
+      // every send after needs a purchased credit ($3/pack) or PRO. Read-only pre-check here; the atomic
+      // credit consume is right before the irreversible send below (after the postal bar + daily cap).
+      if (fullUser.plan === 'FREE' && !(await hasApplyAllowance(session.user.id, fullUser.plan))) {
+        return NextResponse.json(applyLimitResponse(), { status: 402 });
       }
 
       // Postal bar (mirrors quick-apply): our-name sending is reserved for the strongest matches.
       // The queue now contains honest Weak rows too (matcher queues evidence-bar misses for review),
       // and those may only go out from the user's OWN inbox — never from our domain.
       {
-        const hasOwn = !!fullUser.userSmtp?.verified || !!fullUser.gmailAuth;
+        const hasOwn = !!fullUser.userSmtp?.verified || !!fullUser.gmailAuth?.verified;
         if (!hasOwn) {
           const POSTAL_TIER = (process.env.POSTAL_SEND_TIER || 'strong').toLowerCase(); // 'strong' | 'good'
           const bdDecision = String((app.matchBreakdown as { decision?: string } | null)?.decision || 'SEND'); // legacy rows without a breakdown: fail-open
@@ -358,6 +360,10 @@ export async function POST(
       if (!(await consumeApplyQuota(session.user.id, fullUser.plan))) {
         return NextResponse.json({ error: 'limit_reached', message: 'Daily send limit reached — try again tomorrow.' }, { status: 429 });
       }
+      // Arm the refund sentinel the instant the daily slot is taken, BEFORE the cover-letter / CV / credit
+      // steps below can throw — otherwise a thrown LLM call leaves the daily slot consumed with no send.
+      refundUserId = session.user.id;
+      refundPlan = fullUser.plan;
 
       // Generate cover letter if missing
       let coverLetter = app.coverLetter;
@@ -404,6 +410,26 @@ export async function POST(
         });
       }
 
+      // MONEY GATE: consume one apply-credit atomically, immediately before the irreversible send and
+      // after every other gate (postal bar, daily cap). A wall here is only the rare race; the daily
+      // slot was already taken, so give it back. `creditConsumed` drives the refund on send failure.
+      const _creditGate = await consumeApplyCredit(session.user.id, fullUser.plan);
+      if (!_creditGate.allowed) {
+        await refundApplyQuota(session.user.id, fullUser.plan); // hand back the daily slot taken above
+        return NextResponse.json(applyLimitResponse(), { status: 402 });
+      }
+      creditConsumed = _creditGate.creditConsumed;
+      freeReserved = _creditGate.freeReserved;
+      refundUserId = session.user.id;
+      refundPlan = fullUser.plan;
+      const refundConsumed = async () => {
+        if (refunded) return;
+        refunded = true;
+        await refundApplyQuota(session.user.id, fullUser.plan);
+        if (creditConsumed) await refundApplyCredit(session.user.id);
+        if (freeReserved) await refundFreeSend(session.user.id);
+      };
+
       let result: { success: boolean; messageId?: string; error?: string };
 
       if (hasGmail) {
@@ -436,6 +462,7 @@ export async function POST(
       }
 
       if (result.success) {
+        sent = true; // email is out; from here a throw must not trigger a refund
         await prisma.autoApplication.update({
           where: { id },
           data: { status: 'SENT', sentVia: hasGmail ? 'gmail' : hasSmtp ? 'smtp' : 'postal', coverLetter, subject, sentAt: new Date() },
@@ -446,7 +473,7 @@ export async function POST(
         }
         return NextResponse.json({ ok: true, message: 'Sent!', sentTo: app.appliedToEmail });
       } else {
-        await refundApplyQuota(session.user.id, fullUser.plan); // send failed — give the slot back
+        await refundConsumed(); // send failed — give the slots/credit back
         return NextResponse.json({ error: 'Send failed', message: result.error }, { status: 500 });
       }
     }
@@ -486,6 +513,16 @@ export async function POST(
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error) {
     console.error('[AutoApply Detail] POST error:', error);
+    // Exception after the money-gate consume must not leak a paid credit / free slot / daily slot.
+    if (refundUserId && !refunded && !sent) {
+      refunded = true;
+      await refundApplyQuota(refundUserId, refundPlan);
+      if (creditConsumed) await refundApplyCredit(refundUserId);
+      if (freeReserved) await refundFreeSend(refundUserId);
+    }
+    if ((error as { code?: string })?.code === 'P2002') {
+      return NextResponse.json({ error: 'already_applied', message: 'You already applied to this role.' }, { status: 409 });
+    }
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
 }

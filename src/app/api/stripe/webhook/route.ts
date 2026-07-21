@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
 import { constructWebhookEvent } from '@/lib/stripe';
+import { revokeApplyCredits } from '@/lib/apply-quota';
 import { sendActivationEmail } from '@/services/activation-emails';
 import { uploadOfflineConversion } from '@/lib/google-ads';
 import { ActivityAction } from '@prisma/client';
@@ -68,6 +69,33 @@ export async function POST(request: NextRequest) {
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
         await handlePaymentFailed(invoice);
+        break;
+      }
+
+      // Pay-per-apply: card saved at onboarding/wall via SetupIntent → persist for one-tap charges.
+      case 'setup_intent.succeeded': {
+        const si = event.data.object as Stripe.SetupIntent;
+        await handleSetupIntentSucceeded(si);
+        break;
+      }
+
+      // Pay-per-apply: $3 pack purchase succeeded → grant apply-credits (idempotent).
+      case 'payment_intent.succeeded': {
+        const pi = event.data.object as Stripe.PaymentIntent;
+        await handleApplyCreditsPaid(pi);
+        break;
+      }
+
+      // Pay-per-apply: a credit-pack charge was refunded or disputed → claw back the granted credits
+      // (proportional to the amount clawed; idempotent per PaymentIntent so refund+dispute don't double).
+      case 'charge.refunded': {
+        const charge = event.data.object as Stripe.Charge;
+        await handleCreditsClawback(charge.payment_intent as string | null, charge.amount_refunded, charge.currency);
+        break;
+      }
+      case 'charge.dispute.created': {
+        const dispute = event.data.object as Stripe.Dispute;
+        await handleCreditsClawback(dispute.payment_intent as string | null, dispute.amount, dispute.currency);
         break;
       }
 
@@ -508,4 +536,148 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
 
   // TODO: Send email notification about failed payment
   // For now, Stripe will retry automatically
+}
+
+// Pay-per-apply: a card was saved via SetupIntent (onboarding or at the wall). Persist it so the next
+// $3 charge is one-tap, and make it the customer's default payment method.
+async function handleSetupIntentSucceeded(si: Stripe.SetupIntent) {
+  const customerId = (si.customer as string) || null;
+  const paymentMethodId = (si.payment_method as string) || null;
+  if (!customerId || !paymentMethodId) return;
+
+  const user = await prisma.user.findFirst({ where: { stripeId: customerId } });
+  const userId = user?.id || si.metadata?.userId;
+  if (!userId) {
+    console.error('[Stripe Webhook] setup_intent.succeeded: no user for customer', customerId);
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { stripePaymentMethodId: paymentMethodId, stripeId: customerId },
+  }).catch((e) => console.error('[Stripe Webhook] Failed to save payment method:', e));
+
+  try {
+    const { getStripe } = await import('@/lib/stripe');
+    await getStripe().customers.update(customerId, {
+      invoice_settings: { default_payment_method: paymentMethodId },
+    });
+  } catch (e) {
+    console.error('[Stripe Webhook] Failed to set default payment method:', e);
+  }
+
+  console.log(`[Stripe Webhook] Card saved for user ${userId}`);
+}
+
+// Pay-per-apply: a $3 apply-credit pack PaymentIntent succeeded → grant the credits. Idempotent and
+// crash-safe: the unique stripeEventId (= PaymentIntent id) is claimed in the SAME transaction as the
+// credit increment, so a re-delivered event (Stripe can send an event more than once) rolls back and
+// never double-grants. Subscription-invoice PIs have no `apply_credits` metadata and are ignored.
+async function handleApplyCreditsPaid(pi: Stripe.PaymentIntent) {
+  if (pi.metadata?.type !== 'apply_credits') return;
+  const userId = pi.metadata.userId;
+  const credits = Number(pi.metadata.credits || 0);
+  if (!userId || !(credits > 0)) {
+    console.error('[Stripe Webhook] apply_credits PI missing userId/credits', pi.id);
+    return;
+  }
+
+  const pmId = (pi.payment_method as string) || null;
+  const customerId = (pi.customer as string) || null;
+
+  try {
+    await prisma.$transaction([
+      // Claim: unique stripeEventId blocks a second grant for the same PaymentIntent.
+      prisma.revenueEvent.create({
+        data: {
+          type: 'ONE_TIME_PAYMENT',
+          amount: pi.amount_received || pi.amount || 0,
+          currency: (pi.currency || 'usd').toUpperCase(),
+          userId,
+          stripeEventId: pi.id,
+          stripeCustomerId: customerId || undefined,
+          metadata: { kind: 'apply_credits', credits },
+        },
+      }),
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          applyCredits: { increment: credits },
+          // fresh-card path: setup_future_usage saved the PM on this PI — persist it for next time.
+          ...(pmId ? { stripePaymentMethodId: pmId } : {}),
+          ...(customerId ? { stripeId: customerId } : {}),
+        },
+      }),
+    ]);
+  } catch (e) {
+    if ((e as { code?: string }).code === 'P2002') {
+      console.log(`[Stripe Webhook] apply_credits already granted for PI ${pi.id}`);
+      return;
+    }
+    console.error('[Stripe Webhook] Failed to grant apply-credits:', e);
+    throw e; // let Stripe retry
+  }
+
+  await prisma.activityLog.create({
+    data: {
+      userId,
+      action: ActivityAction.CHECKOUT_COMPLETE,
+      details: { type: 'apply_credits', credits, amount: (pi.amount || 0) / 100 },
+    },
+  }).catch(() => {});
+
+  console.log(`[Stripe Webhook] Granted ${credits} apply-credits to user ${userId} (PI ${pi.id})`);
+}
+
+// Pay-per-apply: a credit-pack charge was refunded or disputed → revoke the granted credits (clamped at
+// 0). Looks up the original grant by the PaymentIntent id (the key used when granting), so only our
+// apply_credits purchases are touched. Idempotent via a REFUND RevenueEvent with a unique stripeEventId.
+async function handleCreditsClawback(
+  paymentIntentId: string | null,
+  clawedAmountCents: number | null,
+  currency: string | null,
+) {
+  if (!paymentIntentId) return;
+
+  const grant = await prisma.revenueEvent.findFirst({ where: { stripeEventId: paymentIntentId } });
+  const meta = grant?.metadata as { kind?: string; credits?: number } | null;
+  if (!grant || meta?.kind !== 'apply_credits') return; // not one of our credit-pack PIs
+
+  const grantedCredits = Number(meta?.credits || 0);
+  const originalAmount = grant.amount || 0;
+  const userId = grant.userId;
+  if (!userId || !(grantedCredits > 0)) return;
+
+  // Revoke PROPORTIONALLY to the amount clawed back — a $1 refund of a $3/6-credit pack revokes 2, not
+  // all 6. A dispute contests the full charge → full revoke. Clamp to what was granted.
+  const clawed = clawedAmountCents ?? originalAmount;
+  const toRevoke = originalAmount > 0
+    ? Math.min(grantedCredits, Math.ceil((grantedCredits * clawed) / originalAmount))
+    : grantedCredits;
+  if (!(toRevoke > 0)) return;
+
+  // Idempotent PER PURCHASE (keyed by the PaymentIntent), so a refund AND a dispute on the SAME charge
+  // revoke once, and a re-delivered event is a no-op. (Edge: two separate PARTIAL refunds of the same
+  // tiny charge under-revoke — accepted as vanishingly rare for a $3 pack.)
+  try {
+    await prisma.revenueEvent.create({
+      data: {
+        type: 'REFUND',
+        amount: clawed,
+        currency: (currency || 'usd').toUpperCase(),
+        userId,
+        stripeEventId: `revoke_${paymentIntentId}`,
+        metadata: { kind: 'apply_credits_revoke', revoked: toRevoke, ofGranted: grantedCredits, originalPaymentIntent: paymentIntentId },
+      },
+    });
+  } catch (e) {
+    if ((e as { code?: string })?.code === 'P2002') {
+      console.log(`[Stripe Webhook] credits clawback already processed for PI ${paymentIntentId}`);
+      return;
+    }
+    throw e;
+  }
+
+  await revokeApplyCredits(userId, toRevoke);
+  console.log(`[Stripe Webhook] Revoked ${toRevoke}/${grantedCredits} apply-credits from user ${userId} (PI ${paymentIntentId})`);
 }

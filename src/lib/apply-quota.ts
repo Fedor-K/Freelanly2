@@ -93,3 +93,112 @@ export async function refundApplyQuota(userId: string, _plan: string): Promise<v
     SET "freeAppliesUsedToday" = GREATEST("freeAppliesUsedToday" - 1, 0)
     WHERE id = ${userId}`.then(() => {}).catch(() => {});
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAY-PER-APPLY CREDITS (owner decision 2026-07-21)
+//
+// The MONEY gate (distinct from the daily anti-spam brake above): a FREE user's FIRST send is free
+// (priorSends < FREE_APPLICATIONS), then each further send needs a purchased credit. $3 buys a pack.
+// Charged on-session via inline Stripe Elements — replaces the $5/mo subscription redirect that
+// abandoned 97% at the Stripe hosted page. PRO/ENTERPRISE stay unlimited. own-inbox is NOT exempt here
+// (that exemption is only for the anti-spam daily cap — this is about product value, not send channel).
+//
+// Rollout-safe: when CREDITS_ENABLED=false the behaviour is IDENTICAL to today (past-free FREE user →
+// hard wall, no credit path), so this whole block is dormant until the flag is flipped.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Feature flag — when false, past-free FREE users hit the legacy hard wall (no credits, $5/mo copy). */
+export const CREDITS_ENABLED = process.env.CREDITS_ENABLED === 'true';
+/** Lifetime free sends before payment kicks in (env-tunable; matches the existing FREE_APPLICATIONS gate). */
+export const FREE_APPLICATIONS = Number(process.env.FREE_APPLICATIONS ?? 1);
+/** Applies granted per purchased pack. */
+export const CREDIT_PACK_SIZE = Number(process.env.CREDIT_PACK_SIZE ?? 6);
+/** Price of one pack, in cents (USD). */
+export const CREDIT_PACK_PRICE_CENTS = Number(process.env.CREDIT_PACK_PRICE_CENTS ?? 300);
+
+/**
+ * READ-ONLY pre-check (no consume): may this user send another application without paying now?
+ * true if PRO/ENTERPRISE, or still within the free allowance, or (credits enabled) holds ≥1 credit.
+ * Used at the draft/pre-send stage to decide whether to show the paywall — never mutates state.
+ * (The authoritative, race-safe gate is consumeApplyCredit; this is only a UX pre-check.)
+ */
+export async function hasApplyAllowance(userId: string, plan: string): Promise<boolean> {
+  if (plan !== 'FREE') return true;                       // PRO/ENTERPRISE unlimited
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { freeSendsUsed: true, applyCredits: true } });
+  if ((u?.freeSendsUsed ?? 0) < FREE_APPLICATIONS) return true; // still within the free allowance
+  if (!CREDITS_ENABLED) return false;                     // legacy hard wall
+  return (u?.applyCredits ?? 0) > 0;
+}
+
+/**
+ * Consume the money-gate slot ATOMICALLY, called immediately before an irreversible send (after all
+ * other gates pass). Both the free-allowance claim and the credit decrement are single conditional
+ * UPDATEs, so N concurrent requests claim at most FREE_APPLICATIONS free sends + the real credit
+ * balance — no TOCTOU bypass. (freeSendsUsed is a lifetime counter, backfilled from sent history so
+ * existing users aren't re-granted a free send.)
+ *
+ * @returns { allowed, creditConsumed, freeReserved }. If !allowed the caller must NOT send (show
+ *          paywall). On send failure the caller MUST refund whatever was taken: refundApplyCredit() if
+ *          creditConsumed, refundFreeSend() if freeReserved.
+ */
+export async function consumeApplyCredit(userId: string, plan: string): Promise<{ allowed: boolean; creditConsumed: boolean; freeReserved: boolean }> {
+  if (plan !== 'FREE') return { allowed: true, creditConsumed: false, freeReserved: false };
+
+  // 1. Claim a lifetime FREE send atomically (check + increment in ONE conditional UPDATE).
+  const freeRows = await prisma.$queryRaw<{ freeSendsUsed: number }[]>`
+    UPDATE "User" SET "freeSendsUsed" = "freeSendsUsed" + 1
+    WHERE id = ${userId} AND "freeSendsUsed" < ${FREE_APPLICATIONS}
+    RETURNING "freeSendsUsed"`;
+  if (freeRows.length === 1) return { allowed: true, creditConsumed: false, freeReserved: true };
+
+  // 2. Free allowance spent → need a purchased credit (only when credits are enabled).
+  if (!CREDITS_ENABLED) return { allowed: false, creditConsumed: false, freeReserved: false };
+  const credRows = await prisma.$queryRaw<{ applyCredits: number }[]>`
+    UPDATE "User" SET "applyCredits" = "applyCredits" - 1
+    WHERE id = ${userId} AND "applyCredits" > 0
+    RETURNING "applyCredits"`;
+  return credRows.length === 1
+    ? { allowed: true, creditConsumed: true, freeReserved: false }
+    : { allowed: false, creditConsumed: false, freeReserved: false };
+}
+
+/** Refund one apply credit (send failed after consumeApplyCredit reported creditConsumed). Best-effort. */
+export async function refundApplyCredit(userId: string): Promise<void> {
+  await prisma.$executeRaw`
+    UPDATE "User" SET "applyCredits" = "applyCredits" + 1 WHERE id = ${userId}`
+    .then(() => {}).catch(() => {});
+}
+
+/** Refund a claimed free-send slot (send failed after consumeApplyCredit reported freeReserved). Best-effort. */
+export async function refundFreeSend(userId: string): Promise<void> {
+  await prisma.$executeRaw`
+    UPDATE "User" SET "freeSendsUsed" = GREATEST("freeSendsUsed" - 1, 0) WHERE id = ${userId}`
+    .then(() => {}).catch(() => {});
+}
+
+/** Revoke previously-granted apply credits (Stripe refund / chargeback dispute). Clamped at 0. Best-effort. */
+export async function revokeApplyCredits(userId: string, n: number): Promise<void> {
+  if (!(n > 0)) return;
+  await prisma.$executeRaw`
+    UPDATE "User" SET "applyCredits" = GREATEST("applyCredits" - ${n}, 0) WHERE id = ${userId}`
+    .then(() => {}).catch(() => {});
+}
+
+/**
+ * Body for the 402 "application_limit" response. When CREDITS_ENABLED, advertises the $3/pack offer
+ * (new frontend renders the inline-charge modal); when off, the legacy $5/mo copy (unchanged behaviour
+ * for the current frontend, which ignores the extra fields).
+ */
+export function applyLimitResponse(to?: string): Record<string, unknown> {
+  return {
+    error: 'application_limit',
+    needsPurchase: CREDITS_ENABLED,
+    offer: CREDITS_ENABLED ? 'credits' : 'subscription',
+    packSize: CREDIT_PACK_SIZE,
+    packPriceCents: CREDIT_PACK_PRICE_CENTS,
+    message: CREDITS_ENABLED
+      ? `Your free application is used. Send ${CREDIT_PACK_SIZE} more for $${(CREDIT_PACK_PRICE_CENTS / 100).toFixed(CREDIT_PACK_PRICE_CENTS % 100 ? 2 : 0)}.`
+      : 'Your free application is used. Keep applying with PRO ($5/mo) — up to 20 applications a day, AI-written letters, your CV attached to every one.',
+    ...(to ? { to } : {}),
+  };
+}
