@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getStripe } from '@/lib/stripe';
 import { prisma } from '@/lib/db';
-import { CREDITS_ENABLED, CREDIT_PACK_SIZE, CREDIT_PACK_PRICE_CENTS } from '@/lib/apply-quota';
+import { CREDITS_ENABLED, CREDIT_PACK_PRICE_CENTS } from '@/lib/apply-quota';
 
 /**
  * POST /api/stripe/charge-credits
@@ -18,7 +18,12 @@ import { CREDITS_ENABLED, CREDIT_PACK_SIZE, CREDIT_PACK_PRICE_CENTS } from '@/li
  *    calls stripe.confirmCardPayment(clientSecret).
  *  - fresh card (`hasCard:false`): the client mounts a PaymentElement and calls stripe.confirmPayment.
  */
-export async function POST(_request: NextRequest) {
+// Allowed top-up amounts in cents (balance model, min $3). Whitelisted SERVER-SIDE so a tampered client
+// can never buy balance below price ($0.50/apply — credits derive strictly from the whitelisted amount).
+const TOPUP_AMOUNTS = [300, 500, 1000];
+const PER_APPLY_CENTS = 50;
+
+export async function POST(request: NextRequest) {
   try {
     if (!CREDITS_ENABLED) {
       return NextResponse.json({ error: 'disabled' }, { status: 403 });
@@ -28,6 +33,10 @@ export async function POST(_request: NextRequest) {
     if (!session?.user?.id || !session?.user?.email) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+
+    const body = await request.json().catch(() => ({}));
+    const amountCents = TOPUP_AMOUNTS.includes(Number(body?.amountCents)) ? Number(body.amountCents) : CREDIT_PACK_PRICE_CENTS;
+    const credits = Math.floor(amountCents / PER_APPLY_CENTS);
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -48,12 +57,12 @@ export async function POST(_request: NextRequest) {
     }
 
     const savedPm = user.stripePaymentMethodId;
-    const metadata = { type: 'apply_credits', userId: user.id, credits: String(CREDIT_PACK_SIZE) };
+    const metadata = { type: 'apply_credits', userId: user.id, credits: String(credits) };
 
     const pi = await stripe.paymentIntents.create(
       savedPm
         ? {
-            amount: CREDIT_PACK_PRICE_CENTS,
+            amount: amountCents,
             currency: 'usd',
             customer: customerId,
             payment_method: savedPm,
@@ -62,7 +71,7 @@ export async function POST(_request: NextRequest) {
             metadata,
           }
         : {
-            amount: CREDIT_PACK_PRICE_CENTS,
+            amount: amountCents,
             currency: 'usd',
             customer: customerId,
             automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
@@ -74,8 +83,8 @@ export async function POST(_request: NextRequest) {
     return NextResponse.json({
       clientSecret: pi.client_secret,
       hasCard: !!savedPm,
-      packSize: CREDIT_PACK_SIZE,
-      amountCents: CREDIT_PACK_PRICE_CENTS,
+      packSize: credits,
+      amountCents,
     });
   } catch (error) {
     console.error('[Charge Credits] Error:', error);
