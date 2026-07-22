@@ -13,21 +13,23 @@ export default async function DashboardLayout({
   const session = await auth();
   let userName = 'User';
   let userPlan = 'FREE';
+  let applyCredits = 0;
   if (session?.user?.id) {
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { name: true, plan: true },
+      select: { name: true, plan: true, applyCredits: true },
     });
     if (user) {
       userName = user.name || 'User';
       userPlan = user.plan;
+      applyCredits = user.applyCredits ?? 0;
     }
   }
 
   return (
     <>
       <PendingRegistrationHandler />
-      <AppShell userName={userName} userPlan={userPlan}>
+      <AppShell userName={userName} userPlan={userPlan} applyCredits={applyCredits}>
         {children}
       </AppShell>
     </>
