@@ -273,7 +273,6 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
 
   // The feed is a curated best-first shortlist (Strong → divider → Good); a chronological "Newest"
   // sort broke the tiering and pulled fresh-but-irrelevant roles up, so the toggle was removed.
-  const sortBy = 'match' as const;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   // Similar section pagination: first 50 rendered, +50 per "Show more" click down to the full pool.
   const [similarShown, setSimilarShown] = useState(50);
@@ -301,10 +300,16 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
 
   // The feed leads with verified matches; the unverified "similar" (not-100%) opps are split out and
   // only shown when the user opts in via a button. Other sort modes show everything inline.
-  const inMatchMode = sortBy === 'match' && activeSkills.size === 0;
+  const inMatchMode = activeSkills.size === 0;
   const verifiedCount = visible.filter(isVerified).length;
   const verifiedVisible = inMatchMode ? visible.filter(isVerified) : visible;
   const similarVisible = inMatchMode ? visible.filter(i => !isVerified(i)) : [];
+  // Newest-first ALWAYS (owner order 2026-07-23: "новые ставятся в самый верх", no toggle). Recency is
+  // applied WITHIN each section — verified stays above similar, so fresh-but-irrelevant roles still
+  // can't jump the tiering; freshness only reorders peers. (Fresh posts also get the best reply rates.)
+  const byNewest = (a: Job, b: Job) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  const verifiedList = [...verifiedVisible].sort(byNewest);
+  const similarList = [...similarVisible].sort(byNewest);
 
   // First-apply nudge for fresh (profile-only) signups, shown only until the first apply. (The
   // duplicate "Your best match" hero was removed — it just repeated the feed's first card.)
@@ -502,12 +507,12 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
           </div>
         ) : (
           <>
-            {verifiedVisible.map((item, i) => {
+            {verifiedList.map((item, i) => {
               // ONE divider between the STRONG tier (sent from our name) and the Good/rest tier (needs
               // the user's own SMTP). The feed gets re-ranked (semantic / fit-score), so Strong and
               // non-Strong interleave instead of staying cleanly Strong-first — show the banner just
               // ONCE, before the first non-Strong card, not at every Strong→non-Strong transition.
-              const showDivider = !hasSmtp && verifiedVisible.findIndex(x => x.matchLabel !== 'Strong') === i;
+              const showDivider = !hasSmtp && verifiedList.findIndex(x => x.matchLabel !== 'Strong') === i;
               return (
                 <div key={item.id}>
                   {showDivider && (
@@ -524,13 +529,13 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                 </div>
               );
             })}
-            {similarVisible.slice(0, similarShown).map((item, i) => renderCard(item, verifiedVisible.length + i))}
-            {similarVisible.length > similarShown && (
+            {similarList.slice(0, similarShown).map((item, i) => renderCard(item, verifiedList.length + i))}
+            {similarList.length > similarShown && (
               <div style={{ textAlign: 'center', padding: '14px 0 6px' }}>
                 <button
                   onClick={() => { setSimilarShown(n => n + 50); track('FUNNEL_STEP', { step: 'feed_show_more', shown: similarShown + 50 }); }}
                   style={{ background: '#fff', border: '1px solid #d7dae0', borderRadius: 10, padding: '10px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#2E3A00' }}>
-                  Show 50 more · {similarVisible.length - similarShown} left
+                  Show 50 more · {similarList.length - similarShown} left
                 </button>
               </div>
             )}
