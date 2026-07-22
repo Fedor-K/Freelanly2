@@ -77,7 +77,7 @@ function timeAgo(date: string): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasApplied = true, loopIds = [], vettedFeed = false, vetStatus = null, hasSmtp = false, strongCount = 0, arrivalItem = null }: {
+export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasApplied = true, loopIds = [], vettedFeed = false, vetStatus = null, hasSmtp = false, strongCount = 0, arrivalItem = null, applyWall = null }: {
   items: Job[];
   topSkills: [string, number][];
   sourceCounts: [string, number][];
@@ -88,6 +88,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   hasSmtp?: boolean;
   strongCount?: number;
   arrivalItem?: Job | null;
+  applyWall?: { offer: string; packSize: number; packPriceCents: number } | null;
 }) {
   // No useState wrapper: router.refresh() re-renders the server component with fresh items and the
   // vetted-feed polling relies on props actually updating.
@@ -162,7 +163,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
     }
   }, [items, track]);
 
-  async function handleApply(item: Job) {
+  async function handleApply(item: Job, opts?: { skipWall?: boolean }) {
     if (!item.applyEmail) return;
     // Funnel step 1 — user pressed Apply in the feed (this surface was previously untracked).
     track('OPPORTUNITY_APPLY_CLICK', { method: 'feed', opportunityId: item.type === 'opportunity' ? item.id : undefined, jobId: item.type === 'job' ? item.id : undefined, title: item.title });
@@ -170,6 +171,16 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
     setDraftSubject('');
     setDraftBody('');
     setDraftBlocked(null);
+
+    // Walled (known since page load) → the top-up modal opens INSTANTLY. No draft request is made (it
+    // would 402 anyway), so no "Generating your cover letter…" flash before the payment screen.
+    // skipWall = post-payment retry (the state update hasn't re-rendered this closure yet).
+    if (wall && !opts?.skipWall) {
+      setDraftGenerating(false);
+      setDraftBlocked({ reason: 'application_limit', message: '', offer: wall.offer, packSize: wall.packSize, packPriceCents: wall.packPriceCents });
+      track('FUNNEL_STEP', { step: 'application_paywall_shown', surface: 'client_instant', opportunityId: item.type === 'opportunity' ? item.id : undefined });
+      return;
+    }
     setDraftGenerating(true);
 
     const startedAt = Date.now();
@@ -199,6 +210,8 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
         const BLOCKING = ['poor_match', 'already_applied', 'limit_reached', 'resume_required', 'unavailable', 'smtp_required', 'generation_limit', 'application_limit'];
         if (BLOCKING.includes(reason)) {
           setDraftBlocked({ reason, message, offer: (data as { offer?: string }).offer, packSize: (data as { packSize?: number }).packSize, packPriceCents: (data as { packPriceCents?: number }).packPriceCents });
+          // Server says walled → remember it so the NEXT Apply click opens the modal instantly.
+          if (reason === 'application_limit') setWall({ offer: (data as { offer?: string }).offer || 'subscription', packSize: (data as { packSize?: number }).packSize || 6, packPriceCents: (data as { packPriceCents?: number }).packPriceCents || 300 });
           // Server reports we've already applied here (it checks ALL of the user's applications, not just
           // the feed's queueable set — so the card can still show "Apply"). Flip it to the Applied state
           // now: the button turns into "✓ Applied" and can't be re-clicked into the same wall. This was
@@ -242,6 +255,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
         // Application paywall (send blocked past the free first) → swap the editor for the upgrade wall.
         if (data.error === 'application_limit') {
           setDraftBlocked({ reason: 'application_limit', message: data.message || '', offer: data.offer, packSize: data.packSize, packPriceCents: data.packPriceCents });
+          setWall({ offer: data.offer || 'subscription', packSize: data.packSize || 6, packPriceCents: data.packPriceCents || 300 });
         } else {
           alert(data.error || 'Failed to send');
         }
@@ -276,6 +290,9 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   // Similar section pagination: first 50 rendered, +50 per "Show more" click down to the full pool.
   const [similarShown, setSimilarShown] = useState(50);
+  // Money-gate state known at page load: walled → Apply opens the top-up modal instantly (no request,
+  // no fake "generating…" flash). Cleared after a successful top-up; re-set if a 402 comes back.
+  const [wall, setWall] = useState(applyWall ?? null);
   const [showFilters, setShowFilters] = useState(false);
   // Similar (non-verified) opps are ALWAYS visible — owner order 2026-07-12: "показывать, ничего
   // нигде не прятать" (no hide toggle either). Honesty lives in the labeling (the "not verified
@@ -573,7 +590,15 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                   packSize={draftBlocked.packSize}
                   packPriceCents={draftBlocked.packPriceCents}
                   source="application_paywall_feed"
-                  onCreditsReady={() => { setDraftBlocked(null); handleSendDraft(); }}
+                  onCreditsReady={() => {
+                    setWall(null);
+                    setDraftBlocked(null);
+                    // Two entry paths: (a) instant wall — no draft yet → generate + preview the letter
+                    // (never blind-send after payment); (b) send-stage 402 — the editor already has a
+                    // reviewed draft → just retry the send.
+                    if (draftBody) handleSendDraft();
+                    else if (draftItem) handleApply(draftItem, { skipWall: true });
+                  }}
                 />
               ) : (
                 <div style={{padding: '40px 28px', textAlign: 'center'}}>

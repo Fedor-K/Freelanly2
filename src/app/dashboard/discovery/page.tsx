@@ -6,6 +6,7 @@ import { DiscoveryFeed } from '@/components/app/DiscoveryFeed';
 import { ProfileBoostNudge } from '@/components/app/ProfileBoostNudge';
 import { deriveCategorySlugs } from '@/lib/loop-routing';
 import { buildFitContext, scoreFitLabeled, type FitLabel, type FitResult } from '@/lib/fit-score';
+import { hasApplyAllowance, CREDITS_ENABLED, CREDIT_PACK_SIZE, CREDIT_PACK_PRICE_CENTS } from '@/lib/apply-quota';
 import { verifiedSkillsFor, type ReviewRow } from '@/lib/github-review/evidence';
 import { readVettedFeed } from '@/services/feed-vet';
 import { profileStamp } from '@/services/matching/assess-pairing-cached';
@@ -46,6 +47,14 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
   // parsedProfile there's nothing to match against. Also prevents the old login-loop.
   const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { plan: true, parsedProfile: true, resumeUrl: true, resumeText: true, githubUrl: true, videoIntroUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } } } });
   if (!me?.resumeUrl) redirect('/dashboard/settings#profile');
+
+  // Money-gate state, computed once at page load: a walled user's Apply click opens the top-up modal
+  // INSTANTLY client-side (no round-trip, no fake "generating…" flash). The server gate still enforces
+  // on the actual send; the client just uses this to skip a doomed draft request.
+  const applyAllowed = await hasApplyAllowance(session.user.id, me.plan);
+  const applyWall = !applyAllowed
+    ? { offer: CREDITS_ENABLED ? 'credits' : 'subscription', packSize: CREDIT_PACK_SIZE, packPriceCents: CREDIT_PACK_PRICE_CENTS }
+    : null;
   // Repo-verified skills (fresh, positive GitHub review) weigh extra in ranking + light the card badge.
   const ghVerifiedSkills = verifiedSkillsFor({ githubUrl: me.githubUrl, parsedProfile: me.parsedProfile }, (me.githubReview as ReviewRow | null) ?? null);
   const ghVerifiedSet = new Set(ghVerifiedSkills.map(v => v.toLowerCase().trim()));
@@ -467,6 +476,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
       <div className="disco-grid">
         <DiscoveryFeed
           items={items}
+          applyWall={applyWall}
           topSkills={topSkills}
           sourceCounts={Object.entries(sourceCounts)}
           hasApplied={hasApplied}
