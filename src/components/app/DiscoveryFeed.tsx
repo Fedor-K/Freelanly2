@@ -310,7 +310,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
 
   const renderCard = (item: Job, i: number) => (
     <div key={item.id} className="job-card" style={{cursor: 'default'}}>
-      <PosterAvatar avatar={item.avatar} letter={item.companyName[0]} color={COLORS[i % COLORS.length]} />
+      <PosterAvatar avatar={item.avatar} letter={(item.companyName || item.title)[0]} color={COLORS[i % COLORS.length]} />
       <div>
         <div className="row gap-2">
           <div className="job-title">{item.title}</div>
@@ -326,7 +326,9 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
           )}
           <span className="chip"><span className="chip-dot live"></span>{timeAgo(item.createdAt)}</span>
         </div>
-        <div className="job-company">{item.companyName} · {item.source === 'linkedin' ? 'via LinkedIn' : item.source}</div>
+        {/* Person-posters are anonymized upstream (companyName comes through empty) — show the company
+            when we have one, otherwise just the source. */}
+        <div className="job-company">{item.companyName ? `${item.companyName} · ` : ''}{item.source === 'linkedin' ? 'via LinkedIn' : item.source}</div>
         {item.matchLabel !== 'Weak' && matchedItems(item).length > 0 && (
           <div style={{fontSize: '12px', color: 'var(--ink-4)', margin: '3px 0 2px'}}>
             <strong style={{color: 'var(--good, #2E7D32)', fontWeight: 600}}>Why you&apos;re seeing this:</strong>{' '}
@@ -536,7 +538,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
             <div style={{padding: '16px 24px', borderBottom: '1px solid rgba(11,12,15,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
               <div>
                 <div style={{fontSize: '15px', fontWeight: 500}}>{draftItem.title}</div>
-                <div style={{fontSize: '12px', color: '#5C6068', marginTop: '2px'}}>{draftItem.companyName} · {draftItem.applyEmail}</div>
+                <div style={{fontSize: '12px', color: '#5C6068', marginTop: '2px'}}>{draftItem.companyName ? `${draftItem.companyName} · ` : ''}{draftItem.applyEmail}</div>
               </div>
               <button style={{background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#5C6068'}} onClick={() => setDraftItem(null)}>✕</button>
             </div>

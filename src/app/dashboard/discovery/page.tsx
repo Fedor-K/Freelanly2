@@ -141,7 +141,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
   const qOppIds = [...new Set(queueApps.map(a => a.opportunityId!).filter(Boolean))];
   const qOpps = qOppIds.length ? await prisma.opportunity.findMany({
     where: { id: { in: qOppIds }, isActive: true, OR: [{ applyEmail: { not: null } }, { applyUrl: { not: null } }] },
-    select: { id: true, title: true, clientName: true, clientAvatar: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, company: { select: { name: true } } },
+    select: { id: true, title: true, clientName: true, clientType: true, clientAvatar: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, company: { select: { name: true } } },
   }) : [];
   const qOppById = new Map(qOpps.map(o => [o.id, o]));
   const queueItemsRaw = queueApps.map((a): FeedItem | null => {
@@ -150,7 +150,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
     const fit = scoreFitLabeled(fitCtx, { title: o.title, skills: o.skills });
     return {
       id: o.id, type: 'opportunity', title: o.title,
-      companyName: o.company?.name || o.posterCompany || o.clientName || 'Unknown', avatar: o.clientAvatar ?? null,
+      companyName: o.company?.name || o.posterCompany || (o.clientType === 'company' ? o.clientName : '') || '', avatar: o.clientAvatar ?? null,
       description: o.description, source: o.source === 'ats_lever' ? 'Lever' : 'linkedin', createdAt: o.createdAt.toISOString(),
       skills: o.skills, location: o.location, applyEmail: o.applyEmail, applyUrl: o.applyUrl,
       matchLabel: (a.matchLabel as FitLabel) || 'Good', aiVerified: true, alreadyApplied: SENT_STATUS.has(a.status),
@@ -213,7 +213,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
   const [opportunities, jobs] = await Promise.all([
     oppIds.length ? prisma.opportunity.findMany({
       where: { id: { in: oppIds } },
-      select: { id: true, title: true, clientName: true, clientAvatar: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, sourceUrl: true, company: { select: { name: true } } },
+      select: { id: true, title: true, clientName: true, clientType: true, clientAvatar: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, sourceUrl: true, company: { select: { name: true } } },
     }) : Promise.resolve([]),
     jobIds.length ? prisma.job.findMany({
       where: { id: { in: jobIds } },
@@ -229,7 +229,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
       if (!o) return null;
       return {
         id: o.id, type: 'opportunity' as const, title: o.title,
-        companyName: o.company?.name || o.posterCompany || o.clientName || 'Unknown', avatar: o.clientAvatar ?? null,
+        companyName: o.company?.name || o.posterCompany || (o.clientType === 'company' ? o.clientName : '') || '', avatar: o.clientAvatar ?? null,
         description: o.description, source: o.source === 'ats_lever' ? 'Lever' : 'linkedin', createdAt: o.createdAt.toISOString(),
         skills: o.skills, location: o.location, applyEmail: o.applyEmail, applyUrl: o.applyUrl,
         matchLabel: noVerdictOpps.has(o.id) ? 'Weak' : r.label, aiVerified: false, alreadyApplied: appliedOppIds.has(o.id),
@@ -292,7 +292,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
     const shownIds = new Set(items.map(i => i.id));
     const atsPool = await prisma.opportunity.findMany({
       where: { isActive: true, createdAt: { gte: weekAgo }, applyUrl: { not: null }, applyEmail: null },
-      select: { id: true, title: true, clientName: true, clientAvatar: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, company: { select: { name: true } } },
+      select: { id: true, title: true, clientName: true, clientType: true, clientAvatar: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, company: { select: { name: true } } },
     });
     const extraAts: FeedItem[] = atsPool
       .filter(o => !shownIds.has(o.id) && !appliedOppIds.has(o.id) && !noVerdictOpps.has(o.id))
@@ -302,7 +302,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
       .slice(0, ATS_SLOTS - atsInList)
       .map(({ o, fit }) => ({
         id: o.id, type: 'opportunity' as const, title: o.title,
-        companyName: o.company?.name || o.posterCompany || o.clientName || 'Unknown', avatar: o.clientAvatar ?? null,
+        companyName: o.company?.name || o.posterCompany || (o.clientType === 'company' ? o.clientName : '') || '', avatar: o.clientAvatar ?? null,
         description: o.description, source: o.source === 'ats_lever' ? 'Lever' : 'linkedin', createdAt: o.createdAt.toISOString(),
         skills: o.skills, location: o.location, applyEmail: o.applyEmail, applyUrl: o.applyUrl,
         matchLabel: fit.label, aiVerified: false, alreadyApplied: false,
@@ -330,7 +330,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
       const dirIds = vf.approvedIds.filter(id => !queueIds2.has(id) && !atsIds.has(id));
       const dirOpps = dirIds.length ? await prisma.opportunity.findMany({
         where: { id: { in: dirIds } },
-        select: { id: true, title: true, clientName: true, clientAvatar: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, company: { select: { name: true } } },
+        select: { id: true, title: true, clientName: true, clientType: true, clientAvatar: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, company: { select: { name: true } } },
       }) : [];
       const dirById = new Map(dirOpps.map(o => [o.id, o]));
       const dirItems = dirIds.map((id) => {
@@ -338,7 +338,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
         if (!o || !f) return null;
         return {
           id: o.id, type: 'opportunity' as const, title: o.title,
-          companyName: o.company?.name || o.posterCompany || o.clientName || 'Unknown', avatar: o.clientAvatar ?? null,
+          companyName: o.company?.name || o.posterCompany || (o.clientType === 'company' ? o.clientName : '') || '', avatar: o.clientAvatar ?? null,
           description: o.description, source: o.source === 'ats_lever' ? 'Lever' : 'linkedin', createdAt: o.createdAt.toISOString(),
           skills: o.skills, location: o.location, applyEmail: o.applyEmail, applyUrl: o.applyUrl,
           // Badge from the GATE's label (what the apply gate will also use), NOT the lexical scorer —
@@ -398,7 +398,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
   if (arrivalId && !arrivalWouldWall) {
     const ao = await prisma.opportunity.findUnique({
       where: { id: arrivalId },
-      select: { id: true, title: true, clientName: true, clientAvatar: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, isActive: true, company: { select: { name: true } } },
+      select: { id: true, title: true, clientName: true, clientType: true, clientAvatar: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, isActive: true, company: { select: { name: true } } },
     });
     if (ao && ao.isActive && ao.applyEmail) {
       const fit = scoreFitLabeled(fitCtx, { title: ao.title, skills: ao.skills });
