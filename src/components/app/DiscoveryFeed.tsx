@@ -275,6 +275,8 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   // sort broke the tiering and pulled fresh-but-irrelevant roles up, so the toggle was removed.
   const sortBy = 'match' as const;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Similar section pagination: first 50 rendered, +50 per "Show more" click down to the full pool.
+  const [similarShown, setSimilarShown] = useState(50);
   const [showFilters, setShowFilters] = useState(false);
   // Similar (non-verified) opps are ALWAYS visible — owner order 2026-07-12: "показывать, ничего
   // нигде не прятать" (no hide toggle either). Honesty lives in the labeling (the "not verified
@@ -522,7 +524,16 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                 </div>
               );
             })}
-            {similarVisible.map((item, i) => renderCard(item, verifiedVisible.length + i))}
+            {similarVisible.slice(0, similarShown).map((item, i) => renderCard(item, verifiedVisible.length + i))}
+            {similarVisible.length > similarShown && (
+              <div style={{ textAlign: 'center', padding: '14px 0 6px' }}>
+                <button
+                  onClick={() => { setSimilarShown(n => n + 50); track('FUNNEL_STEP', { step: 'feed_show_more', shown: similarShown + 50 }); }}
+                  style={{ background: '#fff', border: '1px solid #d7dae0', borderRadius: 10, padding: '10px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#2E3A00' }}>
+                  Show 50 more · {similarVisible.length - similarShown} left
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
