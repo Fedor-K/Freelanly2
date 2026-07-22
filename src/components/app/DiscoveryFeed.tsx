@@ -13,6 +13,7 @@ type Job = {
   type: 'opportunity' | 'job';
   title: string;
   companyName: string;
+  avatar?: string | null;
   description: string;
   source: string;
   createdAt: string;
@@ -32,6 +33,21 @@ type Job = {
 };
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Recruiter photo when we have it (LinkedIn poster avatar, ~68% of opportunities), colored-letter
+ *  fallback otherwise. LinkedIn CDN URLs carry an expiry signature and 403 after a few weeks, so the
+ *  img falls back to the letter on ANY load error — no broken images in the feed. */
+function PosterAvatar({ avatar, letter, color }: { avatar?: string | null; letter: string; color: string }) {
+  const [broken, setBroken] = useState(false);
+  if (!avatar || broken) {
+    return <div className="logo" style={{ background: color }}>{letter}</div>;
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img className="logo" src={avatar} alt="" referrerPolicy="no-referrer" loading="lazy"
+      style={{ objectFit: 'cover' }} onError={() => setBroken(true)} />
+  );
+}
 
 // A verified match = the auto-apply matcher actually vetted it (Strong or Good). Only these are
 // badged; everything else is an unbadged "closest opportunity" for browsing.
@@ -294,7 +310,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
 
   const renderCard = (item: Job, i: number) => (
     <div key={item.id} className="job-card" style={{cursor: 'default'}}>
-      <div className="logo" style={{background: COLORS[i % COLORS.length]}}>{item.companyName[0]}</div>
+      <PosterAvatar avatar={item.avatar} letter={item.companyName[0]} color={COLORS[i % COLORS.length]} />
       <div>
         <div className="row gap-2">
           <div className="job-title">{item.title}</div>
