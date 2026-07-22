@@ -508,9 +508,12 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
     // THIS project auto-opened in the apply modal. The user finishes the apply there, with their
     // real matched cards visible behind it — not on a single dead-end public page.
     const redirectUrl = `/dashboard/discovery?apply=${project.id}`;
-    // Optional card-capture step (hybrid, CREDITS_ENABLED): saving a card now makes the first $3 pack
-    // one-tap at the wall. Fully skippable, so registration completion is never gated on a card.
-    if (process.env.NEXT_PUBLIC_CREDITS_ENABLED === 'true') {
+    // Optional card-capture step — DISABLED by default (owner call 2026-07-23): live attribution showed
+    // 6/20 fresh registrants bounced ON this screen (~30%), tanking first-send from ~62% to ~30%, for
+    // only 2 saved cards. Registration goes straight to the feed; the card is collected inline at the
+    // top-up wall instead (peak intent). Re-enable via NEXT_PUBLIC_ONBOARDING_CARD=true if we ever want
+    // to test it again (a post-first-send "save card" offer is the better slot).
+    if (process.env.NEXT_PUBLIC_ONBOARDING_CARD === 'true') {
       setPendingRedirect(redirectUrl);
       setCardStep(true);
       return;
