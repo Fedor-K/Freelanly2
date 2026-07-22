@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { signOut } from 'next-auth/react';
+import { ApplyPaywallModal } from '@/components/app/ApplyPaywallModal';
 
 const ICONS: Record<string, string> = {
   home:    '<path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1h-5v-7h-6v7H4a1 1 0 01-1-1V9.5z"/>',
@@ -185,10 +186,11 @@ function NotificationBell() {
   );
 }
 
-export function AppShell({ children, userName, userPlan }: { children: React.ReactNode; userName?: string; userPlan?: string }) {
+export function AppShell({ children, userName, userPlan, applyCredits = 0 }: { children: React.ReactNode; userName?: string; userPlan?: string; applyCredits?: number }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [topupOpen, setTopupOpen] = useState(false);
   const initials = userName?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
   const isActive = (item: { id: string; href: string }) => {
@@ -225,13 +227,25 @@ export function AppShell({ children, userName, userPlan }: { children: React.Rea
 
         <div className="sb-spacer"></div>
 
-        {/* FREE reality is "first application free, then PRO" — the old "20 applies / day" line
-            described the send cap (now the ALL-plans cap), not the free tier, and read as a promise. */}
+        {/* Balance model (2026-07-22): FREE = first application free, then a top-up balance at $0.50
+            per application. The widget shows the live balance and opens the same top-up flow as the
+            wall; PRO $5/mo stays as the unlimited alternative. */}
         {userPlan === 'FREE' && (
           <div className="sb-trial">
             <div className="label">Free plan</div>
-            <div className="days">First application free</div>
-            <a href="/dashboard/billing" className="upgrade">PRO $5/mo — up to 20 applies a day</a>
+            <div className="days">
+              {applyCredits > 0
+                ? `Balance: $${(applyCredits * 0.5).toFixed(2)} · ${applyCredits} ${applyCredits === 1 ? 'application' : 'applications'}`
+                : 'First application free'}
+            </div>
+            <button onClick={() => setTopupOpen(true)} className="upgrade"
+              style={{ border: 'none', cursor: 'pointer', width: '100%', textAlign: 'center', font: 'inherit' }}>
+              + Top up balance — from $3
+            </button>
+            <a href="/dashboard/billing" className="upgrade"
+              style={{ background: 'transparent', color: 'var(--ink-on-dark-2, #9aa0a6)', fontSize: '11px', marginTop: '6px', display: 'block', textAlign: 'center' }}>
+              or PRO $5/mo — up to 20 applies a day
+            </a>
           </div>
         )}
 
@@ -287,6 +301,24 @@ export function AppShell({ children, userName, userPlan }: { children: React.Rea
         {/* Page content */}
         {children}
       </main>
+
+      {/* Balance top-up overlay — same flow as the wall (amount selector + inline card, $5/mo secondary).
+          onCreditsReady here just closes + reloads so the sidebar balance refreshes. */}
+      {topupOpen && (
+        <div onClick={() => setTopupOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(10,12,8,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: '16px', maxWidth: '420px', width: '100%', position: 'relative', maxHeight: '92vh', overflowY: 'auto' }}>
+            <button onClick={() => setTopupOpen(false)} aria-label="Close"
+              style={{ position: 'absolute', top: '10px', right: '12px', border: 'none', background: 'none', fontSize: '18px', cursor: 'pointer', color: '#8a8f98', zIndex: 1 }}>✕</button>
+            <ApplyPaywallModal
+              message="Top up your balance"
+              source="sidebar_topup"
+              onCreditsReady={() => { setTopupOpen(false); window.location.reload(); }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
