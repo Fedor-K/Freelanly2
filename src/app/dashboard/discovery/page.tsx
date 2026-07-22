@@ -27,7 +27,6 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
   // on /freelance/[slug]; the client auto-opens the apply modal for it on top of the live feed.
   const arrivalId = (await searchParams)?.apply || null;
 
-  const perPage = 50;
 
   // Vetted-only feed (two-stage gate): render ONLY gate-approved cards for flagged users.
   // VETTED_FEED = 'all' | comma-separated user ids | unset (off).
@@ -206,7 +205,9 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
   // demoted to Weak, instead of vanishing.
   const queueIds = new Set(queueItems.map(i => i.id));
   const closestRanked = ranked.filter(r => !queueIds.has(r.id) && r.score > 0);
-  const closestSlice = closestRanked.slice(0, perPage);
+  // Pass the FULL ranked similar pool (sanity-capped at 300) — the client renders the first `perPage`
+  // and reveals +50 per "Show more" click down to the end (owner ask 2026-07-23; was a hard 50 cap).
+  const closestSlice = closestRanked.slice(0, 300);
 
   const oppIds = closestSlice.filter(r => r.type === 'opportunity').map(r => r.id);
   const jobIds = closestSlice.filter(r => r.type === 'job').map(r => r.id);
