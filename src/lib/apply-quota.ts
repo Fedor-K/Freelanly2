@@ -197,7 +197,7 @@ export function applyLimitResponse(to?: string): Record<string, unknown> {
     packSize: CREDIT_PACK_SIZE,
     packPriceCents: CREDIT_PACK_PRICE_CENTS,
     message: CREDITS_ENABLED
-      ? `Your free application is used. Send ${CREDIT_PACK_SIZE} more for $${(CREDIT_PACK_PRICE_CENTS / 100).toFixed(CREDIT_PACK_PRICE_CENTS % 100 ? 2 : 0)}.`
+      ? 'Your free application is used. Top up your balance to keep applying — $0.50 per application (min $3 top-up, never expires).'
       : 'Your free application is used. Keep applying with PRO ($5/mo) — up to 20 applications a day, AI-written letters, your CV attached to every one.',
     ...(to ? { to } : {}),
   };

@@ -15,14 +15,22 @@ function btnStyle(busy: boolean): CSSProperties {
   };
 }
 
+// Balance top-up options (AI-service model, owner decision 2026-07-22): the user tops up a BALANCE
+// (min $3) and applies draw from it at $0.50 each — not "buying a pack". Server whitelists the amounts.
+const TOPUPS = [
+  { cents: 300, label: '$3' },
+  { cents: 500, label: '$5' },
+  { cents: 1000, label: '$10' },
+];
+
 /**
- * Pay-per-apply paywall content ($3 → 6 credits, inline, no redirect). Dropped INTO the existing wall
- * render blocks (feed draft modal / project review), replacing the old "$5/mo redirect" CTA when the
- * 402 says offer:'credits'. On success it grants credits synchronously (confirm endpoint) then calls
- * onCreditsReady() to RETRY the same apply, which consumes one credit and sends.
+ * Balance top-up wall (inline, no redirect). Dropped INTO the existing wall render blocks (feed draft
+ * modal / project review), replacing the old "$5/mo redirect" CTA when the 402 says offer:'credits'.
+ * On success it grants the balance synchronously (confirm endpoint) then calls onCreditsReady() to
+ * RETRY the same apply, which draws $0.50 from the balance and sends.
  */
 export function ApplyPaywallModal({
-  message, packSize = 6, packPriceCents = 300, source, onCreditsReady,
+  message, source, onCreditsReady,
 }: {
   message?: string; packSize?: number; packPriceCents?: number; source: string; onCreditsReady: () => void;
 }) {
@@ -31,7 +39,9 @@ export function ApplyPaywallModal({
   const [showCardForm, setShowCardForm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>('');
-  const priceLabel = `$${(packPriceCents / 100).toFixed(packPriceCents % 100 ? 2 : 0)}`;
+  const [amountCents, setAmountCents] = useState(300);
+  const applies = amountCents / 50;
+  const priceLabel = `$${(amountCents / 100).toFixed(amountCents % 100 ? 2 : 0)}`;
 
   async function grantAndRetry(paymentIntentId: string) {
     // Grant credits server-side BEFORE the retry so consumeApplyCredit finds a balance (idempotent with
@@ -46,10 +56,10 @@ export function ApplyPaywallModal({
 
   async function start() {
     setBusy(true); setError('');
-    track('FUNNEL_STEP', { step: 'credit_charge_click', source });
+    track('FUNNEL_STEP', { step: 'credit_charge_click', source, amountCents });
     try {
       const res = await fetch('/api/stripe/charge-credits', {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ amountCents }),
       });
       const data = await res.json();
       if (!res.ok || !data.clientSecret) { setError(data.error || 'Could not start payment'); setBusy(false); return; }
@@ -73,19 +83,34 @@ export function ApplyPaywallModal({
     <div style={{ padding: '28px 24px', textAlign: 'center' }}>
       <div style={{ fontSize: 24, marginBottom: 10 }}>✨</div>
       <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{message || 'Your free application is used'}</div>
-      <div style={{ fontSize: 13, color: '#5C6068', marginBottom: 18, lineHeight: 1.5 }}>
-        Send {packSize} more applications for {priceLabel}. Charged to your card — no subscription.
+      <div style={{ fontSize: 13, color: '#5C6068', marginBottom: 14, lineHeight: 1.5 }}>
+        Top up your balance and keep applying — <b>$0.50 per application</b>. No subscription, balance never expires.
       </div>
 
       {error && <div style={{ color: '#c0392b', fontSize: 13, marginBottom: 12 }}>{error}</div>}
 
       {!showCardForm ? (
-        <button onClick={start} disabled={busy} style={btnStyle(busy)}>
-          {busy ? 'Processing…' : `Send ${packSize} applications — ${priceLabel}`}
-        </button>
+        <>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 12 }}>
+            {TOPUPS.map((t) => (
+              <button key={t.cents} onClick={() => setAmountCents(t.cents)} disabled={busy}
+                style={{
+                  flex: 1, padding: '10px 6px', borderRadius: 10, cursor: 'pointer', fontSize: 13,
+                  border: amountCents === t.cents ? '2px solid #84cc16' : '1px solid #d7dae0',
+                  background: amountCents === t.cents ? '#f4fce8' : '#fff', fontWeight: 700, color: '#1a2e05',
+                }}>
+                {t.label}
+                <div style={{ fontSize: 11, fontWeight: 400, color: '#8a8f98' }}>{t.cents / 50} applies</div>
+              </button>
+            ))}
+          </div>
+          <button onClick={start} disabled={busy} style={btnStyle(busy)}>
+            {busy ? 'Processing…' : `Top up ${priceLabel} →`}
+          </button>
+        </>
       ) : clientSecret ? (
         <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
-          <CardForm priceLabel={priceLabel} packSize={packSize} clientSecret={clientSecret}
+          <CardForm priceLabel={priceLabel} packSize={applies} clientSecret={clientSecret}
             onSucceeded={grantAndRetry} onError={setError} />
         </Elements>
       ) : null}
@@ -121,7 +146,7 @@ function CardForm({
     <div>
       <div style={{ textAlign: 'left', marginBottom: 14 }}><PaymentElement /></div>
       <button onClick={pay} disabled={busy || !stripe} style={btnStyle(busy)}>
-        {busy ? 'Processing…' : `Pay ${priceLabel} for ${packSize} applications`}
+        {busy ? 'Processing…' : `Top up ${priceLabel} (${packSize} applications)`}
       </button>
     </div>
   );
