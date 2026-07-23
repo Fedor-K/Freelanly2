@@ -104,7 +104,7 @@ export default function HowItWorksPage() {
               <div className="logo" style={{background:'#A8E024'}}>V</div>
               <div>
                 <div className="title">Full-Stack Engineer — cloud platform</div>
-                <div className="meta">vercel.com/careers · contract · 6h ahead of LinkedIn</div>
+                <div className="meta">company careers page · contract · found in minutes</div>
               </div>
               <span className="age">12m</span>
             </div>
