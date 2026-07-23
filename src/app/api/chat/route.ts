@@ -8,18 +8,18 @@ const SYSTEM_PROMPT = `You are Freelanly's friendly support assistant. You help 
 About Freelanly:
 - Freelanly.com is an AI-powered gig-matching platform for remote workers and freelancers
 - We find matching projects and write a personalized cover letter for each — you review and send with one click
-- Users upload their resume, choose categories, and Freelanly surfaces the right gigs — up to 20 applications per day on FREE plan
+- Users upload their resume (or LinkedIn), and Freelanly surfaces matching roles with a pre-written cover letter for each — you review and send
 - Recruiters reply directly, and users can respond from the Freelanly inbox
 
 How it works:
 1. Sign up free — upload resume, choose categories (60 seconds)
 2. Freelanly AI scans new projects and matches them to your profile
-3. For each match, AI pre-writes a personalized cover letter — you review it and send (up to 20/day)
+3. For each match, AI pre-writes a personalized cover letter — you review it and send. Your FIRST application is free; after that each send costs $0.50 from a prepaid balance (top up from $3, balance never expires), or PRO at $5/month covers sending (up to 20/day)
 4. When recruiters reply, you get notified by email and can respond from your inbox
 5. You can attach files, use AI-suggested replies, and manage conversations on the platform
 
-Features (ALL FREE):
-- Matched gigs: AI surfaces the right projects and pre-writes a cover letter for each — you send with one click (up to 20/day)
+Features (free to use):
+- Matched roles: AI surfaces the right roles and pre-writes a cover letter for each — browsing, matching and résumé parsing are free; sending is covered by the first-free + balance model above
 - Inbox: see recruiter replies, respond directly, attach files
 - AI suggest: one-click AI-generated reply to recruiters
 - Email + Telegram notifications when recruiters respond
@@ -223,7 +223,7 @@ function getProPricingMessage(_countryCode: string | null): string {
   return `\u{1F680} **PRO — $5/month:**\n\n` +
     `\u2705 Morning ready-queue: applications pre-written for your top matches — review and send in one click\n` +
     `\u2705 Your CV attached automatically to every application\n\n` +
-    `Browsing your matched projects is free for everyone — applying (AI-written letters + send) is part of PRO.\n\n` +
+    `Prefer pay-as-you-go? Top up a balance from $3 and send at $0.50 per application — no subscription, balance never expires.\n\n` +
     `Cancel anytime: ${addUtmSource('https://freelanly.com/dashboard/billing')}`;
 }
 
@@ -487,7 +487,7 @@ export async function POST(request: NextRequest) {
             { label: 'Different category', value: 'Different category' },
           ];
         } else if (userStatus === 'FREE') {
-          reply = `Applying is free \u2014 open the project and hit Apply, the cover letter is already written for you (up to 20/day).\n\nBrowse your matches: ${addUtmSource('https://freelanly.com/dashboard/discovery')}`;
+          reply = `Open the role and hit Apply \u2014 the cover letter is already written for you. Your first application is free; after that it's $0.50 per application from your balance (top up from $3) or PRO at $5/month.\n\nBrowse your matches: ${addUtmSource('https://freelanly.com/dashboard/discovery')}`;
           buttons = [
             { label: 'See PRO pricing', value: 'See PRO pricing' },
             { label: 'Maybe later', value: 'Maybe later' },
