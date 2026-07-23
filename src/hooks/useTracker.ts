@@ -63,7 +63,8 @@ type TrackAction =
   | 'FUNNEL_STEP'
   // Other
   | 'UNSUBSCRIBE'
-  | 'CONTACT_VIEW';
+  | 'CONTACT_VIEW'
+  | 'CLIENT_ERROR';
 
 interface TrackEvent {
   action: TrackAction;

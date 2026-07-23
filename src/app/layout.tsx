@@ -23,6 +23,7 @@ import { GclidCapture } from "@/components/analytics/GclidCapture";
 import { TrackPageView } from "@/components/analytics/TrackPageView";
 import { PaymentReturnHandler } from "@/components/PaymentReturnHandler";
 import { ConversionUTMTracker } from "@/components/ConversionUTMTracker";
+import { ClientErrorTracker } from "@/components/analytics/ClientErrorTracker";
 import { ChatWidget } from "@/components/ChatWidget";
 import { Suspense } from "react";
 import Script from "next/script";
@@ -146,6 +147,7 @@ export default function RootLayout({
             <PaymentReturnHandler />
             <ConversionUTMTracker />
           </Suspense>
+          <ClientErrorTracker />
           {children}
           <Analytics />
           {/* ExitIntentPopup removed — annoying UX */}

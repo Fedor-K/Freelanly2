@@ -1977,6 +1977,10 @@ enum ActivityAction {
   FUNNEL_STEP
 
   IMPORT_SKIP
+
+  // Client-side JS errors (window.onerror / unhandledrejection) — added 2026-07-23 after the
+  // paywall card form broke silently for 2 days. Enum value added to prod via raw DDL.
+  CLIENT_ERROR
 }
 
 // ============================================
