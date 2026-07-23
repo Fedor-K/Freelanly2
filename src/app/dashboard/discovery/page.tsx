@@ -470,7 +470,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
           field: typeof pp?.field === 'string' ? (pp.field as string) : null,
           skills: Array.isArray(pp?.skills) ? (pp.skills as unknown[]).map(String) : [],
         }).some(sl => ['engineering', 'devops', 'data', 'qa', 'security'].includes(sl));
-        return <ProfileBoostNudge askVideo={!me.videoIntroUrl} askGithub={isDev && !me.githubUrl} />;
+        return <ProfileBoostNudge askGithub={isDev && !me.githubUrl} />;
       })()}
 
       <div className="disco-grid">
