@@ -4,7 +4,7 @@ import '../marketing-styles.css';
 import './pricing-design.css';
 
 export const metadata: Metadata = {
-  title: 'Pricing — Freelanly · first application free · PRO $5/mo',
+  title: 'Pricing — first free · $0.50 per application · PRO $5/mo',
   description: 'Try Freelanly free — your first application is on us. PRO ($5/mo) keeps them coming: up to 20 applications a day with AI-written letters, a morning ready-queue, your CV attached to every send.',
   alternates: { canonical: `${siteConfig.url}/pricing` },
 };
@@ -37,15 +37,15 @@ export default function PricingPage() {
   <div className="page-head-bg"></div>
   <div className="container">
     <span className="eyebrow">— Pricing</span>
-    <h1>Your first application is <span className="accent">free</span>.<br/>PRO keeps them coming.</h1>
-    <p className="lede">Sign up, get matched, and send your first AI-drafted application on us — no credit card. PRO ($5/mo) keeps them coming: up to 20 applications a day with AI-written letters and your CV attached — for less than a coffee.</p>
+    <h1>Your first application is <span className="accent">free</span>.<br/>Then pay per application — or go PRO.</h1>
+    <p className="lede">Sign up, get matched, and send your first AI-drafted application on us — no credit card. After that: top up a balance and send at $0.50 per application, or go PRO ($5/mo) for up to 20 a day — for less than a coffee.</p>
   </div>
 </header>
 
 {/* PLANS */}
 <section className="section-sm">
   <div className="container">
-    <div className="price-grid reveal" style={{maxWidth: '860px', margin: '0 auto'}}>
+    <div className="price-grid reveal" style={{maxWidth: '1080px', margin: '0 auto'}}>
 
       {/* FREE */}
       <div className="price-col">
@@ -66,6 +66,28 @@ export default function PricingPage() {
           <li><Chk /> <span>Why-you-match reasons on every card</span></li>
           <li><Chk /> <span>R&eacute;sum&eacute; parsing + profile built from your CV and LinkedIn</span></li>
           <li><Chk /> <span>Unified reply inbox + pipeline tracking</span></li>
+          <li><Chk /> <span>Send from your own Gmail — one-click connect (any plan)</span></li>
+        </ul>
+      </div>
+
+      {/* PAY AS YOU GO — the balance model, the offer every walled user actually sees */}
+      <div className="price-col">
+        <div className="plan-name">Pay as you go</div>
+        <p className="plan-tag">No subscription. Top up, apply, done.</p>
+        <div className="plan-price">
+          <span className="currency">$</span>
+          <span className="amount">0.50</span>
+        </div>
+        <div className="plan-monthly-eq">per application · top up from $3</div>
+        <div className="plan-cta">
+          <a href="/auth/signin" className="btn btn-ghost">Start free</a>
+        </div>
+        <div className="plan-section-label">Everything in Free, plus</div>
+        <ul className="plan-features">
+          <li><Chk /> <span><strong>$0.50 per application</strong> — pay only when you actually send</span></li>
+          <li><Chk /> <span><strong>Balance never expires</strong> — top up $3, $5 or $10, use it whenever</span></li>
+          <li><Chk /> <span>AI cover letter + your CV attached on every send</span></li>
+          <li><Chk /> <span>One-tap top-ups after the first — card saved securely by Stripe</span></li>
         </ul>
       </div>
 
@@ -90,14 +112,13 @@ export default function PricingPage() {
           <li><Chk /> <span><strong>AI cover letter for every application</strong> — with a second <strong>reviewer pass</strong> and a &quot;covers N of M requirements&quot; check</span></li>
           <li><Chk /> <span><strong>Morning ready-queue</strong> — applications pre-written for your top matches; review &amp; send in one click</span></li>
           <li><Chk /> <span><strong>Your CV on every application</strong> — your r&eacute;sum&eacute; attached automatically to each send</span></li>
-          <li><Chk /> <span>Send from your own Gmail — one-click connect</span></li>
         </ul>
       </div>
 
     </div>
 
     <p className="reveal" style={{textAlign: 'center', marginTop: '28px', fontSize: '13px', color: 'var(--ink-4)'}}>
-      Both plans send from your own inbox. Own-inbox sends have a daily safety cap — it protects your email account&apos;s reputation.
+      On any plan you can connect your own Gmail or SMTP and send from your address — own-inbox sends get a higher daily safety cap that protects your email reputation.
     </p>
   </div>
 </section>
