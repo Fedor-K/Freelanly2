@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { signIn } from 'next-auth/react';
 import { categories, countries, languages } from '@/config/site';
 import { getStoredClickId, getStoredUtmSource, getStoredUtmParams } from '@/components/analytics/GclidCapture';
-import { SalaryPicker } from '@/components/SalaryPicker';
 import { ProcessingScreen, PROFILE_BUILD_STEPS } from '@/components/ProcessingScreen';
 import { GoogleAuthButton } from '@/components/GoogleAuthButton';
 
@@ -94,13 +93,7 @@ export function RegistrationForm({
   const [cvFromLinks, setCvFromLinks] = useState(false); // mobile no-file path: build the CV from LinkedIn/GitHub/portfolio
   const [portfolioUrl, setPortfolioUrl] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
-  const [messenger, setMessenger] = useState(''); // WhatsApp (intl phone) or Telegram @handle — reachability
   const [githubUrl, setGithubUrl] = useState('');
-  const [salaryExpectation, setSalaryExpectation] = useState('');
-  const [currentRate, setCurrentRate] = useState('');
-  const [workAuth, setWorkAuth] = useState('');
-  const [noticeForm, setNoticeForm] = useState('');
-  const NOTICE_FORM_OPTIONS = ['Immediately', 'Within 2 weeks', 'Within a month', 'More than a month'];
   const [shareConsent, setShareConsent] = useState(false);
   const [tgState, setTgState] = useState<'idle' | 'opening' | 'opened'>('idle');
   const [profileSubmitting, setProfileSubmitting] = useState(false);
@@ -358,28 +351,23 @@ export function RegistrationForm({
   // salary, build the profile, then enter the account. Mirror of the inline apply flow — the only
   // difference is the final action (here: go to the dashboard; inline: generate + send the apply).
   async function handleProfileSubmit() {
-    if (!resumeFile && !cvFromLinks) { setError('Please upload your résumé (PDF)'); return; }
-    if (!linkedinUrl) { setError('Please add your LinkedIn profile URL'); return; }
-    if (!messenger.trim()) { setError('Please add your WhatsApp number or Telegram — so a recruiter reply never gets lost'); return; }
-    if (!workAuth) { setError('Please select where you can legally work'); return; }
-    if (!currentRate.trim()) { setError('Please add your current rate / pay'); return; }
-    if (!salaryExpectation.trim()) { setError('Please add your expected salary'); return; }
-    if (!noticeForm) { setError('Please select your notice period'); return; }
+    // Phase-1 minimal signup (owner 2026-07-23): the feed needs exactly ONE matching source —
+    // a résumé OR a LinkedIn profile (no-file path auto-builds the CV from LinkedIn). The old
+    // 8-field wall (messenger/work-auth/rate/salary/notice) moved OUT of registration.
+    // Mirrors the inline apply form (two-signup-forms parity).
+    if (!resumeFile && !linkedinUrl.trim()) { setError('Add your résumé (PDF) or your LinkedIn URL'); return; }
     if (!shareConsent) { setError('Please accept the Terms & Privacy Policy and authorize sharing to continue'); return; }
     setError('');
     setProfileSubmitting(true);
     try {
       const fd = new FormData();
       if (resumeFile) fd.append('file', resumeFile);
-      if (cvFromLinks) { fd.append('buildFromLinks', 'true'); if (portfolioUrl.trim()) fd.append('portfolioUrl', portfolioUrl.trim()); }
+      // No file → the LinkedIn scrape builds the CV (works whether or not the user found the toggle).
+      if (!resumeFile) fd.append('buildFromLinks', 'true');
+      if (portfolioUrl.trim()) fd.append('portfolioUrl', portfolioUrl.trim());
       fd.append('email', email);
       fd.append('linkedinUrl', linkedinUrl);
-      fd.append('messenger', messenger.trim());
       fd.append('githubUrl', githubUrl.trim());
-      fd.append('salaryExpectation', salaryExpectation.trim());
-      fd.append('currentRate', currentRate.trim());
-      fd.append('workAuthorization', workAuth);
-      fd.append('availableFrom', noticeForm);
       fd.append('profileShareConsent', shareConsent ? 'true' : 'false');
       if (regToken) fd.append('regToken', regToken); // resume-preauth mints the session once this saves
       // Don't navigate away if the profile didn't save — stay on the form (values intact) with the error,
@@ -505,7 +493,6 @@ export function RegistrationForm({
           if (resumeFile) fd.append('file', resumeFile);
           fd.append('email', email);
           if (linkedinUrl) fd.append('linkedinUrl', linkedinUrl);
-          if (salaryExpectation.trim()) fd.append('salaryExpectation', salaryExpectation.trim());
           await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }).catch(() => {});
         } catch {}
       }
@@ -762,14 +749,8 @@ export function RegistrationForm({
 
         {/* LinkedIn URL */}
         <div>
-          <label className="field-label">LinkedIn URL <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
+          <label className="field-label">LinkedIn URL <span style={{ color: '#9A958A', fontWeight: 400 }}>— we can build your CV from it</span></label>
           <input className="text-input" type="url" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/in/yourname" />
-        </div>
-
-        {/* WhatsApp / Telegram — reachability: recruiter replies get lost in email; LATAM lives in WhatsApp */}
-        <div>
-          <label className="field-label">WhatsApp or Telegram <span className="required" style={{ color: '#B91C1C' }}>*</span> <span style={{ color: '#9A958A', fontWeight: 400 }}>(so a recruiter reply never gets lost)</span></label>
-          <input className="text-input" type="text" value={messenger} onChange={(e) => setMessenger(e.target.value)} placeholder="+52 1 55 1234 5678 or @username" />
         </div>
 
         {/* GitHub — optional; a verified GitHub is skills evidence for hirers */}
@@ -780,7 +761,7 @@ export function RegistrationForm({
 
         {/* Résumé — or build it from links (mobile no-file path) */}
         <div>
-          <label className="field-label">Résumé (PDF) {!cvFromLinks && <span className="required" style={{ color: '#B91C1C' }}>*</span>}</label>
+          <label className="field-label">Résumé (PDF) <span style={{ color: '#9A958A', fontWeight: 400 }}>— or just add LinkedIn above</span></label>
           {cvFromLinks && (
             <div style={{ padding: '10px 14px', border: '1px solid #DDEBC4', borderRadius: '8px', fontSize: '12.5px', color: '#3F6212', background: '#F6FAEF', lineHeight: 1.5 }}>
               ✓ We&apos;ll build your CV from your LinkedIn{githubUrl ? ', GitHub' : ''}{portfolioUrl ? ' and portfolio' : ''} — you can replace it with your own file anytime.
@@ -812,37 +793,6 @@ export function RegistrationForm({
             {resumeFile ? <span style={{ fontSize: '11.5px', color: '#047857' }}>✓</span> : <span style={{ fontSize: '11.5px', color: '#5C6068' }}>Choose →</span>}
           </div>
           )}
-        </div>
-
-        {/* Fields recruiters re-ask on every reply (work auth, current + expected pay, notice) —
-            captured up front and put in the first outreach email so there's no "share details" round. */}
-        <div>
-          <label className="field-label">Where can you legally work? <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
-          <select value={workAuth} onChange={e => setWorkAuth(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '14px', background: '#fff' }}>
-            <option value="">Select…</option>
-            <option value="Remote — anywhere / worldwide (non US)">Remote — anywhere / worldwide (non US)</option>
-            <option value="My country only">My country only</option>
-            <option value="US-authorized (citizen / GC / valid visa)">US-authorized (citizen / GC / valid visa)</option>
-            <option value="EU-authorized">EU-authorized</option>
-            <option value="UK-authorized">UK-authorized</option>
-            <option value="Canada-authorized">Canada-authorized</option>
-            <option value="Need sponsorship">Need sponsorship</option>
-          </select>
-        </div>
-        <div>
-          <label className="field-label">Current rate / pay <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
-          <SalaryPicker single onChange={setCurrentRate} />
-        </div>
-        <div>
-          <label className="field-label">Expected salary <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
-          <SalaryPicker onChange={setSalaryExpectation} />
-        </div>
-        <div>
-          <label className="field-label">Notice period / when can you start? <span className="required" style={{ color: '#B91C1C' }}>*</span></label>
-          <select value={noticeForm} onChange={e => setNoticeForm(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D5D1C8', borderRadius: '8px', fontSize: '14px', background: '#fff' }}>
-            <option value="">Select…</option>
-            {NOTICE_FORM_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
         </div>
 
         {/* Telegram reply alerts — optional */}

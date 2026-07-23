@@ -238,10 +238,6 @@ export async function POST(request: NextRequest) {
         resumeFileName: true,
         parsedProfile: true,
         location: true,
-        workAuthorization: true,
-        currentRate: true,
-        salaryExpectation: true,
-        availableFrom: true,
         freeAppliesUsedToday: true,
         aiGenerationsUsed: true,
         lastFreeApplyReset: true,
@@ -525,23 +521,10 @@ export async function POST(request: NextRequest) {
     const hasGreeting = /^\s*(hi|hello|dear|hey)\b/i.test(bodyText);
     const greeting = hasGreeting ? '' : (recruiterName ? `Hi ${recruiterName},\n\n` : 'Hi there,\n\n');
     const signature = `Best regards,\n${user.name || 'Applicant'}`;
-    // Treat literal "null"/"undefined"/empty as absent so the footer never prints "Location: null".
-    const clean = (v: string | null | undefined) => { const s = (v || '').trim(); return s && !/^(null|undefined)$/i.test(s) ? s : null; };
-    // ATS-checklist footer: the exact fields recruiters re-ask for on the first reply (location, work
-    // auth, current + expected pay, availability). Collected in the signup form; attached here so the
-    // recruiter has them up front and skips the "share these details" round. No email/phone (replies
-    // route through us). Each is the candidate's OWN self-reported value — never an email.
-    const details = [
-      clean(user.location) && `Location: ${clean(user.location)}`,
-      clean(user.workAuthorization) && `Work authorization: ${clean(user.workAuthorization)}`,
-      // Current rate intentionally NOT disclosed (negotiation 101: it anchors low and the audited
-      // letters shipped nonsense like "current $600 → expected $300-600"). Recruiters only need
-      // the expected rate — their actual screening question.
-      clean(user.salaryExpectation) && `Expected rate: ${clean(user.salaryExpectation)}`,
-      clean(user.availableFrom) && `Availability: ${clean(user.availableFrom)}`,
-    ].filter(Boolean);
-    const detailsBlock = details.length ? `\n\n—\n${details.join('\n')}` : '';
-    const fullLetter = `${greeting}${bodyText}\n\n${signature}${detailsBlock}`;
+    // ATS-checklist footer REMOVED (owner 2026-07-23): the info block (location/work auth/expected
+    // rate/availability) no longer prints at the bottom of letters — the fields left the signup form
+    // in the Phase-1 minimal registration, and the owner asked for the block itself to go.
+    const fullLetter = `${greeting}${bodyText}\n\n${signature}`;
 
     // Draft-only mode: return full letter as user will see it
     if (draftOnly) {

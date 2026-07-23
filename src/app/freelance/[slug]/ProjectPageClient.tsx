@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useTracker } from '@/hooks/useTracker';
-import { SalaryPicker } from '@/components/SalaryPicker';
 import { ProcessingScreen } from '@/components/ProcessingScreen';
 import { SmtpConnectModal } from '@/app/dashboard/settings/SmtpConnect';
 import { QueueUpgradeButton } from '@/components/app/QueueUpgradeButton';
@@ -73,12 +72,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   const [portfolioUrl, setPortfolioUrl] = useState('');
   const [regToken, setRegToken] = useState<string | null>(null); // deferred-session proof from verify-code
   const [linkedinUrl, setLinkedinUrl] = useState('');
-  const [messenger, setMessenger] = useState(''); // WhatsApp (intl phone) or Telegram @handle — reachability
   const [githubUrlField, setGithubUrlField] = useState('');
-  const [salaryExpectation, setSalaryExpectation] = useState('');
-  const [currentRate, setCurrentRate] = useState('');
-  const [workAuth, setWorkAuth] = useState('');
-  const [noticeForm, setNoticeForm] = useState(''); // notice period collected IN the form (recruiters re-ask)
   const [shareConsent, setShareConsent] = useState(false); // GDPR/CCPA opt-in to present profile to employers/partners
   const [tgState, setTgState] = useState<'idle' | 'opening' | 'opened'>('idle');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -154,7 +148,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   };
 
   // Same post-submit pattern: two fields recruiters re-ask for (start date 27%, portfolio 14%).
-  const NOTICE_OPTIONS = ['Immediately', 'Within 2 weeks', 'Within a month', 'More than a month'];
   const [noticeFrom, setNoticeFrom] = useState('');
   const [portfolio, setPortfolio] = useState('');
   const [extraSaved, setExtraSaved] = useState(false);
@@ -451,19 +444,16 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
   // the code step and never see these fields.
   async function handleProfileSubmit() {
     const errors: Record<string, boolean> = {};
-    if (!resumeFile && !cvFromLinks) errors.resume = true;
-    if (!linkedinUrl) errors.linkedin = true;
-    if (!messenger.trim()) errors.messenger = true;
-    if (!workAuth) errors.workAuth = true;
-    if (!currentRate.trim()) errors.currentRate = true;
-    if (!salaryExpectation.trim()) errors.salary = true;
-    if (!noticeForm) errors.notice = true;
+    // Phase-1 minimal signup (owner 2026-07-23): the feed needs exactly ONE matching source —
+    // a résumé OR a LinkedIn profile (no-file path auto-builds the CV from LinkedIn). The old
+    // 8-field wall (messenger/work-auth/rate/salary/notice) moved OUT of registration.
+    if (!resumeFile && !linkedinUrl.trim()) { errors.resume = true; errors.linkedin = true; }
     if (!shareConsent) errors.consent = true;
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       setAuthError(errors.consent && Object.keys(errors).length === 1
         ? 'Please accept the Terms & Privacy Policy to continue'
-        : 'Please fill in all required fields');
+        : 'Add your résumé (PDF) or your LinkedIn URL');
       return;
     }
     setFieldErrors({});
@@ -480,13 +470,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       if (resumeFile) fd.append('file', resumeFile);
       fd.append('email', email);
       fd.append('linkedinUrl', linkedinUrl);
-      fd.append('messenger', messenger.trim());
       fd.append('githubUrl', githubUrlField.trim());
-      if (cvFromLinks) { fd.append('buildFromLinks', 'true'); if (portfolioUrl.trim()) fd.append('portfolioUrl', portfolioUrl.trim()); }
-      fd.append('salaryExpectation', salaryExpectation.trim());
-      fd.append('currentRate', currentRate.trim());
-      fd.append('workAuthorization', workAuth);
-      fd.append('availableFrom', noticeForm);
+      // No file → the LinkedIn scrape builds the CV (works whether or not the user found the toggle).
+      if (!resumeFile) fd.append('buildFromLinks', 'true');
+      if (portfolioUrl.trim()) fd.append('portfolioUrl', portfolioUrl.trim());
       fd.append('profileShareConsent', shareConsent ? 'true' : 'false');
       if (regToken) fd.append('regToken', regToken); // resume-preauth mints the session once this saves
       pre = await fetch('/api/user/resume-preauth', { method: 'POST', body: fd });
@@ -692,7 +679,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
             {/* Resume upload — OR build the CV from links (mobile no-file path) */}
             <div style={{ marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.resume ? '#B91C1C' : '#555', display: 'block', marginBottom: '4px' }}>Resume (PDF) {!cvFromLinks && <span style={{ color: '#B91C1C' }}>*</span>}</label>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.resume ? '#B91C1C' : '#555', display: 'block', marginBottom: '4px' }}>Resume (PDF) <span style={{ color: '#9A958A', fontWeight: 400 }}>— or just add LinkedIn below</span></label>
               {!cvFromLinks && (
               <div
                 onClick={() => { const inp = document.getElementById('resume-input') as HTMLInputElement; inp?.click(); }}
@@ -724,21 +711,11 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
 
             {/* LinkedIn */}
             <div style={{ marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.linkedin ? '#B91C1C' : '#555', display: 'block', marginBottom: '4px' }}>LinkedIn <span style={{ color: '#B91C1C' }}>*</span></label>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.linkedin ? '#B91C1C' : '#555', display: 'block', marginBottom: '4px' }}>LinkedIn <span style={{ color: '#9A958A', fontWeight: 400 }}>— we can build your CV from it</span></label>
               <input
                 type="url" placeholder="linkedin.com/in/yourname" value={linkedinUrl}
                 onChange={e => setLinkedinUrl(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', border: `1px solid ${fieldErrors.linkedin ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '13px' }}
-              />
-            </div>
-
-            {/* WhatsApp / Telegram — reachability: recruiter replies get lost in email; LATAM lives in WhatsApp */}
-            <div style={{ marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: fieldErrors.messenger ? '#B91C1C' : '#555', display: 'block', marginBottom: '4px' }}>WhatsApp or Telegram <span style={{ color: '#B91C1C' }}>*</span> <span style={{ color: '#9A958A', fontWeight: 400 }}>(so a recruiter reply never gets lost)</span></label>
-              <input
-                type="text" placeholder="+52 1 55 1234 5678 or @username" value={messenger}
-                onChange={e => setMessenger(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', border: `1px solid ${fieldErrors.messenger ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '13px' }}
               />
             </div>
 
@@ -762,38 +739,6 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 />
               </div>
             )}
-
-            {/* The fields recruiters re-ask for on every reply (work auth, current + expected pay,
-                notice). Captured up front and put in the first outreach email → no "share details"
-                round. Optional, but the more filled, the fewer back-and-forths. */}
-            <div style={{ marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Where can you legally work? <span style={{ color: '#B91C1C', fontWeight: 400 }}>*</span></label>
-              <select value={workAuth} onChange={e => setWorkAuth(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${fieldErrors.workAuth ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '14px', background: '#fff' }}>
-                <option value="">Select…</option>
-                <option value="Remote — anywhere / worldwide (non US)">Remote — anywhere / worldwide (non US)</option>
-                <option value="My country only">My country only</option>
-                <option value="US-authorized (citizen / GC / valid visa)">US-authorized (citizen / GC / valid visa)</option>
-                <option value="EU-authorized">EU-authorized</option>
-                <option value="UK-authorized">UK-authorized</option>
-                <option value="Canada-authorized">Canada-authorized</option>
-                <option value="Need sponsorship">Need sponsorship</option>
-              </select>
-            </div>
-            <div style={{ marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Current rate / pay <span style={{ color: '#B91C1C', fontWeight: 400 }}>*</span></label>
-              <SalaryPicker single onChange={setCurrentRate} />
-            </div>
-            <div style={{ marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Expected salary <span style={{ color: '#B91C1C', fontWeight: 400 }}>*</span></label>
-              <SalaryPicker onChange={setSalaryExpectation} />
-            </div>
-            <div style={{ marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Notice period / when can you start? <span style={{ color: '#B91C1C', fontWeight: 400 }}>*</span></label>
-              <select value={noticeForm} onChange={e => setNoticeForm(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `1px solid ${fieldErrors.notice ? '#B91C1C' : '#D5D1C8'}`, borderRadius: '8px', fontSize: '14px', background: '#fff' }}>
-                <option value="">Select…</option>
-                {NOTICE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            </div>
 
             {/* Telegram reply alerts — optional. Recruiter replies are easy to miss in email;
                 Telegram pings instantly. Opens the bot deep link; linking finishes on Start. */}
