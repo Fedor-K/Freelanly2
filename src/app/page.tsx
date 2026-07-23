@@ -257,7 +257,7 @@ export default async function LandingPage() {
           <div className="cover-card">
             <span style={{color: 'var(--ink-4)', fontSize: '11px'}}>{'// generated 2s ago'}</span><br/>
             Hey <span className="accent">Sarah</span>,<br/><br/>
-            Saw you&apos;re hiring a React dev for <span className="accent">Linear&apos;s mobile team</span>. I shipped a similar offline-first sync engine last quarter for <span className="accent">Plain</span> — happy to walk through how I&apos;d approach yours.<br/><br/>
+            Saw you&apos;re hiring a React dev for <span className="accent">your mobile team</span>. I shipped a similar offline-first sync engine last quarter for <span className="accent">a messaging startup</span> — happy to walk through how I&apos;d approach yours.<br/><br/>
             Portfolio: alex.dev/work<br/>
             <span className="cover-typing">— Alex</span>
           </div>
@@ -319,17 +319,17 @@ export default async function LandingPage() {
         <div style={{marginTop: '22px', display: 'flex', flexDirection: 'column', gap: '8px'}}>
           <div style={{display:'flex', alignItems:'center', gap:'10px', padding: '10px 12px', border:'1px solid var(--line-2)', borderRadius: '8px', background: 'rgba(199,249,74,0.06)'}}>
             <div style={{width:'6px',height:'6px',background:'var(--accent)',borderRadius:'999px'}}></div>
-            <div style={{flex:1, fontSize: '13px'}}>Sarah · Linear</div>
+            <div style={{flex:1, fontSize: '13px'}}>Sarah · dev-tools startup</div>
             <div style={{fontFamily: "'Geist Mono', monospace", fontSize: '11px', color: 'var(--ink-4)'}}>2m</div>
           </div>
           <div style={{display:'flex', alignItems:'center', gap:'10px', padding: '10px 12px', border:'1px solid var(--line)', borderRadius: '8px'}}>
             <div style={{width:'6px',height:'6px',background:'var(--ink-4)',borderRadius:'999px'}}></div>
-            <div style={{flex:1, fontSize: '13px', color: 'var(--ink-3)'}}>Marcus · Stripe</div>
+            <div style={{flex:1, fontSize: '13px', color: 'var(--ink-3)'}}>Marcus · fintech company</div>
             <div style={{fontFamily: "'Geist Mono', monospace", fontSize: '11px', color: 'var(--ink-4)'}}>1h</div>
           </div>
           <div style={{display:'flex', alignItems:'center', gap:'10px', padding: '10px 12px', border:'1px solid var(--line)', borderRadius: '8px'}}>
             <div style={{width:'6px',height:'6px',background:'var(--ink-4)',borderRadius:'999px'}}></div>
-            <div style={{flex:1, fontSize: '13px', color: 'var(--ink-3)'}}>Priya · Vercel</div>
+            <div style={{flex:1, fontSize: '13px', color: 'var(--ink-3)'}}>Priya · cloud platform</div>
             <div style={{fontFamily: "'Geist Mono', monospace", fontSize: '11px', color: 'var(--ink-4)'}}>3h</div>
           </div>
         </div>
