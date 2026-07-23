@@ -71,7 +71,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   }
 
   // Personalized headline based on ref source
-  let headline = 'Dev roles from LinkedIn hiring posts.\nApplications already written.';
+  let headline = 'Dev roles from LinkedIn hiring posts.\nApplications written for you.';
   let subtitle = "Takes 60 seconds. We find matching projects daily and pre-write every application — you just hit Send.";
 
   if (params.ref === 'jobs' || params.ref === 'freelance') {
@@ -90,16 +90,16 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
     if (label && count > 0) {
       headline = `${count}+ ${label} gigs\nfound this week.`;
-      subtitle = `Sign up and we'll match you to ${label.toLowerCase()} roles — each with a personalized cover letter already written, ready to send.`;
+      subtitle = `Sign up and we'll match you to ${label.toLowerCase()} roles — each with a personalized cover letter written for you in seconds — review and send.`;
     } else if (count > 0) {
       headline = `${count}+ fresh gigs\nfound today.`;
-      subtitle = "Sign up and we'll match you to the right roles — each with a personalized cover letter already written, ready to send.";
+      subtitle = "Sign up and we'll match you to the right roles — each with a personalized cover letter written for you in seconds — review and send.";
     }
   } else if (params.ref === 'country') {
     const country = params.country;
     if (country) {
       headline = `Remote jobs in\n${country.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}.`;
-      subtitle = "Sign up to get matched to remote roles — each with a personalized cover letter already written, ready to send.";
+      subtitle = "Sign up to get matched to remote roles — each with a personalized cover letter written for you in seconds — review and send.";
     }
   } else if (params.ref === 'job') {
     headline = "This job caught\nyour eye?";

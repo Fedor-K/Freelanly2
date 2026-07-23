@@ -97,7 +97,7 @@ export default function PricingPage() {
       <div className="price-col featured">
         <div className="featured-badge">Most popular</div>
         <div className="plan-name">Pro</div>
-        <p className="plan-tag">Wake up to applications already written.</p>
+        <p className="plan-tag">Wake up to your matches already queued.</p>
         <div className="plan-price">
           <span className="currency">$</span>
           <span className="amount">5</span>
@@ -111,7 +111,7 @@ export default function PricingPage() {
         <div className="plan-section-label">Everything in Free, plus</div>
         <ul className="plan-features">
           <li><Chk /> <span><strong>Flat $5 — no per-application charges.</strong> Send up to 20 a day; cheaper than the balance past ~10 sends a month</span></li>
-          <li><Chk /> <span><strong>Morning ready-queue</strong> — applications pre-written for your top matches overnight; review &amp; send in one click</span></li>
+          <li><Chk /> <span><strong>Morning ready-queue</strong> — your top matches queued overnight; open one, the letter is drafted in seconds, review &amp; send</span></li>
         </ul>
       </div>
 
@@ -137,7 +137,7 @@ export default function PricingPage() {
       </div>
       <div className="faq-item">
         <div className="faq-q">What exactly does PRO add?</div>
-        <div className="faq-a">Two things. <strong>A flat price:</strong> up to 20 applications a day for $5 — no per-send charges, cheaper than the $0.50 balance once you send more than 10 a month. And <strong>the morning ready-queue:</strong> applications pre-written for your top matches overnight, so you review and hit Send instead of hunting and drafting. Everything else — AI letters with the reviewer pass, your CV attached, the inbox — is the same on every plan.</div>
+        <div className="faq-a">Two things. <strong>A flat price:</strong> up to 20 applications a day for $5 — no per-send charges, cheaper than the $0.50 balance once you send more than 10 a month. And <strong>the morning ready-queue:</strong> your top matches queued overnight with one-click drafting, so you review and hit Send instead of hunting. Everything else — AI letters with the reviewer pass, your CV attached, the inbox — is the same on every plan.</div>
       </div>
       <div className="faq-item">
         <div className="faq-q">Does Freelanly send anything without me?</div>
