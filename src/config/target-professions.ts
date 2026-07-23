@@ -739,11 +739,36 @@ const WHITELIST_PATTERNS = [
 ];
 
 // ============================================================================
+// HARD NICHING (2026-07-23, owner decision): tech-only import.
+// The product niched down to remote tech roles (engineering/data/devops/qa) — the segments that
+// actually send and PAY (30d: payers' sends = devops 153 / eng 95 / qa 72 / data 25; meanwhile
+// translation 79 sends→1 reply, marketing 164→3, design 215→2, consulting 35→0). The n8n scrape
+// rotation was cut the same day (111→96 tech-only queries); this block stops the SAME tail from
+// entering via the generic catch-all queries ("send your resume to…" etc.). Patterns are reused
+// from the (non-gating) whitelist groups so coverage exactly mirrors what used to be let in.
+// 'ui developer'/'ux developer' are spared — those are frontend engineers in practice.
+// ============================================================================
+const BLACKLIST_NICHE_CUT = [
+  ...WHITELIST_TRANSLATION,
+  ...WHITELIST_MARKETING,
+  ...WHITELIST_CONTENT,
+  ...WHITELIST_VIDEO_AUDIO,
+  ...WHITELIST_DESIGN.filter(p => p !== 'ui developer' && p !== 'ux developer'),
+  ...WHITELIST_CONSULTING,
+  // Standalone consultant/consulting: kills the enterprise-bodyshop flood (SAP FICO Consultant,
+  // Oracle Techno-Functional Consultant, Workday HCM Consultant…) — 903 supply/mo, 35 sends, 0
+  // replies, 2 payer-sends. Platform DEVELOPERS (SAP ABAP Developer etc.) still import.
+  'consultant', 'consulting',
+  // Admin gig tail (was moved INTO the whitelist 06-12; niching reverses that call)
+  'virtual assistant', 'data entry',
+];
+
+// ============================================================================
 // REGEX BUILDERS
 // ============================================================================
 
 // Build blacklist regex with word boundaries
-const blacklistPatternString = BLACKLIST_PATTERNS
+const blacklistPatternString = [...BLACKLIST_PATTERNS, ...BLACKLIST_NICHE_CUT]
   .map(p => {
     // Escape special regex chars
     const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
