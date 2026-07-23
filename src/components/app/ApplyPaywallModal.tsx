@@ -149,6 +149,13 @@ function CardForm({
     // with zero payment attempts on the PIs. Track submit + the exact client-side error.
     onEvent('credit_charge_submit');
     try {
+      // Stripe.js REQUIRES elements.submit() before confirmPayment here (throws an IntegrationError
+      // otherwise — caught live via credit_charge_client_error). It also runs form validation.
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        onEvent('credit_charge_client_error', { code: submitError.code, type: submitError.type, msg: (submitError.message || '').slice(0, 120) });
+        onError(submitError.message || 'Check your card details'); setBusy(false); return;
+      }
       // return_url: required by Stripe.js when the Elements instance includes any redirect-capable
       // method (Link/wallets are now active on the domain) — without it confirmPayment THROWS an
       // IntegrationError instead of returning {error}, which left the button spinning forever with
