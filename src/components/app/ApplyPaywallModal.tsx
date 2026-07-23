@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useRouter } from 'next/navigation';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { getStripeClient } from '@/lib/stripe-client';
 import { QueueUpgradeButton } from './QueueUpgradeButton';
@@ -35,6 +36,7 @@ export function ApplyPaywallModal({
   message?: string; packSize?: number; packPriceCents?: number; source: string; onCreditsReady: () => void;
 }) {
   const { track } = useTracker();
+  const router = useRouter();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [showCardForm, setShowCardForm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -50,6 +52,9 @@ export function ApplyPaywallModal({
       body: JSON.stringify({ paymentIntentId }),
     }).catch(() => {});
     track('FUNNEL_STEP', { step: 'credit_charge_success', source });
+    // Re-render server components (sidebar balance widget, etc.) so the new balance shows without a
+    // manual page reload. Client state (feed, open modals) is preserved by router.refresh().
+    router.refresh();
     onCreditsReady();
   }
 
