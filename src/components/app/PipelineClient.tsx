@@ -87,7 +87,7 @@ export function PipelineClient({ apps: initial }: { apps: DealApp[] }) {
                   )}
                   <div className="meta">
                     <span className="value">{app.matchScore ? `${app.matchScore}%` : ''}</span>
-                    <span className="age">{timeAgo(app.sentAt || app.createdAt)}</span>
+                    <span className="age" suppressHydrationWarning>{timeAgo(app.sentAt || app.createdAt)}</span>
                   </div>
                   {stage.next && (
                     <button

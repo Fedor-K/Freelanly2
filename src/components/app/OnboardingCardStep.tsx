@@ -5,8 +5,6 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 import { getStripeClient } from '@/lib/stripe-client';
 import { useTracker } from '@/hooks/useTracker';
 
-const stripePromise = getStripeClient();
-
 function btn(primary: boolean): CSSProperties {
   return primary
     ? { background: '#84cc16', color: '#1a2e05', border: 'none', borderRadius: 10, padding: '12px 20px', fontWeight: 700, fontSize: 14, cursor: 'pointer', width: '100%' }
@@ -42,7 +40,7 @@ export function OnboardingCardStep({ onDone }: { onDone: () => void }) {
         Nothing is charged now. Your first application is free — after that, top up a balance in one tap and apply at $0.50 each.
       </div>
       {clientSecret ? (
-        <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+        <Elements stripe={getStripeClient()} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
           <SetupForm onDone={onDone} track={track} />
         </Elements>
       ) : (

@@ -207,7 +207,7 @@ export function InboxClient({ replies, resumeAttachable = false, resumeFileName 
               <div>
                 <div className="row between" style={{ marginBottom: '2px' }}>
                   <span className="name" style={{ fontSize: '13.5px' }}>{r.companyName}</span>
-                  <span className="meta" style={{ fontSize: '10.5px' }}>{timeAgo(r.repliedAt)}</span>
+                  <span className="meta" style={{ fontSize: '10.5px' }} suppressHydrationWarning>{timeAgo(r.repliedAt)}</span>
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--ink-3)', marginBottom: '4px' }}>{r.jobTitle}</div>
                 <div style={{ fontSize: '12.5px', color: 'var(--ink-2)', lineHeight: 1.4, maxHeight: '36px', overflow: 'hidden' }}>
