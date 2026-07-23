@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { getStripeClient } from '@/lib/stripe-client';
 import { QueueUpgradeButton } from './QueueUpgradeButton';
@@ -111,7 +111,8 @@ export function ApplyPaywallModal({
       ) : clientSecret ? (
         <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
           <CardForm priceLabel={priceLabel} packSize={applies} clientSecret={clientSecret}
-            onSucceeded={grantAndRetry} onError={setError} />
+            onSucceeded={grantAndRetry} onError={setError}
+            onEvent={(step, extra) => track('FUNNEL_STEP', { step, source, amountCents, ...extra })} />
         </Elements>
       ) : null}
 
@@ -124,30 +125,51 @@ export function ApplyPaywallModal({
 }
 
 function CardForm({
-  priceLabel, packSize, clientSecret, onSucceeded, onError,
+  priceLabel, packSize, clientSecret, onSucceeded, onError, onEvent,
 }: {
   priceLabel: string; packSize: number; clientSecret: string;
   onSucceeded: (paymentIntentId: string) => Promise<void>; onError: (m: string) => void;
+  onEvent: (step: string, extra?: Record<string, unknown>) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
+  // Abandon tracking: fires on unmount (modal closed / backdrop click) if the user never hit submit.
+  const submitted = useRef(false);
+  const onEventRef = useRef(onEvent);
+  onEventRef.current = onEvent;
+  useEffect(() => () => { if (!submitted.current) onEventRef.current('credit_charge_form_abandon'); }, []);
 
   async function pay() {
     if (!stripe || !elements) return;
+    submitted.current = true;
     setBusy(true); onError('');
+    // Telemetry: this was a 100% blind zone — 10/10 top-up clicks died between the form and Stripe
+    // with zero payment attempts on the PIs. Track submit + the exact client-side error.
+    onEvent('credit_charge_submit');
     const { error, paymentIntent } = await stripe.confirmPayment({ elements, clientSecret, redirect: 'if_required' });
-    if (error) { onError(error.message || 'Payment failed'); setBusy(false); return; }
+    if (error) {
+      onEvent('credit_charge_client_error', { code: error.code, type: error.type, msg: (error.message || '').slice(0, 120) });
+      onError(error.message || 'Payment failed'); setBusy(false); return;
+    }
     if (paymentIntent?.status === 'succeeded') { await onSucceeded(paymentIntent.id); }
-    else { onError('Payment not completed'); setBusy(false); }
+    else { onEvent('credit_charge_client_error', { code: 'not_succeeded', msg: paymentIntent?.status }); onError('Payment not completed'); setBusy(false); }
   }
 
   return (
     <div>
-      <div style={{ textAlign: 'left', marginBottom: 14 }}><PaymentElement /></div>
-      <button onClick={pay} disabled={busy || !stripe} style={btnStyle(busy)}>
+      <div style={{ textAlign: 'left', marginBottom: 14 }}>
+        <PaymentElement
+          onReady={() => { setReady(true); onEvent('credit_charge_form_ready'); }}
+          onLoadError={(e) => { onEvent('credit_charge_form_load_error', { msg: (e?.error?.message || '').slice(0, 120) }); onError('Payment form failed to load — try again'); }}
+        />
+        {!ready && <div style={{ fontSize: 12, color: '#8a8f98', textAlign: 'center', padding: '8px 0' }}>Loading secure payment form…</div>}
+      </div>
+      <button onClick={pay} disabled={busy || !stripe || !ready} style={btnStyle(busy || !ready)}>
         {busy ? 'Processing…' : `Top up ${priceLabel} (${packSize} applications)`}
       </button>
+      <div style={{ fontSize: 11, color: '#8a8f98', marginTop: 8 }}>🔒 Secured by Stripe · card details never touch our servers</div>
     </div>
   );
 }
