@@ -235,7 +235,7 @@ export function AppShell({ children, userName, userPlan, applyCredits = 0 }: { c
             <div className="label">Free plan</div>
             <div className="days">
               {applyCredits > 0
-                ? `Balance: $${(applyCredits * 0.5).toFixed(2)} · ${applyCredits} ${applyCredits === 1 ? 'application' : 'applications'}`
+                ? `Balance: $${(applyCredits * 0.5).toFixed(2)}`
                 : 'First application free'}
             </div>
             <button onClick={() => setTopupOpen(true)} className="upgrade"
@@ -244,7 +244,7 @@ export function AppShell({ children, userName, userPlan, applyCredits = 0 }: { c
             </button>
             <a href="/dashboard/billing" className="upgrade"
               style={{ background: 'transparent', color: 'var(--ink-on-dark-2, #9aa0a6)', fontSize: '11px', marginTop: '6px', display: 'block', textAlign: 'center' }}>
-              or PRO $5/mo — up to 20 applies a day
+              or go PRO — $5/mo
             </a>
           </div>
         )}

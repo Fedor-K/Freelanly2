@@ -40,7 +40,6 @@ export function ApplyPaywallModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>('');
   const [amountCents, setAmountCents] = useState(300);
-  const applies = amountCents / 50;
   const priceLabel = `$${(amountCents / 100).toFixed(amountCents % 100 ? 2 : 0)}`;
 
   async function grantAndRetry(paymentIntentId: string) {
@@ -100,7 +99,6 @@ export function ApplyPaywallModal({
                   background: amountCents === t.cents ? '#f4fce8' : '#fff', fontWeight: 700, color: '#1a2e05',
                 }}>
                 {t.label}
-                <div style={{ fontSize: 11, fontWeight: 400, color: '#8a8f98' }}>{t.cents / 50} applies</div>
               </button>
             ))}
           </div>
@@ -110,7 +108,7 @@ export function ApplyPaywallModal({
         </>
       ) : clientSecret ? (
         <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
-          <CardForm priceLabel={priceLabel} packSize={applies} clientSecret={clientSecret}
+          <CardForm priceLabel={priceLabel} clientSecret={clientSecret}
             onSucceeded={grantAndRetry} onError={setError}
             onEvent={(step, extra) => track('FUNNEL_STEP', { step, source, amountCents, ...extra })} />
         </Elements>
@@ -125,9 +123,9 @@ export function ApplyPaywallModal({
 }
 
 function CardForm({
-  priceLabel, packSize, clientSecret, onSucceeded, onError, onEvent,
+  priceLabel, clientSecret, onSucceeded, onError, onEvent,
 }: {
-  priceLabel: string; packSize: number; clientSecret: string;
+  priceLabel: string; clientSecret: string;
   onSucceeded: (paymentIntentId: string) => Promise<void>; onError: (m: string) => void;
   onEvent: (step: string, extra?: Record<string, unknown>) => void;
 }) {
@@ -189,7 +187,7 @@ function CardForm({
         {!ready && <div style={{ fontSize: 12, color: '#8a8f98', textAlign: 'center', padding: '8px 0' }}>Loading secure payment form…</div>}
       </div>
       <button onClick={pay} disabled={busy || !stripe || !ready} style={btnStyle(busy || !ready)}>
-        {busy ? 'Processing…' : `Top up ${priceLabel} (${packSize} applications)`}
+        {busy ? 'Processing…' : `Top up ${priceLabel}`}
       </button>
       <div style={{ fontSize: 11, color: '#8a8f98', marginTop: 8 }}>🔒 Secured by Stripe · card details never touch our servers</div>
     </div>
