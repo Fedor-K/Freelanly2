@@ -171,14 +171,13 @@ function escapeTelegramMarkdown(text: string): string {
 }
 
 /**
- * Fallback post generation without AI
- * Emphasizes urgency (direct contact line added by n8n template)
+ * Fallback post generation without AI (CTA/link lines added by the n8n template)
  */
 function generateFallbackPost(opp: OpportunityForSocialPost): string {
   const lines: string[] = [];
 
-  // Urgent header
-  lines.push('🔥 URGENT: Client hiring NOW!');
+  // Service-framed header (matches the AI prompt)
+  lines.push('⚡ Caught in a LinkedIn hiring post — before it hits the job boards.');
   lines.push('');
 
   // Location
