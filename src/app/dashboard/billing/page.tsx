@@ -23,7 +23,7 @@ export default async function BillingPage() {
       name: true, email: true, plan: true,
       stripeId: true, stripeSubscriptionId: true,
       subscriptionEndsAt: true, paymentProvider: true,
-      createdAt: true,
+      createdAt: true, applyCredits: true, freeSendsUsed: true,
     },
   });
 
@@ -66,6 +66,7 @@ export default async function BillingPage() {
 
       {/* Current usage */}
       <div className="grid grid-3 mb-4">
+        {isPro ? (
         <div className="card card-pad">
           <div className="eyebrow mb-2">Applications this cycle</div>
           <div className="row between mb-2">
@@ -75,6 +76,19 @@ export default async function BillingPage() {
           <div className={`usage-bar${usagePct > 80 ? ' warn' : ''}`}><div className="fill" style={{width: `${usagePct}%`}}></div></div>
           <div className="meta mt-2">Resets in {daysLeft} days · {nextReset.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
         </div>
+        ) : (
+        <div className="card card-pad">
+          <div className="eyebrow mb-2">Application balance</div>
+          <div className="row between mb-2">
+            <span style={{fontFamily: "'Geist Mono', monospace", fontSize: '22px', fontWeight: 600}}>${((user.applyCredits ?? 0) * 0.5).toFixed(2)}</span>
+            <span className="meta">$0.50 / application</span>
+          </div>
+          <div className="meta mt-2">
+            {(user.freeSendsUsed ?? 0) > 0 ? 'Free application used' : 'First application free'} · {sentThisMonth} sent this month
+          </div>
+          <div className="meta mt-2"><a href="/dashboard/discovery" style={{color: 'var(--acid-deep)'}}>Top up from $3 — in the feed →</a></div>
+        </div>
+        )}
         <div className="card card-pad">
           <div className="eyebrow mb-2">Inboxes</div>
           <div className="row between mb-2">
@@ -119,7 +133,7 @@ export default async function BillingPage() {
             </div>
             <div className="name">Free</div>
             <div className="price">$0<span className="unit">/mo</span></div>
-            <div className="desc">20 applications/day · AI cover letters with reviewer pass · Send from your own Gmail</div>
+            <div className="desc">First application free, then $0.50 each from your balance (top up from $3, never expires) · AI cover letters · Send from your own Gmail</div>
             {user.plan !== 'FREE' && user.stripeId && (
               <form action="/api/stripe/portal" method="POST">
                 <button type="submit" className="btn btn-soft btn-sm mt-3" style={{width: '100%'}}>Downgrade</button>

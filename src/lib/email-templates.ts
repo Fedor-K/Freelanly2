@@ -156,7 +156,11 @@ export function replyTeaserEmail(params: {
   const { userName, recruiterName, company, jobTitle, replySignal, category, appId, userId } = params;
   const firstName = userName?.split(' ')[0] || 'there';
   const categoryLabel = category === 'INTERVIEW' ? 'wants to schedule a call 🟢' : category === 'REPLIED' ? 'is interested 🟢' : 'replied';
-  const ctaUrl = replyClickUrl('/pricing', appId, userId);
+  // TRUTH FIX 2026-07-23: this email told FREE users the reply was Pro-gated ("€15/mo, auto
+  // follow-ups, unlimited applies") — reading replies has been free since the inbox paywall was
+  // removed (owner, 06-22), PRO is $5/mo, and follow-ups/unlimited don't exist. It's now an honest
+  // notification pointing at the inbox, same as the PRO variant.
+  const ctaUrl = replyClickUrl('/dashboard/inbox', appId, userId);
 
   const subject = `🔔 ${recruiterName} at ${company} ${categoryLabel}!`;
   const html = emailShell('New reply', `
@@ -164,13 +168,12 @@ export function replyTeaserEmail(params: {
     <p style="color:${BRAND.ink2};line-height:1.6;">A recruiter from <strong>${company}</strong> responded to your <strong>${jobTitle}</strong> application.</p>
     ${replySignal ? `<p style="color:${BRAND.ink3};font-size:13px;margin-top:8px;">AI Signal: ${replySignal}</p>` : ''}
     <div style="background:${BRAND.bg2};border-radius:12px;padding:20px;margin:20px 0;text-align:center;">
-      <p style="color:${BRAND.ink4};font-size:14px;margin:0 0 8px;">Full reply is available for Pro members</p>
-      <a href="${ctaUrl}" style="display:inline-block;padding:12px 24px;background:${BRAND.acid};color:#000;border-radius:8px;text-decoration:none;font-weight:600;">Read reply — Upgrade to Pro →</a>
+      <a href="${ctaUrl}" style="display:inline-block;padding:12px 24px;background:${BRAND.acid};color:#000;border-radius:8px;text-decoration:none;font-weight:600;">Read &amp; reply →</a>
     </div>
-    <p style="color:${BRAND.ink4};font-size:13px;">Freelanly Pro: read all replies, auto follow-ups, unlimited applies — €15/mo</p>
+    <p style="color:${BRAND.ink4};font-size:13px;">Reply quickly — recruiters move fast on early responses.</p>
     ${replyTrackPixel(appId, userId)}
   `);
-  const text = `${recruiterName} at ${company} replied to your ${jobTitle} application! Upgrade to Pro to read: ${ctaUrl}`;
+  const text = `${recruiterName} at ${company} replied to your ${jobTitle} application! Read and reply: ${ctaUrl}`;
   return { subject, html, text };
 }
 

@@ -28,7 +28,7 @@ const faqs = [
   },
   {
     q: 'Quanto custa?',
-    a: 'O cadastro é gratuito e a primeira candidatura é por nossa conta, sem cartão. Depois, o PRO custa US$ 5 por mês: candidaturas ilimitadas, uma fila matinal de rascunhos prontos e um currículo adaptado a cada vaga.',
+    a: 'O cadastro é gratuito e a primeira candidatura é por nossa conta, sem cartão. Depois você pode recarregar saldo (a partir de US$ 3, US$ 0,50 por candidatura, nunca expira) ou assinar o PRO por US$ 5 por mês: até 20 candidaturas por dia, uma fila matinal de rascunhos prontos e seu currículo anexado a cada uma.',
   },
   {
     q: 'Funciona para conseguir trabalho remoto nos EUA ou na Europa morando no Brasil?',

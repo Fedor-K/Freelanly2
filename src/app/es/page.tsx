@@ -28,7 +28,7 @@ const faqs = [
   },
   {
     q: '¿Cuánto cuesta?',
-    a: 'Registrarte es gratis y tu primera postulación corre por nuestra cuenta, sin tarjeta. Después, PRO cuesta $5 USD al mes: postulaciones ilimitadas, una cola matutina de borradores listos y un CV adaptado a cada puesto.',
+    a: 'Registrarte es gratis y tu primera postulación corre por nuestra cuenta, sin tarjeta. Después puedes recargar saldo (desde $3 USD, $0.50 por postulación, nunca expira) o pasarte a PRO por $5 USD al mes: hasta 20 postulaciones al día, una cola matutina de borradores listos y tu CV adjunto en cada una.',
   },
   {
     q: '¿Funciona para conseguir trabajo remoto en Estados Unidos o Europa desde América Latina?',
