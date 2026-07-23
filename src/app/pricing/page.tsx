@@ -156,7 +156,7 @@ export default function PricingPage() {
     <div className="footer-grid">
       <div className="footer-col footer-brand">
         <a href="/" className="logo"><span className="logo-mark">F</span><span>Freelanly</span></a>
-        <p>Personal AI assistant for vacancies and projects application. Be first in the inbox. Win the project.</p>
+        <p>Personal AI assistant for remote tech-job applications. Be first in the inbox. Win the role.</p>
       </div>
       <div className="footer-col">
         <h5>Product</h5>
@@ -183,7 +183,7 @@ export default function PricingPage() {
       </div>
     </div>
     <div className="footer-bottom">
-      <div>© 2026 Freelanly · Made for freelancers who&apos;d rather be working.</div>
+      <div>© 2026 Freelanly · Made for engineers who&apos;d rather be building.</div>
     </div>
   </div>
 </footer>

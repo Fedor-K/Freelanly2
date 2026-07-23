@@ -189,7 +189,7 @@ export default async function SettingsPage() {
               <div className="ico" style={{background: 'var(--bg-2)', color: 'var(--ink-3)', border: '1px solid var(--line)'}}>▲</div>
               <div>
                 <div className="name">Slack communities</div>
-                <div className="meta">Bring your gig-channels into the feed</div>
+                <div className="meta">Bring your dev-community channels into the feed</div>
               </div>
               <span className="meta" style={{fontSize: '11px'}}>Coming soon</span>
             </div>

@@ -7,7 +7,7 @@ import { MarketingNav, MarketingFooter } from '@/components/marketing/MarketingS
 // always reviews and sends; never framed as auto-apply. App UI is English — stated honestly.
 
 export const metadata: Metadata = {
-  title: 'Freelanly — asistente personal de IA para postular a empleos y proyectos',
+  title: 'Freelanly — asistente personal de IA para conseguir trabajo remoto tech',
   description:
     'Freelanly encuentra vacantes y proyectos freelance que coinciden con tu perfil y redacta una carta de presentación a medida para cada uno — tú revisas y envías.',
   alternates: {
@@ -61,12 +61,12 @@ export default function SpanishLander() {
         <div className="max-w-[820px] mx-auto px-8">
           <span className="font-mono text-xs tracking-widest uppercase text-[#C7F94A]">— Para LATAM</span>
           <h1 className="text-[clamp(34px,4.6vw,56px)] font-semibold tracking-tighter mt-4 mb-6 leading-tight">
-            Tu asistente personal de IA para <span className="text-[#C7F94A]">postular</span> a empleos y proyectos.
+            Tu asistente personal de IA para conseguir <span className="text-[#C7F94A]">trabajo remoto tech</span> en EE. UU. y Europa.
           </h1>
           <p className="text-[#D4D4D8] text-lg max-w-[62ch] mb-4 leading-relaxed">
-            Freelanly detecta vacantes y proyectos freelance recién publicados — en posts de LinkedIn y páginas de
-            carreras de empresas — que coinciden con tu perfil, y redacta una carta de presentación a medida para
-            cada uno. <strong className="text-white">Tú la revisas y la envías</strong>, desde tu propio Gmail.
+            Freelanly detecta roles remotos de desarrollo, data, DevOps y QA recién publicados — en posts de
+            LinkedIn y páginas de carreras de empresas — que coinciden con tu perfil, y redacta una carta de
+            presentación a medida para cada uno. <strong className="text-white">Tú la revisas y la envías</strong>, desde tu propio Gmail.
           </p>
           <p className="text-[14px] text-[#6B7280] mb-8">
             La interfaz de la app está en inglés · Tu primera postulación es gratis, sin tarjeta.

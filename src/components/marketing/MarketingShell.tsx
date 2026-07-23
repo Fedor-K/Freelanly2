@@ -49,7 +49,7 @@ export function MarketingFooter() {
             <Link href="/" className="flex items-center gap-2.5 font-semibold mb-4">
               <span className="w-[26px] h-[26px] rounded-[7px] grid place-items-center font-mono font-bold text-sm" style={{ background: '#C7F94A', color: '#000' }}>F</span>Freelanly
             </Link>
-            <p className="text-[14px] text-[#A1A1AA] max-w-[260px]">Personal AI assistant for vacancies and projects application.</p>
+            <p className="text-[14px] text-[#A1A1AA] max-w-[260px]">Personal AI assistant for remote tech-job applications.</p>
           </div>
           {[
             { t: 'Product', l: [['How it works', '/how-it-works'], ['Features', '/features'], ['Pricing', '/pricing'], ['Remote jobs', '/remote-jobs']] },
@@ -64,7 +64,7 @@ export function MarketingFooter() {
         </div>
         <div className="flex justify-between items-center pt-8 text-[13px] text-[#6B7280]" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
           <span>© 2026 Freelanly</span>
-          <span>Made for freelancers who&apos;d rather be working.</span>
+          <span>Made for engineers who&apos;d rather be building.</span>
         </div>
       </div>
     </footer>

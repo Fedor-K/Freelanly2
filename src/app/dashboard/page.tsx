@@ -234,7 +234,7 @@ export default async function DashboardOverviewPage() {
       {(needsResumeReupload || resumeFileMissing) && (
         <div style={{ margin: '0 0 16px', padding: '14px 18px', borderRadius: '12px', background: '#FEF3C7', border: '1px solid #FCD34D', color: '#78350F', fontSize: '14px', lineHeight: 1.5 }}>
           {needsResumeReupload ? (
-            <><strong>We couldn&apos;t read your résumé.</strong> No skills or languages were detected, so we can&apos;t match you to gigs or write your cover letters.{' '}
+            <><strong>We couldn&apos;t read your résumé.</strong> No skills or languages were detected, so we can&apos;t match you to roles or write your cover letters.{' '}
             <a href="/dashboard/settings#profile" style={{ color: '#92400E', fontWeight: 600, textDecoration: 'underline' }}>Re-upload your résumé (a text-based PDF) →</a></>
           ) : (
             <><strong>Your résumé file isn&apos;t saved.</strong> It was uploaded before a recent update and isn&apos;t stored with us — so we can&apos;t attach it to your applications or replies (recruiters ask for it constantly).{' '}
@@ -256,7 +256,7 @@ export default async function DashboardOverviewPage() {
           <p>
             {sentToday > 0
               ? <>{sentToday} {sentToday === 1 ? 'application' : 'applications'} sent today</>
-              : <>Browse gigs and apply — we pre-write every cover letter.</>}
+              : <>Browse roles and apply — we pre-write every cover letter.</>}
             {repliesTodayCount > 0 && <> · <a href="/dashboard/inbox" style={{color: 'var(--acid-deep)', fontWeight: 500}}>{repliesTodayCount} new {repliesTodayCount === 1 ? 'reply' : 'replies'} today</a></>}
           </p>
         </div>

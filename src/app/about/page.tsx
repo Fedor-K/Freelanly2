@@ -8,7 +8,7 @@ export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: 'About Freelanly — the personal AI application assistant',
-  description: 'Why we built Freelanly: freelancers lose a billable day every week to job-hunting busywork. Our story, our rules, and honest answers to fair questions.',
+  description: 'Why we built Freelanly: engineers lose a full working day every week to job-hunting busywork. Our story, our rules, and honest answers to fair questions.',
   alternates: { canonical: `${siteConfig.url}/about` },
 };
 
@@ -51,7 +51,7 @@ export default async function AboutPage() {
   <div className="container">
     <span className="eyebrow eyebrow-accent">— About</span>
     <h1 style={{marginTop: '18px'}}>Built for people who&apos;d rather work than <span className="accent">apply.</span></h1>
-    <p className="lede">Freelanly is a personal AI assistant for vacancies and projects application. It finds fresh openings, drafts a tailored application for each — and you review and send every one yourself. Today {usersK} freelancers and remote candidates use it to spend less time on the application treadmill.</p>
+    <p className="lede">Freelanly is a personal AI assistant for remote tech-job applications. It finds fresh engineering, data, DevOps and QA openings, drafts a tailored application for each — and you review and send every one yourself. Today {usersK} engineers and remote tech candidates use it to spend less time on the application treadmill.</p>
   </div>
 </header>
 
@@ -59,12 +59,12 @@ export default async function AboutPage() {
 <section className="section">
   <div className="container">
     <div className="manifesto reveal">
-      <p>We started with one belief: <strong>the freelancer&apos;s biggest cost isn&apos;t taxes or tools — it&apos;s the time spent looking for the next gig.</strong> A typical full-time freelancer loses 8–12 hours a week to job-hunting. That&apos;s a full billable day. Every week.</p>
+      <p>We started with one belief: <strong>a remote engineer&apos;s biggest cost isn&apos;t tools or courses — it&apos;s the time spent hunting the next role.</strong> A developer applying to US and European remote roles from abroad loses 8–12 hours a week to job-hunting. That&apos;s a full working day. Every week.</p>
       <p>The job-board industry doesn&apos;t want to fix this. Their business model depends on you refreshing the same feed 30 times a day. Their feeds depend on listings that have already been seen by 500 people.</p>
       <div className="pull">
         We&apos;re building the opposite of a job board. A feed that catches openings <span style={{color: 'var(--accent)', fontStyle: 'italic'}}>before</span> they hit the boards and drafts the application for you — so all that&apos;s left is to review, hit Send, and get back to the work that pays.
       </div>
-      <p>Freelanly is a tool, not a community. We don&apos;t sell ads to recruiters. We don&apos;t sell your data. Our only customer is you — the freelancer or the candidate — and our only metric is whether you book more work with less time spent applying.</p>
+      <p>Freelanly is a tool, not a community. We don&apos;t sell ads to recruiters. We don&apos;t sell your data. Our only customer is you — the candidate — and our only metric is whether you land more work with less time spent applying.</p>
       <p>If we ever stop doing that — leave. Take your data with you. Export is one click.</p>
     </div>
   </div>
@@ -90,7 +90,7 @@ export default async function AboutPage() {
     <div className="timeline reveal">
       <div className="tl-step">
         <div className="tl-year">{usersK}</div>
-        <h4>Signed-up freelancers &amp; candidates</h4>
+        <h4>Signed-up engineers &amp; tech candidates</h4>
         <p>From 90+ countries — most applying to remote roles and freelance projects at US and European companies.</p>
       </div>
       <div className="tl-step">
@@ -123,7 +123,7 @@ export default async function AboutPage() {
       <div className="value reveal">
         <div className="value-num">— 01</div>
         <h3>Your time is the product.</h3>
-        <p>Every feature is judged by one question: does it give the freelancer an hour back? If not, we don&apos;t build it. Even if it would look great in a launch tweet.</p>
+        <p>Every feature is judged by one question: does it give the candidate an hour back? If not, we don&apos;t build it. Even if it would look great in a launch tweet.</p>
       </div>
       <div className="value reveal">
         <div className="value-num">— 02</div>
@@ -201,7 +201,7 @@ export default async function AboutPage() {
           <span className="q">How is this different from Upwork or Indeed?</span>
           <span className="icon"><PlusIcon /></span>
         </summary>
-        <div className="a">Upwork is a marketplace — you compete with hundreds of freelancers per job and pay a fee on everything you earn. Freelanly is direct application: openings sourced from hiring posts and career pages, your letter, your inbox, no middleman between you and the client.</div>
+        <div className="a">Upwork is a marketplace — you compete with hundreds of bidders per job and pay a fee on everything you earn. Freelanly is direct application: openings sourced from hiring posts and career pages, your letter, your inbox, no middleman between you and the client.</div>
       </details>
       <details className="faq-item-acc">
         <summary>
@@ -236,7 +236,7 @@ export default async function AboutPage() {
     <div className="footer-grid">
       <div className="footer-col footer-brand">
         <a href="/" className="logo"><span className="logo-mark">F</span><span>Freelanly</span></a>
-        <p>Personal AI assistant for vacancies and projects application. Be first in the inbox. Win the project.</p>
+        <p>Personal AI assistant for remote tech-job applications. Be first in the inbox. Win the role.</p>
       </div>
       <div className="footer-col">
         <h5>Product</h5>
@@ -263,7 +263,7 @@ export default async function AboutPage() {
       </div>
     </div>
     <div className="footer-bottom">
-      <div>© 2026 Freelanly · Made for freelancers who&apos;d rather be working.</div>
+      <div>© 2026 Freelanly · Made for engineers who&apos;d rather be building.</div>
     </div>
   </div>
 </footer>

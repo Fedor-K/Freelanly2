@@ -62,8 +62,8 @@ export default function ApplyGuidesHub() {
           </div>
 
           <p className="text-[14px] text-[#6B7280] max-w-[62ch]">
-            Written and maintained by the Freelanly team. Freelanly is a personal AI assistant for vacancies and
-            projects application — it finds matched openings and drafts the cover letter, and you review and send.
+            Written and maintained by the Freelanly team. Freelanly is a personal AI assistant for remote tech-job
+            applications — it finds matched openings and drafts the cover letter, and you review and send.
           </p>
         </div>
       </main>

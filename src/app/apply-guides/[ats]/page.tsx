@@ -133,7 +133,7 @@ export default async function AtsGuidePage({ params }: { params: Promise<{ ats: 
           >
             <h2 className="text-xl font-semibold mb-2">The letter is the hard part — draft it with AI</h2>
             <p className="text-[15px] text-[#A1A1AA] mb-5 leading-relaxed">
-              Freelanly finds fresh vacancies and freelance projects matched to your profile and drafts a tailored
+              Freelanly finds fresh remote tech roles matched to your profile and drafts a tailored
               cover letter for each — checked by a second AI reviewer against the job&apos;s requirements. You review,
               edit, and send every application yourself. First one is free.
             </p>

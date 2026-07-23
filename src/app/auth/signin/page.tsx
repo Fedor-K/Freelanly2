@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Sign Up — Freelanly',
-  description: 'AI finds matching gigs and writes a personalized application for each — you review and send in one click.',
+  description: 'AI finds matching remote tech roles and writes a personalized application for each — you review and send in one click.',
 };
 
 interface SignInPageProps {
@@ -71,7 +71,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   }
 
   // Personalized headline based on ref source
-  let headline = 'Fresh gigs. Applications\nalready written.';
+  let headline = 'Fresh dev roles. Applications\nalready written.';
   let subtitle = "Takes 60 seconds. We find matching projects daily and pre-write every application — you just hit Send.";
 
   if (params.ref === 'jobs' || params.ref === 'freelance') {
