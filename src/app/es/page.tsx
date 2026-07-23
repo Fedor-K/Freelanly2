@@ -7,7 +7,7 @@ import { MarketingNav, MarketingFooter } from '@/components/marketing/MarketingS
 // always reviews and sends; never framed as auto-apply. App UI is English — stated honestly.
 
 export const metadata: Metadata = {
-  title: 'Freelanly — asistente personal de IA para conseguir trabajo remoto tech',
+  title: 'Freelanly — trabajo remoto para programadores en EE. UU. y Europa',
   description:
     'Freelanly encuentra vacantes y proyectos freelance que coinciden con tu perfil y redacta una carta de presentación a medida para cada uno — tú revisas y envías.',
   alternates: {
@@ -64,8 +64,8 @@ export default function SpanishLander() {
             Tu asistente personal de IA para conseguir <span className="text-[#C7F94A]">trabajo remoto tech</span> en EE. UU. y Europa.
           </h1>
           <p className="text-[#D4D4D8] text-lg max-w-[62ch] mb-4 leading-relaxed">
-            Freelanly detecta roles remotos de desarrollo, data, DevOps y QA recién publicados — en posts de
-            LinkedIn y páginas de carreras de empresas — que coinciden con tu perfil, y redacta una carta de
+            Trabajo remoto para programadores, desarrolladores, data y QA: Freelanly detecta empleos remotos
+            recién publicados en posts de LinkedIn — antes de que lleguen a los portales — y redacta una carta de
             presentación a medida para cada uno. <strong className="text-white">Tú la revisas y la envías</strong>, desde tu propio Gmail.
           </p>
           <p className="text-[14px] text-[#6B7280] mb-8">

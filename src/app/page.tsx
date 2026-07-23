@@ -7,8 +7,8 @@ import './landing-design.css';
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: 'Freelanly — Personal AI Assistant for Remote Tech-Job Applications',
-  description: 'Freelanly finds fresh remote engineering, data, DevOps and QA roles matched to your profile and drafts a tailored cover letter for each — you review and send from your own inbox.',
+  title: 'Freelanly — Remote Tech Jobs Before They Hit the Boards',
+  description: 'Freelanly reads LinkedIn hiring posts and catches remote engineering, data, DevOps and QA roles before they hit the job boards — with your application already drafted. You review and send.',
   alternates: {
     canonical: siteConfig.url,
     languages: {
@@ -71,7 +71,7 @@ export default async function LandingPage() {
         <span className="accent">so you don&apos;t have to.</span>
       </h1>
       <p className="hero-sub">
-        Fresh remote engineering, data, DevOps and QA roles — caught the moment they&apos;re posted, with the cover letter already written. <strong>You review it and hit Send</strong> from your own Gmail.
+        Fresh remote engineering, data, DevOps and QA roles — caught in LinkedIn hiring posts before they hit the job boards, with the cover letter already written. <strong>You review it and hit Send</strong> from your own Gmail.
       </p>
       <div className="hero-cta">
         <a href="/auth/signin" className="btn btn-primary btn-lg">
@@ -233,6 +233,7 @@ export default async function LandingPage() {
         { q: 'Will recruiters know it’s AI-written?', a: 'Letters reference specifics from the post and your actual experience, pass a second AI review, and send from your personal Gmail. They read like a short, thoughtful note — and you can edit every word first.' },
         { q: 'What does it actually cost?', a: 'First application is free, no card. After that: $0.50 per application from a prepaid balance (top up from $3, never expires), or PRO at $5/month for up to 20 applications a day.' },
         { q: 'How do I cancel?', a: 'Two clicks from your billing page. Export your data to CSV anytime; deleting your account removes everything.' },
+        { q: 'I’m applying from Latin America — does this work for me?', a: 'That’s exactly who most of our users are: developers in Latin America (and worldwide) applying to US and European companies that hire internationally. Applications send from your own Gmail, so they look like any other candidate’s — because they are.' },
       ].map((f, i) => (
         <details key={i} style={{border: '1px solid var(--line-2)', borderRadius: '12px', padding: '0'}}>
           <summary style={{padding: '16px 20px', cursor: 'pointer', fontSize: '14.5px', fontWeight: 500, listStyle: 'none'}}>{f.q}</summary>

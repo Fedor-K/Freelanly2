@@ -8,7 +8,7 @@ import { SEO_NICHES, matchesNiche } from '@/config/seo-niches';
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: 'Remote Jobs & Freelance Projects by Role — Freelanly',
+  title: 'Remote Tech Jobs by Role — From LinkedIn Hiring Posts',
   description: 'Browse fresh remote roles and freelance projects by profession — engineering, DevOps, data, design, product — pulled from LinkedIn hiring posts and career pages every few hours.',
   alternates: { canonical: `${siteConfig.url}/remote-jobs` },
 };
