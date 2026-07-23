@@ -37,7 +37,7 @@ export default async function DashboardOverviewPage() {
   // Redirecting a just-authenticated user to the signup form looked like a broken
   // login ("enter code → page flashes → back to sign-up") — reported by users.
   const onboardCheck = await prisma.user.findUnique({ where: { id: userId }, select: { resumeUrl: true } });
-  if (!onboardCheck?.resumeUrl) redirect('/dashboard/settings#profile');
+  if (!onboardCheck?.resumeUrl) redirect('/onboarding');
 
   const [user, today, yesterday, month, applications, repliesTodayCount, dailyActivity, loop] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true, parsedProfile: true, salaryExpectation: true, githubUrl: true, videoIntroUrl: true, resumeUrl: true } }),

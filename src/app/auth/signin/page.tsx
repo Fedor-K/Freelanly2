@@ -66,7 +66,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
     if (params.gmail === 'connected' && u && !u.resumeUrl) {
       googleProfileStep = { email: u.email };
     } else {
-      redirect(u?.resumeUrl ? '/dashboard/discovery' : '/dashboard/settings#profile');
+      redirect(u?.resumeUrl ? '/dashboard/discovery' : '/onboarding');
     }
   }
 

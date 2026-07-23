@@ -10,6 +10,7 @@ import { firstGitHubUrlFrom, usernameFromGitHubUrl } from '@/lib/github-review/e
 import { isLocationBlocked } from '@/lib/region-block';
 import { verifyRegToken } from '@/lib/reg-token';
 import { createUserSession } from '@/lib/create-session';
+import { auth } from '@/lib/auth';
 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'zai';
 
@@ -99,11 +100,24 @@ export async function POST(request: NextRequest) {
     // Find user by email
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, githubUrl: true },
+      select: { id: true, githubUrl: true, resumeUrl: true },
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Ownership guard (2026-07-23): this route writes by EMAIL without auth — required for the
+    // pre-auth signup flow (brand-new résumé-less account, OTP just confirmed). But an ESTABLISHED
+    // profile (résumé already on file) must not be overwritable by anyone who knows the email:
+    // require a live session for that same user OR a valid OTP regToken. This also lets the
+    // authed /onboarding (Google path) reuse this route's LinkedIn→CV generation safely.
+    if (user.resumeUrl) {
+      const session = await auth().catch(() => null);
+      const owns = session?.user?.id === user.id || (regToken ? verifyRegToken(regToken) === email : false);
+      if (!owns) {
+        return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
+      }
     }
 
     let pdfText = '';
