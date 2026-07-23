@@ -363,7 +363,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
               ⚡ GitHub-verified
             </span>
           )}
-          <span className="chip"><span className="chip-dot live"></span>{timeAgo(item.createdAt)}</span>
+          <span className="chip" suppressHydrationWarning><span className="chip-dot live"></span>{timeAgo(item.createdAt)}</span>
         </div>
         {/* Person-posters are anonymized upstream (companyName comes through empty) — show the company
             when we have one, otherwise just the source. */}

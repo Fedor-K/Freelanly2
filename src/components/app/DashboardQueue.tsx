@@ -146,7 +146,7 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
               <div className="logo" style={{background: COLORS[i % COLORS.length]}}>{app.companyName[0]}</div>
               <div>
                 <div className="title">{app.jobTitle} · {app.companyName}</div>
-                <div className="meta">{timeAgo(app.createdAt)} ago</div>
+                <div className="meta" suppressHydrationWarning>{timeAgo(app.createdAt)} ago</div>
               </div>
               <span className="match">{app.matchScore ? `${app.matchScore}% match` : ''}</span>
               <div className="actions">

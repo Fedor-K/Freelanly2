@@ -3,11 +3,9 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { getStripeClient } from '@/lib/stripe-client';
+import { getStripeClient, STRIPE_BLOCKED_MSG } from '@/lib/stripe-client';
 import { QueueUpgradeButton } from './QueueUpgradeButton';
 import { useTracker } from '@/hooks/useTracker';
-
-const stripePromise = getStripeClient();
 
 function btnStyle(busy: boolean): CSSProperties {
   return {
@@ -70,13 +68,17 @@ export function ApplyPaywallModal({
       setClientSecret(data.clientSecret);
       if (data.hasCard) {
         // One-tap: the saved card is attached to the intent — confirm it (handles 3DS natively).
-        const stripe = await stripePromise;
-        if (!stripe) { setError('Payment unavailable'); setBusy(false); return; }
+        const stripe = await getStripeClient();
+        if (!stripe) { setError(STRIPE_BLOCKED_MSG); setBusy(false); return; }
         const { error: err, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret);
         if (err) { setError(err.message || 'Payment failed'); setBusy(false); return; }
         if (paymentIntent?.status === 'succeeded') { await grantAndRetry(paymentIntent.id); }
         else { setError('Payment not completed'); setBusy(false); }
       } else {
+        // Pre-flight the (lazy) Stripe.js load BEFORE mounting Elements: with an ad-blocker the
+        // script never loads and the form would hang on "Loading…" forever — tell them why instead.
+        const stripe = await getStripeClient();
+        if (!stripe) { setError(STRIPE_BLOCKED_MSG); setBusy(false); return; }
         setShowCardForm(true); // mount Elements to collect a card
         setBusy(false);
       }
@@ -112,7 +114,7 @@ export function ApplyPaywallModal({
           </button>
         </>
       ) : clientSecret ? (
-        <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+        <Elements stripe={getStripeClient()} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
           <CardForm priceLabel={priceLabel} clientSecret={clientSecret}
             onSucceeded={grantAndRetry} onError={setError}
             onEvent={(step, extra) => track('FUNNEL_STEP', { step, source, amountCents, ...extra })} />
