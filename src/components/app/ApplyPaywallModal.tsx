@@ -148,13 +148,28 @@ function CardForm({
     // Telemetry: this was a 100% blind zone — 10/10 top-up clicks died between the form and Stripe
     // with zero payment attempts on the PIs. Track submit + the exact client-side error.
     onEvent('credit_charge_submit');
-    const { error, paymentIntent } = await stripe.confirmPayment({ elements, clientSecret, redirect: 'if_required' });
-    if (error) {
-      onEvent('credit_charge_client_error', { code: error.code, type: error.type, msg: (error.message || '').slice(0, 120) });
-      onError(error.message || 'Payment failed'); setBusy(false); return;
+    try {
+      // return_url: required by Stripe.js when the Elements instance includes any redirect-capable
+      // method (Link/wallets are now active on the domain) — without it confirmPayment THROWS an
+      // IntegrationError instead of returning {error}, which left the button spinning forever with
+      // no error shown and no telemetry (the exact silent death we saw on prod).
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        clientSecret,
+        confirmParams: { return_url: window.location.href },
+        redirect: 'if_required',
+      });
+      if (error) {
+        onEvent('credit_charge_client_error', { code: error.code, type: error.type, msg: (error.message || '').slice(0, 120) });
+        onError(error.message || 'Payment failed'); setBusy(false); return;
+      }
+      if (paymentIntent?.status === 'succeeded') { await onSucceeded(paymentIntent.id); }
+      else { onEvent('credit_charge_client_error', { code: 'not_succeeded', msg: paymentIntent?.status }); onError('Payment not completed'); setBusy(false); }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      onEvent('credit_charge_client_error', { code: 'exception', msg: msg.slice(0, 160) });
+      onError('Payment failed — please try again'); setBusy(false);
     }
-    if (paymentIntent?.status === 'succeeded') { await onSucceeded(paymentIntent.id); }
-    else { onEvent('credit_charge_client_error', { code: 'not_succeeded', msg: paymentIntent?.status }); onError('Payment not completed'); setBusy(false); }
   }
 
   return (
