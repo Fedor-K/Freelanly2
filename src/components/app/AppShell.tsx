@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { signOut } from 'next-auth/react';
 import { ApplyPaywallModal } from '@/components/app/ApplyPaywallModal';
+import { trackEvent } from '@/hooks/useTracker';
 
 const ICONS: Record<string, string> = {
   home:    '<path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1h-5v-7h-6v7H4a1 1 0 01-1-1V9.5z"/>',
@@ -305,11 +306,11 @@ export function AppShell({ children, userName, userPlan, applyCredits = 0, freeU
       {/* Balance top-up overlay — same flow as the wall (amount selector + inline card, $5/mo secondary).
           onCreditsReady here just closes + reloads so the sidebar balance refreshes. */}
       {topupOpen && (
-        <div onClick={() => setTopupOpen(false)}
+        <div onClick={() => { trackEvent('FUNNEL_STEP', { step: 'paywall_abandon', surface: 'sidebar_topup', via: 'backdrop' }); setTopupOpen(false); }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(10,12,8,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
           <div onClick={(e) => e.stopPropagation()}
             style={{ background: '#fff', borderRadius: '16px', maxWidth: '420px', width: '100%', position: 'relative', maxHeight: '92vh', overflowY: 'auto' }}>
-            <button onClick={() => setTopupOpen(false)} aria-label="Close"
+            <button onClick={() => { trackEvent('FUNNEL_STEP', { step: 'paywall_abandon', surface: 'sidebar_topup', via: 'x' }); setTopupOpen(false); }} aria-label="Close"
               style={{ position: 'absolute', top: '10px', right: '12px', border: 'none', background: 'none', fontSize: '18px', cursor: 'pointer', color: '#8a8f98', zIndex: 1 }}>✕</button>
             <ApplyPaywallModal
               message="Top up your balance"

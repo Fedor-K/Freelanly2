@@ -176,6 +176,11 @@ IMPORTANT — "experience_years" is total YEARS OF PROFESSIONAL WORK EXPERIENCE 
 
     console.log(`[Resume] Parsed for user ${session.user.id}: ${parsedProfile?.name || 'unknown'}, ${parsedProfile?.skills?.length || 0} skills, ${parsedProfile?.experience_years || '?'} years`);
 
+    // Funnel event: résumé upload previously only mutated User state — invisible in ActivityLog.
+    await prisma.activityLog.create({
+      data: { userId: session.user.id, action: 'RESUME_UPLOADED', details: { source: 'dashboard', parsed: !!parsedProfile, fileName: file.name.slice(0, 80) } },
+    }).catch(() => {});
+
     // Auto-create loop if user doesn't have one
     const existingLoop = await prisma.autoApplyLoop.findFirst({
       where: { userId: session.user.id },

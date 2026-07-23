@@ -267,6 +267,21 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
     }
   }
 
+  /**
+   * USER-initiated close of the draft modal (backdrop / ✕ / Cancel) — programmatic closes after a
+   * successful send call setDraftItem(null) directly and are NOT counted. Two abandon flavors:
+   *  - paywall_abandon: the wall was showing and the user walked away without picking an offer
+   *  - draft_abandon:   a generated letter existed but was never sent
+   */
+  function closeDraft(via: string) {
+    if (draftBlocked?.reason === 'application_limit') {
+      track('FUNNEL_STEP', { step: 'paywall_abandon', surface: 'feed', via, offer: draftBlocked.offer });
+    } else if (draftBody && draftItem && !applied.has(draftItem.id)) {
+      track('FUNNEL_STEP', { step: 'draft_abandon', via, opportunityId: draftItem.type === 'opportunity' ? draftItem.id : undefined });
+    }
+    setDraftItem(null);
+  }
+
   function toggleSkill(skill: string) {
     setActiveSkills(prev => {
       const next = new Set(prev);
@@ -565,7 +580,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
           bottom half on phones. Top-aligned (not centered) so the edit textarea stays visible above
           the software keyboard — same lesson as SmtpConnectModal. */}
       {draftItem && typeof document !== 'undefined' && createPortal(
-        <div style={{position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 2000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 12px 16px', overflowY: 'auto'}} onClick={() => !draftGenerating && !draftSending && setDraftItem(null)}>
+        <div style={{position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 2000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 12px 16px', overflowY: 'auto'}} onClick={() => !draftGenerating && !draftSending && closeDraft('backdrop')}>
           <div style={{background: '#fff', borderRadius: '14px', padding: '0', width: '100%', maxWidth: '640px', maxHeight: '92vh', overflow: 'auto', border: '1px solid rgba(11,12,15,0.12)'}} onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div style={{padding: '16px 24px', borderBottom: '1px solid rgba(11,12,15,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
@@ -573,7 +588,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                 <div style={{fontSize: '15px', fontWeight: 500}}>{draftItem.title}</div>
                 <div style={{fontSize: '12px', color: '#5C6068', marginTop: '2px'}}>{draftItem.companyName ? `${draftItem.companyName} · ` : ''}{draftItem.applyEmail}</div>
               </div>
-              <button style={{background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#5C6068'}} onClick={() => setDraftItem(null)}>✕</button>
+              <button style={{background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#5C6068'}} onClick={() => closeDraft('x')}>✕</button>
             </div>
 
             {draftGenerating ? (
@@ -681,7 +696,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                 <div style={{padding: '14px 24px', borderTop: '1px solid rgba(11,12,15,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                   <div style={{fontSize: '12px', color: '#8A8E96', fontFamily: "'Geist Mono', monospace"}}>{draftBody.length} chars</div>
                   <div style={{display: 'flex', gap: '8px'}}>
-                    <button className="btn btn-ghost btn-sm" onClick={() => setDraftItem(null)}>Cancel</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => closeDraft('cancel')}>Cancel</button>
                     <button
                       className="btn btn-acid btn-sm"
                       onClick={handleSendDraft}

@@ -378,6 +378,8 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       setCodeSent(true);
       setOtpCode('');
       setOtpError('');
+      // OTP-funnel checkpoint (mirrors RegistrationForm — two-signup-forms parity).
+      track('FUNNEL_STEP', { step: 'signup_otp_sent', form: 'inline', opportunityId: project.id });
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -405,6 +407,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
       });
       const data = await res.json();
       if (res.ok && data.success) {
+        track('FUNNEL_STEP', { step: 'signup_otp_verified', form: 'inline', opportunityId: project.id });
         // Email CONFIRMED. New users (no résumé yet) now move to the profile step to enter their
         // résumé/LinkedIn/categories — nothing was collected before this point. Existing users who
         // already have a résumé skip straight to applying.
@@ -419,6 +422,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         window.location.href = `/dashboard/discovery?apply=${project.id}`;
         return;
       } else {
+        track('FUNNEL_STEP', { step: 'signup_otp_fail', form: 'inline', opportunityId: project.id });
         setOtpError(data.error || 'Invalid code');
         setOtpCode('');
       }
@@ -860,7 +864,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 A nudge to check those folders recovers users who'd otherwise think nothing arrived. */}
             <div style={{ fontSize: '12px', color: '#8A8780', marginTop: '6px', lineHeight: 1.5 }}>
               Didn&apos;t get it? Check <b>Spam</b> or <b>Promotions</b>.{' '}
-              <button onClick={() => { setOtpCode(''); setOtpError(''); handleSendCode(); }} disabled={otpLoading} style={{ color: '#3F6212', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0, textDecoration: 'underline' }}>
+              <button onClick={() => { track('FUNNEL_STEP', { step: 'signup_otp_resend', form: 'inline', opportunityId: project.id }); setOtpCode(''); setOtpError(''); handleSendCode(); }} disabled={otpLoading} style={{ color: '#3F6212', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0, textDecoration: 'underline' }}>
                 Resend code
               </button>
             </div>
