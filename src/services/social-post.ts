@@ -18,25 +18,27 @@ function getAIClient(): { client: OpenAI; model: string } {
   return { client: getZaiClient(), model: 'glm-4-32b-0414-128k' };
 }
 
-const SOCIAL_POST_PROMPT = `You are a social media copywriter for a freelance platform. Create an URGENT post for a direct freelance project.
+// Service-framed post body (owner decision 2026-07-23): the job stays the hook, but the frame sells
+// the SERVICE ("caught from LinkedIn hiring posts before the boards"), not one-off urgency. The old
+// «🔥 URGENT / Apply now!» framing attracted single-transaction clicks — users who applied to that
+// one post and never returned (75% of registrations, ~0 payers). CTAs/links are appended by n8n.
+const SOCIAL_POST_PROMPT = `You are a social media copywriter for Freelanly — an AI assistant that catches fresh remote tech roles from LinkedIn hiring posts before they reach job boards. Create a short post for ONE role.
 
 Generate this format:
-🔥 URGENT: [1 sentence why this is hot - client ready to hire NOW]
+⚡ Caught in a LinkedIn hiring post — before it hits the job boards.
 
 📍 [Location/Remote]
-💰 [Budget if available, skip if yearly salary]
+💰 [Budget/rate if available, skip if yearly salary]
 
-[2-3 sentences: what the client needs, key skills required, why act fast. End with "Apply now!" or similar urgency]
+[2-3 factual sentences: what the client needs and the key skills. Specific, calm, no hype.]
 
 Rules:
-- URGENCY is key - emphasize speed, "client needs NOW", "hiring immediately"
-- Maximum 300 characters for summary
-- Be specific about skills needed
-- No hashtags, no links
-- Professional but urgent tone
-- Skip 💰 line if no budget or if it's yearly salary (not freelance rate)
-- Do NOT include "Direct contact" line - it will be added automatically
-- Write in the same language as the original post
+- Factual and specific — name the actual skills and the actual work
+- NO urgency theater: never write "URGENT", "NOW", "act fast", "Apply now"
+- Maximum 300 characters for the summary sentences
+- No hashtags, no links, no CTA — the apply link is added automatically
+- Skip 💰 line if no budget or if it's yearly salary (not a freelance/contract rate)
+- Write in the same language as the original post (translate the ⚡ line too)
 
 CRITICAL: Return ONLY the formatted post text. Do NOT include any explanations, apologies, or meta-commentary.`;
 
@@ -197,9 +199,9 @@ function generateFallbackPost(opp: OpportunityForSocialPost): string {
 
   // Skills needed
   if (opp.skills.length > 0) {
-    lines.push(`Looking for ${opp.level.toLowerCase()} freelancer with ${opp.skills.slice(0, 3).join(', ')}. Apply now!`);
+    lines.push(`Looking for a ${opp.level.toLowerCase()} candidate with ${opp.skills.slice(0, 3).join(', ')}.`);
   } else {
-    lines.push(`${opp.level} freelance project. Client ready to start immediately!`);
+    lines.push(`${opp.level} remote role — direct application.`);
   }
 
   return lines.join('\n');
