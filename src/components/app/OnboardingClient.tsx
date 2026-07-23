@@ -11,7 +11,7 @@ const ROLES = [
   { id: 'other', ico: '+', title: 'Something else', desc: "We'll ask you a few questions to build a custom profile.", tags: [] },
 ];
 
-export function OnboardingClient({ firstName, hasResume, hasLinkedin }: { firstName: string; hasResume: boolean; hasLinkedin: boolean }) {
+export function OnboardingClient({ firstName, email, hasResume, hasLinkedin }: { firstName: string; email: string; hasResume: boolean; hasLinkedin: boolean }) {
   const [selectedRole, setSelectedRole] = useState('engineer');
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [linkedinError, setLinkedinError] = useState<string | null>(null);
@@ -45,35 +45,48 @@ export function OnboardingClient({ firstName, hasResume, hasLinkedin }: { firstN
   }
 
   async function handleContinue() {
-    // LinkedIn is REQUIRED (complement to the résumé) unless the user already has one on file.
+    // Phase-1 minimal onboarding (owner 2026-07-23): résumé OR LinkedIn — either one unlocks the
+    // feed. No-file path generates a CV from the LinkedIn profile via resume-preauth (same as the
+    // OTP signup flow), which is what actually sets resumeUrl — the gate every dashboard page checks.
     const liVal = linkedinUrl.trim();
-    if (!hasLinkedin && !/linkedin\.com\/in\//i.test(liVal)) {
-      setLinkedinError('Add your LinkedIn profile URL (e.g. linkedin.com/in/yourname)');
+    const resumeOk = hasResume || !!uploadResult?.includes('!');
+    const linkedinOk = hasLinkedin || /linkedin\.com\/in\//i.test(liVal);
+    if (!resumeOk && !linkedinOk) {
+      setLinkedinError('Add your LinkedIn URL — or upload a résumé.');
       return;
     }
     setLinkedinError(null);
     setSaving(true);
     try {
-      // Save role preference
+      // Save role preference (best-effort)
       await fetch('/api/user/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: selectedRole }),
-      });
+      }).catch(() => {});
 
-      // Import LinkedIn — scrape + merge into the profile (enriches the résumé) + store the URL.
-      // Required: if the import call fails, don't complete onboarding.
-      if (!hasLinkedin && liVal) {
-        const liRes = await fetch('/api/user/linkedin', {
+      if (!resumeOk && linkedinOk) {
+        // LinkedIn-only: scrape → parse → GENERATE a CV (sets resumeUrl + creates the loop).
+        const fd = new FormData();
+        fd.append('email', email);
+        fd.append('linkedinUrl', liVal);
+        fd.append('buildFromLinks', 'true');
+        const pre = await fetch('/api/user/resume-preauth', { method: 'POST', body: fd });
+        if (!pre.ok) {
+          const d = await pre.json().catch(() => ({}));
+          setSaving(false);
+          setLinkedinError(typeof (d as { error?: string }).error === 'string'
+            ? (d as { error?: string }).error!
+            : 'Could not read that LinkedIn profile — check the URL or upload a résumé instead.');
+          return;
+        }
+      } else if (!hasLinkedin && liVal) {
+        // Résumé already on file + LinkedIn entered → enrichment only, best-effort (never blocks).
+        await fetch('/api/user/linkedin', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: liVal }),
-        });
-        if (!liRes.ok) {
-          setSaving(false);
-          setLinkedinError('Could not import that LinkedIn URL — please check it and try again.');
-          return;
-        }
+        }).catch(() => {});
       }
 
       // Mark onboarding complete
@@ -139,12 +152,12 @@ export function OnboardingClient({ firstName, hasResume, hasLinkedin }: { firstN
         </div>
 
         <div style={{ marginTop: '36px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 500, margin: '0 0 10px' }}>Add your résumé <b>and</b> LinkedIn — both are required to build your profile</h3>
+          <h3 style={{ fontSize: '14px', fontWeight: 500, margin: '0 0 10px' }}>Add your résumé <b>or</b> LinkedIn — either one unlocks your feed</h3>
           <div className="grid grid-2" style={{ gap: '12px' }}>
             <div className="import-card">
               <div className="ico">in</div>
-              <div style={{ fontSize: '13.5px', fontWeight: 500, marginBottom: '4px' }}>LinkedIn URL <span style={{ color: '#B91C1C' }}>*</span>{hasLinkedin && <span style={{ color: 'var(--good, #047857)' }}> ✓ on file</span>}</div>
-              <div className="meta">We&apos;ll pull skills, experience, and headline</div>
+              <div style={{ fontSize: '13.5px', fontWeight: 500, marginBottom: '4px' }}>LinkedIn URL{hasLinkedin && <span style={{ color: 'var(--good, #047857)' }}> ✓ on file</span>}</div>
+              <div className="meta">No CV file? We&apos;ll build one from your LinkedIn</div>
               <input
                 className="field"
                 placeholder={hasLinkedin ? 'Already linked — leave blank to keep it' : 'linkedin.com/in/yourname'}
@@ -173,9 +186,10 @@ export function OnboardingClient({ firstName, hasResume, hasLinkedin }: { firstN
             {(() => {
               const resumeOk = hasResume || !!uploadResult?.includes('!');
               const linkedinOk = hasLinkedin || /linkedin\.com\/in\//i.test(linkedinUrl.trim());
-              const label = saving ? 'Saving...' : !resumeOk ? 'Upload résumé to continue' : !linkedinOk ? 'Add LinkedIn to continue' : 'Continue → Dashboard';
+              const anyOk = resumeOk || linkedinOk;
+              const label = saving ? 'Saving...' : !anyOk ? 'Add résumé or LinkedIn to continue' : 'Continue → Dashboard';
               return (
-                <button className="btn btn-acid" onClick={handleContinue} disabled={saving || !resumeOk || !linkedinOk}>
+                <button className="btn btn-acid" onClick={handleContinue} disabled={saving || !anyOk}>
                   {label}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
                 </button>
