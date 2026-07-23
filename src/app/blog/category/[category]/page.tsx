@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { BlogPostCard } from '@/components/blog/BlogPostCard';
-import { Badge } from '@/components/ui/badge';
+import { MarketingNav, MarketingFooter } from '@/components/marketing/MarketingShell';
 import { ArrowLeft } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
@@ -95,99 +95,71 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   ]);
 
   return (
-    <div className="flex min-h-screen flex-col">
-      
+    <div className="min-h-screen" style={{ background: '#0A0B0F', color: '#FAFAFA' }}>
+      <MarketingNav />
 
-      <main className="flex-1">
-        <div className="container py-8">
-          {/* Breadcrumbs */}
-          <nav className="mb-6 text-sm text-muted-foreground">
-            <Link href="/" className="hover:text-foreground">Home</Link>
-            {' / '}
-            <Link href="/blog" className="hover:text-foreground">Blog</Link>
-            {' / '}
-            <span className="text-foreground">{category.name}</span>
-          </nav>
-
+      <main className="pt-28 pb-4">
+        <div className="max-w-[1240px] mx-auto px-8">
           {/* Back link */}
-          <Link href="/blog" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6">
+          <Link href="/blog" className="inline-flex items-center text-sm text-[#A1A1AA] hover:text-white mb-8">
             <ArrowLeft className="w-4 h-4 mr-1" />
-            All Articles
+            All articles
           </Link>
 
           {/* Header */}
-          <header className="mb-8">
-            <div className="flex items-center gap-3 mb-4">
-              {category.icon && <span className="text-4xl">{category.icon}</span>}
-              <h1 className="text-4xl font-bold">{category.name}</h1>
-            </div>
+          <header className="mb-10">
+            <span className="font-mono text-xs tracking-widest uppercase text-[#C7F94A]">— {category.name}</span>
+            <h1 className="text-[clamp(30px,3.6vw,44px)] font-semibold tracking-tighter mt-3 mb-3">{category.name}</h1>
             {category.description && (
-              <p className="text-xl text-muted-foreground max-w-2xl">
-                {category.description}
-              </p>
+              <p className="text-lg text-[#A1A1AA] max-w-2xl">{category.description}</p>
             )}
-            <p className="text-muted-foreground mt-2">
-              {total} {total === 1 ? 'article' : 'articles'}
-            </p>
+            <p className="font-mono text-[12px] text-[#6B7280] mt-3">{total} {total === 1 ? 'article' : 'articles'}</p>
           </header>
 
-          {/* Other Categories */}
-          <div className="flex flex-wrap gap-2 mb-8">
-            <Link href="/blog">
-              <Badge variant="outline" className="cursor-pointer">
-                All Posts
-              </Badge>
+          {/* Other Categories — empty ones hidden */}
+          <div className="flex flex-wrap gap-2 mb-10">
+            <Link href="/blog"
+              className="px-3.5 py-1.5 rounded-full text-[13px] hover:bg-white/5"
+              style={{ border: '1px solid rgba(255,255,255,0.14)', color: '#A1A1AA' }}>
+              All posts
             </Link>
-            {allCategories.map((cat) => (
-              <Link key={cat.slug} href={`/blog/category/${cat.slug}`}>
-                <Badge
-                  variant={cat.slug === categorySlug ? 'default' : 'outline'}
-                  className="cursor-pointer"
-                >
-                  {cat.icon} {cat.name} ({cat._count.posts})
-                </Badge>
+            {allCategories.filter((cat) => cat._count.posts > 0).map((cat) => (
+              <Link key={cat.slug} href={`/blog/category/${cat.slug}`}
+                className="px-3.5 py-1.5 rounded-full text-[13px] hover:bg-white/5"
+                style={cat.slug === categorySlug ? { background: '#C7F94A', color: '#0A0B0F', fontWeight: 600 } : { border: '1px solid rgba(255,255,255,0.14)', color: '#A1A1AA' }}>
+                {cat.name} ({cat._count.posts})
               </Link>
             ))}
           </div>
 
           {/* Posts */}
           {posts.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
               {posts.map((post) => (
                 <BlogPostCard key={post.id} post={post} />
               ))}
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">
-                No articles in this category yet. Check back soon!
-              </p>
-              <Link href="/blog" className="text-primary hover:underline mt-2 inline-block">
-                Browse all articles
-              </Link>
+              <p className="text-[#A1A1AA]">No articles in this category yet. Check back soon!</p>
+              <Link href="/blog" className="text-[#C7F94A] hover:underline mt-2 inline-block">Browse all articles</Link>
             </div>
           )}
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <nav className="mt-8 flex justify-center gap-2">
+            <nav className="mt-10 flex justify-center items-center gap-2">
               {currentPage > 1 && (
-                <Link
-                  href={`/blog/category/${categorySlug}?page=${currentPage - 1}`}
-                  className="px-4 py-2 border rounded hover:bg-muted"
-                >
-                  Previous
+                <Link href={`/blog/category/${categorySlug}?page=${currentPage - 1}`}
+                  className="px-4 py-2 rounded-full text-[13px] hover:bg-white/5" style={{ border: '1px solid rgba(255,255,255,0.14)' }}>
+                  ← Previous
                 </Link>
               )}
-              <span className="flex items-center px-4 text-muted-foreground">
-                Page {currentPage} of {totalPages}
-              </span>
+              <span className="px-4 font-mono text-[12px] text-[#6B7280]">Page {currentPage} of {totalPages}</span>
               {currentPage < totalPages && (
-                <Link
-                  href={`/blog/category/${categorySlug}?page=${currentPage + 1}`}
-                  className="px-4 py-2 border rounded hover:bg-muted"
-                >
-                  Next
+                <Link href={`/blog/category/${categorySlug}?page=${currentPage + 1}`}
+                  className="px-4 py-2 rounded-full text-[13px] hover:bg-white/5" style={{ border: '1px solid rgba(255,255,255,0.14)' }}>
+                  Next →
                 </Link>
               )}
             </nav>
@@ -195,7 +167,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         </div>
       </main>
 
-      
+      <MarketingFooter />
 
       {/* Structured Data */}
       <script
