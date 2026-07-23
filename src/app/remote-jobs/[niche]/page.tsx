@@ -28,7 +28,35 @@ export async function generateMetadata({ params }: { params: Promise<{ niche: st
 async function fetchNicheCards(niche: ReturnType<typeof getNiche>): Promise<NicheCard[]> {
   if (!niche) return [];
   const monthAgo = new Date(Date.now() - 30 * 86400000);
-  const pool = await prisma.opportunity.findMany({
+  let pool;
+  try {
+    pool = await fetchNichePool(niche, monthAgo);
+  } catch {
+    // Transient Neon blip (P1001) during build-time prerender has killed whole deploys three times.
+    // One retry, then degrade to an empty list — ISR (revalidate: 3600) repopulates within the hour.
+    try {
+      await new Promise((r) => setTimeout(r, 3000));
+      pool = await fetchNichePool(niche, monthAgo);
+    } catch {
+      return [];
+    }
+  }
+  return pool
+    .filter((o) => matchesNiche({ title: o.title, skills: o.skills, categorySlug: o.category?.slug ?? null }, niche))
+    .slice(0, 90)
+    .map((o) => ({
+      slug: o.slug,
+      title: o.title,
+      company: o.company?.name || o.posterCompany || o.clientName || 'Company',
+      location: o.location || o.country || 'Remote',
+      level: o.level,
+      skills: o.skills.slice(0, 6),
+      createdAt: o.createdAt.toISOString(),
+    }));
+}
+
+function fetchNichePool(niche: NonNullable<ReturnType<typeof getNiche>>, monthAgo: Date) {
+  return prisma.opportunity.findMany({
     where: {
       isActive: true,
       createdAt: { gte: monthAgo },
@@ -43,18 +71,6 @@ async function fetchNicheCards(niche: ReturnType<typeof getNiche>): Promise<Nich
     orderBy: { createdAt: 'desc' },
     take: 400,
   });
-  return pool
-    .filter((o) => matchesNiche({ title: o.title, skills: o.skills, categorySlug: o.category?.slug ?? null }, niche))
-    .slice(0, 90)
-    .map((o) => ({
-      slug: o.slug,
-      title: o.title,
-      company: o.company?.name || o.posterCompany || o.clientName || 'Company',
-      location: o.location || o.country || 'Remote',
-      level: o.level,
-      skills: o.skills.slice(0, 6),
-      createdAt: o.createdAt.toISOString(),
-    }));
 }
 
 export default async function NichePage({ params }: { params: Promise<{ niche: string }> }) {
