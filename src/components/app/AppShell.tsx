@@ -186,7 +186,7 @@ function NotificationBell() {
   );
 }
 
-export function AppShell({ children, userName, userPlan, applyCredits = 0 }: { children: React.ReactNode; userName?: string; userPlan?: string; applyCredits?: number }) {
+export function AppShell({ children, userName, userPlan, applyCredits = 0, freeUsed = false }: { children: React.ReactNode; userName?: string; userPlan?: string; applyCredits?: number; freeUsed?: boolean }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -234,7 +234,7 @@ export function AppShell({ children, userName, userPlan, applyCredits = 0 }: { c
           <div className="sb-trial">
             <div className="label">Free plan</div>
             <div className="days">
-              {applyCredits > 0
+              {applyCredits > 0 || freeUsed
                 ? `Balance: $${(applyCredits * 0.5).toFixed(2)}`
                 : 'First application free'}
             </div>
