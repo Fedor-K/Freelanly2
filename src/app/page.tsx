@@ -21,14 +21,12 @@ export const metadata: Metadata = {
 };
 
 /**
- * Simplified one-pager (owner decision 2026-07-23, GroupsWatcher-style skeleton):
- * one promise → one live proof → the filter table → the letter → the price → FAQ.
- * Cut: marquee, stats strip, 3-step preview, feature grid — /how-it-works & /features
- * carry the long-form story; the homepage carries the decision.
+ * GroupsWatcher-skeleton homepage (owner: «скопировать его тексты и подход 1-в-1, только под наши
+ * профессии и LinkedIn», 2026-07-23). Section order, rhetorical moves and FAQ aggression mirror
+ * groupswatcher.com; adapted honestly: no client logos, no testimonials (we have none), no fake
+ * 60-second guarantees — our real speed is "hours before the boards", so that's what we say.
  */
 export default async function LandingPage() {
-  // Prerenders at build (revalidate=300); fall back to a recent real value on a transient DB blip
-  // instead of failing the whole deploy (P1001 killed builds twice on 07-16).
   const totalOpps = await prisma.opportunity
     .count({ where: { createdAt: { gte: new Date(Date.now() - 24 * 3600000) } } })
     .catch(() => 800);
@@ -49,53 +47,45 @@ export default async function LandingPage() {
     </ul>
     <div className="nav-cta">
       <a href="/auth/signin" className="btn btn-ghost btn-sm">Log in</a>
-      <a href="/auth/signin" className="btn btn-primary btn-sm">Start free
+      <a href="/auth/signin" className="btn btn-primary btn-sm">Get started
         <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </a>
     </div>
   </div>
 </nav>
 
-{/* 1 — HERO: the promise + live proof */}
+{/* HERO */}
 <header className="hero">
   <div className="hero-bg-glow"></div>
   <div className="grid-bg"></div>
   <div className="container hero-inner">
     <div>
-      <span className="hero-eyebrow">
-        <span className="live-dot"></span>
-        {totalOpps.toLocaleString()} fresh remote tech roles in the last 24h
-      </span>
       <h1>
         We watch LinkedIn hiring posts<br/>
         <span className="accent">so you don&apos;t have to.</span>
       </h1>
       <p className="hero-sub">
-        Fresh remote engineering, data, DevOps and QA roles — caught in LinkedIn hiring posts before they hit the job boards, with the cover letter already written. <strong>You review it and hit Send</strong> from your own Gmail.
+        Never miss a fresh remote role again. The moment a hiring post for your stack appears on LinkedIn, it lands in your feed — <strong>with the application already drafted</strong>. Hours before it reaches the job boards.
       </p>
       <div className="hero-cta">
         <a href="/auth/signin" className="btn btn-primary btn-lg">
-          Start free — first application on us
+          Get started — first application free
           <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </a>
       </div>
       <div className="hero-meta">
         <span className="hero-meta-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+          We never touch your LinkedIn account
+        </span>
+        <span className="hero-meta-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
           No credit card
-        </span>
-        <span className="hero-meta-item">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-          Nothing sends without your click
-        </span>
-        <span className="hero-meta-item">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-          Cancel anytime
         </span>
       </div>
     </div>
 
-    {/* Live-feed widget — illustrative sample of the product UI; fictional roles, no real brands. */}
+    {/* Live match cards — illustrative product UI; fictional roles, no real brands. */}
     <div className="product-frame">
       <div className="product-chrome">
         <span className="chrome-dot"></span><span className="chrome-dot"></span><span className="chrome-dot"></span>
@@ -105,21 +95,19 @@ export default async function LandingPage() {
         </span>
       </div>
       <div className="product-header">
-        <span className="product-title">Live feed</span>
+        <span className="product-title">{totalOpps.toLocaleString()} fresh roles · last 24h</span>
         <span className="product-title-live">
           <span className="live-dot" style={{background:'var(--accent)', boxShadow: '0 0 8px var(--accent)', animation: 'pulse 1.8s infinite'}}></span>
-          STREAMING
+          LIVE
         </span>
       </div>
       <div className="feed">
         <div className="feed-inner">
           {[...Array(2)].flatMap((_, setIdx) => [
-            { logo: 'S', color: '#FF6B6B', title: 'Senior React Developer · SaaS startup', meta: 'via LinkedIn · 2 min ago', status: '● drafted', cls: 'sending' },
-            { logo: 'D', color: '#6EE7FF', title: 'Data Engineer · analytics platform', meta: 'via LinkedIn · contract · 8 min ago', status: '✦ reply!', cls: 'reply' },
-            { logo: 'Q', color: '#FFB951', title: 'QA Automation Engineer · fintech startup', meta: 'via LinkedIn · 11 min ago', status: '✓ sent by you', cls: 'applied' },
-            { logo: 'C', color: '#A78BFA', title: 'DevOps Engineer · cloud consultancy', meta: 'via LinkedIn · 18 min ago', status: '● drafted', cls: 'sending' },
-            { logo: 'F', color: '#A8E024', title: 'Full-Stack Engineer · dev agency', meta: 'via LinkedIn · 24 min ago', status: '✓ sent by you', cls: 'applied' },
-            { logo: 'M', color: '#F87171', title: 'iOS Engineer · mobile studio', meta: 'via LinkedIn · 31 min ago', status: '✓ sent by you', cls: 'applied' },
+            { logo: 'N', color: '#FF6B6B', title: 'New match · Senior React Developer', meta: '“Looking for a senior React dev for our fintech dashboard — remote, EU hours” · 12s ago', status: '✍ drafted', cls: 'sending' },
+            { logo: 'D', color: '#6EE7FF', title: 'New match · Data Engineer', meta: '“Need a data engineer, Snowflake + dbt, long-term contract” · 4m ago', status: '✍ drafted', cls: 'sending' },
+            { logo: 'Q', color: '#FFB951', title: 'New match · QA Automation Engineer', meta: '“Hiring a QA automation engineer, Playwright, remote” · 9m ago', status: '✓ sent by you', cls: 'applied' },
+            { logo: 'C', color: '#A78BFA', title: 'New match · DevOps Engineer', meta: '“We need a DevOps/SRE — AWS, K8s, Terraform” · 14m ago', status: '✦ reply!', cls: 'reply' },
           ].map((item, i) => (
             <div key={`${setIdx}-${i}`} className="feed-item">
               <div className="feed-logo" style={{background: item.color}}>{item.logo}</div>
@@ -136,22 +124,89 @@ export default async function LandingPage() {
   </div>
 </header>
 
-{/* 2 — THE FILTER: what the matcher actually does */}
+{/* USE CASES — by profession */}
+<section className="section">
+  <div className="container">
+    <div className="section-head reveal">
+      <span className="eyebrow">— Who it&apos;s for</span>
+      <h2>Built for your stack.</h2>
+    </div>
+    <div className="reveal" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px'}}>
+      {[
+        { role: 'Frontend & full-stack', post: '“We’re hiring a senior React/TypeScript dev for a customer-facing product. Remote, long-term.”', tag: 'React · Node · TypeScript' },
+        { role: 'Data & ML', post: '“Looking for a data engineer to own our pipelines — Snowflake, dbt, Python. Contract to start.”', tag: 'SQL · Python · ML' },
+        { role: 'DevOps & cloud', post: '“Need a DevOps engineer for AWS + Kubernetes infra. Fully remote, EU or LatAm hours welcome.”', tag: 'AWS · K8s · Terraform' },
+        { role: 'QA & automation', post: '“Hiring a QA automation engineer — Playwright/Cypress, API testing. Direct application.”', tag: 'Automation · SDET' },
+      ].map((c, i) => (
+        <div key={i} style={{border: '1px solid var(--line-2)', borderRadius: '16px', padding: '22px'}}>
+          <div style={{fontFamily: "'Geist Mono', monospace", fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent)', marginBottom: '10px'}}>{c.role}</div>
+          <div style={{fontSize: '13.5px', lineHeight: 1.6, color: 'var(--ink-2)', marginBottom: '14px'}}>
+            <span style={{color: 'var(--ink-4)', fontSize: '11px', display: 'block', marginBottom: '6px'}}>posted on LinkedIn · minutes ago</span>
+            {c.post}
+          </div>
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px'}}>
+            <span style={{color: 'var(--ink-4)', fontFamily: "'Geist Mono', monospace"}}>{c.tag}</span>
+            <span style={{color: 'var(--accent)', fontFamily: "'Geist Mono', monospace", fontSize: '11.5px'}}>matched → drafted</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+{/* HOW IT WORKS — 5 steps */}
+<section className="section" style={{background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.015))'}}>
+  <div className="container">
+    <div className="section-head reveal">
+      <span className="eyebrow">— How it works</span>
+      <h2>Set it up once. We watch around the clock.</h2>
+    </div>
+    <div className="reveal" style={{maxWidth: '720px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '14px'}}>
+      {[
+        { n: '1', t: 'Upload your résumé — or just your LinkedIn URL', d: 'That’s the whole setup. We build your profile from it: stack, seniority, languages. You can refine anything later from your dashboard.' },
+        { n: '2', t: 'Our crawlers read every new hiring post', d: 'Around the clock, we scan LinkedIn “we’re hiring…” posts and company career pages across engineering, data, DevOps and QA — roles that never make it to job boards, or get there days late.' },
+        { n: '3', t: 'AI checks every post against your actual profile', d: 'Stack, seniority, language, location. Only roles you could genuinely be sent to reach your feed — the rest you never see.' },
+        { n: '4', t: 'The application is drafted for you', d: 'A personalized cover letter referencing the post and your real background, checked against the job’s requirements, with your CV attached. You edit anything, then hit Send.' },
+        { n: '5', t: 'It sends from YOUR Gmail — we never touch your accounts', d: 'No LinkedIn automation, no auto-DMs, no bulk-mail domain. Applications go out from your own inbox, with your click, at human pace. Replies land back where you can answer them.' },
+      ].map((s, i) => (
+        <div key={i} style={{display: 'flex', gap: '18px', border: '1px solid var(--line-2)', borderRadius: '14px', padding: '20px 22px'}}>
+          <div style={{flexShrink: 0, width: '30px', height: '30px', borderRadius: '999px', background: 'rgba(199,249,74,0.12)', color: 'var(--accent)', display: 'grid', placeItems: 'center', fontFamily: "'Geist Mono', monospace", fontWeight: 700, fontSize: '13px'}}>{s.n}</div>
+          <div>
+            <div style={{fontWeight: 600, fontSize: '15px', marginBottom: '6px'}}>{s.t}</div>
+            <div style={{fontSize: '13.5px', lineHeight: 1.65, color: 'var(--ink-3)'}}>{s.d}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+{/* AI FILTER */}
 <section className="section">
   <div className="container">
     <div className="section-head reveal">
       <span className="eyebrow">— The filter</span>
-      <h2>Most &quot;hiring&quot; posts aren&apos;t worth your time.<br/>We read them all anyway.</h2>
-      <p>Every post is checked against your actual profile — stack, seniority, language, location. You only see the ones you could genuinely be sent to.</p>
+      <h2>An AI that knows a real opening from noise.</h2>
+      <p>LinkedIn holds incredibly valuable hiring posts. They&apos;re also buried under “open to work” updates, engagement bait and staffing spam. We taught our AI to tell the difference — it surfaces posts that genuinely fit you, and stays quiet about everything that doesn&apos;t.</p>
+    </div>
+
+    <div className="reveal" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', maxWidth: '860px', margin: '0 auto 32px'}}>
+      {[
+        { t: 'Reads every post like a recruiter would', d: 'The full post, not keywords — what the company actually needs, and whether that’s you.' },
+        { t: 'Keywords alone are not enough', d: 'A post can say “React” and still be useless to you. Intent + fit detection skips the noise.' },
+        { t: 'Silence is a feature', d: 'If nothing worth your time was posted, your feed stays quiet. Every match you see is one you can act on.' },
+      ].map((b, i) => (
+        <div key={i} style={{border: '1px solid var(--line-2)', borderRadius: '14px', padding: '18px 20px'}}>
+          <div style={{fontWeight: 600, fontSize: '14px', marginBottom: '6px'}}>{b.t}</div>
+          <div style={{fontSize: '13px', lineHeight: 1.6, color: 'var(--ink-3)'}}>{b.d}</div>
+        </div>
+      ))}
     </div>
 
     <div className="reveal" style={{maxWidth: '760px', margin: '0 auto', border: '1px solid var(--line-2)', borderRadius: '16px', overflow: 'hidden'}}>
-      <div style={{padding: '14px 20px', borderBottom: '1px solid var(--line)', fontFamily: "'Geist Mono', monospace", fontSize: '12px', color: 'var(--ink-4)', display: 'flex', justifyContent: 'space-between'}}>
-        <span>4 posts read this morning</span>
-        <span style={{color: 'var(--accent)'}}>1 worth your attention</span>
-      </div>
+      <div style={{padding: '14px 20px', borderBottom: '1px solid var(--line)', fontFamily: "'Geist Mono', monospace", fontSize: '12px', color: 'var(--ink-4)'}}>Fit check</div>
       {[
-        { post: '“Hiring a Senior React Developer — remote, EU timezone, long-term”', verdict: 'Strong match — letter drafted', ok: true },
+        { post: '“Hiring a Senior React Developer — remote, EU timezone, long-term”', verdict: 'Strong match — drafted', ok: true },
         { post: '“Open to work! Senior developer seeking new opportunities…”', verdict: 'Not a vacancy — skipped', ok: false },
         { post: '“Need a PHP / Laravel developer for our agency”', verdict: 'Not your stack — skipped', ok: false },
         { post: '“URGENT!! W2 only. Share visa status + rate + current employer”', verdict: 'Staffing spam — skipped', ok: false },
@@ -162,43 +217,53 @@ export default async function LandingPage() {
           <span style={{flexShrink: 0, fontFamily: "'Geist Mono', monospace", fontSize: '11.5px', color: r.ok ? 'var(--accent)' : 'var(--ink-4)'}}>{r.verdict}</span>
         </div>
       ))}
+      <div style={{padding: '13px 20px', borderTop: '1px solid var(--line)', fontFamily: "'Geist Mono', monospace", fontSize: '12px', color: 'var(--ink-2)'}}>4 new posts read. <span style={{color: 'var(--accent)'}}>1 worth your attention.</span></div>
     </div>
   </div>
 </section>
 
-{/* 3 — THE LETTER */}
+{/* COMPARISON */}
 <section className="section" style={{background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.015))'}}>
   <div className="container">
     <div className="section-head reveal">
-      <span className="eyebrow">— The letter</span>
-      <h2>Drafted in seconds. Sounds like you.</h2>
-      <p>The AI reads the full post and writes from your real background — then a second AI reviews it against the job&apos;s requirements. You edit anything, then hit Send from your own Gmail.</p>
+      <span className="eyebrow">— Why not just…</span>
+      <h2>Why candidates choose Freelanly.</h2>
     </div>
-
-    <div className="reveal" style={{maxWidth: '640px', margin: '0 auto'}}>
-      <div className="cover-card" style={{fontSize: '14px', lineHeight: 1.7}}>
-        <span style={{color: 'var(--ink-4)', fontSize: '11px'}}>{'// drafted 1.8s ago · you edit, you send'}</span><br/>
-        Hey <span className="accent">Sarah</span>,<br/><br/>
-        Saw you&apos;re hiring a React dev for <span className="accent">your mobile team</span>. I shipped a similar offline-first sync engine last quarter for <span className="accent">a messaging startup</span> — happy to walk through how I&apos;d approach yours.<br/><br/>
-        Portfolio: alex.dev/work<br/>
-        <span className="cover-typing">— Alex</span>
+    <div className="reveal" style={{maxWidth: '820px', margin: '0 auto', border: '1px solid var(--line-2)', borderRadius: '16px', overflow: 'hidden', fontSize: '13.5px'}}>
+      <div style={{display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', borderBottom: '1px solid var(--line)', fontFamily: "'Geist Mono', monospace", fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-4)'}}>
+        <div style={{padding: '14px 18px'}}>Capability</div>
+        <div style={{padding: '14px 18px'}}>Job boards &amp; auto-apply tools</div>
+        <div style={{padding: '14px 18px', color: 'var(--accent)'}}>Freelanly</div>
       </div>
-      <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '16px', justifyContent: 'center', fontFamily: "'Geist Mono', monospace", fontSize: '12px'}}>
-        <span className="tag" style={{borderColor: 'rgba(199,249,74,0.3)', color: 'var(--accent)'}}>✓ Covers 7/9 requirements</span>
-        <span className="tag" style={{borderColor: 'rgba(199,249,74,0.3)', color: 'var(--accent)'}}>✓ Your CV attached</span>
-        <span className="tag" style={{borderColor: 'rgba(199,249,74,0.3)', color: 'var(--accent)'}}>✓ Sent from your Gmail</span>
-      </div>
+      {[
+        ['Sources LinkedIn hiring posts', 'No — Jobs-tab listings only', 'Yes'],
+        ['Catches roles before the boards', 'You’re applicant #300', 'Hours after the post, not days'],
+        ['Application written for you', 'Blank form, or a generic blast', 'Personalized letter, checked vs requirements'],
+        ['Sends from your own inbox', 'Their domain — lands in spam', 'Your Gmail, your name, your click'],
+        ['Your accounts at risk', 'Auto-apply bots use YOUR logins', 'We never touch your LinkedIn or email credentials'],
+      ].map((r, i) => (
+        <div key={i} style={{display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', borderBottom: i < 4 ? '1px solid var(--line)' : 'none'}}>
+          <div style={{padding: '14px 18px', fontWeight: 500}}>{r[0]}</div>
+          <div style={{padding: '14px 18px', color: 'var(--ink-4)'}}>{r[1]}</div>
+          <div style={{padding: '14px 18px', color: 'var(--ink)'}}>{r[2]}</div>
+        </div>
+      ))}
     </div>
   </div>
 </section>
 
-{/* 4 — THE PRICE */}
+{/* PRICING + safety callout */}
 <section className="section">
   <div className="container">
     <div className="section-head reveal">
-      <span className="eyebrow">— The price</span>
+      <span className="eyebrow">— Pricing</span>
       <h2>Try it free. Pay as you go.</h2>
     </div>
+
+    <div className="reveal" style={{maxWidth: '640px', margin: '0 auto 26px', border: '1px solid rgba(199,249,74,0.25)', background: 'rgba(199,249,74,0.05)', borderRadius: '14px', padding: '18px 22px', fontSize: '13.5px', lineHeight: 1.65, color: 'var(--ink-2)'}}>
+      <strong style={{color: 'var(--ink)'}}>Your LinkedIn account is never at risk.</strong> Most auto-apply tools run automation through <em>your</em> logins — which is how accounts get restricted. Freelanly reads public hiring posts on our side, and applications send from your own Gmail, one at a time, with your click. Nothing for a platform to flag.
+    </div>
+
     <div className="reveal" style={{maxWidth: '560px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px'}}>
       {[
         { k: 'First application', v: 'Free — no card, see the whole flow work' },
@@ -219,41 +284,45 @@ export default async function LandingPage() {
   </div>
 </section>
 
-{/* 5 — FAQ */}
+{/* FAQ */}
 <section className="section" style={{background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.015))'}}>
   <div className="container">
     <div className="section-head reveal">
-      <span className="eyebrow">— Fair questions</span>
-      <h2>Straight answers.</h2>
+      <span className="eyebrow">— Common questions</span>
+      <h2>Fair questions, straight answers.</h2>
     </div>
     <div className="reveal" style={{maxWidth: '680px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '10px'}}>
       {[
-        { q: 'Is this just AI spam?', a: 'No — the design makes spam impossible. Every letter is drafted for one specific opening, references your real background, and is sent by you, from your own inbox, after you’ve read it. There’s a daily cap precisely so nobody can blast.' },
-        { q: 'Does it ever send anything without me?', a: 'Never. Drafts wait until you review and click Send — or delete them. Your name is on the email; you stay in control of it.' },
-        { q: 'Will recruiters know it’s AI-written?', a: 'Letters reference specifics from the post and your actual experience, pass a second AI review, and send from your personal Gmail. They read like a short, thoughtful note — and you can edit every word first.' },
+        { q: 'Any alternatives to Freelanly?', a: 'Your options: (1) Refresh LinkedIn and five job boards all day — ~90 minutes daily, and you still miss the posts that never reach the boards. (2) Auto-apply blasters — they spray generic applications from their domains (or worse, through your accounts) and recruiters bin them on sight. (3) Do it all manually for the roles you find — which is exactly the hour of busywork per application we automate. Nobody else reads LinkedIn hiring posts and drafts the application for you.' },
+        { q: 'Do you need my LinkedIn login?', a: 'Never. We don’t ask for your LinkedIn credentials, cookies, or any account access. We read public hiring posts on our side; your LinkedIn stays completely untouched — no auto-DMs, no auto-connects, nothing done with your account.' },
+        { q: 'Does Freelanly ever send anything without me?', a: 'No. Nothing is ever emailed on your behalf without your click. Drafts wait until you review and send them — or delete them. Your name is on the email; you stay in control of it.' },
+        { q: 'Will recruiters know it’s AI-written?', a: 'Letters reference specifics from the post and your actual experience, pass a second AI review against the job’s requirements, and send from your personal Gmail. They read like a short, thoughtful note — and you can edit every word first.' },
+        { q: 'How fast do roles reach my feed?', a: 'Within hours of the hiring post going live — typically days before the same role is aggregated by job boards, where you’d be applicant #300. Fresh posts land around the clock.' },
         { q: 'What does it actually cost?', a: 'First application is free, no card. After that: $0.50 per application from a prepaid balance (top up from $3, never expires), or PRO at $5/month for up to 20 applications a day.' },
-        { q: 'How do I cancel?', a: 'Two clicks from your billing page. Export your data to CSV anytime; deleting your account removes everything.' },
-        { q: 'I’m applying from Latin America — does this work for me?', a: 'That’s exactly who most of our users are: developers in Latin America (and worldwide) applying to US and European companies that hire internationally. Applications send from your own Gmail, so they look like any other candidate’s — because they are.' },
+        { q: 'Can I cancel? Is there a refund?', a: 'Cancel anytime, two clicks from your billing page — no contracts. Not a fit? Email us within 7 days of a purchase for a full refund.' },
       ].map((f, i) => (
         <details key={i} style={{border: '1px solid var(--line-2)', borderRadius: '12px', padding: '0'}}>
           <summary style={{padding: '16px 20px', cursor: 'pointer', fontSize: '14.5px', fontWeight: 500, listStyle: 'none'}}>{f.q}</summary>
           <div style={{padding: '0 20px 16px', fontSize: '13.5px', lineHeight: 1.65, color: 'var(--ink-3)'}}>{f.a}</div>
         </details>
       ))}
+      <div style={{textAlign: 'center', marginTop: '10px', fontSize: '13px', color: 'var(--ink-4)'}}>
+        Have another question? Email <a href="mailto:support@freelanly.com" style={{color: 'var(--accent)'}}>support@freelanly.com</a> or use the chat in the corner — it&apos;s a small team, you&apos;ll get an answer from someone who builds the product.
+      </div>
     </div>
   </div>
 </section>
 
-{/* 6 — FINAL CTA */}
+{/* FINAL CTA */}
 <section className="final-cta" id="signup">
   <div className="final-cta-glow"></div>
   <div className="container final-cta-inner reveal">
     <span className="eyebrow eyebrow-accent">— Start today</span>
-    <h2 style={{marginTop: '16px'}}>The role you want is <span className="accent">already posted.</span><br/>Be first in the inbox.</h2>
-    <p>Sign up free — your first application is on us, no credit card.</p>
+    <h2 style={{marginTop: '16px'}}>Start catching roles<br/>from <span className="accent">LinkedIn hiring posts.</span></h2>
+    <p>Upload your résumé and see today&apos;s matches — your first application is on us, no credit card.</p>
     <div className="hero-cta">
       <a href="/auth/signin" className="btn btn-primary btn-lg">
-        Start free
+        Get started
         <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </a>
       <a href="/how-it-works" className="btn btn-ghost btn-lg">See how it works</a>
@@ -270,7 +339,7 @@ export default async function LandingPage() {
           <span className="logo-mark">F</span>
           <span>Freelanly</span>
         </a>
-        <p>Personal AI assistant for remote tech-job applications. Be first in the inbox. Win the role.</p>
+        <p>For engineers, data, DevOps and QA candidates who need to catch remote roles in LinkedIn hiring posts before everyone else does.</p>
       </div>
       <div className="footer-col">
         <h5>Product</h5>
