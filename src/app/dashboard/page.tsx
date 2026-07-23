@@ -83,7 +83,7 @@ export default async function DashboardOverviewPage() {
     }),
   ]);
 
-  // Today's ready-queue: matcher-prepared applications (status REVIEW, letter already written) from
+  // Today's ready-queue: matcher-prepared applications (status REVIEW; letters draft on open/send since 07-23) from
   // the last 24h (they expire to FAILED after 24h, so this window IS "today"). PRO reviews & sends
   // them one click at a time; FREE sees a teaser with the count.
   // 48h (was 24h): the queue was starving the $5 teaser — only 4 of 55 FREE dashboard visitors had a
@@ -390,8 +390,8 @@ export default async function DashboardOverviewPage() {
           </div>
           <div style={{ padding: '20px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
             <div style={{ fontSize: '13.5px', color: 'var(--ink-2)', lineHeight: 1.5, maxWidth: '540px' }}>
-              <strong>{queueCount} application{queueCount === 1 ? '' : 's'} already written</strong> for your top matches —
-              personalized letter, ready to review. Upgrade to open the queue and send each one in one click.
+              <strong>{queueCount} application{queueCount === 1 ? '' : 's'} queued</strong> for your top matches —
+              personalized letter drafted the moment you open one. Upgrade to open the queue and send each one in one click.
               <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--ink-4)' }}>
                 Your profile matched {weeklyMatched} role{weeklyMatched === 1 ? '' : 's'} in the last 7 days.
               </div>
