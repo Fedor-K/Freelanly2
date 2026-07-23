@@ -40,7 +40,7 @@ export default function HowItWorksPage() {
       <div>
         <span className="eyebrow eyebrow-accent">— How it works</span>
         <h1 style={{marginTop: '18px'}}>The whole loop,<br/>from <span className="accent">post</span> to <span className="accent">paycheck.</span></h1>
-        <p className="lede" style={{marginTop: '22px'}}>Freelanly is a five-step pipeline running 24/7. Here&apos;s what&apos;s actually happening between &quot;new freelance gig posted&quot; and &quot;client replies.&quot;</p>
+        <p className="lede" style={{marginTop: '22px'}}>Freelanly is a five-step pipeline running 24/7. Here&apos;s what&apos;s actually happening between &quot;new hiring post published&quot; and &quot;recruiter replies.&quot;</p>
       </div>
       <nav className="toc">
         <div className="toc-label">On this page</div>
@@ -111,7 +111,7 @@ export default function HowItWorksPage() {
             <div className="discovery-result">
               <div className="logo" style={{background:'#6EE7FF'}}>S</div>
               <div>
-                <div className="title">Brand Designer — Stripe</div>
+                <div className="title">Senior React Developer — US fintech</div>
                 <div className="meta">linkedin.com/posts/marcus-d · 3-month sprint</div>
               </div>
               <span className="age">34m</span>
@@ -387,7 +387,7 @@ export default function HowItWorksPage() {
     <div className="footer-grid">
       <div className="footer-col footer-brand">
         <a href="/" className="logo"><span className="logo-mark">F</span><span>Freelanly</span></a>
-        <p>Personal AI assistant for vacancies and projects application. Be first in the inbox. Win the project.</p>
+        <p>Personal AI assistant for remote tech-job applications. Be first in the inbox. Win the role.</p>
       </div>
       <div className="footer-col">
         <h5>Product</h5>
@@ -414,7 +414,7 @@ export default function HowItWorksPage() {
       </div>
     </div>
     <div className="footer-bottom">
-      <div>© 2026 Freelanly · Made for freelancers who&apos;d rather be working.</div>
+      <div>© 2026 Freelanly · Made for engineers who&apos;d rather be building.</div>
     </div>
   </div>
 </footer>

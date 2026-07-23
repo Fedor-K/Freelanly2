@@ -279,7 +279,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                 <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
                   <h4 className="font-semibold mb-2">Apply Smarter, Not Longer</h4>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Freelanly matches you to fresh vacancies and projects and drafts the cover letter — you review and send.
+                    Freelanly matches you to fresh remote tech roles and drafts the cover letter — you review and send.
                   </p>
                   <Button className="w-full" asChild>
                     <Link href="/">Try the AI application assistant</Link>
@@ -305,7 +305,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <section className="mt-16 bg-muted rounded-lg p-8 text-center">
             <h2 className="text-2xl font-bold mb-2">Spend the Saved Hour on Real Work</h2>
             <p className="text-muted-foreground mb-4">
-              Freelanly finds matched vacancies and projects and drafts every application — you review and send. First one is free.
+              Freelanly finds matched remote tech roles and drafts every application — you review and send. First one is free.
             </p>
             <Button asChild>
               <Link href="/auth/signin">Start free</Link>

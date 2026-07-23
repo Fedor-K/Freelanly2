@@ -2,13 +2,16 @@
 
 import { useState, useRef } from 'react';
 
+// Tech-niche role cards (owner 2026-07-23): the product is for remote tech candidates —
+// engineering / data / devops / qa. The old generic-freelancer set (designer/marketer/consultant/
+// studio) invited audiences the feed no longer serves.
 const ROLES = [
-  { id: 'engineer', ico: '{ }', title: 'Senior engineer · contract / freelance', desc: 'React, full-stack, mobile, infra. Looking for project work or part-time retainers.', tags: ['React', 'TypeScript', 'Remote'] },
-  { id: 'designer', ico: '✎', title: 'Designer · brand / product', desc: 'Brand systems, product UI, design sprints, illustration. Project and retainer work.', tags: ['Figma', 'Brand'] },
-  { id: 'marketer', ico: '∿', title: 'Marketer · growth / content', desc: 'SEO, paid, lifecycle, content writing. Retainers and project work.', tags: ['SEO', 'Lifecycle'] },
-  { id: 'consultant', ico: '▲', title: 'Indie consultant / advisor', desc: 'Strategy, fractional roles, deep-dive engagements. Long-term advisory relationships.', tags: ['Strategy', 'Fractional'] },
-  { id: 'studio', ico: '◉', title: 'Studio / small team', desc: '2–10 people. Project-based delivery. Larger engagements, longer cycles.', tags: ['Studio', 'Long projects'] },
-  { id: 'other', ico: '+', title: 'Something else', desc: "We'll ask you a few questions to build a custom profile.", tags: [] },
+  { id: 'frontend', ico: '{ }', title: 'Frontend / full-stack developer', desc: 'React, Vue, Angular, Node, TypeScript. Remote roles and contract work.', tags: ['React', 'TypeScript', 'Node'] },
+  { id: 'backend', ico: '⚙', title: 'Backend / cloud & DevOps', desc: 'APIs, Python, Java, Go, .NET, AWS, Kubernetes, SRE, platform work.', tags: ['Python', 'AWS', 'K8s'] },
+  { id: 'data', ico: '◫', title: 'Data / ML engineer or analyst', desc: 'Pipelines, analytics, BI, machine learning, LLM engineering.', tags: ['SQL', 'Python', 'ML'] },
+  { id: 'qa', ico: '✓', title: 'QA / automation engineer', desc: 'Manual and automated testing, SDET, test frameworks, quality tooling.', tags: ['Automation', 'SDET'] },
+  { id: 'mobile', ico: '▯', title: 'Mobile developer', desc: 'iOS, Android, React Native, Flutter. Product and contract roles.', tags: ['iOS', 'Android', 'Flutter'] },
+  { id: 'other', ico: '+', title: 'Something else', desc: "We'll build your profile from your résumé — it works for any role.", tags: [] },
 ];
 
 export function OnboardingClient({ firstName, email, hasResume, hasLinkedin }: { firstName: string; email: string; hasResume: boolean; hasLinkedin: boolean }) {

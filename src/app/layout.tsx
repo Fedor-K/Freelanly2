@@ -40,7 +40,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: `${siteConfig.name} — Personal AI Assistant for Vacancies & Projects Application`,
+    default: `${siteConfig.name} — Personal AI Assistant for Remote Tech-Job Applications`,
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: siteConfig.url,
-    title: `${siteConfig.name} — Personal AI Assistant for Job & Project Applications`,
+    title: `${siteConfig.name} — Personal AI Assistant for Remote Tech-Job Applications`,
     description: siteConfig.description,
     siteName: siteConfig.name,
     images: [
@@ -63,13 +63,13 @@ export const metadata: Metadata = {
         url: siteConfig.ogImage,
         width: 1200,
         height: 630,
-        alt: `${siteConfig.name} — AI application assistant`,
+        alt: `${siteConfig.name} — AI application assistant for remote tech roles`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${siteConfig.name} — Personal AI Assistant for Job & Project Applications`,
+    title: `${siteConfig.name} — Personal AI Assistant for Remote Tech-Job Applications`,
     description: siteConfig.description,
     images: [siteConfig.ogImage],
     creator: "@freelanly",

@@ -36,7 +36,7 @@ export default function FeaturesPage() {
   <div className="container">
     <span className="eyebrow eyebrow-accent">— Features</span>
     <h1 style={{marginTop: '18px'}}>Every tool you need to <span className="accent">land</span> more work.</h1>
-    <p className="lede">Twenty-four product features grouped into four pillars: <strong style={{color: 'var(--ink)'}}>discovery</strong>, <strong style={{color: 'var(--ink)'}}>outreach</strong>, <strong style={{color: 'var(--ink)'}}>tracking</strong>, and <strong style={{color: 'var(--ink)'}}>workflow</strong>. Built specifically for freelancers, not job-board users.</p>
+    <p className="lede">Twenty-four product features grouped into four pillars: <strong style={{color: 'var(--ink)'}}>discovery</strong>, <strong style={{color: 'var(--ink)'}}>outreach</strong>, <strong style={{color: 'var(--ink)'}}>tracking</strong>, and <strong style={{color: 'var(--ink)'}}>workflow</strong>. Built for remote tech candidates, not job-board tourists.</p>
   </div>
 </header>
 
@@ -94,7 +94,7 @@ export default function FeaturesPage() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
         </div>
         <h3>Custom feeds</h3>
-        <p>Save filters as named feeds: &quot;EU React contracts&quot;, &quot;Brand design over $5k&quot;, etc. Each one streams independently.</p>
+        <p>Save filters as named feeds: &quot;EU React contracts&quot;, &quot;Data &amp; ML roles over $5k&quot;, etc. Each one streams independently.</p>
       </div>
       <div className="feat-card reveal">
         <div className="icon">
@@ -228,7 +228,7 @@ export default function FeaturesPage() {
           <h2>Fits the rest of your <span className="accent">stack.</span></h2>
         </div>
       </div>
-      <p className="pillar-desc">A freelancer&apos;s day already includes Notion, Calendly, Slack, an invoicing tool, and a CRM. Freelanly slots in — it doesn&apos;t replace your stack.</p>
+      <p className="pillar-desc">A developer&apos;s day already includes GitHub, Slack, Calendly, and a terminal. Freelanly slots in — it doesn&apos;t replace your stack.</p>
     </div>
     <div className="feat-cards">
       <div className="feat-card reveal">
@@ -312,7 +312,7 @@ export default function FeaturesPage() {
     <div className="footer-grid">
       <div className="footer-col footer-brand">
         <a href="/" className="logo"><span className="logo-mark">F</span><span>Freelanly</span></a>
-        <p>Personal AI assistant for vacancies and projects application. Be first in the inbox. Win the project.</p>
+        <p>Personal AI assistant for remote tech-job applications. Be first in the inbox. Win the role.</p>
       </div>
       <div className="footer-col">
         <h5>Product</h5>
@@ -339,7 +339,7 @@ export default function FeaturesPage() {
       </div>
     </div>
     <div className="footer-bottom">
-      <div>© 2026 Freelanly · Made for freelancers who&apos;d rather be working.</div>
+      <div>© 2026 Freelanly · Made for engineers who&apos;d rather be building.</div>
     </div>
   </div>
 </footer>

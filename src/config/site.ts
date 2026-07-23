@@ -1,6 +1,6 @@
 export const siteConfig = {
   name: 'Freelanly',
-  description: 'Personal AI assistant for vacancies and projects application. Finds fresh matched roles and drafts a tailored cover letter for each — you review and send.',
+  description: 'Personal AI assistant for remote tech-job applications. Finds fresh engineering, data, DevOps and QA roles matched to your profile and drafts a tailored cover letter for each — you review and send.',
   url: 'https://freelanly.com',
   ogImage: 'https://freelanly.com/og.png',
   links: {
@@ -13,7 +13,8 @@ export const siteConfig = {
     'ai assistant for job applications',
     'ai cover letter generator',
     'apply to remote jobs faster',
-    'freelance project applications',
+    'remote developer jobs',
+    'remote jobs for developers latam',
     'job application help',
     'ai job search assistant',
     'lazyapply alternative',

@@ -29,7 +29,7 @@ export default async function TemplatesPage() {
       <div className="page-header">
         <div className="page-title">
           <h1>Templates</h1>
-          <p>Reusable opener structures. Edit once, personalize per gig with variables.</p>
+          <p>Reusable opener structures. Edit once, personalize per role with variables.</p>
         </div>
       </div>
 

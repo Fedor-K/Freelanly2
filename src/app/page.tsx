@@ -7,8 +7,8 @@ import './landing-design.css';
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: 'Freelanly — Personal AI Assistant for Vacancies & Projects Application',
-  description: 'Freelanly finds fresh vacancies and freelance projects matched to your profile and drafts a tailored cover letter for each — you review and send from your own inbox.',
+  title: 'Freelanly — Personal AI Assistant for Remote Tech-Job Applications',
+  description: 'Freelanly finds fresh remote engineering, data, DevOps and QA roles matched to your profile and drafts a tailored cover letter for each — you review and send from your own inbox.',
   alternates: {
     canonical: siteConfig.url,
     languages: {
@@ -65,14 +65,14 @@ export default async function LandingPage() {
     <div>
       <span className="hero-eyebrow">
         <span className="live-dot"></span>
-        {totalOpps.toLocaleString()} fresh gigs · updated every 3 hours
+        {totalOpps.toLocaleString()} fresh remote tech roles · updated every 3 hours
       </span>
       <h1>
         Your personal <span className="accent">AI assistant</span><br/>
-        for job &amp; project applications.
+        for remote tech-job applications.
       </h1>
       <p className="hero-sub">
-        Be first in the inbox — win the project. Freelanly catches new vacancies and freelance gigs the moment they&apos;re posted on LinkedIn and <strong>{totalCompanies.toLocaleString()}+</strong> company sites, then drafts a personalized application for every strong match. <strong>You review it and hit Send</strong> — straight from your own Gmail.
+        Be first in the inbox — win the role. Freelanly catches new engineering, data, DevOps and QA roles the moment they&apos;re posted on LinkedIn and <strong>{totalCompanies.toLocaleString()}+</strong> company sites, then drafts a personalized application for every strong match. <strong>You review it and hit Send</strong> — straight from your own Gmail.
       </p>
       <div className="hero-cta">
         <a href="/auth/signin" className="btn btn-primary btn-lg">
@@ -119,8 +119,8 @@ export default async function LandingPage() {
           {[...Array(2)].flatMap((_, setIdx) => [
             { logo: 'S', color: '#FF6B6B', title: 'Senior React Developer · SaaS startup', meta: 'via LinkedIn · 2 min ago', status: '● drafted', cls: 'sending' },
             { logo: 'D', color: '#A8E024', title: 'Full-Stack Engineer · dev agency', meta: 'careers page · 6 min ago', status: '✓ sent by you', cls: 'applied' },
-            { logo: 'B', color: '#6EE7FF', title: 'Brand Designer · e-commerce brand', meta: 'via LinkedIn · contract · 8 min ago', status: '✦ reply!', cls: 'reply' },
-            { logo: 'P', color: '#FFB951', title: 'Product Designer · fintech startup', meta: 'via LinkedIn · 11 min ago', status: '✓ sent by you', cls: 'applied' },
+            { logo: 'D', color: '#6EE7FF', title: 'Data Engineer · analytics platform', meta: 'via LinkedIn · contract · 8 min ago', status: '✦ reply!', cls: 'reply' },
+            { logo: 'Q', color: '#FFB951', title: 'QA Automation Engineer · fintech startup', meta: 'via LinkedIn · 11 min ago', status: '✓ sent by you', cls: 'applied' },
             { logo: 'M', color: '#F87171', title: 'iOS Engineer · mobile studio', meta: 'careers page · 14 min ago', status: '✓ sent by you', cls: 'applied' },
             { logo: 'C', color: '#A78BFA', title: 'DevOps Engineer · cloud consultancy', meta: 'via LinkedIn · 18 min ago', status: '● drafted', cls: 'sending' },
           ].map((item, i) => (
@@ -156,7 +156,7 @@ export default async function LandingPage() {
 <section className="marquee">
   <div className="marquee-label">Fresh openings across</div>
   <div className="marquee-track">
-    {[...Array(2)].flatMap((_, i) => ['Engineering','·','Design','·','Marketing','·','Data','·','DevOps','·','Product','·','Writing','·','Translation','·','Mobile','·','QA','·','Sales','·'].map((name, j) => (
+    {[...Array(2)].flatMap((_, i) => ['Engineering','·','Data','·','DevOps','·','QA','·','Cloud','·','Mobile','·','Frontend','·','Backend','·','Product','·','Security','·','ML / AI','·'].map((name, j) => (
       <span key={`${i}-${j}`} className="marquee-item">{name}</span>
     )))}
   </div>
@@ -168,7 +168,7 @@ export default async function LandingPage() {
     <div className="stats-strip">
       <div className="stat">
         <div className="stat-num">{(totalUsers / 1000).toFixed(1)}K+</div>
-        <div className="stat-label">Freelancers signed up</div>
+        <div className="stat-label">Engineers &amp; tech candidates signed up</div>
       </div>
       <div className="stat">
         <div className="stat-num">3h</div>
@@ -297,7 +297,7 @@ export default async function LandingPage() {
         <p>Opens, replies, interview rate — per template, per company, per week.</p>
         <div className="tracking-vis">
           <div className="track-row"><div><div style={{fontSize:'12.5px', color: 'var(--ink-2)', marginBottom: '6px'}}>React roles</div><div className="track-bar"><div className="track-bar-fill" style={{width: '72%'}}></div></div></div><div className="track-num">12% reply</div></div>
-          <div className="track-row"><div><div style={{fontSize:'12.5px', color: 'var(--ink-2)', marginBottom: '6px'}}>Design roles</div><div className="track-bar"><div className="track-bar-fill" style={{width: '48%'}}></div></div></div><div className="track-num">8% reply</div></div>
+          <div className="track-row"><div><div style={{fontSize:'12.5px', color: 'var(--ink-2)', marginBottom: '6px'}}>DevOps roles</div><div className="track-bar"><div className="track-bar-fill" style={{width: '48%'}}></div></div></div><div className="track-num">8% reply</div></div>
           <div className="track-row"><div><div style={{fontSize:'12.5px', color: 'var(--ink-2)', marginBottom: '6px'}}>Backend roles</div><div className="track-bar"><div className="track-bar-fill" style={{width: '34%'}}></div></div></div><div className="track-num">5% reply</div></div>
         </div>
       </div>
@@ -366,7 +366,7 @@ export default async function LandingPage() {
           <span className="logo-mark">F</span>
           <span>Freelanly</span>
         </a>
-        <p>Personal AI assistant for vacancies and projects application. Be first in the inbox. Win the project.</p>
+        <p>Personal AI assistant for remote tech-job applications. Be first in the inbox. Win the role.</p>
       </div>
       <div className="footer-col">
         <h5>Product</h5>
@@ -399,7 +399,7 @@ export default async function LandingPage() {
       </div>
     </div>
     <div className="footer-bottom">
-      <span>© 2026 Freelanly · Made for freelancers who&apos;d rather be working.</span>
+      <span>© 2026 Freelanly · Made for engineers who&apos;d rather be building.</span>
     </div>
   </div>
 </footer>

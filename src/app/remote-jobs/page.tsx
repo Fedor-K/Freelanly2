@@ -27,7 +27,11 @@ export default async function RemoteJobsHub() {
   });
   const rows = pool.map((o) => ({ title: o.title, skills: o.skills, categorySlug: o.category?.slug ?? null }));
   const counts = new Map(SEO_NICHES.map((n) => [n.slug, rows.filter((r) => matchesNiche(r, n)).length]));
-  const niches = [...SEO_NICHES].sort((a, b) => (counts.get(b.slug)! - counts.get(a.slug)!));
+  // Hard niching 2026-07-23: designer supply was cut from scraping — the ux-ui-designer lander
+  // will starve, so it's dropped from the hub showcase (the URL itself stays alive for SEO).
+  const niches = [...SEO_NICHES]
+    .filter((n) => n.slug !== 'ux-ui-designer')
+    .sort((a, b) => (counts.get(b.slug)! - counts.get(a.slug)!));
 
   const jsonLd = {
     '@context': 'https://schema.org',

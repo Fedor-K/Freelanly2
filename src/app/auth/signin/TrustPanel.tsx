@@ -63,7 +63,7 @@ export function TrustPanel() {
           </div>
           <div>
             <div className="font-mono text-[22px] font-medium">{(stats.totalFreelancers / 1000).toFixed(1)}K+</div>
-            <div className="text-[11.5px] text-[#9C9EA2] mt-0.5">freelancers</div>
+            <div className="text-[11.5px] text-[#9C9EA2] mt-0.5">tech candidates</div>
           </div>
         </div>
       </div>

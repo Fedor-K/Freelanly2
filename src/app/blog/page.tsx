@@ -187,7 +187,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
           <section className="mt-16 bg-muted rounded-lg p-8 text-center">
             <h2 className="text-2xl font-bold mb-2">Reading Tips Is Good. Applying Is Better.</h2>
             <p className="text-muted-foreground mb-4">
-              Freelanly finds matched vacancies and projects and drafts every application for you — you review and send. First one is free.
+              Freelanly finds matched remote tech roles and drafts every application for you — you review and send. First one is free.
             </p>
             <Link
               href="/auth/signin"
