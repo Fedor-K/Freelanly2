@@ -4,7 +4,7 @@ import '../marketing-styles.css';
 import './hiw-design.css';
 
 export const metadata: Metadata = {
-  title: 'How Freelanly works — from discovery to signed contract',
+  title: 'How Freelanly Works — From LinkedIn Hiring Post to Paycheck',
   description: 'See the full pipeline: real-time gig discovery, AI personalization, smart sending, and reply tracking — explained step by step.',
   alternates: { canonical: `${siteConfig.url}/how-it-works` },
 };
