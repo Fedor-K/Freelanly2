@@ -364,7 +364,7 @@ export default async function DashboardOverviewPage() {
       {/* Profile boost: video intro (everyone with a résumé) + GitHub (engineers only) — the two
           artifacts that turn a résumé into a sellable candidate. Shown only when missing. */}
       {user?.resumeUrl && (
-        <ProfileBoostNudge askVideo={!user.videoIntroUrl} askGithub={isDev && !user.githubUrl} />
+        <ProfileBoostNudge askGithub={isDev && !user.githubUrl} />
       )}
 
       {/* Today's ready-queue: PRO gets the full review-and-send list; FREE sees an honest teaser. */}

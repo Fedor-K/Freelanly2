@@ -1,28 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useTracker } from '@/hooks/useTracker';
-import { VideoRecorder } from '@/components/app/VideoRecorder';
 
 /**
- * Dashboard nudge: the two profile artifacts that turn a résumé into a SELLABLE candidate —
- * a 1-2 min video intro (async proof of English/identity/communication) and a GitHub link
- * (feeds the code-verification pipeline). Deliberately NOT in the signup form (friction);
- * asked only after the user already has a complete profile. Video records RIGHT HERE in the
- * browser (owner call: a record button, not a link field) and uploads client-side to Blob.
+ * Dashboard nudge — GitHub only (feeds the code-verification pipeline: verified skills land in
+ * letters and feed badges). The video-intro half was killed 2026-07-23 (owner): 7-day funnel was
+ * 229 nudge clicks → 27 recordings started → 1 upload, and the only consumer (recruiter portal)
+ * is near-dead — it burned prime dashboard space for nothing.
  */
-export function ProfileBoostNudge({ askVideo, askGithub }: { askVideo: boolean; askGithub: boolean }) {
+export function ProfileBoostNudge({ askGithub }: { askGithub: boolean }) {
   const { track } = useTracker();
-  const [recorderOpen, setRecorderOpen] = useState(false);
-  const [videoDone, setVideoDone] = useState(false);
 
   useEffect(() => {
-    track('FUNNEL_STEP', { step: 'profile_boost_shown', video: askVideo, github: askGithub });
+    track('FUNNEL_STEP', { step: 'profile_boost_shown', github: askGithub });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const showVideo = askVideo && !videoDone;
-  if (!showVideo && !askGithub) return null;
+  if (!askGithub) return null;
 
   return (
     <div className="card mb-4" style={{ padding: '14px 20px' }}>
@@ -30,44 +25,21 @@ export function ProfileBoostNudge({ askVideo, askGithub }: { askVideo: boolean; 
         Get shortlisted first
       </div>
 
-      {showVideo && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0' }}>
-          <div style={{ fontSize: '20px', flexShrink: 0 }}>🎬</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '13.5px', fontWeight: 600 }}>Record a 1-2 minute intro video</div>
-            <div style={{ fontSize: '12px', color: 'var(--ink-4)', lineHeight: 1.45 }}>
-              Right here, in English — employers pick candidates they can see and hear.
-            </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0' }}>
+        <div style={{ fontSize: '20px', flexShrink: 0 }}>⚡</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '13.5px', fontWeight: 600 }}>Add your GitHub</div>
+          <div style={{ fontSize: '12px', color: 'var(--ink-4)', lineHeight: 1.45 }}>
+            We review your real code and show employers proof, not promises — verified profiles stand out.
           </div>
-          <button
-            className="btn btn-acid btn-sm"
-            style={{ flexShrink: 0 }}
-            onClick={() => { track('FUNNEL_STEP', { step: 'video_nudge_click' }); setRecorderOpen(true); }}
-          >Record now</button>
         </div>
-      )}
-
-      {showVideo && askGithub && <div style={{ borderTop: '1px solid var(--line)' }} />}
-
-      {askGithub && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0' }}>
-          <div style={{ fontSize: '20px', flexShrink: 0 }}>⚡</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '13.5px', fontWeight: 600 }}>Add your GitHub</div>
-            <div style={{ fontSize: '12px', color: 'var(--ink-4)', lineHeight: 1.45 }}>
-              We review your real code and show employers proof, not promises — verified profiles stand out.
-            </div>
-          </div>
-          <a
-            href="/dashboard/settings#profile"
-            className="btn btn-acid btn-sm"
-            style={{ flexShrink: 0 }}
-            onClick={() => track('FUNNEL_STEP', { step: 'github_nudge_click' })}
-          >Add GitHub</a>
-        </div>
-      )}
-
-      <VideoRecorder open={recorderOpen} onClose={() => setRecorderOpen(false)} onDone={() => setVideoDone(true)} />
+        <a
+          href="/dashboard/settings#profile"
+          className="btn btn-acid btn-sm"
+          style={{ flexShrink: 0 }}
+          onClick={() => track('FUNNEL_STEP', { step: 'github_nudge_click' })}
+        >Add GitHub</a>
+      </div>
     </div>
   );
 }
