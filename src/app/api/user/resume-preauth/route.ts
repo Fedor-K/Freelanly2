@@ -300,6 +300,11 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
       },
     });
 
+    // Funnel event: résumé upload previously only mutated User state — invisible in ActivityLog.
+    await prisma.activityLog.create({
+      data: { userId: user.id, action: 'RESUME_UPLOADED', details: { source: 'signup', parsed: !!parsedProfile, generated: !file } },
+    }).catch(() => {});
+
     // Auto-create loop for auto-apply
     const existingLoop = await prisma.autoApplyLoop.findFirst({
       where: { userId: user.id },

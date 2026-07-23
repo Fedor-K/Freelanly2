@@ -308,6 +308,8 @@ export function RegistrationForm({
       if (result?.ok) {
         setStep('sent');
         onEmailSent?.(email);
+        // OTP-funnel: code dispatched — the next checkpoint is signup_otp_verified/fail.
+        trackDb('FUNNEL_STEP', { step: 'signup_otp_sent', form: 'standalone', existing: exists === true });
         // Track signup complete for new users
         if (exists === false) {
           trackDb('SIGNUP_COMPLETE', { source: jobId ? 'job_page' : 'direct', categories: selectedCategories });
@@ -448,6 +450,7 @@ export function RegistrationForm({
       if (result?.ok) {
         setStep('sent');
         onEmailSent?.(email);
+        trackDb('FUNNEL_STEP', { step: 'signup_otp_sent', form: 'standalone', path: 'login' });
       } else {
         throw new Error('Failed to send magic link');
       }
@@ -517,6 +520,7 @@ export function RegistrationForm({
       if (result?.ok) {
         setStep('sent');
         onEmailSent?.(email);
+        trackDb('FUNNEL_STEP', { step: 'signup_otp_sent', form: 'standalone', path: 'register' });
         trackDb('SIGNUP_COMPLETE', { source: 'registration_form', categories: selectedCategories });
       } else {
         throw new Error('Failed to send magic link');
@@ -595,12 +599,14 @@ export function RegistrationForm({
       });
       const data = await res.json();
       if (res.ok && data.success) {
+        trackDb('FUNNEL_STEP', { step: 'signup_otp_verified', form: 'standalone' });
         // Email confirmed. Users who still need a profile go to the 'profile' step (collect
         // résumé/LinkedIn/categories/salary/Telegram, then apply); everyone else (existing user
         // with a résumé) just enters their account.
         if (hasResume === false) { if (data.regToken) setRegToken(data.regToken); setStep('profile'); setOtpLoading(false); return; }
         window.location.href = callbackUrl || data.callbackUrl || '/dashboard/discovery';
       } else {
+        trackDb('FUNNEL_STEP', { step: 'signup_otp_fail', form: 'standalone' });
         setOtpError(data.error || 'Invalid code');
         setOtpCode(['', '', '', '', '', '']);
         otpRefs.current[0]?.focus();
@@ -668,7 +674,7 @@ export function RegistrationForm({
             otherwise assume nothing arrived. */}
         <p style={{fontSize: '13px', color: '#5C6068', marginBottom: '8px', lineHeight: 1.5}}>
           Didn&apos;t get it? Check <b>Spam</b> or <b>Promotions</b>.{' '}
-          <button onClick={() => { setOtpCode(['','','','','','']); setOtpError(''); handleSendMagicLink(); }} disabled={otpLoading} style={{color: '#4D8B0A', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0, textDecoration: 'underline'}}>
+          <button onClick={() => { trackDb('FUNNEL_STEP', { step: 'signup_otp_resend', form: 'standalone' }); setOtpCode(['','','','','','']); setOtpError(''); handleSendMagicLink(); }} disabled={otpLoading} style={{color: '#4D8B0A', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0, textDecoration: 'underline'}}>
             Resend code
           </button>
         </p>
