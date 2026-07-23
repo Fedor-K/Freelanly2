@@ -62,7 +62,7 @@ export default function PricingPage() {
         <div className="plan-section-label">What&apos;s included</div>
         <ul className="plan-features">
           <li><Chk /> <span><strong>First application free</strong> — see the full flow end to end</span></li>
-          <li><Chk /> <span>Fresh matched vacancies &amp; projects in your feed daily</span></li>
+          <li><Chk /> <span>Fresh matched remote tech roles in your feed daily</span></li>
           <li><Chk /> <span>Why-you-match reasons on every card</span></li>
           <li><Chk /> <span>R&eacute;sum&eacute; parsing + profile built from your CV and LinkedIn</span></li>
           <li><Chk /> <span>Unified reply inbox + pipeline tracking</span></li>
@@ -112,11 +112,11 @@ export default function PricingPage() {
     <div className="faq-list reveal">
       <div className="faq-item">
         <div className="faq-q">What&apos;s actually free?</div>
-        <div className="faq-a">Everything up to and including your first sent application: matching, the AI letter, your CV attached, sending, and the reply inbox. You see the entire flow work end to end before paying a cent. From the second application on, you&apos;ll need PRO.</div>
+        <div className="faq-a">Everything up to and including your first sent application: matching, the AI letter, your CV attached, sending, and the reply inbox. You see the entire flow work end to end before paying a cent. After that, pay as you go — top up a balance (from $3) and send at <strong>$0.50 per application</strong>, no subscription, balance never expires — or go PRO.</div>
       </div>
       <div className="faq-item">
         <div className="faq-q">What exactly does PRO add?</div>
-        <div className="faq-a">Applying, end to end. <strong>Up to 20 applications a day</strong> — the $5 covers your whole search, not per-send fees. <strong>AI-written letters</strong> with a reviewer pass for every one. A <strong>morning ready-queue</strong>: applications pre-written for your top matches, so you review and hit Send instead of hunting and drafting. And <strong>your CV on every send</strong> — attached automatically.</div>
+        <div className="faq-a">Applying at full speed. <strong>Up to 20 applications a day</strong> for a flat $5 — cheaper than the $0.50 balance once you send more than 10 a month. <strong>AI-written letters</strong> with a reviewer pass for every one. A <strong>morning ready-queue</strong>: applications pre-written for your top matches, so you review and hit Send instead of hunting and drafting. And <strong>your CV on every send</strong> — attached automatically.</div>
       </div>
       <div className="faq-item">
         <div className="faq-q">Does Freelanly send anything without me?</div>

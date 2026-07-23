@@ -95,7 +95,7 @@ export default function HowItWorksPage() {
             <div className="discovery-result">
               <div className="logo" style={{background:'#FF6B6B'}}>L</div>
               <div>
-                <div className="title">Senior React Developer — Linear</div>
+                <div className="title">Senior React Developer — dev-tools startup</div>
                 <div className="meta">linkedin.com/posts/sarah-chen · remote, EU TZ</div>
               </div>
               <span className="age">2m</span>
@@ -103,7 +103,7 @@ export default function HowItWorksPage() {
             <div className="discovery-result">
               <div className="logo" style={{background:'#A8E024'}}>V</div>
               <div>
-                <div className="title">Full-Stack Engineer — Vercel</div>
+                <div className="title">Full-Stack Engineer — cloud platform</div>
                 <div className="meta">vercel.com/careers · contract · 6h ahead of LinkedIn</div>
               </div>
               <span className="age">12m</span>
@@ -215,11 +215,11 @@ export default function HowItWorksPage() {
           <div className="letter-body">
             <div className="from">
               <strong>From:</strong> alex@kowalski.dev<br/>
-              <strong>To:</strong> sarah@linear.app<br/>
+              <strong>To:</strong> sarah@devtools-startup.com<br/>
               <strong>Subject:</strong> Re: hiring a React dev for the mobile sync engine
             </div>
             Hey <mark>Sarah</mark>,<br/><br/>
-            Saw your post about hiring a React dev for <mark>Linear&apos;s mobile sync engine</mark>. I shipped a similar offline-first conflict resolver last quarter for <mark>Plain</mark> — happy to walk through how I&apos;d approach the CRDT layer.<br/><br/>
+            Saw your post about hiring a React dev for <mark>your mobile sync engine</mark>. I shipped a similar offline-first conflict resolver last quarter for <mark>a messaging startup</mark> — happy to walk through how I&apos;d approach the CRDT layer.<br/><br/>
             A couple of pieces from the portfolio that line up: <mark>alex.dev/plain-sync</mark> and <mark>alex.dev/notion-style-resolver</mark>. Both are public.<br/><br/>
             Open to a 20-minute call this week — flexible on your TZ.<br/><br/>
             — Alex
@@ -271,7 +271,7 @@ export default function HowItWorksPage() {
               <span className="indicator"></span>
               <div className="avatar" style={{background:'#FF6B6B'}}>S</div>
               <div>
-                <div className="from">Sarah Chen · Linear</div>
+                <div className="from">Sarah C. · dev-tools startup</div>
                 <div className="subject">Re: hiring a React dev — yes, would love to chat</div>
               </div>
               <div className="time">2m</div>
@@ -280,7 +280,7 @@ export default function HowItWorksPage() {
               <span className="indicator"></span>
               <div className="avatar" style={{background:'#6EE7FF'}}>M</div>
               <div>
-                <div className="from">Marcus D. · Stripe</div>
+                <div className="from">Marcus D. · fintech company</div>
                 <div className="subject">Re: brand sprint — got a deck I can share?</div>
               </div>
               <div className="time">1h</div>
@@ -289,7 +289,7 @@ export default function HowItWorksPage() {
               <span className="indicator"></span>
               <div className="avatar" style={{background:'#FFB951'}}>P</div>
               <div>
-                <div className="from">Priya R. · Vercel</div>
+                <div className="from">Priya R. · cloud platform</div>
                 <div className="subject">Re: full-stack contract — when can you start?</div>
               </div>
               <div className="time">3h</div>
@@ -298,7 +298,7 @@ export default function HowItWorksPage() {
               <span className="indicator"></span>
               <div className="avatar" style={{background:'#A78BFA'}}>J</div>
               <div>
-                <div className="from">Jamie L. · Railway</div>
+                <div className="from">Jamie L. · infra startup</div>
                 <div className="subject">Re: DevOps role — currently on hold, will circle back</div>
               </div>
               <div className="time">Yesterday</div>
@@ -327,12 +327,12 @@ export default function HowItWorksPage() {
       <div className="step-visual reveal">
         <div className="visual-frame">
           <div className="frame-header">
-            <span className="frame-title">Thread · Linear application</span>
+            <span className="frame-title">Thread · dev-tools application</span>
             <span className="pill pill-accent"><span className="pill-dot"></span>REPLIED &#10003;</span>
           </div>
           <div className="thread">
             <div className="msg">
-              <div className="msg-head"><span className="from">Alex → Sarah · Linear</span><span className="when">Mon 09:14</span></div>
+              <div className="msg-head"><span className="from">Alex → Sarah · dev-tools startup</span><span className="when">Mon 09:14</span></div>
               <div className="msg-body" style={{color: 'var(--ink-3)'}}>Hey Sarah, saw your post about hiring a React dev for the mobile sync engine…</div>
             </div>
             <div className="msg followup">
