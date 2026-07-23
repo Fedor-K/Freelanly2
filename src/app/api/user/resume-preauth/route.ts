@@ -80,15 +80,20 @@ export async function POST(request: NextRequest) {
     if (!file && !buildFromLinks) {
       return NextResponse.json({ error: 'Résumé (PDF) is required' }, { status: 400 });
     }
-    if (!linkedinUrl) {
-      return NextResponse.json({ error: 'LinkedIn URL is required' }, { status: 400 });
+    // Phase-1 minimal signup (owner 2026-07-23): LinkedIn is required only on the NO-FILE path
+    // (there it IS the CV source). With a résumé file it's optional enrichment.
+    if (!linkedinUrl && !file) {
+      return NextResponse.json({ error: 'LinkedIn URL is required to build your CV' }, { status: 400 });
     }
     // Validate it's a REAL personal profile URL (auto-fixes https:/ , linked.com, ?skipRedirect).
     // Rejects the ~19% garbage (bare names, company pages, /me links) that can never be scraped —
     // this is the single chokepoint every registration passes through.
-    const normalizedLinkedin = normalizeLinkedInUrl(linkedinUrl);
-    if (!normalizedLinkedin) {
-      return NextResponse.json({ error: 'Enter your real LinkedIn profile URL, e.g. linkedin.com/in/your-name' }, { status: 400 });
+    let normalizedLinkedin: string | null = null;
+    if (linkedinUrl) {
+      normalizedLinkedin = normalizeLinkedInUrl(linkedinUrl);
+      if (!normalizedLinkedin) {
+        return NextResponse.json({ error: 'Enter your real LinkedIn profile URL, e.g. linkedin.com/in/your-name' }, { status: 400 });
+      }
     }
 
     // Find user by email
@@ -160,7 +165,10 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
     }
 
     // 2) LinkedIn → structured profile (ENRICHMENT, shared module). Complement, not replacement.
-    const { liProfile, resolvedUrl, aboutText, photoUrl } = await scrapeLinkedInProfile(normalizedLinkedin, email);
+    // Skipped entirely when no LinkedIn was given (file-only signup).
+    const { liProfile, resolvedUrl, aboutText, photoUrl } = normalizedLinkedin
+      ? await scrapeLinkedInProfile(normalizedLinkedin, email)
+      : { liProfile: null, resolvedUrl: null, aboutText: null, photoUrl: null };
     const savedLinkedinUrl = resolvedUrl;
     if (!pdfText && aboutText) pdfText = aboutText;
 
