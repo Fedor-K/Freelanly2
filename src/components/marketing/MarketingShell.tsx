@@ -10,7 +10,6 @@ export function MarketingNav() {
         </Link>
         <div className="hidden md:flex items-center gap-7 flex-1 text-[14px] text-[#A1A1AA]">
           <Link href="/how-it-works" className="hover:text-white transition-colors">How it works</Link>
-          <Link href="/features" className="hover:text-white transition-colors">Features</Link>
           <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
           <Link href="/about" className="hover:text-white transition-colors">About</Link>
         </div>

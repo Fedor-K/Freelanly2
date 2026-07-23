@@ -42,7 +42,6 @@ export function ProjectDetailNew({ opportunity, totalProjectCount, isLoggedIn, p
           </Link>
           <nav className="hidden md:flex gap-5 ml-7">
             <Link href="/how-it-works" className="text-[13.5px] text-[#5C6068] hover:text-[#0A0B0F]">How it works</Link>
-            <Link href="/features" className="text-[13.5px] text-[#5C6068] hover:text-[#0A0B0F]">Features</Link>
             <Link href="/pricing" className="text-[13.5px] text-[#5C6068] hover:text-[#0A0B0F]">Pricing</Link>
           </nav>
           <div className="ml-auto flex items-center gap-2.5">

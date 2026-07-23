@@ -101,6 +101,10 @@ const nextConfig: NextConfig = {
   async redirects() {
     const redirects = [];
 
+    // /features removed 2026-07-23 (owner): 24-card page was an overclaim factory; the simplified
+    // homepage carries the story now. 301 keeps the indexed URL's equity.
+    redirects.push({ source: '/features', destination: '/', permanent: true });
+
     // === ALL job/freelance pages → signup with context ===
 
     // /jobs/[category] → signup with category context
