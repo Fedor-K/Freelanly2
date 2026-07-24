@@ -42,15 +42,14 @@ function replyClickUrl(dest: string, appId?: string, userId?: string): string {
   return `${TRACK_BASE}/reply-click?${q.toString()}`;
 }
 
-function emailShell(stamp: string, content: string, brand?: { name: string; site: string }): string {
-  const b = brand ?? { name: 'Freelanly', site: 'freelanly.com' };
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${b.name}</title></head>
+function emailShell(stamp: string, content: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Freelanly</title></head>
 <body style="margin:0;padding:0;background:${BRAND.bg};font-family:'Geist',-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;color:${BRAND.ink};-webkit-font-smoothing:antialiased;">
 <div style="max-width:560px;margin:32px auto;background:${BRAND.card};border-radius:14px;overflow:hidden;box-shadow:0 1px 0 rgba(0,0,0,0.02),0 12px 32px -8px rgba(0,0,0,0.08);">
   <!-- Brand bar -->
   <div style="display:flex;align-items:center;gap:10px;padding:18px 28px;border-bottom:1px solid ${BRAND.line};">
-    <div style="width:26px;height:26px;border-radius:7px;background:${BRAND.ink};color:${BRAND.acid};display:inline-block;text-align:center;line-height:26px;font-weight:700;font-size:13px;font-family:monospace;">${b.name[0]}</div>
-    <span style="font-size:14px;font-weight:500;">${b.name}</span>
+    <div style="width:26px;height:26px;border-radius:7px;background:${BRAND.ink};color:${BRAND.acid};display:inline-block;text-align:center;line-height:26px;font-weight:700;font-size:13px;font-family:monospace;">F</div>
+    <span style="font-size:14px;font-weight:500;">Freelanly</span>
     <span style="margin-left:auto;font-family:monospace;font-size:10.5px;color:${BRAND.ink4};letter-spacing:0.06em;text-transform:uppercase;">${stamp}</span>
   </div>
   <!-- Content -->
@@ -59,8 +58,8 @@ function emailShell(stamp: string, content: string, brand?: { name: string; site
   </div>
   <!-- Footer -->
   <div style="padding:22px 32px 28px;font-size:11.5px;font-family:monospace;color:${BRAND.ink4};letter-spacing:0.04em;line-height:1.65;background:${BRAND.bg2};border-top:1px solid ${BRAND.line};">
-    <div>${b.name} · ${b.site}</div>
-    <div style="margin-top:8px;font-size:10.5px;color:${BRAND.ink4};">© 2026 ${b.name} · <a href="https://${b.site}/unsubscribe" style="color:${BRAND.ink3};text-decoration:underline;">Unsubscribe</a></div>
+    <div>Freelanly · freelanly.com</div>
+    <div style="margin-top:8px;font-size:10.5px;color:${BRAND.ink4};">© 2026 Freelanly · <a href="https://freelanly.com/unsubscribe" style="color:${BRAND.ink3};text-decoration:underline;">Unsubscribe</a></div>
   </div>
 </div>
 </body></html>`;
@@ -69,12 +68,11 @@ function emailShell(stamp: string, content: string, brand?: { name: string; site
 /**
  * OTP sign-in code email
  */
-export function otpEmail(code: string, email: string, brand?: { name: string; site: string }): { subject: string; html: string; text: string } {
-  const b = brand ?? { name: 'Freelanly', site: 'freelanly.com' };
+export function otpEmail(code: string, email: string): { subject: string; html: string; text: string } {
   const subject = `Your sign-in code: ${code.slice(0, 3)} ${code.slice(3)}`;
   const html = emailShell('Sign-in code', `
     <h1 style="font-size:24px;font-weight:500;letter-spacing:-0.022em;margin:0 0 14px;color:${BRAND.ink};">Your sign-in code</h1>
-    <p style="margin:0 0 14px;color:${BRAND.ink2};line-height:1.6;">Use the code below to finish signing in to your ${b.name} account. It expires in 10 minutes.</p>
+    <p style="margin:0 0 14px;color:${BRAND.ink2};line-height:1.6;">Use the code below to finish signing in to your Freelanly account. It expires in 10 minutes.</p>
     <div style="margin:24px 0 20px;padding:24px;background:${BRAND.bg2};border:1px solid ${BRAND.line};border-radius:12px;text-align:center;">
       <div style="font-family:monospace;font-size:44px;font-weight:500;letter-spacing:0.18em;color:${BRAND.ink};">${code.slice(0, 3)}&nbsp;${code.slice(3)}</div>
       <div style="margin-top:10px;font-family:monospace;font-size:11.5px;letter-spacing:0.04em;text-transform:uppercase;color:${BRAND.ink4};">Expires in <span style="color:${BRAND.warn};">10 minutes</span></div>
@@ -85,8 +83,8 @@ export function otpEmail(code: string, email: string, brand?: { name: string; si
     <div style="margin-top:24px;padding-top:20px;border-top:1px solid ${BRAND.line};font-size:13px;color:${BRAND.ink3};">
       Requested for <strong style="font-family:monospace;font-size:12.5px;">${email}</strong>
     </div>
-  `, b);
-  const text = `Your ${b.name} sign-in code: ${code}. Expires in 10 minutes. If you didn't request this, ignore this message.`;
+  `);
+  const text = `Your Freelanly sign-in code: ${code}. Expires in 10 minutes. If you didn't request this, ignore this message.`;
   return { subject, html, text };
 }
 

@@ -70,17 +70,9 @@ export async function sendMagicLinkEmail(
     // Continue — magic link still works even without code
   }
 
-  // Use branded OTP template. WATCHER FACTORY (2026-07-24): when the sign-in was initiated from a
-  // watcher domain (trustHost → the magic-link url carries that host), the email is fully branded
-  // as the watcher — the user must never see "Freelanly" on a watcher product.
+  // Use branded OTP template
   const { otpEmail } = await import('@/lib/email-templates');
-  const { watcherForHost } = await import('@/config/watchers');
-  let brand: { name: string; site: string } | undefined;
-  try {
-    const w = watcherForHost(new URL(url).host);
-    if (w) brand = { name: w.name, site: w.hosts[0] };
-  } catch { /* malformed url → default brand */ }
-  const branded = otpEmail(code, email, brand);
+  const branded = otpEmail(code, email);
 
   try {
     const emailParams = {
@@ -88,7 +80,6 @@ export async function sendMagicLinkEmail(
       subject: branded.subject,
       html: branded.html,
       text: branded.text,
-      ...(brand ? { fromName: brand.name } : {}),
     };
 
     // Send auth emails via Postal (self-hosted) for IP warming.
