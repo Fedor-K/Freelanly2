@@ -23,5 +23,8 @@
       "WebSearch",
       "Agent(*)"
     ]
+  },
+  "enabledPlugins": {
+    "cloudflare@cloudflare": true
   }
 }
