@@ -509,12 +509,17 @@ export async function POST(request: NextRequest) {
     console.log(`[LinkedInPosts] Content quality: ${qualityResult.quality} (score: ${qualityResult.score})`);
 
     // =========================================================================
-    // CREATE OPPORTUNITY — only if applyEmail exists
+    // CREATE OPPORTUNITY
     // =========================================================================
 
-    if (!validatedEmail) {
-      console.log(`[LinkedInPosts] Skipping — no applyEmail found in post`);
-      return NextResponse.json({ status: 'skipped', reason: 'no_email' });
+    // NO-EMAIL POSTS (owner 2026-07-24): no longer skipped — the watcher products
+    // (reactwatcher/qawatcher/pythonwatcher) list them with a "view the post on
+    // LinkedIn" button (sourceUrl is always present). isActive=false shields every
+    // existing engine consumer: feed/matcher/day1/recap/social all filter
+    // isActive=true, and the apply paths require applyEmail anyway.
+    const noEmail = !validatedEmail;
+    if (noEmail) {
+      console.log(`[LinkedInPosts] No applyEmail — importing as inactive (watcher-only): ${extracted.title}`);
     }
 
     let opportunity;
@@ -546,6 +551,7 @@ export async function POST(request: NextRequest) {
           ...salaryData,
           applyEmail: validatedEmail,
           applyUrl: extracted.applyUrl,
+          isActive: !noEmail,
           sourceUrl: postUrl,
           sourceId: postId,
           // Keyword tracking
@@ -589,8 +595,9 @@ export async function POST(request: NextRequest) {
     // INSTANT alerts are now handled by pull-model cron (process-instant-alerts)
     // No queue operation needed here
 
-    // Notify search engines - ONLY for non-THIN content
-    if (qualityResult.quality !== 'THIN') {
+    // Notify search engines - ONLY for non-THIN content (and never for watcher-only
+    // no-email rows: they are isActive=false and must not be pushed to indexers).
+    if (qualityResult.quality !== 'THIN' && !noEmail) {
       try {
         const opportunityUrl = `${siteConfig.url}/freelance/${opportunity.slug}`;
         await notifySearchEngines([opportunityUrl], { skipGoogle: qualityResult.quality !== 'RICH' });
