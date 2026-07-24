@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { watcherForHost } from '@/config/watchers';
 
 // Valid category slugs (must match categories in site.ts)
 const VALID_CATEGORIES = new Set([
@@ -21,6 +22,30 @@ export function middleware(req: NextRequest) {
   const host = req.headers.get('host') || '';
   const pathname = req.nextUrl.pathname;
   const search = req.nextUrl.search;
+
+  // ── WATCHER FACTORY (owner 2026-07-24): niche products on their own domains, one engine. ──
+  // A watcher host (reactwatcher.net / qa.freelanly.com test alias / …) serves ONLY its /w/{slug}
+  // tree — every path is rewritten there, so the Freelanly site is unreachable on these hosts and
+  // no Freelanly-specific rule below (geo block aside) applies. www → apex first.
+  const watcher = watcherForHost(host);
+  if (watcher) {
+    if (host.startsWith('www.')) {
+      const url = new URL(req.url);
+      url.host = host.replace('www.', '');
+      return NextResponse.redirect(url, 301);
+    }
+    // Already-internal paths (client navigations to /w/…) pass through; everything else rewrites.
+    if (!pathname.startsWith('/w/')) {
+      const url = req.nextUrl.clone();
+      url.pathname = `/w/${watcher.slug}${pathname === '/' ? '' : pathname}`;
+      return NextResponse.rewrite(url);
+    }
+    return NextResponse.next();
+  }
+  // Freelanly hosts must never serve the /w tree directly (duplicate content + brand leak).
+  if (pathname.startsWith('/w/') && !host.includes('localhost')) {
+    return NextResponse.redirect(new URL('/', req.url), 301);
+  }
 
   // 0. Geo block — earliest, before anything else.
   if (SITE_GEO_BLOCK.size) {
