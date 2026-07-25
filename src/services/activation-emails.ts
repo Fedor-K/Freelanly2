@@ -420,6 +420,8 @@ export async function processActivationEmails(): Promise<{
         activatedAt: null, // Haven't sent any application yet
         activationEmailsSent: { lt: 4 }, // Haven't received all drip emails
         unsubscribedFromMarketing: false, // Respect unsubscribe preference
+        // Watcher-product accounts must never receive Freelanly-branded mail.
+        NOT: { source: { startsWith: 'watcher:' } },
       },
       include: {
         _count: {

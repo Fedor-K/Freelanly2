@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { rateLimit, sanitizeEmail } from '@/lib/rate-limit';
 import { signRegToken } from '@/lib/reg-token';
-import { checkPartnerSecret } from '../_lib/partner';
+import { checkPartnerSecret, sanitizeBrand } from '../_lib/partner';
 
 /**
  * POST /api/partner/verify — redeem a 6-digit code, create the account if new.
@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const email = sanitizeEmail(String(body.email || ''));
     const code = String(body.code || '').trim();
+    const brand = sanitizeBrand(body.brand);
 
     const lim = rateLimit('partner_verify', email, 8, 15 * 60_000);
     if (lim.limited) {
@@ -39,10 +40,13 @@ export async function POST(request: NextRequest) {
     // Single-use: burn every outstanding code for this identifier.
     await prisma.verificationToken.deleteMany({ where: { identifier: { equals: email, mode: 'insensitive' } } }).catch(() => {});
 
+    // Watcher accounts are stamped at creation (source = watcher:{domain}) so every
+    // engine consumer — Freelanly-branded email crons, cleanup, analytics — can tell the
+    // two products apart. Existing Freelanly accounts are never re-stamped.
     const user = await prisma.user.upsert({
       where: { email },
       update: { emailVerified: new Date() },
-      create: { email, emailVerified: new Date() },
+      create: { email, emailVerified: new Date(), source: brand ? `watcher:${brand.domain}` : 'watcher:unknown' },
       select: { id: true, email: true, plan: true, resumeUrl: true, name: true, stripeSubscriptionId: true },
     });
 

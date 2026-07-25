@@ -57,10 +57,12 @@ export async function POST(request: NextRequest) {
       try {
         const user = await prisma.user.findUnique({
           where: { id: userId },
-          select: { name: true, email: true, unsubscribedFromMarketing: true, timezone: true },
+          select: { name: true, email: true, unsubscribedFromMarketing: true, timezone: true, source: true },
         });
 
         if (!user || user.unsubscribedFromMarketing) { skipped++; continue; }
+        // Watcher-product accounts must never receive Freelanly-branded mail.
+        if (user.source?.startsWith('watcher:')) { skipped++; continue; }
         if (sentToday === 0) { skipped++; continue; }
 
         // Check if it's ~19:00 in user's timezone

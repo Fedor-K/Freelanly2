@@ -77,6 +77,8 @@ export async function processDay1Matches(opts: {
         where: {
           createdAt: { gte: hoursAgo(COHORT_MAX_H), lte: hoursAgo(COHORT_MIN_H) },
           day1DigestSentAt: null,
+          // Watcher-product accounts must never receive Freelanly-branded mail.
+          NOT: { source: { startsWith: 'watcher:' } },
           emailVerified: { not: null },
           unsubscribedFromMarketing: false,
           emailBounceCount: { lt: 3 },
