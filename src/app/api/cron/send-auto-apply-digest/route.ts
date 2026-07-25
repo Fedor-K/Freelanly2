@@ -29,6 +29,8 @@ export async function POST(request: NextRequest) {
       where: {
         notifyDigest: true,
         autoApplyLoops: { some: { isActive: true } },
+        // Watcher-product accounts must never receive Freelanly-branded mail.
+        NOT: { source: { startsWith: 'watcher:' } },
       },
       select: {
         id: true,
