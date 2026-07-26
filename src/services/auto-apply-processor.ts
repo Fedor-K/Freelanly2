@@ -909,8 +909,8 @@ export async function aiMatchCheck(
   const OpenAI = (await import('openai')).default;
   const provider = (process.env.AI_PROVIDER || 'zai').toLowerCase();
   const client = provider === 'zai'
-    ? new OpenAI({ apiKey: process.env.ZAI_API_KEY || '', baseURL: 'https://api.z.ai/api/paas/v4', timeout: 10000 })
-    : new OpenAI({ apiKey: process.env.ZAI_API_KEY || '', baseURL: 'https://api.z.ai/api/paas/v4', timeout: 10000 });
+    ? new OpenAI({ apiKey: (process.env.ZAI_KEY_COVER||process.env.ZAI_API_KEY) || '', baseURL: 'https://api.z.ai/api/paas/v4', timeout: 10000 })
+    : new OpenAI({ apiKey: (process.env.ZAI_KEY_COVER||process.env.ZAI_API_KEY) || '', baseURL: 'https://api.z.ai/api/paas/v4', timeout: 10000 });
   const model = provider === 'zai' ? 'glm-4-32b-0414-128k' : 'glm-4-32b-0414-128k';
 
   const response = await client.chat.completions.create({

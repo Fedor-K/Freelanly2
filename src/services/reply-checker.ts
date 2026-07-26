@@ -6,8 +6,8 @@ import { sendEmail } from '@/lib/email';
 
 function getAIClient() {
   const p = process.env.AI_PROVIDER?.toLowerCase();
-  if (p === 'zai') return { client: new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' }), model: 'glm-4-32b-0414-128k' };
-  return { client: new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' }), model: 'glm-4-32b-0414-128k' };
+  if (p === 'zai') return { client: new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: (process.env.ZAI_KEY_REPLIES||process.env.ZAI_API_KEY) || '' }), model: 'glm-4-32b-0414-128k' };
+  return { client: new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: (process.env.ZAI_KEY_REPLIES||process.env.ZAI_API_KEY) || '' }), model: 'glm-4-32b-0414-128k' };
 }
 
 // Geo brush-offs ("need a Canada-based candidate", "only for candidates based in LATAM") are

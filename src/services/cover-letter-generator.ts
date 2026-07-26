@@ -7,7 +7,7 @@ let _zai: OpenAI | null = null;
 function getZaiClient(): OpenAI {
   if (!_zai) {
     _zai = new OpenAI({
-      apiKey: process.env.ZAI_API_KEY || 'dummy-key-for-build',
+      apiKey: (process.env.ZAI_KEY_COVER||process.env.ZAI_API_KEY) || 'dummy-key-for-build',
       baseURL: 'https://api.z.ai/api/paas/v4',
       timeout: 30000,
       maxRetries: 2,

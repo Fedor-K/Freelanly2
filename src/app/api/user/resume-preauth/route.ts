@@ -18,12 +18,12 @@ function getAIClient() {
   if (AI_PROVIDER === 'zai') {
     return new OpenAI({
       baseURL: 'https://api.z.ai/api/paas/v4',
-      apiKey: process.env.ZAI_API_KEY || '',
+      apiKey: (process.env.ZAI_KEY_RESUME||process.env.ZAI_API_KEY) || '',
     });
   }
   return new OpenAI({
     baseURL: 'https://api.z.ai/api/paas/v4',
-    apiKey: process.env.ZAI_API_KEY || '',
+    apiKey: (process.env.ZAI_KEY_RESUME||process.env.ZAI_API_KEY) || '',
   });
 }
 
@@ -338,8 +338,8 @@ Extract up to 20 skills and ALL experience + education entries. If not found, us
         const OpenAI = (await import('openai')).default;
         const p = process.env.AI_PROVIDER?.toLowerCase();
         const client = p === 'zai'
-          ? new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' })
-          : new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' });
+          ? new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: (process.env.ZAI_KEY_RESUME||process.env.ZAI_API_KEY) || '' })
+          : new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: (process.env.ZAI_KEY_RESUME||process.env.ZAI_API_KEY) || '' });
         const model = p === 'zai' ? 'glm-4-32b-0414-128k' : 'glm-4-32b-0414-128k';
         const r = await client.chat.completions.create({
           model, temperature: 0.3, max_tokens: 100,

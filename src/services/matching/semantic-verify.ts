@@ -13,7 +13,7 @@ import type { Line } from '@/lib/match-breakdown/generate';
 
 let _client: OpenAI | null = null;
 function client(): OpenAI {
-  if (!_client) _client = new OpenAI({ apiKey: process.env.ZAI_API_KEY || 'dummy-key-for-build', baseURL: 'https://api.z.ai/api/paas/v4', timeout: 20000, maxRetries: 1 });
+  if (!_client) _client = new OpenAI({ apiKey: (process.env.ZAI_KEY_FEEDVET||process.env.ZAI_API_KEY) || 'dummy-key-for-build', baseURL: 'https://api.z.ai/api/paas/v4', timeout: 20000, maxRetries: 1 });
   return _client;
 }
 

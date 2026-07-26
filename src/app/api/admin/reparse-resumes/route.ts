@@ -19,7 +19,7 @@ const ADMIN_EMAILS = ['fedor.hatla@gmail.com'];
 //
 //   /api/admin/reparse-resumes?days=6&limit=8   (admin-gated; call repeatedly until remaining=0)
 function aiClient() {
-  return new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' });
+  return new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: (process.env.ZAI_KEY_RESUME||process.env.ZAI_API_KEY) || '' });
 }
 
 const EXTRACT_SYSTEM = `You extract structured data from resumes. Return ONLY valid JSON, no markdown, no explanation.

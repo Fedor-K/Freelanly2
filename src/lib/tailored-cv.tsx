@@ -38,7 +38,7 @@ type TailorResult = {
 
 /** One LLM call: re-angle the profile for THIS job. Output is advisory — validated + merged below. */
 async function tailorWithLlm(profile: CvProfile, jobTitle: string, jobDescription: string): Promise<TailorResult | null> {
-  const apiKey = process.env.ZAI_API_KEY;
+  const apiKey = (process.env.ZAI_KEY_COVER||process.env.ZAI_API_KEY);
   if (!apiKey) return null;
   const client = new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey, timeout: 25000, maxRetries: 1 });
 

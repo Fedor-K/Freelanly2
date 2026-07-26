@@ -7,10 +7,10 @@ import OpenAI from 'openai';
 let zaiClient: OpenAI | null = null;
 
 function getZaiClient(): OpenAI | null {
-  if (!process.env.ZAI_API_KEY) return null;
+  if (!(process.env.ZAI_KEY_INGEST||process.env.ZAI_API_KEY)) return null;
   if (!zaiClient) {
     zaiClient = new OpenAI({
-      apiKey: process.env.ZAI_API_KEY,
+      apiKey: (process.env.ZAI_KEY_INGEST||process.env.ZAI_API_KEY),
       baseURL: 'https://api.z.ai/api/paas/v4',
     });
   }

@@ -38,7 +38,7 @@ async function generateCandidateSummary(
   if (!profile) return null;
   try {
     const OpenAI = (await import('openai')).default;
-    const client = new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' });
+    const client = new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: (process.env.ZAI_KEY_COVER||process.env.ZAI_API_KEY) || '' });
     const skills = ((profile.skills as string[]) || []).slice(0, 15).join(', ');
     const prompt = `Candidate:
 - Current title: ${profile.current_title || '—'}

@@ -80,7 +80,7 @@ function getAIClient() {
   // Z.ai GLM-4-32B
   return {
     client: new OpenAI({
-      apiKey: process.env.ZAI_API_KEY || '',
+      apiKey: (process.env.ZAI_KEY_CHAT||process.env.ZAI_API_KEY) || '',
       baseURL: 'https://api.z.ai/api/paas/v4',
       timeout: 15000,
       maxRetries: 1,

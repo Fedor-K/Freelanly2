@@ -12,8 +12,8 @@ import { verifySkill, type VerifyResult } from './verify';
 const AI_PROVIDER = (process.env.AI_PROVIDER || 'zai').toLowerCase();
 function aiClient(): OpenAI {
   return AI_PROVIDER === 'zai'
-    ? new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' })
-    : new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' });
+    ? new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: (process.env.ZAI_KEY_RECRUITER||process.env.ZAI_API_KEY) || '' })
+    : new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: (process.env.ZAI_KEY_RECRUITER||process.env.ZAI_API_KEY) || '' });
 }
 const MODEL = AI_PROVIDER === 'zai' ? 'glm-4-32b-0414-128k' : 'glm-4-32b-0414-128k';
 
