@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 </body></html>`;
     const text = roles.map((r) => `${r.title}${r.company ? ' — ' + r.company : ''}\n${r.url}`).join('\n\n') + (unsubscribeUrl ? `\n\nPause alerts: ${unsubscribeUrl}` : '');
 
-    const sent = await sendEmail({ to: email, subject, html, text, fromName: brand.name });
+    const sent = await sendEmail({ to: email, subject, html, text, fromName: brand.name, from: `alerts@${brand.domain}` });
     if (!sent.success) return NextResponse.json({ error: 'send_failed', message: sent.error }, { status: 502 });
     return NextResponse.json({ ok: true });
   } catch (e) {

@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 </body></html>`;
     const text = `Your ${brand.name} sign-in code: ${code}\n\nExpires in 15 minutes. If you didn't request this, ignore this email.`;
 
-    const sent = await sendEmail({ to: email, subject, html, text, fromName: brand.name });
+    const sent = await sendEmail({ to: email, subject, html, text, fromName: brand.name, from: `alerts@${brand.domain}` });
     if (!sent.success) {
       return NextResponse.json({ error: 'send_failed', message: sent.error }, { status: 502 });
     }
