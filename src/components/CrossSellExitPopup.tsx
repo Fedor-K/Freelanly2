@@ -260,6 +260,6 @@ function formatSalary(
     }
     return `${formatter.format(min)}+`;
   } catch {
-    return `$${min.toLocaleString()}+`;
+    return `$${min.toLocaleString('en-US')}+`;
   }
 }
