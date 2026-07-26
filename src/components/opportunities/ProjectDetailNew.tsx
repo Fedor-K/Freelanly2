@@ -54,7 +54,7 @@ export function ProjectDetailNew({ opportunity, totalProjectCount, isLoggedIn, p
       <div className="max-w-[1180px] mx-auto px-6 pt-7 pb-12">
         {/* Back link */}
         <Link href="/freelance" className="inline-flex items-center gap-2 font-mono text-xs text-[#5C6068] hover:text-[#0A0B0F] mb-5">
-          ← Browse all <span className="text-[#0A0B0F]">{totalProjectCount.toLocaleString()}</span> open projects
+          ← Browse all <span className="text-[#0A0B0F]">{totalProjectCount.toLocaleString('en-US')}</span> open projects
         </Link>
 
         {/* Hero */}
@@ -208,7 +208,7 @@ export function ProjectDetailNew({ opportunity, totalProjectCount, isLoggedIn, p
           <div className="max-w-[1180px] mx-auto flex items-center justify-between gap-4 py-3.5 px-6 flex-wrap">
             <div className="flex items-center gap-3">
               <span className="font-mono text-[11px] tracking-wider uppercase px-2.5 py-1 rounded-full" style={{ background: 'rgba(199,249,74,0.15)', color: '#C7F94A', border: '1px solid rgba(199,249,74,0.3)' }}>
-                1 of {totalProjectCount.toLocaleString()}
+                1 of {totalProjectCount.toLocaleString('en-US')}
               </span>
               <span className="text-[14px] text-[#E8E8E3]">
                 open projects. <span className="text-[#9C9EA2]">Sign up — AI applies to all of them for you.</span>

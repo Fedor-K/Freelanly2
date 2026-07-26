@@ -1036,7 +1036,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         if (paywallInfo.offer === 'credits') {
           return (
             <ApplyPaywallModal
-              message={`This role — and ${signals.totalProjects.toLocaleString()} more live right now`}
+              message={`This role — and ${signals.totalProjects.toLocaleString('en-US')} more live right now`}
               packSize={paywallInfo.packSize}
               packPriceCents={paywallInfo.packPriceCents}
               source="application_paywall"
@@ -1048,7 +1048,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
           <div style={{ textAlign: 'center', padding: '12px 4px' }}>
             <div style={{ fontSize: '24px', marginBottom: '10px' }}>✨</div>
             <h2 style={{ fontSize: '17px', fontWeight: 700, marginBottom: '8px' }}>
-              This role — and {signals.totalProjects.toLocaleString()} more live right now
+              This role — and {signals.totalProjects.toLocaleString('en-US')} more live right now
             </h2>
             <p style={{ fontSize: '13px', color: '#5C6068', lineHeight: 1.6, margin: '0 auto 16px', maxWidth: '320px' }}>
               Apply to any of them with <b>PRO — $5/month</b>: up to 20 applications a day, AI-written letters, your CV attached to every one. Cancel anytime.
@@ -1275,7 +1275,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                   </span>
                 )}
                 <span style={{ padding: '4px 10px', background: '#FEF3C7', color: '#92400E', borderRadius: '6px', fontSize: '11px', fontWeight: 500, fontFamily: "'Geist Mono', monospace" }}>
-                  1 of {signals.totalProjects.toLocaleString()} projects
+                  1 of {signals.totalProjects.toLocaleString('en-US')} projects
                 </span>
               </div>
             )}

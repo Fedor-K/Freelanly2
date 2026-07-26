@@ -187,7 +187,7 @@ export function SalaryInsights({
         <div className="flex flex-col gap-1">
           <p className="text-sm text-muted-foreground">
             {data.sampleSize > 0
-              ? `Based on ${data.sampleSize.toLocaleString()} similar ${jobTitle.toLowerCase()} roles`
+              ? `Based on ${data.sampleSize.toLocaleString('en-US')} similar ${jobTitle.toLowerCase()} roles`
               : `Market estimate for ${jobTitle.toLowerCase()} roles`
             }
           </p>
@@ -214,7 +214,7 @@ export function SalaryInsights({
                   )}
                   {data.calculationDetails.baselineAvg && (
                     <li>
-                      <span className="font-medium">US Average:</span> ${data.calculationDetails.baselineAvg.toLocaleString()}/year
+                      <span className="font-medium">US Average:</span> ${data.calculationDetails.baselineAvg.toLocaleString('en-US')}/year
                     </li>
                   )}
                   {data.calculationDetails.coefficient && (
@@ -224,7 +224,7 @@ export function SalaryInsights({
                   )}
                 </ul>
                 <p className="mt-2 text-xs text-muted-foreground border-t pt-2">
-                  ${data.calculationDetails.baselineAvg?.toLocaleString()} × {data.calculationDetails.coefficient} = ${data.avgSalary.toLocaleString()}
+                  ${data.calculationDetails.baselineAvg?.toLocaleString('en-US')} × {data.calculationDetails.coefficient} = ${data.avgSalary.toLocaleString('en-US')}
                 </p>
               </div>
             )}
@@ -278,7 +278,7 @@ export function SalaryInsights({
           </div>
           <div className="text-center p-3 bg-muted rounded-lg">
             <p className="text-2xl font-bold">
-              {data.sampleSize > 0 ? data.sampleSize.toLocaleString() : '—'}
+              {data.sampleSize > 0 ? data.sampleSize.toLocaleString('en-US') : '—'}
             </p>
             <p className="text-xs text-muted-foreground">Similar Jobs</p>
           </div>
