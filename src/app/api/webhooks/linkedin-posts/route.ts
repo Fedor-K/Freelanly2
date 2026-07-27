@@ -278,8 +278,10 @@ export async function POST(request: NextRequest) {
     if (process.env.POSTER_REGION_FILTER === 'on') {
       try {
         const poster = await getPosterRegion(clientLinkedIn);
-        // LEVER A — supply-only recruiter-country cut (India/Africa) via SUPPLY_REGION_BLOCK (not MATCH_REGION_BLOCK).
-        if (SUPPLY_CUT.size && poster.country && SUPPLY_CUT.has(poster.country)) {
+        // LEVER A — recruiter-country cut. OPT-IN via SUPPLY_POSTER_CUT=on (default OFF): it also drops
+        // an India/Africa recruiter's REMOTE roles, which are valid supply — too aggressive for a
+        // supply-bound product. Lever B (job-location) below is the default clean-feed cut.
+        if (process.env.SUPPLY_POSTER_CUT === 'on' && SUPPLY_CUT.size && poster.country && SUPPLY_CUT.has(poster.country)) {
           console.log(`[LinkedInPosts] Skipping SUPPLY from ${poster.country} recruiter: ${postUrl}`);
           logSkip('supply_poster_geo', null, { posterCountry: poster.country, cached: poster.cached });
           return NextResponse.json({ success: true, status: 'skipped', reason: 'supply_poster_geo', posterCountry: poster.country });
