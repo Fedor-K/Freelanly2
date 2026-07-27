@@ -7,7 +7,7 @@ import { notifySearchEngines } from '@/lib/indexing';
 import { shouldSkipJob } from '@/lib/job-filter';
 import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
 import { getPosterRegion } from '@/services/poster-enrichment';
-import { blockedCountries } from '@/lib/region-block';
+import { blockedCountries, resolveCountry } from '@/lib/region-block';
 import { assessContentQuality, isFreeEmailProvider, isPersonalAnnouncement } from '@/lib/content-quality';
 import { siteConfig } from '@/config/site';
 import type { TranslationType, Level } from '@prisma/client';
@@ -263,6 +263,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // SUPPLY-ONLY geo cut (owner 2026-07-27): a dedicated env, ISOLATED from MATCH_REGION_BLOCK — it
+    // NEVER touches user signup / matcher (those still read MATCH_REGION_BLOCK, kept empty). It only
+    // drops incoming SUPPLY located in / posted from cut regions (India + Africa). Reversible: empty = off.
+    const SUPPLY_CUT = new Set((process.env.SUPPLY_REGION_BLOCK || '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean));
+
     // =========================================================================
     // SUPPLY-SIDE POSTER REGION FILTER (gated by POSTER_REGION_FILTER=on)
     // Drop posts from blocked-country recruiters. Scrapes the poster's profile ONCE (cached per
@@ -273,6 +278,12 @@ export async function POST(request: NextRequest) {
     if (process.env.POSTER_REGION_FILTER === 'on') {
       try {
         const poster = await getPosterRegion(clientLinkedIn);
+        // LEVER A — supply-only recruiter-country cut (India/Africa) via SUPPLY_REGION_BLOCK (not MATCH_REGION_BLOCK).
+        if (SUPPLY_CUT.size && poster.country && SUPPLY_CUT.has(poster.country)) {
+          console.log(`[LinkedInPosts] Skipping SUPPLY from ${poster.country} recruiter: ${postUrl}`);
+          logSkip('supply_poster_geo', null, { posterCountry: poster.country, cached: poster.cached });
+          return NextResponse.json({ success: true, status: 'skipped', reason: 'supply_poster_geo', posterCountry: poster.country });
+        }
         // Country-region cut is now SEPARATELY toggleable (POSTER_COUNTRY_BLOCK). Decision 2026-06-18:
         // turned OFF — India/etc recruiters' posts ARE the demand that interviews our LATAM candidates
         // (Appnosh/Infinity/Techaurcode all interviewed LATAM), so blocking them by recruiter-country
@@ -400,6 +411,17 @@ export async function POST(request: NextRequest) {
 
     // Map location type (needed for filter)
     const locationType = mapLocationType(extracted.isRemote, extracted.location);
+
+    // LEVER B — supply-only cut by JOB LOCATION: drop non-remote roles located in a cut region
+    // (India/Africa). Remote/worldwide roles are kept regardless. Never touches users.
+    if (SUPPLY_CUT.size && locationType !== 'REMOTE') {
+      const jobCountry = resolveCountry(extracted.location);
+      if (jobCountry && SUPPLY_CUT.has(jobCountry)) {
+        console.log(`[LinkedInPosts] Skipping SUPPLY located in ${jobCountry}: ${extracted.title}`);
+        logSkip('supply_job_geo', extracted.title, { location: extracted.location, jobCountry });
+        return NextResponse.json({ success: true, status: 'skipped', reason: 'supply_job_geo', jobCountry });
+      }
+    }
 
     // Apply global job filter FIRST (non-target titles, HYBRID/ONSITE)
     const filterResult = shouldSkipJob({
