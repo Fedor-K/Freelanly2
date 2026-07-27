@@ -40,9 +40,11 @@ export async function processAbandonedWatcherSubs(): Promise<{ scanned: number; 
   const subs = await stripe.subscriptions.list({ status: 'incomplete', limit: 100 });
   for (const sub of subs.data) {
     const brand = sub.metadata?.watcher;
-    const domain = sub.metadata?.domain;
     const userId = sub.metadata?.userId;
-    if (!brand || !domain || !userId) continue; // not one of our watcher subs
+    if (!brand || !userId) continue; // not one of our watcher subs
+    // Subs created before the domain metadata existed: derive it from the brand name
+    // (QAWatcher -> qawatcher.com), which is exactly how the 4 watcher domains are named.
+    const domain = sub.metadata?.domain || `${brand.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
     stats.scanned++;
 
     const ageMin = (now - sub.created * 1000) / 60000;
