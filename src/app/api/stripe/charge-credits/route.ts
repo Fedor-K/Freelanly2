@@ -35,8 +35,26 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const amountCents = TOPUP_AMOUNTS.includes(Number(body?.amountCents)) ? Number(body.amountCents) : CREDIT_PACK_PRICE_CENTS;
-    const credits = Math.floor(amountCents / PER_APPLY_CENTS);
+    let amountCents = TOPUP_AMOUNTS.includes(Number(body?.amountCents)) ? Number(body.amountCents) : CREDIT_PACK_PRICE_CENTS;
+    let credits = Math.floor(amountCents / PER_APPLY_CENTS);
+
+    // One-time chat-recovery discount: the $3 pack (6 credits) at 50% off = $1.50. Only if the bot
+    // granted RECOVERY_TOPUP_GRANT (in /api/chat) and it hasn't been used yet. Consumed at PI creation
+    // (one attempt per grant) so it can't be replayed; credits still derive strictly from metadata.
+    let recoveryConsume = false;
+    if (body?.recovery === true) {
+      const grant = await prisma.activityLog.findFirst({
+        where: { userId: session.user.id, action: 'PAYWALL_CLOSE', details: { path: ['type'], equals: 'recovery_grant' } },
+        orderBy: { createdAt: 'desc' }, select: { id: true, createdAt: true },
+      });
+      if (grant) {
+        const used = await prisma.activityLog.findFirst({
+          where: { userId: session.user.id, action: 'PAYWALL_CLOSE', details: { path: ['type'], equals: 'recovery_used' }, createdAt: { gte: grant.createdAt } },
+          select: { id: true },
+        });
+        if (!used) { amountCents = 150; credits = 6; recoveryConsume = true; }
+      }
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -57,7 +75,8 @@ export async function POST(request: NextRequest) {
     }
 
     const savedPm = user.stripePaymentMethodId;
-    const metadata = { type: 'apply_credits', userId: user.id, credits: String(credits) };
+    const metadata: Record<string, string> = { type: 'apply_credits', userId: user.id, credits: String(credits) };
+    if (recoveryConsume) metadata.recovery = '1';
 
     const pi = await stripe.paymentIntents.create(
       savedPm
@@ -79,6 +98,11 @@ export async function POST(request: NextRequest) {
             metadata,
           }
     );
+
+    // Consume the one-time discount grant at creation so a single grant can't mint multiple $1.50 PIs.
+    if (recoveryConsume) {
+      await prisma.activityLog.create({ data: { userId: user.id, action: 'PAYWALL_CLOSE', details: { type: 'recovery_used', paymentIntentId: pi.id, amountCents } } }).catch(() => {});
+    }
 
     return NextResponse.json({
       clientSecret: pi.client_secret,

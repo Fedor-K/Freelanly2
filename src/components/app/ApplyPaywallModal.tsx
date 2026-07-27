@@ -40,7 +40,16 @@ export function ApplyPaywallModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>('');
   const [amountCents, setAmountCents] = useState(300);
+  const [recoveryActive, setRecoveryActive] = useState(false);
   const priceLabel = `$${(amountCents / 100).toFixed(amountCents % 100 ? 2 : 0)}`;
+
+  // Does this user hold an unused one-time 50%-off grant from the chat win-back? If so we surface a
+  // $1.50 first-pack. Fetched once; never blocks the normal flow.
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/user/recovery-status').then((r) => r.json()).then((d) => { if (alive && d?.active) setRecoveryActive(true); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   async function grantAndRetry(paymentIntentId: string) {
     // Grant credits server-side BEFORE the retry so consumeApplyCredit finds a balance (idempotent with
@@ -56,15 +65,18 @@ export function ApplyPaywallModal({
     onCreditsReady();
   }
 
-  async function start() {
+  async function start(useRecovery = false) {
     setBusy(true); setError('');
-    track('FUNNEL_STEP', { step: 'credit_charge_click', source, amountCents });
+    track('FUNNEL_STEP', { step: 'credit_charge_click', source, amountCents: useRecovery ? 150 : amountCents, recovery: useRecovery });
     try {
       const res = await fetch('/api/stripe/charge-credits', {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ amountCents }),
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(useRecovery ? { recovery: true } : { amountCents }),
       });
       const data = await res.json();
       if (!res.ok || !data.clientSecret) { setError(data.error || 'Could not start payment'); setBusy(false); return; }
+      // Echo the server-decided amount so the card-form price label is correct (recovery = $1.50).
+      if (typeof data.amountCents === 'number') setAmountCents(data.amountCents);
       setClientSecret(data.clientSecret);
       if (data.hasCard) {
         // One-tap: the saved card is attached to the intent — confirm it (handles 3DS natively).
@@ -97,6 +109,14 @@ export function ApplyPaywallModal({
 
       {!showCardForm ? (
         <>
+          {recoveryActive && (
+            <button onClick={() => start(true)} disabled={busy}
+              style={{ width: '100%', marginBottom: 12, padding: '12px 14px', borderRadius: 10, border: '2px solid #84cc16', background: '#f4fce8', color: '#1a2e05', fontWeight: 800, fontSize: 13.5, cursor: busy ? 'default' : 'pointer', lineHeight: 1.4 }}>
+              🎉 Claim your 50% off — first pack $1.50{' '}
+              <span style={{ textDecoration: 'line-through', color: '#8a8f98', fontWeight: 600 }}>$3</span>{' '}
+              <span style={{ fontWeight: 600, color: '#5C6068' }}>(6 applications)</span>
+            </button>
+          )}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 12 }}>
             {TOPUPS.map((t) => (
               <button key={t.cents} onClick={() => setAmountCents(t.cents)} disabled={busy}
@@ -109,7 +129,7 @@ export function ApplyPaywallModal({
               </button>
             ))}
           </div>
-          <button onClick={start} disabled={busy} style={btnStyle(busy)}>
+          <button onClick={() => start()} disabled={busy} style={btnStyle(busy)}>
             {busy ? 'Processing…' : `Top up ${priceLabel} →`}
           </button>
         </>
@@ -117,7 +137,18 @@ export function ApplyPaywallModal({
         <Elements stripe={getStripeClient()} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
           <CardForm priceLabel={priceLabel} clientSecret={clientSecret}
             onSucceeded={grantAndRetry} onError={setError}
-            onEvent={(step, extra) => track('FUNNEL_STEP', { step, source, amountCents, ...extra })} />
+            onEvent={(step, extra) => {
+              track('FUNNEL_STEP', { step, source, amountCents, ...extra });
+              // Feed the chat win-back: fire on real friction only (bailed on the form / card declined).
+              if (step === 'credit_charge_form_abandon' || step === 'credit_charge_client_error') {
+                const sig = `${extra?.code || ''} ${extra?.msg || ''}`;
+                const reason = step === 'credit_charge_client_error' && /declin|card|insufficient|do_not_honor|blocked|processing|not_succeeded|expired|cvc|funds/i.test(sig)
+                  ? 'card_error' : 'abandon';
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('freelanly:payment-abandoned', { detail: { amountCents, kind: 'topup', reason } }));
+                }
+              }
+            }} />
         </Elements>
       ) : null}
 

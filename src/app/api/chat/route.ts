@@ -301,6 +301,52 @@ export async function POST(request: NextRequest) {
     // ==========================================
 
     if (quickReply) {
+      // ===== Payment-abandon recovery (chat win-back) =====
+      // Fired when the top-up wall is closed without paying (ChatWidget listens for the
+      // 'freelanly:payment-abandoned' window event and opens with these reason chips). We answer
+      // deterministically (LLM off) so India-card users get an ALTERNATIVE (a discount won't help — the
+      // bank blocks the charge) while price-abandoners get the one-time 50%-off recovery pack.
+      const ABANDON_REASONS: Record<string, 'card' | 'price' | 'browsing' | 'other'> = {
+        'My card was declined': 'card',
+        "It's too expensive": 'price',
+        'Just browsing': 'browsing',
+        'Something else': 'other',
+      };
+      if (message in ABANDON_REASONS) {
+        const reason = ABANDON_REASONS[message];
+        let reply: string;
+        let buttons: Array<{ label: string; value: string }> | undefined;
+        if (reason === 'card') {
+          reply = "Cards from India and a few other regions often get blocked by the bank for international online charges — it's really common and not your fault. Two things that usually work:\n\n1. Try a different card (a Visa/Mastercard enabled for international payments), or\n2. Reply with your country and I'll flag you the moment we add a local payment option.\n\nEither way — browsing matches and your AI cover letters stay 100% free. \u{1F642}";
+        } else if (reason === 'price') {
+          reply = "Totally fair. Here's a one-time deal just for you: your first top-up at 50% off — $3 of balance (that's 6 applications at $0.50 each) for just $1.50. Want it?";
+          buttons = [
+            { label: 'Claim 50% off — $1.50', value: 'Claim 50% off — $1.50' },
+            { label: 'Maybe later', value: 'Maybe later' },
+          ];
+        } else {
+          reply = "No worries at all — your matches and AI cover letters are free to browse anytime, no card needed. I'm right here if anything comes up. \u{1F44B}";
+        }
+        prisma.activityLog.create({ data: { userId: userId || null, action: 'PAYWALL_CLOSE', sessionId: cleanSessionId, details: { type: 'payment_abandon_reason', reason, userEmail: userEmail || undefined, userStatus: userStatus || 'anonymous' }, ipAddress: ip, country, city } }).catch(() => {});
+        prisma.activityLog.create({ data: { userId: userId || null, action: 'CHAT_MESSAGE', sessionId: cleanSessionId, details: { type: 'chat_message', flowStep: 'payment_abandon', userMessage: message, botReply: reply.substring(0, 500), userStatus: userStatus || 'anonymous' }, ipAddress: ip, country, city } }).catch(() => {});
+        return NextResponse.json({ reply, escalate: false, buttons });
+      }
+      if (message === 'Claim 50% off — $1.50') {
+        let reply: string;
+        if (userId) {
+          // One-time grant — consumed server-side in charge-credits when the discounted PI is created.
+          await prisma.activityLog.create({ data: { userId, action: 'PAYWALL_CLOSE', sessionId: cleanSessionId, details: { type: 'recovery_grant', discountPct: 50, packCents: 150, credits: 6 } } }).catch(() => {});
+          reply = "Done! ✅ Your one-time 50% discount is active. Open any role, hit Apply, and your first top-up shows at $1.50 (6 applications). Go get 'em! \u{1F680}\n\nYour matches: https://freelanly.com/dashboard/discovery";
+        } else {
+          reply = "Sign up free first (60 seconds) and your 50% discount will be waiting on your first top-up. https://freelanly.com/dashboard";
+        }
+        prisma.activityLog.create({ data: { userId: userId || null, action: 'CHAT_MESSAGE', sessionId: cleanSessionId, details: { type: 'chat_message', flowStep: 'discount_claimed', userMessage: message, botReply: reply.substring(0, 500) }, ipAddress: ip, country, city } }).catch(() => {});
+        return NextResponse.json({ reply, escalate: false });
+      }
+      if (message === 'Maybe later') {
+        return NextResponse.json({ reply: "No problem — the 50% off will be here whenever you're ready. \u{1F642}", escalate: false });
+      }
+
       const flowStep = FLOW_TRIGGERS[message];
       const isCategory = CATEGORY_LABELS.includes(message);
 
