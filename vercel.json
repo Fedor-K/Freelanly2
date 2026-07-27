@@ -48,6 +48,10 @@
     {
       "path": "/api/cron/recover-abandoned-topups",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/recover-abandoned-watcher-subs",
+      "schedule": "20 * * * *"
     }
   ]
 }
