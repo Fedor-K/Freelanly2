@@ -68,7 +68,10 @@ export function buildAuthUrl(state: string, loginHint?: string, includeSend = fa
     scope: includeSend ? `openid email profile ${GMAIL_SEND_SCOPE}` : 'openid email profile',
     access_type: 'offline',
     prompt: 'consent',
-    include_granted_scopes: 'true',
+    // NO include_granted_scopes: it makes Google fold in EVERY scope the account previously granted
+    // this OAuth client into the consent. This client (an old project, 969954952300) had YouTube
+    // scopes, so accounts that once authorized them (e.g. info@freelanly.com) saw a scary "manage your
+    // YouTube account" consent. We only ever want the scopes listed in `scope` above.
     state,
   });
   if (loginHint) p.set('login_hint', loginHint);
