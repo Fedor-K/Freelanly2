@@ -52,21 +52,22 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
     }
   }
 
-  // A logged-in user must never see the signup form — that was the reported login
-  // loop (verify code → /dashboard → no résumé → /auth/signin → signup form again).
-  // Route them into the app: to résumé onboarding if they still need one.
-  // EXCEPTION: fresh "Continue with Google" signup (?gmail=connected) — the session + verified email
-  // + gmail.send grant already exist, but the profile (résumé + consent) doesn't. Render the form
-  // jumped to the profile step instead of bouncing them to settings.
-  let googleProfileStep: { email: string } | null = null;
+  // A logged-in user must never see the signup EMAIL form — that was the reported login loop
+  // (verify code → /dashboard → no résumé → /auth/signin → signup form again). Route by state:
+  //   • résumé on file → into the app (/dashboard/discovery)
+  //   • no résumé yet  → the clean profile step (résumé/LinkedIn), NOT the cluttered settings page.
+  // This is the single "add your résumé" screen every résumé-less entry funnels to: Google signup
+  // (session + verified email but no résumé), a returning user who never finished, and the
+  // dashboard/feed gates (which redirect résumé-less users here).
+  let profileStep: { email: string } | null = null;
   if (session?.user?.id) {
     const u = await prisma.user
       .findUnique({ where: { id: session.user.id }, select: { resumeUrl: true, email: true } })
       .catch(() => null);
-    if (params.gmail === 'connected' && u && !u.resumeUrl) {
-      googleProfileStep = { email: u.email };
+    if (u?.resumeUrl) {
+      redirect('/dashboard/discovery');
     } else {
-      redirect(u?.resumeUrl ? '/dashboard/discovery' : '/dashboard/settings#profile');
+      profileStep = { email: u?.email || '' };
     }
   }
 
@@ -134,8 +135,8 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           {/* Registration form */}
           <RegistrationForm
             callbackUrl={params.callbackUrl}
-            prefillEmail={googleProfileStep?.email || params.email}
-            initialStep={googleProfileStep ? 'profile' : undefined}
+            prefillEmail={profileStep?.email || params.email}
+            initialStep={profileStep ? 'profile' : undefined}
           />
 
           {/* Legal */}

@@ -46,7 +46,7 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
   // landing now, so this guard (mirrors src/app/dashboard/page.tsx) must live here too — without a
   // parsedProfile there's nothing to match against. Also prevents the old login-loop.
   const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { plan: true, parsedProfile: true, resumeUrl: true, resumeText: true, githubUrl: true, videoIntroUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } } } });
-  if (!me?.resumeUrl) redirect('/dashboard/settings#profile');
+  if (!me?.resumeUrl) redirect('/auth/signin');
 
   // Money-gate state, computed once at page load: a walled user's Apply click opens the top-up modal
   // INSTANTLY client-side (no round-trip, no fake "generating…" flash). The server gate still enforces
