@@ -1,7 +1,6 @@
 import { Metadata } from 'next';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { SalaryPrompt } from './SalaryPrompt';
 import { GitHubPrompt } from './GitHubPrompt';
 import { deriveCategorySlugs } from '@/lib/loop-routing';
 import { redirect } from 'next/navigation';
@@ -242,9 +241,6 @@ export default async function DashboardOverviewPage() {
           )}
         </div>
       )}
-
-      {/* Salary prompt — existing users who never stated a rate (inline step only catches new applicants). */}
-      {!user?.salaryExpectation && <SalaryPrompt />}
 
       {/* GitHub prompt — dev-titled users without a GitHub link (feeds the verification report). */}
       {isDev && !user?.githubUrl && <GitHubPrompt />}
