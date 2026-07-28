@@ -51,10 +51,12 @@ export function verifyState(state: string | null | undefined): { userId: string 
 }
 
 /** Build the Google consent URL. `access_type=offline` + `prompt=consent` force a durable refresh_token.
- *  includeSend: request the sensitive gmail.send scope. FALSE for plain sign-up/login (identity only —
- *  a non-scary consent that ~100% grant), TRUE only for the explicit "connect Gmail to send" flow,
- *  where the value is obvious so the grant rate is far higher. Bundling gmail.send into signup caused
- *  ~72% to decline it (measured 2026-07-12), leaving grants that can't actually send. */
+ *  includeSend: request the sensitive gmail.send scope. TRUE for BOTH the "connect Gmail" flow AND
+ *  signup/login — we ask every user, since ~90% enter via Google and that consent is the one chance to
+ *  capture send and keep their applications off our shared Postal IP. ~72% may UNCHECK "send email on
+ *  your behalf" (measured 2026-07-12); that's safe now — exchangeCode reports the actually-granted scope
+ *  (canSend) and the callback stores a grant only when send was really granted, so decliners just send
+ *  via Postal with no broken grant. FALSE only when an identity-only consent is deliberately wanted. */
 export function buildAuthUrl(state: string, loginHint?: string, includeSend = false): string | null {
   const client = googleClient();
   if (!client) return null;

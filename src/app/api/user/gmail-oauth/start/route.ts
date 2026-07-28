@@ -26,10 +26,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth/signin', request.url));
   }
 
-  // Ask for the sensitive gmail.send scope ONLY in the explicit connect flow (a logged-in user who
-  // deliberately wants to send from their Gmail). Plain signup/login stays identity-only — asking to
-  // "send email on your behalf" on the signup screen made ~72% decline it (broken, non-sending grants).
-  const includeSend = !!session?.user?.id;
+  // Request the sensitive gmail.send scope in BOTH flows — connect AND signup. ~90% of users enter via
+  // "Continue with Google", so that consent is the one moment to capture send and keep their applications
+  // off our shared Postal IP (whose reputation is what gets us spam-flagged). Users who UNCHECK "send
+  // email on your behalf" still complete signup/login; the callback stores a grant ONLY when the scope
+  // actually came back (exchangeCode.canSend), so unchecking just routes their sends via Postal — no
+  // broken "connected but can't send" grants. (The 2026-07-12 decouple over-corrected: it dropped the ask
+  // entirely to kill broken grants, but the canSend guard already prevents those.)
+  const includeSend = !!session?.user?.id || wantsSignup;
   const url = buildAuthUrl(state, session?.user?.email || undefined, includeSend);
   if (!url) {
     // GOOGLE_CLIENT_ID/SECRET not configured
