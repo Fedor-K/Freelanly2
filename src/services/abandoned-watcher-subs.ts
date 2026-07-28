@@ -21,7 +21,7 @@ function html(brand: string, domain: string): string {
     <p style="font-size:15px;line-height:1.55;color:#3a3f47">You started unlocking the direct reply path on ${brand} but didn't finish. No worries — here's a hand:</p>
     <div style="text-align:center;margin:20px 0;padding:16px;background:#EAF2FF;border:2px solid #14202F;border-radius:12px">
       <div style="font-size:19px;font-weight:800">50% off your first month</div>
-      <div style="font-size:14px;color:#3a3f47;margin-top:4px"><b>$9.50</b> instead of $19 — applied automatically when you finish.</div>
+      <div style="font-size:14px;color:#3a3f47;margin-top:4px"><b>$8.50</b> instead of $16.99 — applied automatically when you finish.</div>
     </div>
     <div style="text-align:center;margin:22px 0">
       <a href="https://${domain}/app?src=winback" style="display:inline-block;background:#14202F;color:#fff;font-weight:800;font-size:15px;text-decoration:none;padding:13px 26px;border-radius:10px">Finish &amp; unlock &rarr;</a>
@@ -64,7 +64,7 @@ export async function processAbandonedWatcherSubs(): Promise<{ scanned: number; 
         to: user.email,
         subject: `Finish your ${brand} subscription — 50% off your first month`,
         html: html(brand, domain),
-        text: `You didn't finish subscribing to ${brand}. Here's 50% off your first month ($9.50 instead of $19), applied automatically when you finish: https://${domain}/app?src=winback`,
+        text: `You didn't finish subscribing to ${brand}. Here's 50% off your first month ($8.50 instead of $16.99), applied automatically when you finish: https://${domain}/app?src=winback`,
         fromName: brand,
         from: `billing@${domain}`,
       });
