@@ -47,6 +47,8 @@ model User {
   resumeBase64   String?   // PDF file as base64 for email attachment
   resumeFileName String?   // Original filename
   parsedProfile  Json?     // AI-extracted: {name, skills, current_title, field, experience_years, summary}
+  roleFamily     String?   // worker-classified profession family (qwen2.5:3b) — gates the discovery feed so a
+                           // translator/PM stops seeing dev roles. COLUMN added via raw DDL, NOT `prisma db push`.
   linkedinUrl    String?   // Candidate's LinkedIn profile URL (collected at apply; used for enrichment + recruiter view)
 
   // Profile (used in outreach personalization)
@@ -612,6 +614,9 @@ model Opportunity {
   // === CATEGORY & LOCATION ===
   category        Category @relation(fields: [categoryId], references: [id])
   categoryId      String
+  roleFamily      String?  // worker-classified profession family (one of the 21 category slugs) — gates the
+                           // discovery feed by profession. Filled by qwen2.5:3b on the Hetzner worker; the
+                           // COLUMN is added via raw DDL (ensureClassifySchema), NOT `prisma db push`.
   location        String?
   locationType    LocationType @default(REMOTE)
   country         String?

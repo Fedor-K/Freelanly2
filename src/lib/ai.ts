@@ -622,8 +622,11 @@ export async function classifyJobCategory(
   }
 }
 
-// Local fallback classification
-function localClassifyJob(title: string): string {
+// Local (free, keyword) classification. Exported 2026-07-28 so the LinkedIn ingest can categorize
+// without a paid z.ai call per opportunity — the accurate profession family for the feed gate now
+// comes from qwen2.5:3b on the worker (Opportunity.roleFamily), so categoryId only needs this cheap
+// keyword pass.
+export function localClassifyJob(title: string): string {
   const t = title.toLowerCase();
   if (t.includes('research') || t.includes('researcher')) return 'research';
   if (t.includes('analyst') || t.includes('data') || t.includes('bi ')) return 'data';

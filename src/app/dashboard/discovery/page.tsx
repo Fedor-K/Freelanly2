@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { DiscoveryFeed } from '@/components/app/DiscoveryFeed';
 import { ProfileBoostNudge } from '@/components/app/ProfileBoostNudge';
-import { deriveCategorySlugs } from '@/lib/loop-routing';
+import { deriveCategorySlugs, oppFamiliesForUser } from '@/lib/loop-routing';
 import { buildFitContext, scoreFitLabeled, type FitLabel, type FitResult } from '@/lib/fit-score';
 import { hasApplyAllowance, CREDITS_ENABLED, CREDIT_PACK_SIZE, CREDIT_PACK_PRICE_CENTS } from '@/lib/apply-quota';
 import { verifiedSkillsFor, type ReviewRow } from '@/lib/github-review/evidence';
@@ -45,8 +45,17 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
   // No résumé yet → send to in-app résumé onboarding, NOT an empty feed. Discovery is the post-login
   // landing now, so this guard (mirrors src/app/dashboard/page.tsx) must live here too — without a
   // parsedProfile there's nothing to match against. Also prevents the old login-loop.
-  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { plan: true, parsedProfile: true, resumeUrl: true, resumeText: true, githubUrl: true, videoIntroUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } } } });
+  const me = await prisma.user.findUnique({ where: { id: session.user.id }, select: { plan: true, parsedProfile: true, roleFamily: true, resumeUrl: true, resumeText: true, githubUrl: true, videoIntroUrl: true, githubReview: { select: { verdict: true, report: true, profileStamp: true, reviewedAt: true } } } });
   if (!me?.resumeUrl) redirect('/auth/signin');
+
+  // Role gate (2026-07-28): hide off-profession roles — a translator/PM should not see dev roles.
+  // ROLE_GATE = 'all' | comma-separated user ids | unset (off). FAIL-OPEN: an unclassified user
+  // (roleFamily null) OR an unclassified opp (roleFamily null) is NEVER filtered — we only cut when
+  // BOTH families are known and don't match (adjacency-aware via oppFamiliesForUser). allowedFamilies
+  // === null ⇒ no filter is applied to any pool below.
+  const ROLE_GATE = process.env.ROLE_GATE || '';
+  const roleGateOn = ROLE_GATE === 'all' || ROLE_GATE.split(',').map(x => x.trim()).filter(Boolean).includes(session.user.id);
+  const allowedFamilies = roleGateOn && me.roleFamily ? oppFamiliesForUser(me.roleFamily) : null;
 
   // Money-gate state, computed once at page load: a walled user's Apply click opens the top-up modal
   // INSTANTLY client-side (no round-trip, no fake "generating…" flash). The server gate still enforces
@@ -94,8 +103,8 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
     // pgvector top-N by cosine, scored through the hybrid (sim passed in), plus recent not-yet-embedded
     // opps scored lexically so a just-ingested role isn't invisible while the embed cron catches up.
     const [{ opps, jobs }, unembedded] = await Promise.all([
-      semanticPool(userVec, { weekAgo, limit: 400 }),
-      unembeddedRecentOpps(weekAgo, 100),
+      semanticPool(userVec, { weekAgo, limit: 400, allowedFamilies }),
+      unembeddedRecentOpps(weekAgo, 100, allowedFamilies),
     ]);
     ranked = [
       ...opps.map(o => ({ id: o.id, type: 'opportunity' as const, createdAt: o.createdAt, ...scoreFitLabeled(fitCtx, { title: o.title, skills: o.skills }, o.sim) })),
@@ -106,8 +115,15 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
     // Original lexical pool: pull light rows for the 7-day base, score + sort in code (no LLM).
     const [poolOpps, poolJobs] = await Promise.all([
       prisma.opportunity.findMany({
-        // self-appliable (applyEmail) OR external-apply ATS roles (applyUrl) — both belong in the feed
-        where: { isActive: true, createdAt: { gte: weekAgo }, OR: [{ applyEmail: { not: null } }, { applyUrl: { not: null } }] },
+        // self-appliable (applyEmail) OR external-apply ATS roles (applyUrl) — both belong in the feed.
+        // Role gate appended via AND (a second sibling OR isn't allowed); null roleFamily stays visible.
+        where: {
+          isActive: true, createdAt: { gte: weekAgo },
+          AND: [
+            { OR: [{ applyEmail: { not: null } }, { applyUrl: { not: null } }] },
+            ...(allowedFamilies ? [{ OR: [{ roleFamily: null }, { roleFamily: { in: allowedFamilies } }] }] : []),
+          ],
+        },
         select: { id: true, title: true, skills: true, createdAt: true },
       }),
       prisma.job.findMany({
@@ -301,7 +317,8 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
   if (atsInList < ATS_SLOTS) {
     const shownIds = new Set(items.map(i => i.id));
     const atsPool = await prisma.opportunity.findMany({
-      where: { isActive: true, createdAt: { gte: weekAgo }, applyUrl: { not: null }, applyEmail: null },
+      where: { isActive: true, createdAt: { gte: weekAgo }, applyUrl: { not: null }, applyEmail: null,
+        ...(allowedFamilies ? { OR: [{ roleFamily: null }, { roleFamily: { in: allowedFamilies } }] } : {}) },
       select: { id: true, title: true, clientName: true, clientType: true, clientAvatar: true, posterCompany: true, description: true, createdAt: true, skills: true, location: true, applyEmail: true, applyUrl: true, source: true, company: { select: { name: true } } },
     });
     const extraAts: FeedItem[] = atsPool

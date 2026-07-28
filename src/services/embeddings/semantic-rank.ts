@@ -28,20 +28,25 @@ export async function getUserEmbedding(userId: string): Promise<number[] | null>
  */
 export async function semanticPool(
   userVec: number[],
-  opts: { weekAgo: Date; limit?: number },
+  opts: { weekAgo: Date; limit?: number; allowedFamilies?: string[] | null },
 ): Promise<{ opps: SemRow[]; jobs: SemRow[] }> {
   const lit = toVectorLiteral(userVec);
   const limit = opts.limit ?? 400;
+  // Role-gate: keep opps of a family the candidate should see (+ NULL / unclassified → fail-open).
+  // Only applied to Opportunity — Job has no roleFamily column. NULL/empty → no filter at all.
+  const fam = opts.allowedFamilies && opts.allowedFamilies.length ? opts.allowedFamilies : null;
+  const famClause = fam ? ` AND ("roleFamily" IS NULL OR "roleFamily" = ANY($4::text[]))` : '';
+  const oppParams: unknown[] = fam ? [lit, opts.weekAgo, limit, fam] : [lit, opts.weekAgo, limit];
   try {
   const [opps, jobs] = await Promise.all([
     prisma.$queryRawUnsafe<SemRow[]>(
       `SELECT id, title, skills, "createdAt", 1 - (embedding <=> $1::vector) AS sim
        FROM "Opportunity"
        WHERE "isActive" = true AND "createdAt" >= $2 AND embedding IS NOT NULL
-         AND ("applyEmail" IS NOT NULL OR "applyUrl" IS NOT NULL)
+         AND ("applyEmail" IS NOT NULL OR "applyUrl" IS NOT NULL)${famClause}
        ORDER BY embedding <=> $1::vector
        LIMIT $3`,
-      lit, opts.weekAgo, limit,
+      ...oppParams,
     ),
     prisma.$queryRawUnsafe<SemRow[]>(
       `SELECT id, title, skills, "createdAt", 1 - (embedding <=> $1::vector) AS sim
@@ -63,16 +68,19 @@ export async function semanticPool(
 
 /** Recent opportunities NOT yet embedded — so a just-ingested role isn't invisible while the cron
  *  catches up. Caller scores these lexically and appends them after the semantic set. */
-export async function unembeddedRecentOpps(weekAgo: Date, limit = 100): Promise<{ id: string; title: string; skills: string[]; createdAt: Date }[]> {
+export async function unembeddedRecentOpps(weekAgo: Date, limit = 100, allowedFamilies?: string[] | null): Promise<{ id: string; title: string; skills: string[]; createdAt: Date }[]> {
+  const fam = allowedFamilies && allowedFamilies.length ? allowedFamilies : null;
+  const famClause = fam ? ` AND ("roleFamily" IS NULL OR "roleFamily" = ANY($3::text[]))` : '';
+  const params: unknown[] = fam ? [weekAgo, limit, fam] : [weekAgo, limit];
   try {
     return await prisma.$queryRawUnsafe(
       `SELECT id, title, skills, "createdAt"
        FROM "Opportunity"
        WHERE "isActive" = true AND "createdAt" >= $1 AND embedding IS NULL
-         AND ("applyEmail" IS NOT NULL OR "applyUrl" IS NOT NULL)
+         AND ("applyEmail" IS NOT NULL OR "applyUrl" IS NOT NULL)${famClause}
        ORDER BY "createdAt" DESC
        LIMIT $2`,
-      weekAgo, limit,
+      ...params,
     );
   } catch {
     return [];
