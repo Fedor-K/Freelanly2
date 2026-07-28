@@ -565,6 +565,9 @@ export async function POST(request: NextRequest) {
           title: extracted.title,
           description: extracted.cleanDescription || postContent,
           categoryId: category.id,
+          // Tag roleFamily at ingest (same keyword slug) so the discovery role-gate never shows a
+          // fresh, still-unclassified opp to a gated user (fail-open leak). qwen refines it later.
+          roleFamily: categorySlug,
           location: countryCode ? countryCodeToName(countryCode) : (extracted.isRemote ? (extracted.location || 'Remote') : extracted.location),
           locationType,
           country: countryCode,
