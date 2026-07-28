@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { extractJobData, classifyJobCategory, isJobPosting, detectCountry, type ExtractedJobData } from '@/lib/ai';
+import { extractJobData, localClassifyJob, isJobPosting, detectCountry, type ExtractedJobData } from '@/lib/ai';
 import { slugify, extractDomainFromEmail, cleanEmail } from '@/lib/utils';
 import { ensureSalaryData } from '@/lib/salary-estimation';
 import { notifySearchEngines } from '@/lib/indexing';
@@ -466,7 +466,9 @@ export async function POST(request: NextRequest) {
     // =========================================================================
 
     // Classify category
-    const categorySlug = await classifyJobCategory(extracted.title, extracted.skills);
+    // Free keyword categorization (no paid z.ai call per opportunity). The accurate profession family
+    // for the discovery gate comes from qwen2.5:3b on the worker (Opportunity.roleFamily).
+    const categorySlug = localClassifyJob(extracted.title);
     let category = await prisma.category.findUnique({ where: { slug: categorySlug } });
 
     if (!category) {

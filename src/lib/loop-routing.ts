@@ -175,3 +175,19 @@ export function routeAllows(loopCategorySlugs: string[] | null | undefined, oppC
   const wanted = CATEGORY_ADJACENCY[oppCatSlug] || [oppCatSlug];
   return loopCategorySlugs.some((c) => wanted.includes(c));
 }
+
+/**
+ * INVERSE of CATEGORY_ADJACENCY for the discovery role-gate: given a candidate's family, the set of
+ * opportunity families they should SEE — i.e. every opp-family O whose adjacency list contains
+ * `userFamily` (routeAllows([userFamily], O) === true). Used to build the feed's SQL/Prisma filter
+ * so an opp is kept when `roleFamily IN oppFamiliesForUser(userFamily)`. Always includes the family
+ * itself. Returns [] for a null/unknown family so callers can treat it as "no filter" (fail-open).
+ */
+export function oppFamiliesForUser(userFamily: string | null | undefined): string[] {
+  if (!userFamily) return [];
+  const out = new Set<string>([userFamily]);
+  for (const [oppFam, receivers] of Object.entries(CATEGORY_ADJACENCY)) {
+    if (receivers.includes(userFamily)) out.add(oppFam);
+  }
+  return [...out];
+}
