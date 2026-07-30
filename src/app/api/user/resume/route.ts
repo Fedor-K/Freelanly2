@@ -42,6 +42,16 @@ async function logResumeFail(userId: string, reason: string, detail?: string) {
 }
 
 /**
+ * Coerce a value to a non-empty string or undefined. The AI/merge can emit `location` (or `name`) as
+ * an OBJECT (e.g. LinkedIn's {parsed, linkedinText}) — writing that into a String Prisma column throws
+ * "Expected String", surfacing as a 500 "Failed to process resume". `as string` is a compile-time cast
+ * only, so it never protected the runtime. This does.
+ */
+function safeStr(v: unknown): string | undefined {
+  return typeof v === 'string' && v.trim() ? v : undefined;
+}
+
+/**
  * POST /api/user/resume
  * Upload PDF resume, extract text with unpdf, parse with AI
  */
@@ -170,7 +180,7 @@ IMPORTANT — "experience_years" is total YEARS OF PROFESSIONAL WORK EXPERIENCE 
     // dashboard before any résumé is parsed, so the blocked country only becomes visible HERE,
     // on the authenticated upload. Without this check a blocked-region user can sign up with email,
     // upload a résumé, get a loop, and start applying (exactly how the Nigeria leak happened).
-    const candidateLoc = ((mergedProfile as Record<string, unknown> | null)?.location as string) || null;
+    const candidateLoc = safeStr((mergedProfile as Record<string, unknown> | null)?.location) ?? null;
     if (isLocationBlocked(candidateLoc)) {
       console.log(`[Resume] region-blocked upload: ${existingUser?.email} (${candidateLoc})`);
       await logResumeFail(session.user.id, 'region_blocked', candidateLoc || 'unknown');
@@ -185,8 +195,8 @@ IMPORTANT — "experience_years" is total YEARS OF PROFESSIONAL WORK EXPERIENCE 
         resumeText: pdfText.substring(0, 10000),
         resumeFileName: file.name,
         parsedProfile: (mergedProfile as object) || undefined,
-        name: parsedProfile?.name || undefined,
-        location: ((mergedProfile as Record<string, unknown> | null)?.location as string) || undefined,
+        name: safeStr(parsedProfile?.name),
+        location: safeStr((mergedProfile as Record<string, unknown> | null)?.location),
         // fill-only-missing: a GitHub link on the résumé (or in portfolioUrl) feeds verification;
         // never overwrite a candidate-entered githubUrl.
         ...(!existingUser?.githubUrl ? (() => { const gh = firstGitHubUrlFrom(existingUser?.portfolioUrl, pdfText); return gh ? { githubUrl: gh } : {}; })() : {}),
