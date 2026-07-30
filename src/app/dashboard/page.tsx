@@ -9,6 +9,7 @@ import { WelcomeOnboarding } from '@/components/app/WelcomeOnboarding';
 import { DashboardQueue } from '@/components/app/DashboardQueue';
 import { QueueUpgradeButton } from '@/components/app/QueueUpgradeButton';
 import { ProfileBoostNudge } from '@/components/app/ProfileBoostNudge';
+import { dailyApplyLimit } from '@/lib/apply-quota';
 import './dashboard-design.css';
 import './welcome-design.css';
 
@@ -141,6 +142,11 @@ export default async function DashboardOverviewPage() {
   // too and show a real volume number instead. (sentThisWeek reuses the daily-activity rows already
   // fetched — no extra query.)
   const sentThisWeek = dailyActivity.filter(r => new Date(r.day) >= weekAgo).reduce((s, r) => s + Number(r.cnt), 0);
+
+  // Real daily cap: own-mailbox (Gmail/SMTP) senders get OWN_ACCOUNT_DAILY_LIMIT (200) — they don't
+  // touch our shared domain — everyone else FREE_DAILY_APPLY_LIMIT (20). The KPI card used to hardcode
+  // "/20", lying to own-account users about their actual ceiling.
+  const applyLimit = await dailyApplyLimit(userId);
 
   const sentDelta = sentYesterday > 0 ? Math.round((sentToday - sentYesterday) / sentYesterday * 100) : 0;
 
@@ -315,8 +321,8 @@ export default async function DashboardOverviewPage() {
         </div>
         <div className="kpi">
           <div className="kpi-label">Daily limit</div>
-          <div className="kpi-value tabular">{Math.min(sentToday, 20)} <span className="unit">/ 20</span></div>
-          <div className="kpi-delta up">{Math.max(0, 20 - sentToday)} remaining</div>
+          <div className="kpi-value tabular">{Math.min(sentToday, applyLimit)} <span className="unit">/ {applyLimit}</span></div>
+          <div className="kpi-delta up">{Math.max(0, applyLimit - sentToday)} remaining</div>
         </div>
       </div>
 
