@@ -594,7 +594,9 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
             <div style={{padding: '16px 24px', borderBottom: '1px solid rgba(11,12,15,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
               <div>
                 <div style={{fontSize: '15px', fontWeight: 500}}>{draftItem.title}</div>
-                <div style={{fontSize: '12px', color: '#5C6068', marginTop: '2px'}}>{draftItem.companyName ? `${draftItem.companyName} · ` : ''}{draftItem.applyEmail}</div>
+                {/* Show the company (or just the source) — NOT the raw recruiter email. It's irrelevant on
+                    the paywall and needlessly exposes a scraped applyEmail. */}
+                <div style={{fontSize: '12px', color: '#5C6068', marginTop: '2px'}}>{draftItem.companyName || (draftItem.source === 'linkedin' ? 'via LinkedIn' : draftItem.source)}</div>
               </div>
               <button style={{background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#5C6068'}} onClick={() => closeDraft('x')}>✕</button>
             </div>
