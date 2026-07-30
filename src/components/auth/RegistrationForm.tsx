@@ -768,7 +768,7 @@ export function RegistrationForm({
 
         {/* GitHub — optional; a verified GitHub is skills evidence for hirers */}
         <div>
-          <label className="field-label">GitHub <span style={{ color: '#9A958A', fontWeight: 400 }}>(optional — gets you shortlisted faster)</span></label>
+          <label className="field-label">GitHub <span style={{ color: '#9A958A', fontWeight: 400 }}>(optional — sharpens your matches)</span></label>
           <input className="text-input" type="url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="github.com/username" />
         </div>
 

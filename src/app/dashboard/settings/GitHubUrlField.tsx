@@ -35,7 +35,7 @@ export function GitHubUrlField({ initial }: { initial: string }) {
 
   return (
     <div className="field-row">
-      <div className="lbl">GitHub<span className="sub">Verified GitHub gets you shortlisted faster</span></div>
+      <div className="lbl">GitHub<span className="sub">Verified GitHub sharpens your matches</span></div>
       <div className="ctrl">
         <input
           className="field"

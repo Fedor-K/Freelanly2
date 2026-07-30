@@ -51,11 +51,11 @@ export function GitHubPrompt() {
   return (
     <div style={{ margin: '0 0 16px', padding: '14px 18px', borderRadius: '12px', background: '#fff', border: '1px solid #E8E5DC' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px' }}>
-        <span style={{ fontSize: '14px', fontWeight: 600 }}>Add your GitHub — get shortlisted faster</span>
+        <span style={{ fontSize: '14px', fontWeight: 600 }}>Add your GitHub — get stronger matches</span>
         <button onClick={dismiss} style={{ background: 'none', border: 'none', color: '#9A958A', fontSize: '12px', cursor: 'pointer' }}>Not now</button>
       </div>
       <div style={{ fontSize: '12px', color: '#6E6A5F', margin: '4px 0 10px' }}>
-        A live GitHub is the strongest proof of your skills — we verify it and attach the evidence when pitching you to hirers.
+        A live GitHub is the strongest proof of your skills — we verify it from your real code to sharpen your matches and rank you higher in your feed.
       </div>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         <input
