@@ -36,7 +36,6 @@ const PRO_FEATURES = [
   'Morning ready-queue — your top matches queued overnight; review & send in one click',
   'AI cover letter on every application — drafted, then quality-reviewed',
   'Your CV attached to every send',
-  'Send from your own inbox — Gmail or SMTP, best deliverability',
   'Cancel anytime — no lock-in',
 ];
 
