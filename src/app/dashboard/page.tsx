@@ -5,7 +5,6 @@ import { GitHubPrompt } from './GitHubPrompt';
 import { deriveCategorySlugs } from '@/lib/loop-routing';
 import { redirect } from 'next/navigation';
 import { ApplicationsTable } from '@/components/app/ApplicationsTable';
-import { WelcomeOnboarding } from '@/components/app/WelcomeOnboarding';
 import { DashboardQueue } from '@/components/app/DashboardQueue';
 import { QueueUpgradeButton } from '@/components/app/QueueUpgradeButton';
 import { ProfileBoostNudge } from '@/components/app/ProfileBoostNudge';
@@ -171,7 +170,6 @@ export default async function DashboardOverviewPage() {
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
-  const isNewUser = mSent === 0;
   const profile = user?.parsedProfile as Record<string, unknown> | null;
   // Résumé parsed to nothing usable → auto-apply silently sends nothing. Nudge to re-upload.
   const needsResumeReupload =
@@ -180,58 +178,9 @@ export default async function DashboardOverviewPage() {
   // who uploaded before the Blob store existed). Profile works, but the PDF can't be
   // attached to applications/replies. Re-uploading stores it to Blob.
   const resumeFileMissing = !/\.public\.blob\.vercel-storage\.com\//.test(onboardCheck?.resumeUrl || '');
-  const loopTitles = loop?.jobTitles || [];
-  const loopKeywords = loop?.keywords || '';
 
-  // Count matching opportunities for new user + AI summary
-  let matchingCount = 0;
-  let aiProfileSummary = '';
-  if (isNewUser) {
-    matchingCount = await prisma.opportunity.count({
-      where: { isActive: true, createdAt: { gte: new Date(now.getTime() - 24 * 3600000) } },
-    }).catch(() => 0);
-
-    // Generate human-readable profile summary via AI
-    if (profile || loopTitles.length > 0) {
-      try {
-        const OpenAI = (await import('openai')).default;
-        const p = process.env.AI_PROVIDER?.toLowerCase();
-        const client = p === 'zai'
-          ? new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' })
-          : new OpenAI({ baseURL: 'https://api.z.ai/api/paas/v4', apiKey: process.env.ZAI_API_KEY || '' });
-        const model = p === 'zai' ? 'glm-4-32b-0414-128k' : 'glm-4-32b-0414-128k';
-        const r = await client.chat.completions.create({
-          model, temperature: 0.3, max_tokens: 80,
-          messages: [
-            { role: 'system', content: 'Write a 1-2 sentence summary of what kind of jobs this person will see matched. Be specific and encouraging. Address the user as "you". Example: "You\'ll see Senior React Developer and Full-Stack roles. Your 5 years with TypeScript and Node.js are a strong match for remote engineering positions."' },
-            { role: 'user', content: `Titles: ${loopTitles.join(', ')}\nSkills: ${loopKeywords}\nProfile: ${JSON.stringify(profile || {}).slice(0, 500)}` },
-          ],
-        });
-        aiProfileSummary = r.choices[0]?.message?.content?.trim() || '';
-      } catch { /* ignore */ }
-    }
-  }
-
-  // Fetch real matches for welcome card
-  const COLORS = ['#FF6B6B','#A8E024','#6EE7FF','#FFB951','#A78BFA','#34D399'];
-  let welcomeMatches: Array<{ company: string; role: string; meta: string; score: number; pass: boolean; logo: { ch: string; bg: string } }> = [];
-  if (isNewUser) {
-    const dayAgo = new Date(now.getTime() - 24 * 3600000);
-    const opps = await prisma.opportunity.findMany({
-      where: { isActive: true, createdAt: { gte: dayAgo }, applyEmail: { not: null } },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      select: { title: true, clientName: true, location: true, company: { select: { name: true } } },
-    }).catch(() => []);
-    welcomeMatches = opps.map((o, i) => ({
-      company: o.company?.name || o.clientName || 'Company',
-      logo: { ch: (o.company?.name || o.clientName || 'C')[0].toUpperCase(), bg: COLORS[i % COLORS.length] },
-      role: o.title,
-      meta: o.location || 'Remote',
-      score: Math.floor(75 + Math.random() * 20),
-      pass: i !== 2,
-    }));
-  }
+  // (New-user welcome-card compute removed with the card — it made an LLM call + extra queries on
+  // every new-user dashboard load, all to feed an overpromising card.)
 
   // Serialize applications for client component
   const appRows = applications.map(a => ({
@@ -326,61 +275,9 @@ export default async function DashboardOverviewPage() {
         </div>
       )}
 
-      {/* Welcome card for new users */}
-      {isNewUser && loop?.isActive && (
-        <div className="welcome mb-4">
-          <header className="welcome-hero">
-            <div className="welcome-status">
-              <span className="welcome-pulse"></span>
-              <span>Starting &middot; setting up your loop</span>
-            </div>
-            <h1>We&apos;re lining up your first matches.</h1>
-            <p className="sub">Freelanly is scanning fresh postings against your profile and pre-writing applications for the strongest matches. Open Discovery in a few minutes — review and send in one click.</p>
-            <div className="welcome-ai">
-              <span className="ai-label">AI &middot; matched from your r&eacute;sum&eacute;</span>
-              {aiProfileSummary || `You'll see ${loopTitles.slice(0, 3).join(' and ') || 'matching'} roles matched to your resume and experience.`}
-            </div>
-          </header>
-          <div className="welcome-stats">
-            <div className="welcome-stat">
-              <div className="label">New opportunities today</div>
-              <div className="value">{matchingCount || '—'}</div>
-              <div className="hint"><span className="live">scanning &middot; live</span></div>
-            </div>
-            <div className="welcome-stat">
-              <div className="label">Every application</div>
-              <div className="value">AI-written</div>
-              <div className="hint">tailored to the post</div>
-            </div>
-            <div className="welcome-stat">
-              <div className="label">Replies land best from</div>
-              <div className="value">Gmail</div>
-              <div className="hint">connect yours in one click</div>
-            </div>
-          </div>
-          <div className="welcome-foot">
-            <div className="note">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-              <span><b>First drafts ready within 30 minutes.</b> Review and send in one click{ownInbox ? ' — sent from your own inbox, so replies come straight back to you.' : ' — we’ll route every reply to your inbox so nothing slips.'}</span>
-            </div>
-            {!user?.telegramChatId && !ownInbox && (
-              <a className="btn-tg" href={`https://t.me/FLalarmbot?start=direct_${userId.slice(0, 12)}`} target="_blank" rel="noopener noreferrer">
-                <span className="tg-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.5 4.5 2.4 11.7c-1.3.5-1.3 1.2-.2 1.6L7 14.8l1.8 5.4c.2.6.1 1 .8 1 .5 0 .7-.2 1-.5l2.3-2.2 4.7 3.5c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.9-1.5-1.5z"/></svg></span>
-                Connect Telegram for replies
-                <span className="arrow">&rarr;</span>
-              </a>
-            )}
-          </div>
-          {loopTitles.length > 0 && (
-            <div className="welcome-loops">
-              <span className="label">Active loops</span>
-              {loopTitles.slice(0, 3).map((t: string) => (
-                <span key={t} className="loop-chip"><span className="ldot"></span>{t}</span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Welcome card for new users removed 2026-07-30 (owner) — it overpromised (AI-hallucinated
+          "excellent matches for Principal Engineer in fintech" from the résumé alone, plus stale
+          "pre-writing applications" copy). */}
 
       {/* Profile boost: video intro (everyone with a résumé) + GitHub (engineers only) — the two
           artifacts that turn a résumé into a sellable candidate. Shown only when missing. */}
