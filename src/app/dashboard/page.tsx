@@ -125,10 +125,9 @@ export default async function DashboardOverviewPage() {
   const sentToday = countByStatus(today, 'SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
   const sentYesterday = countByStatus(yesterday, 'SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
   const repliesToday = countByStatus(today, 'REPLIED', 'INTERVIEW', 'OFFER');
-  const openedToday = countByStatus(today, 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
 
   const replyRate = sentToday > 0 ? (repliesToday / sentToday * 100).toFixed(1) : '0';
-  const openRate = sentToday > 0 ? (openedToday / sentToday * 100).toFixed(1) : '0';
+  // openRate/openedToday removed — opens untracked (no live pixel), owner call 2026-07-30 to hide globally.
 
   // Sends via the user's OWN inbox (Gmail/SMTP) → recruiter replies land in THEIR inbox, never touch
   // our reply+ address, so we track zero reply/interview/offer data. Showing "Replies today", reply
@@ -147,7 +146,6 @@ export default async function DashboardOverviewPage() {
 
   // 30-day funnel
   const mSent = countByStatus(month, 'SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
-  const mOpened = countByStatus(month, 'OPENED', 'REPLIED', 'INTERVIEW', 'OFFER');
   const mReplied = countByStatus(month, 'REPLIED', 'INTERVIEW', 'OFFER');
   const mInterview = countByStatus(month, 'INTERVIEW', 'OFFER');
   const mOffer = countByStatus(month, 'OFFER');
@@ -307,20 +305,14 @@ export default async function DashboardOverviewPage() {
             <div className="kpi-delta">{mReplied} total this month</div>
           </div>
         )}
-        {ownInbox ? (
-          // Opens aren't tracked on the live send path (no pixel) — show sent volume instead of a fake open rate.
-          <div className="kpi">
-            <div className="kpi-label">Sent this week</div>
-            <div className="kpi-value tabular">{sentThisWeek}</div>
-            <div className="kpi-delta">last 7 days</div>
-          </div>
-        ) : (
-          <div className="kpi">
-            <div className="kpi-label">Opened today</div>
-            <div className="kpi-value tabular">{openedToday} <span className="unit">/ {openRate}%</span></div>
-            <div className="kpi-delta">{mOpened} total this month</div>
-          </div>
-        )}
+        {/* Opens aren't tracked on the live send path (the pixel only lives in the dead auto-apply
+            worker; quick-apply injects none) — so "Opened" is untracked for EVERYONE. Show sent volume
+            instead, for all users. (Owner call 2026-07-30: hide opens globally rather than re-add pixel.) */}
+        <div className="kpi">
+          <div className="kpi-label">Sent this week</div>
+          <div className="kpi-value tabular">{sentThisWeek}</div>
+          <div className="kpi-delta">last 7 days</div>
+        </div>
         <div className="kpi">
           <div className="kpi-label">Daily limit</div>
           <div className="kpi-value tabular">{Math.min(sentToday, 20)} <span className="unit">/ 20</span></div>
@@ -484,16 +476,13 @@ export default async function DashboardOverviewPage() {
             <h2>Funnel · last 30 days</h2>
             <span className="muted f-mono" style={{fontSize: '11px'}}>{mSent > 0 ? `${(mReplied / mSent * 100).toFixed(1)}%` : '0%'} reply rate</span>
           </div>
+          {/* Opened stage dropped — opens are untracked (no live pixel). This funnel only renders for
+              Postal senders, whose Replied/Interview/Offer we DO track. */}
           {[
             { label: 'Sent', count: mSent, pct: 100, bg: 'var(--ink)', textColor: '#fff', dotColor: 'var(--s-sent)' },
-            { label: 'Opened', count: mOpened, pct: mSent > 0 ? Math.round(mOpened / mSent * 100) : 0, bg: '#DCE9FE', textColor: 'var(--info)', dotColor: 'var(--s-opened)' },
-            // Replied/Interview/Offer come from reply tracking — always 0 (and untracked) for own-inbox
-            // senders, so drop them and show only what we actually measure (sent + opens).
-            ...(ownInbox ? [] : [
-              { label: 'Replied', count: mReplied, pct: mSent > 0 ? Math.round(mReplied / mSent * 100) : 0, bg: 'var(--acid)', textColor: '#000', dotColor: 'var(--s-replied)' },
-              { label: 'Interview', count: mInterview, pct: mSent > 0 ? Math.round(mInterview / mSent * 100) : 0, bg: '#D8C7F9', textColor: 'var(--s-booked)', dotColor: 'var(--s-booked)' },
-              { label: 'Offer', count: mOffer, pct: mSent > 0 ? Math.round(mOffer / mSent * 100) : 0, bg: '#BBF7D0', textColor: 'var(--s-offer)', dotColor: 'var(--s-offer)' },
-            ]),
+            { label: 'Replied', count: mReplied, pct: mSent > 0 ? Math.round(mReplied / mSent * 100) : 0, bg: 'var(--acid)', textColor: '#000', dotColor: 'var(--s-replied)' },
+            { label: 'Interview', count: mInterview, pct: mSent > 0 ? Math.round(mInterview / mSent * 100) : 0, bg: '#D8C7F9', textColor: 'var(--s-booked)', dotColor: 'var(--s-booked)' },
+            { label: 'Offer', count: mOffer, pct: mSent > 0 ? Math.round(mOffer / mSent * 100) : 0, bg: '#BBF7D0', textColor: 'var(--s-offer)', dotColor: 'var(--s-offer)' },
           ].map(f => (
             <div key={f.label} className="funnel-row">
               <div className="name"><span className="chip-dot" style={{background: f.dotColor, width:'8px', height:'8px'}}></span>{f.label}</div>
