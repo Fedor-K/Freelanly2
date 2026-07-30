@@ -39,7 +39,7 @@ export default async function DashboardOverviewPage() {
   if (!onboardCheck?.resumeUrl) redirect('/auth/signin');
 
   const [user, today, yesterday, month, applications, repliesTodayCount, dailyActivity, loop] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true, parsedProfile: true, salaryExpectation: true, githubUrl: true, videoIntroUrl: true, resumeUrl: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true, plan: true, telegramChatId: true, parsedProfile: true, salaryExpectation: true, githubUrl: true, videoIntroUrl: true, resumeUrl: true, gmailAuth: { select: { verified: true } }, userSmtp: { select: { verified: true } } } }),
     prisma.autoApplication.groupBy({
       by: ['status'],
       where: { userId, sentAt: { gte: todayStart } },
@@ -129,6 +129,12 @@ export default async function DashboardOverviewPage() {
 
   const replyRate = sentToday > 0 ? (repliesToday / sentToday * 100).toFixed(1) : '0';
   const openRate = sentToday > 0 ? (openedToday / sentToday * 100).toFixed(1) : '0';
+
+  // Sends via the user's OWN inbox (Gmail/SMTP) → recruiter replies land in THEIR inbox, never touch
+  // our reply+ address, so we track zero reply/interview/offer data. Showing "Replies today", reply
+  // rate, or a "we'll ping you about interview invites" promise would be a lie for these users — hide
+  // every reply-derived surface for them. (Postal senders reply through us and stay tracked.)
+  const ownInbox = !!user?.gmailAuth?.verified || !!user?.userSmtp?.verified;
 
   const sentDelta = sentYesterday > 0 ? Math.round((sentToday - sentYesterday) / sentYesterday * 100) : 0;
 
@@ -280,11 +286,20 @@ export default async function DashboardOverviewPage() {
           <div className="kpi-value tabular">{sentToday}</div>
           <div className={`kpi-delta ${sentDelta >= 0 ? 'up' : 'down'}`}>{sentYesterday > 0 ? `${sentDelta >= 0 ? '↑' : '↓'} ${Math.abs(sentDelta)}% vs yesterday` : `${sentYesterday} yesterday`}</div>
         </div>
-        <div className="kpi">
-          <div className="kpi-label">Replies today</div>
-          <div className="kpi-value tabular">{repliesToday} <span className="unit">/ {replyRate}%</span></div>
-          <div className="kpi-delta">{mReplied} total this month</div>
-        </div>
+        {ownInbox ? (
+          // Own-inbox senders: replies go to their inbox, untracked — show a real number instead.
+          <div className="kpi">
+            <div className="kpi-label">Sent this month</div>
+            <div className="kpi-value tabular">{mSent}</div>
+            <div className="kpi-delta">applications sent</div>
+          </div>
+        ) : (
+          <div className="kpi">
+            <div className="kpi-label">Replies today</div>
+            <div className="kpi-value tabular">{repliesToday} <span className="unit">/ {replyRate}%</span></div>
+            <div className="kpi-delta">{mReplied} total this month</div>
+          </div>
+        )}
         <div className="kpi">
           <div className="kpi-label">Opened today</div>
           <div className="kpi-value tabular">{openedToday} <span className="unit">/ {openRate}%</span></div>
@@ -297,8 +312,9 @@ export default async function DashboardOverviewPage() {
         </div>
       </div>
 
-      {/* Telegram connect banner */}
-      {!user?.telegramChatId && (
+      {/* Telegram connect banner — only for Postal senders; own-inbox replies never reach us, so we
+          can't ping them about an interview invite we never see. */}
+      {!user?.telegramChatId && !ownInbox && (
         <div className="card mb-4" style={{background: 'linear-gradient(135deg, #E8F5E9, #F1F8E9)', borderColor: '#C8E6C9', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px'}}>
           <div>
             <div style={{fontWeight: 600, fontSize: '14px'}}>🔔 Never miss an interview invite</div>
@@ -345,9 +361,9 @@ export default async function DashboardOverviewPage() {
           <div className="welcome-foot">
             <div className="note">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-              <span><b>First drafts ready within 30 minutes.</b> Review and send in one click — we&apos;ll route every reply to your inbox so nothing slips.</span>
+              <span><b>First drafts ready within 30 minutes.</b> Review and send in one click{ownInbox ? ' — sent from your own inbox, so replies come straight back to you.' : ' — we’ll route every reply to your inbox so nothing slips.'}</span>
             </div>
-            {!user?.telegramChatId && (
+            {!user?.telegramChatId && !ownInbox && (
               <a className="btn-tg" href={`https://t.me/FLalarmbot?start=direct_${userId.slice(0, 12)}`} target="_blank" rel="noopener noreferrer">
                 <span className="tg-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.5 4.5 2.4 11.7c-1.3.5-1.3 1.2-.2 1.6L7 14.8l1.8 5.4c.2.6.1 1 .8 1 .5 0 .7-.2 1-.5l2.3-2.2 4.7 3.5c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.9-1.5-1.5z"/></svg></span>
                 Connect Telegram for replies
@@ -446,14 +462,19 @@ export default async function DashboardOverviewPage() {
         <div className="card card-pad">
           <div className="section-head">
             <h2>Funnel · last 30 days</h2>
-            <span className="muted f-mono" style={{fontSize: '11px'}}>{mSent > 0 ? `${(mReplied / mSent * 100).toFixed(1)}%` : '0%'} reply rate</span>
+            {/* Reply rate is meaningless for own-inbox senders (replies never reach us) — hide it. */}
+            {!ownInbox && <span className="muted f-mono" style={{fontSize: '11px'}}>{mSent > 0 ? `${(mReplied / mSent * 100).toFixed(1)}%` : '0%'} reply rate</span>}
           </div>
           {[
             { label: 'Sent', count: mSent, pct: 100, bg: 'var(--ink)', textColor: '#fff', dotColor: 'var(--s-sent)' },
             { label: 'Opened', count: mOpened, pct: mSent > 0 ? Math.round(mOpened / mSent * 100) : 0, bg: '#DCE9FE', textColor: 'var(--info)', dotColor: 'var(--s-opened)' },
-            { label: 'Replied', count: mReplied, pct: mSent > 0 ? Math.round(mReplied / mSent * 100) : 0, bg: 'var(--acid)', textColor: '#000', dotColor: 'var(--s-replied)' },
-            { label: 'Interview', count: mInterview, pct: mSent > 0 ? Math.round(mInterview / mSent * 100) : 0, bg: '#D8C7F9', textColor: 'var(--s-booked)', dotColor: 'var(--s-booked)' },
-            { label: 'Offer', count: mOffer, pct: mSent > 0 ? Math.round(mOffer / mSent * 100) : 0, bg: '#BBF7D0', textColor: 'var(--s-offer)', dotColor: 'var(--s-offer)' },
+            // Replied/Interview/Offer come from reply tracking — always 0 (and untracked) for own-inbox
+            // senders, so drop them and show only what we actually measure (sent + opens).
+            ...(ownInbox ? [] : [
+              { label: 'Replied', count: mReplied, pct: mSent > 0 ? Math.round(mReplied / mSent * 100) : 0, bg: 'var(--acid)', textColor: '#000', dotColor: 'var(--s-replied)' },
+              { label: 'Interview', count: mInterview, pct: mSent > 0 ? Math.round(mInterview / mSent * 100) : 0, bg: '#D8C7F9', textColor: 'var(--s-booked)', dotColor: 'var(--s-booked)' },
+              { label: 'Offer', count: mOffer, pct: mSent > 0 ? Math.round(mOffer / mSent * 100) : 0, bg: '#BBF7D0', textColor: 'var(--s-offer)', dotColor: 'var(--s-offer)' },
+            ]),
           ].map(f => (
             <div key={f.label} className="funnel-row">
               <div className="name"><span className="chip-dot" style={{background: f.dotColor, width:'8px', height:'8px'}}></span>{f.label}</div>
