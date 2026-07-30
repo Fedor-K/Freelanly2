@@ -54,7 +54,7 @@ const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   SENDING: { label: 'Sending', cls: 'sent' },
   SENT: { label: 'Sent', cls: 'sent' },
   DELIVERED: { label: 'Sent', cls: 'sent' },
-  OPENED: { label: 'Opened', cls: 'opened' },
+  OPENED: { label: 'Sent', cls: 'sent' }, // opens untracked → show as Sent (was 'Opened')
   REPLIED: { label: 'Replied', cls: 'replied' },
   INTERVIEW: { label: 'Interview', cls: 'interview' },
   OFFER: { label: 'Offer', cls: 'interview' },
@@ -66,8 +66,7 @@ const DEFAULT_FILTER = ['SENT', 'DELIVERED', 'OPENED', 'REPLIED', 'INTERVIEW', '
 
 const FILTERS = [
   { label: 'All', value: DEFAULT_FILTER },
-  { label: 'Sent', value: ['SENT', 'DELIVERED'] },
-  { label: 'Opened', value: ['OPENED'] },
+  { label: 'Sent', value: ['SENT', 'DELIVERED', 'OPENED'] }, // OPENED folded into Sent (opens untracked)
   { label: 'Replied', value: ['REPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'] },
 ];
 
