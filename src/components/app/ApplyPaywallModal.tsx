@@ -38,7 +38,20 @@ export function ApplyPaywallModal({
 }) {
   const { track } = useTracker();
   const router = useRouter();
-  const showQueueOffer = variant === 'B' && (queueCount ?? 0) >= 5;
+  // The discovery feed threads variant+queueCount as props; other surfaces (project page, sidebar
+  // top-up) don't — so self-fetch them once when absent. The offer then renders on EVERY wall.
+  const [selfQueue, setSelfQueue] = useState<{ count: number; variant: 'A' | 'B' } | null>(null);
+  useEffect(() => {
+    if (variant !== undefined) return; // props supplied (feed) → no round-trip
+    let alive = true;
+    fetch('/api/user/queue-count').then((r) => r.json())
+      .then((d) => { if (alive) setSelfQueue({ count: Number(d?.count) || 0, variant: d?.variant === 'B' ? 'B' : 'A' }); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [variant]);
+  const effVariant = variant ?? selfQueue?.variant;
+  const effQueue = queueCount ?? selfQueue?.count ?? 0;
+  const showQueueOffer = effVariant === 'B' && effQueue >= 5;
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [showCardForm, setShowCardForm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -62,7 +75,7 @@ export function ApplyPaywallModal({
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ paymentIntentId }),
     }).catch(() => {});
-    track('FUNNEL_STEP', { step: 'credit_charge_success', source, variant, queueCount });
+    track('FUNNEL_STEP', { step: 'credit_charge_success', source, variant: effVariant, queueCount: effQueue });
     // Re-render server components (sidebar balance widget, etc.) so the new balance shows without a
     // manual page reload. Client state (feed, open modals) is preserved by router.refresh().
     router.refresh();
@@ -71,7 +84,7 @@ export function ApplyPaywallModal({
 
   async function start(useRecovery = false) {
     setBusy(true); setError('');
-    track('FUNNEL_STEP', { step: 'credit_charge_click', source, amountCents: useRecovery ? 150 : amountCents, recovery: useRecovery, variant, queueCount });
+    track('FUNNEL_STEP', { step: 'credit_charge_click', source, amountCents: useRecovery ? 150 : amountCents, recovery: useRecovery, variant: effVariant, queueCount: effQueue });
     try {
       const res = await fetch('/api/stripe/charge-credits', {
         method: 'POST', headers: { 'content-type': 'application/json' },
@@ -107,7 +120,7 @@ export function ApplyPaywallModal({
         <>
           <div style={{ fontSize: 24, marginBottom: 10 }}>✅</div>
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>
-            We prepared <span style={{ color: '#4a7c0f' }}>{queueCount} applications</span> matched to your profile
+            We prepared <span style={{ color: '#4a7c0f' }}>{effQueue} applications</span> matched to your profile
           </div>
           <div style={{ fontSize: 13, color: '#5C6068', marginBottom: 14, lineHeight: 1.5 }}>
             Fresh matched roles — with letters written for you — every morning. Sent straight to the poster, not a form.
