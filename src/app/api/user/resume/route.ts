@@ -29,6 +29,19 @@ function getModel() {
 }
 
 /**
+ * Log a résumé-upload FAILURE so we stop being blind to silent "can't update resume" cases.
+ * Before this, only success (RESUME_UPLOADED) was logged, so every 400/403/500 was invisible.
+ * Uses FUNNEL_STEP (no enum/DB change needed) with a dedicated step.
+ * Query: SELECT details->>'reason', count(*) FROM "ActivityLog"
+ *        WHERE action='FUNNEL_STEP' AND details->>'step'='resume_upload_failed' GROUP BY 1;
+ */
+async function logResumeFail(userId: string, reason: string, detail?: string) {
+  await prisma.activityLog.create({
+    data: { userId, action: 'FUNNEL_STEP', details: { step: 'resume_upload_failed', reason, ...(detail ? { detail: detail.slice(0, 200) } : {}) } },
+  }).catch(() => {});
+}
+
+/**
  * POST /api/user/resume
  * Upload PDF resume, extract text with unpdf, parse with AI
  */
@@ -43,14 +56,17 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File | null;
 
     if (!file) {
+      await logResumeFail(session.user.id, 'no_file');
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
     if (file.size > 5 * 1024 * 1024) {
+      await logResumeFail(session.user.id, 'file_too_large', `${Math.round(file.size / 1024)}KB`);
       return NextResponse.json({ error: 'File too large. Max 5MB.' }, { status: 400 });
     }
 
     if (!file.name.toLowerCase().endsWith('.pdf')) {
+      await logResumeFail(session.user.id, 'not_pdf', file.name.slice(0, 80));
       return NextResponse.json({ error: 'Only PDF files are supported' }, { status: 400 });
     }
 
@@ -64,10 +80,12 @@ export async function POST(request: NextRequest) {
       pdfText = typeof text === 'string' ? text : (text as string[]).join('\n');
     } catch (e) {
       console.error('[Resume] PDF extraction failed:', e);
+      await logResumeFail(session.user.id, 'pdf_extract_failed', e instanceof Error ? e.message : String(e));
       return NextResponse.json({ error: 'Could not read PDF. Make sure it contains text (not scanned images).' }, { status: 400 });
     }
 
     if (!pdfText || pdfText.trim().length < 50) {
+      await logResumeFail(session.user.id, 'pdf_empty_or_images', `${pdfText?.trim().length ?? 0} chars`);
       return NextResponse.json({ error: 'PDF appears empty or contains only images. Please upload a text-based PDF.' }, { status: 400 });
     }
 
@@ -155,6 +173,7 @@ IMPORTANT — "experience_years" is total YEARS OF PROFESSIONAL WORK EXPERIENCE 
     const candidateLoc = ((mergedProfile as Record<string, unknown> | null)?.location as string) || null;
     if (isLocationBlocked(candidateLoc)) {
       console.log(`[Resume] region-blocked upload: ${existingUser?.email} (${candidateLoc})`);
+      await logResumeFail(session.user.id, 'region_blocked', candidateLoc || 'unknown');
       return NextResponse.json({ error: 'Freelanly isn’t available in your region yet.', regionBlocked: true }, { status: 403 });
     }
 
@@ -247,6 +266,10 @@ IMPORTANT — "experience_years" is total YEARS OF PROFESSIONAL WORK EXPERIENCE 
     });
   } catch (error) {
     console.error('[API] Error processing resume:', error);
+    try {
+      const s = await auth();
+      if (s?.user?.id) await logResumeFail(s.user.id, 'server_error', error instanceof Error ? error.message : String(error));
+    } catch { /* best-effort */ }
     return NextResponse.json({ error: 'Failed to process resume' }, { status: 500 });
   }
 }
