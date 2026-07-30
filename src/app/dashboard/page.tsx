@@ -424,8 +424,8 @@ export default async function DashboardOverviewPage() {
         />
       </div>
 
-      {/* Activity + Funnel side by side */}
-      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px'}}>
+      {/* Activity + Funnel side by side (stacks on phones — see dash-two-col) */}
+      <div className="dash-two-col">
 
         {/* Activity chart */}
         <div className="card card-pad">

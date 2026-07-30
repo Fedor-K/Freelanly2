@@ -278,7 +278,7 @@ export function ApplicationsTable({ rows, sentToday = 0, dailyLimit = 20, isPro 
                           {loadingDetail ? (
                             <div style={{ color: 'var(--ink-4)', fontSize: '13px' }}>Loading...</div>
                           ) : detail ? (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                            <div className="dash-two-col" style={{ gap: '24px' }}>
                               {/* Left: project info */}
                               <div>
                                 <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: '10.5px', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: '8px' }}>Project details</div>
