@@ -30,6 +30,27 @@
 }
 .queue-row .actions { display: flex; gap: 6px; }
 
+/* Phones: the 5-column row (logo · title · match · 4 buttons) squeezes the title
+   to one-word-per-line and overflows the buttons. Stack it: logo+title on row 1,
+   match under the title, actions wrap full-width below. */
+@media (max-width: 640px) {
+  .queue-row {
+    grid-template-columns: 6px 32px 1fr;
+    column-gap: 12px;
+    row-gap: 8px;
+    align-items: start;
+    padding: 14px 16px;
+  }
+  /* Fixed child order: 1=indicator 2=logo 3=title/meta 4=match 5=actions, then
+     optional full-width panels (error / JD, inline grid-column:1/-1) auto-flow below. */
+  .queue-row > :nth-child(1) { grid-column: 1; grid-row: 1; margin-top: 6px; }   /* indicator */
+  .queue-row > :nth-child(2) { grid-column: 2; grid-row: 1; }                     /* logo */
+  .queue-row > :nth-child(3) { grid-column: 3; grid-row: 1; min-width: 0; }        /* title + meta */
+  .queue-row > .match { grid-column: 3; grid-row: 2; justify-self: start; }
+  .queue-row > .actions { grid-column: 1 / -1; grid-row: 3; flex-wrap: wrap; }
+  .queue-row .actions .btn { flex: 1 1 auto; }
+}
+
 /* Replies card */
 .reply-row {
   padding: 12px 16px;
