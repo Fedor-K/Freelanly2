@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     // Daily anti-spam brake (same slot pool the engine uses).
     const quotaOk = await consumeApplyQuota(user.id, user.plan);
     if (!quotaOk) {
-      return NextResponse.json({ error: 'daily_limit', message: 'Daily send limit reached — resets tomorrow.' }, { status: 429 });
+      return NextResponse.json({ error: 'daily_limit', message: "That's all your sends for today — new ones open up tomorrow." }, { status: 429 });
     }
     quotaTaken = true; quotaUserId = user.id; quotaPlan = user.plan;
 

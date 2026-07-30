@@ -1051,7 +1051,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
               This role — and {signals.totalProjects.toLocaleString('en-US')} more live right now
             </h2>
             <p style={{ fontSize: '13px', color: '#5C6068', lineHeight: 1.6, margin: '0 auto 16px', maxWidth: '320px' }}>
-              Apply to any of them with <b>PRO — $5/month</b>: up to 20 applications a day, AI-written letters, your CV attached to every one. Cancel anytime.
+              Apply to any of them with <b>PRO — $5/month</b>: AI-written letters, your CV attached to every one. Cancel anytime.
             </p>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <QueueUpgradeButton source="application_paywall" label="Upgrade to apply →" />

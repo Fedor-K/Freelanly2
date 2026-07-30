@@ -5,7 +5,7 @@ import './pricing-design.css';
 
 export const metadata: Metadata = {
   title: 'Pricing — first free · $0.50 per application · PRO $5/mo',
-  description: 'Try Freelanly free — your first application is on us. PRO ($5/mo) keeps them coming: up to 20 applications a day with AI-written letters, a morning ready-queue, your CV attached to every send.',
+  description: 'Try Freelanly free — your first application is on us. PRO ($5/mo) keeps them coming: AI-written letters, a morning ready-queue, your CV attached to every send.',
   alternates: { canonical: `${siteConfig.url}/pricing` },
 };
 
@@ -38,7 +38,7 @@ export default function PricingPage() {
   <div className="container">
     <span className="eyebrow">— Pricing</span>
     <h1>Your first application is <span className="accent">free</span>.<br/>Then pay per application — or go PRO.</h1>
-    <p className="lede">Sign up, get matched, and send your first AI-drafted application on us — no credit card. After that: top up a balance and send at $0.50 per application, or go PRO ($5/mo) for up to 20 a day — for less than a coffee.</p>
+    <p className="lede">Sign up, get matched, and send your first AI-drafted application on us — no credit card. After that: top up a balance and send at $0.50 per application, or go PRO ($5/mo) — for less than a coffee.</p>
   </div>
 </header>
 
@@ -110,7 +110,7 @@ export default function PricingPage() {
         </div>
         <div className="plan-section-label">Everything in Free, plus</div>
         <ul className="plan-features">
-          <li><Chk /> <span><strong>Flat $5 — no per-application charges.</strong> Send up to 20 a day; cheaper than the balance past ~10 sends a month</span></li>
+          <li><Chk /> <span><strong>Flat $5 — no per-application charges.</strong> Cheaper than the balance past ~10 sends a month</span></li>
           <li><Chk /> <span><strong>Morning ready-queue</strong> — your top matches queued overnight; open one, the letter is drafted in seconds, review &amp; send</span></li>
         </ul>
       </div>
@@ -137,7 +137,7 @@ export default function PricingPage() {
       </div>
       <div className="faq-item">
         <div className="faq-q">What exactly does PRO add?</div>
-        <div className="faq-a">Two things. <strong>A flat price:</strong> up to 20 applications a day for $5 — no per-send charges, cheaper than the $0.50 balance once you send more than 10 a month. And <strong>the morning ready-queue:</strong> your top matches queued overnight with one-click drafting, so you review and hit Send instead of hunting. Everything else — AI letters with the reviewer pass, your CV attached, the inbox — is the same on every plan.</div>
+        <div className="faq-a">Two things. <strong>A flat price:</strong> $5 — no per-send charges, cheaper than the $0.50 balance once you send more than 10 a month. And <strong>the morning ready-queue:</strong> your top matches queued overnight with one-click drafting, so you review and hit Send instead of hunting. Everything else — AI letters with the reviewer pass, your CV attached, the inbox — is the same on every plan.</div>
       </div>
       <div className="faq-item">
         <div className="faq-q">Does Freelanly send anything without me?</div>

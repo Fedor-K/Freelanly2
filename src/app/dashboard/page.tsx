@@ -9,7 +9,6 @@ import { WelcomeOnboarding } from '@/components/app/WelcomeOnboarding';
 import { DashboardQueue } from '@/components/app/DashboardQueue';
 import { QueueUpgradeButton } from '@/components/app/QueueUpgradeButton';
 import { ProfileBoostNudge } from '@/components/app/ProfileBoostNudge';
-import { dailyApplyLimit } from '@/lib/apply-quota';
 import './dashboard-design.css';
 import './welcome-design.css';
 
@@ -142,11 +141,6 @@ export default async function DashboardOverviewPage() {
   // too and show a real volume number instead. (sentThisWeek reuses the daily-activity rows already
   // fetched — no extra query.)
   const sentThisWeek = dailyActivity.filter(r => new Date(r.day) >= weekAgo).reduce((s, r) => s + Number(r.cnt), 0);
-
-  // Real daily cap: own-mailbox (Gmail/SMTP) senders get OWN_ACCOUNT_DAILY_LIMIT (200) — they don't
-  // touch our shared domain — everyone else FREE_DAILY_APPLY_LIMIT (20). The KPI card used to hardcode
-  // "/20", lying to own-account users about their actual ceiling.
-  const applyLimit = await dailyApplyLimit(userId);
 
   const sentDelta = sentYesterday > 0 ? Math.round((sentToday - sentYesterday) / sentYesterday * 100) : 0;
 
@@ -290,40 +284,32 @@ export default async function DashboardOverviewPage() {
         </div>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs — volume + (Postal only) replies. No "Daily limit" card: the cap still runs server-side
+          but the owner asked to keep it out of the UI (2026-07-30). Opens dropped globally (untracked). */}
       <div className="kpi-grid mb-4">
         <div className="kpi">
           <div className="kpi-label">Sent today</div>
           <div className="kpi-value tabular">{sentToday}</div>
           <div className={`kpi-delta ${sentDelta >= 0 ? 'up' : 'down'}`}>{sentYesterday > 0 ? `${sentDelta >= 0 ? '↑' : '↓'} ${Math.abs(sentDelta)}% vs yesterday` : `${sentYesterday} yesterday`}</div>
         </div>
-        {ownInbox ? (
-          // Own-inbox senders: replies go to their inbox, untracked — show a real number instead.
-          <div className="kpi">
-            <div className="kpi-label">Sent this month</div>
-            <div className="kpi-value tabular">{mSent}</div>
-            <div className="kpi-delta">applications sent</div>
-          </div>
-        ) : (
-          <div className="kpi">
-            <div className="kpi-label">Replies today</div>
-            <div className="kpi-value tabular">{repliesToday} <span className="unit">/ {replyRate}%</span></div>
-            <div className="kpi-delta">{mReplied} total this month</div>
-          </div>
-        )}
-        {/* Opens aren't tracked on the live send path (the pixel only lives in the dead auto-apply
-            worker; quick-apply injects none) — so "Opened" is untracked for EVERYONE. Show sent volume
-            instead, for all users. (Owner call 2026-07-30: hide opens globally rather than re-add pixel.) */}
         <div className="kpi">
           <div className="kpi-label">Sent this week</div>
           <div className="kpi-value tabular">{sentThisWeek}</div>
           <div className="kpi-delta">last 7 days</div>
         </div>
         <div className="kpi">
-          <div className="kpi-label">Daily limit</div>
-          <div className="kpi-value tabular">{Math.min(sentToday, applyLimit)} <span className="unit">/ {applyLimit}</span></div>
-          <div className="kpi-delta up">{Math.max(0, applyLimit - sentToday)} remaining</div>
+          <div className="kpi-label">Sent this month</div>
+          <div className="kpi-value tabular">{mSent}</div>
+          <div className="kpi-delta">last 30 days</div>
         </div>
+        {/* Replies only for Postal senders — own-inbox replies land in the user's own inbox, untracked. */}
+        {!ownInbox && (
+          <div className="kpi">
+            <div className="kpi-label">Replies today</div>
+            <div className="kpi-value tabular">{repliesToday} <span className="unit">/ {replyRate}%</span></div>
+            <div className="kpi-delta">{mReplied} total this month</div>
+          </div>
+        )}
       </div>
 
       {/* Telegram connect banner — only for Postal senders; own-inbox replies never reach us, so we
@@ -362,9 +348,9 @@ export default async function DashboardOverviewPage() {
               <div className="hint"><span className="live">scanning &middot; live</span></div>
             </div>
             <div className="welcome-stat">
-              <div className="label">Applications / day</div>
-              <div className="value">20</div>
-              <div className="hint">daily cap &middot; all accounts</div>
+              <div className="label">Every application</div>
+              <div className="value">AI-written</div>
+              <div className="hint">tailored to the post</div>
             </div>
             <div className="welcome-stat">
               <div className="label">Replies land best from</div>

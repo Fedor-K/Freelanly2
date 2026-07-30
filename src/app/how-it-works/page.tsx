@@ -169,8 +169,8 @@ export default function HowItWorksPage() {
                 <div style={{fontSize: '22px', fontWeight: 600, color: 'var(--accent)', letterSpacing: '-0.02em'}}>9–17<span style={{fontSize: '13px', color: 'var(--ink-3)', fontWeight: 400}}> Mon–Fri</span></div>
               </div>
               <div style={{border: '1px solid var(--line-2)', padding: '14px', borderRadius: '10px'}}>
-                <div style={{fontFamily: "'Geist Mono', monospace", fontSize: '10px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: '6px'}}>Daily cap</div>
-                <div style={{fontSize: '22px', fontWeight: 600, color: 'var(--accent)', letterSpacing: '-0.02em'}}>20<span style={{fontSize: '13px', color: 'var(--ink-3)', fontWeight: 400}}> apps</span></div>
+                <div style={{fontFamily: "'Geist Mono', monospace", fontSize: '10px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: '6px'}}>First application</div>
+                <div style={{fontSize: '22px', fontWeight: 600, color: 'var(--accent)', letterSpacing: '-0.02em'}}>Free<span style={{fontSize: '13px', color: 'var(--ink-3)', fontWeight: 400}}> no card</span></div>
               </div>
             </div>
             <div style={{display:'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', border: '1px solid var(--line)', borderRadius: '10px', background: 'rgba(199,249,74,0.04)'}}>

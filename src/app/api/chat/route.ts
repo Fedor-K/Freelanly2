@@ -14,7 +14,7 @@ About Freelanly:
 How it works:
 1. Sign up free — upload resume, choose categories (60 seconds)
 2. Freelanly AI scans new projects and matches them to your profile
-3. For each match, AI pre-writes a personalized cover letter — you review it and send. Your FIRST application is free; after that each send costs $0.50 from a prepaid balance (top up from $3, balance never expires), or PRO at $5/month covers sending (up to 20/day)
+3. For each match, AI pre-writes a personalized cover letter — you review it and send. Your FIRST application is free; after that each send costs $0.50 from a prepaid balance (top up from $3, balance never expires), or PRO at $5/month covers sending
 4. When recruiters reply, you get notified by email and can respond from your inbox
 5. You can attach files, use AI-suggested replies, and manage conversations on the platform
 

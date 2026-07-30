@@ -633,7 +633,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                     {items.length >= 5 ? `${items.length} roles in your feed match your profile` : 'Your free application is used'}
                   </div>
                   <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 18px'}}>
-                    Fresh matched roles land in your feed every day. Apply to any of them with <b>PRO — $5/month</b>: up to 20 applications a day, AI-written letters, your CV attached to every one. Cancel anytime.
+                    Fresh matched roles land in your feed every day. Apply to any of them with <b>PRO — $5/month</b>: AI-written letters, your CV attached to every one. Cancel anytime.
                   </div>
                   <div style={{display: 'flex', justifyContent: 'center'}}>
                     <QueueUpgradeButton source="application_paywall_feed" label="Upgrade to apply →" />
@@ -644,7 +644,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
               <div style={{padding: '40px 28px', textAlign: 'center'}}>
                 <div style={{fontSize: '24px', marginBottom: '10px'}}>✉️</div>
                 <div style={{fontSize: '15px', fontWeight: 700, marginBottom: '10px'}}>
-                  {draftBlocked.reason === 'limit_reached' ? 'Daily free limit reached' : 'Send this yourself — from your own email'}
+                  {draftBlocked.reason === 'limit_reached' ? "That's all your sends for today" : 'Send this yourself — from your own email'}
                 </div>
                 <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 22px'}}>
                   {draftBlocked.reason === 'limit_reached'

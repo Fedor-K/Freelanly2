@@ -9,7 +9,7 @@ import { generateRecruiterRationale } from '@/services/matching/recruiter-ration
 import { sendEmailViaSMTP } from '@/lib/smtp-sender';
 import { sendViaGmail } from '@/lib/gmail-sender';
 import { sendAutoApplyViaPostal } from '@/lib/email/postal';
-import { consumeApplyQuota, refundApplyQuota, FREE_DAILY_APPLY_LIMIT, hasApplyAllowance, consumeApplyCredit, refundApplyCredit, refundFreeSend, applyLimitResponse } from '@/lib/apply-quota';
+import { consumeApplyQuota, refundApplyQuota, hasApplyAllowance, consumeApplyCredit, refundApplyCredit, refundFreeSend, applyLimitResponse } from '@/lib/apply-quota';
 import { escapeHtml } from '@/lib/html-escape';
 import { fetchResumeAttachment, hasRealCV } from '@/lib/resume-attachment';
 import { generateTailoredCv } from '@/lib/tailored-cv';
@@ -281,7 +281,7 @@ export async function POST(request: NextRequest) {
       if (usedToday >= FREE_DAILY_LIMIT) {
         return NextResponse.json({
           error: 'limit_reached',
-          message: `Daily limit reached (${FREE_DAILY_LIMIT}/${FREE_DAILY_LIMIT}). The cap keeps sends out of spam folders — it resets tomorrow.`,
+          message: "That's all your sends for today — new ones open up tomorrow.",
         }, { status: 429 });
       }
     }
@@ -620,9 +620,8 @@ export async function POST(request: NextRequest) {
     if (!(await consumeApplyQuota(user.id, user.plan))) {
       return NextResponse.json({
         error: 'limit_reached',
-        message: ownInbox
-          ? `Daily limit reached (${FREE_DAILY_APPLY_LIMIT}/${FREE_DAILY_APPLY_LIMIT}). Sends are capped daily to keep your email account safe.`
-          : `Daily limit reached (${FREE_DAILY_APPLY_LIMIT}/${FREE_DAILY_APPLY_LIMIT}). The cap keeps sends out of spam folders — it resets tomorrow.`,
+        // Cap still enforced, but per owner (2026-07-30) the UI shouldn't surface limit numbers/wording.
+        message: "That's all your sends for today — new ones open up tomorrow.",
       }, { status: 429 });
     }
     // Arm the refund sentinel the instant the daily slot is taken — BEFORE consumeApplyCredit, so a

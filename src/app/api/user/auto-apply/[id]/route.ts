@@ -358,7 +358,8 @@ export async function POST(
       // Daily send cap (same 20/UTC-day as quick-apply — this route previously bypassed it entirely).
       // Atomic consume before sending; refunded below if the send fails.
       if (!(await consumeApplyQuota(session.user.id, fullUser.plan))) {
-        return NextResponse.json({ error: 'limit_reached', message: 'Daily send limit reached — try again tomorrow.' }, { status: 429 });
+        // Cap still enforced; owner asked to keep limit wording out of the UI (2026-07-30).
+        return NextResponse.json({ error: 'limit_reached', message: "That's all your sends for today — new ones open up tomorrow." }, { status: 429 });
       }
       // Arm the refund sentinel the instant the daily slot is taken, BEFORE the cover-letter / CV / credit
       // steps below can throw — otherwise a thrown LLM call leaves the daily slot consumed with no send.

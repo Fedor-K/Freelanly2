@@ -268,7 +268,7 @@ export default async function LandingPage() {
       {[
         { k: 'First application', v: 'Free — no card, see the whole flow work' },
         { k: 'After that', v: '$0.50 per application from a balance (top up from $3 · never expires)' },
-        { k: 'Applying a lot?', v: 'PRO $5/mo — up to 20 applications a day · cancel anytime' },
+        { k: 'Applying a lot?', v: 'PRO $5/mo — AI letters, CV on every send · cancel anytime' },
       ].map((r, i) => (
         <div key={i} style={{display: 'flex', gap: '16px', alignItems: 'baseline', padding: '16px 20px', border: '1px solid var(--line-2)', borderRadius: '12px'}}>
           <span style={{flexShrink: 0, width: '150px', fontFamily: "'Geist Mono', monospace", fontSize: '12px', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.04em'}}>{r.k}</span>
@@ -298,7 +298,7 @@ export default async function LandingPage() {
         { q: 'Does Freelanly ever send anything without me?', a: 'No. Nothing is ever emailed on your behalf without your click. Drafts wait until you review and send them — or delete them. Your name is on the email; you stay in control of it.' },
         { q: 'Will recruiters know it’s AI-written?', a: 'Letters reference specifics from the post and your actual experience, pass a second AI review against the job’s requirements, and send from your personal Gmail. They read like a short, thoughtful note — and you can edit every word first.' },
         { q: 'How fast do roles reach my feed?', a: 'Within hours of the hiring post going live — typically days before the same role is aggregated by job boards, where you’d be applicant #300. Fresh posts land around the clock.' },
-        { q: 'What does it actually cost?', a: 'First application is free, no card. After that: $0.50 per application from a prepaid balance (top up from $3, never expires), or PRO at $5/month for up to 20 applications a day.' },
+        { q: 'What does it actually cost?', a: 'First application is free, no card. After that: $0.50 per application from a prepaid balance (top up from $3, never expires), or PRO at $5/month.' },
         { q: 'Can I cancel? Is there a refund?', a: 'Cancel anytime, two clicks from your billing page — no contracts. Not a fit? Email us within 7 days of a purchase for a full refund.' },
       ].map((f, i) => (
         <details key={i} style={{border: '1px solid var(--line-2)', borderRadius: '12px', padding: '0'}}>
