@@ -77,7 +77,7 @@ function timeAgo(date: string): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasApplied = true, loopIds = [], vettedFeed = false, vetStatus = null, hasSmtp = false, strongCount = 0, arrivalItem = null, applyWall = null, queueCount = 0, wallVariant = 'A' }: {
+export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasApplied = true, loopIds = [], vettedFeed = false, vetStatus = null, hasSmtp = false, strongCount = 0, arrivalItem = null, applyWall = null, queueCount = 0 }: {
   items: Job[];
   topSkills: [string, number][];
   sourceCounts: [string, number][];
@@ -90,7 +90,6 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   arrivalItem?: Job | null;
   applyWall?: { offer: string; packSize: number; packPriceCents: number } | null;
   queueCount?: number;
-  wallVariant?: 'A' | 'B';
 }) {
   // No useState wrapper: router.refresh() re-renders the server component with fresh items and the
   // vetted-feed polling relies on props actually updating.
@@ -180,7 +179,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
     if (wall && !opts?.skipWall) {
       setDraftGenerating(false);
       setDraftBlocked({ reason: 'application_limit', message: '', offer: wall.offer, packSize: wall.packSize, packPriceCents: wall.packPriceCents });
-      track('FUNNEL_STEP', { step: 'application_paywall_shown', surface: 'client_instant', opportunityId: item.type === 'opportunity' ? item.id : undefined, variant: wallVariant, queueCount });
+      track('FUNNEL_STEP', { step: 'application_paywall_shown', surface: 'client_instant', opportunityId: item.type === 'opportunity' ? item.id : undefined, queueCount });
       return;
     }
     setDraftGenerating(true);
@@ -277,7 +276,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
    */
   function closeDraft(via: string) {
     if (draftBlocked?.reason === 'application_limit') {
-      track('FUNNEL_STEP', { step: 'paywall_abandon', surface: 'feed', via, offer: draftBlocked.offer, variant: wallVariant, queueCount });
+      track('FUNNEL_STEP', { step: 'paywall_abandon', surface: 'feed', via, offer: draftBlocked.offer, queueCount });
     } else if (draftBody && draftItem && !applied.has(draftItem.id)) {
       track('FUNNEL_STEP', { step: 'draft_abandon', via, opportunityId: draftItem.type === 'opportunity' ? draftItem.id : undefined });
     }
@@ -613,8 +612,6 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                   message={items.length >= 5 ? `${items.length} roles in your feed match your profile` : (draftBlocked.message || 'Your free application is used')}
                   packSize={draftBlocked.packSize}
                   packPriceCents={draftBlocked.packPriceCents}
-                  queueCount={queueCount}
-                  variant={wallVariant}
                   source="application_paywall_feed"
                   onCreditsReady={() => {
                     setWall(null);

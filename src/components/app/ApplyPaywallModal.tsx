@@ -28,30 +28,25 @@ const TOPUPS = [
  * On success it grants the balance synchronously (confirm endpoint) then calls onCreditsReady() to
  * RETRY the same apply, which draws $0.50 from the balance and sends.
  */
+// PRO ($5/mo) — what the subscription includes. The first two are PRO-exclusive (unlimited applies +
+// the morning ready-queue); the rest come with every application on any plan but are part of the PRO
+// package we're selling here. Deliberately NOT claimed as PRO-only (honesty).
+const PRO_FEATURES = [
+  'Unlimited applications — apply to every match, no $0.50 per send',
+  'Morning ready-queue — your top matches queued overnight; review & send in one click',
+  'AI cover letter on every application — drafted, then quality-reviewed',
+  'Your CV attached to every send',
+  'Send from your own inbox — Gmail or SMTP, best deliverability',
+  'Cancel anytime — no lock-in',
+];
+
 export function ApplyPaywallModal({
-  message, source, onCreditsReady, queueCount, variant,
+  message, source, onCreditsReady,
 }: {
   message?: string; packSize?: number; packPriceCents?: number; source: string; onCreditsReady: () => void;
-  /** A/B (experiment wall_queue_offer_v1): variant 'B' + a non-thin queue shows the "N ready matches"
-   *  offer instead of the generic top-up copy. Gated at >=5 so we never over-promise a thin profile. */
-  queueCount?: number; variant?: 'A' | 'B';
 }) {
   const { track } = useTracker();
   const router = useRouter();
-  // The discovery feed threads variant+queueCount as props; other surfaces (project page, sidebar
-  // top-up) don't — so self-fetch them once when absent. The offer then renders on EVERY wall.
-  const [selfQueue, setSelfQueue] = useState<{ count: number; variant: 'A' | 'B' } | null>(null);
-  useEffect(() => {
-    if (variant !== undefined) return; // props supplied (feed) → no round-trip
-    let alive = true;
-    fetch('/api/user/queue-count').then((r) => r.json())
-      .then((d) => { if (alive) setSelfQueue({ count: Number(d?.count) || 0, variant: d?.variant === 'B' ? 'B' : 'A' }); })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, [variant]);
-  const effVariant = variant ?? selfQueue?.variant;
-  const effQueue = queueCount ?? selfQueue?.count ?? 0;
-  const showQueueOffer = effVariant === 'B' && effQueue >= 5;
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [showCardForm, setShowCardForm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -75,7 +70,7 @@ export function ApplyPaywallModal({
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ paymentIntentId }),
     }).catch(() => {});
-    track('FUNNEL_STEP', { step: 'credit_charge_success', source, variant: effVariant, queueCount: effQueue });
+    track('FUNNEL_STEP', { step: 'credit_charge_success', source });
     // Re-render server components (sidebar balance widget, etc.) so the new balance shows without a
     // manual page reload. Client state (feed, open modals) is preserved by router.refresh().
     router.refresh();
@@ -84,7 +79,7 @@ export function ApplyPaywallModal({
 
   async function start(useRecovery = false) {
     setBusy(true); setError('');
-    track('FUNNEL_STEP', { step: 'credit_charge_click', source, amountCents: useRecovery ? 150 : amountCents, recovery: useRecovery, variant: effVariant, queueCount: effQueue });
+    track('FUNNEL_STEP', { step: 'credit_charge_click', source, amountCents: useRecovery ? 150 : amountCents, recovery: useRecovery });
     try {
       const res = await fetch('/api/stripe/charge-credits', {
         method: 'POST', headers: { 'content-type': 'application/json' },
@@ -115,78 +110,86 @@ export function ApplyPaywallModal({
   }
 
   return (
-    <div style={{ padding: '28px 24px', textAlign: 'center' }}>
-      {showQueueOffer ? (
-        <>
-          <div style={{ fontSize: 24, marginBottom: 10 }}>✅</div>
-          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>
-            We prepared <span style={{ color: '#4a7c0f' }}>{effQueue} applications</span> matched to your profile
-          </div>
-          <div style={{ fontSize: 13, color: '#5C6068', marginBottom: 14, lineHeight: 1.5 }}>
-            Fresh matched roles — with letters written for you — every morning. Sent straight to the poster, not a form.
-            Unlock to send them all — <b>$0.50 each</b>. No subscription, balance never expires.
-          </div>
-        </>
-      ) : (
-        <>
-          <div style={{ fontSize: 24, marginBottom: 10 }}>✨</div>
-          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{message || 'Your free application is used'}</div>
-          <div style={{ fontSize: 13, color: '#5C6068', marginBottom: 14, lineHeight: 1.5 }}>
-            Top up your balance and keep applying — <b>$0.50 per application</b>. No subscription, balance never expires.
-          </div>
-        </>
+    <div style={{ padding: '24px', textAlign: 'left' }}>
+      {/* PRO hero — the same card for everyone (A/B removed 2026-07-30, owner) */}
+      {message && (
+        <div style={{ fontSize: 12.5, color: '#8a8f98', textAlign: 'center', marginBottom: 10 }}>{message}</div>
       )}
+      <div style={{ textAlign: 'center' }}>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', color: '#4a7c0f', background: '#f4fce8', border: '1px solid #cde8a6', borderRadius: 999, padding: '3px 10px', textTransform: 'uppercase' }}>PRO · $5/month</span>
+      </div>
+      <div style={{ fontSize: 17, fontWeight: 800, textAlign: 'center', margin: '12px 0 4px', color: '#1a2e05' }}>Keep applying — go PRO</div>
+      <div style={{ fontSize: 13, color: '#5C6068', textAlign: 'center', marginBottom: 16, lineHeight: 1.5 }}>
+        Unlimited applications for <b>$5/month</b>. Cancel anytime.
+      </div>
 
-      {error && <div style={{ color: '#c0392b', fontSize: 13, marginBottom: 12 }}>{error}</div>}
+      <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'grid', gap: 9 }}>
+        {PRO_FEATURES.map((f, i) => {
+          const [head, ...rest] = f.split(' — ');
+          return (
+            <li key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13, lineHeight: 1.4, color: '#3a3f47' }}>
+              <span style={{ color: '#4a7c0f', fontWeight: 800, flexShrink: 0, marginTop: 1 }}>✓</span>
+              <span><b style={{ color: '#1a2e05' }}>{head}</b>{rest.length ? ` — ${rest.join(' — ')}` : ''}</span>
+            </li>
+          );
+        })}
+      </ul>
 
-      {!showCardForm ? (
-        <>
-          {recoveryActive && (
-            <button onClick={() => start(true)} disabled={busy}
-              style={{ width: '100%', marginBottom: 12, padding: '12px 14px', borderRadius: 10, border: '2px solid #84cc16', background: '#f4fce8', color: '#1a2e05', fontWeight: 800, fontSize: 13.5, cursor: busy ? 'default' : 'pointer', lineHeight: 1.4 }}>
-              🎉 Claim your 50% off — first pack $1.50{' '}
-              <span style={{ textDecoration: 'line-through', color: '#8a8f98', fontWeight: 600 }}>$3</span>{' '}
-              <span style={{ fontWeight: 600, color: '#5C6068' }}>(6 applications)</span>
-            </button>
-          )}
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 12 }}>
-            {TOPUPS.map((t) => (
-              <button key={t.cents} onClick={() => setAmountCents(t.cents)} disabled={busy}
-                style={{
-                  flex: 1, padding: '10px 6px', borderRadius: 10, cursor: 'pointer', fontSize: 13,
-                  border: amountCents === t.cents ? '2px solid #84cc16' : '1px solid #d7dae0',
-                  background: amountCents === t.cents ? '#f4fce8' : '#fff', fontWeight: 700, color: '#1a2e05',
-                }}>
-                {t.label}
+      <QueueUpgradeButton source="application_paywall_modal_5mo" label="Go PRO — $5/month →" />
+
+      {/* Secondary: pay-as-you-go top-up (kept as the smaller option, owner decision) */}
+      <div style={{ marginTop: 18, borderTop: '1px solid #eee', paddingTop: 16 }}>
+        <div style={{ fontSize: 12, color: '#8a8f98', marginBottom: 10, textAlign: 'center', lineHeight: 1.45 }}>
+          Not ready to subscribe? Top up a balance — <b>$0.50 per application</b>, never expires.
+        </div>
+
+        {error && <div style={{ color: '#c0392b', fontSize: 13, marginBottom: 12, textAlign: 'center' }}>{error}</div>}
+
+        {!showCardForm ? (
+          <>
+            {recoveryActive && (
+              <button onClick={() => start(true)} disabled={busy}
+                style={{ width: '100%', marginBottom: 12, padding: '12px 14px', borderRadius: 10, border: '2px solid #84cc16', background: '#f4fce8', color: '#1a2e05', fontWeight: 800, fontSize: 13.5, cursor: busy ? 'default' : 'pointer', lineHeight: 1.4 }}>
+                🎉 Claim your 50% off — first pack $1.50{' '}
+                <span style={{ textDecoration: 'line-through', color: '#8a8f98', fontWeight: 600 }}>$3</span>{' '}
+                <span style={{ fontWeight: 600, color: '#5C6068' }}>(6 applications)</span>
               </button>
-            ))}
-          </div>
-          <button onClick={() => start()} disabled={busy} style={btnStyle(busy)}>
-            {busy ? 'Processing…' : `Top up ${priceLabel} →`}
-          </button>
-        </>
-      ) : clientSecret ? (
-        <Elements stripe={getStripeClient()} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
-          <CardForm priceLabel={priceLabel} clientSecret={clientSecret}
-            onSucceeded={grantAndRetry} onError={setError}
-            onEvent={(step, extra) => {
-              track('FUNNEL_STEP', { step, source, amountCents, ...extra });
-              // Feed the chat win-back: fire on real friction only (bailed on the form / card declined).
-              if (step === 'credit_charge_form_abandon' || step === 'credit_charge_client_error') {
-                const sig = `${extra?.code || ''} ${extra?.msg || ''}`;
-                const reason = step === 'credit_charge_client_error' && /declin|card|insufficient|do_not_honor|blocked|processing|not_succeeded|expired|cvc|funds/i.test(sig)
-                  ? 'card_error' : 'abandon';
-                if (typeof window !== 'undefined') {
-                  window.dispatchEvent(new CustomEvent('freelanly:payment-abandoned', { detail: { amountCents, kind: 'topup', reason } }));
+            )}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 12 }}>
+              {TOPUPS.map((t) => (
+                <button key={t.cents} onClick={() => setAmountCents(t.cents)} disabled={busy}
+                  style={{
+                    flex: 1, padding: '10px 6px', borderRadius: 10, cursor: 'pointer', fontSize: 13,
+                    border: amountCents === t.cents ? '2px solid #84cc16' : '1px solid #d7dae0',
+                    background: amountCents === t.cents ? '#f4fce8' : '#fff', fontWeight: 700, color: '#1a2e05',
+                  }}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => start()} disabled={busy}
+              style={{ ...btnStyle(busy), background: busy ? '#eef2e7' : '#fff', color: '#1a2e05', border: '1px solid #cdd2d8', fontWeight: 700 }}>
+              {busy ? 'Processing…' : `Top up ${priceLabel} →`}
+            </button>
+          </>
+        ) : clientSecret ? (
+          <Elements stripe={getStripeClient()} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+            <CardForm priceLabel={priceLabel} clientSecret={clientSecret}
+              onSucceeded={grantAndRetry} onError={setError}
+              onEvent={(step, extra) => {
+                track('FUNNEL_STEP', { step, source, amountCents, ...extra });
+                // Feed the chat win-back: fire on real friction only (bailed on the form / card declined).
+                if (step === 'credit_charge_form_abandon' || step === 'credit_charge_client_error') {
+                  const sig = `${extra?.code || ''} ${extra?.msg || ''}`;
+                  const reason = step === 'credit_charge_client_error' && /declin|card|insufficient|do_not_honor|blocked|processing|not_succeeded|expired|cvc|funds/i.test(sig)
+                    ? 'card_error' : 'abandon';
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('freelanly:payment-abandoned', { detail: { amountCents, kind: 'topup', reason } }));
+                  }
                 }
-              }
-            }} />
-        </Elements>
-      ) : null}
-
-      <div style={{ marginTop: 18, borderTop: '1px solid #eee', paddingTop: 14 }}>
-        <div style={{ fontSize: 12, color: '#8a8f98', marginBottom: 8 }}>or apply as much as you want</div>
-        <QueueUpgradeButton source="application_paywall_modal_5mo" label="Go unlimited — $5/mo →" />
+              }} />
+          </Elements>
+        ) : null}
       </div>
     </div>
   );

@@ -3,7 +3,6 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { DiscoveryFeed } from '@/components/app/DiscoveryFeed';
-import { abBucket } from '@/lib/ab';
 import { ProfileBoostNudge } from '@/components/app/ProfileBoostNudge';
 import { deriveCategorySlugs, oppFamiliesForUser } from '@/lib/loop-routing';
 import { buildFitContext, scoreFitLabeled, type FitLabel, type FitResult } from '@/lib/fit-score';
@@ -505,7 +504,6 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
           strongCount={strongCount}
           arrivalItem={arrivalItem}
           queueCount={queueItems.length}
-          wallVariant={abBucket(session.user.id, 'wall_queue_offer_v1')}
         />
       </div>
 
