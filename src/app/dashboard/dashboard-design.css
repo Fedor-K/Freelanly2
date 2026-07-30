@@ -6,6 +6,11 @@
 }
 @media (max-width: 1100px) { .dash-grid { grid-template-columns: 1fr; } }
 
+/* Activity + Funnel pair: side by side on desktop, stacked on phones
+   (the fixed 1fr 1fr grid was overflowing the viewport and clipping the Funnel card). */
+.dash-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .dash-two-col { grid-template-columns: 1fr; } }
+
 /* Queue list */
 .queue-row {
   display: grid;
