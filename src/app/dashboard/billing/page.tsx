@@ -44,8 +44,6 @@ export default async function BillingPage() {
   ]);
 
   const isPro = user.plan === 'PRO';
-  const appLimit = 600; // 20/day × 30 — the real enforced cap, same for every plan
-  const usagePct = Math.min((sentThisMonth / appLimit) * 100, 100);
 
   return (
     <div className="page">
@@ -71,10 +69,9 @@ export default async function BillingPage() {
           <div className="eyebrow mb-2">Applications this cycle</div>
           <div className="row between mb-2">
             <span style={{fontFamily: "'Geist Mono', monospace", fontSize: '22px', fontWeight: 600}}>{sentThisMonth}</span>
-            <span className="meta">/ 600 (20/day)</span>
+            <span className="meta">sent</span>
           </div>
-          <div className={`usage-bar${usagePct > 80 ? ' warn' : ''}`}><div className="fill" style={{width: `${usagePct}%`}}></div></div>
-          <div className="meta mt-2">Resets in {daysLeft} days · {nextReset.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+          <div className="meta mt-2">Cycle resets in {daysLeft} days · {nextReset.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
         </div>
         ) : (
         <div className="card card-pad">

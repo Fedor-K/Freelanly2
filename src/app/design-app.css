@@ -398,7 +398,8 @@ input, textarea, select { font-family: inherit; font-size: inherit; color: inher
 /* ========== KPI / STAT ========== */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* auto-fit so 3 (own-inbox) or 4 (Postal) cards both fill the row cleanly, no empty cell */
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
 }
 .kpi {

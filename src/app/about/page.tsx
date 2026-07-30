@@ -173,7 +173,7 @@ export default async function AboutPage() {
           <span className="q">What does it cost?</span>
           <span className="icon"><PlusIcon /></span>
         </summary>
-        <div className="a">Signing up is free and your first application is on us — no credit card. After that, PRO is $5/month: up to 20 applications a day and a morning ready-queue, with your CV attached to every send. Cancel anytime from your billing page, in two clicks.</div>
+        <div className="a">Signing up is free and your first application is on us — no credit card. After that, PRO is $5/month: a morning ready-queue, with your CV attached to every send. Cancel anytime from your billing page, in two clicks.</div>
       </details>
       <details className="faq-item-acc">
         <summary>
