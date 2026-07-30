@@ -269,6 +269,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         setIsAuthed(true);
         const d = await r.json().catch(() => null);
         setHasResume(d?.profile?.resumeUrl ? true : false);
+        // Own-inbox (Gmail/SMTP connected) → recruiter replies go to the user's inbox, never through us,
+        // so the "Telegram reply alerts" pitch can't fire — hide it for them (set here so it's known
+        // before the button renders, not only after a draft).
+        setOwnInbox(!!(d?.profile?.gmail?.verified || d?.profile?.smtp?.verified));
         if (d?.profile?.email) setEmail(d.profile.email); // profile step submits the résumé by email
       })
       .catch(() => {});
@@ -740,8 +744,10 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
               </div>
             )}
 
-            {/* Telegram reply alerts — optional. Recruiter replies are easy to miss in email;
-                Telegram pings instantly. Opens the bot deep link; linking finishes on Start. */}
+            {/* Telegram reply alerts — optional, and only for Postal senders: the alert fires from the
+                inbound-reply webhook, which only sees replies to OUR domain. Own-inbox (Gmail/SMTP)
+                replies land in the user's own inbox → the alert can never fire → hide it for them. */}
+            {!ownInbox && (
             <div style={{ marginBottom: '10px' }}>
               <label style={{ fontSize: '12px', fontWeight: 500, color: '#555', display: 'block', marginBottom: '4px' }}>Get recruiter-reply alerts on Telegram <span style={{ color: '#8A8780', fontWeight: 400 }}>(optional)</span></label>
               <button
@@ -753,6 +759,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
                 {tgState === 'opened' ? '✓ Telegram opened — tap Start in the bot' : tgState === 'opening' ? 'Opening…' : '✈ Connect Telegram for instant alerts'}
               </button>
             </div>
+            )}
 
             {/* REQUIRED: accept Terms + Privacy AND authorize sharing in one. Sharing IS the service (we
                 apply and represent the candidate to employers), so it's part of what they agree to, not an

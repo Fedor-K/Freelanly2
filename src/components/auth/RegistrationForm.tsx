@@ -96,6 +96,9 @@ export function RegistrationForm({
   const [githubUrl, setGithubUrl] = useState('');
   const [shareConsent, setShareConsent] = useState(false);
   const [tgState, setTgState] = useState<'idle' | 'opening' | 'opened'>('idle');
+  // Own-inbox (Gmail/SMTP connected) → recruiter replies go to the user's own inbox, so the Telegram
+  // reply-alert can never fire — hide that prompt for them. Postal / brand-new (no session) → show it.
+  const [ownInbox, setOwnInbox] = useState(false);
   const [profileSubmitting, setProfileSubmitting] = useState(false);
 
   // UI state
@@ -202,6 +205,16 @@ export function RegistrationForm({
   // Has resume flag from check-email API
   const [hasResume, setHasResume] = useState<boolean | null>(null);
   const [regToken, setRegToken] = useState<string | null>(null); // deferred-session proof from verify-code
+
+  // On the profile step, learn whether the user already sends via their own inbox (Gmail/SMTP) so we
+  // can hide the Telegram reply-alert (it only fires for Postal sends). 401 (deferred/no session) → false.
+  useEffect(() => {
+    if (step !== 'profile') return;
+    fetch('/api/user/settings', { method: 'GET', credentials: 'include' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setOwnInbox(!!(d?.profile?.gmail?.verified || d?.profile?.smtp?.verified)))
+      .catch(() => {});
+  }, [step]);
 
   // Debounced email check on typing
   useEffect(() => {
@@ -795,7 +808,8 @@ export function RegistrationForm({
           )}
         </div>
 
-        {/* Telegram reply alerts — optional */}
+        {/* Telegram reply alerts — optional, Postal senders only (own-inbox replies never reach us). */}
+        {!ownInbox && (
         <div>
           <label className="field-label">Get recruiter-reply alerts on Telegram <span className="optional">— optional</span></label>
           <button
@@ -805,6 +819,7 @@ export function RegistrationForm({
             {tgState === 'opened' ? '✓ Telegram opened — tap Start in the bot' : tgState === 'opening' ? 'Opening…' : '✈ Connect Telegram for instant alerts'}
           </button>
         </div>
+        )}
 
         {/* REQUIRED: accept Terms + Privacy AND authorize sharing in one. Sharing IS the service (we apply
             and represent the candidate to employers), so it's part of what they agree to, not an optional
