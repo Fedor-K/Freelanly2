@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTracker } from '@/hooks/useTracker';
 
 /** Teaser CTA → Stripe checkout for the $5 ready-queue plan. Tracks intent clicks (the WTP signal). */
-export function QueueUpgradeButton({ source = 'queue_teaser', label = 'Unlock the queue →' }: { source?: string; label?: string }) {
+export function QueueUpgradeButton({ source = 'queue_teaser', label = 'Unlock the queue →', block = false }: { source?: string; label?: string; block?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const { track } = useTracker();
@@ -43,7 +43,7 @@ export function QueueUpgradeButton({ source = 'queue_teaser', label = 'Unlock th
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: block ? 'stretch' : 'flex-end', gap: '6px' }}>
       {/* Inline styles, not .btn classes — this renders on surfaces that don't load the dashboard
           stylesheet (public /freelance/[slug]), where the classes silently resolve to plain text. */}
       <button
@@ -52,12 +52,12 @@ export function QueueUpgradeButton({ source = 'queue_teaser', label = 'Unlock th
         style={{
           padding: '12px 22px', background: '#C7F94A', color: '#000', border: 'none',
           borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: busy ? 'default' : 'pointer',
-          opacity: busy ? 0.6 : 1,
+          opacity: busy ? 0.6 : 1, width: block ? '100%' : undefined,
         }}
       >
         {busy ? 'Opening checkout…' : label}
       </button>
-      <span style={{ fontSize: '11.5px', color: 'var(--ink-4)' }}>$5/month · cancel anytime</span>
+      <span style={{ fontSize: '11.5px', color: 'var(--ink-4)', textAlign: block ? 'center' : undefined }}>$5/month · cancel anytime</span>
       {err && <span style={{ fontSize: '12px', color: '#B91C1C' }}>{err}</span>}
     </div>
   );
