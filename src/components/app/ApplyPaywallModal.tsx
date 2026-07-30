@@ -29,12 +29,16 @@ const TOPUPS = [
  * RETRY the same apply, which draws $0.50 from the balance and sends.
  */
 export function ApplyPaywallModal({
-  message, source, onCreditsReady,
+  message, source, onCreditsReady, queueCount, variant,
 }: {
   message?: string; packSize?: number; packPriceCents?: number; source: string; onCreditsReady: () => void;
+  /** A/B (experiment wall_queue_offer_v1): variant 'B' + a non-thin queue shows the "N ready matches"
+   *  offer instead of the generic top-up copy. Gated at >=5 so we never over-promise a thin profile. */
+  queueCount?: number; variant?: 'A' | 'B';
 }) {
   const { track } = useTracker();
   const router = useRouter();
+  const showQueueOffer = variant === 'B' && (queueCount ?? 0) >= 5;
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [showCardForm, setShowCardForm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -58,7 +62,7 @@ export function ApplyPaywallModal({
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ paymentIntentId }),
     }).catch(() => {});
-    track('FUNNEL_STEP', { step: 'credit_charge_success', source });
+    track('FUNNEL_STEP', { step: 'credit_charge_success', source, variant, queueCount });
     // Re-render server components (sidebar balance widget, etc.) so the new balance shows without a
     // manual page reload. Client state (feed, open modals) is preserved by router.refresh().
     router.refresh();
@@ -67,7 +71,7 @@ export function ApplyPaywallModal({
 
   async function start(useRecovery = false) {
     setBusy(true); setError('');
-    track('FUNNEL_STEP', { step: 'credit_charge_click', source, amountCents: useRecovery ? 150 : amountCents, recovery: useRecovery });
+    track('FUNNEL_STEP', { step: 'credit_charge_click', source, amountCents: useRecovery ? 150 : amountCents, recovery: useRecovery, variant, queueCount });
     try {
       const res = await fetch('/api/stripe/charge-credits', {
         method: 'POST', headers: { 'content-type': 'application/json' },
@@ -99,11 +103,26 @@ export function ApplyPaywallModal({
 
   return (
     <div style={{ padding: '28px 24px', textAlign: 'center' }}>
-      <div style={{ fontSize: 24, marginBottom: 10 }}>✨</div>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{message || 'Your free application is used'}</div>
-      <div style={{ fontSize: 13, color: '#5C6068', marginBottom: 14, lineHeight: 1.5 }}>
-        Top up your balance and keep applying — <b>$0.50 per application</b>. No subscription, balance never expires.
-      </div>
+      {showQueueOffer ? (
+        <>
+          <div style={{ fontSize: 24, marginBottom: 10 }}>✅</div>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>
+            We prepared <span style={{ color: '#4a7c0f' }}>{queueCount} applications</span> matched to your profile
+          </div>
+          <div style={{ fontSize: 13, color: '#5C6068', marginBottom: 14, lineHeight: 1.5 }}>
+            Fresh matched roles — with letters written for you — every morning. Sent straight to the poster, not a form.
+            Unlock to send them all — <b>$0.50 each</b>. No subscription, balance never expires.
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize: 24, marginBottom: 10 }}>✨</div>
+          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{message || 'Your free application is used'}</div>
+          <div style={{ fontSize: 13, color: '#5C6068', marginBottom: 14, lineHeight: 1.5 }}>
+            Top up your balance and keep applying — <b>$0.50 per application</b>. No subscription, balance never expires.
+          </div>
+        </>
+      )}
 
       {error && <div style={{ color: '#c0392b', fontSize: 13, marginBottom: 12 }}>{error}</div>}
 
