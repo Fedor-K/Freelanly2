@@ -136,6 +136,13 @@ export default async function DashboardOverviewPage() {
   // every reply-derived surface for them. (Postal senders reply through us and stay tracked.)
   const ownInbox = !!user?.gmailAuth?.verified || !!user?.userSmtp?.verified;
 
+  // Opens are ALSO untracked on the live send path — the tracking pixel only ever lived in the dead
+  // auto-apply worker; quick-apply (every current SELF send) injects none. So "Opened" is legacy noise,
+  // and for own-inbox Gmail sends it'd be Google-image-proxy noise anyway. For own-inbox we drop Opens
+  // too and show a real volume number instead. (sentThisWeek reuses the daily-activity rows already
+  // fetched — no extra query.)
+  const sentThisWeek = dailyActivity.filter(r => new Date(r.day) >= weekAgo).reduce((s, r) => s + Number(r.cnt), 0);
+
   const sentDelta = sentYesterday > 0 ? Math.round((sentToday - sentYesterday) / sentYesterday * 100) : 0;
 
   // 30-day funnel
@@ -300,11 +307,20 @@ export default async function DashboardOverviewPage() {
             <div className="kpi-delta">{mReplied} total this month</div>
           </div>
         )}
-        <div className="kpi">
-          <div className="kpi-label">Opened today</div>
-          <div className="kpi-value tabular">{openedToday} <span className="unit">/ {openRate}%</span></div>
-          <div className="kpi-delta">{mOpened} total this month</div>
-        </div>
+        {ownInbox ? (
+          // Opens aren't tracked on the live send path (no pixel) — show sent volume instead of a fake open rate.
+          <div className="kpi">
+            <div className="kpi-label">Sent this week</div>
+            <div className="kpi-value tabular">{sentThisWeek}</div>
+            <div className="kpi-delta">last 7 days</div>
+          </div>
+        ) : (
+          <div className="kpi">
+            <div className="kpi-label">Opened today</div>
+            <div className="kpi-value tabular">{openedToday} <span className="unit">/ {openRate}%</span></div>
+            <div className="kpi-delta">{mOpened} total this month</div>
+          </div>
+        )}
         <div className="kpi">
           <div className="kpi-label">Daily limit</div>
           <div className="kpi-value tabular">{Math.min(sentToday, 20)} <span className="unit">/ 20</span></div>
@@ -430,7 +446,7 @@ export default async function DashboardOverviewPage() {
       <div className="card mb-4">
         <div className="card-head">
           <h3>Applications</h3>
-          <span className="meta">{mSent} sent · {mReplied} replied · last 30 days</span>
+          <span className="meta">{mSent} sent{ownInbox ? '' : ` · ${mReplied} replied`} · last 30 days</span>
         </div>
         <ApplicationsTable
           rows={appRows}
@@ -440,8 +456,10 @@ export default async function DashboardOverviewPage() {
         />
       </div>
 
-      {/* Activity + Funnel side by side (stacks on phones — see dash-two-col) */}
-      <div className="dash-two-col">
+      {/* Activity + Funnel side by side (stacks on phones — see dash-two-col). Own-inbox: the funnel
+          has only one tracked stage (Sent — opens/replies untracked), so drop it and let Activity go
+          full-width. */}
+      <div className={ownInbox ? undefined : 'dash-two-col'}>
 
         {/* Activity chart */}
         <div className="card card-pad">
@@ -458,12 +476,13 @@ export default async function DashboardOverviewPage() {
           </div>
         </div>
 
-        {/* Funnel */}
+        {/* Funnel — hidden for own-inbox: only "Sent" is tracked there (opens + replies aren't), so a
+            funnel would be a single bar. */}
+        {!ownInbox && (
         <div className="card card-pad">
           <div className="section-head">
             <h2>Funnel · last 30 days</h2>
-            {/* Reply rate is meaningless for own-inbox senders (replies never reach us) — hide it. */}
-            {!ownInbox && <span className="muted f-mono" style={{fontSize: '11px'}}>{mSent > 0 ? `${(mReplied / mSent * 100).toFixed(1)}%` : '0%'} reply rate</span>}
+            <span className="muted f-mono" style={{fontSize: '11px'}}>{mSent > 0 ? `${(mReplied / mSent * 100).toFixed(1)}%` : '0%'} reply rate</span>
           </div>
           {[
             { label: 'Sent', count: mSent, pct: 100, bg: 'var(--ink)', textColor: '#fff', dotColor: 'var(--s-sent)' },
@@ -483,6 +502,7 @@ export default async function DashboardOverviewPage() {
             </div>
           ))}
         </div>
+        )}
 
       </div>
     </div>
