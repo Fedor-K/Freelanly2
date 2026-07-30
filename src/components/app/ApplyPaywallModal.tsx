@@ -32,10 +32,9 @@ const TOPUPS = [
 // the morning ready-queue); the rest come with every application on any plan but are part of the PRO
 // package we're selling here. Deliberately NOT claimed as PRO-only (honesty).
 const PRO_FEATURES = [
-  'Unlimited applications — apply to every match, no $0.50 per send',
   'Morning ready-queue — your top matches queued overnight; review & send in one click',
+  'Unlimited applications — apply to every match',
   'AI cover letter on every application — drafted, then quality-reviewed',
-  'Your CV attached to every send',
   'Cancel anytime — no lock-in',
 ];
 
@@ -134,7 +133,7 @@ export function ApplyPaywallModal({
         })}
       </ul>
 
-      <QueueUpgradeButton source="application_paywall_modal_5mo" label="Go PRO — $5/month →" />
+      <QueueUpgradeButton source="application_paywall_modal_5mo" label="Go PRO — $5/month →" block />
 
       {/* Secondary: pay-as-you-go top-up (kept as the smaller option, owner decision) */}
       <div style={{ marginTop: 18, borderTop: '1px solid #eee', paddingTop: 16 }}>
