@@ -11,6 +11,9 @@ type QueueItem = {
   createdAt: string;
   coverLetter: string;
   subject: string;
+  description?: string;
+  location?: string;
+  jobUrl?: string;
 };
 
 const COLORS = ['#FF6B6B','#A8E024','#6EE7FF','#FFB951','#A78BFA','#34D399','#F87171','#818CF8'];
@@ -34,6 +37,7 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [editSubject, setEditSubject] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   async function handleAction(id: string, action: string) {
     setLoading(prev => ({ ...prev, [id]: action }));
@@ -146,10 +150,17 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
               <div className="logo" style={{background: COLORS[i % COLORS.length]}}>{app.companyName[0]}</div>
               <div>
                 <div className="title">{app.jobTitle} · {app.companyName}</div>
-                <div className="meta" suppressHydrationWarning>{timeAgo(app.createdAt)} ago</div>
+                <div className="meta" suppressHydrationWarning>{timeAgo(app.createdAt)} ago{app.location ? ` · ${app.location}` : ''}</div>
               </div>
               <span className="match">{app.matchScore ? `${app.matchScore}% match` : ''}</span>
               <div className="actions">
+                {app.description && (
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setExpandedId(prev => prev === app.id ? null : app.id)}
+                    title="Read the job description before sending"
+                  >{expandedId === app.id ? 'Hide job' : 'View job'}</button>
+                )}
                 <button
                   className="btn btn-ghost btn-sm"
                   onClick={() => handleAction(app.id, 'skip')}
@@ -170,6 +181,14 @@ export function DashboardQueue({ items: initialItems, pendingCount, sentToday }:
               {errors[app.id] && (
                 <div style={{ gridColumn: '1 / -1', fontSize: '12.5px', color: '#92400E', background: '#FFF8EC', border: '1px solid #F2D9A8', borderRadius: '8px', padding: '8px 10px', marginTop: '6px', lineHeight: 1.5 }}>
                   {errors[app.id]}
+                </div>
+              )}
+              {expandedId === app.id && app.description && (
+                <div style={{ gridColumn: '1 / -1', marginTop: '8px', padding: '12px 14px', background: 'var(--bg)', border: '1px solid var(--line-2)', borderRadius: 'var(--r-md)' }}>
+                  <div style={{ fontSize: '13px', lineHeight: 1.6, color: 'var(--ink-2)', whiteSpace: 'pre-wrap', maxHeight: '320px', overflow: 'auto' }}>{app.description}</div>
+                  {app.jobUrl && (
+                    <a href={app.jobUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '10px', fontSize: '12.5px', color: 'var(--acid-deep)' }}>Open original posting →</a>
+                  )}
                 </div>
               )}
             </div>
