@@ -408,7 +408,14 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
             <span className="chip chip-good" style={{fontSize: '11px'}}>✓ Applied</span>
           ) : (
             <>
-              <button className="btn btn-ghost btn-sm" onClick={() => setSkipped(prev => new Set(prev).add(item.id))}>Skip</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => {
+                setSkipped(prev => new Set(prev).add(item.id));
+                // Persist the skip (was client-only → skipped listings reappeared on reload). The feed
+                // server-query already excludes SKIPPED (discovery/page.tsx), so a persisted skip stays gone.
+                if (item.type === 'opportunity') {
+                  fetch('/api/user/skip-apply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ opportunityId: item.id }) }).catch(() => {});
+                }
+              }}>Skip</button>
               {item.applyEmail ? (
                 <button
                   className="btn btn-primary btn-sm"

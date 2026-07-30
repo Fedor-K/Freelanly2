@@ -93,13 +93,22 @@ export default async function DashboardOverviewPage() {
       where: { userId, status: 'REVIEW', createdAt: { gte: queueWindow } },
       orderBy: [{ matchScore: 'desc' }, { createdAt: 'desc' }],
       take: 8,
-      select: { id: true, companyName: true, jobTitle: true, matchScore: true, status: true, createdAt: true, coverLetter: true, subject: true },
+      select: { id: true, companyName: true, jobTitle: true, matchScore: true, status: true, createdAt: true, coverLetter: true, subject: true, opportunityId: true },
     }),
     prisma.autoApplication.count({ where: { userId, status: 'REVIEW', createdAt: { gte: queueWindow } } }),
     // Honest supply-check for the upgrade pitch: matcher-vetted matches over the last 7 days —
     // never sell the queue to a profile the matcher can't feed (thin-supply tail = refunds).
     prisma.autoApplication.count({ where: { userId, status: { in: ['REVIEW', 'SENT', 'OPENED', 'REPLIED'] }, createdAt: { gte: weekAgo } } }),
   ]);
+
+  // Job descriptions + original-posting links for the queue rows. The queue previously showed only
+  // "title · company" (Rahul: "unable to see JD in queue" → couldn't judge → left 27 to expire). Fetch
+  // the ≤8 queued opportunities' description/link/location so each row can show what the job actually is.
+  const queueOppIds = queueItems.map((q) => q.opportunityId).filter((x): x is string => !!x);
+  const queueOpps = queueOppIds.length
+    ? await prisma.opportunity.findMany({ where: { id: { in: queueOppIds } }, select: { id: true, description: true, applyUrl: true, sourceUrl: true, location: true } })
+    : [];
+  const queueOppMap = new Map(queueOpps.map((o) => [o.id, o]));
 
   // Dev-titled? — gates the GitHub prompt (a GitHub link is only meaningful evidence for tech roles).
   const pp = user?.parsedProfile as Record<string, unknown> | null;
@@ -367,10 +376,14 @@ export default async function DashboardOverviewPage() {
       {queueCount > 0 && (user?.plan === 'PRO' ? (
         <div className="mb-4">
           <DashboardQueue
-            items={queueItems.map(q => ({
-              id: q.id, companyName: q.companyName, jobTitle: q.jobTitle, matchScore: q.matchScore,
-              status: q.status, createdAt: q.createdAt.toISOString(), coverLetter: q.coverLetter || '', subject: q.subject || '',
-            }))}
+            items={queueItems.map(q => {
+              const opp = q.opportunityId ? queueOppMap.get(q.opportunityId) : undefined;
+              return {
+                id: q.id, companyName: q.companyName, jobTitle: q.jobTitle, matchScore: q.matchScore,
+                status: q.status, createdAt: q.createdAt.toISOString(), coverLetter: q.coverLetter || '', subject: q.subject || '',
+                description: opp?.description || '', location: opp?.location || '', jobUrl: opp?.applyUrl || opp?.sourceUrl || '',
+              };
+            })}
             pendingCount={queueCount}
             sentToday={sentToday}
           />
