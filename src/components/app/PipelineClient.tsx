@@ -15,9 +15,9 @@ type DealApp = {
 
 const COLORS = ['#FF6B6B','#A8E024','#6EE7FF','#FFB951','#A78BFA','#34D399','#F87171','#818CF8'];
 
+// Opened stage removed — opens aren't reliably tracked (no live pixel), so OPENED folds into SENT.
 const STAGES = [
-  { key: 'SENT', label: 'Outreach sent', dotColor: 'var(--s-sent)', next: 'OPENED' },
-  { key: 'OPENED', label: 'Opened', dotColor: 'var(--s-opened)', next: 'REPLIED' },
+  { key: 'SENT', label: 'Outreach sent', dotColor: 'var(--s-sent)', next: 'REPLIED' },
   { key: 'REPLIED', label: 'Replied', dotColor: 'var(--s-replied)', next: 'INTERVIEW' },
   { key: 'INTERVIEW', label: 'Interview', dotColor: 'var(--s-booked)', next: 'OFFER' },
   { key: 'OFFER', label: 'Offer', dotColor: 'var(--s-offer)', next: null },
@@ -31,9 +31,10 @@ function timeAgo(date: string | null): string {
   return `${Math.floor(s / 86400)}d`;
 }
 
-// Map actual statuses to stage keys
+// Map actual statuses to stage keys. OPENED folds into SENT (opens untracked → the 1366 legacy
+// OPENED apps show as "Outreach sent" rather than in a removed column).
 function stageOf(status: string): string {
-  if (['SENT', 'DELIVERED'].includes(status)) return 'SENT';
+  if (['SENT', 'DELIVERED', 'OPENED'].includes(status)) return 'SENT';
   return status;
 }
 
