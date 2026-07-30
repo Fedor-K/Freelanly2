@@ -95,10 +95,6 @@ export function RegistrationForm({
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
   const [shareConsent, setShareConsent] = useState(false);
-  const [tgState, setTgState] = useState<'idle' | 'opening' | 'opened'>('idle');
-  // Own-inbox (Gmail/SMTP connected) → recruiter replies go to the user's own inbox, so the Telegram
-  // reply-alert can never fire — hide that prompt for them. Postal / brand-new (no session) → show it.
-  const [ownInbox, setOwnInbox] = useState(false);
   const [profileSubmitting, setProfileSubmitting] = useState(false);
 
   // UI state
@@ -205,16 +201,6 @@ export function RegistrationForm({
   // Has resume flag from check-email API
   const [hasResume, setHasResume] = useState<boolean | null>(null);
   const [regToken, setRegToken] = useState<string | null>(null); // deferred-session proof from verify-code
-
-  // On the profile step, learn whether the user already sends via their own inbox (Gmail/SMTP) so we
-  // can hide the Telegram reply-alert (it only fires for Postal sends). 401 (deferred/no session) → false.
-  useEffect(() => {
-    if (step !== 'profile') return;
-    fetch('/api/user/settings', { method: 'GET', credentials: 'include' })
-      .then(r => (r.ok ? r.json() : null))
-      .then(d => setOwnInbox(!!(d?.profile?.gmail?.verified || d?.profile?.smtp?.verified)))
-      .catch(() => {});
-  }, [step]);
 
   // Debounced email check on typing
   useEffect(() => {
@@ -348,17 +334,6 @@ export function RegistrationForm({
     setUserInfo(null);
     setError('');
   };
-
-  // Open the Telegram deep link for instant recruiter-reply alerts. Auth-gated → only the
-  // post-code 'profile' step. Linking completes when the user taps Start (bot sets telegramChatId).
-  async function connectTelegram() {
-    setTgState('opening');
-    try {
-      const r = await fetch('/api/user/telegram-link', { method: 'POST' });
-      const d = await r.json();
-      if (d.url) { window.open(d.url, '_blank'); setTgState('opened'); } else setTgState('idle');
-    } catch { setTgState('idle'); }
-  }
 
   // STEP 3 ('profile', only after the OTP code is confirmed): collect résumé/LinkedIn/categories/
   // salary, build the profile, then enter the account. Mirror of the inline apply flow — the only
@@ -808,18 +783,10 @@ export function RegistrationForm({
           )}
         </div>
 
-        {/* Telegram reply alerts — optional, Postal senders only (own-inbox replies never reach us). */}
-        {!ownInbox && (
-        <div>
-          <label className="field-label">Get recruiter-reply alerts on Telegram <span className="optional">— optional</span></label>
-          <button
-            type="button" onClick={connectTelegram} disabled={tgState === 'opening'}
-            style={{ width: '100%', padding: '10px 12px', background: tgState === 'opened' ? '#ECFDF5' : '#fff', color: tgState === 'opened' ? '#047857' : '#229ED9', border: `1px solid ${tgState === 'opened' ? '#A7F3D0' : '#229ED9'}`, borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-          >
-            {tgState === 'opened' ? '✓ Telegram opened — tap Start in the bot' : tgState === 'opening' ? 'Opening…' : '✈ Connect Telegram for instant alerts'}
-          </button>
-        </div>
-        )}
+        {/* Telegram reply-alert prompt removed from signup 2026-07-30: the alert only fires for Postal
+            sends, but at signup the channel is unknown and the product is own-inbox-first (Gmail), so it
+            was a dead promise for most new users. It stays on the dashboard / apply page, where the
+            channel is known. */}
 
         {/* REQUIRED: accept Terms + Privacy AND authorize sharing in one. Sharing IS the service (we apply
             and represent the candidate to employers), so it's part of what they agree to, not an optional
