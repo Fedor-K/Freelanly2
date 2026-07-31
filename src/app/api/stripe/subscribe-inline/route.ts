@@ -42,18 +42,20 @@ export async function POST(req: NextRequest) {
       payment_behavior: 'default_incomplete',
       ...(savedPm ? { default_payment_method: savedPm } : {}),
       payment_settings: { save_default_payment_method: 'on_subscription', payment_method_types: ['card'] },
-      expand: ['latest_invoice.payment_intent'],
+      // API 2025-12-15.clover removed invoice.payment_intent — the client secret for confirming a
+      // default_incomplete subscription now lives on invoice.confirmation_secret.
+      expand: ['latest_invoice.confirmation_secret'],
       metadata: { userId: user.id, type: 'pro5_inline' },
     });
 
     const invoice = sub.latest_invoice as Stripe.Invoice | null;
-    const pi = (invoice as unknown as { payment_intent?: Stripe.PaymentIntent })?.payment_intent;
-    if (!pi?.client_secret) {
-      // No PI (e.g. $0 first invoice) — nothing to confirm; shouldn't happen for pro5 (no trial, $5).
-      return NextResponse.json({ error: 'no_payment_intent' }, { status: 500 });
+    const clientSecret = invoice?.confirmation_secret?.client_secret;
+    if (!clientSecret) {
+      // No secret (e.g. a $0 first invoice) — nothing to confirm; shouldn't happen for pro5 (no trial, $5).
+      return NextResponse.json({ error: 'no_client_secret' }, { status: 500 });
     }
 
-    return NextResponse.json({ clientSecret: pi.client_secret, hasCard: !!savedPm, subscriptionId: sub.id });
+    return NextResponse.json({ clientSecret, hasCard: !!savedPm, subscriptionId: sub.id });
   } catch (error) {
     console.error('[Subscribe Inline] Error:', error);
     return NextResponse.json({ error: 'Failed to start subscription' }, { status: 500 });
