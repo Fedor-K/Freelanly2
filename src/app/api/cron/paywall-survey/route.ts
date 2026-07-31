@@ -44,9 +44,9 @@ async function run(req: NextRequest) {
 
   const candidates = await prisma.$queryRawUnsafe<Array<{ id: string; email: string; name: string | null }>>(`
     WITH intent AS (
-      SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP'
+      SELECT "userId", MAX("createdAt") last_seen FROM "ActivityLog" WHERE action='FUNNEL_STEP'
         AND details->>'step' = 'application_paywall_shown'
-        AND "userId" IS NOT NULL AND "createdAt" >= now()-interval '45 days'),
+        AND "userId" IS NOT NULL AND "createdAt" >= now()-interval '45 days' GROUP BY "userId"),
     paid AS (
       SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP' AND details->>'step'='credit_charge_success' AND "userId" IS NOT NULL
       UNION
@@ -57,7 +57,7 @@ async function run(req: NextRequest) {
     WHERE u.plan='FREE' AND u.email IS NOT NULL AND u.email <> ''
       AND i."userId" NOT IN (SELECT "userId" FROM paid)
       AND i."userId" NOT IN (SELECT "userId" FROM surveyed)
-    ORDER BY u.id
+    ORDER BY i.last_seen DESC
     LIMIT ${BATCH}`);
 
   let sent = 0, failed = 0;
@@ -81,9 +81,9 @@ async function run(req: NextRequest) {
 
   const remainRows = await prisma.$queryRawUnsafe<Array<{ n: number }>>(`
     WITH intent AS (
-      SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP'
+      SELECT "userId", MAX("createdAt") last_seen FROM "ActivityLog" WHERE action='FUNNEL_STEP'
         AND details->>'step' = 'application_paywall_shown'
-        AND "userId" IS NOT NULL AND "createdAt" >= now()-interval '45 days'),
+        AND "userId" IS NOT NULL AND "createdAt" >= now()-interval '45 days' GROUP BY "userId"),
     paid AS (
       SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP' AND details->>'step'='credit_charge_success' AND "userId" IS NOT NULL
       UNION
