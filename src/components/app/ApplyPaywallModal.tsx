@@ -41,6 +41,7 @@ export function ApplyPaywallModal({
   const [amountCents, setAmountCents] = useState(300);
   const [recoveryActive, setRecoveryActive] = useState(false);
   const [payFlow, setPayFlow] = useState<'topup' | 'sub'>('topup'); // which purchase the card form is for
+  const [subId, setSubId] = useState<string | null>(null); // inline-subscription id, to confirm PRO synchronously
   const priceLabel = `$${(amountCents / 100).toFixed(amountCents % 100 ? 2 : 0)}`;
   const ctaLabel = payFlow === 'sub' ? 'Start PRO — $5/month' : `Top up ${priceLabel}`;
 
@@ -52,9 +53,18 @@ export function ApplyPaywallModal({
     return () => { alive = false; };
   }, []);
 
-  // Success handler shared by both flows: subscription just refreshes to PRO + retries; top-up grants credits.
-  async function onPaySuccess(paymentIntentId: string) {
+  // Success handler shared by both flows: subscription confirms PRO synchronously then retries; top-up
+  // grants credits. Without the synchronous confirm the just-paid user could re-hit the paywall on the
+  // retry (the subscription→PRO flip rides an async webhook).
+  async function onPaySuccess(paymentIntentId: string, subscriptionId?: string | null) {
     if (payFlow === 'sub') {
+      const sid = subscriptionId ?? subId;
+      if (sid) {
+        await fetch('/api/stripe/subscribe-inline/confirm', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ subscriptionId: sid }),
+        }).catch(() => {});
+      }
       track('FUNNEL_STEP', { step: 'pro5_inline_success', source });
       router.refresh();
       onCreditsReady();
@@ -73,12 +83,13 @@ export function ApplyPaywallModal({
       const data = await res.json();
       if (!res.ok || !data.clientSecret) { setError(data.error === 'already_pro' ? "You're already on PRO." : (data.error || 'Could not start subscription')); setBusy(false); return; }
       setClientSecret(data.clientSecret);
+      setSubId(data.subscriptionId || null);
       if (data.hasCard) {
         const stripe = await getStripeClient();
         if (!stripe) { setError(STRIPE_BLOCKED_MSG); setBusy(false); return; }
         const { error: err, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret);
         if (err) { setError(err.message || 'Payment failed'); setBusy(false); return; }
-        if (paymentIntent?.status === 'succeeded') { await onPaySuccess(paymentIntent.id); }
+        if (paymentIntent?.status === 'succeeded') { await onPaySuccess(paymentIntent.id, data.subscriptionId); }
         else { setError('Payment not completed'); setBusy(false); }
       } else {
         const stripe = await getStripeClient();
