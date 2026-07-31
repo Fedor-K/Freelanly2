@@ -87,6 +87,18 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      // Abandoned Go-PRO subscription checkout (hosted session expired unpaid, ~24h). No PaymentIntent
+      // is created for these, so they never show as "Incomplete" in Stripe Payments — record them here
+      // so we still have the list (they also enter the survey via application_paywall_shown).
+      case 'checkout.session.expired': {
+        const s = event.data.object as Stripe.Checkout.Session;
+        const userId = s.client_reference_id || s.metadata?.userId || undefined;
+        const email = s.customer_email || s.customer_details?.email || undefined;
+        await prisma.activityLog.create({ data: { action: ActivityAction.FUNNEL_STEP, userId,
+          details: { step: 'subscription_checkout_abandoned', session: s.id, email, mode: s.mode } } }).catch(() => {});
+        break;
+      }
+
       // Capture the top-up attempts that DON'T convert — the "Incomplete" rows in the Stripe dashboard
       // (created, never confirmed) + hard declines. Recorded so we have an authoritative list of who
       // reached checkout and didn't pay (with decline reason), independent of client-side tracking.
