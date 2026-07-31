@@ -52,10 +52,6 @@
     {
       "path": "/api/cron/recover-abandoned-watcher-subs",
       "schedule": "20 * * * *"
-    },
-    {
-      "path": "/api/cron/paywall-survey",
-      "schedule": "0 14 * * *"
     }
   ]
 }
