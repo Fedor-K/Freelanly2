@@ -87,6 +87,23 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      // Capture the top-up attempts that DON'T convert — the "Incomplete" rows in the Stripe dashboard
+      // (created, never confirmed) + hard declines. Recorded so we have an authoritative list of who
+      // reached checkout and didn't pay (with decline reason), independent of client-side tracking.
+      case 'payment_intent.created': {
+        await recordTopupAttempt(event.data.object as Stripe.PaymentIntent, 'created');
+        break;
+      }
+      case 'payment_intent.payment_failed': {
+        const pi = event.data.object as Stripe.PaymentIntent;
+        await recordTopupAttempt(pi, 'failed', pi.last_payment_error?.decline_code || pi.last_payment_error?.code || pi.last_payment_error?.message);
+        break;
+      }
+      case 'payment_intent.canceled': {
+        await recordTopupAttempt(event.data.object as Stripe.PaymentIntent, 'canceled');
+        break;
+      }
+
       // Pay-per-apply: a credit-pack charge was refunded or disputed → claw back the granted credits
       // (proportional to the amount clawed; idempotent per PaymentIntent so refund+dispute don't double).
       case 'charge.refunded': {
@@ -568,6 +585,28 @@ async function handleSetupIntentSucceeded(si: Stripe.SetupIntent) {
   }
 
   console.log(`[Stripe Webhook] Card saved for user ${userId}`);
+}
+
+// Record a top-up PaymentIntent that did NOT convert (created-but-never-confirmed = the "Incomplete"
+// dashboard rows, or a hard decline/cancel) into ActivityLog, so we have an authoritative list of who
+// reached checkout and didn't pay — with Stripe's decline reason. apply_credits PIs only.
+async function recordTopupAttempt(pi: Stripe.PaymentIntent, kind: 'created' | 'failed' | 'canceled', declineReason?: string | null) {
+  if (pi.metadata?.type !== 'apply_credits') return; // ignore subscription / other PIs
+  const userId = pi.metadata?.userId || undefined;
+  await prisma.activityLog.create({
+    data: {
+      action: ActivityAction.FUNNEL_STEP,
+      userId,
+      details: {
+        step: `topup_${kind}`,
+        pi: pi.id,
+        amountCents: pi.amount,
+        status: pi.status,
+        email: pi.receipt_email || undefined,
+        declineReason: declineReason || undefined,
+      },
+    },
+  }).catch(() => {});
 }
 
 // Pay-per-apply: a $3 apply-credit pack PaymentIntent succeeded → grant the credits. Idempotent and
