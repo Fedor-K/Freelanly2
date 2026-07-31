@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { getStripeClient, STRIPE_BLOCKED_MSG } from '@/lib/stripe-client';
-import { QueueUpgradeButton } from './QueueUpgradeButton';
 import { useTracker } from '@/hooks/useTracker';
 
 function btnStyle(busy: boolean): CSSProperties {
@@ -41,7 +40,9 @@ export function ApplyPaywallModal({
   const [error, setError] = useState<string>('');
   const [amountCents, setAmountCents] = useState(300);
   const [recoveryActive, setRecoveryActive] = useState(false);
+  const [payFlow, setPayFlow] = useState<'topup' | 'sub'>('topup'); // which purchase the card form is for
   const priceLabel = `$${(amountCents / 100).toFixed(amountCents % 100 ? 2 : 0)}`;
+  const ctaLabel = payFlow === 'sub' ? 'Start PRO — $5/month' : `Top up ${priceLabel}`;
 
   // Does this user hold an unused one-time 50%-off grant from the chat win-back? If so we surface a
   // $1.50 first-pack. Fetched once; never blocks the normal flow.
@@ -50,6 +51,42 @@ export function ApplyPaywallModal({
     fetch('/api/user/recovery-status').then((r) => r.json()).then((d) => { if (alive && d?.active) setRecoveryActive(true); }).catch(() => {});
     return () => { alive = false; };
   }, []);
+
+  // Success handler shared by both flows: subscription just refreshes to PRO + retries; top-up grants credits.
+  async function onPaySuccess(paymentIntentId: string) {
+    if (payFlow === 'sub') {
+      track('FUNNEL_STEP', { step: 'pro5_inline_success', source });
+      router.refresh();
+      onCreditsReady();
+      return;
+    }
+    await grantAndRetry(paymentIntentId);
+  }
+
+  // Inline Go-PRO: create the $5/mo subscription (default_incomplete) and confirm its first-invoice PI
+  // right here — no redirect to Stripe's hosted page. Abandoned ones show as "Incomplete" in Stripe.
+  async function startSub() {
+    setPayFlow('sub'); setBusy(true); setError('');
+    track('FUNNEL_STEP', { step: 'pro5_inline_click', source });
+    try {
+      const res = await fetch('/api/stripe/subscribe-inline', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok || !data.clientSecret) { setError(data.error === 'already_pro' ? "You're already on PRO." : (data.error || 'Could not start subscription')); setBusy(false); return; }
+      setClientSecret(data.clientSecret);
+      if (data.hasCard) {
+        const stripe = await getStripeClient();
+        if (!stripe) { setError(STRIPE_BLOCKED_MSG); setBusy(false); return; }
+        const { error: err, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret);
+        if (err) { setError(err.message || 'Payment failed'); setBusy(false); return; }
+        if (paymentIntent?.status === 'succeeded') { await onPaySuccess(paymentIntent.id); }
+        else { setError('Payment not completed'); setBusy(false); }
+      } else {
+        const stripe = await getStripeClient();
+        if (!stripe) { setError(STRIPE_BLOCKED_MSG); setBusy(false); return; }
+        setShowCardForm(true); setBusy(false);
+      }
+    } catch { setError('Network error — try again'); setBusy(false); }
+  }
 
   async function grantAndRetry(paymentIntentId: string) {
     // Grant credits server-side BEFORE the retry so consumeApplyCredit finds a balance (idempotent with
@@ -66,7 +103,7 @@ export function ApplyPaywallModal({
   }
 
   async function start(useRecovery = false) {
-    setBusy(true); setError('');
+    setPayFlow('topup'); setBusy(true); setError('');
     track('FUNNEL_STEP', { step: 'credit_charge_click', source, amountCents: useRecovery ? 150 : amountCents, recovery: useRecovery });
     try {
       const res = await fetch('/api/stripe/charge-credits', {
@@ -84,7 +121,7 @@ export function ApplyPaywallModal({
         if (!stripe) { setError(STRIPE_BLOCKED_MSG); setBusy(false); return; }
         const { error: err, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret);
         if (err) { setError(err.message || 'Payment failed'); setBusy(false); return; }
-        if (paymentIntent?.status === 'succeeded') { await grantAndRetry(paymentIntent.id); }
+        if (paymentIntent?.status === 'succeeded') { await onPaySuccess(paymentIntent.id); }
         else { setError('Payment not completed'); setBusy(false); }
       } else {
         // Pre-flight the (lazy) Stripe.js load BEFORE mounting Elements: with an ad-blocker the
@@ -104,7 +141,9 @@ export function ApplyPaywallModal({
         {message || 'Your free application is used'}
       </div>
       <div style={{ fontSize: 13, color: '#5C6068', textAlign: 'center', marginBottom: 16, lineHeight: 1.5 }}>
-        Top up your balance and keep applying — <b>$0.50 per application</b>. No subscription, balance never expires.
+        {showCardForm && payFlow === 'sub'
+          ? <><b>PRO — $5/month.</b> Unlimited applications, morning ready-queue. Cancel anytime.</>
+          : <>Top up your balance and keep applying — <b>$0.50 per application</b>. No subscription, balance never expires.</>}
       </div>
 
       {error && <div style={{ color: '#c0392b', fontSize: 13, marginBottom: 12, textAlign: 'center' }}>{error}</div>}
@@ -137,38 +176,43 @@ export function ApplyPaywallModal({
         </>
       ) : clientSecret ? (
           <Elements stripe={getStripeClient()} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
-            <CardForm priceLabel={priceLabel} clientSecret={clientSecret}
-              onSucceeded={grantAndRetry} onError={setError}
+            <CardForm ctaLabel={ctaLabel} clientSecret={clientSecret}
+              onSucceeded={onPaySuccess} onError={setError}
               onEvent={(step, extra) => {
-                track('FUNNEL_STEP', { step, source, amountCents, ...extra });
+                track('FUNNEL_STEP', { step, source, flow: payFlow, amountCents, ...extra });
                 // Feed the chat win-back: fire on real friction only (bailed on the form / card declined).
                 if (step === 'credit_charge_form_abandon' || step === 'credit_charge_client_error') {
                   const sig = `${extra?.code || ''} ${extra?.msg || ''}`;
                   const reason = step === 'credit_charge_client_error' && /declin|card|insufficient|do_not_honor|blocked|processing|not_succeeded|expired|cvc|funds/i.test(sig)
                     ? 'card_error' : 'abandon';
                   if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new CustomEvent('freelanly:payment-abandoned', { detail: { amountCents, kind: 'topup', reason } }));
+                    window.dispatchEvent(new CustomEvent('freelanly:payment-abandoned', { detail: { amountCents, kind: payFlow, reason } }));
                   }
                 }
               }} />
           </Elements>
         ) : null}
 
-      {/* Secondary: PRO subscription (compact) */}
-      <div style={{ marginTop: 18, borderTop: '1px solid #eee', paddingTop: 14, textAlign: 'center' }}>
-        <div style={{ fontSize: 12, color: '#8a8f98', marginBottom: 10, lineHeight: 1.45 }}>
-          Applying a lot? <b>PRO — $5/month</b>: unlimited applications + a morning ready-queue. Cancel anytime.
+      {/* Secondary: PRO subscription (inline — no redirect, so it's captured as "Incomplete" in Stripe). */}
+      {!showCardForm && (
+        <div style={{ marginTop: 18, borderTop: '1px solid #eee', paddingTop: 14, textAlign: 'center' }}>
+          <div style={{ fontSize: 12, color: '#8a8f98', marginBottom: 10, lineHeight: 1.45 }}>
+            Applying a lot? <b>PRO — $5/month</b>: unlimited applications + a morning ready-queue. Cancel anytime.
+          </div>
+          <button onClick={startSub} disabled={busy}
+            style={{ width: '100%', padding: '12px 22px', background: busy ? '#e7f0d6' : '#C7F94A', color: '#1a2e05', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: busy ? 'default' : 'pointer' }}>
+            {busy ? 'Processing…' : 'Go PRO — $5/month →'}
+          </button>
         </div>
-        <QueueUpgradeButton source="application_paywall_modal_5mo" label="Go PRO — $5/month →" block />
-      </div>
+      )}
     </div>
   );
 }
 
 function CardForm({
-  priceLabel, clientSecret, onSucceeded, onError, onEvent,
+  ctaLabel, clientSecret, onSucceeded, onError, onEvent,
 }: {
-  priceLabel: string; clientSecret: string;
+  ctaLabel: string; clientSecret: string;
   onSucceeded: (paymentIntentId: string) => Promise<void>; onError: (m: string) => void;
   onEvent: (step: string, extra?: Record<string, unknown>) => void;
 }) {
@@ -230,7 +274,7 @@ function CardForm({
         {!ready && <div style={{ fontSize: 12, color: '#8a8f98', textAlign: 'center', padding: '8px 0' }}>Loading secure payment form…</div>}
       </div>
       <button onClick={pay} disabled={busy || !stripe || !ready} style={btnStyle(busy || !ready)}>
-        {busy ? 'Processing…' : `Top up ${priceLabel}`}
+        {busy ? 'Processing…' : ctaLabel}
       </button>
       <div style={{ fontSize: 11, color: '#8a8f98', marginTop: 8 }}>🔒 Secured by Stripe · card details never touch our servers</div>
     </div>
