@@ -6,8 +6,9 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * TEMPORARY one-off drip (owner 2026-07-31): asks FL users who reached the payment step and did NOT
- * pay why they didn't. Sends <=70/day from info@freelanly.com, reply-to same. Idempotent — each
+ * TEMPORARY drip (owner 2026-07-31): asks FL FREE users who HIT THE APPLY PAYWALL and did NOT pay why
+ * they didn't (re-keyed from top-up-clickers to all paywall-seen, since the PRO-first modal killed
+ * top-up clicks). Sends <=70/day from info@freelanly.com, reply-to same. Idempotent — each
  * recipient is stamped with a `paywall_survey_sent` FUNNEL_STEP so re-runs / the daily cron never
  * double-send. Goes inert once the population is exhausted (sent 0, remaining 0). REMOVE this route +
  * its vercel.json cron once `remaining` hits 0 (~9 days).
@@ -19,7 +20,7 @@ function body(firstName: string) {
   const hi = firstName ? `Hi ${firstName},` : 'Hi there,';
   const text = `${hi}
 
-I'm Theo from Freelanly. I noticed you got as far as unlocking an application a little while back, but didn't finish — and I'm trying to understand why, so I can fix whatever got in the way.
+I'm Theo from Freelanly. I noticed you found a role you wanted to apply to a little while back, but didn't finish the application — and I'm trying to understand why, so I can fix whatever got in the way.
 
 Would you mind hitting reply and telling me, in one line, what stopped you? Too expensive, didn't trust it'd work, changed your mind, were just browsing — anything. Honest answer, there's no wrong one.
 
@@ -44,7 +45,7 @@ async function run(req: NextRequest) {
   const candidates = await prisma.$queryRawUnsafe<Array<{ id: string; email: string; name: string | null }>>(`
     WITH intent AS (
       SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP'
-        AND details->>'step' IN ('credit_charge_click','credit_charge_form_ready','pro5_checkout_click','topup_created','topup_failed','topup_canceled')
+        AND details->>'step' = 'application_paywall_shown'
         AND "userId" IS NOT NULL AND "createdAt" >= now()-interval '45 days'),
     paid AS (
       SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP' AND details->>'step'='credit_charge_success' AND "userId" IS NOT NULL
@@ -81,7 +82,7 @@ async function run(req: NextRequest) {
   const remainRows = await prisma.$queryRawUnsafe<Array<{ n: number }>>(`
     WITH intent AS (
       SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP'
-        AND details->>'step' IN ('credit_charge_click','credit_charge_form_ready','pro5_checkout_click','topup_created','topup_failed','topup_canceled')
+        AND details->>'step' = 'application_paywall_shown'
         AND "userId" IS NOT NULL AND "createdAt" >= now()-interval '45 days'),
     paid AS (
       SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP' AND details->>'step'='credit_charge_success' AND "userId" IS NOT NULL
