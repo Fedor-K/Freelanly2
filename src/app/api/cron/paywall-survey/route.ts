@@ -44,9 +44,12 @@ async function run(req: NextRequest) {
   const candidates = await prisma.$queryRawUnsafe<Array<{ id: string; email: string; name: string | null }>>(`
     WITH intent AS (
       SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP'
-        AND details->>'step' IN ('credit_charge_click','credit_charge_form_ready','pro5_checkout_click')
+        AND details->>'step' IN ('credit_charge_click','credit_charge_form_ready','pro5_checkout_click','topup_created','topup_failed','topup_canceled')
         AND "userId" IS NOT NULL AND "createdAt" >= now()-interval '45 days'),
-    paid AS (SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP' AND details->>'step'='credit_charge_success'),
+    paid AS (
+      SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP' AND details->>'step'='credit_charge_success' AND "userId" IS NOT NULL
+      UNION
+      SELECT DISTINCT "userId" FROM "RevenueEvent" WHERE type IN ('SUBSCRIPTION_STARTED','ONE_TIME_PAYMENT') AND "userId" IS NOT NULL),
     surveyed AS (SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP' AND details->>'step'='paywall_survey_sent')
     SELECT u.id, u.email, u.name
     FROM intent i JOIN "User" u ON u.id = i."userId"
@@ -78,9 +81,12 @@ async function run(req: NextRequest) {
   const remainRows = await prisma.$queryRawUnsafe<Array<{ n: number }>>(`
     WITH intent AS (
       SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP'
-        AND details->>'step' IN ('credit_charge_click','credit_charge_form_ready','pro5_checkout_click')
+        AND details->>'step' IN ('credit_charge_click','credit_charge_form_ready','pro5_checkout_click','topup_created','topup_failed','topup_canceled')
         AND "userId" IS NOT NULL AND "createdAt" >= now()-interval '45 days'),
-    paid AS (SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP' AND details->>'step'='credit_charge_success'),
+    paid AS (
+      SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP' AND details->>'step'='credit_charge_success' AND "userId" IS NOT NULL
+      UNION
+      SELECT DISTINCT "userId" FROM "RevenueEvent" WHERE type IN ('SUBSCRIPTION_STARTED','ONE_TIME_PAYMENT') AND "userId" IS NOT NULL),
     surveyed AS (SELECT DISTINCT "userId" FROM "ActivityLog" WHERE action='FUNNEL_STEP' AND details->>'step'='paywall_survey_sent')
     SELECT COUNT(*)::int n FROM intent i JOIN "User" u ON u.id=i."userId"
     WHERE u.plan='FREE' AND u.email IS NOT NULL AND u.email <> ''
