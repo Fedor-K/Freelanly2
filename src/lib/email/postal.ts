@@ -12,9 +12,16 @@ interface PostalConfig {
 const config: PostalConfig = {
   apiUrl: (process.env.POSTAL_API_URL || 'https://postal.freelanly.com').trim(),
   apiKey: (process.env.POSTAL_API_KEY || '').trim(),
-  fromEmail: (process.env.POSTAL_FROM_EMAIL || process.env.RESEND_FROM_EMAIL || 'info@freelanly.com').trim(),
+  fromEmail: (process.env.POSTAL_FROM_EMAIL || 'info@freelanly.com').trim(),
   fromName: 'Freelanly',
 };
+
+// Only these (watcher) From-domains send via Resend; everything else — Freelanly's own
+// info@ / apply@ — stays on Postal. Extendable via RESEND_DOMAINS (comma-separated) for new watchers.
+const WATCHER_EMAIL_DOMAINS = new Set(
+  (process.env.RESEND_DOMAINS || 'reactwatcher.com,qawatcher.com,pythonwatcher.com,dotnetwatcher.com')
+    .split(',').map((d) => d.trim().toLowerCase()).filter(Boolean)
+);
 
 interface SendEmailParams {
   to: string;
@@ -36,11 +43,10 @@ interface SendEmailParams {
 }
 
 /**
- * Send a TRANSACTIONAL email (OTP, recap, watcher OTP/alerts).
- * Primary transport is Resend when RESEND_API_KEY is set — Postal's self-hosted IP kept getting
- * no-PTR / blocklist rejections that silently killed OTP delivery. On any Resend failure we fall
- * back to Postal so a misconfig can't hard-block auth codes. apply@ cold outreach does NOT use this
- * — it stays on Postal (sendAutoApplyViaPostal), since managed ESPs ban cold email.
+ * Send a transactional email. Freelanly's own mail (info@ OTP/recap, apply@) always goes via Postal.
+ * ONLY watcher-domain From-addresses (see WATCHER_EMAIL_DOMAINS) route through Resend when
+ * RESEND_API_KEY is set — the shared Postal IP kept getting no-PTR / blocklist rejections that
+ * killed watcher OTP delivery. On any Resend failure we fall back to Postal.
  */
 export async function sendEmail(params: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const sanitizedTo = params.to.toLowerCase().trim().replace(/[\r\n\x00-\x1F]/g, '');
@@ -53,7 +59,11 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
   const fromName = params.fromName || config.fromName;
   const outbound: SendEmailParams = { ...params, to: sanitizedTo };
 
-  if ((process.env.RESEND_API_KEY || '').trim()) {
+  // ONLY watcher-domain sends go through Resend (their Postal IP kept getting no-PTR / blocklist
+  // rejections). Freelanly itself stays entirely on Postal. Match on the From domain.
+  const fromDomain = (fromEmail.split('@')[1] || '').toLowerCase();
+  const useResend = WATCHER_EMAIL_DOMAINS.has(fromDomain) && !!(process.env.RESEND_API_KEY || '').trim();
+  if (useResend) {
     const r = await sendViaResend(outbound, fromEmail, fromName);
     if (r.success) return r;
     console.error(`[Email] Resend failed (${r.error}); falling back to Postal`);
