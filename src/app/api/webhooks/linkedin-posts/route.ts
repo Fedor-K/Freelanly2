@@ -225,13 +225,16 @@ export async function POST(request: NextRequest) {
     // =========================================================================
     const FREELANLY_LINKEDIN_PATTERNS = [
       'professional-community-of-freelance-translators-and-interpreters',
+      '-jobs-watcher', // our own watcher LinkedIn company pages (python/qa/react/dotnet-jobs-watcher) re-posting gigs
     ];
 
+    const clientNameLower = (clientName || '').toLowerCase();
     if (
-      clientName?.toLowerCase().startsWith('freelanly') ||
+      clientNameLower.startsWith('freelanly') ||
+      clientNameLower.includes('jobs watcher') || // "Python Jobs Watcher", "QA Jobs Watcher", … (our own reposters)
       FREELANLY_LINKEDIN_PATTERNS.some(pattern => clientLinkedIn?.includes(pattern))
     ) {
-      console.log(`[LinkedInPosts] Skipping Freelanly own post: ${postUrl}`);
+      console.log(`[LinkedInPosts] Skipping own repost (${clientName}): ${postUrl}`);
       logSkip('own_platform');
       return NextResponse.json({
         success: true,
