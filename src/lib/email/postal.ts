@@ -16,13 +16,6 @@ const config: PostalConfig = {
   fromName: 'Freelanly',
 };
 
-// Only these (watcher) From-domains send via Resend; everything else — Freelanly's own
-// info@ / apply@ — stays on Postal. Extendable via RESEND_DOMAINS (comma-separated) for new watchers.
-const WATCHER_EMAIL_DOMAINS = new Set(
-  (process.env.RESEND_DOMAINS || 'reactwatcher.com,qawatcher.com,pythonwatcher.com,dotnetwatcher.com')
-    .split(',').map((d) => d.trim().toLowerCase()).filter(Boolean)
-);
-
 interface SendEmailParams {
   to: string;
   subject: string;
@@ -43,10 +36,9 @@ interface SendEmailParams {
 }
 
 /**
- * Send a transactional email. Freelanly's own mail (info@ OTP/recap, apply@) always goes via Postal.
- * ONLY watcher-domain From-addresses (see WATCHER_EMAIL_DOMAINS) route through Resend when
- * RESEND_API_KEY is set — the shared Postal IP kept getting no-PTR / blocklist rejections that
- * killed watcher OTP delivery. On any Resend failure we fall back to Postal.
+ * Send a transactional email via Postal. Watcher-domain Resend routing was removed when the
+ * watchers moved to the autonomous IntentPond platform (own repo/DB/email) — Freelanly sends
+ * only its own mail (info@ OTP/recap, apply@ outreach), all through Postal.
  */
 export async function sendEmail(params: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const sanitizedTo = params.to.toLowerCase().trim().replace(/[\r\n\x00-\x1F]/g, '');
@@ -57,55 +49,10 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
 
   const fromEmail = params.from || config.fromEmail;
   const fromName = params.fromName || config.fromName;
-  const outbound: SendEmailParams = { ...params, to: sanitizedTo };
-
-  // ONLY watcher-domain sends go through Resend (their Postal IP kept getting no-PTR / blocklist
-  // rejections). Freelanly itself stays entirely on Postal. Match on the From domain.
-  const fromDomain = (fromEmail.split('@')[1] || '').toLowerCase();
-  const useResend = WATCHER_EMAIL_DOMAINS.has(fromDomain) && !!(process.env.RESEND_API_KEY || '').trim();
-  if (useResend) {
-    const r = await sendViaResend(outbound, fromEmail, fromName);
-    if (r.success) return r;
-    console.error(`[Email] Resend failed (${r.error}); falling back to Postal`);
-  }
-
-  return sendViaPostal(outbound, fromEmail, fromName);
+  return sendViaPostal({ ...params, to: sanitizedTo }, fromEmail, fromName);
 }
 
-/** Resend transport (managed deliverability). Domain of `fromEmail` must be verified in Resend. */
-async function sendViaResend(params: SendEmailParams, fromEmail: string, fromName: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  try {
-    const body: Record<string, unknown> = {
-      from: `${fromName} <${fromEmail}>`,
-      to: [params.to],
-      subject: params.subject,
-      html: params.html,
-      text: params.text || params.html.replace(/<[^>]*>/g, ''),
-    };
-    if (params.replyTo) body.reply_to = params.replyTo;
-    if (params.listUnsubscribe) {
-      body.headers = {
-        'List-Unsubscribe': `<${params.listUnsubscribe}>, <mailto:unsubscribe@freelanly.com?subject=unsubscribe>`,
-        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-      };
-    }
-    if (params.attachments && params.attachments.length > 0) {
-      body.attachments = params.attachments.map(att => ({ filename: att.filename, content: att.content }));
-    }
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${(process.env.RESEND_API_KEY || '').trim()}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data?.id) return { success: true, messageId: String(data.id) };
-    return { success: false, error: String(data?.message || data?.name || `HTTP ${res.status}`) };
-  } catch (error) {
-    return { success: false, error: String(error) };
-  }
-}
-
-/** Postal transport (self-hosted). Fallback for transactional; primary for apply@ outreach. */
+/** Postal transport (self-hosted). */
 async function sendViaPostal(params: SendEmailParams, fromEmail: string, fromName: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
   if (!config.apiKey) {
     console.error('[Postal] API key not configured');

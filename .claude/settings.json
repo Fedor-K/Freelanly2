@@ -25,6 +25,7 @@
     ]
   },
   "enabledPlugins": {
-    "cloudflare@cloudflare": true
+    "cloudflare@cloudflare": true,
+    "apify@apify": true
   }
 }
