@@ -151,10 +151,15 @@ export function ApplyPaywallModal({
       <div style={{ fontSize: 15, fontWeight: 700, textAlign: 'center', margin: '2px 0 6px', color: '#1a2e05' }}>
         {message || 'Your free application is used'}
       </div>
-      <div style={{ fontSize: 13, color: '#5C6068', textAlign: 'center', marginBottom: 16, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 13, color: '#5C6068', textAlign: 'center', marginBottom: 8, lineHeight: 1.5 }}>
         {showCardForm && payFlow === 'sub'
           ? <><b>PRO — $5/month.</b> Unlimited applications, morning ready-queue. Cancel anytime.</>
           : <>Top up your balance and keep applying — <b>$0.50 per application</b>. No subscription, balance never expires.</>}
+      </div>
+      {/* Delivery proof (owner, from the paywall survey: 3 of 4 non-payers said "not sure my
+          application will even be viewed"). We can't promise a reply — we CAN prove the mechanics. */}
+      <div style={{ fontSize: 12.5, color: '#1a2e05', textAlign: 'center', marginBottom: 16, lineHeight: 1.5, background: '#f4fce8', borderRadius: 8, padding: '8px 12px' }}>
+        Your application is sent <b>directly to the poster&apos;s real inbox</b> — not an ATS pile.
       </div>
 
       {error && <div style={{ color: '#c0392b', fontSize: 13, marginBottom: 12, textAlign: 'center' }}>{error}</div>}
