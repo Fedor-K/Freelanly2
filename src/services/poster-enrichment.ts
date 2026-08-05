@@ -55,10 +55,23 @@ async function scrapePosterLocation(url: string): Promise<{ country: string | nu
  * Resolve a poster's country (cached per LinkedIn URL) and whether they're in the blocked set.
  * `blocked` is only ever true for a KNOWN blocked country — unknown/failed → false (fail-open).
  */
+/** Company/showcase pages are not profiles: the profile actor bills $0.004 and returns only a name —
+ *  no location, no openToWork (verified 2026-08-05: 573 company rows cached, 0 with a country).
+ *  Neither gate can ever fire on them, so we never pay for one. */
+function isCompanyUrl(url: string): boolean {
+  return /linkedin\.com\/(company|showcase|school)\//i.test(url);
+}
+
+/** In-flight de-dup: n8n POSTs several posts by the same author at once and every one used to miss
+ *  the DB cache and fire its own $0.004 scrape (measured: 2,520 duplicate scrapes inside 60s in 20d,
+ *  one URL hit 16x). Concurrent callers now share the first scrape's promise. */
+const inFlight = new Map<string, Promise<{ country: string | null; location: string | null; openToWork: boolean }>>();
+
 export async function getPosterRegion(linkedinUrl: string | null | undefined): Promise<{ country: string | null; blocked: boolean; openToWork: boolean; cached: boolean }> {
   const BLOCK = new Set(blockedCountries());
   if (!linkedinUrl) return { country: null, blocked: false, openToWork: false, cached: false };
   const url = normalizeLinkedInUrl(linkedinUrl) || linkedinUrl;
+  if (isCompanyUrl(url)) return { country: null, blocked: false, openToWork: false, cached: true };
   await ensureCache();
   try {
     const hit = await prisma.$queryRaw<{ country: string | null; openToWork: boolean | null }[]>`SELECT country, "openToWork" FROM "PosterLocation" WHERE "linkedinUrl" = ${url}`;
@@ -67,12 +80,22 @@ export async function getPosterRegion(linkedinUrl: string | null | undefined): P
       return { country: c, blocked: !!c && BLOCK.has(c), openToWork: hit[0].openToWork === true, cached: true };
     }
   } catch { /* table read failed → treat as miss */ }
-  const { country, location, openToWork } = await scrapePosterLocation(url);
-  // Cache the result (incl. null) to bound cost; a backfill can refresh WHERE country IS NULL later.
-  await prisma.$executeRaw`
-    INSERT INTO "PosterLocation" ("linkedinUrl", country, location, "openToWork")
-    VALUES (${url}, ${country}, ${location}, ${openToWork})
-    ON CONFLICT ("linkedinUrl") DO UPDATE SET country = EXCLUDED.country, location = EXCLUDED.location, "openToWork" = EXCLUDED."openToWork", "scrapedAt" = now()
-  `.catch(() => {});
-  return { country, blocked: !!country && BLOCK.has(country), openToWork, cached: false };
+
+  let pending = inFlight.get(url);
+  const isLeader = !pending;
+  if (!pending) {
+    pending = scrapePosterLocation(url).finally(() => inFlight.delete(url));
+    inFlight.set(url, pending);
+  }
+  const { country, location, openToWork } = await pending;
+
+  if (isLeader) {
+    // Cache the result (incl. null) to bound cost; a backfill can refresh WHERE country IS NULL later.
+    await prisma.$executeRaw`
+      INSERT INTO "PosterLocation" ("linkedinUrl", country, location, "openToWork")
+      VALUES (${url}, ${country}, ${location}, ${openToWork})
+      ON CONFLICT ("linkedinUrl") DO UPDATE SET country = EXCLUDED.country, location = EXCLUDED.location, "openToWork" = EXCLUDED."openToWork", "scrapedAt" = now()
+    `.catch(() => {});
+  }
+  return { country, blocked: !!country && BLOCK.has(country), openToWork, cached: !isLeader };
 }
