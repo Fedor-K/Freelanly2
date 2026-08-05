@@ -134,6 +134,68 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   }, [vettedFeed]);
   const { track } = useTracker();
 
+  // ── Feed impressions ───────────────────────────────────────────────────────
+  // We logged clicks but never SHOWS, so relevance had no denominator: "1 apply-click per user" was
+  // unreadable without knowing whether they scrolled past 5 cards or 80. It also left the scraping
+  // spend judged on sends alone (~10/day — too few to rank 126 search queries; that thin sample is
+  // how the best-converting role family nearly got cut). Shows run in the thousands/day.
+  //
+  // A card counts as SEEN at 50% visible for 1s — rendering it below the fold is not a show. Each
+  // card is counted once per mount and then unobserved. Rows are batched (one ActivityLog row per
+  // ~12 cards) so a 50-card feed costs ~4 rows, not 50.
+  const impressionObs = useRef<IntersectionObserver | null>(null);
+  const impressionSeen = useRef<Set<string>>(new Set());
+  const impressionBatch = useRef<Array<{ i: string; p: number; t: string }>>([]);
+  const trackRef = useRef(track);
+  trackRef.current = track;
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
+    const flush = () => {
+      const batch = impressionBatch.current;
+      if (!batch.length) return;
+      impressionBatch.current = [];
+      trackRef.current('FUNNEL_STEP', { step: 'feed_impressions', items: batch, n: batch.length });
+    };
+    // Dwell gate: entering the viewport during a fast scroll is not a look. Only cards still visible
+    // 1s later count, so flick-scrolling past 40 cards doesn't inflate the denominator.
+    const timers = new Map<Element, ReturnType<typeof setTimeout>>();
+    const obs = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        const el = e.target as HTMLElement;
+        if (!e.isIntersecting) {
+          const t = timers.get(el); if (t) { clearTimeout(t); timers.delete(el); }
+          continue;
+        }
+        if (timers.has(el)) continue;
+        timers.set(el, setTimeout(() => {
+          timers.delete(el);
+          const id = el.dataset.feedId;
+          if (!id || impressionSeen.current.has(id)) return;
+          impressionSeen.current.add(id);
+          impressionBatch.current.push({ i: id, p: Number(el.dataset.feedPos ?? -1), t: el.dataset.feedType || '?' });
+          obs.unobserve(el);
+          if (impressionBatch.current.length >= 12) flush();
+        }, 1000));
+      }
+    }, { threshold: 0.5 });
+    impressionObs.current = obs;
+    const iv = setInterval(flush, 5000);
+    // Flush before the tab goes away — useTracker's beacon drains its own queue on the same event,
+    // so anything still sitting in our batch has to be handed over first.
+    const onHide = () => { if (document.visibilityState === 'hidden') flush(); };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      clearInterval(iv);
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', flush);
+      timers.forEach((t) => clearTimeout(t));
+      flush();
+      obs.disconnect();
+      impressionObs.current = null;
+    };
+  }, []);
+
   // Arrival project (owner flow 2026-07-17): the user just registered from /freelance/[slug] and was
   // redirected here with ?apply={oppId} — auto-open the apply modal for THAT project on top of the
   // feed, so the first apply happens with their real matched cards visible behind it. Once only;
@@ -349,7 +411,15 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
   const showFirstApply = !hasApplied && applied.size === 0 && visible.length > 0;
 
   const renderCard = (item: Job, i: number) => (
-    <div key={item.id} className="job-card" style={{cursor: 'default'}}>
+    <div key={item.id} className="job-card" style={{cursor: 'default'}}
+      ref={(el) => {
+        if (!el) return;
+        el.dataset.feedId = item.id;
+        el.dataset.feedPos = String(i);
+        el.dataset.feedType = item.type === 'opportunity' ? 'o' : 'j';
+        // observe() on an already-observed element is a no-op, so re-renders are free.
+        if (!impressionSeen.current.has(item.id)) impressionObs.current?.observe(el);
+      }}>
       <PosterAvatar avatar={item.avatar} letter={(item.companyName || item.title)[0]} color={COLORS[i % COLORS.length]} />
       <div>
         <div className="row gap-2">

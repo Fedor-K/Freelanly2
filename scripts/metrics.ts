@@ -255,6 +255,67 @@ async function apify(days = 7) {
   console.log(`  отбраковано при импорте: ${skipTotal} (${skips.map((x) => `${x.r} ${n(x.n)}`).join(', ')})`);
 }
 
+/**
+ * Feed relevance: apply-clicks over CARDS ACTUALLY SEEN. Impressions land as one FUNNEL_STEP row
+ * (step='feed_impressions') holding a batch of {i:opportunityId, p:position, t:'o'|'j'} — a card
+ * counts only at 50% visible for 1s, so this denominator is "looked at", not "rendered".
+ *
+ * Shipped 2026-08-05: before it, relevance had no denominator at all and scraping queries were
+ * ranked on ~10 sends/day. Series start at that date — anything earlier reads as zero, not as bad.
+ */
+async function feed(days = 7) {
+  const W = `now() - interval '${days} days'`;
+  console.log(`\n=== ЛЕНТА: ОТКЛИК НА ПОКАЗ (${days} дней) ===`);
+  const rows = await q<{ details: { items?: Array<{ i: string; p: number; t: string }> } }>(`
+    SELECT details FROM "ActivityLog"
+     WHERE action='FUNNEL_STEP' AND details->>'step'='feed_impressions' AND "createdAt">=${W}`);
+  if (!rows.length) {
+    console.log('  показов не записано — логирование живёт с 2026-08-05, до этой даты данных нет');
+    return;
+  }
+  const shown = new Map<string, number>();
+  const posOf = new Map<string, number[]>();
+  for (const r of rows) for (const it of r.details.items ?? []) {
+    shown.set(it.i, (shown.get(it.i) ?? 0) + 1);
+    (posOf.get(it.i) ?? posOf.set(it.i, []).get(it.i)!).push(it.p);
+  }
+  const clicks = await q<{ oid: string; n: bigint }>(`
+    SELECT details->>'opportunityId' oid, count(*)::int n FROM "ActivityLog"
+     WHERE action='OPPORTUNITY_APPLY_CLICK' AND details->>'opportunityId' IS NOT NULL
+       AND "createdAt">=${W} GROUP BY 1`);
+  const clickOf = new Map(clicks.map((c) => [c.oid, n(c.n)]));
+  const totalShown = [...shown.values()].reduce((s, x) => s + x, 0);
+  const totalClick = [...shown.keys()].reduce((s, id) => s + (clickOf.get(id) ?? 0), 0);
+  console.log(`  карточек показано: ${totalShown} | кликов по показанным: ${totalClick} → отклик ${pct(totalClick, totalShown)}`);
+  // By position: does ranking work, or do people dig?
+  const band = (p: number) => (p < 5 ? '1-5' : p < 15 ? '6-15' : p < 30 ? '16-30' : '31+');
+  const byBand: Record<string, { shown: number; click: number }> = {};
+  for (const [id, ps] of posOf) {
+    const b = band(Math.min(...ps));
+    (byBand[b] ??= { shown: 0, click: 0 }).shown += shown.get(id) ?? 0;
+    byBand[b].click += clickOf.get(id) ?? 0;
+  }
+  console.log('  по месту в списке (проверка ранжирования):');
+  for (const b of ['1-5', '6-15', '16-30', '31+']) {
+    const v = byBand[b]; if (!v) continue;
+    console.log(`    ${b.padEnd(6)} показов ${String(v.shown).padStart(6)} | кликов ${String(v.click).padStart(5)} | отклик ${pct(v.click, v.shown)}`);
+  }
+  // By role family — the axis that showed NO effect on post-click behaviour; shows whether the
+  // feed at least surfaces matching roles at all.
+  const meta = await q<{ id: string; rf: string | null }>(
+    `SELECT id, "roleFamily" rf FROM "Opportunity" WHERE id = ANY($1::text[])`, [[...shown.keys()]]);
+  const rfOf = new Map(meta.map((m) => [m.id, m.rf ?? '—']));
+  const byRf: Record<string, { shown: number; click: number }> = {};
+  for (const [id, c] of shown) {
+    const k = rfOf.get(id) ?? '—';
+    (byRf[k] ??= { shown: 0, click: 0 }).shown += c;
+    byRf[k].click += clickOf.get(id) ?? 0;
+  }
+  console.log('  по направлению:');
+  Object.entries(byRf).sort((a, b) => b[1].shown - a[1].shown).slice(0, 8).forEach(([k, v]) =>
+    console.log(`    ${k.padEnd(20)} показов ${String(v.shown).padStart(6)} | отклик ${pct(v.click, v.shown)}`));
+}
+
 async function main() {
   const arg = (process.argv[2] || 'today').toLowerCase();
   try {
@@ -263,8 +324,9 @@ async function main() {
     if (arg === 'supply' || arg === 'all') await supply();
     if (arg === 'roles' || arg === 'all') await roles();
     if (arg === 'apify' || arg === 'all') await apify();
-    if (!['today', 'funnel', 'supply', 'roles', 'apify', 'all'].includes(arg)) {
-      console.log('Использование: npm run metrics -- [today|funnel|supply|roles|apify|all]');
+    if (arg === 'feed' || arg === 'all') await feed();
+    if (!['today', 'funnel', 'supply', 'roles', 'apify', 'feed', 'all'].includes(arg)) {
+      console.log('Использование: npm run metrics -- [today|funnel|supply|roles|apify|feed|all]');
     }
   } finally {
     await prisma.$disconnect();
