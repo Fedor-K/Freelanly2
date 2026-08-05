@@ -183,7 +183,10 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
     // still null and every card silently skips registration. A static feed never re-renders, so
     // nothing would ever be logged. Pick up whatever is already on screen.
     document.querySelectorAll('[data-feed-id]').forEach((el) => obs.observe(el));
-    const iv = setInterval(flush, 5000);
+    // 15s, not 5s: a real reader clears 1-2 cards per 5s, so the short timer fired before the batch
+    // filled and wrote ~1.3 cards per row (measured on the first live rows) instead of 12. Nothing is
+    // lost by waiting — the hide/unmount handlers below flush whatever is still pending.
+    const iv = setInterval(flush, 15000);
     // Flush before the tab goes away — useTracker's beacon drains its own queue on the same event,
     // so anything still sitting in our batch has to be handed over first.
     const onHide = () => { if (document.visibilityState === 'hidden') flush(); };
