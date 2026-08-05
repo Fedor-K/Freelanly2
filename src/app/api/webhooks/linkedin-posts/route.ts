@@ -438,7 +438,12 @@ export async function POST(request: NextRequest) {
     // the scrape costs $0.004 vs ~$0.00004 for the AI validation above, so every post the cheap
     // gates already killed must never reach it. Fail-open: scrape failure → import anyway.
     // =========================================================================
-    if (process.env.POSTER_REGION_FILTER === 'on') {
+    // No contact = nothing to gate. Such posts import as inactive (see applyEmail branch below) and
+    // are unreachable by definition: 3,330 of 10,362 imports in the 8d to 2026-08-05 had no
+    // applyEmail and produced ZERO sends between them — yet each one bought a $0.004 poster scrape.
+    const hasContact = Boolean(validatedEmail || extracted.applyUrl);
+
+    if (process.env.POSTER_REGION_FILTER === 'on' && hasContact) {
       try {
         const poster = await getPosterRegion(clientLinkedIn);
         // LEVER A — recruiter-country cut. OPT-IN via SUPPLY_POSTER_CUT=on (default OFF): it also drops
