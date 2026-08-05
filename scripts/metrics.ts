@@ -176,6 +176,85 @@ async function roles(days = 7) {
   }
 }
 
+/**
+ * Apify spend joined to what it bought. Cost lives in Apify, value lives in our DB — reporting one
+ * without the other is how "$0.002 per post" got mistaken for cheap while the cost per SENT
+ * opportunity was two orders of magnitude higher. Needs APIFY_API_TOKEN.
+ *
+ * Billing model (verified 2026-08-05): PAY_PER_EVENT — we are charged per RETURNED POST, with no
+ * discount for posts we already have. So re-scanning the same 24h window is paid duplication, and
+ * cutting a search query only saves the posts NO other query finds.
+ *
+ * Where the search bill goes (87,910 posts, 8d to 2026-08-05): 34% genuinely new, 25% a repeat of
+ * what THE SAME query already returned (the actor input pins postedLimit="24h" while Spheres cycles
+ * its 49 queries every 12.2h), 41% a post ANOTHER query already bought. The 24h tail is not free to
+ * trim: posts aged 13-24h are still ~10% new, because the previous run hit the 1-page cap.
+ * The profile scraper's only live function is the openToWork gate — POSTER_COUNTRY_BLOCK has been
+ * off since June (zero poster_region skips in 8d), and a headline regex can't replace it (3% recall).
+ */
+async function apify(days = 7) {
+  const token = (process.env.APIFY_API_TOKEN || '').trim();
+  console.log(`\n=== APIFY: РАСХОД vs ЧТО КУПИЛИ (${days} дней) ===`);
+  if (!token) {
+    console.log('  APIFY_API_TOKEN не задан — экспорти его или запусти с .env.prod-pull');
+    return;
+  }
+  // NB: pagination must go deep — profile-scraper alone does ~8k runs/week; a 6k cap silently
+  // understated the bill by ~35% (reported $448/mo when the real rate was $706/mo).
+  const runs: Array<{ actId: string; startedAt: string; usageTotalUsd?: number }> = [];
+  for (let offset = 0; offset < 40000; offset += 1000) {
+    const page = await fetch(`https://api.apify.com/v2/actor-runs?token=${token}&desc=1&limit=1000&offset=${offset}`)
+      .then((r) => r.json()).catch(() => null);
+    const items = page?.data?.items ?? [];
+    runs.push(...items);
+    const oldest = items[items.length - 1]?.startedAt;
+    if (items.length < 1000 || !oldest || new Date(oldest).getTime() < Date.now() - days * 86400_000) break;
+  }
+  const since = Date.now() - days * 86400_000;
+  const win = runs.filter((r) => new Date(r.startedAt).getTime() >= since);
+  const byActor: Record<string, { runs: number; usd: number }> = {};
+  for (const r of win) {
+    const k = r.actId;
+    byActor[k] = byActor[k] || { runs: 0, usd: 0 };
+    byActor[k].runs++;
+    byActor[k].usd += r.usageTotalUsd || 0;
+  }
+  const names: Record<string, string> = {
+    buIWk2uOUzTmcLsuB: 'linkedin-post-search (поиск вакансий)',
+    LpVuK3Zozwuipa5bp: 'linkedin-profile-scraper (профили авторов)',
+  };
+  let total = 0;
+  for (const [id, v] of Object.entries(byActor).sort((a, b) => b[1].usd - a[1].usd)) {
+    total += v.usd;
+    console.log(`  ${(names[id] || id).padEnd(42)} ${String(v.runs).padStart(5)} прогонов  $${v.usd.toFixed(2)}`);
+  }
+  const perDay = total / days;
+  console.log(`  ИТОГО: $${total.toFixed(2)} за ${days}д → $${perDay.toFixed(2)}/сутки → $${(perDay * 30).toFixed(0)}/мес (план SCALE $199 + овередж сверху)`);
+
+  const W = `now()-interval '${days} days'`;
+  const v = (await q<Record<string, bigint>>(`
+    SELECT
+     (SELECT count(*) FROM "Opportunity" WHERE "createdAt">=${W} AND "applyEmail" IS NOT NULL)::int contactable,
+     (SELECT count(DISTINCT o.id) FROM "Opportunity" o JOIN "ActivityLog" l
+        ON (l.details->>'opportunityId'=o.id OR l.details->>'projectId'=o.id)
+       WHERE o."createdAt">=${W} AND o."applyEmail" IS NOT NULL AND l.action='OPPORTUNITY_APPLY_CLICK' AND l."userId" IS NOT NULL)::int clicked,
+     (SELECT count(DISTINCT a."opportunityId") FROM "AutoApplication" a JOIN "Opportunity" o ON o.id=a."opportunityId"
+       WHERE o."createdAt">=${W} AND o."applyEmail" IS NOT NULL AND a.origin='SELF' AND a."sentAt" IS NOT NULL)::int sent`))[0];
+  const c = n(v.contactable), clicked = n(v.clicked), sent = n(v.sent);
+  console.log(`  куплено вакансий с контактом: ${c} → $${(total / Math.max(c, 1)).toFixed(3)} за штуку`);
+  console.log(`  из них кто-то открыл:         ${clicked} (${pct(clicked, c)}) → $${(total / Math.max(clicked, 1)).toFixed(2)} за открытую`);
+  console.log(`  из них отправлен отклик:      ${sent} (${pct(sent, c)}) → $${(total / Math.max(sent, 1)).toFixed(2)} ЗА РЕАЛЬНО ИСПОЛЬЗОВАННУЮ`);
+
+  const rev = n((await q<{ n: bigint }>(`SELECT COALESCE(sum(amount),0)::int n FROM "RevenueEvent" WHERE "createdAt">=${W}`))[0].n) / 100;
+  console.log(`  выручка за тот же период: $${rev.toFixed(2)} → расход на скрап / выручка = ${rev ? (total / rev).toFixed(1) + 'x' : '∞'}`);
+
+  const skips = await q<{ r: string; n: bigint }>(`
+    SELECT details->>'reason' r, count(*)::int n FROM "ActivityLog"
+     WHERE action='IMPORT_SKIP' AND "createdAt">=${W} GROUP BY 1 ORDER BY 2 DESC LIMIT 5`);
+  const skipTotal = skips.reduce((s, x) => s + n(x.n), 0);
+  console.log(`  отбраковано при импорте: ${skipTotal} (${skips.map((x) => `${x.r} ${n(x.n)}`).join(', ')})`);
+}
+
 async function main() {
   const arg = (process.argv[2] || 'today').toLowerCase();
   try {
@@ -183,8 +262,9 @@ async function main() {
     if (arg === 'funnel' || arg === 'all') await funnel();
     if (arg === 'supply' || arg === 'all') await supply();
     if (arg === 'roles' || arg === 'all') await roles();
-    if (!['today', 'funnel', 'supply', 'roles', 'all'].includes(arg)) {
-      console.log('Использование: npm run metrics -- [today|funnel|supply|roles|all]');
+    if (arg === 'apify' || arg === 'all') await apify();
+    if (!['today', 'funnel', 'supply', 'roles', 'apify', 'all'].includes(arg)) {
+      console.log('Использование: npm run metrics -- [today|funnel|supply|roles|apify|all]');
     }
   } finally {
     await prisma.$disconnect();
