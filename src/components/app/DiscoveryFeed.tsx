@@ -179,6 +179,10 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
       }
     }, { threshold: 0.5 });
     impressionObs.current = obs;
+    // Ref callbacks fire during commit, i.e. BEFORE this effect — on first paint impressionObs is
+    // still null and every card silently skips registration. A static feed never re-renders, so
+    // nothing would ever be logged. Pick up whatever is already on screen.
+    document.querySelectorAll('[data-feed-id]').forEach((el) => obs.observe(el));
     const iv = setInterval(flush, 5000);
     // Flush before the tab goes away — useTracker's beacon drains its own queue on the same event,
     // so anything still sitting in our batch has to be handed over first.
