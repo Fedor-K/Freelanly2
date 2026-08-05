@@ -271,44 +271,11 @@ export async function POST(request: NextRequest) {
     // drops incoming SUPPLY located in / posted from cut regions (India + Africa). Reversible: empty = off.
     const SUPPLY_CUT = new Set((process.env.SUPPLY_REGION_BLOCK || '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean));
 
-    // =========================================================================
-    // SUPPLY-SIDE POSTER REGION FILTER (gated by POSTER_REGION_FILTER=on)
-    // Drop posts from blocked-country recruiters. Scrapes the poster's profile ONCE (cached per
-    // LinkedIn URL), so India/etc staffing recruiters on generic .com domains are caught by their
-    // REAL location, not the email TLD. Fail-open: scrape failure → not blocked. Done before the AI
-    // extraction so a blocked post wastes no AI spend.
-    // =========================================================================
-    if (process.env.POSTER_REGION_FILTER === 'on') {
-      try {
-        const poster = await getPosterRegion(clientLinkedIn);
-        // LEVER A — recruiter-country cut. OPT-IN via SUPPLY_POSTER_CUT=on (default OFF): it also drops
-        // an India/Africa recruiter's REMOTE roles, which are valid supply — too aggressive for a
-        // supply-bound product. Lever B (job-location) below is the default clean-feed cut.
-        if (process.env.SUPPLY_POSTER_CUT === 'on' && SUPPLY_CUT.size && poster.country && SUPPLY_CUT.has(poster.country)) {
-          console.log(`[LinkedInPosts] Skipping SUPPLY from ${poster.country} recruiter: ${postUrl}`);
-          logSkip('supply_poster_geo', null, { posterCountry: poster.country, cached: poster.cached });
-          return NextResponse.json({ success: true, status: 'skipped', reason: 'supply_poster_geo', posterCountry: poster.country });
-        }
-        // Country-region cut is now SEPARATELY toggleable (POSTER_COUNTRY_BLOCK). Decision 2026-06-18:
-        // turned OFF — India/etc recruiters' posts ARE the demand that interviews our LATAM candidates
-        // (Appnosh/Infinity/Techaurcode all interviewed LATAM), so blocking them by recruiter-country
-        // cut real engagement. We still scrape (for openToWork below) but don't drop on country.
-        if (poster.blocked && process.env.POSTER_COUNTRY_BLOCK !== 'off') {
-          console.log(`[LinkedInPosts] Skipping post from ${poster.country} recruiter ${clientName}: ${postUrl}`);
-          logSkip('poster_region', null, { posterCountry: poster.country, cached: poster.cached });
-          return NextResponse.json({ success: true, status: 'skipped', reason: 'poster_region', posterCountry: poster.country });
-        }
-        // A "recruiter" with LinkedIn's Open-To-Work banner is a job-seeker posing as a hirer
-        // (bench/fake recruiter, e.g. C2C staffing) — drop regardless of country.
-        if (poster.openToWork) {
-          console.log(`[LinkedInPosts] Skipping #OpenToWork poster ${clientName}: ${postUrl}`);
-          logSkip('poster_opentowork', null, { posterCountry: poster.country, cached: poster.cached });
-          return NextResponse.json({ success: true, status: 'skipped', reason: 'poster_opentowork' });
-        }
-      } catch (e) {
-        console.warn('[LinkedInPosts] poster-region check failed (fail-open, importing):', e);
-      }
-    }
+    // NOTE: the poster-profile scrape (Apify, $0.004/profile) used to run HERE, before every cheap
+    // filter. Cost audit 2026-08-05: 7,905 of 16,520 posters scraped in 21d produced nothing —
+    // ~$46/mo paid for posts the keyword/AI/domain/dup gates threw away moments later. The scrape is
+    // ~100x pricier than the z.ai validation call it was "saving", so it now runs LAST (see
+    // POSTER GATE below), after every free and cheap gate has had its say.
 
     // =========================================================================
     // KEYWORD PRE-FILTER: Catch obvious self-promotion before calling AI
@@ -462,6 +429,45 @@ export async function POST(request: NextRequest) {
         status: 'skipped',
         reason: 'duplicate_title',
       });
+    }
+
+    // =========================================================================
+    // POSTER GATE (gated by POSTER_REGION_FILTER=on) — moved here 2026-08-05 (cost audit).
+    // Scrapes the poster's profile ONCE (cached per LinkedIn URL) to catch India/etc staffing
+    // recruiters by their REAL location and #OpenToWork job-seekers posing as hirers. Runs LAST:
+    // the scrape costs $0.004 vs ~$0.00004 for the AI validation above, so every post the cheap
+    // gates already killed must never reach it. Fail-open: scrape failure → import anyway.
+    // =========================================================================
+    if (process.env.POSTER_REGION_FILTER === 'on') {
+      try {
+        const poster = await getPosterRegion(clientLinkedIn);
+        // LEVER A — recruiter-country cut. OPT-IN via SUPPLY_POSTER_CUT=on (default OFF): it also drops
+        // an India/Africa recruiter's REMOTE roles, which are valid supply — too aggressive for a
+        // supply-bound product. Lever B (job-location) above is the default clean-feed cut.
+        if (process.env.SUPPLY_POSTER_CUT === 'on' && SUPPLY_CUT.size && poster.country && SUPPLY_CUT.has(poster.country)) {
+          console.log(`[LinkedInPosts] Skipping SUPPLY from ${poster.country} recruiter: ${postUrl}`);
+          logSkip('supply_poster_geo', extracted.title, { posterCountry: poster.country, cached: poster.cached });
+          return NextResponse.json({ success: true, status: 'skipped', reason: 'supply_poster_geo', posterCountry: poster.country });
+        }
+        // Country-region cut is SEPARATELY toggleable (POSTER_COUNTRY_BLOCK). Decision 2026-06-18:
+        // turned OFF — India/etc recruiters' posts ARE the demand that interviews our LATAM candidates
+        // (Appnosh/Infinity/Techaurcode all interviewed LATAM), so blocking them by recruiter-country
+        // cut real engagement. We still scrape (for openToWork below) but don't drop on country.
+        if (poster.blocked && process.env.POSTER_COUNTRY_BLOCK !== 'off') {
+          console.log(`[LinkedInPosts] Skipping post from ${poster.country} recruiter ${clientName}: ${postUrl}`);
+          logSkip('poster_region', extracted.title, { posterCountry: poster.country, cached: poster.cached });
+          return NextResponse.json({ success: true, status: 'skipped', reason: 'poster_region', posterCountry: poster.country });
+        }
+        // A "recruiter" with LinkedIn's Open-To-Work banner is a job-seeker posing as a hirer
+        // (bench/fake recruiter, e.g. C2C staffing) — drop regardless of country.
+        if (poster.openToWork) {
+          console.log(`[LinkedInPosts] Skipping #OpenToWork poster ${clientName}: ${postUrl}`);
+          logSkip('poster_opentowork', extracted.title, { posterCountry: poster.country, cached: poster.cached });
+          return NextResponse.json({ success: true, status: 'skipped', reason: 'poster_opentowork' });
+        }
+      } catch (e) {
+        console.warn('[LinkedInPosts] poster-region check failed (fail-open, importing):', e);
+      }
     }
 
     // =========================================================================
