@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
   const attribute = request.nextUrl.searchParams.get('attribute') === '1';
   let byCaller: Record<string, { runs: number; usd: number }> = {};
   let byCallerDay: Record<string, Record<string, number>> = {};
+  const externalQueries: Record<string, { runs: number; usd: number }> = {};
   if (attribute) {
     // Resolve which actId is the post-search actor (name lookup happens below too, but we need it now)
     const ids = [...new Set(win.map((r) => r.actId))];
@@ -78,11 +79,13 @@ export async function GET(request: NextRequest) {
       idName[id] = act?.data?.name || id;
     }
     const searchRuns = win.filter((r) => (idName[r.actId] || '').includes('post-search'));
+    // Query COUNT is the reliable splitter: every n8n workflow here sends exactly one query per
+    // run (Spheres with maxPosts=2000, stack workflows with a smaller cap); external callers send
+    // batches. maxPosts alone misclassified the stack workflows on the first pass.
     const classify = (input: { searchQueries?: string[]; maxPosts?: number } | null): string => {
       if (!input) return 'unknown';
       const qs = input.searchQueries ?? [];
-      const mp = input.maxPosts ?? 0;
-      if (qs.length === 1 && mp >= 500)
+      if (qs.length === 1)
         return /["()]| AND | OR | NOT /.test(qs[0]) ? 'freelanly-spheres' : 'freelanly-stacks';
       return 'external';
     };
@@ -103,6 +106,11 @@ export async function GET(request: NextRequest) {
         const day = r.startedAt.slice(0, 10);
         const cd = (byCallerDay[caller] ??= {});
         cd[day] = Math.round(((cd[day] ?? 0) + usd) * 100) / 100;
+        if (caller === 'external' || caller === 'freelanly-stacks') {
+          const key = `${caller}: ` + (inputs[j]?.searchQueries ?? []).slice(0, 3).join(' | ');
+          (externalQueries[key] ??= { runs: 0, usd: 0 }).runs++;
+          externalQueries[key].usd += usd;
+        }
       });
     }
     byCaller = Object.fromEntries(
@@ -163,7 +171,16 @@ export async function GET(request: NextRequest) {
       .map(([day, v]) => ({ day, runs: v.runs, usd: Math.round(v.usd * 100) / 100 }))
       .sort((a, b) => a.day.localeCompare(b.day)),
     ...(samples.length ? { samples } : {}),
-    ...(attribute ? { byCaller, byCallerDay } : {}),
+    ...(attribute
+      ? {
+          byCaller,
+          byCallerDay,
+          topNonSpheresQueries: Object.entries(externalQueries)
+            .map(([q, v]) => ({ q, runs: v.runs, usd: Math.round(v.usd * 100) / 100 }))
+            .sort((a, b) => b.usd - a.usd)
+            .slice(0, 20),
+        }
+      : {}),
   });
 }
 
