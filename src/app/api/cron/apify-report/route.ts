@@ -124,15 +124,21 @@ export async function GET(request: NextRequest) {
       idName[id] = act?.data?.name || id;
     }
     const searchRuns = win.filter((r) => (idName[r.actId] || '').includes('post-search'));
-    // Query COUNT is the reliable splitter: every n8n workflow here sends exactly one query per
-    // run (Spheres with maxPosts=2000, stack workflows with a smaller cap); external callers send
-    // batches. maxPosts alone misclassified the stack workflows on the first pass.
-    const classify = (input: { searchQueries?: string[]; maxPosts?: number } | null): string => {
+    // Verified caller signatures (all three products identified 2026-08-10):
+    //   IntentPond  — always postedLimit=month (collect cron + /api/posts live), single phrase
+    //   Freelanly   — n8n Spheres: single query, 24h
+    //   n8n stacks  — trio of phrases suffixed with a rotation country, 24h (fed freelanly+intentpond)
+    //   Watchers    — batch of 'hiring <stack> developer' phrases (8/run), 24h, no countries
+    const COUNTRIES = ['colombia','mexico','argentina','brazil','chile','peru','united states','canada',
+      'germany','france','spain','portugal','netherlands','poland','united kingdom','ireland','romania','japan'];
+    const classify = (input: { searchQueries?: string[]; maxPosts?: number; postedLimit?: string } | null): string => {
       if (!input) return 'unknown';
       const qs = input.searchQueries ?? [];
-      if (qs.length === 1)
-        return /["()]| AND | OR | NOT /.test(qs[0]) ? 'freelanly-spheres' : 'freelanly-stacks';
-      return 'external';
+      if (input.postedLimit === 'month') return 'intentpond';
+      if (qs.length === 1) return 'freelanly-spheres';
+      const first = (qs[0] || '').toLowerCase();
+      if (COUNTRIES.some((c) => first.endsWith(c))) return 'n8n-stacks';
+      return 'watchers';
     };
     const POOL = 25;
     for (let i = 0; i < searchRuns.length; i += POOL) {
