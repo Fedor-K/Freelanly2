@@ -293,6 +293,7 @@ export async function POST(request: NextRequest) {
         id: true,
         title: true,
         description: true,
+        originalContent: true,
         clientName: true,
         clientType: true,
         posterCompany: true,
@@ -486,9 +487,12 @@ export async function POST(request: NextRequest) {
       }
       coverLetter = await generateCoverLetter({
         jobTitle: opportunity.title,
-        // Full-ish JD (was 800 chars — starved the model of the actual requirements; the generator
-        // itself caps at 2500 too).
-        jobDescription: opportunity.description.slice(0, 2500),
+        // Letters are written against the ORIGINAL post plus the rewrite (rewrite first for
+        // structure, original for the poster's own wording/rates/asks — a letter that echoes
+        // the source reads as a reply, not a template). Generator caps at 2500 total.
+        jobDescription: opportunity.originalContent
+          ? `${opportunity.description.slice(0, 1300)}\n\n--- Original LinkedIn post ---\n${opportunity.originalContent.slice(0, 1100)}`
+          : opportunity.description.slice(0, 2500),
         companyName,
         userProfile: {
           name: user.name || 'Applicant',

@@ -488,6 +488,7 @@ export async function processAutoApplyQueue(): Promise<{
     try {
       // Fetch job description + recruiter name for tailoring
       let jobDescription = '';
+      let letterDescription = '';
       let recruiterName = '';
       if (app.jobId) {
         const job = await prisma.job.findUnique({
@@ -498,9 +499,14 @@ export async function processAutoApplyQueue(): Promise<{
       } else if (app.opportunityId) {
         const opp = await prisma.opportunity.findUnique({
           where: { id: app.opportunityId },
-          select: { description: true, clientName: true, clientType: true },
+          select: { description: true, originalContent: true, clientName: true, clientType: true },
         });
         jobDescription = opp?.description || '';
+        // The LETTER gets the original post appended (poster's own wording/rates/asks) — the
+        // breakdown/rationale keep working on the structured rewrite alone.
+        letterDescription = opp?.originalContent
+          ? `${jobDescription.slice(0, 800)}\n\n--- Original LinkedIn post ---\n${opp.originalContent.slice(0, 800)}`
+          : jobDescription;
         // clientName is the recruiter/poster name when clientType is 'profile'
         if (opp?.clientType === 'profile' && opp.clientName) {
           recruiterName = opp.clientName.split(' ')[0]; // First name
@@ -595,7 +601,7 @@ export async function processAutoApplyQueue(): Promise<{
         }
         coverLetter = await generateCoverLetter({
           jobTitle: app.jobTitle,
-          jobDescription: jobDescription.slice(0, 800),
+          jobDescription: (letterDescription || jobDescription).slice(0, 1700),
           companyName: app.companyName,
           userProfile: { ...userProfile, recruiterEmail: app.appliedToEmail } as any,
           verdict: ghVerdict, // honest-mode + missing-strip now driven by the real breakdown

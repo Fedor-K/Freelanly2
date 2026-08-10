@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     const opportunity = await prisma.opportunity.findUnique({
       where: { id: opportunityId },
-      select: { id: true, title: true, description: true, clientName: true, applyEmail: true, skills: true },
+      select: { id: true, title: true, description: true, originalContent: true, clientName: true, applyEmail: true, skills: true },
     });
 
     if (!opportunity || !opportunity.applyEmail) {
@@ -84,7 +84,12 @@ export async function POST(request: NextRequest) {
     }
     const coverLetter = await generateCoverLetter({
       jobTitle: opportunity.title,
-      jobDescription: opportunity.description.slice(0, 800),
+      // Letters are written against the ORIGINAL post, not only the AI rewrite: the poster knows
+      // what they wrote, and a letter that echoes their own wording/rates/asks reads as a real
+      // reply, not a template. The rewrite stays for structure (same pattern as auto-apply/[id]).
+      jobDescription: opportunity.originalContent
+        ? `${opportunity.description.slice(0, 800)}\n\n--- Original LinkedIn post ---\n${opportunity.originalContent.slice(0, 800)}`
+        : opportunity.description.slice(0, 800),
       companyName: opportunity.clientName,
       userProfile: {
         name: user.name || 'Applicant',
