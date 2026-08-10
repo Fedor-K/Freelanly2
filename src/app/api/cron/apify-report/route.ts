@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
   let byCallerDay: Record<string, Record<string, number>> = {};
   const byCallerDayRuns: Record<string, Record<string, number>> = {};
   const externalQueries: Record<string, { runs: number; usd: number }> = {};
+  const perQuery: Record<string, { runs: number; usd: number }> = {};
   if (attribute) {
     // Resolve which actId is the post-search actor (name lookup happens below too, but we need it now)
     const ids = [...new Set(win.map((r) => r.actId))];
@@ -113,6 +114,11 @@ export async function GET(request: NextRequest) {
           const key = `${caller}: ` + (inputs[j]?.searchQueries ?? []).slice(0, 3).join(' | ');
           (externalQueries[key] ??= { runs: 0, usd: 0 }).runs++;
           externalQueries[key].usd += usd;
+        }
+        const single = (inputs[j]?.searchQueries ?? []).length === 1 ? inputs[j]!.searchQueries![0] : null;
+        if (single) {
+          (perQuery[single] ??= { runs: 0, usd: 0 }).runs++;
+          perQuery[single].usd += usd;
         }
       });
     }
@@ -274,6 +280,9 @@ export async function GET(request: NextRequest) {
           byCaller,
           byCallerDay,
           byCallerDayRuns,
+          perQuery: Object.entries(perQuery)
+            .map(([q, v]) => ({ q, runs: v.runs, usd: Math.round(v.usd * 100) / 100 }))
+            .sort((a, b) => b.usd - a.usd),
           topNonSpheresQueries: Object.entries(externalQueries)
             .map(([q, v]) => ({ q, runs: v.runs, usd: Math.round(v.usd * 100) / 100 }))
             .sort((a, b) => b.usd - a.usd)
