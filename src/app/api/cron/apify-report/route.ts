@@ -59,6 +59,57 @@ export async function GET(request: NextRequest) {
     o.usd += usd;
   }
 
+  // ?attribute=1 — classify every post-search run in the window by its INPUT signature and split
+  // spend per caller. The token is account-wide and several products bill through it; run metadata
+  // can't tell them apart (everything is origin=API), but the input shape can:
+  //   · freelanly's n8n cycles send ONE query per run with maxPosts=2000
+  //     (boolean-style query → Spheres; short stack phrase → the QA/.NET/Python/React workflows)
+  //   · other products send query BATCHES with small maxPosts (100/40)
+  const attribute = request.nextUrl.searchParams.get('attribute') === '1';
+  let byCaller: Record<string, { runs: number; usd: number }> = {};
+  let byCallerDay: Record<string, Record<string, number>> = {};
+  if (attribute) {
+    // Resolve which actId is the post-search actor (name lookup happens below too, but we need it now)
+    const ids = [...new Set(win.map((r) => r.actId))];
+    const idName: Record<string, string> = {};
+    for (const id of ids) {
+      const act = await fetch(`https://api.apify.com/v2/acts/${id}?token=${token}`)
+        .then((r) => r.json()).catch(() => null);
+      idName[id] = act?.data?.name || id;
+    }
+    const searchRuns = win.filter((r) => (idName[r.actId] || '').includes('post-search'));
+    const classify = (input: { searchQueries?: string[]; maxPosts?: number } | null): string => {
+      if (!input) return 'unknown';
+      const qs = input.searchQueries ?? [];
+      const mp = input.maxPosts ?? 0;
+      if (qs.length === 1 && mp >= 500)
+        return /["()]| AND | OR | NOT /.test(qs[0]) ? 'freelanly-spheres' : 'freelanly-stacks';
+      return 'external';
+    };
+    const POOL = 25;
+    for (let i = 0; i < searchRuns.length; i += POOL) {
+      const chunk = searchRuns.slice(i, i + POOL);
+      const inputs = await Promise.all(
+        chunk.map((r) =>
+          fetch(`https://api.apify.com/v2/key-value-stores/${r.defaultKeyValueStoreId}/records/INPUT?token=${token}`)
+            .then((res) => res.json()).catch(() => null)
+        )
+      );
+      chunk.forEach((r, j) => {
+        const caller = classify(inputs[j]);
+        const usd = r.usageTotalUsd ?? 0;
+        (byCaller[caller] ??= { runs: 0, usd: 0 }).runs++;
+        byCaller[caller].usd += usd;
+        const day = r.startedAt.slice(0, 10);
+        const cd = (byCallerDay[caller] ??= {});
+        cd[day] = Math.round(((cd[day] ?? 0) + usd) * 100) / 100;
+      });
+    }
+    byCaller = Object.fromEntries(
+      Object.entries(byCaller).map(([k, v]) => [k, { runs: v.runs, usd: Math.round(v.usd * 100) / 100 }])
+    );
+  }
+
   // ?sampleInputs=N — fetch the INPUT of the N most expensive runs in the window. searchQueries
   // identify the CALLER (freelanly's n8n query cycles vs other products on the same Apify account),
   // which run metadata alone cannot do — every caller shows origin=API.
@@ -112,6 +163,7 @@ export async function GET(request: NextRequest) {
       .map(([day, v]) => ({ day, runs: v.runs, usd: Math.round(v.usd * 100) / 100 }))
       .sort((a, b) => a.day.localeCompare(b.day)),
     ...(samples.length ? { samples } : {}),
+    ...(attribute ? { byCaller, byCallerDay } : {}),
   });
 }
 
