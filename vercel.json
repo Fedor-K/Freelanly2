@@ -30,10 +30,6 @@
       "schedule": "30 5 * * *"
     },
     {
-      "path": "/api/cron/cleanup-incomplete-users",
-      "schedule": "45 5 * * *"
-    },
-    {
       "path": "/api/cron/send-auto-apply-digest",
       "schedule": "0 6 * * *"
     },
