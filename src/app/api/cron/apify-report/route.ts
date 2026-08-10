@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
   const attribute = request.nextUrl.searchParams.get('attribute') === '1';
   let byCaller: Record<string, { runs: number; usd: number }> = {};
   let byCallerDay: Record<string, Record<string, number>> = {};
+  const byCallerDayRuns: Record<string, Record<string, number>> = {};
   const externalQueries: Record<string, { runs: number; usd: number }> = {};
   if (attribute) {
     // Resolve which actId is the post-search actor (name lookup happens below too, but we need it now)
@@ -106,6 +107,8 @@ export async function GET(request: NextRequest) {
         const day = r.startedAt.slice(0, 10);
         const cd = (byCallerDay[caller] ??= {});
         cd[day] = Math.round(((cd[day] ?? 0) + usd) * 100) / 100;
+        const cr = (byCallerDayRuns[caller] ??= {});
+        cr[day] = (cr[day] ?? 0) + 1;
         if (caller === 'external' || caller === 'freelanly-stacks') {
           const key = `${caller}: ` + (inputs[j]?.searchQueries ?? []).slice(0, 3).join(' | ');
           (externalQueries[key] ??= { runs: 0, usd: 0 }).runs++;
@@ -175,6 +178,7 @@ export async function GET(request: NextRequest) {
       ? {
           byCaller,
           byCallerDay,
+          byCallerDayRuns,
           topNonSpheresQueries: Object.entries(externalQueries)
             .map(([q, v]) => ({ q, runs: v.runs, usd: Math.round(v.usd * 100) / 100 }))
             .sort((a, b) => b.usd - a.usd)
