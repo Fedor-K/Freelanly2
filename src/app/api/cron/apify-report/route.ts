@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
   const runs: Array<{
     actId: string; startedAt: string; usageTotalUsd?: number; status: string;
-    meta?: { origin?: string }; defaultKeyValueStoreId?: string;
+    meta?: { origin?: string }; defaultKeyValueStoreId?: string; defaultDatasetId?: string;
   }> = [];
   for (let offset = 0; offset < MAX_OFFSET; offset += PAGE) {
     const page = await fetch(
@@ -121,6 +121,100 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // ?dedup=1 — measure duplicate purchases directly from run DATASETS (billing is per returned
+  // post). For every single-query post-search run in the window: which returned posts were already
+  // returned by an earlier run of the SAME query (pure waste — the saving of running 1x/day), and
+  // what a one-run-per-query-per-day schedule would have missed (the page-cap tail — the loss).
+  // ?gridOnly=1 keeps only runs starting within ±90s of a 15-min boundary — n8n's schedule grid —
+  // to exclude the off-schedule clone caller from the measurement.
+  const dedup = request.nextUrl.searchParams.get('dedup') === '1';
+  const gridOnly = request.nextUrl.searchParams.get('gridOnly') === '1';
+  let dedupStats: Record<string, unknown> | null = null;
+  if (dedup) {
+    const ids = [...new Set(win.map((r) => r.actId))];
+    const idName: Record<string, string> = {};
+    for (const id of ids) {
+      const act = await fetch(`https://api.apify.com/v2/acts/${id}?token=${token}`)
+        .then((r) => r.json()).catch(() => null);
+      idName[id] = act?.data?.name || id;
+    }
+    const onGrid = (iso: string) => {
+      const t = new Date(iso);
+      const sec = t.getUTCMinutes() * 60 + t.getUTCSeconds();
+      const mod = sec % 900;
+      return mod <= 90 || mod >= 810;
+    };
+    let searchRuns = win.filter((r) => (idName[r.actId] || '').includes('post-search') && r.defaultDatasetId);
+    if (gridOnly) searchRuns = searchRuns.filter((r) => onGrid(r.startedAt));
+    // input query per run (needed to group runs by query)
+    const POOL = 20;
+    const runInfo: Array<{ q: string; startedAt: string; usd: number; items: string[] }> = [];
+    for (let i = 0; i < searchRuns.length; i += POOL) {
+      const chunk = searchRuns.slice(i, i + POOL);
+      const infos = await Promise.all(
+        chunk.map(async (r) => {
+          const input = await fetch(
+            `https://api.apify.com/v2/key-value-stores/${r.defaultKeyValueStoreId}/records/INPUT?token=${token}`
+          ).then((res) => res.json()).catch(() => null);
+          const qs = input?.searchQueries ?? [];
+          if (qs.length !== 1) return null;
+          const items = await fetch(
+            `https://api.apify.com/v2/datasets/${r.defaultDatasetId}/items?token=${token}&fields=id&limit=3000`
+          ).then((res) => res.json()).catch(() => null);
+          if (!Array.isArray(items)) return null;
+          return { q: qs[0], startedAt: r.startedAt, usd: r.usageTotalUsd ?? 0, items: items.map((x: { id: string }) => x.id) };
+        })
+      );
+      runInfo.push(...infos.filter((x): x is NonNullable<typeof x> => x !== null));
+    }
+    runInfo.sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+    const seenByQuery = new Map<string, Set<string>>();
+    const seenGlobal = new Set<string>();
+    let bought = 0, sameQueryDup = 0, crossQueryDup = 0;
+    for (const r of runInfo) {
+      const qSeen = seenByQuery.get(r.q) ?? new Set<string>();
+      seenByQuery.set(r.q, qSeen);
+      for (const id of r.items) {
+        bought++;
+        if (qSeen.has(id)) sameQueryDup++;
+        else if (seenGlobal.has(id)) crossQueryDup++;
+        qSeen.add(id);
+        seenGlobal.add(id);
+      }
+    }
+    // simulate one run per query per UTC day: keep the first, union what it returned
+    const keptKey = new Set<string>();
+    const keptIds = new Set<string>();
+    let boughtSim = 0;
+    for (const r of runInfo) {
+      const k = `${r.q}|${r.startedAt.slice(0, 10)}`;
+      if (keptKey.has(k)) continue;
+      keptKey.add(k);
+      boughtSim += r.items.length;
+      for (const id of r.items) keptIds.add(id);
+    }
+    const runsPerQuery: Record<string, number> = {};
+    for (const r of runInfo) runsPerQuery[r.q] = (runsPerQuery[r.q] ?? 0) + 1;
+    dedupStats = {
+      window: { runsAnalyzed: runInfo.length, queries: Object.keys(runsPerQuery).length, gridOnly },
+      bought,
+      uniquePosts: seenGlobal.size,
+      sameQueryRepeat: sameQueryDup,
+      sameQueryRepeatPct: bought ? Math.round((1000 * sameQueryDup) / bought) / 10 : 0,
+      crossQueryDup,
+      crossQueryDupPct: bought ? Math.round((1000 * crossQueryDup) / bought) / 10 : 0,
+      oneRunPerDaySim: {
+        bought: boughtSim,
+        uniquePosts: keptIds.size,
+        spendSavedPct: bought ? Math.round((1000 * (bought - boughtSim)) / bought) / 10 : 0,
+        postsLost: seenGlobal.size - keptIds.size,
+        postsLostPct: seenGlobal.size
+          ? Math.round((1000 * (seenGlobal.size - keptIds.size)) / seenGlobal.size) / 10
+          : 0,
+      },
+    };
+  }
+
   // ?sampleInputs=N — fetch the INPUT of the N most expensive runs in the window. searchQueries
   // identify the CALLER (freelanly's n8n query cycles vs other products on the same Apify account),
   // which run metadata alone cannot do — every caller shows origin=API.
@@ -174,6 +268,7 @@ export async function GET(request: NextRequest) {
       .map(([day, v]) => ({ day, runs: v.runs, usd: Math.round(v.usd * 100) / 100 }))
       .sort((a, b) => a.day.localeCompare(b.day)),
     ...(samples.length ? { samples } : {}),
+    ...(dedupStats ? { dedup: dedupStats } : {}),
     ...(attribute
       ? {
           byCaller,
