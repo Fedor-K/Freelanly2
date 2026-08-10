@@ -20,6 +20,49 @@ export async function GET(request: NextRequest) {
   const token = (process.env.APIFY_API_TOKEN || '').trim();
   if (!token) return NextResponse.json({ error: 'APIFY_API_TOKEN not configured' }, { status: 500 });
 
+  // ?runLog=<runId> — proxy the raw log of one run (tail). ?runs=N — list the N latest runs with
+  // ids/inputs so there is something to pick a runId from. Both exist because the token lives only
+  // in this deployment: without a proxy, Apify logs are unreachable from anywhere else we work.
+  const runLogId = request.nextUrl.searchParams.get('runLog');
+  if (runLogId) {
+    if (!/^[a-zA-Z0-9]{5,20}$/.test(runLogId)) return NextResponse.json({ error: 'bad run id' }, { status: 400 });
+    const text = await fetch(`https://api.apify.com/v2/actor-runs/${runLogId}/log?token=${token}`)
+      .then((r) => (r.ok ? r.text() : Promise.resolve(`HTTP ${r.status}`)))
+      .catch((e) => `fetch failed: ${e}`);
+    const TAIL = 30_000;
+    return NextResponse.json({
+      runId: runLogId,
+      truncated: text.length > TAIL,
+      log: text.length > TAIL ? text.slice(-TAIL) : text,
+    });
+  }
+  const listN = Math.min(50, parseInt(request.nextUrl.searchParams.get('runs') || '0', 10) || 0);
+  if (listN > 0) {
+    const page = await fetch(`https://api.apify.com/v2/actor-runs?token=${token}&desc=1&limit=${listN}`)
+      .then((r) => r.json()).catch(() => null);
+    const items = (page?.data?.items ?? []) as Array<{
+      id: string; actId: string; startedAt: string; finishedAt?: string; status: string;
+      usageTotalUsd?: number; defaultKeyValueStoreId?: string;
+    }>;
+    const out = await Promise.all(
+      items.map(async (r) => {
+        const input = await fetch(
+          `https://api.apify.com/v2/key-value-stores/${r.defaultKeyValueStoreId}/records/INPUT?token=${token}`
+        ).then((res) => res.json()).catch(() => null);
+        return {
+          id: r.id,
+          startedAt: r.startedAt,
+          status: r.status,
+          usd: Math.round((r.usageTotalUsd ?? 0) * 1000) / 1000,
+          queries: input?.searchQueries ?? null,
+          postedLimit: input?.postedLimit ?? null,
+          maxPosts: input?.maxPosts ?? null,
+        };
+      })
+    );
+    return NextResponse.json({ runs: out });
+  }
+
   const sinceParam = request.nextUrl.searchParams.get('since');
   const since = sinceParam ? new Date(sinceParam) : new Date(Date.now() - 7 * 86400_000);
   if (isNaN(since.getTime())) return NextResponse.json({ error: 'bad since' }, { status: 400 });
