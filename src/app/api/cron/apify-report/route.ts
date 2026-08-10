@@ -250,8 +250,23 @@ export async function GET(request: NextRequest) {
     }
     const runsPerQuery: Record<string, number> = {};
     for (const r of runInfo) runsPerQuery[r.q] = (runsPerQuery[r.q] ?? 0) + 1;
+    // Per-query purchase volume — the numerator for "what does a key's run actually buy".
+    const byQuery: Record<string, { runs: number; bought: number; unique: number; usd: number }> = {};
+    for (const r of runInfo) {
+      const b = (byQuery[r.q] ??= { runs: 0, bought: 0, unique: 0, usd: 0 });
+      b.runs++;
+      b.bought += r.items.length;
+      b.usd += r.usd;
+    }
+    for (const [q, b] of Object.entries(byQuery)) {
+      const ids = new Set<string>();
+      for (const r of runInfo) if (r.q === q) for (const id of r.items) ids.add(id);
+      b.unique = ids.size;
+      b.usd = Math.round(b.usd * 1000) / 1000;
+    }
     dedupStats = {
       window: { runsAnalyzed: runInfo.length, queries: Object.keys(runsPerQuery).length, gridOnly },
+      byQuery,
       bought,
       uniquePosts: seenGlobal.size,
       sameQueryRepeat: sameQueryDup,
