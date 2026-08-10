@@ -534,6 +534,40 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
       },
     });
   }
+
+  // FIRST payment: the inline Go-PRO flow (no Checkout Session) never fires
+  // checkout.session.completed, so this is its only chance to be counted — without it the
+  // subscriber exists in Stripe but is invisible to revenue and the payment funnel (two live
+  // $5 subs went unrecorded before this landed). Guarded so hosted-checkout subs that were
+  // already recorded by handleCheckoutCompleted don't double-count.
+  if (invoiceData.billing_reason === 'subscription_create') {
+    const already = await prisma.revenueEvent.findFirst({
+      where: { type: 'SUBSCRIPTION_STARTED', stripeSubscriptionId: subscriptionId },
+      select: { id: true },
+    });
+    if (!already) {
+      await prisma.revenueEvent.create({
+        data: {
+          type: 'SUBSCRIPTION_STARTED',
+          amount: invoiceData.amount_paid,
+          currency: invoiceData.currency.toUpperCase(),
+          userId: user.id,
+          planTo: 'PRO',
+          stripeEventId: invoice.id,
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: subscriptionId,
+        },
+      });
+      // Feed the canonical payment funnel (metrics count credit_charge_success ∪ RevenueEvent).
+      await prisma.activityLog.create({
+        data: {
+          userId: user.id,
+          action: ActivityAction.FUNNEL_STEP,
+          details: { step: 'credit_charge_success', source: 'invoice_paid', subscriptionId },
+        },
+      }).catch(() => {});
+    }
+  }
 }
 
 // Handle failed payment
