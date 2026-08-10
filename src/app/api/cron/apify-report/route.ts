@@ -24,7 +24,10 @@ export async function GET(request: NextRequest) {
   const since = sinceParam ? new Date(sinceParam) : new Date(Date.now() - 7 * 86400_000);
   if (isNaN(since.getTime())) return NextResponse.json({ error: 'bad since' }, { status: 400 });
 
-  const runs: Array<{ actId: string; startedAt: string; usageTotalUsd?: number; status: string; meta?: { origin?: string } }> = [];
+  const runs: Array<{
+    actId: string; startedAt: string; usageTotalUsd?: number; status: string;
+    meta?: { origin?: string }; defaultKeyValueStoreId?: string;
+  }> = [];
   for (let offset = 0; offset < MAX_OFFSET; offset += PAGE) {
     const page = await fetch(
       `https://api.apify.com/v2/actor-runs?token=${token}&desc=1&limit=${PAGE}&offset=${offset}`
@@ -56,6 +59,32 @@ export async function GET(request: NextRequest) {
     o.usd += usd;
   }
 
+  // ?sampleInputs=N — fetch the INPUT of the N most expensive runs in the window. searchQueries
+  // identify the CALLER (freelanly's n8n query cycles vs other products on the same Apify account),
+  // which run metadata alone cannot do — every caller shows origin=API.
+  const sampleN = Math.min(40, parseInt(request.nextUrl.searchParams.get('sampleInputs') || '0', 10) || 0);
+  let samples: Array<Record<string, unknown>> = [];
+  if (sampleN > 0) {
+    const picked = [...win]
+      .sort((a, b) => (b.usageTotalUsd ?? 0) - (a.usageTotalUsd ?? 0))
+      .slice(0, sampleN);
+    samples = await Promise.all(
+      picked.map(async (r) => {
+        const input = await fetch(
+          `https://api.apify.com/v2/key-value-stores/${r.defaultKeyValueStoreId}/records/INPUT?token=${token}`
+        ).then((res) => res.json()).catch(() => null);
+        return {
+          startedAt: r.startedAt,
+          usd: Math.round((r.usageTotalUsd ?? 0) * 100) / 100,
+          queries: input?.searchQueries ?? input?.queries ?? null,
+          maxPosts: input?.maxPosts ?? null,
+          postedLimit: input?.postedLimit ?? null,
+          scrapePages: input?.scrapePages ?? null,
+        };
+      })
+    );
+  }
+
   // Resolve actor names (a handful of distinct ids)
   const names: Record<string, string> = {};
   for (const id of Object.keys(byActor)) {
@@ -82,6 +111,7 @@ export async function GET(request: NextRequest) {
     byDay: Object.entries(byDay)
       .map(([day, v]) => ({ day, runs: v.runs, usd: Math.round(v.usd * 100) / 100 }))
       .sort((a, b) => a.day.localeCompare(b.day)),
+    ...(samples.length ? { samples } : {}),
   });
 }
 
