@@ -35,7 +35,7 @@ model User {
   // subscription redirect that abandoned 97% at the Stripe hosted page. Gated by CREDITS_ENABLED env.
   applyCredits          Int       @default(0)  // remaining purchased apply-credit balance
   stripePaymentMethodId String?                // saved card (SetupIntent) for one-tap on-session charges
-  freeSendsUsed         Int       @default(0)  // lifetime free sends claimed (atomic first-free gate; backfilled from sent history so existing users aren't re-granted a free send)
+  freeSendsUsed         Int       @default(0)  // lifetime free sends claimed, counted against FREE_APPLICATIONS (atomic gate; backfilled from sent history so existing users weren't re-granted the allowance)
 
   // Limits tracking
   jobViewsToday Int       @default(0)

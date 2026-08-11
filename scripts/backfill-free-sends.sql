@@ -5,8 +5,10 @@
 -- existing user who already spent their free application would be granted a fresh one on deploy. This
 -- marks 1 free send used for anyone who has ever sent — preserving current behaviour.
 --
--- Assumes FREE_APPLICATIONS = 1 (the current value). If that env is raised, backfill LEAST(N, sent_count)
--- instead. Idempotent (guarded by freeSendsUsed = 0). Run once, right after `prisma db push`.
+-- Written when FREE_APPLICATIONS was 1, and ALREADY RUN under that value. The allowance is now 3, so
+-- do NOT re-run this as-is against a fresh column: it would mark only 1 of the 3 free sends used. For a
+-- re-backfill use LEAST(FREE_APPLICATIONS, sent_count). Raising the allowance intentionally hands the
+-- extra sends to everyone stamped with 1 here. Idempotent (guarded by freeSendsUsed = 0).
 
 UPDATE "User" u
 SET "freeSendsUsed" = 1

@@ -4,8 +4,8 @@ import '../marketing-styles.css';
 import './pricing-design.css';
 
 export const metadata: Metadata = {
-  title: 'Pricing — first free · $0.50 per application · PRO $5/mo',
-  description: 'Try Freelanly free — your first application is on us. PRO ($5/mo) keeps them coming: AI-written letters, a morning ready-queue, your CV attached to every send.',
+  title: 'Pricing — 3 free · $0.50 per application · PRO $5/mo',
+  description: 'Try Freelanly free — your first 3 applications are on us. PRO ($5/mo) keeps them coming: AI-written letters, a morning ready-queue, your CV attached to every send.',
   alternates: { canonical: `${siteConfig.url}/pricing` },
 };
 
@@ -37,8 +37,8 @@ export default function PricingPage() {
   <div className="page-head-bg"></div>
   <div className="container">
     <span className="eyebrow">— Pricing</span>
-    <h1>Your first application is <span className="accent">free</span>.<br/>Then pay per application — or go PRO.</h1>
-    <p className="lede">Sign up, get matched, and send your first AI-drafted application on us — no credit card. After that: top up a balance and send at $0.50 per application, or go PRO ($5/mo) — for less than a coffee.</p>
+    <h1>Your first 3 applications are <span className="accent">free</span>.<br/>Then pay per application — or go PRO.</h1>
+    <p className="lede">Sign up, get matched, and send your first three AI-drafted applications on us — no credit card. After that: top up a balance and send at $0.50 per application, or go PRO ($5/mo) — for less than a coffee.</p>
   </div>
 </header>
 

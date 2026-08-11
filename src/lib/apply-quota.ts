@@ -195,6 +195,12 @@ export async function revokeApplyCredits(userId: string, n: number): Promise<voi
  * for the current frontend, which ignores the extra fields).
  */
 export function applyLimitResponse(to?: string): Record<string, unknown> {
+  // This message IS the paywall headline — the frontend renders it verbatim and it overrides the
+  // component's own fallback copy. So it must count off the constant: hardcoding "your free
+  // application" states a false number the moment FREE_APPLICATIONS is anything but 1.
+  const spent = FREE_APPLICATIONS === 1
+    ? 'Your free application is used.'
+    : `Your ${FREE_APPLICATIONS} free applications are used.`;
   return {
     error: 'application_limit',
     needsPurchase: CREDITS_ENABLED,
@@ -202,8 +208,8 @@ export function applyLimitResponse(to?: string): Record<string, unknown> {
     packSize: CREDIT_PACK_SIZE,
     packPriceCents: CREDIT_PACK_PRICE_CENTS,
     message: CREDITS_ENABLED
-      ? 'Your free application is used. Top up your balance to keep applying — $0.50 per application (min $3 top-up, never expires).'
-      : 'Your free application is used. Keep applying with PRO ($5/mo) — AI-written letters, your CV attached to every one.',
+      ? `${spent} Top up your balance to keep applying — $0.50 per application (min $3 top-up, never expires).`
+      : `${spent} Keep applying with PRO ($5/mo) — AI-written letters, your CV attached to every one.`,
     ...(to ? { to } : {}),
   };
 }

@@ -606,8 +606,8 @@ export async function POST(request: NextRequest) {
 
     const text = finalText + footerText;
 
-    // APPLICATION PAYWALL (owner decision 2026-07-13, credits 2026-07-21): the FIRST application is
-    // free — every send after needs a purchased credit ($3/pack) or PRO. Read-only pre-check here so a
+    // APPLICATION PAYWALL (owner decision 2026-07-13, credits 2026-07-21): the first FREE_APPLICATIONS
+    // sends are free — every send after needs a purchased credit ($3/pack) or PRO. Pre-check here so a
     // walled user gets the paywall without a wasted send; the ATOMIC credit consume is right before the
     // send below (so no other early-return sits between consume and the irreversible send).
     if (user.plan === 'FREE' && !(await hasApplyAllowance(user.id, user.plan))) {

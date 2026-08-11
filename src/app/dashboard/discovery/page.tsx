@@ -412,16 +412,13 @@ export default async function DiscoveryPage({ searchParams }: { searchParams?: P
   let arrivalItem: FeedItem | null = null;
   // Only auto-open the modal when the apply would actually PROCEED (owner call 2026-07-17: a
   // day+1 email click must land on the feed, not on a paywall-in-the-face). A FREE user past the
-  // free send would get the wall as their very first screen — for them, plain feed instead.
-  // Mirrors the quick-apply wall condition (ALL sends counted, no origin filter).
-  let arrivalWouldWall = false;
-  if (arrivalId) {
-    const mePlan = me.plan || 'FREE';
-    if (mePlan === 'FREE') {
-      const totalSends = await prisma.autoApplication.count({ where: { userId: session.user.id, sentAt: { not: null } } });
-      arrivalWouldWall = totalSends >= Number(process.env.FREE_APPLICATIONS ?? 1);
-    }
-  }
+  // free allowance would get the wall as their very first screen — for them, plain feed instead.
+  // Reuse the SAME gate the send path enforces (already computed above as `applyAllowed`): the
+  // previous local recompute counted sent AutoApplications against its own `process.env
+  // .FREE_APPLICATIONS ?? 1` fallback, so it walled users the real gate lets through — anyone
+  // within the raised allowance, anyone holding purchased credits, and any backfilled user whose
+  // freeSendsUsed lags their send history.
+  const arrivalWouldWall = !applyAllowed;
   if (arrivalId && !arrivalWouldWall) {
     const ao = await prisma.opportunity.findUnique({
       where: { id: arrivalId },
