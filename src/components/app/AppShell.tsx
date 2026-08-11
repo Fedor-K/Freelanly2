@@ -187,7 +187,7 @@ function NotificationBell() {
   );
 }
 
-export function AppShell({ children, userName, userPlan, applyCredits = 0, freeUsed = false }: { children: React.ReactNode; userName?: string; userPlan?: string; applyCredits?: number; freeUsed?: boolean }) {
+export function AppShell({ children, userName, userPlan, applyCredits = 0, freeRemaining = 0 }: { children: React.ReactNode; userName?: string; userPlan?: string; applyCredits?: number; freeRemaining?: number }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -228,16 +228,16 @@ export function AppShell({ children, userName, userPlan, applyCredits = 0, freeU
 
         <div className="sb-spacer"></div>
 
-        {/* Balance model (2026-07-22): FREE = first application free, then a top-up balance at $0.50
-            per application. The widget shows the live balance and opens the same top-up flow as the
-            wall; PRO $5/mo stays as the unlimited alternative. */}
+        {/* Balance model (2026-07-22): FREE gets FREE_APPLICATIONS free sends, then a top-up balance at
+            $0.50 per application. The widget counts the free ones down while they last, then shows the
+            live balance and opens the same top-up flow as the wall; PRO $5/mo is the unlimited alternative. */}
         {userPlan === 'FREE' && (
           <div className="sb-trial">
             <div className="label">Free plan</div>
             <div className="days">
-              {applyCredits > 0 || freeUsed
-                ? `Balance: $${(applyCredits * 0.5).toFixed(2)}`
-                : 'First application free'}
+              {freeRemaining > 0
+                ? `${freeRemaining} free application${freeRemaining === 1 ? '' : 's'} left`
+                : `Balance: $${(applyCredits * 0.5).toFixed(2)}`}
             </div>
             <button onClick={() => setTopupOpen(true)} className="upgrade"
               style={{ border: 'none', cursor: 'pointer', width: '100%', textAlign: 'center', font: 'inherit' }}>

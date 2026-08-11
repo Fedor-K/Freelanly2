@@ -686,7 +686,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                  legacy $5/mo redirect. Copy sells the SUPPLY (feed count is the honest hook). */
               draftBlocked.offer === 'credits' ? (
                 <ApplyPaywallModal
-                  message={items.length >= 5 ? `${items.length} roles in your feed match your profile` : (draftBlocked.message || 'Your free application is used')}
+                  message={items.length >= 5 ? `${items.length} roles in your feed match your profile` : (draftBlocked.message || 'Your free applications are used')}
                   packSize={draftBlocked.packSize}
                   packPriceCents={draftBlocked.packPriceCents}
                   source="application_paywall_feed"
@@ -704,7 +704,7 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                 <div style={{padding: '40px 28px', textAlign: 'center'}}>
                   <div style={{fontSize: '24px', marginBottom: '10px'}}>✨</div>
                   <div style={{fontSize: '15px', fontWeight: 700, marginBottom: '10px'}}>
-                    {items.length >= 5 ? `${items.length} roles in your feed match your profile` : 'Your free application is used'}
+                    {items.length >= 5 ? `${items.length} roles in your feed match your profile` : 'Your free applications are used'}
                   </div>
                   <div style={{fontSize: '13px', color: '#5C6068', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 18px'}}>
                     Fresh matched roles land in your feed every day. Apply to any of them with <b>PRO — $5/month</b>: AI-written letters, your CV attached to every one. Cancel anytime.

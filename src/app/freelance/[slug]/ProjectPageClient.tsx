@@ -610,7 +610,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
         setPhase('sent');
         track('JOB_APPLY', { projectId: project.id, method: 'project_page' });
       } else if (data.error === 'application_limit') {
-        // First application free; every send after needs a credit ($3/6) or PRO. Show the wall.
+        // The first FREE_APPLICATIONS sends are free; every send after needs a credit ($3/6) or PRO.
         setGenPaywall(true);
         setPaywallInfo({ offer: data.offer, packSize: data.packSize, packPriceCents: data.packPriceCents });
         setSendError('');
@@ -660,7 +660,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             Apply now — free
           </button>
           <div style={{ marginTop: '16px', fontSize: '12px', color: '#8A8780', textAlign: 'center' }}>
-            No credit card · First application free
+            No credit card · First 3 applications free
           </div>
         </>
       );

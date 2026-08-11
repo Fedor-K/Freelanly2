@@ -97,8 +97,9 @@ export async function refundApplyQuota(userId: string, _plan: string): Promise<v
 // ─────────────────────────────────────────────────────────────────────────────
 // PAY-PER-APPLY CREDITS (owner decision 2026-07-21)
 //
-// The MONEY gate (distinct from the daily anti-spam brake above): a FREE user's FIRST send is free
-// (priorSends < FREE_APPLICATIONS), then each further send needs a purchased credit. $3 buys a pack.
+// The MONEY gate (distinct from the daily anti-spam brake above): a FREE user's first FREE_APPLICATIONS
+// sends are free (priorSends < FREE_APPLICATIONS), then each further send needs a purchased credit.
+// $3 buys a pack.
 // Charged on-session via inline Stripe Elements — replaces the $5/mo subscription redirect that
 // abandoned 97% at the Stripe hosted page. PRO/ENTERPRISE stay unlimited. own-inbox is NOT exempt here
 // (that exemption is only for the anti-spam daily cap — this is about product value, not send channel).
@@ -109,8 +110,12 @@ export async function refundApplyQuota(userId: string, _plan: string): Promise<v
 
 /** Feature flag — when false, past-free FREE users hit the legacy hard wall (no credits, $5/mo copy). */
 export const CREDITS_ENABLED = process.env.CREDITS_ENABLED === 'true';
-/** Lifetime free sends before payment kicks in (env-tunable; matches the existing FREE_APPLICATIONS gate). */
-export const FREE_APPLICATIONS = Number(process.env.FREE_APPLICATIONS ?? 1);
+/** Lifetime free sends before payment kicks in (env-tunable; matches the existing FREE_APPLICATIONS gate).
+ *  Raised 1 → 3 (owner decision 2026-08-11): at one free send the wall landed before the product had
+ *  proved anything — over 14 days 927 users hit it having sent 1.01 applications on average, 96% with
+ *  no recruiter reply yet, and 91% never even clicked "pay". Three sends buys enough evidence to make
+ *  the ask credible. Existing users with freeSendsUsed=1 pick up the extra two automatically. */
+export const FREE_APPLICATIONS = Number(process.env.FREE_APPLICATIONS ?? 3);
 /** Applies granted per purchased pack. */
 export const CREDIT_PACK_SIZE = Number(process.env.CREDIT_PACK_SIZE ?? 6);
 /** Price of one pack, in cents (USD). */

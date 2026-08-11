@@ -61,7 +61,7 @@ export default function PricingPage() {
         </div>
         <div className="plan-section-label">What&apos;s included</div>
         <ul className="plan-features">
-          <li><Chk /> <span><strong>First application free</strong> — see the full flow end to end</span></li>
+          <li><Chk /> <span><strong>First 3 applications free</strong> — see the full flow end to end</span></li>
           <li><Chk /> <span>Fresh matched remote tech roles in your feed daily</span></li>
           <li><Chk /> <span>Why-you-match reasons on every card</span></li>
           <li><Chk /> <span>R&eacute;sum&eacute; parsing + profile built from your CV and LinkedIn</span></li>

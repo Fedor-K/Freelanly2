@@ -135,7 +135,7 @@ export default async function AtsGuidePage({ params }: { params: Promise<{ ats: 
             <p className="text-[15px] text-[#A1A1AA] mb-5 leading-relaxed">
               Freelanly finds fresh remote tech roles matched to your profile and drafts a tailored
               cover letter for each — checked by a second AI reviewer against the job&apos;s requirements. You review,
-              edit, and send every application yourself. First one is free.
+              edit, and send every application yourself. First three are free.
             </p>
             <Link
               href="/auth/signin"

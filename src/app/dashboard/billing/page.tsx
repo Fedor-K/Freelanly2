@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { QueueUpgradeButton } from '@/components/app/QueueUpgradeButton';
+import { FREE_APPLICATIONS } from '@/lib/apply-quota';
 import './billing-design.css';
 
 export const metadata: Metadata = {
@@ -44,6 +45,7 @@ export default async function BillingPage() {
   ]);
 
   const isPro = user.plan === 'PRO';
+  const freeRemaining = Math.max(0, FREE_APPLICATIONS - (user.freeSendsUsed ?? 0));
 
   return (
     <div className="page">
@@ -81,7 +83,9 @@ export default async function BillingPage() {
             <span className="meta">$0.50 / application</span>
           </div>
           <div className="meta mt-2">
-            {(user.freeSendsUsed ?? 0) > 0 ? 'Free application used' : 'First application free'} · {sentThisMonth} sent this month
+            {freeRemaining > 0
+              ? `${freeRemaining} free application${freeRemaining === 1 ? '' : 's'} left`
+              : 'Free applications used'} · {sentThisMonth} sent this month
           </div>
           <div className="meta mt-2"><a href="/dashboard/discovery" style={{color: 'var(--acid-deep)'}}>Top up from $3 — in the feed →</a></div>
         </div>
@@ -130,7 +134,7 @@ export default async function BillingPage() {
             </div>
             <div className="name">Free</div>
             <div className="price">$0<span className="unit">/mo</span></div>
-            <div className="desc">First application free, then $0.50 each from your balance (top up from $3, never expires) · AI cover letters · Send from your own Gmail</div>
+            <div className="desc">First 3 applications free, then $0.50 each from your balance (top up from $3, never expires) · AI cover letters · Send from your own Gmail</div>
             {user.plan !== 'FREE' && user.stripeId && (
               <form action="/api/stripe/portal" method="POST">
                 <button type="submit" className="btn btn-soft btn-sm mt-3" style={{width: '100%'}}>Downgrade</button>

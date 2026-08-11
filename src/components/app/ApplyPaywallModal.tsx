@@ -158,7 +158,7 @@ export function ApplyPaywallModal({
     <div style={{ padding: '24px', textAlign: 'left' }}>
       {/* Top-up PRIMARY (owner 2026-07-31: back to top-up-first — the PRO-first modal killed top-up clicks). */}
       <div style={{ fontSize: 15, fontWeight: 700, textAlign: 'center', margin: '2px 0 6px', color: '#1a2e05' }}>
-        {message || 'Your free application is used'}
+        {message || 'Your free applications are used'}
       </div>
       <div style={{ fontSize: 13, color: '#5C6068', textAlign: 'center', marginBottom: 8, lineHeight: 1.5 }}>
         {showCardForm && payFlow === 'sub'

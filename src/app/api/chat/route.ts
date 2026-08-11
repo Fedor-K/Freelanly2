@@ -533,7 +533,7 @@ export async function POST(request: NextRequest) {
             { label: 'Different category', value: 'Different category' },
           ];
         } else if (userStatus === 'FREE') {
-          reply = `Open the role and hit Apply \u2014 the cover letter is already written for you. Your first application is free; after that it's $0.50 per application from your balance (top up from $3) or PRO at $5/month.\n\nBrowse your matches: ${addUtmSource('https://freelanly.com/dashboard/discovery')}`;
+          reply = `Open the role and hit Apply \u2014 the cover letter is already written for you. Your first 3 applications are free; after that it's $0.50 per application from your balance (top up from $3) or PRO at $5/month.\n\nBrowse your matches: ${addUtmSource('https://freelanly.com/dashboard/discovery')}`;
           buttons = [
             { label: 'See PRO pricing', value: 'See PRO pricing' },
             { label: 'Maybe later', value: 'Maybe later' },

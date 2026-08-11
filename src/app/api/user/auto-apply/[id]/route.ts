@@ -328,7 +328,7 @@ export async function POST(
       });
       if (!fullUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-      // APPLICATION PAYWALL (owner decision 2026-07-13, credits 2026-07-21): first application free,
+      // APPLICATION PAYWALL (owner decision 2026-07-13, credits 2026-07-21): first FREE_APPLICATIONS free,
       // every send after needs a purchased credit ($3/pack) or PRO. Read-only pre-check here; the atomic
       // credit consume is right before the irreversible send below (after the postal bar + daily cap).
       if (fullUser.plan === 'FREE' && !(await hasApplyAllowance(session.user.id, fullUser.plan))) {
