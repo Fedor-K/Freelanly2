@@ -109,6 +109,7 @@ export async function POST(request: NextRequest) {
       case 'payment_intent.payment_failed': {
         const pi = event.data.object as Stripe.PaymentIntent;
         await recordTopupAttempt(pi, 'failed', pi.last_payment_error?.decline_code || pi.last_payment_error?.code || pi.last_payment_error?.message);
+        await recordSubChargeFailed(pi);
         break;
       }
       case 'payment_intent.canceled': {
@@ -650,6 +651,34 @@ async function recordTopupAttempt(pi: Stripe.PaymentIntent, kind: 'created' | 'f
         status: pi.status,
         email: pi.receipt_email || undefined,
         declineReason: declineReason || undefined,
+      },
+    },
+  }).catch(() => {});
+}
+
+// Server-side record of a FAILED charge that is NOT an apply_credits top-up — i.e. the $5-subscription
+// first-invoice PI (inline Go-PRO) or any other charge on a Freelanly customer. These PIs carry no
+// metadata (Stripe creates them for the invoice), so we identify ours by customer → User.stripeId;
+// Translync shares the Stripe account and its customers won't match, which keeps them out. Without this,
+// a card decline on the sub flow only exists client-side (credit_charge_client_error) and is lost
+// entirely when the tab dies before the event fires.
+async function recordSubChargeFailed(pi: Stripe.PaymentIntent) {
+  if (pi.metadata?.type === 'apply_credits') return; // already recorded as topup_failed
+  const customerId = typeof pi.customer === 'string' ? pi.customer : pi.customer?.id;
+  if (!customerId) return;
+  const user = await prisma.user.findFirst({ where: { stripeId: customerId }, select: { id: true, email: true } }).catch(() => null);
+  if (!user) return; // not a Freelanly customer (e.g. Translync rides the same Stripe account)
+  await prisma.activityLog.create({
+    data: {
+      action: ActivityAction.FUNNEL_STEP,
+      userId: user.id,
+      details: {
+        step: 'charge_failed_server',
+        pi: pi.id,
+        amountCents: pi.amount,
+        declineCode: pi.last_payment_error?.decline_code || undefined,
+        code: pi.last_payment_error?.code || undefined,
+        msg: (pi.last_payment_error?.message || '').slice(0, 160) || undefined,
       },
     },
   }).catch(() => {});

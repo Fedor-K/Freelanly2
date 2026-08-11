@@ -88,7 +88,12 @@ export function ApplyPaywallModal({
         const stripe = await getStripeClient();
         if (!stripe) { setError(STRIPE_BLOCKED_MSG); setBusy(false); return; }
         const { error: err, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret);
-        if (err) { setError(err.message || 'Payment failed'); setBusy(false); return; }
+        if (err) {
+          // One-tap (saved card) failures were a blind zone — no funnel event, so a decline here looked
+          // identical to an abandon in analytics. decline_code is the specific bank reason.
+          track('FUNNEL_STEP', { step: 'credit_charge_client_error', source, flow: 'sub', oneTap: true, code: err.code, declineCode: err.decline_code, msg: (err.message || '').slice(0, 120) });
+          setError(err.message || 'Payment failed'); setBusy(false); return;
+        }
         if (paymentIntent?.status === 'succeeded') { await onPaySuccess(paymentIntent.id, data.subscriptionId); }
         else { setError('Payment not completed'); setBusy(false); }
       } else {
@@ -131,7 +136,11 @@ export function ApplyPaywallModal({
         const stripe = await getStripeClient();
         if (!stripe) { setError(STRIPE_BLOCKED_MSG); setBusy(false); return; }
         const { error: err, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret);
-        if (err) { setError(err.message || 'Payment failed'); setBusy(false); return; }
+        if (err) {
+          // Same blind zone as the sub one-tap path: saved-card declines never reached the funnel log.
+          track('FUNNEL_STEP', { step: 'credit_charge_client_error', source, flow: 'topup', oneTap: true, code: err.code, declineCode: err.decline_code, msg: (err.message || '').slice(0, 120) });
+          setError(err.message || 'Payment failed'); setBusy(false); return;
+        }
         if (paymentIntent?.status === 'succeeded') { await onPaySuccess(paymentIntent.id); }
         else { setError('Payment not completed'); setBusy(false); }
       } else {
@@ -268,7 +277,9 @@ function CardForm({
         redirect: 'if_required',
       });
       if (error) {
-        onEvent('credit_charge_client_error', { code: error.code, type: error.type, msg: (error.message || '').slice(0, 120) });
+        // declineCode = the bank's specific reason (insufficient_funds / do_not_honor / card_not_supported…)
+        // — error.code alone is usually just "card_declined", useless for diagnosing geo payment friction.
+        onEvent('credit_charge_client_error', { code: error.code, type: error.type, declineCode: error.decline_code, msg: (error.message || '').slice(0, 120) });
         onError(error.message || 'Payment failed'); setBusy(false); return;
       }
       if (paymentIntent?.status === 'succeeded') { await onSucceeded(paymentIntent.id); }
