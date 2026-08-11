@@ -16,8 +16,11 @@
  *
  * DEFINITIONS (fixed — change here, never inline):
  *  · MSK day  = createdAt >= 'YYYY-MM-DD 21:00' UTC of the previous date. Timestamps are naive-UTC.
- *  · payer    = a user with FUNNEL_STEP credit_charge_success OR a RevenueEvent
- *               (SUBSCRIPTION_STARTED | ONE_TIME_PAYMENT). Both, always — neither alone is complete.
+ *  · payer    = a user with FUNNEL_STEP credit_charge_success OR pro5_inline_success OR a
+ *               RevenueEvent (SUBSCRIPTION_STARTED | ONE_TIME_PAYMENT). All legs, always — none is
+ *               complete alone: the inline Go-PRO flow (since 2026-07-31) logs pro5_inline_success
+ *               and (until the 2026-08-10 webhook fix) wrote NO RevenueEvent at all, so any single
+ *               leg silently drops real payers.
  *  · send     = AutoApplication with origin='SELF' AND sentAt IS NOT NULL. AUTO rows are matcher
  *               bookkeeping, not user action; REVIEW/SKIPPED rows are not sends either.
  *  · wall     = FUNNEL_STEP application_paywall_shown (carries details->>'opportunityId').
@@ -46,7 +49,7 @@ const ROLE_TAXONOMY_BREAK = '2026-07-29';
 
 const PAYERS = `
   SELECT DISTINCT "userId" AS uid FROM "ActivityLog"
-   WHERE action='FUNNEL_STEP' AND details->>'step'='credit_charge_success' AND "userId" IS NOT NULL
+   WHERE action='FUNNEL_STEP' AND details->>'step' IN ('credit_charge_success','pro5_inline_success') AND "userId" IS NOT NULL
   UNION
   SELECT DISTINCT "userId" FROM "RevenueEvent"
    WHERE type IN ('SUBSCRIPTION_STARTED','ONE_TIME_PAYMENT') AND "userId" IS NOT NULL`;
@@ -100,7 +103,7 @@ async function funnel(days = 14) {
      (SELECT count(DISTINCT "userId") FROM "ActivityLog" WHERE action='FUNNEL_STEP' AND details->>'step' IN ('credit_charge_click','pro5_inline_click') AND "createdAt">=${W})::int click,
      (SELECT count(DISTINCT "userId") FROM "ActivityLog" WHERE action='FUNNEL_STEP' AND details->>'step'='credit_charge_form_ready' AND "createdAt">=${W})::int form,
      (SELECT count(DISTINCT "userId") FROM "ActivityLog" WHERE action='FUNNEL_STEP' AND details->>'step'='credit_charge_submit' AND "createdAt">=${W})::int submit,
-     (SELECT count(DISTINCT "userId") FROM "ActivityLog" WHERE action='FUNNEL_STEP' AND details->>'step'='credit_charge_success' AND "createdAt">=${W})::int success`))[0];
+     (SELECT count(DISTINCT "userId") FROM "ActivityLog" WHERE action='FUNNEL_STEP' AND details->>'step' IN ('credit_charge_success','pro5_inline_success') AND "createdAt">=${W})::int success`))[0];
   const wall = n(r.wall), click = n(r.click), form = n(r.form), submit = n(r.submit), success = n(r.success);
   console.log(`  упёрлись в стену      ${String(wall).padStart(5)}   (100%)`);
   console.log(`  нажали оплатить       ${String(click).padStart(5)}   ${pct(click, wall)} от стены`);
