@@ -11,6 +11,81 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const month = searchParams.get('month') || '2026-03'; // YYYY-MM
 
+  // ?split=1 — per-price cohort view. This Stripe account is SHARED with another product (Translync,
+  // €20/mo), so every account-wide number — including the dashboard's churn rate and LTV — blends two
+  // businesses with different prices and currencies. Freelanly's subscription is a single price
+  // (STRIPE_PRICES.pro5, $5/mo), so grouping by price id is what separates them. Churn here is
+  // cancellations in the window over the base active at the window's start, per price.
+  if (searchParams.get('split') === '1') {
+    const days = Number(searchParams.get('days') || 30);
+    const now = Math.floor(Date.now() / 1000);
+    const since = now - days * 24 * 3600;
+
+    const all: Stripe.Subscription[] = [];
+    for await (const s of stripe.subscriptions.list({ status: 'all', limit: 100 })) all.push(s);
+
+    const rows: Record<string, {
+      price: string; product: string; currency: string; unitAmount: number; interval: string;
+      active: number; mrrCents: number; startedInWindow: number; canceledInWindow: number;
+      activeAtWindowStart: number; everStarted: number;
+    }> = {};
+
+    for (const s of all) {
+      const item = s.items.data[0];
+      const price = item?.price;
+      if (!price?.id) continue;
+      const key = price.id;
+      rows[key] ||= {
+        price: key,
+        product: typeof price.product === 'string' ? price.product : (price.product?.id ?? ''),
+        currency: (price.currency || '').toUpperCase(),
+        unitAmount: (price.unit_amount ?? 0) / 100,
+        interval: price.recurring?.interval ?? 'one_time',
+        active: 0, mrrCents: 0, startedInWindow: 0, canceledInWindow: 0, activeAtWindowStart: 0, everStarted: 0,
+      };
+      const r = rows[key];
+      r.everStarted++;
+
+      const live = s.status === 'active' || s.status === 'trialing';
+      if (live) {
+        r.active++;
+        const amt = price.unit_amount ?? 0;
+        const n = price.recurring?.interval_count || 1;
+        if (price.recurring?.interval === 'month') r.mrrCents += amt / n;
+        else if (price.recurring?.interval === 'year') r.mrrCents += amt / (12 * n);
+        else if (price.recurring?.interval === 'week') r.mrrCents += (amt * 52) / 12 / n;
+      }
+      if (s.created >= since) r.startedInWindow++;
+      if (s.canceled_at && s.canceled_at >= since) r.canceledInWindow++;
+      // Base for the churn denominator: existed before the window and had not already been cancelled
+      // when it opened. Without this, a cohort that only just started reads as ~0% churn purely
+      // because its members have not had time to cancel.
+      if (s.created < since && (!s.canceled_at || s.canceled_at >= since)) r.activeAtWindowStart++;
+    }
+
+    const byPrice = Object.values(rows)
+      .map(r => {
+        const churn = r.activeAtWindowStart > 0 ? r.canceledInWindow / r.activeAtWindowStart : null;
+        return {
+          ...r,
+          mrr: Math.round(r.mrrCents) / 100,
+          mrrCents: undefined,
+          churnRate: churn === null ? null : Math.round(churn * 10000) / 100,
+          // LTV = price / churn. Meaningless while the cohort has no completed billing cycle.
+          impliedLtv: churn && churn > 0 ? Math.round((r.unitAmount / churn) * 100) / 100 : null,
+          maxMrr: churn && churn > 0 ? Math.round((r.startedInWindow * r.unitAmount / churn) * 100) / 100 : null,
+        };
+      })
+      .sort((a, b) => b.active - a.active);
+
+    return NextResponse.json({
+      windowDays: days,
+      note: 'churnRate = canceled in window / active at window start, per price. activeAtWindowStart = 0 means the cohort is too young to have measurable churn.',
+      pro5Price: 'price_1TrfY7KHJU6KLxM3Sme6WLZi',
+      byPrice,
+    });
+  }
+
   const [year, mon] = month.split('-').map(Number);
   const from = Math.floor(new Date(year, mon - 1, 1).getTime() / 1000);
   const to = Math.floor(new Date(year, mon, 1).getTime() / 1000);
