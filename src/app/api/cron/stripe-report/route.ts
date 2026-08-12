@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
       price: string; product: string; currency: string; unitAmount: number; interval: string;
       active: number; mrrCents: number; startedInWindow: number; canceledInWindow: number;
       activeAtWindowStart: number; everStarted: number;
+      byStatus: Record<string, number>; everPaid: number; paidThenCanceled: number;
+      neverPaid: number; scheduledToCancel: number;
     }> = {};
 
     for (const s of all) {
@@ -42,9 +44,22 @@ export async function GET(req: NextRequest) {
         unitAmount: (price.unit_amount ?? 0) / 100,
         interval: price.recurring?.interval ?? 'one_time',
         active: 0, mrrCents: 0, startedInWindow: 0, canceledInWindow: 0, activeAtWindowStart: 0, everStarted: 0,
+        byStatus: {}, everPaid: 0, paidThenCanceled: 0, neverPaid: 0, scheduledToCancel: 0,
       };
       const r = rows[key];
       r.everStarted++;
+      r.byStatus[s.status] = (r.byStatus[s.status] || 0) + 1;
+
+      // The inline Go-PRO flow creates a subscription with payment_behavior 'default_incomplete' on
+      // every click, so an abandoned payment form leaves a real subscription object behind. Counting
+      // those as churn would report an abandoned checkout as a lost customer. A subscription that was
+      // actually paid has advanced past the incomplete states at least once — `incomplete` and
+      // `incomplete_expired` never took a payment, so they are attempts, not customers.
+      const neverPaid = s.status === 'incomplete' || s.status === 'incomplete_expired';
+      if (neverPaid) r.neverPaid++;
+      else r.everPaid++;
+      if (!neverPaid && s.status === 'canceled') r.paidThenCanceled++;
+      if (s.cancel_at_period_end) r.scheduledToCancel++;
 
       const live = s.status === 'active' || s.status === 'trialing';
       if (live) {
@@ -56,20 +71,25 @@ export async function GET(req: NextRequest) {
         else if (price.recurring?.interval === 'week') r.mrrCents += (amt * 52) / 12 / n;
       }
       if (s.created >= since) r.startedInWindow++;
-      if (s.canceled_at && s.canceled_at >= since) r.canceledInWindow++;
+      // Only real customers can churn: an abandoned inline attempt also carries a canceled_at.
+      if (!neverPaid && s.canceled_at && s.canceled_at >= since) r.canceledInWindow++;
       // Base for the churn denominator: existed before the window and had not already been cancelled
       // when it opened. Without this, a cohort that only just started reads as ~0% churn purely
       // because its members have not had time to cancel.
-      if (s.created < since && (!s.canceled_at || s.canceled_at >= since)) r.activeAtWindowStart++;
+      if (!neverPaid && s.created < since && (!s.canceled_at || s.canceled_at >= since)) r.activeAtWindowStart++;
     }
 
     const byPrice = Object.values(rows)
       .map(r => {
         const churn = r.activeAtWindowStart > 0 ? r.canceledInWindow / r.activeAtWindowStart : null;
+        // Share of paid subscriptions that are already gone, whatever their age. With a cohort younger
+        // than one billing cycle this is the only honest retention read available.
+        const deadShare = r.everPaid > 0 ? r.paidThenCanceled / r.everPaid : null;
         return {
           ...r,
           mrr: Math.round(r.mrrCents) / 100,
           mrrCents: undefined,
+          paidThenCanceledPct: deadShare === null ? null : Math.round(deadShare * 10000) / 100,
           churnRate: churn === null ? null : Math.round(churn * 10000) / 100,
           // LTV = price / churn. Meaningless while the cohort has no completed billing cycle.
           impliedLtv: churn && churn > 0 ? Math.round((r.unitAmount / churn) * 100) / 100 : null,
