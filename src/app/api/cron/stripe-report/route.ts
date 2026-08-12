@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       active: number; mrrCents: number; startedInWindow: number; canceledInWindow: number;
       activeAtWindowStart: number; everStarted: number;
       byStatus: Record<string, number>; everPaid: number; paidThenCanceled: number;
-      neverPaid: number; scheduledToCancel: number;
+      neverPaid: number; scheduledToCancel: number; paidByWeek: Record<string, number>;
     }> = {};
 
     for (const s of all) {
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
         unitAmount: (price.unit_amount ?? 0) / 100,
         interval: price.recurring?.interval ?? 'one_time',
         active: 0, mrrCents: 0, startedInWindow: 0, canceledInWindow: 0, activeAtWindowStart: 0, everStarted: 0,
-        byStatus: {}, everPaid: 0, paidThenCanceled: 0, neverPaid: 0, scheduledToCancel: 0,
+        byStatus: {}, everPaid: 0, paidThenCanceled: 0, neverPaid: 0, scheduledToCancel: 0, paidByWeek: {},
       };
       const r = rows[key];
       r.everStarted++;
@@ -60,6 +60,16 @@ export async function GET(req: NextRequest) {
       else r.everPaid++;
       if (!neverPaid && s.status === 'canceled') r.paidThenCanceled++;
       if (s.cancel_at_period_end) r.scheduledToCancel++;
+      // Acquisition cadence for PAID subscriptions only, bucketed by ISO week of creation. Our own
+      // proStartedAt is not written by the payment webhook (only the pre-inline checkout path set it),
+      // so the database reads as "acquisition stopped on Jul 31" — the day the inline flow shipped.
+      // Stripe's creation dates are the only trustworthy series.
+      if (!neverPaid) {
+        const d = new Date(s.created * 1000);
+        const wk = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - ((d.getUTCDay() + 6) % 7)))
+          .toISOString().slice(5, 10);
+        r.paidByWeek[wk] = (r.paidByWeek[wk] || 0) + 1;
+      }
 
       const live = s.status === 'active' || s.status === 'trialing';
       if (live) {
