@@ -110,12 +110,18 @@ export async function refundApplyQuota(userId: string, _plan: string): Promise<v
 
 /** Feature flag — when false, past-free FREE users hit the legacy hard wall (no credits, $5/mo copy). */
 export const CREDITS_ENABLED = process.env.CREDITS_ENABLED === 'true';
-/** Lifetime free sends before payment kicks in (env-tunable; matches the existing FREE_APPLICATIONS gate).
+/** Lifetime free sends before payment kicks in.
  *  Raised 1 → 3 (owner decision 2026-08-11): at one free send the wall landed before the product had
  *  proved anything — over 14 days 927 users hit it having sent 1.01 applications on average, 96% with
  *  no recruiter reply yet, and 91% never even clicked "pay". Three sends buys enough evidence to make
- *  the ask credible. Existing users with freeSendsUsed=1 pick up the extra two automatically. */
-export const FREE_APPLICATIONS = Number(process.env.FREE_APPLICATIONS ?? 3);
+ *  the ask credible. Existing users with freeSendsUsed=1 pick up the extra two automatically.
+ *
+ *  DELIBERATELY NOT env-tunable. It was, and a stale FREE_APPLICATIONS=1 in the Vercel dashboard
+ *  silently outranked the raise: the pricing page, landing FAQ and llms.txt shipped promising three
+ *  free applications while the gate kept walling users at one (29 users with freeSendsUsed=1 were
+ *  walled on 2026-08-12 before this was caught). A pricing promise that a dashboard value can quietly
+ *  contradict is worse than a redeploy — change the number here, where the copy can be changed with it. */
+export const FREE_APPLICATIONS: number = 3;
 /** Applies granted per purchased pack. */
 export const CREDIT_PACK_SIZE = Number(process.env.CREDIT_PACK_SIZE ?? 6);
 /** Price of one pack, in cents (USD). */
