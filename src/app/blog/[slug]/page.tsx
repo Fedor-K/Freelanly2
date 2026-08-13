@@ -67,8 +67,12 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     include: { category: true },
   });
 
+  // Do NOT call notFound() here. Metadata resolves outside the render pass that sets the status
+  // code, so throwing from generateMetadata rendered the 404 page with a 200 — a soft 404, which
+  // search engines index as a real page. The page component below throws instead, which does set
+  // the status; this only has to return safe metadata for a page that will never be shown.
   if (!post) {
-    notFound();
+    return { title: 'Not found — Freelanly', robots: { index: false, follow: false } };
   }
 
   const title = truncateTitle(post.metaTitle || post.title);

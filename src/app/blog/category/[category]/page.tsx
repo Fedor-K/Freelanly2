@@ -56,8 +56,10 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   const { category: categorySlug } = await params;
   const category = await getCategory(categorySlug);
 
+  // See the note in blog/[slug]: notFound() from generateMetadata yields a 200 soft 404. The page
+  // component throws instead.
   if (!category) {
-    notFound();
+    return { title: 'Not found — Freelanly', robots: { index: false, follow: false } };
   }
 
   const title = category.metaTitle || `${category.name} - Remote Work Articles`;

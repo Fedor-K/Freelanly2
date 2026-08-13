@@ -105,6 +105,8 @@ export async function POST(request: NextRequest) {
     // Add IDs to headings for ToC navigation
     const contentWithIds = addHeadingIds(body.content);
 
+    const shouldPublish = body.publish !== false;
+
     // Create the blog post
     const post = await prisma.blogPost.create({
       data: {
@@ -123,8 +125,11 @@ export async function POST(request: NextRequest) {
         authorImage: body.authorImage,
         ogImage: body.ogImage || `${siteConfig.url}/api/og/blog?title=${encodeURIComponent(body.title)}&category=${encodeURIComponent(category.name)}`,
         relatedPosts: body.relatedPosts || [],
-        status: body.publish ? 'PUBLISHED' : 'DRAFT',
-        publishedAt: body.publish ? new Date() : null,
+        // Publish by default. It used to require an explicit publish:true, so any caller that
+        // omitted the flag got a 200 and a post that silently sat in drafts forever. Opting OUT
+        // now takes an explicit publish:false.
+        status: shouldPublish ? 'PUBLISHED' : 'DRAFT',
+        publishedAt: shouldPublish ? new Date() : null,
         featuredAt: body.featured ? new Date() : null,
       },
       include: { category: true },
@@ -135,7 +140,7 @@ export async function POST(request: NextRequest) {
       where: { slug: category.slug },
       data: {
         postCount: {
-          increment: body.publish ? 1 : 0,
+          increment: shouldPublish ? 1 : 0,
         },
       },
     });
@@ -144,6 +149,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      // Top level, not only nested under `post`: callers read the slug straight off the response to
+      // build the published URL, and digging it out of a nested object is not something an API
+      // consumer should have to guess at. `post` is kept as-is so existing callers don't break.
+      slug: post.slug,
+      url: `${siteConfig.url}/blog/${post.slug}`,
+      status: post.status,
       post: {
         id: post.id,
         slug: post.slug,
