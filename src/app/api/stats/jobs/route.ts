@@ -171,22 +171,39 @@ export async function GET(req: NextRequest) {
     const rows = await prisma.$queryRawUnsafe<Row[]>(sql, prevStart, curStart, asOf);
 
     // Denominators, so a share can be checked rather than trusted.
-    const [totals] = await prisma.$queryRawUnsafe<{ total_roles: number; total_companies: number; suppressed: number }[]>(
+    const [totals] = await prisma.$queryRawUnsafe<{ total_roles: number; total_roles_prev: number; total_companies: number; suppressed: number }[]>(
       `WITH base AS (
-         SELECT ${keyExpr} AS key, ${EMPLOYER} AS employer
+         SELECT ${keyExpr} AS key, ${EMPLOYER} AS employer, ${POSTED} AS posted_at
          FROM "Opportunity" o ${skillJoin}
-         WHERE ${POSTED} >= $1 AND ${POSTED} < $2
-       ), grouped AS (
-         SELECT key, count(*)::int n FROM base WHERE key IS NOT NULL GROUP BY key
-       )
+         WHERE ${POSTED} >= $1 AND ${POSTED} < $3
+       ), cur AS (SELECT * FROM base WHERE posted_at >= $2),
+         grouped AS (SELECT key, count(*)::int n FROM cur WHERE key IS NOT NULL GROUP BY key)
        SELECT
-         (SELECT count(*)::int FROM base) AS total_roles,
-         (SELECT count(DISTINCT employer)::int FROM base) AS total_companies,
+         (SELECT count(*)::int FROM cur) AS total_roles,
+         (SELECT count(*)::int FROM base WHERE posted_at < $2) AS total_roles_prev,
+         (SELECT count(DISTINCT employer)::int FROM cur) AS total_companies,
          (SELECT COALESCE(sum(n), 0)::int FROM grouped WHERE n < ${MIN_GROUP_SIZE}) AS suppressed`,
-      curStart, asOf,
+      prevStart, curStart, asOf,
     );
 
     const totalRoles = Number(totals?.total_roles ?? 0);
+    const totalRolesPrev = Number(totals?.total_roles_prev ?? 0);
+
+    // The feed itself grew: collection ramped from 15,932 listings in the preceding 90 days to
+    // 47,237 in the current one. A raw count comparison therefore reports our own scraping ramp as
+    // market growth — every group came out between +250% and +700% on the first run, which would
+    // have been published as fact. trend_pct compares the group's SHARE of the feed instead, which
+    // is invariant to how much we collected; raw counts are exposed as roles/roles_prev alongside
+    // it, and feed_growth_pct states the distortion outright.
+    const feedGrowthPct = priorWindowIsReal && totalRolesPrev > 0
+      ? Number((((totalRoles - totalRolesPrev) / totalRolesPrev) * 100).toFixed(1))
+      : null;
+    const shareTrend = (cur: number, prev: number): number | null => {
+      if (!priorWindowIsReal || prev <= 0 || totalRoles <= 0 || totalRolesPrev <= 0) return null;
+      const curShare = cur / totalRoles;
+      const prevShare = prev / totalRolesPrev;
+      return prevShare > 0 ? Number((((curShare - prevShare) / prevShare) * 100).toFixed(1)) : null;
+    };
 
     const groups = rows.map((r) => {
       const cur = Number(r.roles_cur);
@@ -196,10 +213,12 @@ export async function GET(req: NextRequest) {
       return {
         key: r.key,
         roles: cur,
+        roles_prev: priorWindowIsReal ? prev : null,
         companies: Number(r.companies_cur),
         share: totalRoles > 0 ? Number((cur / totalRoles).toFixed(4)) : null,
+        // Share-relative, not count-relative — see the feed_growth_pct note above.
         // null, not 0: no prior window means not measured, and the two must read differently.
-        trend_pct: priorWindowIsReal && prev > 0 ? Number((((cur - prev) / prev) * 100).toFixed(1)) : null,
+        trend_pct: shareTrend(cur, prev),
         salary_median_usd: sample > 0 ? median : null,
         salary_sample: sample,
         us_work_auth_required: Number(r.us_auth_cur),
@@ -208,8 +227,9 @@ export async function GET(req: NextRequest) {
 
     // For month buckets, "the preceding window of equal length" is simply the preceding month.
     if (dim === 'month') {
-      const byMonth = [...groups].sort((a, b) => a.key.localeCompare(b.key));
-      const seen = new Map(byMonth.map((g) => [g.key, g.roles]));
+      // Month buckets ARE the volume series, so here a raw month-over-month count change is the
+      // honest number — it is the very quantity that distorts the other dimensions, stated plainly.
+      const seen = new Map(groups.map((g) => [g.key, g.roles]));
       for (const g of groups) {
         const [y, m] = g.key.split('-').map(Number);
         const prevKey = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
@@ -224,17 +244,22 @@ export async function GET(req: NextRequest) {
         window_days: windowParam,
         dimension: dim,
         total_roles: totalRoles,
+        total_roles_prev: priorWindowIsReal ? totalRolesPrev : null,
         total_companies: Number(totals?.total_companies ?? 0),
         min_group_size: MIN_GROUP_SIZE,
         suppressed_roles: Number(totals?.suppressed ?? 0),
+        feed_growth_pct: feedGrowthPct,
         notes: {
           role_key: dim === 'role' ? 'normalised title: seniority, employment type and trailing location stripped' : undefined,
           company_key: dim === 'company' ? 'apply-to email domain; free mailbox providers excluded' : undefined,
           salary_basis: 'median of USD-denominated, non-estimated listings, annualised (hour×2080, day×260, week×52, month×12); other currencies excluded rather than converted at invented rates',
           us_work_auth_required: 'listings whose text demands US work authorization (W2, US citizen, green card, corp-to-corp) and are therefore closed to applicants without it',
-          trend_pct: priorWindowIsReal
-            ? 'change against the preceding window of equal length'
-            : 'null throughout: the preceding window starts before the feed does, so there is nothing to compare against',
+          trend_pct: !priorWindowIsReal
+            ? 'null throughout: the preceding window starts before the feed does, so there is nothing to compare against'
+            : dim === 'month'
+              ? 'raw change in listings against the preceding month'
+              : "change in this group's SHARE of the feed against the preceding window — NOT a change in raw counts. Collection volume grew between the two windows (see feed_growth_pct), so a raw comparison would report our own scraping ramp as market growth. Raw counts are in roles and roles_prev if you need them.",
+          feed_growth_pct: 'change in total listings collected between the two windows. Large values mean the feed itself grew, which is why trend_pct is share-relative.',
           suppressed_roles: `listings in groups smaller than ${MIN_GROUP_SIZE}, counted in total_roles but not returned as groups`,
         },
         groups,
