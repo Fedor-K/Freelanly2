@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
+import { isBlogPublishAuthorized } from '@/lib/cron-auth';
 
 interface TocItem {
   level: number;
@@ -35,14 +36,12 @@ interface CreateBlogPostRequest {
  * Create a new blog post
  * POST /api/blog/create
  *
- * Requires admin authentication via CRON_SECRET
+ * Auth: Bearer BLOG_API_KEY (publish-only, hand this one to outside publishers) or Bearer
+ * CRON_SECRET (kept working for existing callers, but it also opens every other cron route).
  */
 export async function POST(request: NextRequest) {
-  // Verify admin secret
-  const authHeader = request.headers.get('authorization');
-  const adminSecret = process.env.CRON_SECRET;
-
-  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
+  // BLOG_API_KEY (publish-only) or CRON_SECRET (everything). Give outside publishers the former.
+  if (!isBlogPublishAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
