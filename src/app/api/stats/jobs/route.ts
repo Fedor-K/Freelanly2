@@ -16,6 +16,7 @@ import { isBlogPublishAuthorized } from '@/lib/cron-auth';
  */
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 const DIMENSIONS = ['role', 'company', 'country', 'skill', 'month'] as const;
 type Dimension = (typeof DIMENSIONS)[number];
@@ -54,11 +55,13 @@ nullif(btrim(regexp_replace(regexp_replace(regexp_replace(regexp_replace(regexp_
 const ROLE_KEY = `nullif(btrim(regexp_replace(${ROLE_RAW}, '\\s+', ' ', 'g')), '')`;
 
 /**
- * Listings that demand US work authorization. This is the number the feed can answer and nobody
- * else can: the readership applies to US roles from outside the US, and these postings are closed
- * to them whatever the cover letter says.
+ * Listings that demand US work authorization — the number this feed can answer and nobody else can:
+ * the readership applies to US roles from outside the US, and these postings are closed to them
+ * whatever the cover letter says. Read from the stored column: matching the regex over
+ * description + originalContent at request time cost ~17s and timed out the skill dimension, so it
+ * is evaluated once at ingest (src/lib/us-work-auth.ts) instead.
  */
-const US_AUTH = `((o.description || ' ' || COALESCE(o."originalContent", '')) ~* '(w-?2\\y|us citizen|green card|\\yusc\\y|corp to corp|\\yc2c\\y|only in the us|us[- ]based only|must be (located|based) in the (us|usa|united states))')`;
+const US_AUTH = `COALESCE(o."requiresUsWorkAuth", false)`;
 
 /**
  * Median pay is computed over USD-denominated, non-estimated listings only, annualised by period.
@@ -138,19 +141,22 @@ export async function GET(req: NextRequest) {
     const priorWindowIsReal = !!earliest && earliest.getTime() <= prevStart.getTime();
 
     const keyExpr = keyExpression(dim);
-    const skillJoin = dim === 'skill' ? `CROSS JOIN LATERAL unnest(o.skills) AS sk(skill)` : '';
 
     const sql = `
-      WITH base AS (
+      WITH opp AS (
         SELECT
-          ${keyExpr} AS key,
+          ${dim === 'skill' ? 'o.skills' : `${keyExpr} AS key`},
           ${POSTED} AS posted_at,
           ${EMPLOYER} AS employer,
           ${US_AUTH} AS us_auth,
           ${SALARY_BANDED} AS salary_usd
         FROM "Opportunity" o
-        ${skillJoin}
         WHERE ${POSTED} >= $1 AND ${POSTED} < $3
+      ), base AS (
+        ${dim === 'skill'
+          ? `SELECT nullif(lower(btrim(sk.skill)), '') AS key, posted_at, employer, us_auth, salary_usd
+             FROM opp CROSS JOIN LATERAL unnest(skills) AS sk(skill)`
+          : `SELECT key, posted_at, employer, us_auth, salary_usd FROM opp`}
       )
       SELECT
         key,
@@ -172,10 +178,14 @@ export async function GET(req: NextRequest) {
 
     // Denominators, so a share can be checked rather than trusted.
     const [totals] = await prisma.$queryRawUnsafe<{ total_roles: number; total_roles_prev: number; total_companies: number; suppressed: number }[]>(
-      `WITH base AS (
-         SELECT ${keyExpr} AS key, ${EMPLOYER} AS employer, ${POSTED} AS posted_at
-         FROM "Opportunity" o ${skillJoin}
+      `WITH opp AS (
+         SELECT ${dim === 'skill' ? 'o.skills' : `${keyExpr} AS key`}, ${EMPLOYER} AS employer, ${POSTED} AS posted_at
+         FROM "Opportunity" o
          WHERE ${POSTED} >= $1 AND ${POSTED} < $3
+       ), base AS (
+         ${dim === 'skill'
+           ? `SELECT nullif(lower(btrim(sk.skill)), '') AS key, employer, posted_at FROM opp CROSS JOIN LATERAL unnest(skills) AS sk(skill)`
+           : `SELECT key, employer, posted_at FROM opp`}
        ), cur AS (SELECT * FROM base WHERE posted_at >= $2),
          grouped AS (SELECT key, count(*)::int n FROM cur WHERE key IS NOT NULL GROUP BY key)
        SELECT
@@ -199,6 +209,11 @@ export async function GET(req: NextRequest) {
       ? Number((((totalRoles - totalRolesPrev) / totalRolesPrev) * 100).toFixed(1))
       : null;
     const shareTrend = (cur: number, prev: number): number | null => {
+      // A baseline below the group threshold is not a baseline. India went 9 → 1,759 listings
+      // between windows purely because the scraper's keyword set changed (an old "NOT India" clause
+      // was dropped), which came out as +19,675% — a config change dressed as a market finding.
+      // We refuse to publish groups under MIN_GROUP_SIZE; a trend resting on one is worth less.
+      if (prev < MIN_GROUP_SIZE) return null;
       if (!priorWindowIsReal || prev <= 0 || totalRoles <= 0 || totalRolesPrev <= 0) return null;
       const curShare = cur / totalRoles;
       const prevShare = prev / totalRolesPrev;

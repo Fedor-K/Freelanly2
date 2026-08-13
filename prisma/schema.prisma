@@ -620,6 +620,11 @@ model Opportunity {
   location        String?
   locationType    LocationType @default(REMOTE)
   country         String?
+  requiresUsWorkAuth Boolean? // listing text demands US work authorization (W2 / citizen / green card /
+                           // corp-to-corp) and is therefore closed to applicants without it — 20.7% of the
+                           // feed. Matched once at ingest because the regex over description+originalContent
+                           // costs ~17s across the table, far too slow to evaluate per request. COLUMN and
+                           // index added via raw DDL, NOT `prisma db push`. null = not yet classified.
 
   // === JOB DETAILS ===
   level           Level @default(MID)

@@ -10,6 +10,7 @@ import { getPosterRegion } from '@/services/poster-enrichment';
 import { blockedCountries, resolveCountry } from '@/lib/region-block';
 import { assessContentQuality, isFreeEmailProvider, isPersonalAnnouncement } from '@/lib/content-quality';
 import { siteConfig } from '@/config/site';
+import { requiresUsWorkAuth } from '@/lib/us-work-auth';
 import type { TranslationType, Level } from '@prisma/client';
 
 // Valid TranslationType enum values from Prisma schema
@@ -585,6 +586,8 @@ export async function POST(request: NextRequest) {
           location: countryCode ? countryCodeToName(countryCode) : (extracted.isRemote ? (extracted.location || 'Remote') : extracted.location),
           locationType,
           country: countryCode,
+          // Matched here rather than at read time: the same regex across the table costs ~17s.
+          requiresUsWorkAuth: requiresUsWorkAuth(extracted.cleanDescription, postContent),
           level: validateLevel(extracted.level) || 'MID',
           type: 'FREELANCE', // Always FREELANCE for opportunities
           skills: extracted.skills,
