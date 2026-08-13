@@ -275,6 +275,9 @@ export async function GET(req: NextRequest) {
               ? 'raw change in listings against the preceding month'
               : "change in this group's SHARE of the feed against the preceding window — NOT a change in raw counts. Collection volume grew between the two windows (see feed_growth_pct), so a raw comparison would report our own scraping ramp as market growth. Raw counts are in roles and roles_prev if you need them.",
           feed_growth_pct: 'change in total listings collected between the two windows. Large values mean the feed itself grew, which is why trend_pct is share-relative.',
+          collection_caveat:
+            'The search terms behind this feed are edited from time to time — phrases added, dropped, or narrowed by country — and the collectors were consolidated in August 2026. Share-relative trend_pct removes the effect of collecting MORE, but nothing can remove the effect of collecting DIFFERENTLY: if a term stopped excluding a country, that country appears to surge. Trends within one window are sound; trends across a configuration change are directional at best. A group whose baseline is under ' +
+            `${MIN_GROUP_SIZE} listings returns null instead of a number for this reason.`,
           suppressed_roles: `listings in groups smaller than ${MIN_GROUP_SIZE}, counted in total_roles but not returned as groups`,
         },
         groups,
