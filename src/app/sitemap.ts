@@ -3,7 +3,12 @@ import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 import { SEO_NICHES } from '@/config/seo-niches';
 
-export const revalidate = 3600;
+// 5 minutes, not an hour. The sitemap is the only way a newly published post is announced —
+// nothing else pings a crawler — so at 3600 an article stayed invisible to Google for up to an
+// hour after going live, and the file read as frozen at build time. Publishing is continuous
+// (an external SEO agent posts through /api/blog/create), so freshness here is worth one database
+// query per five minutes.
+export const revalidate = 300;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = siteConfig.url;
