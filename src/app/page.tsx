@@ -69,7 +69,7 @@ export default async function LandingPage() {
       </p>
       <div className="hero-cta">
         <a href="/auth/signin" className="btn btn-primary btn-lg">
-          Get started — first 3 applications free
+          Get started — first 2 applications free
           <svg className="btn-icon btn-icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </a>
       </div>
@@ -298,7 +298,7 @@ export default async function LandingPage() {
         { q: 'Does Freelanly ever send anything without me?', a: 'No. Nothing is ever emailed on your behalf without your click. Drafts wait until you review and send them — or delete them. Your name is on the email; you stay in control of it.' },
         { q: 'Will recruiters know it’s AI-written?', a: 'Letters reference specifics from the post and your actual experience, pass a second AI review against the job’s requirements, and send from your personal Gmail. They read like a short, thoughtful note — and you can edit every word first.' },
         { q: 'How fast do roles reach my feed?', a: 'Within hours of the hiring post going live — typically days before the same role is aggregated by job boards, where you’d be applicant #300. Fresh posts land around the clock.' },
-        { q: 'What does it actually cost?', a: 'Your first 3 applications are free, no card. After that: $0.50 per application from a prepaid balance (top up from $3, never expires), or PRO at $5/month.' },
+        { q: 'What does it actually cost?', a: 'Your first 2 applications are free, no card. After that: $0.50 per application from a prepaid balance (top up from $3, never expires), or PRO at $5/month.' },
         { q: 'Can I cancel? Is there a refund?', a: 'Cancel anytime, two clicks from your billing page — no contracts. Not a fit? Email us within 7 days of a purchase for a full refund.' },
       ].map((f, i) => (
         <details key={i} style={{border: '1px solid var(--line-2)', borderRadius: '12px', padding: '0'}}>

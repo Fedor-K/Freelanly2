@@ -37,7 +37,7 @@ export function OnboardingCardStep({ onDone }: { onDone: () => void }) {
       <div style={{ fontSize: 24, marginBottom: 8 }}>💳</div>
       <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>Save a card for one-tap top-ups</div>
       <div style={{ fontSize: 13, color: '#5C6068', marginBottom: 16, lineHeight: 1.5 }}>
-        Nothing is charged now. Your first 3 applications are free — after that, top up a balance in one tap and apply at $0.50 each.
+        Nothing is charged now. Your first 2 applications are free — after that, top up a balance in one tap and apply at $0.50 each.
       </div>
       {clientSecret ? (
         <Elements stripe={getStripeClient()} options={{ clientSecret, appearance: { theme: 'stripe' } }}>

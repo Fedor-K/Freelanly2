@@ -14,7 +14,7 @@ About Freelanly:
 How it works:
 1. Sign up free — upload resume, choose categories (60 seconds)
 2. Freelanly AI scans new projects and matches them to your profile
-3. For each match, AI pre-writes a personalized cover letter — you review it and send. Your first 3 applications are free; after that each send costs $0.50 from a prepaid balance (top up from $3, balance never expires), or PRO at $5/month covers sending
+3. For each match, AI pre-writes a personalized cover letter — you review it and send. Your first 2 applications are free; after that each send costs $0.50 from a prepaid balance (top up from $3, balance never expires), or PRO at $5/month covers sending
 4. When recruiters reply, you get notified by email and can respond from your inbox
 5. You can attach files, use AI-suggested replies, and manage conversations on the platform
 
@@ -533,7 +533,7 @@ export async function POST(request: NextRequest) {
             { label: 'Different category', value: 'Different category' },
           ];
         } else if (userStatus === 'FREE') {
-          reply = `Open the role and hit Apply \u2014 the cover letter is already written for you. Your first 3 applications are free; after that it's $0.50 per application from your balance (top up from $3) or PRO at $5/month.\n\nBrowse your matches: ${addUtmSource('https://freelanly.com/dashboard/discovery')}`;
+          reply = `Open the role and hit Apply \u2014 the cover letter is already written for you. Your first 2 applications are free; after that it's $0.50 per application from your balance (top up from $3) or PRO at $5/month.\n\nBrowse your matches: ${addUtmSource('https://freelanly.com/dashboard/discovery')}`;
           buttons = [
             { label: 'See PRO pricing', value: 'See PRO pricing' },
             { label: 'Maybe later', value: 'Maybe later' },

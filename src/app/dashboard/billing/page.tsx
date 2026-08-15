@@ -134,7 +134,7 @@ export default async function BillingPage() {
             </div>
             <div className="name">Free</div>
             <div className="price">$0<span className="unit">/mo</span></div>
-            <div className="desc">First 3 applications free, then $0.50 each from your balance (top up from $3, never expires) · AI cover letters · Send from your own Gmail</div>
+            <div className="desc">First 2 applications free, then $0.50 each from your balance (top up from $3, never expires) · AI cover letters · Send from your own Gmail</div>
             {user.plan !== 'FREE' && user.stripeId && (
               <form action="/api/stripe/portal" method="POST">
                 <button type="submit" className="btn btn-soft btn-sm mt-3" style={{width: '100%'}}>Downgrade</button>

@@ -284,7 +284,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <section className="mt-16 rounded-2xl p-8 text-center" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
             <h2 className="text-2xl font-semibold mb-2">Spend the saved hour on real work</h2>
             <p className="text-[#A1A1AA] mb-5">
-              Freelanly finds matched remote tech roles and drafts every application — you review and send. First three are free.
+              Freelanly finds matched remote tech roles and drafts every application — you review and send. The first two are free.
             </p>
             <Link href="/auth/signin" className="inline-flex px-6 py-3 rounded-full font-semibold text-[15px]" style={{ background: '#C7F94A', color: '#0A0B0F' }}>Start free →</Link>
           </section>

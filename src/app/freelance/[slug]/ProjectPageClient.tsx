@@ -660,7 +660,7 @@ export function ProjectPageClient({ project, signals, similar }: ProjectProps) {
             Apply now — free
           </button>
           <div style={{ marginTop: '16px', fontSize: '12px', color: '#8A8780', textAlign: 'center' }}>
-            No credit card · First 3 applications free
+            No credit card · First 2 applications free
           </div>
         </>
       );
