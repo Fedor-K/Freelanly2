@@ -38,15 +38,30 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const byMonth: Record<string, { gross: number; refunded: number; net: number; count: number; currency: string }> = {};
+    // Keyed by month AND currency. Keying by month alone summed EUR and USD into one figure, which
+    // is not a number that exists — this account has sold in both.
+    const byMonth: Record<string, { month: string; currency: string; gross: number; refunded: number; net: number; count: number }> = {};
     const byPrice: Record<string, { price: string; label: string; gross: number; refunded: number; count: number; customers: Set<string> }> = {};
+    const declines: Record<string, number> = {};
+    const declinesByMonth: Record<string, { month: string; failed: number; succeeded: number }> = {};
     let gross = 0, refunded = 0, failed = 0;
     const currencies: Record<string, number> = {};
     const customers = new Set<string>();
 
     for (const c of charges) {
-      if (c.status !== 'succeeded') { failed++; continue; }
-      const month = new Date(c.created * 1000).toISOString().slice(0, 7);
+      const m = new Date(c.created * 1000).toISOString().slice(0, 7);
+      declinesByMonth[m] ||= { month: m, failed: 0, succeeded: 0 };
+      if (c.status !== 'succeeded') {
+        failed++;
+        declinesByMonth[m].failed++;
+        // The issuer's own reason. This is the difference between "no money" and "this card cannot
+        // do this kind of purchase at all", which is a product decision, not a dunning problem.
+        const reason = c.outcome?.reason || c.failure_code || 'unknown';
+        declines[reason] = (declines[reason] || 0) + 1;
+        continue;
+      }
+      declinesByMonth[m].succeeded++;
+      const month = m;
       const cur = (c.currency || '').toUpperCase();
       const amt = c.amount / 100;
       const ref = (c.amount_refunded || 0) / 100;
@@ -54,9 +69,10 @@ export async function GET(req: NextRequest) {
       currencies[cur] = (currencies[cur] || 0) + amt;
       if (typeof c.customer === 'string') customers.add(c.customer);
 
-      byMonth[month] ||= { gross: 0, refunded: 0, net: 0, count: 0, currency: cur };
-      byMonth[month].gross += amt; byMonth[month].refunded += ref;
-      byMonth[month].net += amt - ref; byMonth[month].count++;
+      const mk = `${month}|${cur}`;
+      byMonth[mk] ||= { month, currency: cur, gross: 0, refunded: 0, net: 0, count: 0 };
+      byMonth[mk].gross += amt; byMonth[mk].refunded += ref;
+      byMonth[mk].net += amt - ref; byMonth[mk].count++;
 
       // `invoice` was dropped from the Charge type in the pinned API version but is still sent.
       const chargeInvoice = (c as unknown as { invoice?: string | { id?: string } }).invoice;
@@ -81,8 +97,11 @@ export async function GET(req: NextRequest) {
         refunded: Math.round(refunded * 100) / 100,
         net: Math.round((gross - refunded) * 100) / 100,
       },
-      byMonth: Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b))
-        .map(([month, v]) => ({ month, ...v, gross: Math.round(v.gross * 100) / 100, refunded: Math.round(v.refunded * 100) / 100, net: Math.round(v.net * 100) / 100 })),
+      declineReasons: Object.entries(declines).sort((a, b) => b[1] - a[1]).map(([reason, n]) => ({ reason, charges: n })),
+      attemptsByMonth: Object.values(declinesByMonth).sort((a, b) => a.month.localeCompare(b.month))
+        .map((v) => ({ ...v, failRate: v.failed + v.succeeded > 0 ? Math.round((100 * v.failed) / (v.failed + v.succeeded)) : null })),
+      byMonth: Object.values(byMonth).sort((a, b) => a.month.localeCompare(b.month) || a.currency.localeCompare(b.currency))
+        .map((v) => ({ ...v, gross: Math.round(v.gross * 100) / 100, refunded: Math.round(v.refunded * 100) / 100, net: Math.round(v.net * 100) / 100 })),
       byPrice: Object.values(byPrice).sort((a, b) => b.gross - a.gross)
         .map((v) => ({ price: v.price, label: v.label, charges: v.count, customers: v.customers.size, gross: Math.round(v.gross * 100) / 100, refunded: Math.round(v.refunded * 100) / 100 })),
     });
