@@ -16,6 +16,78 @@ export async function GET(req: NextRequest) {
   // businesses with different prices and currencies. Freelanly's subscription is a single price
   // (STRIPE_PRICES.pro5, $5/mo), so grouping by price id is what separates them. Churn here is
   // cancellations in the window over the base active at the window's start, per price.
+  // ?all=1 — every charge the account has ever taken, from Stripe rather than from our own
+  // RevenueEvent table. Our copy is known to be incomplete: the inline Go-PRO flow wrote no revenue
+  // rows until 2026-08-11, and a cleanup job deleted the User rows of 108 of 150 all-time payers, so
+  // anything joined through userId under-reports. Money questions get answered here.
+  if (searchParams.get('all') === '1') {
+    const charges: Stripe.Charge[] = [];
+    for await (const c of stripe.charges.list({ limit: 100 })) charges.push(c);
+
+    // Invoices carry the price, charges do not — this maps a charge back to what was sold.
+    const invoicePrice = new Map<string, { price: string; nickname: string }>();
+    for await (const inv of stripe.invoices.list({ limit: 100, expand: ['data.lines'] })) {
+      const line = inv.lines?.data?.[0];
+      const rawPrice = (line as unknown as { pricing?: { price_details?: { price?: string } } })?.pricing?.price_details?.price;
+      const price = typeof rawPrice === 'string' ? rawPrice : '';
+      if (inv.id && price) {
+        invoicePrice.set(inv.id, {
+          price,
+          nickname: `${((line?.amount ?? 0) / 100).toFixed(2)} ${(inv.currency || '').toUpperCase()}`,
+        });
+      }
+    }
+
+    const byMonth: Record<string, { gross: number; refunded: number; net: number; count: number; currency: string }> = {};
+    const byPrice: Record<string, { price: string; label: string; gross: number; refunded: number; count: number; customers: Set<string> }> = {};
+    let gross = 0, refunded = 0, failed = 0;
+    const currencies: Record<string, number> = {};
+    const customers = new Set<string>();
+
+    for (const c of charges) {
+      if (c.status !== 'succeeded') { failed++; continue; }
+      const month = new Date(c.created * 1000).toISOString().slice(0, 7);
+      const cur = (c.currency || '').toUpperCase();
+      const amt = c.amount / 100;
+      const ref = (c.amount_refunded || 0) / 100;
+      gross += amt; refunded += ref;
+      currencies[cur] = (currencies[cur] || 0) + amt;
+      if (typeof c.customer === 'string') customers.add(c.customer);
+
+      byMonth[month] ||= { gross: 0, refunded: 0, net: 0, count: 0, currency: cur };
+      byMonth[month].gross += amt; byMonth[month].refunded += ref;
+      byMonth[month].net += amt - ref; byMonth[month].count++;
+
+      // `invoice` was dropped from the Charge type in the pinned API version but is still sent.
+      const chargeInvoice = (c as unknown as { invoice?: string | { id?: string } }).invoice;
+      const invId = typeof chargeInvoice === 'string' ? chargeInvoice : chargeInvoice?.id;
+      const mapped = invId ? invoicePrice.get(invId) : undefined;
+      // No invoice means a bare PaymentIntent — our one-time credit packs are the only such charges.
+      const key = mapped?.price || (c.metadata?.type ? `one_time:${c.metadata.type}` : 'one_time:unattributed');
+      byPrice[key] ||= { price: key, label: mapped?.nickname || `${amt.toFixed(2)} ${cur}`, gross: 0, refunded: 0, count: 0, customers: new Set() };
+      byPrice[key].gross += amt; byPrice[key].refunded += ref; byPrice[key].count++;
+      if (typeof c.customer === 'string') byPrice[key].customers.add(c.customer);
+    }
+
+    return NextResponse.json({
+      note: 'Every succeeded charge on this Stripe account, all time. Amounts are summed per currency as charged — they are NOT converted, so do not add USD and EUR figures together.',
+      totals: {
+        charges: charges.length,
+        succeeded: charges.length - failed,
+        failed,
+        payingCustomers: customers.size,
+        grossByCurrency: currencies,
+        gross: Math.round(gross * 100) / 100,
+        refunded: Math.round(refunded * 100) / 100,
+        net: Math.round((gross - refunded) * 100) / 100,
+      },
+      byMonth: Object.entries(byMonth).sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, v]) => ({ month, ...v, gross: Math.round(v.gross * 100) / 100, refunded: Math.round(v.refunded * 100) / 100, net: Math.round(v.net * 100) / 100 })),
+      byPrice: Object.values(byPrice).sort((a, b) => b.gross - a.gross)
+        .map((v) => ({ price: v.price, label: v.label, charges: v.count, customers: v.customers.size, gross: Math.round(v.gross * 100) / 100, refunded: Math.round(v.refunded * 100) / 100 })),
+    });
+  }
+
   if (searchParams.get('split') === '1') {
     const days = Number(searchParams.get('days') || 30);
     const now = Math.floor(Date.now() / 1000);
