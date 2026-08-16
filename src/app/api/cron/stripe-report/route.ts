@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
     // is not a number that exists — this account has sold in both.
     const byMonth: Record<string, { month: string; currency: string; gross: number; refunded: number; net: number; count: number }> = {};
     const byPrice: Record<string, { price: string; label: string; gross: number; refunded: number; count: number; customers: Set<string> }> = {};
+    const monthAmount: Record<string, { count: number; gross: number }> = {};
     const declines: Record<string, number> = {};
     const declinesByMonth: Record<string, { month: string; failed: number; succeeded: number }> = {};
     let gross = 0, refunded = 0, failed = 0;
@@ -78,11 +79,18 @@ export async function GET(req: NextRequest) {
       const chargeInvoice = (c as unknown as { invoice?: string | { id?: string } }).invoice;
       const invId = typeof chargeInvoice === 'string' ? chargeInvoice : chargeInvoice?.id;
       const mapped = invId ? invoicePrice.get(invId) : undefined;
-      // No invoice means a bare PaymentIntent — our one-time credit packs are the only such charges.
-      const key = mapped?.price || (c.metadata?.type ? `one_time:${c.metadata.type}` : 'one_time:unattributed');
-      byPrice[key] ||= { price: key, label: mapped?.nickname || `${amt.toFixed(2)} ${cur}`, gross: 0, refunded: 0, count: 0, customers: new Set() };
+      // Group by the amount actually charged, not by price id. Mapping charges back to prices via
+      // invoice line items silently produced one "unattributed" bucket for 343 of 354 charges —
+      // the line's price is not exposed on this API version. The amount is on the charge itself and
+      // cannot go missing, and since each plan has a distinct price it separates them just as well.
+      const key = `${cur} ${amt.toFixed(2)}`;
+      byPrice[key] ||= { price: mapped?.price || (invId ? 'subscription' : `one_time${c.metadata?.type ? ':' + c.metadata.type : ''}`), label: key, gross: 0, refunded: 0, count: 0, customers: new Set() };
       byPrice[key].gross += amt; byPrice[key].refunded += ref; byPrice[key].count++;
       if (typeof c.customer === 'string') byPrice[key].customers.add(c.customer);
+
+      const ma = `${month}|${key}`;
+      monthAmount[ma] ||= { count: 0, gross: 0 };
+      monthAmount[ma].count++; monthAmount[ma].gross += amt;
     }
 
     return NextResponse.json({
@@ -102,8 +110,10 @@ export async function GET(req: NextRequest) {
         .map((v) => ({ ...v, failRate: v.failed + v.succeeded > 0 ? Math.round((100 * v.failed) / (v.failed + v.succeeded)) : null })),
       byMonth: Object.values(byMonth).sort((a, b) => a.month.localeCompare(b.month) || a.currency.localeCompare(b.currency))
         .map((v) => ({ ...v, gross: Math.round(v.gross * 100) / 100, refunded: Math.round(v.refunded * 100) / 100, net: Math.round(v.net * 100) / 100 })),
-      byPrice: Object.values(byPrice).sort((a, b) => b.gross - a.gross)
-        .map((v) => ({ price: v.price, label: v.label, charges: v.count, customers: v.customers.size, gross: Math.round(v.gross * 100) / 100, refunded: Math.round(v.refunded * 100) / 100 })),
+      byAmount: Object.values(byPrice).sort((a, b) => b.gross - a.gross)
+        .map((v) => ({ amount: v.label, kind: v.price, charges: v.count, customers: v.customers.size, gross: Math.round(v.gross * 100) / 100, refunded: Math.round(v.refunded * 100) / 100 })),
+      monthByAmount: Object.entries(monthAmount).sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => ({ month: k.split('|')[0], amount: k.split('|')[1], charges: v.count, gross: Math.round(v.gross * 100) / 100 })),
     });
   }
 
