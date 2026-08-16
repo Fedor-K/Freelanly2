@@ -18,26 +18,13 @@ const skillRedirects = [
 ];
 
 const nextConfig: NextConfig = {
-  // @react-pdf/renderer needs to be external for server-side rendering
-  serverExternalPackages: ['@react-pdf/renderer'],
-
-  // CV PDF rendering (tailored-cv.tsx) reads Unicode TTFs at runtime — force them into the
-  // lambdas of every route that renders a CV, or Vercel's file tracing drops them and the
-  // render throws (send then falls back to the stock résumé, silently untailored).
-  outputFileTracingIncludes: {
-    '/api/user/quick-apply': ['./src/lib/fonts/**/*'],
-    '/api/user/auto-apply/[id]': ['./src/lib/fonts/**/*'],
-    '/api/user/resume-preauth': ['./src/lib/fonts/**/*'],
-  },
-
   // Enforce no trailing slashes — prevents duplicate URLs
   // /company/x/jobs/y/ → 301 → /company/x/jobs/y
   trailingSlash: false,
 
-  // Type errors fail the build (tsc is clean as of the 58-error cleanup). This is the
-  // guardrail that catches regressions; flip back to true only as a temporary unblock.
+  // Skip type checking during build (faster, less memory)
   typescript: {
-    ignoreBuildErrors: false,
+    ignoreBuildErrors: true,
   },
 
   // Allowed dev origins (Vercel handles this automatically in production)
@@ -101,53 +88,79 @@ const nextConfig: NextConfig = {
   async redirects() {
     const redirects = [];
 
-    // /features removed 2026-07-23 (owner): 24-card page was an overclaim factory; the simplified
-    // homepage carries the story now. 301 keeps the indexed URL's equity.
-    redirects.push({ source: '/features', destination: '/', permanent: true });
-
-    // === ALL job/freelance pages → signup with context ===
-
-    // /jobs/[category] → signup with category context
-    redirects.push({ source: '/jobs/:category', destination: '/auth/signin?ref=jobs&category=:category', permanent: true });
-    redirects.push({ source: '/jobs/:category/:level', destination: '/auth/signin?ref=jobs&category=:category', permanent: true });
-    redirects.push({ source: '/jobs/:category/salary/:range', destination: '/auth/signin?ref=jobs&category=:category', permanent: true });
-    redirects.push({ source: '/jobs/:category/country/:country', destination: '/auth/signin?ref=jobs&category=:category', permanent: true });
-    redirects.push({ source: '/jobs/translation/:pair', destination: '/auth/signin?ref=jobs&category=translation', permanent: true });
-    redirects.push({ source: '/jobs/skills/:skill', destination: '/auth/signin?ref=jobs', permanent: true });
-    redirects.push({ source: '/jobs/country/:country', destination: '/auth/signin?ref=country&country=:country', permanent: true });
-    redirects.push({ source: '/jobs', destination: '/auth/signin?ref=jobs', permanent: true });
-
-    // /freelance index → signup (but /freelance/:slug is a public project page — no redirect)
-    redirects.push({ source: '/freelance', destination: '/auth/signin?ref=freelance', permanent: true });
-
-    // /country → signup
-    redirects.push({ source: '/country', destination: '/auth/signin?ref=jobs', permanent: true });
-    redirects.push({ source: '/country/:slug', destination: '/auth/signin?ref=country&country=:slug', permanent: true });
-    redirects.push({ source: '/country/:slug/jobs/:role', destination: '/auth/signin?ref=country&country=:slug', permanent: true });
-
-    // /company pages → signup
-    redirects.push({ source: '/company/:slug/jobs/:job', destination: '/auth/signin?ref=job', permanent: true });
-    redirects.push({ source: '/company/:slug/jobs', destination: '/auth/signin?ref=jobs', permanent: true });
-    redirects.push({ source: '/company/:slug', destination: '/auth/signin?ref=jobs', permanent: true });
-    redirects.push({ source: '/companies', destination: '/auth/signin?ref=jobs', permanent: true });
-
-    // Legacy skill/category URLs → signup
+    // Redirect /remote-[skill]-jobs → /jobs/skills/[skill]
     for (const skill of skillRedirects) {
-      redirects.push({ source: `/remote-${skill}-jobs`, destination: '/auth/signin?ref=jobs', permanent: true });
-      redirects.push({ source: `/remote-${skill}-jobs-:location`, destination: '/auth/signin?ref=jobs', permanent: true });
+      redirects.push({
+        source: `/remote-${skill}-jobs`,
+        destination: `/jobs/skills/${skill}`,
+        permanent: true,
+      });
+
+      // Also redirect /remote-[skill]-jobs-[location] → /jobs/skills/[skill]
+      // Location filtering can be done on the skill page
+      redirects.push({
+        source: `/remote-${skill}-jobs-:location`,
+        destination: `/jobs/skills/${skill}`,
+        permanent: true,
+      });
     }
 
-    // Legacy pages → signup
-    redirects.push({ source: '/language-is-:pair', destination: '/auth/signin?ref=jobs&category=translation', permanent: true });
-    redirects.push({ source: '/posts/:id', destination: '/auth/signin?ref=jobs', permanent: true });
-    redirects.push({ source: '/register', destination: '/auth/signin', permanent: true });
-    redirects.push({ source: '/contact-us', destination: '/about', permanent: true });
-    redirects.push({ source: '/terms-of-use', destination: '/terms', permanent: true });
-    redirects.push({ source: '/privacy-policy', destination: '/privacy', permanent: true });
-    redirects.push({ source: '/popular', destination: '/auth/signin?ref=jobs', permanent: true });
-    redirects.push({ source: '/linguist-rate-calculator', destination: '/auth/signin?ref=jobs&category=translation', permanent: true });
-    redirects.push({ source: '/for-interpreters', destination: '/auth/signin?ref=jobs&category=translation', permanent: true });
-    redirects.push({ source: '/for-translators', destination: '/auth/signin?ref=jobs&category=translation', permanent: true });
+    // Redirect category landing pages to category pages
+    // /remote-engineering-jobs → /jobs/engineering
+    const categoryRedirects = [
+      'engineering', 'design', 'data', 'devops', 'qa', 'security',
+      'product', 'marketing', 'sales', 'finance', 'hr', 'operations',
+      'legal', 'project-management', 'writing', 'translation', 'creative',
+      'support', 'education', 'research', 'consulting',
+    ];
+
+    for (const category of categoryRedirects) {
+      redirects.push({
+        source: `/remote-${category}-jobs`,
+        destination: `/jobs/${category}`,
+        permanent: true,
+      });
+    }
+
+    // === Legacy URL redirects (GSC 404s) ===
+
+    // Language pair pages → translation category
+    redirects.push({
+      source: '/language-is-:pair',
+      destination: '/freelance/translation',
+      permanent: true,
+    });
+
+    // Legacy posts → general freelance
+    redirects.push({
+      source: '/posts/:id',
+      destination: '/freelance',
+      permanent: true,
+    });
+
+    // Blog pages are now served by /app/blog/[slug]/page.tsx — no redirect
+
+    // Static legacy pages
+    const legacyRedirects: Record<string, string> = {
+      '/how-it-works': '/freelance',
+      '/register': '/freelance',
+      '/faq': '/freelance',
+      '/contact-us': '/freelance',
+      '/terms-of-use': '/freelance',
+      '/privacy-policy': '/freelance',
+      '/popular': '/freelance',
+      '/linguist-rate-calculator': '/freelance/translation',
+      '/for-interpreters': '/freelance/translation',
+      '/for-translators': '/freelance/translation',
+    };
+
+    for (const [source, destination] of Object.entries(legacyRedirects)) {
+      redirects.push({
+        source,
+        destination,
+        permanent: true,
+      });
+    }
 
     return redirects;
   },

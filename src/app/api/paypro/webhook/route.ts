@@ -54,23 +54,17 @@ export async function POST(request: NextRequest) {
       },
     }).catch(e => console.error('[PayPro Webhook] Failed to log receipt:', e));
 
-    // Verify authenticity. Every PayPro IPN is signed; an unverifiable request
-    // must not mutate any account (previously TEST_MODE=1 or an omitted
-    // HASH/SIGNATURE skipped verification entirely → free PRO).
-    if (testMode) {
-      // Real charges are never test-mode; ignore test events in production.
-      if (process.env.NODE_ENV === 'production') {
-        console.warn(`[PayPro Webhook] Ignoring TEST_MODE event in production (order: ${orderId})`);
-        return new NextResponse('OK (test mode ignored)', { status: 200 });
+    // Verify HASH (skip for test mode — test orders have no meaningful hash)
+    if (!testMode && hash) {
+      if (!verifyHash(orderId, hash, testMode)) {
+        console.error('[PayPro Webhook] HASH verification failed');
+        return new NextResponse('Invalid hash', { status: 400 });
       }
-    } else {
-      // Live event: a valid HASH (MD5(ORDER_ID + secretKey)) is required.
-      if (!hash || !verifyHash(orderId, hash, false)) {
-        console.error('[PayPro Webhook] HASH missing or invalid — rejecting');
-        return new NextResponse('Invalid hash', { status: 401 });
-      }
-      // If a SIGNATURE is present it must also be valid.
-      if (signature && !verifySignature({
+    }
+
+    // Verify SIGNATURE (skip for test mode)
+    if (!testMode && signature) {
+      if (!verifySignature({
         orderId,
         orderStatus,
         totalAmount,
@@ -79,22 +73,27 @@ export async function POST(request: NextRequest) {
         ipnTypeName,
         signature,
       })) {
-        console.error('[PayPro Webhook] SIGNATURE invalid — rejecting');
-        return new NextResponse('Invalid signature', { status: 401 });
+        console.error('[PayPro Webhook] SIGNATURE verification failed');
+        return new NextResponse('Invalid signature', { status: 400 });
       }
     }
 
-    // Duplicate order protection — look up THIS order, not an arbitrary paypro row
+    // FIX 5: Duplicate order protection
     if (ipnTypeId === IPN_TYPES.OrderCharged) {
       const existing = await prisma.activityLog.findFirst({
         where: {
           action: 'CHECKOUT_COMPLETE',
-          details: { path: ['orderId'], equals: orderId },
+          details: { path: ['provider'], equals: 'paypro' },
+          // Check orderId in details
         },
       });
+      // Simple dedup: check if we already processed this exact order
       if (existing) {
-        console.log(`[PayPro Webhook] Duplicate order ${orderId}, skipping`);
-        return new NextResponse('OK (duplicate)', { status: 200 });
+        const existingDetails = existing.details as Record<string, unknown>;
+        if (existingDetails?.orderId === orderId) {
+          console.log(`[PayPro Webhook] Duplicate order ${orderId}, skipping`);
+          return new NextResponse('OK (duplicate)', { status: 200 });
+        }
       }
     }
 
@@ -257,16 +256,6 @@ export async function POST(request: NextRequest) {
                 ipnType: ipnTypeName,
               },
             },
-          }).catch(() => {});
-
-          // Pause auto-apply loops (PRO-only feature)
-          await prisma.autoApplyLoop.updateMany({
-            where: { userId: dbUserId, isActive: true },
-            data: { isActive: false },
-          }).catch(() => {});
-
-          await prisma.activityLog.create({
-            data: { userId: dbUserId, action: 'LOOP_PAUSED', details: { source: 'paypro_downgrade' } },
           }).catch(() => {});
 
           console.log(`[PayPro Webhook] User ${dbUserId} downgraded to FREE (${ipnTypeName})`);

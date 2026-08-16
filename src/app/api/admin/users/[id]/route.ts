@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { checkAdminSession } from '@/lib/admin-auth';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
-  const authError = await checkAdminSession(request);
-  if (authError) return authError;
   try {
     const { id } = await context.params;
     const body = await request.json();
@@ -43,8 +40,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
-  const authError = await checkAdminSession(request);
-  if (authError) return authError;
   try {
     const { id } = await context.params;
 

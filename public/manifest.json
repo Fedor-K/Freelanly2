@@ -1,7 +1,7 @@
 {
-  "name": "Freelanly — AI Application Assistant",
+  "name": "Freelanly - Remote Jobs",
   "short_name": "Freelanly",
-  "description": "Personal AI assistant for vacancies and projects application. Finds matched roles, drafts tailored cover letters — you review and send.",
+  "description": "Find remote jobs from LinkedIn posts and top companies. Apply directly via email.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

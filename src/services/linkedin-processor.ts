@@ -8,7 +8,7 @@ import {
   type ScrapeOptions,
 } from '@/lib/apify';
 import { getApifySettings } from '@/lib/settings';
-import { extractJobData, classifyJobCategory, isTargetRemoteJob, type ExtractedJobData } from '@/lib/ai';
+import { extractJobData, classifyJobCategory, isTargetRemoteJob, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify, isFreeEmail, cleanEmail, extractDomainFromEmail } from '@/lib/utils';
 import { ensureSalaryData } from '@/lib/salary-estimation';
 import { validateAndEnrichCompany } from '@/services/company-enrichment';
@@ -446,7 +446,7 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
     return { success: false, error: 'duplicate' };
   }
 
-  // Extract job data using Z.ai
+  // Extract job data using DeepSeek
   console.log(`Extracting data from post: ${post.content.slice(0, 50)}...`);
   const extracted = await extractJobData(post.content);
 
@@ -489,7 +489,7 @@ async function processLinkedInPost(post: LinkedInPost): Promise<ProcessedJob> {
   }
 
   // Get company name - EMAIL DOMAIN IS SOURCE OF TRUTH (who is actually hiring)
-  // Priority: email domain → Z.ai extraction → headline → author name
+  // Priority: email domain → DeepSeek extraction → headline → author name
   const emailCompany = extractCompanyFromEmail(validatedEmail);
   const extractedCompany = isGenericCompanyName(extracted.company) ? null : extracted.company;
 

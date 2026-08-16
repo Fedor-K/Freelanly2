@@ -1,15 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { checkAdminSession } from '@/lib/admin-auth';
 
 /**
  * GET /api/admin/cohorts
  *
  * Returns cohort retention data and activation funnel.
  */
-export async function GET(request: NextRequest) {
-  const authError = await checkAdminSession(request);
-  if (authError) return authError;
+export async function GET() {
   try {
     // === COHORT RETENTION ===
     // Group users by registration month, check if they had activity in subsequent months

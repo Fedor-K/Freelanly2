@@ -30,66 +30,12 @@ model User {
   plan                Plan      @default(FREE)
   subscriptionEndsAt  DateTime? // When current period ends
 
-  // Pay-per-apply (owner decision 2026-07-21): first apply free, then $3 buys a pack of apply credits
-  // ($0.50/apply). Charged on-session via inline Stripe Elements (no redirect) — replaces the $5/mo
-  // subscription redirect that abandoned 97% at the Stripe hosted page. Gated by CREDITS_ENABLED env.
-  applyCredits          Int       @default(0)  // remaining purchased apply-credit balance
-  stripePaymentMethodId String?                // saved card (SetupIntent) for one-tap on-session charges
-  freeSendsUsed         Int       @default(0)  // lifetime free sends claimed, counted against FREE_APPLICATIONS (atomic gate; backfilled from sent history so existing users weren't re-granted the allowance)
-
   // Limits tracking
   jobViewsToday Int       @default(0)
   lastViewReset DateTime  @default(now())
 
-  // Resume
-  resumeUrl      String?
-  resumeText     String?   // Extracted text from PDF
-  resumeBase64   String?   // PDF file as base64 for email attachment
-  resumeFileName String?   // Original filename
-  parsedProfile  Json?     // AI-extracted: {name, skills, current_title, field, experience_years, summary}
-  roleFamily     String?   // worker-classified profession family (qwen2.5:3b) — gates the discovery feed so a
-                           // translator/PM stops seeing dev roles. COLUMN added via raw DDL, NOT `prisma db push`.
-  linkedinUrl    String?   // Candidate's LinkedIn profile URL (collected at apply; used for enrichment + recruiter view)
-
-  // Profile (used in outreach personalization)
-  workPreference String?   // "What kind of work do you want?" — free text, guides AI cover letters
-  headline       String?   // One sentence, credibility — "Senior React dev · ex-Notion"
-  location       String?   // "Berlin, Germany"
-  availability   String?   // "~30 hrs/week"
-  availableFrom  String?   // "mid-November", "immediately"
-  rateFloorHourly Int?     // Minimum $/hr — auto-skip jobs below this
-  rateFloorProject Int?    // Minimum $/project — auto-skip below
-  salaryExpectation   String?   // candidate-stated EXPECTED pay (SELF-REPORTED) — soft context in the breakdown, never a verified/statused line
-  salaryExpectationAt DateTime? // when stated — render must de-emphasize / decay stale self-reports (same freshness discipline as everywhere)
-  currentRate         String?   // candidate-stated CURRENT pay/CTC (SELF-REPORTED) — recruiters re-ask for it; collected in the signup form, put in the first outreach email to cut the ATS "share details" round
-  workAuthorization   String?   // where the candidate can legally work (e.g. "Remote – anywhere", "US authorized", "EU", "My country only") — SELF-REPORTED; recruiters re-ask (visa/work-auth); collected in the signup form
-  portfolioUrl   String?   // candidate-entered portfolio / GitHub / personal site — recruiters ask for it (14%); shown on the application card
-  messenger      String?   // WhatsApp (intl phone) or Telegram @handle — SELF-REPORTED, collected on the signup profile step (LATAM lives in WhatsApp); reachability for reply follow-ups + placement ops (opt-in calls, anti-ghost)
-  aiGenerationsUsed Int    @default(0) // paid-generation meter (owner decision 2026-07-12): FIRST AI application (letter+CV) is free, every next one is PRO. Counts USER-triggered generations only (quick-apply draft/regenerate); worker queue letters don't count. Sends are NEVER gated — manual writing stays free/unlimited.
-  videoIntroUrl  String?   // 1-2 min self-intro video link (Loom/Drive/YouTube-unlisted) — async replacement for half the screening call: verifies English, identity and communication. Collected via dashboard nudge (NOT signup — friction). Shown to hirers on the /r card AFTER identity reveal; anonymous MPC cards get a "video available" badge only.
-  extensionToken String?   @unique // bearer token for the browser autofill extension (PRO): the extension runs on jobs.lever.co (cross-origin) so it can't use the session cookie — it sends this token instead. Generated on demand from the dashboard; validates against /api/extension/*.
-  githubUrl      String?   // normalized https://github.com/<username> — candidate-entered (settings/prompt) or auto-extracted from resumeText/portfolioUrl; feeds GitHubReview
-  githubReview   GitHubReview?
-  profileShareConsent   Boolean   @default(false) // affirmative opt-in (GDPR/CCPA) to share the candidate's profile with employers & hiring partners — REQUIRED before any third-party resale/feed; collected at signup
-  profileShareConsentAt DateTime? // when consent was given (audit trail for data-subject requests)
-  caseStudies    Json?     // ["notion-sync", "crdt-merge"] — AI picks best per outreach
-  freeReplyUsed  Boolean  @default(false)  // PAYWALL: has the user spent their one free reply-unlock? First recruiter reply is free (hook), rest cost $5.
-
-  // Voice training (3 sample emails for AI to match writing style)
-  voiceSamples   Json?     // ["sample email 1", "sample email 2", "sample email 3"]
-
-  // Timezone & send schedule
-  timezone       String?   // "Europe/Berlin", "America/New_York"
-  sendStartHour  Int?      // 9 (9am)
-  sendEndHour    Int?      // 17 (5pm)
-  sendWeekdaysOnly Boolean @default(true) // Mon-Fri only
-
-  // Notification preferences
-  notifyOnReply  Boolean   @default(true)
-  notifyDigest   Boolean   @default(true)  // Daily digest email
-  notifySlackUrl String?   // Slack webhook URL
-  telegramChatId String?   // Telegram chat ID for notifications
-  bookingUrl     String?   // Calendly/Cal.com link
+  // Resume URL (user's resume link)
+  resumeUrl     String?
 
   // Activity tracking
   lastActiveAt  DateTime?  // For re-engagement emails
@@ -110,14 +56,10 @@ model User {
 
   // FOMO email tracking (sent 3 days after registration)
   fomoEmailSentAt        DateTime?        // When FOMO email was sent (null = not sent)
-  day1DigestSentAt       DateTime?        // Day+1 "new matched roles" one-shot sent/evaluated (null = pending). Column added via raw DDL 2026-07-17 (scripts/day1-matches-migrate.sql)
 
   // Email preferences
   unsubscribedFromMarketing Boolean @default(false)  // User opted out of marketing emails
   unsubscribedAt            DateTime?                 // When they unsubscribed
-  // NOTE: job-alert opt-in (jobAlertOptIn / jobAlertOptInAt) lives in the DB (see
-  // scripts/wave2-migrate.sql) but is intentionally NOT in this model. It's written via guarded
-  // raw SQL in the register route so a not-yet-applied migration can't break site-wide User reads.
 
   // Legal compliance (for dispute evidence)
   agreedToTermsAt           DateTime?                 // When user agreed to ToS
@@ -145,20 +87,6 @@ model User {
   applyAttempts ApplyAttempt[]
   cookieConsents CookieConsent[]
   reengagementEmails ReengagementEmail[]
-
-  // Auto-Apply
-  userSmtp              UserSmtp?
-  gmailAuth             GmailAuth?
-  autoApplyLoops        AutoApplyLoop[]
-  autoApplications      AutoApplication[]
-  matchVerdicts         MatchVerdict[]
-  coverLetterTemplates  CoverLetterTemplate[]
-  savedFeeds            SavedFeed[]
-  freeAppliesUsedToday  Int       @default(0)
-  lastFreeApplyReset    DateTime  @default(now())
-  appsUsedThisCycle     Int       @default(0)   // Applications sent this billing cycle
-  cycleStartedAt        DateTime  @default(now()) // When current billing cycle started
-  emailBounceCount      Int       @default(0)   // Hard bounces, disable alerts after 3
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -403,10 +331,6 @@ model Job {
   originalContent String?   // Original post text
   authorLinkedIn  String?   // Post author's LinkedIn URL
   authorName      String?   // Post author name
-  authorTitle     String?   // "Engineering Manager at Linear"
-  authorCompany   String?   // Company from LinkedIn profile
-  authorFollowers Int?      // LinkedIn follower count
-  authorHeadline  String?   // LinkedIn headline
 
   // AI-structured description (for SEO and UX)
   cleanDescription   String?    // AI-generated clean, readable description text
@@ -595,11 +519,6 @@ model Opportunity {
   clientHeadline  String?             // e.g., "CTO at TechCorp"
   clientAvatar    String?             // Avatar URL
 
-  // Enriched poster profile (from LinkedIn scrape)
-  posterTitle     String?             // Full title from LinkedIn profile
-  posterCompany   String?             // Company from LinkedIn profile
-  posterFollowers Int?                // LinkedIn follower count
-
   // === ORIGINAL CONTENT ===
   originalContent String   @db.Text   // Raw LinkedIn post text
 
@@ -614,17 +533,9 @@ model Opportunity {
   // === CATEGORY & LOCATION ===
   category        Category @relation(fields: [categoryId], references: [id])
   categoryId      String
-  roleFamily      String?  // worker-classified profession family (one of the 21 category slugs) — gates the
-                           // discovery feed by profession. Filled by qwen2.5:3b on the Hetzner worker; the
-                           // COLUMN is added via raw DDL (ensureClassifySchema), NOT `prisma db push`.
   location        String?
   locationType    LocationType @default(REMOTE)
   country         String?
-  requiresUsWorkAuth Boolean? // listing text demands US work authorization (W2 / citizen / green card /
-                           // corp-to-corp) and is therefore closed to applicants without it — 20.7% of the
-                           // feed. Matched once at ingest because the regex over description+originalContent
-                           // costs ~17s across the table, far too slow to evaluate per request. COLUMN and
-                           // index added via raw DDL, NOT `prisma db push`. null = not yet classified.
 
   // === JOB DETAILS ===
   level           Level @default(MID)
@@ -647,24 +558,9 @@ model Opportunity {
   applyEmail      String?
   applyUrl        String?
 
-  // NOTE: column "matchedAt" (TIMESTAMP, nullable) also exists on this table in the DB.
-  // It is intentionally NOT declared here and is managed via idempotent raw SQL in
-  // src/services/auto-apply-processor.ts (ensureMatcherSchema). Declaring it would make
-  // the generated Prisma client SELECT it in every Opportunity read, 500-ing the app on
-  // any deploy that lands before the column exists. Do NOT add it here; if you run
-  // `prisma db push` it may try to drop it — the matcher re-creates it (one-time re-scan).
-  //
-  // NOTE: pgvector columns "embedding" (vector(1024)), "embeddingStamp" (text), "embeddedAt"
-  // (timestamptz) + an HNSW index also exist on this table (and on "Job"/"User") in the DB.
-  // Same rule as matchedAt: NOT declared here, managed via raw SQL in
-  // src/services/embeddings/embed-worker.ts (ensureEmbedSchema). A 1024-float column SELECTed on
-  // every feed read would be ruinous — it is read only via raw SQL (semantic-rank.ts). `prisma db
-  // push` may drop it; the embed cron / matcher re-create it.
-
   // === SOURCE ===
-  sourceUrl       String              // LinkedIn post URL (or ATS hosted job URL)
-  sourceId        String?             // LinkedIn post ID (or ATS posting UUID)
-  source          String   @default("linkedin") // 'linkedin' | 'ats_lever' — drives feed apply mode
+  sourceUrl       String              // LinkedIn post URL
+  sourceId        String?             // LinkedIn post ID
 
   // === KEYWORD TRACKING ===
   sourceKeyword   String?             // Which keyword found this post
@@ -686,7 +582,6 @@ model Opportunity {
   alertNotifications AlertNotification[]
   socialPostQueue    SocialPostQueue[]
   applyAttempts      ApplyAttempt[]
-  matchVerdicts      MatchVerdict[]
 
   @@index([categoryId])
   @@index([companyId])
@@ -695,27 +590,6 @@ model Opportunity {
   @@index([clientLinkedIn])
   @@index([keywordRunId])
   @@index([sourceKeyword])
-}
-
-// Shared per-(candidate × opportunity) LLM match verdict cache. ONE vet per pair, read by both the
-// discovery feed (on-demand, top-K) and reusable by the auto-apply matcher — so the real assessPairing
-// verdict is never recomputed. Cascades on user/opportunity delete (opps are purged after 30 days).
-model MatchVerdict {
-  id            String   @id @default(cuid())
-  userId        String
-  opportunityId String
-  label         String   // Strong | Good | Weak
-  decision      String   // SEND | NO
-  score         Int?
-  reason        String?
-  breakdown     Json?
-  createdAt     DateTime @default(now())
-
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, opportunityId])
-  @@index([userId])
 }
 
 // ============================================
@@ -1223,7 +1097,7 @@ model DailyMetric {
   importRuns       Int @default(0)
   importSuccesses  Int @default(0)
   importFailures   Int @default(0)
-  apiCostsCents    Int @default(0)  // Apify, Z.ai, etc.
+  apiCostsCents    Int @default(0)  // Apify, DeepSeek, etc.
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1841,42 +1715,6 @@ model ActivityLog {
   @@index([userId, action])
 }
 
-// Cache of assessPairing (AI gate) verdicts per (user × opportunity) — so the feed can reflect the
-// real AI judgment (hide what apply would reject), the apply path can skip a recompute (no 5-7s wait,
-// no repeat LLM cost), and the two stop disagreeing. Invalidated by profileStamp (profile change) + TTL.
-model PairingVerdict {
-  id             String   @id @default(cuid())
-  userId         String
-  opportunityId  String
-  decision       String   // 'SEND' | 'NO'
-  label          String?  // Strong | Good | Weak
-  reason         String?
-  matchBreakdown Json?
-  profileStamp   String   // hash of the candidate profile state used for this verdict
-  createdAt      DateTime @default(now())
-
-  @@unique([userId, opportunityId])
-  @@index([opportunityId])
-}
-
-// GitHub evidence report per candidate (verification Tier 1): is the account alive, does the real
-// stack match the claimed skills. Latest-only (upsert on userId); freshness = profileStamp match +
-// 30d TTL enforced in code (src/lib/github-review/run.ts), mirroring PairingVerdict's discipline.
-// `verdict` is denormalized out of `report` so shortlist queries can filter in SQL.
-model GitHubReview {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  username     String   // github login the report is about
-  verdict      String   // STRONG | ACTIVE | WEAK | INACTIVE | MISMATCH | UNVERIFIABLE
-  report       Json     // GitHubReviewReport (versioned, render-ready)
-  snapshot     Json?    // raw GitHubSnapshot — debug / re-assess without refetch
-  profileStamp String   // sha1-16 of (githubUrl | sorted skills | title) — invalidates on profile change
-  reviewedAt   DateTime @default(now())
-
-  @@index([verdict, reviewedAt])
-}
-
 enum ActivityAction {
   // Auth
   LOGIN
@@ -1935,62 +1773,12 @@ enum ActivityAction {
   // Chat
   CHAT_MESSAGE
 
-  // Survey
-  SURVEY_SENT
-  SURVEY_VOTE
-
   // Other
   PROFILE_UPDATED
   RESUME_UPLOADED
   UNSUBSCRIBE
   CONTACT_VIEW
   REGISTRATION_MODAL_OPEN
-
-  // Auto-Apply
-  AUTO_APPLY
-  AUTO_APPLY_FOLLOWUP
-  LOOP_CREATED
-  LOOP_PAUSED
-  LOOP_RESUMED
-  LOOP_DELETED
-  LOOP_UPDATED
-  SMTP_CONNECTED
-  SMTP_DISCONNECTED
-  INBOX_VIEW
-  INBOX_REPLY_SENT
-  INBOX_AI_SUGGEST
-  QUICK_APPLY
-  DASHBOARD_VIEW
-  SETTINGS_UPDATED
-  TEMPLATE_CREATED
-  TEMPLATE_DELETED
-
-  // Engagement tracking
-  REPLY_VIEWED
-  REPLY_EXPANDED
-  REPLY_RATED
-  RECRUITER_REPLIED
-  RECRUITER_PORTAL_VISIT
-  RECRUITER_PORTAL_ACTION
-  RECRUITER_PORTAL_NUDGE_SENT
-  RECRUITER_INTEREST
-  COMPANY_CONTACT_RESOLVED
-  COMPANY_CARD_SENT
-  ATS_APPLY_CLICK
-  AUTO_APPLY_ENABLED
-  APPLY_DRAFT
-  REPLY_EMAIL_OPEN
-  REPLY_EMAIL_CLICK
-  RESUME_UPDATED
-  LOOP_SETTINGS_CHANGED
-  ONBOARDING_STEP
-  FUNNEL_STEP
-
-  IMPORT_SKIP
-
-  // Client-side JS errors (window.onerror / unhandledrejection) — added 2026-07-23 after the
-  // paywall card form broke silently for 2 days. Enum value added to prod via raw DDL.
-  CLIENT_ERROR
 }
 
 // ============================================
@@ -2039,332 +1827,4 @@ model AlertEmailFeedback {
   @@index([userId])
   @@index([alertId])
   @@index([createdAt])
-}
-
-// ============================================
-// AUTO-APPLY
-// ============================================
-
-// User's SMTP connection for sending applications
-model UserSmtp {
-  id          String   @id @default(cuid())
-
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId      String   @unique
-
-  host        String   // smtp.gmail.com, smtp-mail.outlook.com
-  port        Int      @default(587)
-  email       String   // user's email address
-  password    String   // app password (encrypted at application level)
-  verified    Boolean  @default(false)
-
-  lastError   String?  // raw error from the last failed verify (null once verified) — so we can see WHY connects fail
-  lastTriedAt DateTime? // when the last verify attempt ran
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-// User's Gmail OAuth grant (gmail.send scope) — send applications from their own inbox via the Gmail
-// API, no app password. One per user; refreshToken stored plaintext (same posture as UserSmtp.password).
-model GmailAuth {
-  id           String   @id @default(cuid())
-
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId       String   @unique
-
-  email        String   // the connected Gmail address (the From/sender)
-  refreshToken String   // Google OAuth refresh token (durable in Production)
-  verified     Boolean  @default(true) // true once we've successfully minted an access token
-  lastError    String?  // last send/refresh failure (e.g. token revoked → prompt reconnect)
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
-// Auto-apply "Loop" — a set of filters + settings
-model AutoApplyLoop {
-  id              String   @id @default(cuid())
-
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId          String
-
-  name            String   // "Frontend Remote EU"
-  jobTitles       String[] // ["React Developer", "Frontend Engineer"]
-  // Professional directions this loop belongs to (1..n of the 21 category slugs). The matcher only
-  // considers a loop whose directions match the listing's category (or an adjacent one) — see
-  // src/lib/loop-routing.ts. Empty = unclassified → matcher fails open (old "consider everyone").
-  categorySlugs   String[] @default([])
-  keywords        String?  // comma-separated additional keywords
-  country         String?  // ISO country code
-  level           String?  // JUNIOR, MID, SENIOR
-  salaryMin       Int?
-  salaryMax       Int?
-  blacklistCompanies String[] // companies to skip
-  excludeKeywords    String?  // comma-separated keywords to exclude ("Web3,rockstar,unpaid")
-
-
-  // Which resume and template to use
-  resumeUrl       String?  // URL to PDF resume
-  templateId      String?  // CoverLetterTemplate ID
-
-  // Automation settings
-  mode            AutoApplyMode @default(MANUAL) // self-apply default; AUTO is opt-in
-  dailyLimit      Int      @default(10)
-  sentToday       Int      @default(0)
-  lastResetAt     DateTime @default(now())
-  isActive        Boolean  @default(true)
-
-  // Match threshold — below this score, require manual review
-  matchThreshold  Int      @default(50)  // 0-100
-
-  // Follow-up cadence (days after initial send)
-  followUpDay1    Int      @default(4)   // 1st bump after N days
-  followUpDay2    Int      @default(8)   // Breakup after N days
-  followUpEnabled Boolean  @default(true)
-
-  // Auto-pause conditions
-  pauseOnUnanswered  Int?     // Pause if N+ unanswered replies in inbox
-  pauseOnLowRate     Float?   // Pause if reply rate drops below X% over 14d
-  pauseOnInactive    Int?     // Pause if user hasn't logged in for N days
-
-  // Relations
-  applications    AutoApplication[]
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([userId])
-  @@index([userId, isActive])
-}
-
-enum AutoApplyMode {
-  AUTO    // Send automatically without confirmation
-  SEMI    // Queue for user review before sending
-  MANUAL  // Only show matches, don't send
-}
-
-// Cover letter template with variables
-model CoverLetterTemplate {
-  id        String   @id @default(cuid())
-
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-
-  name      String   // "Professional", "Casual"
-  subject   String   // Email subject: "Application: {{ job_title }} — {{ your_name }}"
-  body      String   // Template body with {{ variables }}
-  type      TemplateType @default(APPLICATION)
-  isDefault Boolean  @default(false)
-
-  // Performance tracking
-  sentCount   Int @default(0)
-  replyCount  Int @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-}
-
-enum TemplateType {
-  APPLICATION  // Initial application
-  FOLLOWUP    // Follow-up after no response
-}
-
-// Individual auto-apply attempt (tracks each application sent)
-model AutoApplication {
-  id              String   @id @default(cuid())
-
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId          String
-
-  loop            AutoApplyLoop @relation(fields: [loopId], references: [id], onDelete: Cascade)
-  loopId          String
-
-  // Applied to (either job or opportunity)
-  jobId           String?
-  opportunityId   String?
-
-  // What was sent
-  companyName     String
-  jobTitle        String
-  appliedToEmail  String   // recruiter/company email
-  coverLetter     String   // generated cover letter text
-  subject         String   // email subject line
-  resumeUrl       String?  // resume that was attached
-
-  // Match quality
-  matchScore      Int?     // 0-100 match score
-  matchLabel      String?  // "Strong", "Good", "Weak"
-  matchBreakdown  Json?    // frozen verified breakdown {matched,total,wouldGate,bucket,lines,...} — shadow/gate/render
-  origin          String?  @default("AUTO") // "AUTO" = matcher auto-applied | "SELF" = user clicked apply. DB-level default 'AUTO' so the worker's creates (which don't set it) get AUTO; Vercel self-apply routes set 'SELF' explicitly. Existing pre-instrumentation rows = NULL. Lets us measure self-vs-auto reply rate.
-
-  // Status tracking
-  status          AutoApplyStatus @default(PENDING)
-  sentVia         String?  // "smtp" or "platform"
-  errorMessage    String?
-
-  // Reply tracking
-  replyText       String?  // recruiter's reply content
-  replyCategory   String?  // INTERESTED, INTERVIEW, REJECTED, OTHER
-  replySignal     String?  // AI-extracted signal: "Wants to chat Tue 3pm CET. Caveat: role is full-time."
-  repliedAt       DateTime?
-  replyUnlocked   Boolean @default(true)  // PAYWALL: false = recruiter replied but candidate must pay $5 to read+respond. Default true so existing/non-paywalled replies stay open; inbound sets false only when REPLY_PAYWALL is on and the user's free unlock is spent.
-
-  // Follow-up
-  followUpSentAt  DateTime?
-  followUpCount   Int      @default(0)
-  hotLeadReminderAt DateTime?  // when we nudged the user about an unanswered interview invite
-  recruiterHidden Boolean @default(false)  // hide from the recruiter portal (off-target match); reversible
-
-  // Timestamps
-  sentAt          DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([userId, jobId])
-  @@unique([userId, opportunityId])
-  @@index([userId, status])
-  @@index([loopId])
-  @@index([status])
-  @@index([createdAt])
-
-  messages   Message[]
-}
-
-model Message {
-  id              String   @id @default(cuid())
-
-  application     AutoApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  applicationId   String
-
-  from            String   // "user" or "recruiter" or "system"
-  text            String
-  attachmentUrl   String?
-
-  createdAt       DateTime @default(now())
-
-  @@index([applicationId])
-  @@index([applicationId, createdAt])
-}
-
-// Demand-side account. A recruiter exists implicitly as AutoApplication.appliedToEmail; this
-// row is created when they register through the /r/[token] portal (token already proves inbox
-// control, so no OTP). Turns an anonymous email into a known, measurable account: who they are,
-// what they hire for (need), and engagement (lastSeenAt). Keyed by email = the token identity.
-model Recruiter {
-  id            String    @id @default(cuid())
-  email         String    @unique   // == AutoApplication.appliedToEmail (lowercased)
-  name          String?
-  company       String?
-  hiringFor     String?             // need Q1 — free text role(s) they're hiring for
-  hiringVolume  String?             // need Q2 — "1" | "2-5" | "6-20" | "20+" (budget/volume proxy)
-  plan          String    @default("free")
-  registeredAt  DateTime  @default(now())
-  lastSeenAt    DateTime?            // bumped on each portal visit once registered = engagement signal
-}
-
-enum AutoApplyStatus {
-  PENDING     // Queued, waiting to send
-  REVIEW      // Semi-auto mode, waiting for user approval
-  SENDING     // Currently being processed
-  SENT        // Successfully sent
-  DELIVERED   // Confirmed delivered
-  OPENED      // Recruiter opened email
-  REPLIED     // Recruiter replied
-  INTERVIEW   // Got interview
-  OFFER       // Received offer
-  SKIPPED     // User manually skipped this project
-  REJECTED    // Recruiter replied "not a fit" — real, user-facing rejection (always has repliedAt)
-  MATCH_REJECTED // Matcher declined this pairing — admin-audit only, never sent, NOT user-facing
-  FAILED      // Send failed (SMTP error)
-}
-
-// Saved discovery feed (named filter set)
-model SavedFeed {
-  id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-
-  name      String   // "EU React contracts"
-  skills    String[] // ["React", "TypeScript"]
-  keywords  String?  // comma-separated
-  excludeKeywords String?
-  country   String?
-  level     String?
-  minRate   String?  // "$80/hr"
-
-  color     String?  // dot color in UI
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-}
-
-// Shadow paywall (Wave 2). Logs every time a recruiter reveals a candidate's real contact
-// from the portal. During validation reveal is FREE but recorded here, so when monetization
-// flips on we already know demand (who reveals, how often) and can gate it behind payment.
-// Standalone (string refs, no FK) to keep the migration purely additive.
-model ContactReveal {
-  id             String   @id @default(cuid())
-  applicationId  String   // AutoApplication whose candidate was revealed
-  recruiterEmail String   // == AutoApplication.appliedToEmail (lowercased)
-  revealedAt     DateTime @default(now())
-
-  @@unique([applicationId, recruiterEmail])
-  @@index([recruiterEmail])
-  @@index([applicationId])
-}
-
-// Recruiter addresses we must stop sending auto-apply outreach to: one-click List-Unsubscribe
-// opt-outs (RFC 8058) and, later, hard bounces. Honoring unsubscribe + suppressing dead
-// addresses protects the apply@ domain reputation so legitimate applications keep landing.
-// Standalone (string ref, no FK) → purely additive migration; the send loop fails OPEN if the
-// table isn't there yet, so a pending migration never blocks outreach.
-model RecruiterSuppression {
-  email     String   @id // lowercased recruiter email
-  reason    String   @default("optout") // "optout" | "bounce" | "complaint"
-  createdAt DateTime @default(now())
-}
-
-// Short-lived OTP for recruiter passwordless login (email + 6-digit code → session cookie).
-// Lets recruiters re-enter their portal without hunting for the email link. Code is stored
-// hashed; one active row per email (upsert). Standalone, additive migration.
-model RecruiterOtp {
-  email     String   @id // lowercased recruiter email
-  codeHash  String   // sha256 of the 6-digit code (never store the code itself)
-  expiresAt DateTime
-  attempts  Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// Demand-side outreach draft: one ready-to-send candidate-pitch email per ATS company+role, built
-// by the dormant Lever pipeline (buildLeverCompanyCards → buildShortlistForRole → cardEmail) and
-// surfaced in /admin/recruiter-outreach for the founder to review and send MANUALLY from his own
-// inbox (no auto-send — protects the domain). Additive raw-DDL table (prisma db push unusable here).
-model OutreachDraft {
-  id             String    @id @default(cuid())
-  opportunityId  String?   @unique(map: "OutreachDraft_opportunityId_key") // set for today's-ATS-flow drafts (links to Opportunity); null for Lever-scan drafts
-  companySlug    String
-  companyName    String?
-  contactEmail   String
-  contactDomain  String
-  contactMethod  String    @default("guess") // verified | catch-all | guess
-  roleTitle      String
-  roleUrl        String?
-  location       String?
-  subject        String
-  bodyHtml       String
-  bodyText       String
-  candidates     Json      @default("[]")     // [{profession, location, label, name, userId}]
-  candidateCount Int       @default(0)
-  status         String    @default("DRAFT")  // DRAFT | SENT | SKIPPED
-  createdAt      DateTime  @default(now())
-  sentAt         DateTime?
-
-  @@unique([contactDomain, roleTitle], map: "OutreachDraft_domain_role_key")
-  @@index([status, createdAt], map: "OutreachDraft_status_created_idx")
 }

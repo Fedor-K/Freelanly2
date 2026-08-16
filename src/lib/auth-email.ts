@@ -1,8 +1,6 @@
 // Magic Link + OTP code email sender
-// Auth emails go through Postal (self-hosted) for IP warming
 
 import { sendApplicationEmail } from '@/lib/email';
-import { sendEmail as sendViaPostal, isConfigured as postalConfigured } from '@/lib/email/postal';
 import { prisma } from '@/lib/db';
 import { randomInt } from 'crypto';
 import { sanitizeEmail } from '@/lib/rate-limit';
@@ -26,30 +24,15 @@ export async function sendMagicLinkEmail(
 
   // Store code in the VerificationToken that NextAuth just created
   // NextAuth creates the token before calling sendVerificationRequest,
-  // so we update the most recent token for this email with the code.
-  // Use case-insensitive search + retry to handle email normalization
-  // differences between NextAuth and our sanitizeEmail(), and to handle
-  // potential read-replica lag on Neon PostgreSQL.
+  // so we update the most recent token for this email with the code
   try {
-    let token = await prisma.verificationToken.findFirst({
+    const token = await prisma.verificationToken.findFirst({
       where: {
-        identifier: { equals: email, mode: 'insensitive' },
+        identifier: email.toLowerCase(),
         expires: { gt: new Date() },
       },
       orderBy: { expires: 'desc' },
     });
-
-    // Retry once after short delay if not found (Neon read-replica lag)
-    if (!token) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      token = await prisma.verificationToken.findFirst({
-        where: {
-          identifier: { equals: email, mode: 'insensitive' },
-          expires: { gt: new Date() },
-        },
-        orderBy: { expires: 'desc' },
-      });
-    }
 
     if (token) {
       await prisma.verificationToken.update({
@@ -70,41 +53,23 @@ export async function sendMagicLinkEmail(
     // Continue — magic link still works even without code
   }
 
-  // Use branded OTP template
-  const { otpEmail } = await import('@/lib/email-templates');
-  const branded = otpEmail(code, email);
+  const html = generateMagicLinkHtml(url, code);
+  const text = generateMagicLinkText(url, code);
 
   try {
-    const emailParams = {
+    const result = await sendApplicationEmail({
       to: email,
-      subject: branded.subject,
-      html: branded.html,
-      text: branded.text,
-    };
-
-    // Send auth emails via Postal (self-hosted) for IP warming.
-    // Fallback to default provider if Postal fails.
-    let result;
-    if (postalConfigured()) {
-      result = await sendViaPostal(emailParams);
-      if (result.success) {
-        console.log(`[Auth Email] Sent via Postal to ${email}, messageId: ${result.messageId}`);
-      } else {
-        console.warn(`[Auth Email] Postal failed: ${result.error}, falling back to default provider`);
-        result = await sendApplicationEmail(emailParams);
-      }
-    } else {
-      result = await sendApplicationEmail(emailParams);
-    }
+      subject: `${code} — your Freelanly sign-in code`,
+      html,
+      text,
+    });
 
     if (!result.success) {
       console.error('[Auth Email] Failed to send magic link:', result.error);
       throw new Error(`Failed to send email: ${result.error}`);
     }
 
-    if (!postalConfigured()) {
-      console.log(`[Auth Email] Magic link + code sent to ${email}, messageId: ${result.messageId}`);
-    }
+    console.log(`[Auth Email] Magic link + code sent to ${email}, messageId: ${result.messageId}`);
   } catch (error) {
     console.error('[Auth Email] Error sending magic link:', error);
     throw error;

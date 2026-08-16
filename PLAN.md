@@ -291,30 +291,30 @@ DM me or drop your resume in comments!"
 | Company info | Clearbit, LinkedIn via Apify | ~$0.01/lookup |
 | Salary estimates | Levels.fyi API, stored baseline | Free/cached |
 | Job categories | Our taxonomy + AI classification | ~$0.0001/job |
-| Description generation | **Z.ai** | ~$0.0002/job |
+| Description generation | **DeepSeek** | ~$0.0002/job |
 | Logo/branding | Clearbit Logo API, favicon grab | Free tier |
 
-### AI Provider: Z.ai (текущий выбор)
+### AI Provider: DeepSeek (текущий выбор)
 
-**Почему Z.ai:**
+**Почему DeepSeek:**
 - В 10-20x дешевле OpenAI/Anthropic
 - Достаточное качество для extraction и generation задач
 - Хороший JSON mode для structured output
 - API совместим с OpenAI SDK
 
 ```typescript
-// services/ai/zai-client.ts
+// services/ai/deepseek-client.ts
 import OpenAI from 'openai';
 
-const zai = new OpenAI({
-  apiKey: process.env.ZAI_API_KEY,
-  baseURL: 'https://api.zai.com/v1',
+const deepseek = new OpenAI({
+  apiKey: process.env.DEEPSEEK_API_KEY,
+  baseURL: 'https://api.deepseek.com/v1',
 });
 
 // Extraction prompt
 const extractJobData = async (postText: string) => {
-  const response = await zai.chat.completions.create({
-    model: 'zai-chat',
+  const response = await deepseek.chat.completions.create({
+    model: 'deepseek-chat',
     response_format: { type: 'json_object' },
     messages: [
       {
@@ -331,11 +331,11 @@ Be conservative - only extract what's explicitly stated.`
 };
 ```
 
-**Стоимость с Z.ai (per 1000 jobs):**
+**Стоимость с DeepSeek (per 1000 jobs):**
 | Step | Cost |
 |------|------|
 | Apify scraping | ~$5-10 |
-| AI extraction (Z.ai) | ~$0.10 |
+| AI extraction (DeepSeek) | ~$0.10 |
 | Company enrichment | ~$2 (cached) |
 | ~~Description generation~~ | ~~$0~~ (не генерим!) |
 | **Total per 1000 jobs** | **~$7-12** |

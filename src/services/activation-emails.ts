@@ -276,40 +276,6 @@ export async function sendActivationEmail(
       return { success: false, error: 'User not found' };
     }
 
-    // WELCOME (fires from the Stripe webhook on every PRO purchase): self-contained honest email.
-    // The old path pulled from the dormant `Job` table — always empty since the pivot — so new PRO
-    // payers silently got NO welcome at all, and the template promised "unlimited access" + linked
-    // deleted /company pages. This one promises exactly what PRO is: the ready-queue + CV on every send.
-    if (type === 'WELCOME') {
-      const firstName = (user.name || '').split(' ')[0] || 'there';
-      const dashUrl = `${APP_URL}/dashboard?utm_source=welcome_email`;
-      const welcomeHtml = `
-        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#1a1a1a;">
-          <h1 style="font-size:22px;margin:0 0 14px;">Welcome to PRO, ${firstName} 🎉</h1>
-          <p style="font-size:14px;line-height:1.6;color:#444;">Here's what just switched on for you:</p>
-          <ul style="font-size:14px;line-height:1.8;color:#444;padding-left:20px;">
-            <li><strong>Morning ready-queue</strong> — applications pre-written for your top matches. Open your dashboard, review each one, hit Send.</li>
-            <li><strong>Your CV on every send</strong> — your r&eacute;sum&eacute; is attached automatically to every application.</li>
-          </ul>
-          <a href="${dashUrl}" style="display:inline-block;padding:12px 24px;background:#C7F94A;color:#000;border-radius:8px;text-decoration:none;font-weight:600;margin-top:12px;">Open your queue →</a>
-          <p style="font-size:12px;color:#888;margin-top:24px;">Questions? Just reply to this email.</p>
-        </div>`;
-      const welcomeText = `Welcome to PRO, ${firstName}!\n\nWhat switched on:\n- Morning ready-queue: applications pre-written for your top matches — review and send in one click.\n- Your CV on every send: your resume attached automatically to every application.\n\nOpen your queue: ${dashUrl}`;
-      const res = await sendApplicationEmail({
-        to: user.email,
-        subject: `Welcome to Freelanly PRO — your queue is ready`,
-        html: welcomeHtml,
-        text: welcomeText,
-      });
-      if (res.success) {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { activationEmailsSent: 1, lastActivationEmailAt: new Date(), proStartedAt: new Date() },
-        }).catch(() => {});
-      }
-      return res.success ? { success: true } : { success: false, error: res.error };
-    }
-
     // Get categories from user's alerts
     const categories = user.jobAlerts
       .map(a => a.category)
@@ -341,7 +307,7 @@ export async function sendActivationEmail(
         },
       },
       orderBy: { postedAt: 'desc' },
-      take: 5,
+      take: type === 'WELCOME' ? 10 : 5,
     });
 
     if (jobs.length === 0) {
@@ -380,6 +346,8 @@ export async function sendActivationEmail(
       data: {
         activationEmailsSent: emailNumber,
         lastActivationEmailAt: new Date(),
+        // Set proStartedAt on welcome email
+        ...(type === 'WELCOME' && { proStartedAt: new Date() }),
       },
     });
 
@@ -420,8 +388,6 @@ export async function processActivationEmails(): Promise<{
         activatedAt: null, // Haven't sent any application yet
         activationEmailsSent: { lt: 4 }, // Haven't received all drip emails
         unsubscribedFromMarketing: false, // Respect unsubscribe preference
-        // Watcher-product accounts must never receive Freelanly-branded mail.
-        NOT: { source: { startsWith: 'watcher:' } },
       },
       include: {
         _count: {

@@ -1,27 +1,20 @@
 # Freelanly 2.0 — Project Context
 
-## ⚠️ Current State (updated 2026-05-23) — READ FIRST
-
-Продукт **развернулся** из SEO job-board в **AI auto-apply платформу для фрилансеров**. Многие разделы ниже описывают старый job-board и оставлены как историческая справка по pipeline-у скрапинга/качества (он ещё используется для Opportunities). При расхождениях **этот блок и живой код — источник правды**.
-
-- **Продукт:** скрапим **Opportunities** (фриланс-гиги из постов LinkedIn), юзер откликается через AI-сгенерированный cover letter, отправка с self-hosted Postal.
-- **⚠️ ATS-парсинг ПОЛНОСТЬЮ ВЫРЕЗАН (код).** Источник вакансий — **только посты LinkedIn**. Удалены: процессоры `src/services/sources/*` (Lever/Greenhouse/Ashby/SmartRecruiters/Workable), discovery-кроны/вебхуки, configs `*-discovery`, `fetch-sources`/`process-task`/`queue-sources`, admin `Sources`/`Parsing`-страницы и их API. **Легаси-таблицы (`Job`/`DataSource`/`ImportLog`/`ImportTask`/`ImportedJob`/`FilteredJob`/`Company`) ОЧИЩЕНЫ ОТ ДАННЫХ 2026-07-16** — удалено ~4,01 млн осиротевших строк (FilteredJob 2.93M, ImportLog 1M, Job 32k, ImportedJob 21.7k, DataSource 9.1k, ImportTask 8.2k, Company 3.7k). ⚠️ Прежнее утверждение про «самоочистку Job через 30-дневный cleanup» было НЕВЕРНЫМ — cleanup-крон удалили вместе с ATS, данные висели мёртвым грузом. Cross-check перед удалением: `AutoApplication.jobId` = 0 использований (все отклики на `opportunityId`), `Opportunity.companyId` = 0/43k (null) — живое ничего не ссылалось. Бэкап: `~/freelanly-legacy-backup-2026-07-16/`. **Сами таблицы + Prisma-модели + `Source`-enum ПОКА ОСТАВЛЕНЫ как пустые оболочки** (их DROP требует чистки дормантного кода — напр. Lever-карточки ссылаются на `Company`-модель; `db push` НЕЛЬЗЯ, только raw DDL). Живые `SocialPostQueue`/`AlertNotification`/`ApplyAttempt` имеют мёртвую `jobId`-колонку (all-null) — снять при финальном DROP. Матчер обрабатывает только Opportunity (job-ветка мертва).
-- **Главная конверсионная точка:** inline apply на `/freelance/[slug]` — регистрация + AI cover letter + отправка на одной странице без редиректов.
-- **Email — ТОЛЬКО Postal** (self-hosted, Hetzner). DashaMail / Resend / SES / SMTP2GO / Elastic Email — **отменены**, файлы под них в `src/lib/email/` мёртвые.
-- **Job alerts ПРИОСТАНОВЛЕНЫ.** Единственные исходящие письма: (1) recap 2×/день, (2) auto-apply outreach + ответы, (3) auth OTP.
-- **Daily limit:** 20 applies/day для FREE.
-- **Paywall (в планах, ещё не включён):** $2-3 за переписку с рекрутером, первая бесплатно.
-- **`/dashboard/auto-apply` удалён** → юзер попадает на `/dashboard`.
-- **SEO:** `/freelance/` = noindex; `/jobs/`, `/company/`, `/country/` страницы **удалены**; robots.txt разрешает всё кроме `/api/`, `/admin/`, `/dashboard/`, `/freelance/`.
-- **БД (снимок):** ~5,768 юзеров (после чистки 6,114 мёртвых), ~1,117 активных auto-apply лупов.
-
-**Crons (2 хоста):**
-- *Hetzner:* `match */5`, `send */2`, `replies */15`, `inbound */1`, `recap 0 5,16 * * *` (UTC → 08:00/19:00 MSK), `day1-matches 0 * * * *` (hourly; шлёт day+1 письмо «N new roles match your profile» юзерам в их локальные 09:00–11:59, один раз за жизнь аккаунта).
-- *Vercel (`vercel.json`):* `post-to-social`, `submit-to-index`, `cleanup-stale-alerts`, `send-auto-apply-digest`, `hot-lead-reminders`. (ATS-кроны `fetch-sources`/`discover-lever`/`discover-greenhouse` удалены.)
-
 ## Quick Summary
 
-Платформа AI auto-apply для фрилансеров. Агрегация из LinkedIn (Apify) и ATS (Lever/Greenhouse/Ashby/SmartRecruiters/Workable). AI extraction и cover letters через Z.ai или Z.ai (переключается через `AI_PROVIDER` env var).
+SEO-оптимизированная платформа для поиска удалённых вакансий. Агрегация из LinkedIn (Apify) и ATS (Lever). AI extraction через DeepSeek или Z.ai (переключается через `AI_PROVIDER` env var).
+
+**Автоматизация:**
+- Cron 3x daily at 6:00, 14:00, 22:00 UTC: fetches all sources
+- Daily cron at 7:00 UTC: sends job alert notifications
+- Daily cron at 10:00 UTC: sends win-back emails to churned users
+- Cron every 5 min: processes INSTANT alert queue (batched emails)
+- Hourly cron: sends trial onboarding emails (Day 0, 1, 2)
+- Cron every 15 min: posts 1 job to LinkedIn + Telegram via n8n
+- Weekly cron (Sunday 3:00 UTC): discovers new Lever companies via Apify
+- n8n workflow: scrapes LinkedIn posts every 15-20 min via Apify
+- Auto cleanup: removes jobs older than 30 days after each import
+- Company enrichment via Apollo.io
 
 ## Tech Stack
 
@@ -29,18 +22,18 @@
 - Tailwind CSS v4 + shadcn/ui
 - PostgreSQL (Neon) + Prisma 5
 - **AI Providers** (switchable via `AI_PROVIDER` env var):
-  - Z.ai API (default) — $0.28/$0.42 per 1M tokens
+  - DeepSeek API (default) — $0.28/$0.42 per 1M tokens
   - Z.ai GLM-4-32B — $0.10/$0.10 per 1M tokens (64% cheaper)
 - Apify (LinkedIn scraping)
 - Apollo.io (company enrichment)
 - NextAuth v5 (authentication)
-- **Postal** — self-hosted на Hetzner, ЕДИНСТВЕННЫЙ email-провайдер (`src/lib/email/postal.ts`)
-- Stripe **и** PayPro (subscription payments, поле `User.paymentProvider`)
+- DashaMail (transactional emails)
+- Stripe (subscription payments)
 
 ## Authentication & User Dashboard
 
 ### Auth Setup (NextAuth v5)
-- **Providers**: Google OAuth + Email OTP code (via Postal)
+- **Providers**: Google OAuth + Magic Link (via DashaMail)
 - **Session**: Database strategy, 30-day lifetime
 - **Protected routes**: `/dashboard/*` via middleware
 
@@ -59,25 +52,43 @@ GOOGLE_CLIENT_ID=xxx
 GOOGLE_CLIENT_SECRET=xxx
 ```
 
-### Registration / Apply Flow (Inline на `/freelance/[slug]`)
-ГЛАВНАЯ конверсионная точка. Всё происходит на одной странице проекта без редиректов.
+### Registration Flow (2-Step Funnel)
+Пользователи регистрируются через форму при попытке откликнуться на вакансию.
 
 **Flow:**
-1. Unauth юзер открывает `/freelance/[slug]` (страница Opportunity)
-2. Жмёт apply → инлайн-форма регистрации (email + обязательные поля, см. `ProjectPageClient.tsx`)
-3. OTP-код отправляется через Postal → юзер вводит код прямо на странице (`?apply=1` флаг сохраняет намерение)
-4. После верификации AI генерит cover letter → отправка отклика на email/URL автора — всё на той же странице
-5. Создаётся `AutoApplication`; дальше пользователь управляет всем в `/dashboard`
+1. User clicks "Login to Apply" on job page (unauthenticated)
+2. RegistrationModal opens with form:
+   - Email (required)
+   - Name (optional)
+   - Categories (multi-select dropdown, required)
+   - Country (optional)
+   - Language pairs (conditional, if translation selected)
+3. User submits → `/api/auth/register` creates:
+   - User record (pre-created, not verified yet)
+   - JobAlerts (one per category, frequency=INSTANT)
+4. Magic link sent via DashaMail
+5. User clicks link → verified, redirected to /dashboard
+6. User receives INSTANT alerts for matching jobs
+7. FREE user hits paywall when trying to apply → UpgradeModal → /pricing
 
-**Daily limit:** 20 applies/day (FREE).
+**Why 2-step funnel:**
+- Captures email BEFORE paywall (unlike direct /pricing flow)
+- Auto-subscribes to job alerts → nurture emails → conversion
+- Previous experience: 3% conversion rate with this model
 
 **Files:**
-- `src/app/freelance/[slug]/page.tsx` + `ProjectPageClient.tsx` — страница проекта + inline apply
-- `src/app/api/auth/register/route.ts` — создаёт User (alerts больше НЕ создаются — приостановлены)
-- `src/app/api/auth/verify-code/route.ts` — проверка OTP
-- `src/app/api/user/draft-apply/route.ts`, `quick-apply/route.ts` — генерация и отправка отклика
+- `src/components/auth/RegistrationForm.tsx` — Reusable registration form component
+- `src/components/auth/RegistrationModal.tsx` — Modal wrapper for RegistrationForm
+- `src/app/api/auth/register/route.ts` — Creates user + alerts
+- `src/app/auth/signin/page.tsx` — Uses RegistrationForm (full page)
+- `src/components/auth/UserMenu.tsx` — "Sign In" opens RegistrationModal
+- `src/components/jobs/ApplyButton.tsx` — Shows "Login to Apply" for unauth users
+- `src/app/pricing/PricingCards.tsx` — Shows RegistrationModal on subscribe click
 
-> Старый flow (RegistrationModal на job-страницах, "Login to Apply" / "Upgrade to Apply", /pricing) — **deprecated**, job/company-страницы удалены.
+**ApplyButton behavior:**
+- `isAuthenticated=false` → "Login to Apply" → RegistrationModal
+- `isAuthenticated=true, userPlan=FREE` → "Upgrade to Apply" → UpgradeModal
+- `isAuthenticated=true, userPlan=PRO` → "Apply Now" → actual apply
 
 ### User Plans & Stripe Integration
 | Feature | FREE | PRO |
@@ -130,16 +141,11 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx
 
 ### Dashboard Pages
 ```
-/dashboard            — Overview (auto-apply сюда же, /dashboard/auto-apply УДАЛЁН)
-/dashboard/discovery  — Лента подобранных Opportunities + apply-all
-/dashboard/pipeline   — Трекинг отправленных откликов (AutoApplication)
-/dashboard/inbox      — Ответы рекрутеров (reply-checker + inbound)
-/dashboard/resumes    — Резюме (PDF → parsedProfile)
-/dashboard/templates  — Cover letter templates
-/dashboard/alerts     — Управление алертами (рассылка ПРИОСТАНОВЛЕНА)
-/dashboard/analytics  — Метрики откликов/ответов
-/dashboard/billing    — Подписка (Stripe / PayPro)
-/dashboard/settings   — Профиль, SMTP, voice training, расписание отправки
+/dashboard              — Overview, stats
+/dashboard/saved        — Saved jobs
+/dashboard/applications — Application tracking (TODO)
+/dashboard/alerts       — Job alerts management
+/dashboard/settings     — Profile settings
 ```
 
 ### Job Alerts for Translators
@@ -166,8 +172,6 @@ model AlertLanguagePair {
 - `prisma/schema.prisma` — JobAlert, AlertLanguagePair models
 
 ### Email Notifications for Job Alerts
-> ⚠️ **ПРИОСТАНОВЛЕНО (с мая 2026).** Рассылка алертов (INSTANT/DAILY/WEEKLY) отключена. Раздел оставлен как историческая справка. Сейчас исходящие письма только: recap 2×/день (08:00+19:00 MSK), auto-apply outreach + ответы, auth OTP. Модели/код не удалены, но крон рассылки не запускается.
-
 Автоматическая рассылка уведомлений о новых вакансиях.
 
 **Matching Criteria:**
@@ -260,10 +264,10 @@ Other: support, education, research, consulting
 ```
 
 ### Job Categorization
-- AI classification via Z.ai with full category list
+- AI classification via DeepSeek with full category list
 - Local keyword fallback if AI fails
 - Default category: `support` (NOT engineering!)
-- File: `src/lib/ai.ts` → `classifyJobCategory()`
+- File: `src/lib/deepseek.ts` → `classifyJobCategory()`
 
 ### Deduplication
 - **Companies**: Search by slug OR name (case-insensitive), normalize name
@@ -277,8 +281,10 @@ Other: support, education, research, consulting
 - **Storage**: вакансии хранятся 30 дней, потом удаляются (`MAX_JOB_STORAGE_DAYS = 30`)
 - `src/lib/utils.ts` → `getMaxJobAgeDate()`, `getMaxJobStorageDate()`
 
-### Filters (/jobs page) — УДАЛЕНО
-Страницы `/jobs/`, `/company/`, `/country/` удалены (см. блок Current State). Публичный контент теперь только `/freelance/[slug]` (noindex). Раздел оставлен исторически.
+### Filters (/jobs page)
+- URL-based state: `?q=search&level=SENIOR&type=FULL_TIME`
+- Server Component implementation
+- File: `src/app/jobs/page.tsx`
 
 ### Breadcrumbs
 - Follow URL structure, NOT navigation path
@@ -304,7 +310,7 @@ Sources: Cache → BLS (US) → Adzuna (19 countries) → Formula estimation.
 ### AI Post Validation
 Перед обработкой постов из социальных сетей проверяем что это действительно вакансия.
 
-**Function:** `isJobPosting(postContent)` в `src/lib/ai.ts`
+**Function:** `isJobPosting(postContent)` в `src/lib/deepseek.ts`
 
 **Фильтруются (NOT_JOB):**
 - Event invitations (вебинары, конференции, митапы)
@@ -374,7 +380,7 @@ npx tsx scripts/migrate-content-quality.ts
 
 ## Key Files
 
-**Core:** `src/lib/ai.ts` (AI), `src/lib/utils.ts`, `src/lib/auth.ts`, `src/lib/stripe.ts`
+**Core:** `src/lib/deepseek.ts` (AI), `src/lib/utils.ts`, `src/lib/auth.ts`, `src/lib/stripe.ts`
 **Services:** `src/services/linkedin-processor.ts`, `src/services/sources/*.ts`, `src/services/alert-notifications.ts`, `src/services/salary-insights.ts`
 **API crons:** `src/app/api/cron/fetch-sources|fetch-linkedin|send-alerts|process-instant-alerts|send-trial-emails|send-winback-emails`
 **Config:** `src/config/site.ts`, `src/config/salary-base.ts`, `src/config/salary-coefficients.ts`
@@ -406,20 +412,18 @@ npx prisma db push --force-reset   # DANGEROUS: deletes ALL data!
 
 ## Key Features Summary
 
-- **Auto-apply (ядро)**: AutoApplyLoop (критерии + лимит) → AutoApplication (AI cover letter → Postal → трекинг ответов/follow-up). Inline apply на `/freelance/[slug]`. 20 applies/day FREE.
-- **Auth**: NextAuth v5 (Google + Email OTP via Postal)
-- **Payments**: Stripe + PayPro. Paywall за переписку ($2-3, первая бесплатно) — в планах.
-- **Email**: Postal only (self-hosted Hetzner)
-- **Alerts**: ⚠️ ПРИОСТАНОВЛЕНЫ. Только recap 2×/день + auto-apply + OTP.
+- **Auth**: NextAuth v5 (Google + Magic Link), 2-step registration funnel
+- **Payments**: Stripe (Weekly €10, Monthly €20, Annual €192), trial emails, win-back
+- **Alerts**: INSTANT/DAILY/WEEKLY job alerts, queue-based batching
 - **Salary**: BLS (US) + Adzuna (intl) + formula estimation, FREE vs PRO restrictions
-- **SEO**: `/freelance/` noindex; `/jobs`,`/company`,`/country` удалены; IndexNow, Google Indexing API
+- **SEO**: truncateTitle(), noindex multi-filters, IndexNow, Google Indexing API
 - **Social**: Auto-post queue to LinkedIn + Telegram via n8n
 
 ## Code Patterns
 
 ### Adding new category
 1. Add to `src/config/site.ts` → `categories`
-2. Add to `src/lib/ai.ts` → `classifyJobCategory()` prompt + `localClassifyJob()`
+2. Add to `src/lib/deepseek.ts` → `classifyJobCategory()` prompt + `localClassifyJob()`
 3. Add to `src/services/sources/lever-processor.ts` → `mapDepartmentToCategory()`
 4. Run `npm run db:seed` to create in DB
 
@@ -459,9 +463,7 @@ return {
 
 **Why:** Google truncates titles >60 chars in search results, causing SEO warnings.
 
-> ⚠️ Большинство страниц ниже **удалены** (`/jobs/*`, `/company/*`, `/country/*`). Из публичных индексируемых остаётся мало; `/freelance/[slug]` — noindex. Список сохранён исторически; применяй `truncateTitle()` к любым новым динамическим страницам.
-
-**Pages using this pattern (historical):**
+**Pages using this pattern:**
 - `/company/[companySlug]/page.tsx`
 - `/company/[companySlug]/jobs/page.tsx`
 - `/company/[companySlug]/jobs/[jobSlug]/page.tsx`
@@ -477,10 +479,10 @@ Reference: `/blog/remote-work-statistics-2026`. Use exact data with sources, int
 
 ## Notes
 
-- Всегда проверяй дубли перед созданием company/job/opportunity
+- Всегда проверяй дубли перед созданием company/job
 - Категоризация должна быть точной — не всё engineering!
-- Email — только Postal; alerts приостановлены (см. Current State)
-- Главная конверсия — inline apply на `/freelance/[slug]`
+- Фильтры на /jobs работают через URL params
+- Breadcrumbs = URL structure, не путь навигации
 
 ## ⚠️ Important Warnings
 
@@ -489,12 +491,9 @@ Reference: `/blog/remote-work-statistics-2026`. Use exact data with sources, int
 3. Apollo enrichment can match wrong company (e.g., "Mistral" → bakery instead of AI)
 4. Salary Insights only shown for annual salaries (YEAR period)
 5. **Primary hosting: Vercel** — автодеплой из GitHub
-6. **VPS (198.12.73.168)** — n8n workflows; **Hetzner** — Postal + auto-apply crons (match/send/replies/inbound/recap)
-7. **Cron jobs** — Vercel в vercel.json + Hetzner cron на VPS (см. Cron Jobs)
-8. **Jobs auto-deleted after 30 days** — intentional for freshness, not a bug
-9. **Email — ТОЛЬКО Postal.** Не подключай DashaMail/Resend/SES/SMTP2GO/Elastic — отменены
-10. **Job alerts ПРИОСТАНОВЛЕНЫ** — не включай рассылку без явного запроса
-11. **`/jobs`, `/company`, `/country` страницы УДАЛЕНЫ** — не ссылайся на них
+6. **VPS (198.12.73.168)** — только для n8n workflows
+7. **Cron jobs** — настраиваются в vercel.json
+8. **Jobs auto-deleted after 30 days** — this is intentional for freshness, not a bug
 
 ## Vercel Hosting (Primary)
 
@@ -525,15 +524,16 @@ DATABASE_URL=postgresql://user:pass@host.neon.tech/db?sslmode=require
 AUTH_SECRET=xxx
 AUTH_URL=https://freelanly.com  # ОБЯЗАТЕЛЬНО с https://
 CRON_SECRET=xxx
-ZAI_API_KEY=xxx
+DEEPSEEK_API_KEY=xxx
 ZAI_API_KEY=xxx  # Z.ai API key (optional, for AI_PROVIDER=zai)
-AI_PROVIDER=zai  # or "zai" to use Z.ai GLM-4-32B (64% cheaper)
+AI_PROVIDER=deepseek  # or "zai" to use Z.ai GLM-4-32B (64% cheaper)
 APIFY_API_TOKEN=xxx
 APOLLO_API_KEY1=xxx
-# Email — ТОЛЬКО Postal (self-hosted, Hetzner). DashaMail/Resend/SES/SMTP2GO/Elastic — отменены.
-POSTAL_API_KEY=xxx
-POSTAL_API_URL=xxx          # endpoint self-hosted Postal сервера
-POSTAL_FROM_EMAIL=info@freelanly.com
+EMAIL_PROVIDER=dashamail  # or "resend" to use Resend API
+DASHAMAIL_API_KEY=xxx
+DASHAMAIL_FROM_EMAIL=info@freelanly.com
+DASHAMAIL_LIST_ID=358581
+RESEND_API_KEY=xxx  # Resend API key (required if EMAIL_PROVIDER=resend)
 GOOGLE_CLIENT_ID=xxx
 GOOGLE_CLIENT_SECRET=xxx
 NEXT_PUBLIC_YANDEX_METRIKA_ID=103606747
@@ -547,28 +547,18 @@ STRIPE_WEBHOOK_SECRET=xxx
 ### Deployment Workflow
 `git push origin main` → Vercel автоматически деплоит
 
-### Cron Jobs (2 хоста)
+### Cron Jobs (Vercel)
 
-**Vercel** (`vercel.json`) — скрапинг/контент/индексация:
+Cron jobs настраиваются в `vercel.json`:
+
 ```json
 {
   "crons": [
-    { "path": "/api/cron/post-to-social",         "schedule": "*/15 * * * *" },
-    { "path": "/api/cron/submit-to-index",        "schedule": "0 */4 * * *" },
-    { "path": "/api/cron/cleanup-stale-alerts",   "schedule": "0 5 * * *" },
-    { "path": "/api/cron/send-auto-apply-digest", "schedule": "0 6 * * *" },
-    { "path": "/api/cron/hot-lead-reminders",     "schedule": "0 */3 * * *" }
+    { "path": "/api/cron/fetch-sources", "schedule": "0 6,14,22 * * *" },
+    { "path": "/api/cron/send-alerts?frequency=DAILY", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/process-instant-alerts", "schedule": "*/15 * * * *" }
   ]
 }
-```
-
-**Hetzner** (cron на VPS) — движок auto-apply:
-```
-match    */5 * * * *    # подбор Opportunities под лупы
-send     */2 * * * *    # отправка откликов (Postal)
-replies  */15 * * * *   # классификация ответов рекрутеров
-inbound  */1 * * * *    # приём входящих писем
-recap    0 5,16 * * *   # recap-письма (UTC → 08:00 + 19:00 MSK)
 ```
 
 **Manual trigger:**
@@ -589,6 +579,5 @@ curl -X POST "https://freelanly.com/api/cron/submit-to-index" \
   -H "Authorization: Bearer $CRON_SECRET"
 ```
 
-## VPS / Self-hosted
-- **n8n VPS:** SSH `ssh root@198.12.73.168` | URL: https://n8n.freelanly.com (Cloudflare Tunnel) — LinkedIn scraping + social posting workflows
-- **Hetzner:** self-hosted Postal (email) + auto-apply crons (match/send/replies/inbound/recap). Источник правды по расписанию — cron на самом сервере.
+## VPS (n8n only)
+SSH: `ssh root@198.12.73.168` | URL: https://n8n.freelanly.com (Cloudflare Tunnel)

@@ -27,7 +27,7 @@ Freelanly агрегирует hiring-посты из LinkedIn, извлекае
 
 - **LinkedIn Integration** — парсинг hiring-постов через Apify
 - **Multi-ATS Integration** — импорт вакансий из Lever
-- **AI Extraction** — извлечение данных из постов через Z.ai (salary, benefits, skills)
+- **AI Extraction** — извлечение данных из постов через DeepSeek (salary, benefits, skills)
 - **Real Salary Display** — показ реальной зарплаты из вакансии, когда доступна
 - **21 категория** — точная классификация вакансий
 - **Dual Display** — показываем и extracted facts, и оригинальный пост
@@ -54,7 +54,7 @@ Freelanly агрегирует hiring-посты из LinkedIn, извлекае
 | **Styling** | Tailwind CSS v4 + shadcn/ui |
 | **Database** | PostgreSQL (Neon) |
 | **ORM** | Prisma 5 |
-| **AI** | Z.ai API |
+| **AI** | DeepSeek API |
 | **Scraping** | Apify |
 | **Email** | DashaMail |
 | **Enrichment** | Apollo.io API |
@@ -119,7 +119,7 @@ Open [http://localhost:3000](http://localhost:3000)
 │                    ОБРАБОТКА ДАННЫХ                              │
 ├─────────────────────────────────────────────────────────────────┤
 │  1. Дедупликация          │  2. AI Extraction   │  3. Category  │
-│     - По sourceId/URL     │     - Z.ai      │     - 21 cat  │
+│     - По sourceId/URL     │     - DeepSeek      │     - 21 cat  │
 │     - По title+company    │     - Title/Salary  │     - AI + kw │
 │     - Fuzzy (email+title) │     - Skills/Level  │     - Fallback│
 └─────────────────────────────────────────────────────────────────┘
@@ -206,7 +206,7 @@ src/
 │   ├── db.ts                     # Prisma client
 │   ├── auth.ts                   # NextAuth v5 configuration
 │   ├── auth-email.ts             # Magic Link email sender
-│   ├── zai.ts               # Z.ai AI (extraction + categorization)
+│   ├── deepseek.ts               # DeepSeek AI (extraction + categorization)
 │   ├── apify.ts                  # Apify client
 │   ├── apollo.ts                 # Apollo.io enrichment
 │   ├── bls.ts                    # BLS API client (US salary data)
@@ -252,7 +252,7 @@ prisma/
 
 **Процесс:**
 1. Apify Actor scrapes hiring posts from LinkedIn
-2. Z.ai AI extracts structured data (title, company, salary, skills)
+2. DeepSeek AI extracts structured data (title, company, salary, skills)
 3. Job is categorized using AI + keyword fallback
 4. Company is found/created with deduplication
 5. Job is saved with Dual Display data
@@ -263,7 +263,7 @@ prisma/
 
 **Файлы:**
 - `src/lib/apify.ts` — Apify клиент
-- `src/lib/ai.ts` — AI extraction и categorization
+- `src/lib/deepseek.ts` — AI extraction и categorization
 - `src/services/linkedin-processor.ts` — Основной процессор
 
 **Запуск импорта:**
@@ -440,7 +440,7 @@ model AlertLanguagePair {
 
 ### Алгоритм классификации
 
-1. **AI Classification (Z.ai)**
+1. **AI Classification (DeepSeek)**
    - Prompt с полным списком категорий и примерами
    - Temperature = 0 для детерминизма
 
@@ -450,7 +450,7 @@ model AlertLanguagePair {
    - Default: `support` (не `engineering`!)
 
 **Файлы:**
-- `src/lib/ai.ts` → `classifyJobCategory()`
+- `src/lib/deepseek.ts` → `classifyJobCategory()`
 - `src/services/sources/lever-processor.ts` → `mapDepartmentToCategory()`
 
 **Примеры классификации:**
@@ -712,8 +712,8 @@ DATABASE_URL="postgresql://user:pass@host.neon.tech/db?sslmode=require"
 # App
 NEXT_PUBLIC_APP_URL="https://freelanly.com"
 
-# Z.ai AI (job extraction + categorization)
-ZAI_API_KEY="sk-xxx"
+# DeepSeek AI (job extraction + categorization)
+DEEPSEEK_API_KEY="sk-xxx"
 
 # Apify (LinkedIn scraping)
 APIFY_API_TOKEN="apify_api_xxx"
@@ -763,7 +763,7 @@ DATABASE_URL=postgresql://user:pass@host.neon.tech/db?sslmode=require
 AUTH_SECRET=xxx  # openssl rand -base64 32
 AUTH_URL=https://freelanly.com  # ОБЯЗАТЕЛЬНО с https://
 CRON_SECRET=xxx
-ZAI_API_KEY=xxx
+DEEPSEEK_API_KEY=xxx
 APIFY_API_TOKEN=xxx
 APOLLO_API_KEY=xxx
 DASHAMAIL_API_KEY=xxx
@@ -925,7 +925,7 @@ model Job {
 - [x] Project structure
 - [x] Database schema with 21 categories
 - [x] Basic pages (Home, Jobs, Job Detail)
-- [x] Z.ai integration (extraction + categorization)
+- [x] DeepSeek integration (extraction + categorization)
 - [x] Apify integration
 - [x] Lever ATS integration
 - [x] DashaMail integration

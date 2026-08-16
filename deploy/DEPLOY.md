@@ -37,7 +37,7 @@ nano .env
 DATABASE_URL="postgresql://neondb_owner:xxx@xxx.neon.tech/neondb?sslmode=require"
 NEXT_PUBLIC_APP_URL="https://freelanly.com"
 STRIPE_SECRET_KEY="sk_live_xxx"
-ZAI_API_KEY="sk-xxx"
+DEEPSEEK_API_KEY="sk-xxx"
 APIFY_API_TOKEN="apify_api_xxx"
 RESEND_API_KEY="re_xxx"
 ```

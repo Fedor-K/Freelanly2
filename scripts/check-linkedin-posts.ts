@@ -1,5 +1,5 @@
 import { prisma } from '../src/lib/db';
-import { isJobPosting } from '../src/lib/ai';
+import { isJobPosting } from '../src/lib/deepseek';
 
 async function checkPosts() {
   // Get recent LinkedIn jobs with their original content

@@ -177,38 +177,6 @@ export function ChatWidget() {
     if (isOpen) inputRef.current?.focus();
   }, [isOpen]);
 
-  // Payment-abandon win-back: the top-up wall dispatches 'freelanly:payment-abandoned' when it is
-  // closed without a completed payment. Pop the chat ONCE with reason chips — recover the sale (or at
-  // least learn why they bailed). api/chat answers these chips deterministically.
-  const abandonHandled = useRef(false);
-  useEffect(() => {
-    function onAbandon(e: Event) {
-      if (abandonHandled.current) return;
-      abandonHandled.current = true;
-      const detail = ((e as CustomEvent).detail || {}) as { reason?: string };
-      const cardErr = detail.reason === 'card_error';
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: cardErr
-            ? "Looks like your card didn't go through — that happens a lot with cards from certain countries, it's not you. What happened?"
-            : "Noticed you didn't finish topping up — mind telling me what stopped you? I might be able to help. \u{1F642}",
-          buttons: [
-            { label: 'My card was declined', value: 'My card was declined' },
-            { label: "It's too expensive", value: "It's too expensive" },
-            { label: 'Just browsing', value: 'Just browsing' },
-            { label: 'Something else', value: 'Something else' },
-          ],
-        },
-      ]);
-      setIsOpen(true);
-      setShowBubble(false);
-    }
-    window.addEventListener('freelanly:payment-abandoned', onAbandon);
-    return () => window.removeEventListener('freelanly:payment-abandoned', onAbandon);
-  }, []);
-
   const sendMessage = async (text?: string, isQuickReply?: boolean) => {
     const rawText = text || input.trim();
     if (!rawText || loading) return;

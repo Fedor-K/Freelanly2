@@ -5,7 +5,6 @@ import { useCallback, useEffect } from 'react';
 type TrackAction =
   // Navigation
   | 'PAGE_VIEW'
-  | 'DASHBOARD_VIEW'
   // Jobs
   | 'JOB_VIEW'
   | 'JOB_APPLY'
@@ -15,7 +14,6 @@ type TrackAction =
   // Opportunities
   | 'OPPORTUNITY_VIEW'
   | 'OPPORTUNITY_APPLY_CLICK'
-  | 'APPLY_DRAFT'
   // Paywall
   | 'PAYWALL_HIT'
   | 'PAYWALL_CLOSE'
@@ -36,35 +34,9 @@ type TrackAction =
   // Alerts
   | 'ALERT_CREATED'
   | 'ALERT_DELETED'
-  // Auto-Apply
-  | 'LOOP_CREATED'
-  | 'LOOP_PAUSED'
-  | 'LOOP_RESUMED'
-  | 'LOOP_DELETED'
-  | 'LOOP_UPDATED'
-  | 'SMTP_CONNECTED'
-  | 'SMTP_DISCONNECTED'
-  | 'INBOX_VIEW'
-  | 'INBOX_REPLY_SENT'
-  | 'INBOX_AI_SUGGEST'
-  | 'QUICK_APPLY'
-  | 'SETTINGS_UPDATED'
-  | 'TEMPLATE_CREATED'
-  | 'TEMPLATE_DELETED'
-  | 'RESUME_UPLOADED'
-  | 'PROFILE_UPDATED'
-  // Engagement
-  | 'REPLY_VIEWED'
-  | 'REPLY_EXPANDED'
-  | 'RECRUITER_REPLIED'
-  | 'RESUME_UPDATED'
-  | 'LOOP_SETTINGS_CHANGED'
-  | 'ONBOARDING_STEP'
-  | 'FUNNEL_STEP'
   // Other
   | 'UNSUBSCRIBE'
-  | 'CONTACT_VIEW'
-  | 'CLIENT_ERROR';
+  | 'CONTACT_VIEW';
 
 interface TrackEvent {
   action: TrackAction;
@@ -148,13 +120,11 @@ function enqueueEvent(event: TrackEvent) {
  *   track('JOB_VIEW', { jobId: '123', title: 'Developer' });
  */
 export function useTracker() {
-  // Flush on unmount / page leave. iOS Safari NEVER fires beforeunload — a queued event followed by
-  // a hard navigation (e.g. the Stripe checkout redirect) was silently lost, which is exactly how
-  // the first real pro5 checkout click vanished from the funnel. pagehide + visibilitychange(hidden)
-  // are the events mobile Safari actually fires.
+  // Flush on unmount / page leave
   useEffect(() => {
-    const beaconFlush = () => {
+    const handleBeforeUnload = () => {
       if (eventQueue.length > 0) {
+        // Use sendBeacon as fallback for page unload
         const data = JSON.stringify({ events: eventQueue });
         eventQueue = [];
         try {
@@ -164,15 +134,10 @@ export function useTracker() {
         }
       }
     };
-    const onVisibility = () => { if (document.visibilityState === 'hidden') beaconFlush(); };
 
-    window.addEventListener('beforeunload', beaconFlush);
-    window.addEventListener('pagehide', beaconFlush);
-    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
-      window.removeEventListener('beforeunload', beaconFlush);
-      window.removeEventListener('pagehide', beaconFlush);
-      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
 

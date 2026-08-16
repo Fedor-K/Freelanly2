@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { AlertFrequency } from '@prisma/client';
 import { rateLimit, getClientIp, sanitizeEmail, sanitizeString } from '@/lib/rate-limit';
-import { validateEmail } from '@/lib/email-validator';
-import { recordSignup } from '@/lib/signup';
 
 interface RegisterRequest {
   email: string;
@@ -19,10 +17,6 @@ interface RegisterRequest {
   utmCampaign?: string;
   utmContent?: string;
   source?: string; // Registration traffic source (utm_source)
-  jobAlertOptIn?: boolean; // §4 scaffold — consent to future job-alert emails (sending suspended)
-  entryPoint?: string; // Registration surface: 'freelance_inline' | 'auth_signin' | 'auth_modal'
-  opportunityId?: string; // The project the user registered through (inline /freelance apply)
-  pageUrl?: string; // Page path the registration happened on
 }
 
 /**
@@ -61,15 +55,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body: RegisterRequest = await request.json();
-    const { email, name, categories, country, countries, languages, jobId, agreedToTerms, gclid, source, utmMedium, utmCampaign, utmContent, jobAlertOptIn, entryPoint, opportunityId, pageUrl } = body;
+    const { email, name, categories, country, countries, languages, jobId, agreedToTerms, gclid, source, utmMedium, utmCampaign, utmContent } = body;
 
     // Rate limit by email: 1 request per 10 minutes (prevent email bombing)
     const normalizedEmailForLimit = sanitizeEmail(email || '');
     if (normalizedEmailForLimit) {
-      const emailLimit = rateLimit('register_email', normalizedEmailForLimit, 3, 120_000);
+      const emailLimit = rateLimit('register_email', normalizedEmailForLimit, 1, 600_000);
       if (emailLimit.limited) {
         return NextResponse.json(
-          { error: 'Too many attempts. Please try again in 2 minutes.' },
+          { error: 'A login link was already sent. Please check your email or try again in a few minutes.' },
           { status: 429, headers: { 'Retry-After': String(emailLimit.retryAfter) } }
         );
       }
@@ -84,14 +78,12 @@ export async function POST(request: NextRequest) {
     if (!email || !email.includes('@')) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400 });
     }
-    // Categories are OPTIONAL at registration now: the inline apply flow collects email FIRST
-    // (email-only step), and the work-type/résumé fields come AFTER OTP confirmation. Categories
-    // only ever fed job-alerts (suspended) and the loop derives its own categories from the
-    // résumé — so an empty list here is fine; we just create no alerts.
-    const cats = Array.isArray(categories) ? categories : [];
+    if (!categories || categories.length === 0) {
+      return NextResponse.json({ error: 'At least one category is required' }, { status: 400 });
+    }
 
-    // Validate languages for translation category (only when a category was actually provided)
-    if (cats.includes('translation')) {
+    // Validate languages for translation category
+    if (categories.includes('translation')) {
       const validLanguages = languages?.filter((l) => l && l !== 'EN') || [];
       if (validLanguages.length === 0) {
         return NextResponse.json(
@@ -105,15 +97,6 @@ export async function POST(request: NextRequest) {
     const languagePairs = languages ? languagesToPairs(languages) : [];
 
     const normalizedEmail = sanitizeEmail(email);
-
-    // Validate email domain (MX records)
-    const emailCheck = await validateEmail(normalizedEmail);
-    if (!emailCheck.valid) {
-      return NextResponse.json(
-        { error: emailCheck.reason || 'Invalid email address' },
-        { status: 400 }
-      );
-    }
 
     // Sanitize name: strip HTML tags and control characters (XSS prevention)
     const sanitizedName = name ? sanitizeString(name).substring(0, 100) : null;
@@ -141,7 +124,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      await createAlertsForUser(existingUser.id, normalizedEmail, cats, selectedCountries, languagePairs);
+      await createAlertsForUser(existingUser.id, normalizedEmail, categories, selectedCountries, languagePairs);
 
       return NextResponse.json({
         success: true,
@@ -160,7 +143,6 @@ export async function POST(request: NextRequest) {
         name: sanitizedName,
         // Not verified yet - will be set when magic link is clicked
         emailVerified: null,
-        needsOnboarding: true,
         // Record ToS agreement for dispute evidence
         agreedToTermsAt: agreedToTerms ? new Date() : null,
         // Google Ads attribution
@@ -173,30 +155,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // §4 opt-in scaffold — captured via guarded raw SQL (column lives in DB, not the Prisma
-    // model) so a not-yet-applied migration degrades to "opt-in skipped" instead of breaking
-    // registration. Only write on explicit consent; sending stays suspended either way.
-    if (jobAlertOptIn) {
-      await prisma.$executeRaw`UPDATE "User" SET "jobAlertOptIn" = true, "jobAlertOptInAt" = NOW() WHERE "id" = ${user.id}`
-        .catch((e) => console.warn('[register] jobAlertOptIn not persisted (migration pending?):', e?.message));
-    }
-
     console.log(`[Register] Created new user: ${normalizedEmail}`);
 
-    // Single registration chokepoint — log the SIGNUP with full attribution (path A: inline
-    // /freelance + auth forms). The NextAuth createUser event covers path B (magic-link only).
-    await recordSignup({
-      userId: user.id,
-      email: normalizedEmail,
-      source: source || null,
-      entryPoint: entryPoint || 'auth_register',
-      opportunityId: opportunityId || null,
-      jobId: jobId || null,
-      pageUrl: pageUrl || null,
-    });
-
     // Create alerts for each category × country
-    await createAlertsForUser(user.id, normalizedEmail, cats, selectedCountries, languagePairs);
+    await createAlertsForUser(user.id, normalizedEmail, categories, selectedCountries, languagePairs);
 
     // Track registration source (which job triggered it)
     if (jobId) {
@@ -213,7 +175,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Registration successful. Check your email for login link.',
-      alertsCreated: cats.length,
+      alertsCreated: categories.length,
     });
   } catch (error) {
     console.error('[Register] Error:', error);

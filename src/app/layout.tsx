@@ -1,19 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
-
-const geist = Geist({
-  subsets: ["latin"],
-  variable: "--font-geist-sans",
-  display: "swap",
-});
-
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
-  display: "swap",
-});
 import { siteConfig } from "@/config/site";
 import { AnalyticsScripts } from "@/components/analytics/AnalyticsScripts";
 import { SessionProvider } from "@/components/providers/SessionProvider";
@@ -23,7 +10,6 @@ import { GclidCapture } from "@/components/analytics/GclidCapture";
 import { TrackPageView } from "@/components/analytics/TrackPageView";
 import { PaymentReturnHandler } from "@/components/PaymentReturnHandler";
 import { ConversionUTMTracker } from "@/components/ConversionUTMTracker";
-import { ClientErrorTracker } from "@/components/analytics/ClientErrorTracker";
 import { ChatWidget } from "@/components/ChatWidget";
 import { Suspense } from "react";
 import Script from "next/script";
@@ -31,16 +17,12 @@ import Script from "next/script";
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  // iOS auto-zooms on input focus and the page STAYS zoomed after (cut-off right edge, buttons off
-  // screen). maximumScale stops the auto-zoom; Safari still allows manual pinch-zoom (it ignores
-  // this cap for user gestures since iOS 10), so accessibility is preserved.
-  maximumScale: 1,
   themeColor: '#ffffff',
 };
 
 export const metadata: Metadata = {
   title: {
-    default: `${siteConfig.name} — Remote Tech Jobs Before They Hit the Boards`,
+    default: `${siteConfig.name} - Remote Jobs from Social Media & Top Companies`,
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
@@ -55,7 +37,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: siteConfig.url,
-    title: `${siteConfig.name} — Remote Tech Jobs Before They Hit the Boards`,
+    title: `${siteConfig.name} - Find Remote Jobs`,
     description: siteConfig.description,
     siteName: siteConfig.name,
     images: [
@@ -63,13 +45,13 @@ export const metadata: Metadata = {
         url: siteConfig.ogImage,
         width: 1200,
         height: 630,
-        alt: `${siteConfig.name} — AI application assistant for remote tech roles`,
+        alt: `${siteConfig.name} - Remote Jobs`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${siteConfig.name} — Remote Tech Jobs Before They Hit the Boards`,
+    title: `${siteConfig.name} - Remote Jobs`,
     description: siteConfig.description,
     images: [siteConfig.ogImage],
     creator: "@freelanly",
@@ -87,7 +69,7 @@ export const metadata: Metadata = {
     google: process.env.GOOGLE_SITE_VERIFICATION || '',
     // yandex: process.env.YANDEX_VERIFICATION || '',
   },
-  category: 'productivity',
+  category: 'jobs',
   manifest: '/manifest.json',
 };
 
@@ -102,8 +84,14 @@ const websiteJsonLd = {
   publisher: {
     '@id': `${siteConfig.url}/#organization`,
   },
-  // SearchAction removed: /jobs 301s to /auth/signin and drops the query — a sitelinks searchbox
-  // pointing there was functionally broken.
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: `${siteConfig.url}/jobs?q={search_term_string}`,
+    },
+    'query-input': 'required name=search_term_string',
+  },
 };
 
 const organizationJsonLd = {
@@ -127,6 +115,23 @@ const organizationJsonLd = {
   },
 };
 
+// Yandex Metrika script (inline for SSR)
+const yandexMetrikaScript = `
+  (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+  m[i].l=1*new Date();
+  for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+  k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+  (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+  ym(103606747, "init", {
+    clickmap: true,
+    trackLinks: true,
+    accurateTrackBounce: true,
+    webvisor: true,
+    trackHash: true,
+    ecommerce: "dataLayer"
+  });
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -135,11 +140,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Yandex Metrika + all other trackers load once via <AnalyticsScripts /> in <body> —
-            the inline duplicate that double-counted visits was removed 2026-07-16. */}
+        <script dangerouslySetInnerHTML={{ __html: yandexMetrikaScript }} />
+        <noscript>
+          <div>
+            <img src="https://mc.yandex.ru/watch/103606747" style={{ position: 'absolute', left: '-9999px' }} alt="" />
+          </div>
+        </noscript>
         <script id="vtag-ai-js" async src="https://r2.leadsy.ai/tag.js" data-pid="XmXSR8r7W3uP84n0" data-version="062024" />
       </head>
-      <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}>
+      <body className="font-sans antialiased">
         <SessionProvider>
           <Suspense fallback={null}>
             <GclidCapture />
@@ -147,10 +156,9 @@ export default function RootLayout({
             <PaymentReturnHandler />
             <ConversionUTMTracker />
           </Suspense>
-          <ClientErrorTracker />
           {children}
           <Analytics />
-          {/* ExitIntentPopup removed — annoying UX */}
+          <ExitIntentPopup />
           <CookieConsentBanner />
         </SessionProvider>
         <AnalyticsScripts />

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processInstantAlertQueue } from '@/services/alert-notifications';
-import { matchAndQueueAutoApplies, processAutoApplyQueue, processFollowUps } from '@/services/auto-apply-processor';
 import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
 import { prisma } from '@/lib/db';
 import { sendTelegramAlert } from '@/lib/telegram-alerts';
@@ -30,10 +29,6 @@ export async function POST(request: NextRequest) {
     const result = await processInstantAlertQueue();
 
     console.log(`[Cron] INSTANT alerts: ${result.newOpportunities} new opps, ${result.sent} emails sent, ${result.failed} failed, ${result.processed} matched, ${result.skippedDebounce} debounced`);
-
-    // Auto-apply processing moved to Hetzner worker (no Vercel timeout limits)
-    // Hetzner cron runs every 10 min: /opt/worker/run-cron.sh
-    // Handles: matchAndQueueAutoApplies, processAutoApplyQueue, processFollowUps, checkAllReplies
 
     // Monitor: alert if no emails sent for over 1 hour
     if (result.sent === 0) {

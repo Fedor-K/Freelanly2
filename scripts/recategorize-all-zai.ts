@@ -4,7 +4,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { classifyJobCategory } from '../src/lib/ai';
+import { classifyJobCategory } from '../src/lib/deepseek';
 
 const prisma = new PrismaClient();
 
@@ -17,7 +17,7 @@ interface CategoryChange {
 
 async function main() {
   console.log('🔄 Recategorizing all jobs with Z.ai\n');
-  console.log('AI_PROVIDER:', process.env.AI_PROVIDER || 'zai (default)');
+  console.log('AI_PROVIDER:', process.env.AI_PROVIDER || 'deepseek (default)');
   console.log('='.repeat(60));
 
   // Get all categories

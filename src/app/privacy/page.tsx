@@ -1,4 +1,6 @@
 import { Metadata } from 'next';
+import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
 import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
@@ -12,7 +14,7 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <div className="flex min-h-screen flex-col">
-      
+      <Header />
 
       <main className="flex-1">
         <div className="container py-12 max-w-4xl">
@@ -98,75 +100,14 @@ export default function PrivacyPage() {
                 We do not sell your personal information. We may share your information with:
               </p>
               <ul className="list-disc pl-6 mb-4 space-y-2">
-                <li>Employers and recruiters when you apply for a job</li>
-                <li>
-                  Employers and recruiters with open roles that match your profile — when you upload a
-                  résumé or build a profile, you authorize Freelanly to share your profile, including
-                  your name, professional background, skills, location, and résumé/CV, with potential
-                  employers and recruiters whose open positions match your background, so they can
-                  consider you for those roles. This includes us presenting you as part of a curated
-                  shortlist of matched candidates to a hiring company.
-                </li>
+                <li>Employers when you apply for a job</li>
                 <li>Service providers who assist in our operations</li>
                 <li>Law enforcement when required by law</li>
               </ul>
-              <p className="mb-4">
-                You can withdraw this authorization at any time by deleting your résumé/profile or your
-                account (see “Your Rights” below); we will stop sharing your profile with new employers
-                going forward.
-              </p>
             </section>
 
             <section className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">5. Google User Data & Gmail Access</h2>
-              <p className="mb-4">
-                Freelanly lets you optionally connect your Google account so that job applications you
-                write and approve are sent from your own Gmail address, on your behalf. To do this we
-                request the <strong>Gmail “send” scope</strong>{' '}
-                (<code>https://www.googleapis.com/auth/gmail.send</code>), which allows sending email
-                only.
-              </p>
-              <p className="mb-4">
-                <strong>What we access:</strong> we use the Gmail send permission solely to deliver the
-                specific application emails you choose to send. <strong>What we do not do:</strong> we do
-                not read, list, search, download, modify, label, or store the contents of your mailbox —
-                sending is the only operation performed. We do not access your inbox or existing messages.
-              </p>
-              <p className="mb-4">
-                <strong>Limited Use.</strong> Freelanly&apos;s use and transfer to any other app of
-                information received from Google APIs will adhere to the{' '}
-                <a
-                  href="https://developers.google.com/terms/api-services-user-data-policy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  Google API Services User Data Policy
-                </a>
-                , including the Limited Use requirements. We do not use Gmail data for advertising, we do
-                not allow humans to read this data (except with your consent for support, to comply with
-                law, or as needed for security), and we do not sell or transfer it to third parties for
-                other purposes.
-              </p>
-              <p className="mb-4">
-                <strong>Storage & control.</strong> We store only the OAuth token needed to send on your
-                behalf, so you don&apos;t have to reconnect for each application. Connecting is entirely
-                optional and you can revoke access at any time by disconnecting Gmail in your Freelanly
-                settings or at{' '}
-                <a
-                  href="https://myaccount.google.com/permissions"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  myaccount.google.com/permissions
-                </a>
-                . Revoking access immediately stops any further sending on your behalf.
-              </p>
-            </section>
-
-            <section className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">6. Data Security</h2>
+              <h2 className="text-xl font-semibold mb-4">5. Data Security</h2>
               <p className="mb-4">
                 We implement appropriate security measures to protect your personal information
                 against unauthorized access, alteration, disclosure, or destruction.
@@ -174,7 +115,7 @@ export default function PrivacyPage() {
             </section>
 
             <section className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">7. Data Retention</h2>
+              <h2 className="text-xl font-semibold mb-4">6. Data Retention</h2>
               <p className="mb-4">We retain data for different periods depending on the type:</p>
               <ul className="list-disc pl-6 mb-4 space-y-2">
                 <li>
@@ -194,7 +135,7 @@ export default function PrivacyPage() {
             </section>
 
             <section className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">8. Your Rights</h2>
+              <h2 className="text-xl font-semibold mb-4">7. Your Rights</h2>
               <p className="mb-4">You have the right to:</p>
               <ul className="list-disc pl-6 mb-4 space-y-2">
                 <li>Access and update your personal information</li>
@@ -203,7 +144,7 @@ export default function PrivacyPage() {
                 <li>Request a copy of your data</li>
               </ul>
 
-              <h3 className="text-lg font-medium mb-3 mt-4">8.1 Removal of Publicly Posted Content</h3>
+              <h3 className="text-lg font-medium mb-3 mt-4">7.1 Removal of Publicly Posted Content</h3>
               <p className="mb-4">
                 If you have posted a job opportunity or freelance project on social media and we have
                 aggregated it on our platform, you have the right to request its removal. To do so:
@@ -226,7 +167,7 @@ export default function PrivacyPage() {
             </section>
 
             <section className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">9. Cookies</h2>
+              <h2 className="text-xl font-semibold mb-4">8. Cookies</h2>
               <p className="mb-4">
                 We use cookies and similar technologies to provide and improve our services,
                 analyze usage, and deliver relevant content.
@@ -234,7 +175,7 @@ export default function PrivacyPage() {
             </section>
 
             <section className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">10. Contact Us</h2>
+              <h2 className="text-xl font-semibold mb-4">9. Contact Us</h2>
               <p className="mb-4">
                 If you have questions about this Privacy Policy, please contact us at{' '}
                 <a href="mailto:privacy@freelanly.com" className="text-primary hover:underline">
@@ -252,7 +193,7 @@ export default function PrivacyPage() {
         </div>
       </main>
 
-      
+      <Footer />
 
       <script
         type="application/ld+json"

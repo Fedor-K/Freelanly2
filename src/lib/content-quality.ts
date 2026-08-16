@@ -180,7 +180,7 @@ export function assessContentQuality(input: ContentQualityInput): ContentQuality
  * Quick check if content quality allows indexing
  */
 export function shouldIndex(quality: ContentQuality): boolean {
-  return quality === 'RICH';
+  return quality !== 'THIN';
 }
 
 /**

@@ -14,7 +14,8 @@ export function SettingsForm({ initialData }: SettingsFormProps) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const handleSave = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     setMessage(null);
 
@@ -22,37 +23,75 @@ export function SettingsForm({ initialData }: SettingsFormProps) {
       const res = await fetch('/api/user/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ section: 'profile', name }),
+        body: JSON.stringify({ name }),
       });
 
       if (res.ok) {
-        setMessage({ type: 'success', text: 'Saved!' });
-        setTimeout(() => setMessage(null), 3000);
+        setMessage({ type: 'success', text: 'Settings saved successfully!' });
       } else {
         const data = await res.json();
-        setMessage({ type: 'error', text: data.error || 'Failed to save' });
+        setMessage({ type: 'error', text: data.error || 'Failed to save settings' });
       }
-    } catch {
-      setMessage({ type: 'error', text: 'Failed to save' });
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to save settings' });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <>
-      <div className="field-row">
-        <div className="lbl">Display name<span className="sub">Appears in every email signature</span></div>
-        <div className="ctrl">
-          <input className="field" value={name} onChange={e => setName(e.target.value)} />
-          <button className="btn btn-acid btn-sm" onClick={handleSave} disabled={loading}>
-            {loading ? 'Saving...' : 'Save'}
-          </button>
-          {message && (
-            <span style={{ fontSize: '12px', color: message.type === 'success' ? 'var(--good)' : 'var(--bad)' }}>{message.text}</span>
-          )}
+    <form onSubmit={handleSubmit} className="bg-white rounded-xl border p-6">
+      <h2 className="text-lg font-semibold mb-4">Profile</h2>
+
+      {message && (
+        <div
+          className={`mb-4 p-3 rounded-lg text-sm ${
+            message.type === 'success'
+              ? 'bg-green-50 text-green-700 border border-green-200'
+              : 'bg-red-50 text-red-700 border border-red-200'
+          }`}
+        >
+          {message.text}
         </div>
+      )}
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Name
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your name"
+            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Email
+          </label>
+          <input
+            type="email"
+            value={initialData.email}
+            disabled
+            className="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            Email cannot be changed
+          </p>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+        >
+          {loading ? 'Saving...' : 'Save Changes'}
+        </button>
       </div>
-    </>
+    </form>
   );
 }

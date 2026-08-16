@@ -162,11 +162,6 @@ const BLACKLIST_PHYSICAL_ENGINEERING = [
   'solidworks engineer', 'autocad',
   // Physical process engineering
   'energetics', 'energetic', 'propulsion', 'combustion',
-  // Avionics/Hardware tech (v2.2 addition)
-  'avionics technician', 'avionics engineer', 'avionics',
-  'asic', 'dft engineer', 'cdc constraints',
-  'pcb design engineer', 'pcb engineer',
-  'building automation systems',
 ];
 
 const BLACKLIST_ACCOUNTING = [
@@ -181,14 +176,6 @@ const BLACKLIST_ACCOUNTING = [
   'controller', 'assistant controller',
   'billing', 'billing specialist', 'invoicing',
   'cpa', 'certified public accountant',
-  // Indian accounting/compliance roles (2026-06-13, blacklist-only era — these flood from Telegram
-  // finance channels; onsite-India FTE, not our target). MULTI-WORD / qualified forms so we never
-  // catch bare 'ca' (California etc.) and never block our finance TARGETS (financial analyst, FP&A,
-  // treasury analyst — kept in WHITELIST_FINANCE, NOT blacklisted).
-  'chartered accountant', 'company secretary', 'cost accountant', 'icwa', 'cma certification',
-  'ca articleship', 'articleship', 'ca fresher', 'ca inter', 'ca final', 'ca industrial',
-  'qualified ca', 'semi qualified', 'semi-qualified', 'ca trainee', 'ca dropout',
-  'credit manager', 'area credit manager', 'relationship manager', 'branch manager',
 ];
 
 const BLACKLIST_SALES_FIELD = [
@@ -244,9 +231,8 @@ const BLACKLIST_MISC = [
   // Airlines (physical)
   'flight attendant', 'cabin crew', 'pilot', 'co-pilot',
   'ground crew', 'baggage handler', 'ramp agent',
-  // Assistants (too generic for remote tech; 'virtual assistant' moved to
-  // whitelist 2026-06-12 — it's a core freelance gig we now scrape deliberately)
-  'personal assistant', 'executive assistant',
+  // Assistants (too generic for remote tech)
+  'personal assistant', 'executive assistant', 'virtual assistant',
   'administrative assistant', 'admin assistant',
   // Retail/Merchandise
   'merchandise', 'merchandising', 'merchandiser',
@@ -257,34 +243,6 @@ const BLACKLIST_MISC = [
   'biotech', 'biotechnology', 'clinical trial',
   // Training programs (not real jobs)
   'master class', 'masterclass', 'training program',
-];
-
-// v2.3 (2026-06-13) — Office-but-off-target tail. Added when switching to blacklist-only
-// (whitelist dropped): these are non-physical roles the old default-deny silently excluded.
-// MULTI-WORD on purpose so tech roles survive: 'loan processing' blocks the junk but
-// 'Loan Management System Developer' passes; 'insurance agent' blocks but 'Guidewire Developer'
-// (insurance-tech) passes; 'call centre' blocks but 'Call Center Software Developer' passes.
-const BLACKLIST_OFFICE_OFFTARGET = [
-  // Lending / mortgage / insurance / claims ops (NOT fintech engineering)
-  'loan processor', 'loan processing', 'loan officer', 'non-qm', 'non qm',
-  'mortgage broker', 'mortgage processor', 'mortgage loan officer', 'mortgage underwriter',
-  'underwriter', 'underwriting',
-  'insurance agent', 'insurance broker', 'insurance sales', 'insurance advisor',
-  'claims adjuster', 'claims processor', 'claims processing', 'claims examiner', 'claims specialist',
-  'escrow', 'title officer',
-  // Call centre / BPO / telesales
-  'call centre', 'call center executive', 'call center representative', 'call centre executive',
-  'telecaller', 'telecalling', 'telemarketer', 'telemarketing', 'cold caller', 'cold calling',
-  'inbound calling', 'outbound calling',
-  // Real estate (managers/brokers; agent/realtor already in BLACKLIST_PROPERTY)
-  'commercial real estate', 'real estate manager', 'real estate broker', 'real estate associate',
-  // Clinical / lab / pharma ops (some in HEALTHCARE; these cover the office variants)
-  'laboratory scientist', 'clinical laboratory', 'lab scientist', 'medical technologist',
-  'clinical research', 'pharmacovigilance', 'drug safety', 'regulatory affairs',
-  'medical coder', 'medical coding', 'medical biller', 'medical billing',
-  // Physical / hardware technicians (engineer titles handled by PHYSICAL_ENGINEERING)
-  'engineering technician', 'electrical technician', 'mechanical technician',
-  'electronics technician', 'instrumentation technician', 'calibration technician',
 ];
 
 // Combine all blacklist patterns
@@ -309,7 +267,6 @@ const BLACKLIST_PATTERNS = [
   ...BLACKLIST_AGRICULTURE,
   ...BLACKLIST_LEGAL_TRADITIONAL,
   ...BLACKLIST_MISC,
-  ...BLACKLIST_OFFICE_OFFTARGET,
 ];
 
 // ============================================================================
@@ -327,7 +284,6 @@ const WHITELIST_ENGINEERING = [
   'fullstack engineer', 'full-stack engineer', 'full stack engineer',
   'web developer', 'mobile developer', 'app developer',
   'ios developer', 'android developer', 'ios engineer', 'android engineer',
-  'flutter developer', 'flutter engineer', 'react native developer', 'react native engineer', 'dart developer',
   'react developer', 'vue developer', 'angular developer',
   'react engineer', 'vue engineer', 'angular engineer',
   'node developer', 'nodejs developer', 'node engineer',
@@ -357,25 +313,6 @@ const WHITELIST_ENGINEERING = [
   'software development engineer in test', 'software engineer in test',
   // Generic terms (digital context)
   'developer', 'programmer', 'coder',
-  // Architects
-  'architect', 'software architect', 'ai architect', 'mobile architect',
-  'azure architect', 'aws architect', 'enterprise architect', 'boomi architect',
-  // IT admin/tooling
-  'administrator', 'atlassian administrator', 'jira engineer', 'jira administrator',
-  'linux administrator', 'control-m administrator',
-  'migration specialist', 'deployment specialist',
-  'robotics engineer', 'simulation engineer',
-  'performance engineer', 'mongodb engineer',
-  // Consultants
-  'consultant', 'blackline consultant', 'oracle consultant',
-  'edi analyst',
-  'business system analyst', 'business systems analyst',
-  // Broad roles
-  'expert', 'subject matter expert', 'sme',
-  'specialist',
-  'mainframe', 'maximo',
-  'shopify manager', 'shopify',
-  'modeler', 'character modeler',
 ];
 
 const WHITELIST_DATA = [
@@ -432,13 +369,10 @@ const WHITELIST_DESIGN = [
   'product designer', 'digital product designer',
   'visual designer', 'graphic designer', 'web designer',
   'interaction designer', 'motion designer', 'motion designers', 'motion graphics',
-  'brand designer', 'brand design', 'creative director', 'art director', 'creative strategist',
-  'design lead', 'head of design', 'design manager', 'design intern',
+  'brand designer', 'creative director', 'art director',
+  'design lead', 'head of design', 'design manager',
   'figma', 'sketch designer',
   '3d designer', '3d artist', '3d modeler',
-  'illustrator', 'photographer', 'product photographer',
-  'graphics artist', '3d visualization',
-  'game artist', 'concept artist', '2d artist',
   'designer', // generic - matches "Marketing Designer", etc.
 ];
 
@@ -461,26 +395,18 @@ const WHITELIST_PROJECT = [
 const WHITELIST_MARKETING = [
   'marketing manager', 'digital marketing', 'growth marketing',
   'performance marketing', 'content marketing',
-  'marketing intern', 'marketing associate', 'marketing executive',
-  'seo specialist', 'seo manager', 'seo executive', 'seo analyst', 'seo',
-  'sem specialist', 'sem manager',
+  'seo specialist', 'seo manager', 'sem specialist', 'sem manager',
   'ppc specialist', 'ppc manager', 'paid media', 'media buyer',
-  'social media manager', 'social media specialist', 'social media',
+  'social media manager', 'social media specialist',
   'community manager', 'community lead',
   'email marketing', 'email specialist', 'marketing automation',
   'crm manager', 'crm specialist', 'lifecycle marketing',
   'brand manager', 'brand strategist',
   'marketing analyst', 'marketing ops', 'marketing operations',
   'growth manager', 'growth lead', 'head of growth',
-  'growth specialist', 'growth strategist', 'growth executive',
-  'growth', 'cro', 'cro strategist', 'chief growth',
   'demand generation', 'demand gen', 'lead generation', 'lead gen',
   'lead gen manager', 'leadgen', 'traffic manager', 'traffic acquisition',
   'vp marketing', 'head of marketing', 'cmo', 'chief marketing',
-  'marketeer', 'marketing coordinator', 'marketing assistant',
-  'performance marketer',
-  'link building', 'link builder',
-  'business development intern', 'business development',
   'content strategist', 'content lead',
   'affiliate marketing', 'influencer marketing', 'partnership marketing',
 ];
@@ -523,12 +449,10 @@ const WHITELIST_TRANSLATION = [
   'interpreter', 'conference interpreter', 'remote interpreter',
   // Post-editing & QA
   'post-editor', 'post editor', 'mtpe', 'machine translation post-editor',
-  'post-editing', 'post editing',
   'proofreader', 'revisor', 'reviser',
   'translation reviewer', 'linguistic reviewer', 'localization reviewer',
   // Transcription & Subtitling
-  'transcriptionist', 'transcription', 'subtitler', 'captioner', 'subtitle editor',
-  'language expert',
+  'transcriptionist', 'subtitler', 'captioner', 'subtitle editor',
   // Specialized
   'terminologist', 'terminology manager', 'terminology specialist',
   'dtp specialist', 'desktop publishing specialist',
@@ -563,13 +487,9 @@ const WHITELIST_SUPPORT = [
   'implementation manager', 'implementation specialist',
   'onboarding specialist', 'onboarding manager', 'onboarding',
   'global onboarding',
-  'call center agent', 'call center',
-  'medical reviewer',
-  'customer service representative',
 ];
 
 const WHITELIST_HR = [
-  'hr intern', 'human resources intern',
   'recruiter', 'technical recruiter', 'it recruiter',
   'sourcer', 'talent sourcer',
   'talent acquisition', 'recruiting coordinator', 'recruiting manager',
@@ -626,8 +546,7 @@ const WHITELIST_OPERATIONS = [
   'revops', 'revenue operations', 'sales operations',
   'business analyst', 'strategy analyst',
   'chief of staff',
-  'data entry specialist', 'data entry clerk', 'data entry',
-  'virtual assistant', // core freelance gig (moved from blacklist 2026-06-12)
+  'data entry specialist', 'data entry clerk',
   'research assistant',
   'operations lead', 'head of operations', 'vp operations', 'coo',
 ];
@@ -640,76 +559,6 @@ const WHITELIST_CONSULTING = [
   'implementation consultant', 'functional consultant',
   'marketing consultant', 'seo consultant',
   // Removed: 'business consultant' - too generic, catches pharma/life sciences
-];
-
-// v2.2 — Enterprise tech platforms: if mentioned in title, it's IT.
-// Captures broad set of titles like "ServiceNow Architect", "SAP APO Consultant",
-// "Salesforce Integration Lead", "MuleSoft Architect", "Oracle Field Service Consultant"
-// that previous narrow patterns missed due to word-boundary regex (multi-word gaps).
-const WHITELIST_ENTERPRISE_TECH = [
-  // Enterprise platforms (standalone = IT in 99% of cases)
-  'salesforce', 'servicenow', 'workday', 'mulesoft', 'peoplesoft',
-  'sharepoint', 'dynamics 365', 'd365 ',
-  // SAP variants
-  'sap ', 'sap fico', 'sap mm', 'sap sd', 'sap hcm', 'sap apo', 'sap ibp',
-  'sap basis', 'sap hana', 'sap successfactors', 'sap ariba',
-  // Oracle variants (in addition to existing "oracle consultant")
-  'oracle cloud', 'oracle fusion', 'oracle epm', 'oracle hcm', 'oracle ebs',
-  'oracle apex', 'oracle integration', 'oracle vbcs', 'oracle field service',
-  // Adobe / CMS / DAM
-  'aem', 'adobe experience manager', 'sitecore', 'optimizely',
-  // Data platforms
-  'snowflake', 'databricks', 'tableau', 'power bi', 'matillion',
-  // Niche IT / Legacy
-  'hp-ux', 'hpux', 'cobol developer', 'mainframe developer', 'siebel',
-  // Architect patterns (gap in v2.1 — only had cloud/solutions/data)
-  'platform architect', 'integration architect', 'enterprise architect',
-  'applications architect', 'technology architect', 'technical architect',
-  'security architect', // also in SECURITY but here for completeness
-  // Lead/Specialist patterns for tech
-  'integration lead', 'platform lead', 'devops lead', 'data lead',
-  'integration specialist', 'platform specialist',
-  // DevSecOps + Cybersec specialist variants (gap)
-  'devsecops', 'devsecops engineer', 'devsecops specialist',
-  'cybersecurity specialist', 'cybersecurity analyst', 'cybersecurity engineer',
-  'identity management', 'iam engineer', 'iam architect', 'sso',
-  // Generic admin (broaden — currently only "systems/system/sysadmin/dba/linux")
-  'cloud administrator', 'aws administrator', 'azure administrator',
-  'oracle administrator', 'sap administrator', 'workday administrator',
-  'servicenow administrator', 'salesforce administrator', 'salesforce admin',
-  'sharepoint administrator', 'unix administrator',
-  // Transformation roles (often IT)
-  'digital transformation', 'cloud transformation',
-  'technology transformation', 'finance transformation', 'hr transformation',
-  // Misc Java/data niche titles seen in real LinkedIn posts
-  'bi consultant', 'analytics consultant', 'reporting consultant',
-  // More platforms missed in first pass
-  'netsuite', 'epic ', 'epicor', 'fircosoft', 'workato',
-  'otm consultant', 'otm lead', 'oracle transportation',
-  'sharepoint architect', 'sharepoint developer', 'sharepoint lead',
-  // Generic IT role variants (with word-boundary-safe forms)
-  'systems engineer', 'systems analyst', 'systems architect',
-  'network analyst', 'network architect', 'network systems',
-  'technical manager', 'technology lead', 'cloud technology',
-  'forward deployment', 'deployment engineer', 'forward-deployed',
-  'testing engineer', 'test analyst', 'qa lead engineer',
-  'red teamer', 'blue teamer', 'purple team',
-  'reporting analyst', 'regulatory reporting', 'compliance reporting',
-  'service cloud', 'sales cloud', 'commerce cloud',
-  // Business development (gap — had BDR/BDM but not executive variants)
-  'business development executive', 'bd executive',
-  // IAM / Identity Governance tools (IT)
-  'sailpoint', 'identitynow', 'iga architect', 'iga engineer',
-  'identity governance', 'okta engineer', 'okta administrator',
-  'one identity', 'cyberark', 'beyondtrust',
-  // APM / Observability (IT)
-  'appdynamics', 'dynatrace', 'datadog engineer', 'splunk engineer',
-  'new relic', 'observability engineer',
-  // Niche IT consultancy
-  'consulting manager', 'analytics consulting', 'ai consulting',
-  'paas consultant', 'saas consultant', 'erp consultant',
-  // Data modeling (gap)
-  'data modeler', 'data modeling',
 ];
 
 // Combine all whitelist patterns
@@ -735,32 +584,6 @@ const WHITELIST_PATTERNS = [
   ...WHITELIST_RESEARCH,
   ...WHITELIST_OPERATIONS,
   ...WHITELIST_CONSULTING,
-  ...WHITELIST_ENTERPRISE_TECH,
-];
-
-// ============================================================================
-// HARD NICHING (2026-07-23, owner decision): tech-only import.
-// The product niched down to remote tech roles (engineering/data/devops/qa) — the segments that
-// actually send and PAY (30d: payers' sends = devops 153 / eng 95 / qa 72 / data 25; meanwhile
-// translation 79 sends→1 reply, marketing 164→3, design 215→2, consulting 35→0). The n8n scrape
-// rotation was cut the same day (111→96 tech-only queries); this block stops the SAME tail from
-// entering via the generic catch-all queries ("send your resume to…" etc.). Patterns are reused
-// from the (non-gating) whitelist groups so coverage exactly mirrors what used to be let in.
-// 'ui developer'/'ux developer' are spared — those are frontend engineers in practice.
-// ============================================================================
-const BLACKLIST_NICHE_CUT = [
-  ...WHITELIST_TRANSLATION,
-  ...WHITELIST_MARKETING,
-  ...WHITELIST_CONTENT,
-  ...WHITELIST_VIDEO_AUDIO,
-  ...WHITELIST_DESIGN.filter(p => p !== 'ui developer' && p !== 'ux developer'),
-  ...WHITELIST_CONSULTING,
-  // Standalone consultant/consulting: kills the enterprise-bodyshop flood (SAP FICO Consultant,
-  // Oracle Techno-Functional Consultant, Workday HCM Consultant…) — 903 supply/mo, 35 sends, 0
-  // replies, 2 payer-sends. Platform DEVELOPERS (SAP ABAP Developer etc.) still import.
-  'consultant', 'consulting',
-  // Admin gig tail (was moved INTO the whitelist 06-12; niching reverses that call)
-  'virtual assistant', 'data entry',
 ];
 
 // ============================================================================
@@ -768,7 +591,7 @@ const BLACKLIST_NICHE_CUT = [
 // ============================================================================
 
 // Build blacklist regex with word boundaries
-const blacklistPatternString = [...BLACKLIST_PATTERNS, ...BLACKLIST_NICHE_CUT]
+const blacklistPatternString = BLACKLIST_PATTERNS
   .map(p => {
     // Escape special regex chars
     const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -815,25 +638,22 @@ export function isTargetProfession(title: string): boolean {
 /**
  * Main function: Check if job should be imported
  *
- * RULE ORDER (v2.3, 2026-06-13 — switched to BLACKLIST-ONLY / default-allow):
+ * RULE ORDER:
  * 1. Blacklist check (priority) → if matches → SKIP
- * 2. Otherwise → IMPORT (default-allow)
- *
- * Why the whitelist was dropped: its original job was SEO anti-thin-content, but /freelance is
- * noindex now, so that reason is dead. Meanwhile the matcher gained strong per-pairing gates
- * (routeAllows by category + lexical/geo pre-filter + AI match GATE) that refuse to actually SEND
- * a mismatched pairing — so a junk opportunity that slips in just queues 0 and ages out. The
- * whitelist was doing redundant work at the cost of silently dropping legit roles it didn't list
- * verbatim (Genesys/SecOps/Database Engineer, Paid Search Strategist, etc.). The blacklist was
- * hardened (BLACKLIST_OFFICE_OFFTARGET) for the office-but-off-target tail before the flip.
- * `isTargetProfession` is kept as a non-gating CLASSIFIER to monitor mis-send rate for a week.
+ * 2. Whitelist check → if matches → IMPORT
+ * 3. No match → SKIP
  *
  * @param title - Job title to check
  * @returns true if job should be imported, false if should be skipped
  */
 export function shouldImportByProfession(title: string): boolean {
-  // Blacklist is now the ONLY hard gate (default-allow for everything else).
-  return !isBlacklistedProfession(title);
+  // First check blacklist (takes priority)
+  if (isBlacklistedProfession(title)) {
+    return false;
+  }
+
+  // Then check whitelist
+  return isTargetProfession(title);
 }
 
 // Export for testing/debugging

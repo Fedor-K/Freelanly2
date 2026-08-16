@@ -196,7 +196,7 @@ export function CrossSellExitPopup({
                       </p>
                       {item.salaryMin && (
                         <p className="text-xs text-green-600 font-medium mt-0.5">
-                          {formatSalary(item.salaryMin, item.salaryMax ?? null, item.salaryCurrency ?? null)}
+                          {formatSalary(item.salaryMin, item.salaryMax, item.salaryCurrency)}
                         </p>
                       )}
                     </div>
@@ -260,6 +260,6 @@ function formatSalary(
     }
     return `${formatter.format(min)}+`;
   } catch {
-    return `$${min.toLocaleString('en-US')}+`;
+    return `$${min.toLocaleString()}+`;
   }
 }

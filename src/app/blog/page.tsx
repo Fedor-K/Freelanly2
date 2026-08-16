@@ -1,17 +1,19 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
 import { BlogPostCard } from '@/components/blog/BlogPostCard';
-import { MarketingNav, MarketingFooter, MarketingCTA } from '@/components/marketing/MarketingShell';
+import { Badge } from '@/components/ui/badge';
 import { siteConfig } from '@/config/site';
 import { prisma } from '@/lib/db';
 
 export const metadata: Metadata = {
   title: 'Blog - Remote Work Tips, Salary Guides & Career Advice',
-  description: 'Guides for engineers landing remote roles — salaries, interviews, applications.',
+  description: 'Expert advice on finding remote jobs, negotiating salaries, and building a successful remote career. Updated weekly with the latest insights.',
   keywords: ['remote work blog', 'remote job tips', 'salary guides', 'career advice', 'work from home'],
   openGraph: {
-    title: 'Freelanly Blog — Remote Tech Careers, Salaries & Applications',
-    description: 'Guides for engineers landing remote roles — salaries, interviews, applications.',
+    title: 'Freelanly Blog - Remote Work Tips & Career Advice',
+    description: 'Expert advice on finding remote jobs, negotiating salaries, and building a successful remote career.',
     url: `${siteConfig.url}/blog`,
     type: 'website',
   },
@@ -87,41 +89,46 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   ]);
 
   return (
-    <div className="min-h-screen" style={{ background: '#0A0B0F', color: '#FAFAFA' }}>
-      <MarketingNav />
+    <div className="flex min-h-screen flex-col">
+      <Header />
 
-      <main className="pt-28 pb-4">
-        <div className="max-w-[1240px] mx-auto px-8">
+      <main className="flex-1">
+        <div className="container py-8">
           {/* Header */}
-          <header className="mb-10">
-            <span className="font-mono text-xs tracking-widest uppercase text-[#C7F94A]">— Blog</span>
-            <h1 className="text-[clamp(32px,4vw,48px)] font-semibold tracking-tighter mt-3 mb-4">Freelanly Blog</h1>
-            <p className="text-lg text-[#A1A1AA] max-w-2xl">
-              Guides for engineers landing remote roles — salaries, interviews, applications.
+          <header className="mb-8">
+            <h1 className="text-4xl font-bold mb-4">Freelanly Blog</h1>
+            <p className="text-xl text-muted-foreground max-w-2xl">
+              Expert advice on finding remote jobs, negotiating salaries, and building a successful remote career.
             </p>
           </header>
 
-          {/* Category Filter — empty categories hidden */}
-          <div className="flex flex-wrap gap-2 mb-10">
-            <Link href="/blog"
-              className="px-3.5 py-1.5 rounded-full text-[13px] transition-colors"
-              style={!category ? { background: '#C7F94A', color: '#0A0B0F', fontWeight: 600 } : { border: '1px solid rgba(255,255,255,0.14)', color: '#A1A1AA' }}>
-              All posts
+          {/* Category Filter */}
+          <div className="flex flex-wrap gap-2 mb-8">
+            <Link href="/blog">
+              <Badge
+                variant={!category ? 'default' : 'outline'}
+                className="cursor-pointer"
+              >
+                All Posts
+              </Badge>
             </Link>
-            {categories.filter((cat) => cat._count.posts > 0).map((cat) => (
-              <Link key={cat.slug} href={`/blog/category/${cat.slug}`}
-                className="px-3.5 py-1.5 rounded-full text-[13px] transition-colors hover:bg-white/5"
-                style={category === cat.slug ? { background: '#C7F94A', color: '#0A0B0F', fontWeight: 600 } : { border: '1px solid rgba(255,255,255,0.14)', color: '#A1A1AA' }}>
-                {cat.name} ({cat._count.posts})
+            {categories.map((cat) => (
+              <Link key={cat.slug} href={`/blog/category/${cat.slug}`}>
+                <Badge
+                  variant={category === cat.slug ? 'default' : 'outline'}
+                  className="cursor-pointer"
+                >
+                  {cat.icon} {cat.name} ({cat._count.posts})
+                </Badge>
               </Link>
             ))}
           </div>
 
           {/* Featured Posts (only on page 1, no category filter) */}
           {currentPage === 1 && !category && featuredPosts.length > 0 && (
-            <section className="mb-14">
-              <h2 className="font-mono text-xs tracking-widest uppercase text-[#6B7280] mb-5">Featured</h2>
-              <div className="grid md:grid-cols-3 gap-5">
+            <section className="mb-12">
+              <h2 className="text-2xl font-bold mb-4">Featured Articles</h2>
+              <div className="grid md:grid-cols-3 gap-6">
                 {featuredPosts.map((post) => (
                   <BlogPostCard key={post.id} post={post} featured />
                 ))}
@@ -131,46 +138,70 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
 
           {/* All Posts */}
           <section>
-            <h2 className="font-mono text-xs tracking-widest uppercase text-[#6B7280] mb-5">
-              {category ? `${categories.find(c => c.slug === category)?.name || 'Category'}` : 'Latest'} · {total} {total === 1 ? 'article' : 'articles'}
+            <h2 className="text-2xl font-bold mb-4">
+              {category ? `${categories.find(c => c.slug === category)?.name || 'Category'} Articles` : 'Latest Articles'}
+              <span className="text-muted-foreground font-normal text-lg ml-2">
+                ({total} {total === 1 ? 'article' : 'articles'})
+              </span>
             </h2>
 
             {posts.length > 0 ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {posts.map((post) => (
                   <BlogPostCard key={post.id} post={post} />
                 ))}
               </div>
             ) : (
               <div className="text-center py-12">
-                <p className="text-[#A1A1AA]">No articles found. Check back soon!</p>
+                <p className="text-muted-foreground">
+                  No articles found. Check back soon!
+                </p>
               </div>
             )}
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <nav className="mt-10 flex justify-center items-center gap-2">
+              <nav className="mt-8 flex justify-center gap-2">
                 {currentPage > 1 && (
-                  <Link href={`/blog?page=${currentPage - 1}${category ? `&category=${category}` : ''}`}
-                    className="px-4 py-2 rounded-full text-[13px] hover:bg-white/5" style={{ border: '1px solid rgba(255,255,255,0.14)' }}>
-                    ← Previous
+                  <Link
+                    href={`/blog?page=${currentPage - 1}${category ? `&category=${category}` : ''}`}
+                    className="px-4 py-2 border rounded hover:bg-muted"
+                  >
+                    Previous
                   </Link>
                 )}
-                <span className="px-4 font-mono text-[12px] text-[#6B7280]">Page {currentPage} of {totalPages}</span>
+                <span className="flex items-center px-4 text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </span>
                 {currentPage < totalPages && (
-                  <Link href={`/blog?page=${currentPage + 1}${category ? `&category=${category}` : ''}`}
-                    className="px-4 py-2 rounded-full text-[13px] hover:bg-white/5" style={{ border: '1px solid rgba(255,255,255,0.14)' }}>
-                    Next →
+                  <Link
+                    href={`/blog?page=${currentPage + 1}${category ? `&category=${category}` : ''}`}
+                    className="px-4 py-2 border rounded hover:bg-muted"
+                  >
+                    Next
                   </Link>
                 )}
               </nav>
             )}
           </section>
+
+          {/* Newsletter CTA */}
+          <section className="mt-16 bg-muted rounded-lg p-8 text-center">
+            <h2 className="text-2xl font-bold mb-2">Stay Updated</h2>
+            <p className="text-muted-foreground mb-4">
+              Get the latest remote work tips and job opportunities delivered to your inbox.
+            </p>
+            <Link
+              href="/dashboard/alerts"
+              className="inline-flex items-center px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90"
+            >
+              Set Up Job Alerts
+            </Link>
+          </section>
         </div>
       </main>
 
-      <MarketingCTA />
-      <MarketingFooter />
+      <Footer />
 
       {/* Structured Data */}
       <script
@@ -180,7 +211,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
             '@context': 'https://schema.org',
             '@type': 'Blog',
             name: 'Freelanly Blog',
-            description: 'Guides for engineers landing remote roles — salaries, interviews, applications.',
+            description: 'Expert advice on finding remote jobs, negotiating salaries, and building a successful remote career.',
             url: `${siteConfig.url}/blog`,
             publisher: {
               '@type': 'Organization',

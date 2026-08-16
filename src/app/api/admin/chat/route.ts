@@ -1,14 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { checkAdminSession } from '@/lib/admin-auth';
 
 /**
  * GET /api/admin/chat
  * Returns all chat messages, newest first.
  */
-export async function GET(request: NextRequest) {
-  const authError = await checkAdminSession(request);
-  if (authError) return authError;
+export async function GET() {
   try {
     const messages = await prisma.activityLog.findMany({
       where: { action: 'CHAT_MESSAGE' },
