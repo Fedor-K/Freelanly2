@@ -2,10 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { signIn } from 'next-auth/react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { categories, countries, languages } from '@/config/site';
+import { Mail, ChevronDown, Check, X, Zap, ArrowLeft, Loader2, AlertTriangle, TrendingUp } from 'lucide-react';
 import { getStoredClickId, getStoredUtmSource, getStoredUtmParams } from '@/components/analytics/GclidCapture';
-import { ProcessingScreen, PROFILE_BUILD_STEPS } from '@/components/ProcessingScreen';
-import { GoogleAuthButton } from '@/components/GoogleAuthButton';
 
 /** Read UTM params from current page URL as fallback when localStorage is empty */
 function getUtmFromUrl(): { source?: string; utmMedium?: string; utmCampaign?: string; utmContent?: string; gclid?: string } {
@@ -53,13 +55,9 @@ export interface RegistrationFormProps {
   callbackUrl?: string;
   onEmailSent?: (email: string) => void;
   showJobContext?: boolean;
-  prefillEmail?: string;
-  /** Jump straight to a step on mount — used after Google signup (session already exists,
-   *  email verified, gmail.send granted) to collect the profile (résumé + consent). */
-  initialStep?: 'profile';
 }
 
-type FormStep = 'email' | 'login' | 'register' | 'sent' | 'profile';
+type FormStep = 'email' | 'login' | 'register' | 'sent';
 
 interface UserInfo {
   name: string | null;
@@ -73,29 +71,20 @@ export function RegistrationForm({
   callbackUrl,
   onEmailSent,
   showJobContext = false,
-  prefillEmail,
-  initialStep,
 }: RegistrationFormProps) {
   const { track: trackDb } = useTracker();
 
   // Form step
-  const [step, setStep] = useState<FormStep>(initialStep || 'email');
+  const [step, setStep] = useState<FormStep>('email');
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
   // Form fields
-  const [email, setEmail] = useState(prefillEmail || '');
+  const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
-  const [agreedToTerms, setAgreedToTerms] = useState(true);
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [cvFromLinks, setCvFromLinks] = useState(false); // mobile no-file path: build the CV from LinkedIn/GitHub/portfolio
-  const [portfolioUrl, setPortfolioUrl] = useState('');
-  const [linkedinUrl, setLinkedinUrl] = useState('');
-  const [githubUrl, setGithubUrl] = useState('');
-  const [shareConsent, setShareConsent] = useState(false);
-  const [profileSubmitting, setProfileSubmitting] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -182,7 +171,7 @@ export function RegistrationForm({
   // Debounced fetch on filter changes
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (step === 'register' || (step === 'email' && hasResume === false)) {
+      if (step === 'register' || (step === 'email' && isExistingUser === false)) {
         fetchJobCount();
       }
     }, 300);
@@ -198,15 +187,10 @@ export function RegistrationForm({
     }
   }, [email, jobId, trackDb]);
 
-  // Has resume flag from check-email API
-  const [hasResume, setHasResume] = useState<boolean | null>(null);
-  const [regToken, setRegToken] = useState<string | null>(null); // deferred-session proof from verify-code
-
   // Debounced email check on typing
   useEffect(() => {
     if (!email || !email.includes('@') || !email.includes('.')) {
       setIsExistingUser(null);
-      setHasResume(null);
       return;
     }
     const timer = setTimeout(() => {
@@ -219,8 +203,8 @@ export function RegistrationForm({
   const showTranslationFields = selectedCategories.includes('translation');
 
   // Check email on blur — determines if user exists
-  const checkEmailExists = async (emailToCheck: string): Promise<{ exists: boolean; hasResume: boolean } | null> => {
-    if (!emailToCheck || !emailToCheck.includes('@')) return null;
+  const checkEmailExists = async (emailToCheck: string) => {
+    if (!emailToCheck || !emailToCheck.includes('@')) return;
 
     setIsCheckingEmail(true);
     try {
@@ -231,12 +215,8 @@ export function RegistrationForm({
       });
       const data = await res.json();
       setIsExistingUser(data.exists);
-      setHasResume(data.hasResume ?? false);
-      return { exists: !!data.exists, hasResume: data.hasResume ?? false };
     } catch {
       setIsExistingUser(null);
-      setHasResume(null);
-      return null;
     } finally {
       setIsCheckingEmail(false);
     }
@@ -249,34 +229,32 @@ export function RegistrationForm({
       return;
     }
 
-    // Normalize email to prevent case mismatch with OTP token lookup
-    setEmail(prev => prev.toLowerCase().trim());
+    // New user — validate categories
+    if (isExistingUser === false) {
+      if (selectedCategories.length === 0) {
+        setError('Please select at least one job category');
+        return;
+      }
+      if (showTranslationFields && selectedLanguages.length === 0) {
+        setError('Please select at least one language for translation alerts');
+        return;
+      }
+    }
 
     setIsLoading(true);
     setError('');
 
     try {
-      // Resolve exists/hasRésumé HERE if the debounced check hasn't landed yet (fast tap within the
-      // 500ms) — never leave the send blocked on it. Use the returned value (setState isn't in-scope).
-      let exists = isExistingUser;
-      let hasRes = hasResume;
-      if (exists === null) {
-        const r = await checkEmailExists(email);
-        if (!r) { setError('Could not verify that email — please try again.'); return; }
-        exists = r.exists; hasRes = r.hasResume;
-      }
-      // EMAIL-FIRST: register the new user with email ONLY. Résumé / LinkedIn / categories / salary
-      // are collected AFTER the OTP code is confirmed (the 'profile' step) — same mechanic as the
-      // inline apply flow. Categories only fed suspended job-alerts and the loop derives its own
-      // from the résumé, so an empty list here is fine. Existing users skip register entirely.
-      if (hasRes === false && exists === false) {
+      // New user: register first
+      if (isExistingUser === false) {
         const regRes = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email,
             name: name || undefined,
-            categories: [],
+            categories: selectedCategories,
+            languages: showTranslationFields ? selectedLanguages : undefined,
             jobId,
             agreedToTerms: true,
             gclid: getStoredClickId()?.value || getUtmFromUrl().gclid,
@@ -293,21 +271,19 @@ export function RegistrationForm({
       // Send magic link
       const result = await signIn('resend', {
         email,
-        callbackUrl: callbackUrl || '/dashboard/discovery',
+        callbackUrl: callbackUrl || '/',
         redirect: false,
       });
 
       if (result?.ok) {
         setStep('sent');
         onEmailSent?.(email);
-        // OTP-funnel: code dispatched — the next checkpoint is signup_otp_verified/fail.
-        trackDb('FUNNEL_STEP', { step: 'signup_otp_sent', form: 'standalone', existing: exists === true });
         // Track signup complete for new users
-        if (exists === false) {
+        if (isExistingUser === false) {
           trackDb('SIGNUP_COMPLETE', { source: jobId ? 'job_page' : 'direct', categories: selectedCategories });
         }
         // Track signup conversion in Google Ads (new users only)
-        if (exists === false && typeof window !== 'undefined' && (window as any).gtag) {
+        if (isExistingUser === false && typeof window !== 'undefined' && (window as any).gtag) {
           (window as any).gtag('event', 'conversion', {
             send_to: `${process.env.NEXT_PUBLIC_GOOGLE_ADS_ID}/${process.env.NEXT_PUBLIC_GADS_CONV_SIGNUP}`,
           });
@@ -325,7 +301,9 @@ export function RegistrationForm({
   const handleEmailKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleSendMagicLink();
+      if (isExistingUser !== null) {
+        handleSendMagicLink();
+      }
     }
   };
 
@@ -334,48 +312,6 @@ export function RegistrationForm({
     setUserInfo(null);
     setError('');
   };
-
-  // STEP 3 ('profile', only after the OTP code is confirmed): collect résumé/LinkedIn/categories/
-  // salary, build the profile, then enter the account. Mirror of the inline apply flow — the only
-  // difference is the final action (here: go to the dashboard; inline: generate + send the apply).
-  async function handleProfileSubmit() {
-    // Phase-1 minimal signup (owner 2026-07-23): the feed needs exactly ONE matching source —
-    // a résumé OR a LinkedIn profile (no-file path auto-builds the CV from LinkedIn). The old
-    // 8-field wall (messenger/work-auth/rate/salary/notice) moved OUT of registration.
-    // Mirrors the inline apply form (two-signup-forms parity).
-    if (!resumeFile && !linkedinUrl.trim()) { setError('Add your résumé (PDF) or your LinkedIn URL'); return; }
-    if (!shareConsent) { setError('Please accept the Terms & Privacy Policy and authorize sharing to continue'); return; }
-    setError('');
-    setProfileSubmitting(true);
-    try {
-      const fd = new FormData();
-      if (resumeFile) fd.append('file', resumeFile);
-      // No file → the LinkedIn scrape builds the CV (works whether or not the user found the toggle).
-      if (!resumeFile) fd.append('buildFromLinks', 'true');
-      if (portfolioUrl.trim()) fd.append('portfolioUrl', portfolioUrl.trim());
-      fd.append('email', email);
-      fd.append('linkedinUrl', linkedinUrl);
-      fd.append('githubUrl', githubUrl.trim());
-      fd.append('profileShareConsent', shareConsent ? 'true' : 'false');
-      if (regToken) fd.append('regToken', regToken); // resume-preauth mints the session once this saves
-      // Don't navigate away if the profile didn't save — stay on the form (values intact) with the error,
-      // instead of dumping the user in a résumé-less dashboard.
-      const pre = await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }).catch(() => null);
-      if (!pre || !pre.ok) {
-        const d = pre ? await pre.json().catch(() => ({})) : {};
-        setProfileSubmitting(false);
-        // 413 = Vercel body limit hit before our code ran (no JSON) — name the real cause.
-        setError(pre?.status === 413
-          ? 'Your résumé file is too large (max 4 MB) — compress it or use “Build it from my links”.'
-          : typeof (d as { error?: string }).error === 'string' ? (d as { error?: string }).error! : 'Could not save your profile — check your résumé and try again.');
-        return;
-      }
-      window.location.href = callbackUrl || '/dashboard/discovery';
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
-      setProfileSubmitting(false);
-    }
-  }
 
   // Category handlers
   const toggleCategory = (slug: string) => {
@@ -411,6 +347,26 @@ export function RegistrationForm({
     setSelectedLanguages((prev) => prev.filter((l) => l !== code));
   };
 
+  // Google Sign In
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+
+    // For new users, save registration data
+    if (step === 'register' && selectedCategories.length > 0) {
+      sessionStorage.setItem(
+        'pendingRegistration',
+        JSON.stringify({
+          name,
+          categories: selectedCategories,
+          countries: selectedCountries,
+          languages: showTranslationFields ? selectedLanguages : [],
+        })
+      );
+    }
+
+    await signIn('google', { callbackUrl: callbackUrl || '/' });
+  };
+
   // Magic Link Sign In (for existing users)
   const handleMagicLinkLogin = async () => {
     setIsLoading(true);
@@ -419,14 +375,13 @@ export function RegistrationForm({
     try {
       const result = await signIn('resend', {
         email,
-        callbackUrl: callbackUrl || '/dashboard/discovery',
+        callbackUrl: callbackUrl || '/',
         redirect: false,
       });
 
       if (result?.ok) {
         setStep('sent');
         onEmailSent?.(email);
-        trackDb('FUNNEL_STEP', { step: 'signup_otp_sent', form: 'standalone', path: 'login' });
       } else {
         throw new Error('Failed to send magic link');
       }
@@ -440,6 +395,17 @@ export function RegistrationForm({
   // Registration Submit (for new users)
   const handleRegistrationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (selectedCategories.length === 0) {
+      setError('Please select at least one job category');
+      return;
+    }
+
+    // Validate languages for translation category
+    if (showTranslationFields && selectedLanguages.length === 0) {
+      setError('Please select at least one language for translation alerts');
+      return;
+    }
 
     // Validate ToS agreement
     if (!agreedToTerms) {
@@ -474,28 +440,16 @@ export function RegistrationForm({
         throw new Error(data.error || 'Registration failed');
       }
 
-      // Upload resume/LinkedIn if provided (non-blocking, pre-auth)
-      if (resumeFile || linkedinUrl) {
-        try {
-          const fd = new FormData();
-          if (resumeFile) fd.append('file', resumeFile);
-          fd.append('email', email);
-          if (linkedinUrl) fd.append('linkedinUrl', linkedinUrl);
-          await fetch('/api/user/resume-preauth', { method: 'POST', body: fd }).catch(() => {});
-        } catch {}
-      }
-
       // Send magic link
       const result = await signIn('resend', {
         email,
-        callbackUrl: callbackUrl || '/dashboard/discovery',
+        callbackUrl: callbackUrl || '/',
         redirect: false,
       });
 
       if (result?.ok) {
         setStep('sent');
         onEmailSent?.(email);
-        trackDb('FUNNEL_STEP', { step: 'signup_otp_sent', form: 'standalone', path: 'register' });
         trackDb('SIGNUP_COMPLETE', { source: 'registration_form', categories: selectedCategories });
       } else {
         throw new Error('Failed to send magic link');
@@ -514,22 +468,7 @@ export function RegistrationForm({
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const handleOtpChange = (index: number, value: string) => {
-    const digits = value.replace(/\D/g, '');
-
-    // iOS AutoFill pastes full code into one field
-    if (digits.length > 1) {
-      const newCode = digits.slice(0, 6).split('');
-      while (newCode.length < 6) newCode.push('');
-      setOtpCode(newCode);
-      setOtpError('');
-      if (newCode.length === 6 && newCode.every(d => d)) {
-        otpRefs.current[5]?.focus();
-        submitOtp(newCode.join(''));
-      }
-      return;
-    }
-
-    const digit = digits.slice(-1);
+    const digit = value.replace(/\D/g, '').slice(-1);
     const newCode = [...otpCode];
     newCode[index] = digit;
     setOtpCode(newCode);
@@ -564,24 +503,12 @@ export function RegistrationForm({
       const res = await fetch('/api/auth/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // flow:'register' → verify-code confirms the OTP but DEFERS the session (no login until the
-        // résumé + required fields are saved); resume-preauth mints it with the returned regToken.
-        // Defer the session for ANY résumé-less user, not just brand-new ones: re-login of an existing
-        // email-only account (isExistingUser=true, no résumé) would otherwise get a live session with an
-        // empty profile. flow='register' makes verify-code withhold the session until resume-preauth saves
-        // the résumé (mirrors the inline apply form — see two-signup-forms-parity).
-        body: JSON.stringify({ email, code: fullCode, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, flow: hasResume === false ? 'register' : undefined }),
+        body: JSON.stringify({ email, code: fullCode }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        trackDb('FUNNEL_STEP', { step: 'signup_otp_verified', form: 'standalone' });
-        // Email confirmed. Users who still need a profile go to the 'profile' step (collect
-        // résumé/LinkedIn/categories/salary/Telegram, then apply); everyone else (existing user
-        // with a résumé) just enters their account.
-        if (hasResume === false) { if (data.regToken) setRegToken(data.regToken); setStep('profile'); setOtpLoading(false); return; }
-        window.location.href = callbackUrl || data.callbackUrl || '/dashboard/discovery';
+        window.location.href = callbackUrl || data.callbackUrl || '/';
       } else {
-        trackDb('FUNNEL_STEP', { step: 'signup_otp_fail', form: 'standalone' });
         setOtpError(data.error || 'Invalid code');
         setOtpCode(['', '', '', '', '', '']);
         otpRefs.current[0]?.focus();
@@ -596,68 +523,53 @@ export function RegistrationForm({
   // Step: Email Sent — show code input
   if (step === 'sent') {
     return (
-      <div style={{textAlign: 'center', padding: '16px 0'}}>
-        <div style={{width: '64px', height: '64px', background: 'rgba(199,249,74,0.2)', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px'}}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4D8B0A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>
+      <div className="text-center py-4">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Mail className="w-8 h-8 text-green-600" />
         </div>
-        <h2 style={{fontSize: '20px', fontWeight: 600, marginBottom: '8px'}}>Enter the code</h2>
-        <p style={{color: '#5C6068', marginBottom: '24px'}}>
-          We sent a 6-digit code to<br/>
-          <span style={{fontWeight: 500, color: '#0A0B0F'}}>{email}</span>
+        <h2 className="text-xl font-semibold mb-2">Enter the code</h2>
+        <p className="text-muted-foreground mb-6">
+          We sent a 6-digit code to
+          <br />
+          <span className="font-medium text-foreground">{email}</span>
         </p>
 
-        <div style={{position: 'relative', display: 'flex', justifyContent: 'center', marginBottom: '16px'}}>
-          <input
-            ref={(el) => { otpRefs.current[0] = el; }}
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            value={otpCode.join('')}
-            onChange={(e) => {
-              const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-              const newCode = digits.split('');
-              while (newCode.length < 6) newCode.push('');
-              setOtpCode(newCode);
-              setOtpError('');
-              if (digits.length === 6) submitOtp(digits);
-            }}
-            onPaste={handleOtpPaste}
-            disabled={otpLoading}
-            autoFocus
-            style={{position: 'absolute', inset: 0, width: '100%', opacity: 0, zIndex: 10, cursor: 'pointer', caretColor: 'transparent'}}
-          />
-          <div style={{display: 'flex', gap: '8px', pointerEvents: 'none'}}>
-            {otpCode.map((digit, index) => (
-              <div
-                key={index}
-                style={{
-                  width: '44px', height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '24px', fontWeight: 700, border: `2px solid ${otpError ? '#B91C1C' : digit ? '#0A0B0F' : 'rgba(11,12,15,0.12)'}`,
-                  borderRadius: '10px', transition: 'border-color 140ms', opacity: otpLoading ? 0.5 : 1,
-                }}
-              >
-                {digit}
-              </div>
-            ))}
-          </div>
+        {/* Code input */}
+        <div className="flex justify-center gap-2 mb-4" onPaste={handleOtpPaste}>
+          {otpCode.map((digit, index) => (
+            <input
+              key={index}
+              ref={(el) => { otpRefs.current[index] = el; }}
+              type="text"
+              inputMode="numeric"
+              maxLength={1}
+              value={digit}
+              onChange={(e) => handleOtpChange(index, e.target.value)}
+              onKeyDown={(e) => handleOtpKeyDown(index, e)}
+              disabled={otpLoading}
+              autoFocus={index === 0}
+              className={`w-11 h-13 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:border-primary transition-colors ${
+                otpError ? 'border-destructive' : 'border-input'
+              } ${otpLoading ? 'opacity-50' : ''}`}
+            />
+          ))}
         </div>
-        {otpError && <p style={{fontSize: '13px', color: '#B91C1C', marginBottom: '12px'}}>{otpError}</p>}
-        {otpLoading && <p style={{fontSize: '13px', color: '#5C6068', marginBottom: '12px'}}>Verifying...</p>}
+        {otpError && <p className="text-sm text-destructive mb-3">{otpError}</p>}
+        {otpLoading && <p className="text-sm text-muted-foreground mb-3">Verifying...</p>}
 
-        {/* Biggest drop-off in the funnel is right here: cold Gmail can file the code under
-            Spam/Promotions. Nudging those folders + a one-click resend recovers users who'd
-            otherwise assume nothing arrived. */}
-        <p style={{fontSize: '13px', color: '#5C6068', marginBottom: '8px', lineHeight: 1.5}}>
-          Didn&apos;t get it? Check <b>Spam</b> or <b>Promotions</b>.{' '}
-          <button onClick={() => { trackDb('FUNNEL_STEP', { step: 'signup_otp_resend', form: 'standalone' }); setOtpCode(['','','','','','']); setOtpError(''); handleSendMagicLink(); }} disabled={otpLoading} style={{color: '#4D8B0A', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0, textDecoration: 'underline'}}>
-            Resend code
-          </button>
+        <p className="text-xs text-muted-foreground mb-4">
+          or click the link in the email
         </p>
-        <p style={{fontSize: '12px', color: '#6B7280', marginBottom: '16px'}}>or click the link in the email</p>
 
         <button
-          onClick={() => { setStep('email'); setEmail(''); setUserInfo(null); setOtpCode(['','','','','','']); setOtpError(''); }}
-          style={{fontSize: '13px', color: '#5C6068', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer'}}
+          onClick={() => {
+            setStep('email');
+            setEmail('');
+            setUserInfo(null);
+            setOtpCode(['', '', '', '', '', '']);
+            setOtpError('');
+          }}
+          className="text-sm text-muted-foreground hover:text-foreground underline"
         >
           Use a different email
         </button>
@@ -668,139 +580,311 @@ export function RegistrationForm({
   // Step: Email Input (+ registration fields for new users)
   if (step === 'email') {
     return (
-      <div className="field-group">
-        {/* PRIMARY: one Google click = verified email + name + send-from-your-Gmail grant — no OTP
-            code (which lands in spam for cold users). Email/code below stays as the fallback. */}
-        <GoogleAuthButton returnPath={`/auth/signin?gmail=connected${callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ flex: 1, height: 1, background: '#E4E1D9' }} />
-          <span style={{ fontSize: '12px', color: '#8A8780' }}>or continue with email</span>
-          <div style={{ flex: 1, height: 1, background: '#E4E1D9' }} />
-        </div>
-
+      <div className="space-y-4">
         {/* Job context */}
         {showJobContext && jobTitle && companyName && (
-          <div style={{padding: '10px 14px', background: 'rgba(199,249,74,0.1)', border: '1px solid rgba(199,249,74,0.3)', borderRadius: '10px', textAlign: 'center', fontSize: '13px'}}>
+          <div className="rounded-lg bg-muted/50 p-3 text-center text-sm">
             Apply to <strong>{jobTitle}</strong> at <strong>{companyName}</strong>
           </div>
         )}
 
         {/* Email Input */}
         <div>
-          <label className="field-label">Work email</label>
-          <input
-            className="text-input"
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
             type="email"
             value={email}
-            onChange={(e) => { setEmail(e.target.value); setIsExistingUser(null); }}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setIsExistingUser(null); // reset on change
+            }}
             onBlur={() => checkEmailExists(email)}
             onKeyDown={handleEmailKeyDown}
-            placeholder="you@inbox.com"
+            placeholder="your@email.com"
+            className="mt-1"
             autoFocus
           />
-          <div className="helper">We&apos;ll send a 6-digit code · <b>no password to remember</b></div>
           {isCheckingEmail && (
-            <p style={{marginTop: '4px', fontSize: '12px', color: '#5C6068'}}>Checking...</p>
+            <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" /> Checking...
+            </p>
           )}
         </div>
 
-        {/* Profile fields (résumé/LinkedIn/categories/salary/Telegram) are collected on the
-            post-code 'profile' step — this email-first step asks ONLY for the email. */}
+        {/* Registration fields — only for NEW users */}
+        {isExistingUser === false && (
+          <>
+            {/* Categories Multi-select */}
+            <div>
+              <Label>What roles interest you? *</Label>
+              <div className="relative mt-1" ref={categoryDropdownRef}>
+                <div
+                  onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                  className="min-h-[42px] px-3 py-2 border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center"
+                >
+                  {selectedCategories.length === 0 ? (
+                    <span className="text-muted-foreground">Select categories...</span>
+                  ) : (
+                    selectedCategories.map((slug) => {
+                      const cat = categories.find((c) => c.slug === slug);
+                      return (
+                        <span
+                          key={slug}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-sm"
+                        >
+                          {cat?.name || slug}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeCategory(slug);
+                            }}
+                            className="hover:text-primary/70"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      );
+                    })
+                  )}
+                  <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
+                </div>
 
-        {error && <p style={{fontSize: '13px', color: '#B91C1C'}}>{error}</p>}
+                {showCategoryDropdown && (
+                  <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.slug}
+                        type="button"
+                        onClick={() => toggleCategory(cat.slug)}
+                        className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between"
+                      >
+                        <span>
+                          {cat.icon} {cat.name}
+                        </span>
+                        {selectedCategories.includes(cat.slug) && (
+                          <Check className="h-4 w-4 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
 
-        <button
-          className="primary-btn"
+            {/* Job Count Preview */}
+            {selectedCategories.length > 0 && (
+              <div className={`p-3 rounded-lg border ${
+                jobCountPreview && jobCountPreview.count < 5
+                  ? 'bg-amber-50 border-amber-200'
+                  : 'bg-green-50 border-green-200'
+              }`}>
+                {isLoadingJobCount ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Checking job availability...</span>
+                  </div>
+                ) : jobCountPreview ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm">
+                      {jobCountPreview.count < 5 ? (
+                        <>
+                          <AlertTriangle className="h-4 w-4 text-amber-600" />
+                          <span className="font-medium text-amber-800">
+                            Only {jobCountPreview.count} job{jobCountPreview.count !== 1 ? 's' : ''} in the last 7 days
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <TrendingUp className="h-4 w-4 text-green-600" />
+                          <span className="font-medium text-green-800">
+                            {jobCountPreview.count} jobs in the last 7 days (~{jobCountPreview.dailyAverage}/day)
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {jobCountPreview.count < 5 && selectedCategories.length === 1 && (
+                      <p className="text-xs text-amber-700">
+                        Tip: Add more categories to receive more job alerts.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            {/* Country Preferences */}
+            <div>
+              <Label>Where do you want to work?</Label>
+              <div className="relative mt-1" ref={countryDropdownRef}>
+                <div
+                  onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+                  className="min-h-[42px] px-3 py-2 border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center"
+                >
+                  {selectedCountries.length === 0 ? (
+                    <span className="text-muted-foreground">Worldwide (all countries)</span>
+                  ) : (
+                    selectedCountries.map((code) => {
+                      const c = countries.find((ct) => ct.code === code || ct.slug === code);
+                      return (
+                        <span
+                          key={code}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-sm"
+                        >
+                          {c?.name || code}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeCountry(code);
+                            }}
+                            className="hover:text-primary/70"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      );
+                    })
+                  )}
+                  <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
+                </div>
+
+                {showCountryDropdown && (
+                  <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                    {countries.filter(c => c.code).map((c) => (
+                      <button
+                        key={c.slug}
+                        type="button"
+                        onClick={() => toggleCountry(c.code || c.slug)}
+                        className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between text-sm"
+                      >
+                        <span>{c.name}</span>
+                        {selectedCountries.includes(c.code || c.slug) && (
+                          <Check className="h-4 w-4 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Leave empty for worldwide/remote jobs</p>
+            </div>
+
+            {/* Translation Languages */}
+            {showTranslationFields && (
+              <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
+                <Label>Your Languages *</Label>
+                <p className="text-xs text-muted-foreground -mt-1">Select languages you can translate (besides English)</p>
+                <div className="relative" ref={languageDropdownRef}>
+                  <div
+                    onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+                    className="min-h-[42px] px-3 py-2 border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center bg-background"
+                  >
+                    {selectedLanguages.length === 0 ? (
+                      <span className="text-muted-foreground">Select languages...</span>
+                    ) : (
+                      selectedLanguages.map((code) => {
+                        const lang = languages.find((l) => l.code === code);
+                        return (
+                          <span
+                            key={code}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-sm"
+                          >
+                            {lang?.name || code}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeLanguage(code);
+                              }}
+                              className="hover:text-primary/70"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        );
+                      })
+                    )}
+                    <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
+                  </div>
+
+                  {showLanguageDropdown && (
+                    <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {languages
+                        .filter((l) => l.code !== 'EN')
+                        .map((lang) => (
+                          <button
+                            key={lang.code}
+                            type="button"
+                            onClick={() => toggleLanguage(lang.code)}
+                            className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between"
+                          >
+                            <span>{lang.name}</span>
+                            {selectedLanguages.includes(lang.code) && (
+                              <Check className="h-4 w-4 text-primary" />
+                            )}
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Instant alerts notice */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+              <Zap className="h-4 w-4 text-yellow-500" />
+              <span>You&apos;ll get instant alerts for matching jobs</span>
+            </div>
+
+            {/* Terms of Service Agreement */}
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="terms-email"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <label htmlFor="terms-email" className="text-sm text-muted-foreground">
+                I agree to the{' '}
+                <a href="/terms" target="_blank" className="text-primary underline hover:no-underline">
+                  Terms of Service
+                </a>{' '}
+                and{' '}
+                <a href="/privacy" target="_blank" className="text-primary underline hover:no-underline">
+                  Privacy Policy
+                </a>
+              </label>
+            </div>
+          </>
+        )}
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        <Button
           onClick={handleSendMagicLink}
-          disabled={isLoading || !email.includes('@')}
+          disabled={isLoading || isExistingUser === null || (isExistingUser === false && (selectedCategories.length === 0 || !agreedToTerms))}
+          className="w-full"
+          size="lg"
         >
-          {isLoading ? 'Sending...' : 'Send me a code'}
-          <span style={{transition: 'transform 140ms'}}>→</span>
-        </button>
-
-      </div>
-    );
-  }
-
-  // Step: Profile — reached ONLY after the OTP code is confirmed (email-first). Collects the
-  // résumé/LinkedIn/categories/salary + optional Telegram, then enters the account.
-  if (step === 'profile') {
-    // While the profile is being built (résumé upload + LinkedIn scrape + AI parse, 10-35s),
-    // show the live processing screen instead of a frozen "Setting up…" button.
-    if (profileSubmitting) return <ProcessingScreen steps={PROFILE_BUILD_STEPS} emoji="📋" />;
-    return (
-      <div className="field-group">
-        <div style={{ textAlign: 'center', marginBottom: '4px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 600 }}>Email confirmed ✓</h2>
-          <p style={{ marginTop: '4px', color: '#5C6068', fontSize: '13px' }}>Now tell us about you so we can apply.</p>
-        </div>
-
-        {/* LinkedIn URL */}
-        <div>
-          <label className="field-label">LinkedIn URL <span style={{ color: '#9A958A', fontWeight: 400 }}>— we can build your CV from it</span></label>
-          <input className="text-input" type="url" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/in/yourname" />
-        </div>
-
-        {/* GitHub — optional; a verified GitHub is skills evidence for hirers */}
-        <div>
-          <label className="field-label">GitHub <span style={{ color: '#9A958A', fontWeight: 400 }}>(optional — sharpens your matches)</span></label>
-          <input className="text-input" type="url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="github.com/username" />
-        </div>
-
-        {/* Résumé — or build it from links (mobile no-file path) */}
-        <div>
-          <label className="field-label">Résumé (PDF) <span style={{ color: '#9A958A', fontWeight: 400 }}>— or just add LinkedIn above</span></label>
-          {cvFromLinks && (
-            <div style={{ padding: '10px 14px', border: '1px solid #DDEBC4', borderRadius: '8px', fontSize: '12.5px', color: '#3F6212', background: '#F6FAEF', lineHeight: 1.5 }}>
-              ✓ We&apos;ll build your CV from your LinkedIn{githubUrl ? ', GitHub' : ''}{portfolioUrl ? ' and portfolio' : ''} — you can replace it with your own file anytime.
-            </div>
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Sending...
+            </>
+          ) : (
+            <>
+              <Mail className="mr-2 h-4 w-4" />
+              Send Magic Link
+            </>
           )}
-          {cvFromLinks && (
-            <div style={{ marginTop: '8px' }}>
-              <label className="field-label">Portfolio / website <span style={{ color: '#9A958A', fontWeight: 400 }}>(optional)</span></label>
-              <input className="text-input" type="url" value={portfolioUrl} onChange={e => setPortfolioUrl(e.target.value)} placeholder="yoursite.com / behance.net/you" />
-            </div>
-          )}
-          <button type="button" onClick={() => { setCvFromLinks(v => !v); setError(''); }} style={{ background: 'none', border: 'none', padding: 0, margin: '6px 0', fontSize: '12px', color: '#3F6212', textDecoration: 'underline', cursor: 'pointer', display: 'block' }}>
-            {cvFromLinks ? '← I have a file — upload it instead' : 'No CV file on your phone? Build it from my links →'}
-          </button>
-          {!cvFromLinks && (
-          <div
-            className={`upload-zone${resumeFile ? ' has-file' : ''}`}
-            onClick={(e) => { const inp = (e.currentTarget as HTMLElement).querySelector('input[type="file"]') as HTMLInputElement; if (inp && (e.target as HTMLElement).tagName !== 'INPUT') inp.click(); }}
-            onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }}
-            onDragLeave={(e) => { e.currentTarget.classList.remove('drag-over'); }}
-            onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drag-over'); const file = e.dataTransfer.files?.[0]; const nm = (file?.name || '').toLowerCase(); if (file && file.size > 4 * 1024 * 1024) { setError('That PDF is over 4 MB — please compress it (e.g. ilovepdf.com/compress_pdf) or use “Build it from my links”.'); } else if (file && (nm.endsWith('.pdf') || nm.endsWith('.docx'))) { setError(''); setResumeFile(file); } else if (file) { setError('Please upload a PDF or DOCX résumé.'); } }}
-          >
-            <div style={{ flex: 1 }}>
-              <div className="up-ttl">{resumeFile ? resumeFile.name : 'Drag & drop your résumé here'}</div>
-              <div className="up-sub">{resumeFile ? 'Ready to upload' : 'PDF or DOCX · or click to choose'}</div>
-            </div>
-            {/* Backend parses PDF (unpdf) + DOCX (mammoth). */}
-            <input type="file" accept="application/pdf,.pdf,.docx" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; const nm = (f?.name || '').toLowerCase(); if (f && !(nm.endsWith('.pdf') || nm.endsWith('.docx'))) { setError('Please upload a PDF or DOCX résumé.'); e.target.value = ''; return; } if (f && f.size > 4 * 1024 * 1024) { setError('That PDF is over 4 MB — please compress it (e.g. ilovepdf.com/compress_pdf) or use “Build it from my links”.'); e.target.value = ''; return; } setError(''); setResumeFile(f || null); }} />
-            {resumeFile ? <span style={{ fontSize: '11.5px', color: '#047857' }}>✓</span> : <span style={{ fontSize: '11.5px', color: '#5C6068' }}>Choose →</span>}
-          </div>
-          )}
-        </div>
+        </Button>
 
-        {/* Telegram reply-alert prompt removed from signup 2026-07-30: the alert only fires for Postal
-            sends, but at signup the channel is unknown and the product is own-inbox-first (Gmail), so it
-            was a dead promise for most new users. It stays on the dashboard / apply page, where the
-            channel is known. */}
-
-        {/* REQUIRED: accept Terms + Privacy AND authorize sharing in one. Sharing IS the service (we apply
-            and represent the candidate to employers), so it's part of what they agree to, not an optional
-            add-on — a non-shareable registrant can't be served. Mirrors the inline apply form. */}
-        <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '12.5px', color: '#555', cursor: 'pointer', lineHeight: 1.4 }}>
-          <input type="checkbox" checked={shareConsent} onChange={(e) => setShareConsent(e.target.checked)} style={{ marginTop: '2px', flexShrink: 0 }} />
-          <span>I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#3F6212', textDecoration: 'underline' }}>Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#3F6212', textDecoration: 'underline' }}>Privacy Policy</a>, and authorize Freelanly to apply to jobs and share my profile with employers and hiring partners on my behalf. <span style={{ color: '#B91C1C' }}>*</span></span>
-        </label>
-
-        {error && <p style={{ fontSize: '13px', color: '#B91C1C' }}>{error}</p>}
-
-        <button className="primary-btn" onClick={handleProfileSubmit} disabled={profileSubmitting}>
-          {profileSubmitting ? 'Setting up your profile…' : 'Continue →'}
-        </button>
+        <p className="text-center text-xs text-muted-foreground">
+          We&apos;ll send a sign-in link to your email.
+        </p>
       </div>
     );
   }
@@ -810,51 +894,302 @@ export function RegistrationForm({
     const displayName = userInfo?.name?.split(' ')[0] || 'there';
 
     return (
-      <div className="field-group">
-        <button onClick={goBack} style={{fontSize: '13px', color: '#5C6068', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'}}>
-          ← Back
+      <div className="space-y-6">
+        {/* Back button */}
+        <button
+          onClick={goBack}
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
         </button>
 
-        <div style={{textAlign: 'center'}}>
-          <h2 style={{fontSize: '20px', fontWeight: 600}}>Welcome back, {displayName}!</h2>
-          <p style={{marginTop: '4px', color: '#5C6068'}}>{email}</p>
+        {/* Welcome message */}
+        <div className="text-center">
+          <h2 className="text-xl font-semibold">Welcome back, {displayName}!</h2>
+          <p className="mt-1 text-muted-foreground">{email}</p>
         </div>
 
-        {error && <p style={{fontSize: '13px', color: '#B91C1C'}}>{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <button className="primary-btn" onClick={handleMagicLinkLogin} disabled={isLoading}>
-          {isLoading ? 'Sending...' : 'Send me a code →'}
-        </button>
+        {/* Magic Link */}
+        <Button
+          onClick={handleMagicLinkLogin}
+          disabled={isLoading}
+          className="w-full"
+          size="lg"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Sending...
+            </>
+          ) : (
+            <>
+              <Mail className="mr-2 h-4 w-4" />
+              Send magic link
+            </>
+          )}
+        </Button>
 
-        <p style={{textAlign: 'center', fontSize: '12px', color: '#6B7280'}}>
-          We&apos;ll email you a code to sign in instantly.
+        <p className="text-center text-xs text-muted-foreground">
+          We&apos;ll email you a link to sign in instantly.
         </p>
       </div>
     );
   }
 
-  // Step: Register (new user) — fallback, should not normally reach here
-  // since the email step now handles both new and existing users
+  // Step: Register (new user)
   return (
-    <div className="field-group">
-      <button onClick={goBack} style={{fontSize: '13px', color: '#5C6068', background: 'none', border: 'none', cursor: 'pointer'}}>← Back</button>
-      <div style={{textAlign: 'center'}}>
-        <h2 style={{fontSize: '20px', fontWeight: 600}}>Create your account</h2>
-        <p style={{color: '#5C6068'}}>{email}</p>
+    <div className="space-y-6">
+      {/* Back button */}
+      <button
+        onClick={goBack}
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </button>
+
+      {/* Header */}
+      <div className="text-center">
+        <h2 className="text-xl font-semibold">Create your account</h2>
+        <p className="mt-1 text-muted-foreground">{email}</p>
       </div>
 
-      <form onSubmit={handleRegistrationSubmit} className="field-group">
+      {/* Job context */}
+      {showJobContext && jobTitle && companyName && (
+        <div className="rounded-lg bg-muted/50 p-3 text-center text-sm">
+          Apply to <strong>{jobTitle}</strong> at <strong>{companyName}</strong>
+        </div>
+      )}
+
+      {/* Registration Form */}
+      <form onSubmit={handleRegistrationSubmit} className="space-y-4">
+        {/* Name */}
         <div>
-          <label className="field-label">Name</label>
-          <input className="text-input" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
+          <Label htmlFor="name">Name (optional)</Label>
+          <Input
+            id="name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your name"
+            className="mt-1"
+          />
         </div>
 
-        {error && <p style={{fontSize: '13px', color: '#B91C1C'}}>{error}</p>}
+        {/* Categories Multi-select */}
+        <div>
+          <Label>What roles interest you? *</Label>
+          <div className="relative mt-1" ref={categoryDropdownRef}>
+            {/* Selected categories chips */}
+            <div
+              onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+              className="min-h-[42px] px-3 py-2 border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center"
+            >
+              {selectedCategories.length === 0 ? (
+                <span className="text-muted-foreground">Select categories...</span>
+              ) : (
+                selectedCategories.map((slug) => {
+                  const cat = categories.find((c) => c.slug === slug);
+                  return (
+                    <span
+                      key={slug}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-sm"
+                    >
+                      {cat?.name || slug}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeCategory(slug);
+                        }}
+                        className="hover:text-primary/70"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  );
+                })
+              )}
+              <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
+            </div>
 
-        <button className="primary-btn" type="submit" disabled={isLoading || !agreedToTerms}>
-          {isLoading ? 'Creating account...' : 'Get Started Free →'}
-        </button>
+            {/* Dropdown */}
+            {showCategoryDropdown && (
+              <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.slug}
+                    type="button"
+                    onClick={() => toggleCategory(cat.slug)}
+                    className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between"
+                  >
+                    <span>
+                      {cat.icon} {cat.name}
+                    </span>
+                    {selectedCategories.includes(cat.slug) && (
+                      <Check className="h-4 w-4 text-primary" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Job Count Preview */}
+        {selectedCategories.length > 0 && (
+          <div className={`p-3 rounded-lg border ${
+            jobCountPreview && jobCountPreview.count < 5
+              ? 'bg-amber-50 border-amber-200'
+              : 'bg-green-50 border-green-200'
+          }`}>
+            {isLoadingJobCount ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Checking job availability...</span>
+              </div>
+            ) : jobCountPreview ? (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-sm">
+                  {jobCountPreview.count < 5 ? (
+                    <>
+                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      <span className="font-medium text-amber-800">
+                        Only {jobCountPreview.count} job{jobCountPreview.count !== 1 ? 's' : ''} in the last 7 days
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                      <span className="font-medium text-green-800">
+                        {jobCountPreview.count} jobs in the last 7 days (~{jobCountPreview.dailyAverage}/day)
+                      </span>
+                    </>
+                  )}
+                </div>
+                {jobCountPreview.count < 5 && selectedCategories.length === 1 && (
+                  <p className="text-xs text-amber-700">
+                    Tip: Add more categories to receive more job alerts.
+                  </p>
+                )}
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {/* Translation Languages */}
+        {showTranslationFields && (
+          <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
+            <Label>Your Languages *</Label>
+            <p className="text-xs text-muted-foreground -mt-1">Select languages you can translate (besides English)</p>
+            <div className="relative" ref={languageDropdownRef}>
+              {/* Selected languages chips */}
+              <div
+                onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+                className="min-h-[42px] px-3 py-2 border rounded-lg cursor-pointer flex flex-wrap gap-1.5 items-center bg-background"
+              >
+                {selectedLanguages.length === 0 ? (
+                  <span className="text-muted-foreground">Select languages...</span>
+                ) : (
+                  selectedLanguages.map((code) => {
+                    const lang = languages.find((l) => l.code === code);
+                    return (
+                      <span
+                        key={code}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded text-sm"
+                      >
+                        {lang?.name || code}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeLanguage(code);
+                          }}
+                          className="hover:text-primary/70"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    );
+                  })
+                )}
+                <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
+              </div>
+
+              {/* Dropdown */}
+              {showLanguageDropdown && (
+                <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {languages
+                    .filter((l) => l.code !== 'EN') // Exclude English - it's implicit
+                    .map((lang) => (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        onClick={() => toggleLanguage(lang.code)}
+                        className="w-full px-3 py-2 text-left hover:bg-muted flex items-center justify-between"
+                      >
+                        <span>{lang.name}</span>
+                        {selectedLanguages.includes(lang.code) && (
+                          <Check className="h-4 w-4 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Error message */}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        {/* Instant alerts notice */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+          <Zap className="h-4 w-4 text-yellow-500" />
+          <span>You&apos;ll get instant alerts for matching jobs</span>
+        </div>
+
+        {/* Terms of Service Agreement */}
+        <div className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            id="terms"
+            checked={agreedToTerms}
+            onChange={(e) => setAgreedToTerms(e.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+          />
+          <label htmlFor="terms" className="text-sm text-muted-foreground">
+            I agree to the{' '}
+            <a href="/terms" target="_blank" className="text-primary underline hover:no-underline">
+              Terms of Service
+            </a>{' '}
+            and{' '}
+            <a href="/privacy" target="_blank" className="text-primary underline hover:no-underline">
+              Privacy Policy
+            </a>
+            , including the subscription and refund policies.
+          </label>
+        </div>
+
+        {/* Submit */}
+        <Button type="submit" className="w-full" size="lg" disabled={isLoading || !agreedToTerms}>
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Creating account...
+            </>
+          ) : (
+            'Get Started Free'
+          )}
+        </Button>
       </form>
+
+      <p className="text-center text-xs text-muted-foreground">
+        You&apos;ll receive job alerts. Unsubscribe anytime.
+      </p>
     </div>
   );
 }

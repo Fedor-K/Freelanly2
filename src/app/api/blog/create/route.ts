@@ -3,7 +3,6 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
-import { isBlogPublishAuthorized } from '@/lib/cron-auth';
 
 interface TocItem {
   level: number;
@@ -36,12 +35,14 @@ interface CreateBlogPostRequest {
  * Create a new blog post
  * POST /api/blog/create
  *
- * Auth: Bearer BLOG_API_KEY (publish-only, hand this one to outside publishers) or Bearer
- * CRON_SECRET (kept working for existing callers, but it also opens every other cron route).
+ * Requires admin authentication via CRON_SECRET
  */
 export async function POST(request: NextRequest) {
-  // BLOG_API_KEY (publish-only) or CRON_SECRET (everything). Give outside publishers the former.
-  if (!isBlogPublishAuthorized(request)) {
+  // Verify admin secret
+  const authHeader = request.headers.get('authorization');
+  const adminSecret = process.env.CRON_SECRET;
+
+  if (!adminSecret || authHeader !== `Bearer ${adminSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -105,8 +106,6 @@ export async function POST(request: NextRequest) {
     // Add IDs to headings for ToC navigation
     const contentWithIds = addHeadingIds(body.content);
 
-    const shouldPublish = body.publish !== false;
-
     // Create the blog post
     const post = await prisma.blogPost.create({
       data: {
@@ -125,11 +124,8 @@ export async function POST(request: NextRequest) {
         authorImage: body.authorImage,
         ogImage: body.ogImage || `${siteConfig.url}/api/og/blog?title=${encodeURIComponent(body.title)}&category=${encodeURIComponent(category.name)}`,
         relatedPosts: body.relatedPosts || [],
-        // Publish by default. It used to require an explicit publish:true, so any caller that
-        // omitted the flag got a 200 and a post that silently sat in drafts forever. Opting OUT
-        // now takes an explicit publish:false.
-        status: shouldPublish ? 'PUBLISHED' : 'DRAFT',
-        publishedAt: shouldPublish ? new Date() : null,
+        status: body.publish ? 'PUBLISHED' : 'DRAFT',
+        publishedAt: body.publish ? new Date() : null,
         featuredAt: body.featured ? new Date() : null,
       },
       include: { category: true },
@@ -140,7 +136,7 @@ export async function POST(request: NextRequest) {
       where: { slug: category.slug },
       data: {
         postCount: {
-          increment: shouldPublish ? 1 : 0,
+          increment: body.publish ? 1 : 0,
         },
       },
     });
@@ -149,12 +145,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      // Top level, not only nested under `post`: callers read the slug straight off the response to
-      // build the published URL, and digging it out of a nested object is not something an API
-      // consumer should have to guess at. `post` is kept as-is so existing callers don't break.
-      slug: post.slug,
-      url: `${siteConfig.url}/blog/${post.slug}`,
-      status: post.status,
       post: {
         id: post.id,
         slug: post.slug,

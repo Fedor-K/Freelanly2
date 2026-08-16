@@ -3,8 +3,6 @@ import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
 import { constructWebhookEvent } from '@/lib/stripe';
-import { revokeApplyCredits } from '@/lib/apply-quota';
-import { grantApplyCreditsForPI } from '@/lib/apply-credits';
 import { sendActivationEmail } from '@/services/activation-emails';
 import { uploadOfflineConversion } from '@/lib/google-ads';
 import { ActivityAction } from '@prisma/client';
@@ -73,63 +71,6 @@ export async function POST(request: NextRequest) {
         break;
       }
 
-      // Pay-per-apply: card saved at onboarding/wall via SetupIntent → persist for one-tap charges.
-      case 'setup_intent.succeeded': {
-        const si = event.data.object as Stripe.SetupIntent;
-        await handleSetupIntentSucceeded(si);
-        break;
-      }
-
-      // Pay-per-apply: $3 pack purchase succeeded → grant apply-credits (idempotent).
-      case 'payment_intent.succeeded': {
-        const pi = event.data.object as Stripe.PaymentIntent;
-        await handleApplyCreditsPaid(pi);
-        break;
-      }
-
-      // Abandoned Go-PRO subscription checkout (hosted session expired unpaid, ~24h). No PaymentIntent
-      // is created for these, so they never show as "Incomplete" in Stripe Payments — record them here
-      // so we still have the list (they also enter the survey via application_paywall_shown).
-      case 'checkout.session.expired': {
-        const s = event.data.object as Stripe.Checkout.Session;
-        const userId = s.client_reference_id || s.metadata?.userId || undefined;
-        const email = s.customer_email || s.customer_details?.email || undefined;
-        await prisma.activityLog.create({ data: { action: ActivityAction.FUNNEL_STEP, userId,
-          details: { step: 'subscription_checkout_abandoned', session: s.id, email, mode: s.mode } } }).catch(() => {});
-        break;
-      }
-
-      // Capture the top-up attempts that DON'T convert — the "Incomplete" rows in the Stripe dashboard
-      // (created, never confirmed) + hard declines. Recorded so we have an authoritative list of who
-      // reached checkout and didn't pay (with decline reason), independent of client-side tracking.
-      case 'payment_intent.created': {
-        await recordTopupAttempt(event.data.object as Stripe.PaymentIntent, 'created');
-        break;
-      }
-      case 'payment_intent.payment_failed': {
-        const pi = event.data.object as Stripe.PaymentIntent;
-        await recordTopupAttempt(pi, 'failed', pi.last_payment_error?.decline_code || pi.last_payment_error?.code || pi.last_payment_error?.message);
-        await recordSubChargeFailed(pi);
-        break;
-      }
-      case 'payment_intent.canceled': {
-        await recordTopupAttempt(event.data.object as Stripe.PaymentIntent, 'canceled');
-        break;
-      }
-
-      // Pay-per-apply: a credit-pack charge was refunded or disputed → claw back the granted credits
-      // (proportional to the amount clawed; idempotent per PaymentIntent so refund+dispute don't double).
-      case 'charge.refunded': {
-        const charge = event.data.object as Stripe.Charge;
-        await handleCreditsClawback(charge.payment_intent as string | null, charge.amount_refunded, charge.currency);
-        break;
-      }
-      case 'charge.dispute.created': {
-        const dispute = event.data.object as Stripe.Dispute;
-        await handleCreditsClawback(dispute.payment_intent as string | null, dispute.amount, dispute.currency);
-        break;
-      }
-
       default:
         console.log(`[Stripe Webhook] Unhandled event type: ${event.type}`);
     }
@@ -183,26 +124,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  // Handle single reply unlock ($5 one-time payment — read+respond to a recruiter reply)
-  if (session.metadata?.type === 'unlock_reply') {
-    const applicationId = session.metadata.applicationId;
-    if (applicationId) {
-      await prisma.autoApplication.updateMany({
-        where: { id: applicationId, userId },
-        data: { replyUnlocked: true },
-      });
-      await prisma.activityLog.create({
-        data: {
-          userId,
-          action: ActivityAction.CHECKOUT_COMPLETE,
-          details: { type: 'unlock_reply', applicationId, amount: (session.amount_total || 0) / 100 },
-        },
-      }).catch(() => {});
-      console.log(`[Stripe Webhook] Reply unlocked for user ${userId}: app ${applicationId}`);
-    }
-    return;
-  }
-
   console.log(`[Stripe Webhook] Checkout completed for user ${userId}, subscription ${subscriptionId}`);
 
   // Fetch subscription to get period end date
@@ -245,7 +166,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       stripeId: customerId,
       stripeSubscriptionId: subscriptionId,
       plan: 'PRO',
-      paymentProvider: 'stripe',
       subscriptionEndsAt,
       ...conversionData,
     },
@@ -455,16 +375,6 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     },
   });
 
-  // Pause all auto-apply loops (PRO-only feature)
-  await prisma.autoApplyLoop.updateMany({
-    where: { userId: user.id, isActive: true },
-    data: { isActive: false },
-  }).catch(() => {});
-
-  await prisma.activityLog.create({
-    data: { userId: user.id, action: 'LOOP_PAUSED', details: { source: 'stripe_downgrade' } },
-  }).catch(() => {});
-
   // Record churn event
   await prisma.revenueEvent.create({
     data: {
@@ -518,7 +428,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   if (user.plan !== 'PRO') {
     await prisma.user.update({
       where: { id: user.id },
-      data: { plan: 'PRO', paymentProvider: 'stripe' },
+      data: { plan: 'PRO' },
     });
   }
 
@@ -534,40 +444,6 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
         stripeSubscriptionId: subscriptionId,
       },
     });
-  }
-
-  // FIRST payment: the inline Go-PRO flow (no Checkout Session) never fires
-  // checkout.session.completed, so this is its only chance to be counted — without it the
-  // subscriber exists in Stripe but is invisible to revenue and the payment funnel (two live
-  // $5 subs went unrecorded before this landed). Guarded so hosted-checkout subs that were
-  // already recorded by handleCheckoutCompleted don't double-count.
-  if (invoiceData.billing_reason === 'subscription_create') {
-    const already = await prisma.revenueEvent.findFirst({
-      where: { type: 'SUBSCRIPTION_STARTED', stripeSubscriptionId: subscriptionId },
-      select: { id: true },
-    });
-    if (!already) {
-      await prisma.revenueEvent.create({
-        data: {
-          type: 'SUBSCRIPTION_STARTED',
-          amount: invoiceData.amount_paid,
-          currency: invoiceData.currency.toUpperCase(),
-          userId: user.id,
-          planTo: 'PRO',
-          stripeEventId: invoice.id,
-          stripeCustomerId: customerId,
-          stripeSubscriptionId: subscriptionId,
-        },
-      });
-      // Feed the canonical payment funnel (metrics count credit_charge_success ∪ RevenueEvent).
-      await prisma.activityLog.create({
-        data: {
-          userId: user.id,
-          action: ActivityAction.FUNNEL_STEP,
-          details: { step: 'credit_charge_success', source: 'invoice_paid', subscriptionId },
-        },
-      }).catch(() => {});
-    }
   }
 }
 
@@ -601,163 +477,4 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
 
   // TODO: Send email notification about failed payment
   // For now, Stripe will retry automatically
-}
-
-// Pay-per-apply: a card was saved via SetupIntent (onboarding or at the wall). Persist it so the next
-// $3 charge is one-tap, and make it the customer's default payment method.
-async function handleSetupIntentSucceeded(si: Stripe.SetupIntent) {
-  const customerId = (si.customer as string) || null;
-  const paymentMethodId = (si.payment_method as string) || null;
-  if (!customerId || !paymentMethodId) return;
-
-  const user = await prisma.user.findFirst({ where: { stripeId: customerId } });
-  const userId = user?.id || si.metadata?.userId;
-  if (!userId) {
-    console.error('[Stripe Webhook] setup_intent.succeeded: no user for customer', customerId);
-    return;
-  }
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: { stripePaymentMethodId: paymentMethodId, stripeId: customerId },
-  }).catch((e) => console.error('[Stripe Webhook] Failed to save payment method:', e));
-
-  try {
-    const { getStripe } = await import('@/lib/stripe');
-    await getStripe().customers.update(customerId, {
-      invoice_settings: { default_payment_method: paymentMethodId },
-    });
-  } catch (e) {
-    console.error('[Stripe Webhook] Failed to set default payment method:', e);
-  }
-
-  console.log(`[Stripe Webhook] Card saved for user ${userId}`);
-}
-
-// Record a top-up PaymentIntent that did NOT convert (created-but-never-confirmed = the "Incomplete"
-// dashboard rows, or a hard decline/cancel) into ActivityLog, so we have an authoritative list of who
-// reached checkout and didn't pay — with Stripe's decline reason. apply_credits PIs only.
-async function recordTopupAttempt(pi: Stripe.PaymentIntent, kind: 'created' | 'failed' | 'canceled', declineReason?: string | null) {
-  if (pi.metadata?.type !== 'apply_credits') return; // ignore subscription / other PIs
-  const userId = pi.metadata?.userId || undefined;
-  await prisma.activityLog.create({
-    data: {
-      action: ActivityAction.FUNNEL_STEP,
-      userId,
-      details: {
-        step: `topup_${kind}`,
-        pi: pi.id,
-        amountCents: pi.amount,
-        status: pi.status,
-        email: pi.receipt_email || undefined,
-        declineReason: declineReason || undefined,
-      },
-    },
-  }).catch(() => {});
-}
-
-// Server-side record of a FAILED charge that is NOT an apply_credits top-up — i.e. the $5-subscription
-// first-invoice PI (inline Go-PRO) or any other charge on a Freelanly customer. These PIs carry no
-// metadata (Stripe creates them for the invoice), so we identify ours by customer → User.stripeId;
-// Translync shares the Stripe account and its customers won't match, which keeps them out. Without this,
-// a card decline on the sub flow only exists client-side (credit_charge_client_error) and is lost
-// entirely when the tab dies before the event fires.
-async function recordSubChargeFailed(pi: Stripe.PaymentIntent) {
-  if (pi.metadata?.type === 'apply_credits') return; // already recorded as topup_failed
-  const customerId = typeof pi.customer === 'string' ? pi.customer : pi.customer?.id;
-  if (!customerId) return;
-  const user = await prisma.user.findFirst({ where: { stripeId: customerId }, select: { id: true, email: true } }).catch(() => null);
-  if (!user) return; // not a Freelanly customer (e.g. Translync rides the same Stripe account)
-  await prisma.activityLog.create({
-    data: {
-      action: ActivityAction.FUNNEL_STEP,
-      userId: user.id,
-      details: {
-        step: 'charge_failed_server',
-        pi: pi.id,
-        amountCents: pi.amount,
-        declineCode: pi.last_payment_error?.decline_code || undefined,
-        code: pi.last_payment_error?.code || undefined,
-        msg: (pi.last_payment_error?.message || '').slice(0, 160) || undefined,
-      },
-    },
-  }).catch(() => {});
-}
-
-// Pay-per-apply: a $3 apply-credit pack PaymentIntent succeeded → grant the credits. Idempotent and
-// crash-safe: the unique stripeEventId (= PaymentIntent id) is claimed in the SAME transaction as the
-// credit increment, so a re-delivered event (Stripe can send an event more than once) rolls back and
-// never double-grants. Subscription-invoice PIs have no `apply_credits` metadata and are ignored.
-async function handleApplyCreditsPaid(pi: Stripe.PaymentIntent) {
-  // Idempotent grant shared with the client-confirm endpoint (either can win the race safely).
-  await grantApplyCreditsForPI(pi);
-}
-
-// Pay-per-apply: a credit-pack charge was refunded or disputed → revoke the granted credits (clamped at
-// 0). Looks up the original grant by the PaymentIntent id (the key used when granting), so only our
-// apply_credits purchases are touched. Idempotent via a REFUND RevenueEvent with a unique stripeEventId.
-async function handleCreditsClawback(
-  paymentIntentId: string | null,
-  clawedAmountCents: number | null,
-  currency: string | null,
-) {
-  if (!paymentIntentId) return;
-
-  const grant = await prisma.revenueEvent.findFirst({ where: { stripeEventId: paymentIntentId } });
-  const meta = grant?.metadata as { kind?: string; credits?: number } | null;
-  if (!grant) {
-    // Out-of-order delivery: a refund/dispute can arrive before the grant's payment_intent.succeeded was
-    // recorded. If this PI IS one of our credit packs, throw so Stripe retries later (grant will be
-    // committed by then); otherwise it's a subscription/other refund → ignore.
-    try {
-      const { getStripe } = await import('@/lib/stripe');
-      const pi = await getStripe().paymentIntents.retrieve(paymentIntentId);
-      if (pi.metadata?.type === 'apply_credits') {
-        throw new Error(`RETRY: apply_credits grant not yet recorded for ${paymentIntentId}`);
-      }
-    } catch (e) {
-      if ((e as Error)?.message?.startsWith('RETRY:')) throw e;
-      // retrieve failed for another reason — don't block the webhook, just ignore this event
-    }
-    return;
-  }
-  if (meta?.kind !== 'apply_credits') return; // grant exists but isn't a credit pack
-
-  const grantedCredits = Number(meta?.credits || 0);
-  const originalAmount = grant.amount || 0;
-  const userId = grant.userId;
-  if (!userId || !(grantedCredits > 0)) return;
-
-  // Revoke PROPORTIONALLY to the amount clawed back — a $1 refund of a $3/6-credit pack revokes 2, not
-  // all 6. A dispute contests the full charge → full revoke. Clamp to what was granted.
-  const clawed = clawedAmountCents ?? originalAmount;
-  const toRevoke = originalAmount > 0
-    ? Math.min(grantedCredits, Math.ceil((grantedCredits * clawed) / originalAmount))
-    : grantedCredits;
-  if (!(toRevoke > 0)) return;
-
-  // Idempotent PER PURCHASE (keyed by the PaymentIntent), so a refund AND a dispute on the SAME charge
-  // revoke once, and a re-delivered event is a no-op. (Edge: two separate PARTIAL refunds of the same
-  // tiny charge under-revoke — accepted as vanishingly rare for a $3 pack.)
-  try {
-    await prisma.revenueEvent.create({
-      data: {
-        type: 'REFUND',
-        amount: clawed,
-        currency: (currency || 'usd').toUpperCase(),
-        userId,
-        stripeEventId: `revoke_${paymentIntentId}`,
-        metadata: { kind: 'apply_credits_revoke', revoked: toRevoke, ofGranted: grantedCredits, originalPaymentIntent: paymentIntentId },
-      },
-    });
-  } catch (e) {
-    if ((e as { code?: string })?.code === 'P2002') {
-      console.log(`[Stripe Webhook] credits clawback already processed for PI ${paymentIntentId}`);
-      return;
-    }
-    throw e;
-  }
-
-  await revokeApplyCredits(userId, toRevoke);
-  console.log(`[Stripe Webhook] Revoked ${toRevoke}/${grantedCredits} apply-credits from user ${userId} (PI ${paymentIntentId})`);
 }

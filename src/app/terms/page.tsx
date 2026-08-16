@@ -1,9 +1,11 @@
 import { Metadata } from 'next';
+import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
 import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
-  description: 'Terms of Service for Freelanly — read the terms and conditions for using our AI application assistant service.',
+  description: 'Terms of Service for Freelanly - Read our terms and conditions for using our job board platform.',
   alternates: {
     canonical: `${siteConfig.url}/terms`,
   },
@@ -12,7 +14,7 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <div className="flex min-h-screen flex-col">
-      
+      <Header />
 
       <main className="flex-1">
         <div className="container py-12 max-w-4xl">
@@ -39,15 +41,6 @@ export default function TermsPage() {
                 various sources including social media posts and company career pages. We facilitate
                 connections between job seekers and employers but are not a party to any employment
                 agreements.
-              </p>
-              <p className="mb-4">
-                As part of the service, when you upload a résumé or build a candidate profile you grant
-                Freelanly permission to match your profile against open roles and to share it —
-                including your name, professional background, skills, location, and résumé/CV — with
-                potential employers and recruiters whose positions match your background, including by
-                presenting you within a curated shortlist of candidates. This helps relevant employers
-                discover you. You may withdraw this permission at any time by removing your
-                résumé/profile or deleting your account.
               </p>
             </section>
 
@@ -174,7 +167,7 @@ export default function TermsPage() {
         </div>
       </main>
 
-      
+      <Footer />
 
       <script
         type="application/ld+json"

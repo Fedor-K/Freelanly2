@@ -1,10 +1,10 @@
 /**
  * Re-extract salaries and benefits from existing jobs
- * Run: ZAI_API_KEY=xxx npx tsx scripts/reextract-salaries.ts
+ * Run: DEEPSEEK_API_KEY=xxx npx tsx scripts/reextract-salaries.ts
  */
 
 import { prisma } from '../src/lib/db';
-import { extractJobData } from '../src/lib/ai';
+import { extractJobData } from '../src/lib/deepseek';
 
 const BATCH_SIZE = 10;
 const DELAY_MS = 500; // Delay between requests to avoid rate limiting

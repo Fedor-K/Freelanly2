@@ -1,22 +1,11 @@
 import { NextRequest } from 'next/server';
-import { timingSafeEqual } from 'crypto';
-
-/** Constant-time string compare (returns false on length mismatch). */
-function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ab.length !== bb.length) return false;
-  return timingSafeEqual(ab, bb);
-}
 
 /**
- * Validate cron request. Two accepted auth methods, both secret-based:
- * 1. Authorization: Bearer <CRON_SECRET> (external calls + Vercel crons)
- * 2. x-vercel-cron-secret: <CRON_SECRET> header
- *
- * NOTE: the legacy `x-replit-cron: true` header and `?token=` query param were
- * removed — the header allowed an unauthenticated bypass and the query param
- * leaked the secret into logs. All callers use the Bearer header.
+ * Validate cron request - supports multiple auth methods:
+ * 1. Authorization: Bearer <CRON_SECRET> header (for external calls, Vercel crons)
+ * 2. Vercel internal cron (checks CRON_SECRET from vercel.json)
+ * 3. X-Replit-Cron header (for Replit scheduled tasks)
+ * 4. Query parameter ?token=<CRON_SECRET> (fallback)
  */
 export function isCronAuthorized(request: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;
@@ -25,39 +14,36 @@ export function isCronAuthorized(request: NextRequest): boolean {
     return false;
   }
 
-  // Method 1: Standard Bearer token (external calls like curl, Vercel crons)
+  // Method 1: Standard Bearer token (for external calls like curl, Vercel crons)
   const authHeader = request.headers.get('authorization');
-  if (authHeader && safeEqual(authHeader, `Bearer ${cronSecret}`)) {
+  if (authHeader === `Bearer ${cronSecret}`) {
+    console.log('[Cron Auth] Authorized via Bearer token');
     return true;
   }
 
-  // Method 2: Vercel cron secret header
+  // Method 2: Vercel Cron - checks for x-vercel-cron-secret header
+  // Set CRON_SECRET in Vercel env vars and it will be passed in this header
   const vercelCronSecret = request.headers.get('x-vercel-cron-secret');
-  if (vercelCronSecret && safeEqual(vercelCronSecret, cronSecret)) {
+  if (vercelCronSecret === cronSecret) {
+    console.log('[Cron Auth] Authorized via Vercel cron secret');
     return true;
   }
 
-  return false;
-}
+  // Method 3: Query parameter (fallback)
+  const url = new URL(request.url);
+  const token = url.searchParams.get('token');
+  if (token === cronSecret) {
+    console.log('[Cron Auth] Authorized via query parameter');
+    return true;
+  }
 
-/**
- * Validate a blog-publishing request. Accepts BLOG_API_KEY, and still accepts CRON_SECRET so
- * existing callers keep working.
- *
- * The point of the separate key is blast radius: CRON_SECRET opens every cron route — revenue and
- * subscriber reports, infrastructure spend, the mailers and the whole auto-apply engine — so handing
- * it to an outside publisher to post articles grants it all of that too. BLOG_API_KEY grants exactly
- * one thing: creating a blog post. Set it in the environment and give that value out instead.
- */
-export function isBlogPublishAuthorized(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader) return false;
-
-  const blogKey = process.env.BLOG_API_KEY;
-  if (blogKey && safeEqual(authHeader, `Bearer ${blogKey}`)) return true;
-
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && safeEqual(authHeader, `Bearer ${cronSecret}`)) return true;
+  // Method 4: Replit internal cron header
+  // When Replit runs scheduled tasks, we trust the x-replit-cron header
+  const replitCron = request.headers.get('x-replit-cron');
+  if (replitCron === 'true') {
+    console.log('[Cron Auth] Authorized via x-replit-cron header (internal)');
+    return true;
+  }
 
   return false;
 }

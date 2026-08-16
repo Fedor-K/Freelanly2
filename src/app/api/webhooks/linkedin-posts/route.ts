@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { extractJobData, localClassifyJob, isJobPosting, detectCountry, type ExtractedJobData } from '@/lib/ai';
+import { extractJobData, classifyJobCategory, isJobPosting, detectCountry, type ExtractedJobData } from '@/lib/deepseek';
 import { slugify, extractDomainFromEmail, cleanEmail } from '@/lib/utils';
 import { ensureSalaryData } from '@/lib/salary-estimation';
 import { notifySearchEngines } from '@/lib/indexing';
 import { shouldSkipJob } from '@/lib/job-filter';
-import { isBlockedApplyEmail } from '@/config/blocked-apply-domains';
-import { getPosterRegion } from '@/services/poster-enrichment';
-import { blockedCountries, resolveCountry } from '@/lib/region-block';
 import { assessContentQuality, isFreeEmailProvider, isPersonalAnnouncement } from '@/lib/content-quality';
 import { siteConfig } from '@/config/site';
-import { requiresUsWorkAuth } from '@/lib/us-work-auth';
 import type { TranslationType, Level } from '@prisma/client';
 
 // Valid TranslationType enum values from Prisma schema
@@ -176,32 +172,9 @@ export async function POST(request: NextRequest) {
     const clientType = body['author.type'] || body.authorType || body.author?.type || 'profile';
     const clientAvatar = body['author.avatar.url'] || body.authorAvatarUrl || body.author?.avatar?.url || null;
 
-    // Fire-and-forget skip logging — lets us see WHAT/why posts get rejected at import.
-    // Stores enough to JUDGE the call later: reason, title (when known), a short content
-    // excerpt, the post URL (open the original) and author. Excerpt capped at 280 chars so
-    // ActivityLog stays small. `extra` carries reason-specific fields (e.g. aiReason).
-    // Never awaited; must never slow or break the n8n flow.
-    const logSkip = (reason: string, title?: string | null, extra?: Record<string, unknown>) => {
-      prisma.activityLog.create({
-        data: {
-          action: 'IMPORT_SKIP',
-          details: {
-            source: 'linkedin',
-            reason,
-            title: title || null,
-            excerpt: typeof postContent === 'string' ? postContent.slice(0, 280) : null,
-            postUrl: postUrl || null,
-            author: clientName || null,
-            ...extra,
-          },
-        },
-      }).catch(() => {});
-    };
-
     // Validate required fields - return 200 OK but skip if empty (don't break n8n flow)
     if (!postUrl || !postContent) {
       console.log('[LinkedInPosts] Skipping post with empty data');
-      logSkip('empty_data');
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -211,7 +184,6 @@ export async function POST(request: NextRequest) {
 
     if (!clientLinkedIn) {
       console.log('[LinkedInPosts] Skipping post without author LinkedIn URL');
-      logSkip('no_client_linkedin');
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -226,17 +198,13 @@ export async function POST(request: NextRequest) {
     // =========================================================================
     const FREELANLY_LINKEDIN_PATTERNS = [
       'professional-community-of-freelance-translators-and-interpreters',
-      '-jobs-watcher', // our own watcher LinkedIn company pages (python/qa/react/dotnet-jobs-watcher) re-posting gigs
     ];
 
-    const clientNameLower = (clientName || '').toLowerCase();
     if (
-      clientNameLower.startsWith('freelanly') ||
-      clientNameLower.includes('jobs watcher') || // "Python Jobs Watcher", "QA Jobs Watcher", … (our own reposters)
+      clientName?.toLowerCase().startsWith('freelanly') ||
       FREELANLY_LINKEDIN_PATTERNS.some(pattern => clientLinkedIn?.includes(pattern))
     ) {
-      console.log(`[LinkedInPosts] Skipping own repost (${clientName}): ${postUrl}`);
-      logSkip('own_platform');
+      console.log(`[LinkedInPosts] Skipping Freelanly own post: ${postUrl}`);
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -259,24 +227,12 @@ export async function POST(request: NextRequest) {
 
     if (existingOpportunity) {
       console.log(`[LinkedInPosts] Duplicate opportunity, skipping: ${postId}`);
-      logSkip('duplicate');
       return NextResponse.json({
         success: true,
         status: 'skipped',
         reason: 'duplicate',
       });
     }
-
-    // SUPPLY-ONLY geo cut (owner 2026-07-27): a dedicated env, ISOLATED from MATCH_REGION_BLOCK — it
-    // NEVER touches user signup / matcher (those still read MATCH_REGION_BLOCK, kept empty). It only
-    // drops incoming SUPPLY located in / posted from cut regions (India + Africa). Reversible: empty = off.
-    const SUPPLY_CUT = new Set((process.env.SUPPLY_REGION_BLOCK || '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean));
-
-    // NOTE: the poster-profile scrape (Apify, $0.004/profile) used to run HERE, before every cheap
-    // filter. Cost audit 2026-08-05: 7,905 of 16,520 posters scraped in 21d produced nothing —
-    // ~$46/mo paid for posts the keyword/AI/domain/dup gates threw away moments later. The scrape is
-    // ~100x pricier than the z.ai validation call it was "saving", so it now runs LAST (see
-    // POSTER GATE below), after every free and cheap gate has had its say.
 
     // =========================================================================
     // KEYWORD PRE-FILTER: Catch obvious self-promotion before calling AI
@@ -298,7 +254,6 @@ export async function POST(request: NextRequest) {
     const selfPromoMatch = selfPromoPatterns.find(pattern => pattern.test(contentLower));
     if (selfPromoMatch) {
       console.log(`[LinkedInPosts] Self-promotion detected by keyword filter: ${selfPromoMatch}`);
-      logSkip('self_promo');
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -315,11 +270,6 @@ export async function POST(request: NextRequest) {
 
     if (!validationResult.isJob) {
       console.log(`[LinkedInPosts] Not a job posting: ${validationResult.reason}`);
-      // Capture the AI's SPECIFIC reason (e.g. "looks like a webinar invite", "candidate seeking work",
-      // "vague — no specific role") so a histogram on details->>'aiReason' tells us whether the filter
-      // is rejecting real noise or grey-zone jobs. logSkip also stores the excerpt + post URL, so we
-      // can read the actual post the AI rejected and judge whether the call was right.
-      logSkip('not_job_posting', null, { aiReason: validationResult.reason });
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -336,13 +286,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Extract job data using Z.ai
+    // Extract job data using DeepSeek
     console.log(`[LinkedInPosts] Extracting data from post...`);
     const extracted = await extractJobData(postContent);
 
     if (!extracted || !extracted.title) {
       console.log(`[LinkedInPosts] Could not extract job title`);
-      logSkip('no_title');
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -353,26 +302,9 @@ export async function POST(request: NextRequest) {
     // Clean and validate email (handles AI-extracted emails with extra text)
     const validatedEmail = cleanEmail(extracted.contactEmail);
 
-    // Hard block: refuse posts whose apply email is on the global blocklist.
-    if (isBlockedApplyEmail(validatedEmail)) {
-      console.log(`[LinkedInPosts] Blocked apply domain: ${validatedEmail}`);
-      logSkip('blocked_domain', extracted.title);
-      return NextResponse.json({ success: true, status: 'skipped', reason: 'blocked_domain' });
-    }
-
     // Track quality signals (soft signals, NOT hard filters)
     const isAnnouncement = isPersonalAnnouncement(extracted.title, postContent);
     const hasFreeEmail = isFreeEmailProvider(validatedEmail);
-
-    // Hard block: free-domain apply emails are dropped entirely (decision 2026-06). Audit of the
-    // free-domain segment showed its higher reply-rate is inflated by auto-responder résumé-farms
-    // (e.g. hivepostify/gaostaff, 78-90% auto-reply) and WhatsApp/phone scam redirects, not genuine
-    // direct clients. URL-apply posts (no email) are unaffected; send-time guard backs this up.
-    if (hasFreeEmail) {
-      console.log(`[LinkedInPosts] Free-domain apply email, skipping: ${validatedEmail}`);
-      logSkip('free_email_domain', extracted.title);
-      return NextResponse.json({ success: true, status: 'skipped', reason: 'free_email_domain' });
-    }
 
     if (isAnnouncement) {
       console.log(`[LinkedInPosts] Announcement style detected (will affect quality score)`);
@@ -385,17 +317,6 @@ export async function POST(request: NextRequest) {
     // Map location type (needed for filter)
     const locationType = mapLocationType(extracted.isRemote, extracted.location);
 
-    // LEVER B — supply-only cut by JOB LOCATION: drop non-remote roles located in a cut region
-    // (India/Africa). Remote/worldwide roles are kept regardless. Never touches users.
-    if (SUPPLY_CUT.size && locationType !== 'REMOTE') {
-      const jobCountry = resolveCountry(extracted.location);
-      if (jobCountry && SUPPLY_CUT.has(jobCountry)) {
-        console.log(`[LinkedInPosts] Skipping SUPPLY located in ${jobCountry}: ${extracted.title}`);
-        logSkip('supply_job_geo', extracted.title, { location: extracted.location, jobCountry });
-        return NextResponse.json({ success: true, status: 'skipped', reason: 'supply_job_geo', jobCountry });
-      }
-    }
-
     // Apply global job filter FIRST (non-target titles, HYBRID/ONSITE)
     const filterResult = shouldSkipJob({
       title: extracted.title,
@@ -404,7 +325,6 @@ export async function POST(request: NextRequest) {
     });
     if (filterResult.skip) {
       console.log(`[LinkedInPosts] Filtered out: ${extracted.title} (${filterResult.reason})`);
-      logSkip(filterResult.reason || 'profession_filter', extracted.title);
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -424,7 +344,6 @@ export async function POST(request: NextRequest) {
 
     if (duplicateByClient) {
       console.log(`[LinkedInPosts] Duplicate opportunity by client+title, skipping`);
-      logSkip('duplicate_title', extracted.title);
       return NextResponse.json({
         success: true,
         status: 'skipped',
@@ -433,57 +352,11 @@ export async function POST(request: NextRequest) {
     }
 
     // =========================================================================
-    // POSTER GATE (gated by POSTER_REGION_FILTER=on) — moved here 2026-08-05 (cost audit).
-    // Scrapes the poster's profile ONCE (cached per LinkedIn URL) to catch India/etc staffing
-    // recruiters by their REAL location and #OpenToWork job-seekers posing as hirers. Runs LAST:
-    // the scrape costs $0.004 vs ~$0.00004 for the AI validation above, so every post the cheap
-    // gates already killed must never reach it. Fail-open: scrape failure → import anyway.
-    // =========================================================================
-    // No contact = nothing to gate. Such posts import as inactive (see applyEmail branch below) and
-    // are unreachable by definition: 3,330 of 10,362 imports in the 8d to 2026-08-05 had no
-    // applyEmail and produced ZERO sends between them — yet each one bought a $0.004 poster scrape.
-    const hasContact = Boolean(validatedEmail || extracted.applyUrl);
-
-    if (process.env.POSTER_REGION_FILTER === 'on' && hasContact) {
-      try {
-        const poster = await getPosterRegion(clientLinkedIn);
-        // LEVER A — recruiter-country cut. OPT-IN via SUPPLY_POSTER_CUT=on (default OFF): it also drops
-        // an India/Africa recruiter's REMOTE roles, which are valid supply — too aggressive for a
-        // supply-bound product. Lever B (job-location) above is the default clean-feed cut.
-        if (process.env.SUPPLY_POSTER_CUT === 'on' && SUPPLY_CUT.size && poster.country && SUPPLY_CUT.has(poster.country)) {
-          console.log(`[LinkedInPosts] Skipping SUPPLY from ${poster.country} recruiter: ${postUrl}`);
-          logSkip('supply_poster_geo', extracted.title, { posterCountry: poster.country, cached: poster.cached });
-          return NextResponse.json({ success: true, status: 'skipped', reason: 'supply_poster_geo', posterCountry: poster.country });
-        }
-        // Country-region cut is SEPARATELY toggleable (POSTER_COUNTRY_BLOCK). Decision 2026-06-18:
-        // turned OFF — India/etc recruiters' posts ARE the demand that interviews our LATAM candidates
-        // (Appnosh/Infinity/Techaurcode all interviewed LATAM), so blocking them by recruiter-country
-        // cut real engagement. We still scrape (for openToWork below) but don't drop on country.
-        if (poster.blocked && process.env.POSTER_COUNTRY_BLOCK !== 'off') {
-          console.log(`[LinkedInPosts] Skipping post from ${poster.country} recruiter ${clientName}: ${postUrl}`);
-          logSkip('poster_region', extracted.title, { posterCountry: poster.country, cached: poster.cached });
-          return NextResponse.json({ success: true, status: 'skipped', reason: 'poster_region', posterCountry: poster.country });
-        }
-        // A "recruiter" with LinkedIn's Open-To-Work banner is a job-seeker posing as a hirer
-        // (bench/fake recruiter, e.g. C2C staffing) — drop regardless of country.
-        if (poster.openToWork) {
-          console.log(`[LinkedInPosts] Skipping #OpenToWork poster ${clientName}: ${postUrl}`);
-          logSkip('poster_opentowork', extracted.title, { posterCountry: poster.country, cached: poster.cached });
-          return NextResponse.json({ success: true, status: 'skipped', reason: 'poster_opentowork' });
-        }
-      } catch (e) {
-        console.warn('[LinkedInPosts] poster-region check failed (fail-open, importing):', e);
-      }
-    }
-
-    // =========================================================================
     // CATEGORY & SALARY
     // =========================================================================
 
     // Classify category
-    // Free keyword categorization (no paid z.ai call per opportunity). The accurate profession family
-    // for the discovery gate comes from qwen2.5:3b on the worker (Opportunity.roleFamily).
-    const categorySlug = localClassifyJob(extracted.title);
+    const categorySlug = await classifyJobCategory(extracted.title, extracted.skills);
     let category = await prisma.category.findUnique({ where: { slug: categorySlug } });
 
     if (!category) {
@@ -511,19 +384,6 @@ export async function POST(request: NextRequest) {
       extracted.cleanDescription || postContent,
       extracted.location
     ) || extractCountryCode(extracted.location); // fallback to dictionary
-
-    // JOB-COUNTRY-LOCK filter (2026-06-18): drop roles LOCKED to a blocked country — country-bound
-    // remote (e.g. "Nigeria, REMOTE_COUNTRY") or onsite/hybrid there. These are useless for our LATAM
-    // audience (they can't take them) and attract the wrong registrants. DISTINCT from the recruiter-
-    // country filter (which we keep OFF — India recruiters' GLOBAL/US-remote posts interview LATAM):
-    // this gates on the JOB's locked geography, not who posted it. Reversible via JOB_COUNTRY_LOCK_FILTER.
-    if (process.env.JOB_COUNTRY_LOCK_FILTER !== 'off'
-      && (locationType === 'REMOTE_COUNTRY' || locationType === 'ONSITE' || locationType === 'HYBRID')
-      && countryCode && blockedCountries().includes(countryCode)) {
-      console.log(`[LinkedInPosts] Skipping ${countryCode}-locked job (${locationType}): ${extracted.title}`);
-      logSkip('job_country_locked', extracted.title, { jobCountry: countryCode, locationType });
-      return NextResponse.json({ success: true, status: 'skipped', reason: 'job_country_locked', jobCountry: countryCode });
-    }
 
     // Get actual or estimated salary data (default to HOUR for freelance)
     const salaryData = extracted.salaryMin ? {
@@ -553,16 +413,6 @@ export async function POST(request: NextRequest) {
     // CREATE OPPORTUNITY
     // =========================================================================
 
-    // NO-EMAIL POSTS (owner 2026-07-24): no longer skipped — the watcher products
-    // (reactwatcher/qawatcher/pythonwatcher) list them with a "view the post on
-    // LinkedIn" button (sourceUrl is always present). isActive=false shields every
-    // existing engine consumer: feed/matcher/day1/recap/social all filter
-    // isActive=true, and the apply paths require applyEmail anyway.
-    const noEmail = !validatedEmail;
-    if (noEmail) {
-      console.log(`[LinkedInPosts] No applyEmail — importing as inactive (watcher-only): ${extracted.title}`);
-    }
-
     let opportunity;
     try {
       opportunity = await prisma.opportunity.create({
@@ -580,14 +430,9 @@ export async function POST(request: NextRequest) {
           title: extracted.title,
           description: extracted.cleanDescription || postContent,
           categoryId: category.id,
-          // Tag roleFamily at ingest (same keyword slug) so the discovery role-gate never shows a
-          // fresh, still-unclassified opp to a gated user (fail-open leak). qwen refines it later.
-          roleFamily: categorySlug,
           location: countryCode ? countryCodeToName(countryCode) : (extracted.isRemote ? (extracted.location || 'Remote') : extracted.location),
           locationType,
           country: countryCode,
-          // Matched here rather than at read time: the same regex across the table costs ~17s.
-          requiresUsWorkAuth: requiresUsWorkAuth(extracted.cleanDescription, postContent),
           level: validateLevel(extracted.level) || 'MID',
           type: 'FREELANCE', // Always FREELANCE for opportunities
           skills: extracted.skills,
@@ -597,7 +442,6 @@ export async function POST(request: NextRequest) {
           ...salaryData,
           applyEmail: validatedEmail,
           applyUrl: extracted.applyUrl,
-          isActive: !noEmail,
           sourceUrl: postUrl,
           sourceId: postId,
           // Keyword tracking
@@ -641,9 +485,8 @@ export async function POST(request: NextRequest) {
     // INSTANT alerts are now handled by pull-model cron (process-instant-alerts)
     // No queue operation needed here
 
-    // Notify search engines - ONLY for non-THIN content (and never for watcher-only
-    // no-email rows: they are isActive=false and must not be pushed to indexers).
-    if (qualityResult.quality !== 'THIN' && !noEmail) {
+    // Notify search engines - ONLY for non-THIN content
+    if (qualityResult.quality !== 'THIN') {
       try {
         const opportunityUrl = `${siteConfig.url}/freelance/${opportunity.slug}`;
         await notifySearchEngines([opportunityUrl], { skipGoogle: qualityResult.quality !== 'RICH' });

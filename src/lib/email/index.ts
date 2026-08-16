@@ -1,19 +1,11 @@
-// Email provider: POSTAL ONLY (self-hosted on Hetzner). Resend / SES / SMTP2GO /
-// ElasticEmail are cancelled — do NOT reintroduce them (see CLAUDE.md "Email — ТОЛЬКО Postal").
-// Their modules remain in this folder only for their inbound webhook routes; nothing sends
-// through them. EMAIL_PROVIDER / POSTAL_WARMING_PERCENT env vars are no longer read.
+// Email provider: Resend
+// All transactional emails go through Resend API
 
-import * as postal from './postal';
+import { sendEmail, isConfigured, getConfig } from './resend';
 import { prisma } from '@/lib/db';
 import { ActivityAction } from '@prisma/client';
 
-export async function sendEmail(params: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  const result = await postal.sendEmail(params);
-  if (!result.success) {
-    console.warn(`[Email] Postal send failed: ${result.error}`);
-  }
-  return result;
-}
+export { sendEmail };
 
 interface SendEmailParams {
   to: string;
@@ -21,9 +13,6 @@ interface SendEmailParams {
   html: string;
   text?: string;
   replyTo?: string;
-  from?: string;
-  fromName?: string;
-  listUnsubscribe?: string;
   attachments?: Array<{
     filename: string;
     content: string; // base64 encoded
@@ -32,7 +21,7 @@ interface SendEmailParams {
 }
 
 /**
- * Send email via configured provider — with activity logging
+ * Send email via Resend — with activity logging
  */
 export async function sendApplicationEmail(
   params: SendEmailParams & { emailType?: string; userId?: string }
@@ -123,14 +112,14 @@ export async function getTransactionalStats(_days: number = 30): Promise<Transac
  * Check if email provider is configured
  */
 export async function testConnection(): Promise<boolean> {
-  return postal.isConfigured();
+  return isConfigured();
 }
 
 /**
  * Get provider info for debugging
  */
 export function getProviderInfo() {
-  return { provider: 'postal', config: postal.getConfig(), fallback: 'none' };
+  return { provider: 'resend', resend: getConfig() };
 }
 
 // ============================================

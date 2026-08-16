@@ -38,7 +38,7 @@ export function QuickApplyModal({
 
   async function generateCoverLetter() {
     setGenerating(true);
-    // TODO: Implement AI cover letter generation with Z.ai
+    // TODO: Implement AI cover letter generation with DeepSeek
     // For now, just show a placeholder
     setTimeout(() => {
       setCoverLetter(`Dear Hiring Manager,

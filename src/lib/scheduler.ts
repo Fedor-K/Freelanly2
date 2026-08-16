@@ -52,6 +52,15 @@ export function initScheduler() {
   console.log('[Scheduler] Initializing cron jobs...');
 
   // ============================================
+  // PARSING
+  // ============================================
+
+  // Fetch all sources - Daily at 6:00 UTC
+  cron.schedule('0 6 * * *', () => {
+    callCron('/api/cron/fetch-sources', 'fetch-sources');
+  });
+
+  // ============================================
   // EMAILS
   // ============================================
 

@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { checkAdminSession } from '@/lib/admin-auth';
 import { PRICE_INFO } from '@/lib/stripe';
 import { getAccountReport } from '@/lib/google-ads';
 
@@ -8,9 +7,7 @@ import { getAccountReport } from '@/lib/google-ads';
  * GET /api/admin/dashboard
  * CEO dashboard metrics — key numbers for daily/weekly review
  */
-export async function GET(request: NextRequest) {
-  const authError = await checkAdminSession(request);
-  if (authError) return authError;
+export async function GET() {
   try {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());

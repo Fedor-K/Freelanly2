@@ -3,227 +3,121 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { SettingsForm } from './SettingsForm';
-import { GitHubUrlField } from './GitHubUrlField';
-import { MessengerField } from './MessengerField';
-import { VideoIntroField } from './VideoIntroField';
-import { SmtpConnect, SmtpConnected } from './SmtpConnect';
 import { CancelSubscriptionSection } from './CancelSubscriptionSection';
 import { DeleteAccountSection } from './DeleteAccountSection';
 import { ManageSubscriptionButton } from './ManageSubscriptionButton';
-import { SendingRules, NotificationToggles } from '@/components/app/SettingsToggles';
-import { ResumeUploadButton } from '@/components/app/ResumeUploadButton';
-import './settings-design.css';
 
 export const metadata: Metadata = {
-  title: 'Settings — Freelanly',
+  title: 'Settings',
+  description: 'Manage your profile settings',
 };
 
 export default async function SettingsPage() {
   const session = await auth();
-  if (!session?.user?.id) redirect('/auth/signin');
+
+  if (!session?.user?.id) {
+    redirect('/auth/signin');
+  }
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
-      name: true, email: true, plan: true, createdAt: true,
-      subscriptionEndsAt: true, stripeSubscriptionId: true,
-      stripeId: true, paymentProvider: true, payproSubscriptionId: true,
-      resumeText: true, parsedProfile: true,
-      resumeUrl: true, resumeFileName: true,
-      sendStartHour: true, sendEndHour: true,
-      githubUrl: true, messenger: true, videoIntroUrl: true,
+      name: true,
+      email: true,
+      plan: true,
+      createdAt: true,
+      subscriptionEndsAt: true,
+      stripeSubscriptionId: true,
+      stripeId: true,
+      paymentProvider: true,
+      payproSubscriptionId: true,
     },
   });
 
-  if (!user) redirect('/auth/signin');
-
-  // Check if user has SMTP configured
-  const smtp = await prisma.userSmtp.findFirst({
-    where: { userId: session.user.id },
-    select: { email: true },
-  });
+  if (!user) {
+    redirect('/auth/signin');
+  }
 
   return (
-    <div className="page">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-8">Profile Settings</h1>
 
-      <div className="page-header">
-        <div className="page-title">
-          <h1>Settings</h1>
-          <p>Profile, sending rules, integrations, and account.</p>
-        </div>
-      </div>
+        <SettingsForm
+          initialData={{
+            name: user.name || '',
+            email: user.email,
+          }}
+        />
 
-      <div className="settings-grid">
-
-        <aside className="card">
-          <nav className="settings-nav">
-            <a href="#profile" className="active">Profile &amp; identity</a>
-            <a href="#rules">Sending rules</a>
-            <a href="#integrations">Integrations</a>
-            <a href="#notifications">Notifications</a>
-            <a href="#account">Account</a>
-            <a href="/dashboard/billing">Billing →</a>
-          </nav>
-        </aside>
-
-        <div className="card">
-
-          {/* Profile & identity */}
-          <div className="settings-section" id="profile">
-            <h2>Profile &amp; identity</h2>
-            <div className="desc">This is what Freelanly uses to personalize every outreach. Keep it tight.</div>
-
-            <SettingsForm initialData={{ name: user.name || '', email: user.email }} />
-
-            <GitHubUrlField initial={user.githubUrl || ''} />
-
-            <MessengerField initial={user.messenger || ''} />
-
-            <VideoIntroField initial={user.videoIntroUrl || ''} />
-
-            <div className="field-row">
-              <div className="lbl">Email<span className="sub">Used for login and notifications</span></div>
-              <div className="ctrl"><input className="field" value={user.email} readOnly style={{opacity: 0.6}} /></div>
+        {/* Account info */}
+        <div className="mt-8 bg-white rounded-xl border p-6">
+          <h2 className="text-lg font-semibold mb-4">Account</h2>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Email</span>
+              <span className="font-medium">{user.email}</span>
             </div>
-            <div className="field-row">
-              <div className="lbl">Plan</div>
-              <div className="ctrl">
-                <span style={{fontFamily: "'Geist Mono', monospace", fontSize: '13px', fontWeight: 500}}>{user.plan}</span>
-                {user.plan === 'FREE' && <a href="/pricing" className="btn btn-acid btn-sm" style={{marginLeft: '10px'}}>Upgrade</a>}
-              </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Plan</span>
+              <span
+                className={`font-medium ${
+                  user.plan === 'PRO' ? 'text-purple-600' : ''
+                }`}
+              >
+                {user.plan}
+              </span>
             </div>
-            <div className="field-row">
-              <div className="lbl">Member since</div>
-              <div className="ctrl"><span className="meta f-mono">{new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span></div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Member since</span>
+              <span className="font-medium">
+                {new Date(user.createdAt).toLocaleDateString('en-US', {
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </span>
             </div>
-
-            {/* Parsed profile from resume */}
-            {(() => {
-              const profile = user.parsedProfile as Record<string, unknown> | null;
-              const skills = (profile?.skills as string[]) || [];
-              const languages = (profile?.languages as string[]) || [];
-              const experience = (user.resumeText || '').slice(0, 200);
-              return (
-                <>
-                  <div className="field-row">
-                    <div className="lbl">Skills<span className="sub">Extracted from your resume</span></div>
-                    <div className="ctrl" style={{flexWrap: 'wrap', gap: '4px'}}>
-                      {skills.length > 0 ? skills.map(s => (
-                        <span key={s} className="tag tag-acid">{s}</span>
-                      )) : <span className="meta">No skills detected — upload a resume</span>}
-                    </div>
-                  </div>
-                  {languages.length > 0 && (
-                    <div className="field-row">
-                      <div className="lbl">Languages</div>
-                      <div className="ctrl" style={{flexWrap: 'wrap', gap: '4px'}}>
-                        {languages.map(l => <span key={l} className="tag">{l}</span>)}
-                      </div>
-                    </div>
-                  )}
-                  <div className="field-row">
-                    <div className="lbl">Resume preview<span className="sub">How the system sees you</span></div>
-                    <div className="ctrl">
-                      {experience ? (
-                        <div style={{fontSize: '12.5px', color: 'var(--ink-2)', lineHeight: 1.5, maxWidth: '400px'}}>
-                          {experience}{user.resumeText && user.resumeText.length > 200 ? '...' : ''}
-                        </div>
-                      ) : (
-                        <span className="meta">No resume uploaded</span>
-                      )}
-                    </div>
-                  </div>
-                  {user.resumeUrl && (
-                    <div className="field-row">
-                      <div className="lbl">Resume file<span className="sub">Your uploaded document</span></div>
-                      <div className="ctrl">
-                        {/^https?:\/\//.test(user.resumeUrl) ? (
-                          <a href={user.resumeUrl} target="_blank" rel="noopener" className="btn btn-soft btn-sm" style={{display: 'inline-flex', alignItems: 'center', gap: '6px'}}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                            {user.resumeFileName || 'Download resume'}
-                          </a>
-                        ) : (
-                          <span className="meta">File not stored (uploaded before file-saving was enabled) — re-upload below to enable download &amp; attaching to replies.</span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  <div className="field-row">
-                    <div className="lbl">Update resume</div>
-                    <div className="ctrl">
-                      <ResumeUploadButton />
-                    </div>
-                  </div>
-                </>
-              );
-            })()}
           </div>
 
-          {/* Sending rules */}
-          <div className="settings-section" id="rules">
-            <h2>Sending rules</h2>
-            <div className="desc">The hours and days we&apos;re allowed to send the applications you submit.</div>
-
-            <SendingRules startHour={user.sendStartHour ?? 9} endHour={user.sendEndHour ?? 17} />
-          </div>
-
-          {/* Integrations */}
-          <div className="settings-section" id="integrations">
-            <h2>Integrations</h2>
-            <div className="desc">Where Freelanly reads opportunities and sends from.</div>
-
-            <div className="integration">
-              <div className="ico" style={{background: '#0A66C2', color: '#fff'}}>in</div>
-              <div>
-                <div className="name">LinkedIn</div>
-                <div className="meta">Scanning hiring posts every 3 hours</div>
-              </div>
-              <span className="chip chip-good"><span className="chip-dot live"></span>Active</span>
-            </div>
-            {smtp ? (
-              <SmtpConnected email={smtp.email} />
+          {/* Subscription management */}
+          <div className="mt-6 pt-4 border-t">
+            {user.stripeId ? (
+              <>
+                <p className="text-sm text-gray-600 mb-3">
+                  Update payment method, view invoices, or change your plan
+                </p>
+                <ManageSubscriptionButton />
+              </>
+            ) : user.paymentProvider === 'paypro' && user.plan === 'PRO' ? (
+              <p className="text-sm text-gray-600">
+                Your subscription is managed through PayPro Global.
+              </p>
             ) : (
-              <SmtpConnect initialEmail={user.email} />
+              <>
+                <p className="text-sm text-gray-600 mb-3">
+                  {user.plan === 'FREE'
+                    ? 'Upgrade to PRO to unlock all features'
+                    : 'Link your subscription to manage billing'}
+                </p>
+                <a
+                  href="/pricing"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+                >
+                  {user.plan === 'FREE' ? 'Upgrade to PRO' : 'View Plans'}
+                </a>
+              </>
             )}
-            <div className="integration">
-              <div className="ico" style={{background: 'var(--bg-2)', color: 'var(--ink-3)', border: '1px solid var(--line)'}}>▲</div>
-              <div>
-                <div className="name">Slack communities</div>
-                <div className="meta">Bring your dev-community channels into the feed</div>
-              </div>
-              <span className="meta" style={{fontSize: '11px'}}>Coming soon</span>
-            </div>
           </div>
-
-          {/* Notifications */}
-          <div className="settings-section" id="notifications">
-            <h2>Notifications</h2>
-            <div className="desc">When and how Freelanly pings you.</div>
-            <NotificationToggles />
-          </div>
-
-          {/* Account */}
-          <div className="settings-section" id="account">
-            <h2>Account</h2>
-            <div className="desc">Subscription management and account deletion.</div>
-
-            {user.stripeId && (
-              <div className="field-row">
-                <div className="lbl">Subscription<span className="sub">Update payment, view invoices</span></div>
-                <div className="ctrl"><ManageSubscriptionButton /></div>
-              </div>
-            )}
-
-            {user.plan === 'PRO' && (user.stripeSubscriptionId || user.paymentProvider === 'paypro') && (
-              <CancelSubscriptionSection subscriptionEndsAt={user.subscriptionEndsAt} paymentProvider={user.paymentProvider || 'stripe'} />
-            )}
-
-            <DeleteAccountSection />
-          </div>
-
         </div>
-      </div>
 
+        {/* Cancel subscription (for PRO users with Stripe or PayPro) */}
+        {user.plan === 'PRO' && (user.stripeSubscriptionId || user.paymentProvider === 'paypro') && (
+          <CancelSubscriptionSection subscriptionEndsAt={user.subscriptionEndsAt} paymentProvider={user.paymentProvider || 'stripe'} />
+        )}
+
+        {/* Delete account */}
+        <DeleteAccountSection />
+      </div>
     </div>
   );
 }

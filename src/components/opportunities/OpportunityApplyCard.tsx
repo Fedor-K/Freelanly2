@@ -6,7 +6,8 @@ import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RegistrationModal } from '@/components/auth/RegistrationModal';
-import { trackSignupStart } from '@/lib/analytics';
+import { UpgradeModal } from '@/components/jobs/UpgradeModal';
+import { trackSignupStart, trackUpgradeClick } from '@/lib/analytics';
 import { useTracker } from '@/hooks/useTracker';
 
 interface OpportunityApplyCardProps {
@@ -29,77 +30,28 @@ export function OpportunityApplyCard({
   applyUrl,
   title,
   clientName,
+  postedAt,
+  budget,
 }: OpportunityApplyCardProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const { track: trackDb } = useTracker();
   const [showRegistration, setShowRegistration] = useState(false);
-  const [applying, setApplying] = useState(false);
-  const [applied, setApplied] = useState(false);
-  const [applyError, setApplyError] = useState<string | null>(null);
-  const [coverLetterPreview, setCoverLetterPreview] = useState<string | null>(null);
-  const [draftMode, setDraftMode] = useState(false);
-  const [draftText, setDraftText] = useState('');
-  const [draftSubject, setDraftSubject] = useState('');
-  const [sending, setSending] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
-  const canSeeContacts = isPro || !!session?.user;
+  const handleUpgradeClick = () => {
+    trackUpgradeClick({ source: 'paywall', jobId: opportunityId });
+    trackDb('PAYWALL_HIT', { opportunityId, title, type: 'contact' });
 
-  // Step 1: Generate draft
-  const handleGenerateDraft = async () => {
-    setApplying(true);
-    setApplyError(null);
-    try {
-      const res = await fetch('/api/user/draft-apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ opportunityId }),
-      });
-      const data = await res.json();
-
-      if (res.ok && data.coverLetter) {
-        setDraftText(data.coverLetter);
-        setDraftSubject(data.subject);
-        setDraftMode(true);
-      } else if (data.error === 'resume_required') {
-        setApplyError('Upload your resume first in Settings.');
-      } else if (data.error === 'already_applied') {
-        setApplyError('You already applied to this project.');
-      } else {
-        setApplyError(data.message || 'Failed to generate draft.');
-      }
-    } catch {
-      setApplyError('Network error. Try again.');
-    } finally {
-      setApplying(false);
+    // If not logged in, show registration modal first
+    if (!session?.user) {
+      trackSignupStart('opportunity_apply_card');
+      setShowRegistration(true);
+      return;
     }
-  };
 
-  // Step 2: Send (with optional edits)
-  const handleSendDraft = async () => {
-    setSending(true);
-    setApplyError(null);
-    try {
-      const res = await fetch('/api/user/quick-apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ opportunityId, editedCoverLetter: draftText, editedSubject: draftSubject }),
-      });
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        setApplied(true);
-        setCoverLetterPreview(data.coverLetter);
-        setDraftMode(false);
-        trackDb('OPPORTUNITY_APPLY_CLICK', { opportunityId, title, method: 'quick_apply' });
-      } else {
-        setApplyError(data.message || 'Failed to send.');
-      }
-    } catch {
-      setApplyError('Network error. Try again.');
-    } finally {
-      setSending(false);
-    }
+    // User is logged in — show upgrade modal
+    setShowUpgrade(true);
   };
 
   return (
@@ -111,138 +63,110 @@ export function OpportunityApplyCard({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {canSeeContacts ? (
-            <>
-              {applied ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <p className="text-green-800 font-semibold mb-2">Application sent!</p>
-                  <p className="text-sm text-green-700 mb-3">AI cover letter was sent to {applyEmail}. You&apos;ll be notified when they open or reply.</p>
-                  {coverLetterPreview && (
-                    <details className="text-sm">
-                      <summary className="text-green-600 cursor-pointer hover:underline">View sent cover letter</summary>
-                      <div className="mt-2 bg-white p-3 rounded border text-gray-700 whitespace-pre-wrap text-xs">
-                        {coverLetterPreview}
-                      </div>
-                    </details>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <p className="text-sm text-muted-foreground">
-                    Direct contact with the client. No agencies, no middlemen.
-                  </p>
+          <p className="text-sm text-muted-foreground">
+            {isPro
+              ? 'Direct contact with the client. No agencies, no middlemen. Respond quickly — freelance projects get filled fast.'
+              : 'Client\'s email and LinkedIn are on this page. Upgrade to see them and apply before others.'}
+          </p>
 
-                  {applyEmail && !draftMode && (
-                    <Button
-                      className="w-full bg-orange-600 hover:bg-orange-700 font-semibold text-base py-5"
-                      onClick={handleGenerateDraft}
-                      disabled={applying}
-                    >
-                      {applying ? 'AI is writing...' : 'Apply with AI Cover Letter'}
-                    </Button>
-                  )}
-
-                  {draftMode && (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs font-medium text-gray-500">Subject</label>
-                        <input
-                          value={draftSubject}
-                          onChange={(e) => setDraftSubject(e.target.value)}
-                          className="w-full px-3 py-2 border rounded-lg text-sm mt-1"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-gray-500">Cover Letter</label>
-                        <textarea
-                          value={draftText}
-                          onChange={(e) => setDraftText(e.target.value)}
-                          rows={8}
-                          className="w-full px-3 py-2 border rounded-lg text-sm mt-1 resize-y"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          className="flex-1 bg-orange-600 hover:bg-orange-700 font-semibold"
-                          onClick={handleSendDraft}
-                          disabled={sending}
-                        >
-                          {sending ? 'Sending...' : 'Send Application'}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={handleGenerateDraft}
-                          disabled={applying}
-                          className="text-xs"
-                        >
-                          {applying ? '...' : 'Regenerate'}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {applyError && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <p className="text-sm text-red-700">{applyError}</p>
-                      {(applyError.includes('email first') || applyError.includes('resume first')) && (
-                        <a href="/dashboard" className="text-sm text-red-600 underline mt-1 inline-block">
-                          Go to settings →
-                        </a>
-                      )}
-                      {applyError.includes('Upgrade') && (
-                        <a href="/pricing" className="text-sm text-red-600 underline mt-1 inline-block">
-                          Upgrade to PRO →
-                        </a>
-                      )}
-                    </div>
-                  )}
-
-                  {/* LinkedIn and manual email buttons removed — AI apply is the primary action */}
-
-                  {applyUrl && (
-                    <a href={applyUrl} target="_blank" rel="noopener noreferrer" className="block">
-                      <Button variant="outline" className="w-full">Apply via Link</Button>
-                    </a>
-                  )}
-                </>
-              )}
-
-              <div className="pt-4 border-t">
-                <p className="text-xs text-muted-foreground">
-                  ⚡ This project was posted recently. Clients often hire within 48 hours — act now.
-                </p>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-muted-foreground">
-                Client&apos;s email and LinkedIn are on this page. Sign up to see them and apply.
-              </p>
-
-              <Button
-                className="w-full bg-orange-600 hover:bg-orange-700 font-semibold"
-                onClick={() => {
-                  trackSignupStart('opportunity_apply_card');
-                  setShowRegistration(true);
-                }}
-              >
-                Sign Up Free to Apply
+          {isPro ? (
+            <a
+              href={clientLinkedIn}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
+              onClick={() => trackDb('OPPORTUNITY_APPLY_CLICK', { opportunityId, title, method: 'linkedin' })}
+            >
+              <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                Message on LinkedIn
               </Button>
-
-              <div className="pt-4 border-t">
-                <p className="text-xs text-muted-foreground">
-                  Free account: see all contacts + 5 AI-powered applies per day.
-                </p>
-              </div>
-            </>
+            </a>
+          ) : (
+            <Button
+              className="w-full bg-blue-600 hover:bg-blue-700 blur-[2px]"
+              onClick={handleUpgradeClick}
+            >
+              Message on LinkedIn
+            </Button>
           )}
+
+          {applyEmail &&
+            (isPro ? (
+              <a
+                href={`mailto:${applyEmail}?subject=Re: ${encodeURIComponent(title)}`}
+                className="block"
+              >
+                <Button variant="outline" className="w-full">
+                  Email: {applyEmail}
+                </Button>
+              </a>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full blur-[2px]"
+                onClick={handleUpgradeClick}
+              >
+                Email: •••••@••••.com
+              </Button>
+            ))}
+
+          {applyUrl &&
+            (isPro ? (
+              <a
+                href={applyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+              >
+                <Button variant="outline" className="w-full">
+                  Apply via Link
+                </Button>
+              </a>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full blur-[2px]"
+                onClick={handleUpgradeClick}
+              >
+                Apply via Link
+              </Button>
+            ))}
+
+          {!isPro && (
+            <Button
+              className="w-full bg-orange-600 hover:bg-orange-700"
+              onClick={handleUpgradeClick}
+            >
+              {session?.user ? '🔓 Открыть контакт' : '🔓 Log In to see contact details'}
+            </Button>
+          )}
+
+          <div className="pt-4 border-t">
+            <p className="text-xs text-muted-foreground">
+              {isPro
+                ? '⚡ This project was posted recently. Clients often hire within 48 hours — act now.'
+                : '🔒 Contact info is hidden on FREE plan. PRO members apply directly and get hired faster.'}
+            </p>
+          </div>
         </CardContent>
       </Card>
 
+      {/* Registration Modal for non-authenticated users */}
       <RegistrationModal
         open={showRegistration}
         onClose={() => setShowRegistration(false)}
         callbackUrl={pathname}
+      />
+
+      {/* Upgrade Modal for authenticated FREE users */}
+      <UpgradeModal
+        open={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        jobTitle={title}
+        companyName={clientName}
+        opportunityId={opportunityId}
+        postedAt={postedAt}
+        budget={budget}
       />
     </>
   );

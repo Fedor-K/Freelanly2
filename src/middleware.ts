@@ -9,29 +9,10 @@ const VALID_CATEGORIES = new Set([
   'support', 'education', 'research', 'consulting'
 ]);
 
-// Site-wide IP geo block (owner decision 2026-06-17). Visitors whose Vercel-resolved IP country is
-// in SITE_GEO_BLOCK (comma ISO2) get a hard 403 — the site is simply unavailable to them. IP-based,
-// so it's leaky (VPN gets in; in-region travellers wrongly blocked) — the résumé/profile-location
-// registration block and the supply-side poster filter are the precise backstops. /api/* is already
-// excluded by the matcher config below, so webhooks/crons/tracking keep working. Unknown IP country
-// (crawlers, datacenters) is NOT blocked. Empty/unset env = off.
-const SITE_GEO_BLOCK = new Set((process.env.SITE_GEO_BLOCK || '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean));
-
 export function middleware(req: NextRequest) {
   const host = req.headers.get('host') || '';
   const pathname = req.nextUrl.pathname;
   const search = req.nextUrl.search;
-
-  // 0. Geo block — earliest, before anything else.
-  if (SITE_GEO_BLOCK.size) {
-    const country = (req.headers.get('x-vercel-ip-country') || '').toUpperCase();
-    if (country && SITE_GEO_BLOCK.has(country)) {
-      return new NextResponse(
-        '<!doctype html><html><head><meta charset="utf-8"><title>Not available</title></head><body style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;background:#0B0C0F;color:#FAFAF7;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center"><div><h1 style="font-weight:600;font-size:22px;margin:0 0 8px">Freelanly isn\'t available in your region yet.</h1><p style="color:#8A8780;font-size:14px;margin:0">We\'re not accepting users from your location at this time.</p></div></body></html>',
-        { status: 403, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } }
-      );
-    }
-  }
 
   // 1. WWW to non-WWW redirect (301 permanent) — MUST be first
   // Fixes 12.3K "Duplicate without user-selected canonical" in GSC
@@ -51,17 +32,18 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(newUrl, 301);
   }
 
-  // 3. All /jobs/*, /company/*, /country/* → signup (but NOT /freelance/* — public project pages)
-  if (pathname.startsWith('/jobs') || pathname.startsWith('/company') || pathname.startsWith('/companies') || pathname.startsWith('/country')) {
-    const category = pathname.match(/^\/jobs\/([^\/]+)/)?.[1];
-    const country = pathname.match(/^\/country\/([^\/]+)/)?.[1];
-    let dest = '/auth/signin?ref=jobs';
-    if (category && VALID_CATEGORIES.has(category)) {
-      dest = `/auth/signin?ref=jobs&category=${category}`;
-    } else if (country) {
-      dest = `/auth/signin?ref=country&country=${country}`;
+  // 3. Old job URL patterns → 301 to /freelance (by category when possible)
+  // Catches: /jobs/italian-translation-job-0398f84e, /jobs/some-old-slug
+  const oldJobUrlMatch = pathname.match(/^\/jobs\/([^\/]+)$/);
+  if (oldJobUrlMatch) {
+    const slug = oldJobUrlMatch[1];
+    if (!VALID_CATEGORIES.has(slug)) {
+      // Route translation/interpretation jobs to the right category
+      const dest = /translation|interpretation/.test(slug)
+        ? '/freelance/translation'
+        : '/freelance';
+      return NextResponse.redirect(new URL(dest, req.url), 301);
     }
-    return NextResponse.redirect(new URL(dest, req.url), 301);
   }
 
   // 5. Auth: check for session cookie (NextAuth session token)
@@ -87,8 +69,10 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(signInUrl);
   }
 
-  // Allow re-authentication even if session cookie exists (it may be expired/invalid).
-  // Users must be able to request a new magic link at any time.
+  // Redirect to dashboard if accessing auth routes while logged in
+  if (isAuthRoute && isLoggedIn) {
+    return NextResponse.redirect(new URL('/dashboard', req.url));
+  }
 
   return NextResponse.next();
 }

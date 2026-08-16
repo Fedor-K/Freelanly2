@@ -83,7 +83,7 @@ function getEmailContent(
     <ul>
       <li><strong>Direct contact info</strong> — email hiring managers directly</li>
       <li><strong>Instant job alerts</strong> — be the first to apply</li>
-      <li><strong>Up to 20 applications a day</strong> — enough to cover your whole search</li>
+      <li><strong>Unlimited applications</strong> — no more limits</li>
     </ul>
 
     <p style="text-align: center;">

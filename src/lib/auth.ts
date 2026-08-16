@@ -1,22 +1,24 @@
 import NextAuth from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
+import Google from 'next-auth/providers/google';
 import Resend from 'next-auth/providers/resend';
 import { prisma } from '@/lib/db';
 import { sendMagicLinkEmail } from '@/lib/auth-email';
 import { ActivityAction } from '@prisma/client';
-import { recordSignup } from '@/lib/signup';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
 
   providers: [
-    // Google OAuth removed — all sign-up now goes through email (which requires résumé + LinkedIn).
-    // Magic Link via Email — uses Resend provider shell but actual sending
-    // goes through our email system (Elastic Email / SMTP2GO / etc.)
-    // via the sendVerificationRequest override. The apiKey is a dummy value
-    // since we never use Resend's API directly.
+    // Google OAuth
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      allowDangerousEmailAccountLinking: true,
+    }),
+
+    // Magic Link via Email (using custom send function)
     Resend({
-      apiKey: process.env.RESEND_API_KEY || 're_dummy_key_not_used',
       from: process.env.RESEND_FROM_EMAIL || 'noreply@freelanly.com',
       sendVerificationRequest: async ({ identifier: email, url }) => {
         await sendMagicLinkEmail(email, url);
@@ -76,7 +78,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
 
-    async signIn() {
+    // Allow linking accounts with same email
+    async signIn({ user, account }) {
+      // Allow OAuth sign in even if user exists with same email
+      if (account?.provider === 'google') {
+        const existingUser = await prisma.user.findUnique({
+          where: { email: user.email! },
+        });
+        if (existingUser && !existingUser.emailVerified) {
+          // Mark email as verified since Google verified it
+          await prisma.user.update({
+            where: { id: existingUser.id },
+            data: { emailVerified: new Date() },
+          });
+        }
+      }
       return true;
     },
   },
@@ -85,12 +101,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     // Track new signups
     async createUser({ user }) {
       console.log(`[Auth] New user created: ${user.email}`);
-      // Single registration chokepoint (path B: adapter-created users, e.g. magic-link with no
-      // pre-register via /api/auth/register). Path A (register upsert) logs its own SIGNUP with
-      // richer attribution; recordSignup is idempotent so this never double-logs.
-      if (user.id) await recordSignup({ userId: user.id, email: user.email, entryPoint: 'magic_link' });
+      // Log signup for dispute evidence (IP not available in NextAuth events)
+      try {
+        await prisma.activityLog.create({
+          data: {
+            userId: user.id,
+            action: ActivityAction.SIGNUP,
+            details: { email: user.email },
+          },
+        });
+      } catch (e) {
+        console.error('[Auth] Failed to log signup:', e);
+      }
     },
 
+    // Set emailVerified for Google OAuth users
     async signIn({ user, account }) {
       console.log(`[Auth Event] signIn: provider=${account?.provider}, email=${user.email}, userId=${user.id}`);
 
@@ -107,6 +132,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         console.error('[Auth] Failed to log login:', e);
       }
 
+      // Verify email for Google users (Google already verified it)
+      if (account?.provider === 'google' && user.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { emailVerified: true },
+        });
+
+        if (dbUser && !dbUser.emailVerified) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { emailVerified: new Date() },
+          });
+          // Track email verification
+          await prisma.activityLog.create({
+            data: {
+              userId: user.id,
+              action: ActivityAction.EMAIL_VERIFIED,
+              details: { provider: 'google', email: user.email },
+            },
+          }).catch(() => {});
+          console.log(`[Auth Event] Verified email for Google user ${user.email}`);
+        }
+      }
     },
   },
 

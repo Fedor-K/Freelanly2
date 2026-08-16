@@ -1,44 +1,74 @@
 import { prisma } from '@/lib/db';
 import OpenAI from 'openai';
 
-// AI Provider — Z.ai (GLM-4-32B) only
+// AI Provider configuration (same as deepseek.ts)
+type AIProvider = 'deepseek' | 'zai';
+
+function getAIProvider(): AIProvider {
+  const provider = process.env.AI_PROVIDER?.toLowerCase();
+  if (provider === 'zai') return 'zai';
+  return 'deepseek';
+}
+
+// Lazy initialization
+let _deepseek: OpenAI | null = null;
 let _zai: OpenAI | null = null;
+
+function getDeepSeekClient(): OpenAI {
+  if (!_deepseek) {
+    _deepseek = new OpenAI({
+      apiKey: process.env.DEEPSEEK_API_KEY || 'dummy-key-for-build',
+      baseURL: 'https://api.deepseek.com/v1',
+    });
+  }
+  return _deepseek;
+}
 
 function getZaiClient(): OpenAI {
   if (!_zai) {
     _zai = new OpenAI({
-      apiKey: (process.env.ZAI_KEY_SOCIAL||process.env.ZAI_API_KEY) || 'dummy-key-for-build',
+      apiKey: process.env.ZAI_API_KEY || 'dummy-key-for-build',
       baseURL: 'https://api.z.ai/api/paas/v4',
     });
   }
   return _zai;
 }
 
-function getAIClient(): { client: OpenAI; model: string } {
-  return { client: getZaiClient(), model: 'glm-4-32b-0414-128k' };
+function getAIClient(): { client: OpenAI; model: string; provider: AIProvider } {
+  const provider = getAIProvider();
+  if (provider === 'zai') {
+    return {
+      client: getZaiClient(),
+      model: 'glm-4-32b-0414-128k',
+      provider: 'zai',
+    };
+  }
+  return {
+    client: getDeepSeekClient(),
+    model: 'deepseek-chat',
+    provider: 'deepseek',
+  };
 }
 
-// Service-framed post body (owner decision 2026-07-23): the job stays the hook, but the frame sells
-// the SERVICE ("caught from LinkedIn hiring posts before the boards"), not one-off urgency. The old
-// «🔥 URGENT / Apply now!» framing attracted single-transaction clicks — users who applied to that
-// one post and never returned (75% of registrations, ~0 payers). CTAs/links are appended by n8n.
-const SOCIAL_POST_PROMPT = `You are a social media copywriter for Freelanly — an AI assistant that catches fresh remote tech roles from LinkedIn hiring posts before they reach job boards. Create a short post for ONE role.
+const SOCIAL_POST_PROMPT = `You are a social media copywriter for a freelance platform. Create an URGENT post for a direct freelance project.
 
 Generate this format:
-⚡ Caught in a LinkedIn hiring post — before it hits the job boards.
+🔥 URGENT: [1 sentence why this is hot - client ready to hire NOW]
 
 📍 [Location/Remote]
-💰 [Budget/rate if available, skip if yearly salary]
+💰 [Budget if available, skip if yearly salary]
 
-[2-3 factual sentences: what the client needs and the key skills. Specific, calm, no hype.]
+[2-3 sentences: what the client needs, key skills required, why act fast. End with "Apply now!" or similar urgency]
 
 Rules:
-- Factual and specific — name the actual skills and the actual work
-- NO urgency theater: never write "URGENT", "NOW", "act fast", "Apply now"
-- Maximum 300 characters for the summary sentences
-- No hashtags, no links, no CTA — the apply link is added automatically
-- Skip 💰 line if no budget or if it's yearly salary (not a freelance/contract rate)
-- Write in the same language as the original post (translate the ⚡ line too)
+- URGENCY is key - emphasize speed, "client needs NOW", "hiring immediately"
+- Maximum 300 characters for summary
+- Be specific about skills needed
+- No hashtags, no links
+- Professional but urgent tone
+- Skip 💰 line if no budget or if it's yearly salary (not freelance rate)
+- Do NOT include "Direct contact" line - it will be added automatically
+- Write in the same language as the original post
 
 CRITICAL: Return ONLY the formatted post text. Do NOT include any explanations, apologies, or meta-commentary.`;
 
@@ -97,12 +127,12 @@ interface OpportunityForSocialPost {
 }
 
 /**
- * Generate social media post text using AI (Z.ai GLM-4-32B)
+ * Generate social media post text using AI (DeepSeek or Z.ai based on AI_PROVIDER)
  */
 export async function generateSocialPost(opp: OpportunityForSocialPost): Promise<string> {
   try {
-    const { client, model } = getAIClient();
-    const providerName = 'Z.ai';
+    const { client, model, provider } = getAIClient();
+    const providerName = provider === 'zai' ? 'Z.ai' : 'DeepSeek';
 
     // Build context for AI
     const oppContext = `
@@ -149,7 +179,8 @@ ${opp.originalContent || opp.description}
     console.log(`[SocialPost] ${providerName} generated post: ${postText.substring(0, 150)}...`);
     return postText;
   } catch (error) {
-    console.error('[SocialPost] Z.ai generation error:', error);
+    const provider = getAIProvider();
+    console.error(`[SocialPost] ${provider} generation error:`, error);
     return generateFallbackPost(opp);
   }
 }
@@ -171,13 +202,14 @@ function escapeTelegramMarkdown(text: string): string {
 }
 
 /**
- * Fallback post generation without AI (CTA/link lines added by the n8n template)
+ * Fallback post generation without AI
+ * Emphasizes urgency (direct contact line added by n8n template)
  */
 function generateFallbackPost(opp: OpportunityForSocialPost): string {
   const lines: string[] = [];
 
-  // Service-framed header (matches the AI prompt)
-  lines.push('⚡ Caught in a LinkedIn hiring post — before it hits the job boards.');
+  // Urgent header
+  lines.push('🔥 URGENT: Client hiring NOW!');
   lines.push('');
 
   // Location
@@ -198,9 +230,9 @@ function generateFallbackPost(opp: OpportunityForSocialPost): string {
 
   // Skills needed
   if (opp.skills.length > 0) {
-    lines.push(`Looking for a ${opp.level.toLowerCase()} candidate with ${opp.skills.slice(0, 3).join(', ')}.`);
+    lines.push(`Looking for ${opp.level.toLowerCase()} freelancer with ${opp.skills.slice(0, 3).join(', ')}. Apply now!`);
   } else {
-    lines.push(`${opp.level} remote role — direct application.`);
+    lines.push(`${opp.level} freelance project. Client ready to start immediately!`);
   }
 
   return lines.join('\n');
@@ -291,9 +323,8 @@ export async function processNextSocialPost(): Promise<{ posted: boolean; opport
       });
     }
 
-    // Build freelanly URLs for each channel
-    const freelanlyUrl = `https://freelanly.com/freelance/${opp.slug}?utm_source=social&utm_medium=linkedin`;
-    const freelanlyUrlTelegram = `https://freelanly.com/freelance/${opp.slug}?utm_source=social&utm_medium=telegram`;
+    // Build freelanly URL for opportunities with UTM tracking
+    const freelanlyUrl = `https://freelanly.com/freelance/${opp.slug}?utm_source=social&utm_medium=linkedin&utm_content=${opp.id}`;
 
     console.log(`[SocialPost] Preparing to send opportunity ${opportunityId}:`);
     console.log(`[SocialPost] - Title: ${opp.title}`);
@@ -311,7 +342,6 @@ export async function processNextSocialPost(): Promise<{ posted: boolean; opport
       workType: opp.title,
       postContent: postText,
       freelanlyUrl,
-      freelanlyUrlTelegram,
       languages: opp.skills.slice(0, 5),
       opportunityId: opp.id,
       clientName: opp.clientName,

@@ -3,7 +3,6 @@ import { prisma } from '@/lib/db';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
 import { rateLimit, getClientIp, sanitizeEmail } from '@/lib/rate-limit';
-import { signRegToken } from '@/lib/reg-token';
 
 /**
  * POST /api/auth/verify-code
@@ -23,7 +22,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, code, timezone, flow } = await request.json();
+    const { email, code } = await request.json();
 
     if (!email || !code) {
       return NextResponse.json(
@@ -52,11 +51,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find the verification token with this code (case-insensitive to handle
-    // normalization differences between NextAuth and our sanitizeEmail())
+    // Find the verification token with this code
     const token = await prisma.verificationToken.findFirst({
       where: {
-        identifier: { equals: normalizedEmail, mode: 'insensitive' },
+        identifier: normalizedEmail,
         code: normalizedCode,
         expires: { gt: new Date() },
       },
@@ -81,44 +79,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Mark email as verified + save timezone
-    const updateData: Record<string, unknown> = {};
-    if (!user.emailVerified) updateData.emailVerified = new Date();
-    if (timezone && typeof timezone === 'string' && timezone.includes('/')) updateData.timezone = timezone;
-    if (Object.keys(updateData).length > 0) {
-      await prisma.user.update({ where: { id: user.id }, data: updateData });
-    }
-
-    // Delete the used verification token (OTP is single-use regardless of what happens next).
-    await prisma.verificationToken.delete({
-      where: { identifier_token: { identifier: token.identifier, token: token.token } },
-    });
-
-    // DEFER THE SESSION for the registration flow of a résumé-less user: the OTP is confirmed, but the
-    // account isn't "registered" until the résumé + required fields are saved. resume-preauth creates
-    // the session once the profile is complete (carrying the signed regToken below as proof of this
-    // OTP). Everyone with a résumé (returning login) — and any flow that doesn't ask to defer — gets
-    // the session right here, exactly as before. FAIL-SAFE: if the deferral can't issue a token we fall
-    // through and create the session, so registration is never blocked.
-    let regToken: string | null = null;
-    if (flow === 'register' && !user.resumeUrl) {
-      try { regToken = signRegToken(normalizedEmail); } catch { regToken = null; }
-    }
-    if (regToken) {
-      return NextResponse.json({ success: true, needsProfile: true, regToken });
+    // Mark email as verified if not already
+    if (!user.emailVerified) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: new Date() },
+      });
     }
 
     // Create a session (same as NextAuth would do after magic link click)
     const sessionToken = randomUUID();
     const sessionExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-    await prisma.session.create({ data: { sessionToken, userId: user.id, expires: sessionExpiry } });
+
+    await prisma.session.create({
+      data: {
+        sessionToken,
+        userId: user.id,
+        expires: sessionExpiry,
+      },
+    });
+
+    // Delete the used verification token
+    await prisma.verificationToken.delete({
+      where: {
+        identifier_token: {
+          identifier: token.identifier,
+          token: token.token,
+        },
+      },
+    });
 
     // Set the session cookie (same name NextAuth uses)
     const cookieStore = await cookies();
     const isSecure = process.env.NODE_ENV === 'production';
-    const cookieName = isSecure ? '__Secure-authjs.session-token' : 'authjs.session-token';
+    const cookieName = isSecure
+      ? '__Secure-authjs.session-token'
+      : 'authjs.session-token';
+
     cookieStore.set(cookieName, sessionToken, {
-      expires: sessionExpiry, httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/',
+      expires: sessionExpiry,
+      httpOnly: true,
+      secure: isSecure,
+      sameSite: 'lax',
+      path: '/',
     });
 
     // Log login activity
@@ -135,7 +138,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      callbackUrl: '/dashboard/discovery',
+      callbackUrl: '/dashboard',
     });
   } catch (error) {
     console.error('[VerifyCode] Error:', error);

@@ -25,34 +25,15 @@ export const stripe = {
 };
 
 // Price IDs from Stripe Dashboard
-// Legacy prices (old model)
-export const STRIPE_PRICES_LEGACY = {
-  monthly: 'price_1Sk2G8KHJU6KLxM31y73p1lD',    // €15/month
-  quarterly: 'price_1Sk2I0KHJU6KLxM33CN9mn0E',  // €35/3 months
-  annual: 'price_1Sk2JYKHJU6KLxM3QE0ffgxt',     // €150/year
-} as const;
-
-// Current active prices (legacy — still used by PricingCards + checkout)
 export const STRIPE_PRICES = {
-  monthly: 'price_1Sk2G8KHJU6KLxM31y73p1lD',    // €15/month
-  quarterly: 'price_1Sk2I0KHJU6KLxM33CN9mn0E',  // €35/3 months
-  annual: 'price_1Sk2JYKHJU6KLxM3QE0ffgxt',     // €150/year
-  // PRO $5/mo — the ready-queue plan (morning queue, CV attached to every send), priced for LATAM. Created live
-  // 2026-07-10 (product prod_UrOKkzeEAukgZD). Webhook sets plan='PRO' regardless of price key.
-  pro5: 'price_1TrfY7KHJU6KLxM3Sme6WLZi',       // $5/month
-} as const;
-
-// New auto-apply plans (TODO: create in Stripe Dashboard and update IDs)
-export const STRIPE_PRICES_NEW = {
-  pro_monthly: process.env.STRIPE_PRICE_PRO_MONTHLY || 'price_pro_monthly_TODO',
-  pro_annual: process.env.STRIPE_PRICE_PRO_ANNUAL || 'price_pro_annual_TODO',
-  agency_monthly: process.env.STRIPE_PRICE_AGENCY_MONTHLY || 'price_agency_monthly_TODO',
-  agency_annual: process.env.STRIPE_PRICE_AGENCY_ANNUAL || 'price_agency_annual_TODO',
+  monthly: 'price_1Sk2G8KHJU6KLxM31y73p1lD',    // €15/month, no trial
+  quarterly: 'price_1Sk2I0KHJU6KLxM33CN9mn0E',  // €35/3 months, no trial
+  annual: 'price_1Sk2JYKHJU6KLxM3QE0ffgxt',     // €150/year, no trial
 } as const;
 
 export type PriceKey = keyof typeof STRIPE_PRICES;
 
-// Legacy PRICE_INFO (used by current PricingCards + UpgradeModal)
+// Price display info
 export const PRICE_INFO: Record<PriceKey, {
   name: string;
   price: string;
@@ -97,62 +78,23 @@ export const PRICE_INFO: Record<PriceKey, {
     savings: 'Save 17%',
     originalPrice: '€180',
   },
-  pro5: {
-    name: 'PRO',
-    price: '$5',
-    pricePerDay: '$0.17',
-    period: 'month',
-    periodLabel: 'per month',
-    description: 'Morning ready-queue + your CV attached to every application',
-    hasTrial: false,
-    popular: true,
-  },
-};
-
-// Plan limits
-export const PLAN_LIMITS = {
-  FREE: { appsPerMonth: 25, inboxes: 1, templates: 3, autoApply: true, followUps: 1, earlyAccess: false, aiModel: 'basic', replyPreview: 'sentiment' },
-  PRO: { appsPerMonth: 500, inboxes: 3, templates: -1, autoApply: true, followUps: 3, earlyAccess: true, aiModel: 'premium', replyPreview: 'full' },
-  AGENCY: { appsPerMonth: -1, inboxes: 10, templates: -1, autoApply: true, followUps: true, earlyAccess: true, aiModel: 'premium', seats: 5 },
-} as const;
-
-// New pricing info (for future use when switching to new plans)
-export const NEW_PRICE_INFO = {
-  pro_monthly: { name: 'Pro', price: '€15', period: 'month', hasTrial: true, popular: true, plan: 'PRO' as const },
-  pro_quarterly: { name: 'Pro (Quarterly)', price: '€12', period: 'month', savings: 'Save 22%', plan: 'PRO' as const },
-  pro_annual: { name: 'Pro (Annual)', price: '€12.50', period: 'month', savings: 'Save 17%', plan: 'PRO' as const },
 };
 
 // Plan features for display
 export const PLAN_FEATURES = {
   free: [
-    '25 AI applications / month',
-    'Browse all live gigs',
-    'AI cover letter',
-    'Auto-apply',
-    '1 follow-up per application',
-    'Reply sentiment preview',
+    'Browse all job listings',
+    'Save unlimited jobs',
+    'Basic salary insights (average only)',
+    'Email alerts (daily digest)',
   ],
   pro: [
     'Everything in Free, plus:',
-    '500 AI applications / month',
-    'Unlimited follow-ups (3 touches)',
-    'Full reply text + email forwarding',
-    'Premium AI model',
-    'Send from your own inbox (SMTP)',
-    'Tracking & reply analytics',
-    'Templates & A/B testing',
-    'Early access to new jobs (3hr edge)',
-  ],
-  agency: [
-    'Everything in Pro, plus:',
-    'Up to 20 applications a day',
-    '5 seats ($15/extra seat)',
-    'Shared template library',
-    'Team analytics & pipeline view',
-    'API access',
-    'Priority support (4hr SLA)',
-    'Custom AI training on your style',
+    'Full salary insights (range, percentiles, source)',
+    'Instant email alerts',
+    'Apply to jobs directly',
+    'Application tracking',
+    'Priority support',
   ],
 };
 

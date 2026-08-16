@@ -1,156 +1,75 @@
 import { Metadata } from 'next';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
+import { auth } from '@/lib/auth';
 import { RegistrationForm } from '@/components/auth/RegistrationForm';
-import { TrustPanel } from './TrustPanel';
-import './signup-design.css';
-
-export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Sign Up — Freelanly',
-  description: 'AI finds matching remote tech roles and writes a personalized application for each — you review and send in one click.',
+  title: 'Sign In',
+  description: 'Sign in to your Freelanly account to access saved jobs and applications',
 };
 
 interface SignInPageProps {
   searchParams: Promise<{
     callbackUrl?: string;
     error?: string;
-    ref?: string;
-    category?: string;
-    country?: string;
-    utm_content?: string;
-    utm_source?: string;
-    email?: string;
-    projectId?: string;
-    gmail?: string;
   }>;
 }
-
-const CATEGORY_LABELS: Record<string, string> = {
-  engineering: 'Engineering', design: 'Design', product: 'Product', marketing: 'Marketing',
-  sales: 'Sales', data: 'Data & Analytics', devops: 'DevOps', qa: 'QA',
-  writing: 'Writing & Content', translation: 'Translation', creative: 'Creative',
-  support: 'Support', hr: 'HR', finance: 'Finance', legal: 'Legal',
-  operations: 'Operations', education: 'Education', research: 'Research',
-  consulting: 'Consulting', security: 'Security', 'project-management': 'Project Management',
-};
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
   const session = await auth();
   const params = await searchParams;
 
-  // Redirect social links to public project page
-  if (params.utm_content && (params.utm_source === 'social' || params.ref === 'job')) {
-    const opp = await prisma.opportunity.findUnique({
-      where: { id: params.utm_content },
-      select: { slug: true },
-    }).catch(() => null);
-    if (opp?.slug) {
-      redirect(`/freelance/${opp.slug}?utm_source=${params.utm_source || 'social'}`);
-    }
-  }
-
-  // A logged-in user must never see the signup EMAIL form — that was the reported login loop
-  // (verify code → /dashboard → no résumé → /auth/signin → signup form again). Route by state:
-  //   • résumé on file → into the app (/dashboard/discovery)
-  //   • no résumé yet  → the clean profile step (résumé/LinkedIn), NOT the cluttered settings page.
-  // This is the single "add your résumé" screen every résumé-less entry funnels to: Google signup
-  // (session + verified email but no résumé), a returning user who never finished, and the
-  // dashboard/feed gates (which redirect résumé-less users here).
-  let profileStep: { email: string } | null = null;
-  if (session?.user?.id) {
-    const u = await prisma.user
-      .findUnique({ where: { id: session.user.id }, select: { resumeUrl: true, email: true } })
-      .catch(() => null);
-    if (u?.resumeUrl) {
-      redirect('/dashboard/discovery');
-    } else {
-      profileStep = { email: u?.email || '' };
-    }
-  }
-
-  // Personalized headline based on ref source
-  let headline = 'Dev roles from LinkedIn hiring posts.\nApplications written for you.';
-  let subtitle = "Takes 60 seconds. We find matching projects daily and pre-write every application — you just hit Send.";
-
-  if (params.ref === 'jobs' || params.ref === 'freelance') {
-    const category = params.category;
-    const label = category ? CATEGORY_LABELS[category] || category : null;
-
-    // Get real count
-    const dayAgo = new Date(Date.now() - 24 * 3600000);
-    const count = await prisma.opportunity.count({
-      where: {
-        isActive: true,
-        createdAt: { gte: dayAgo },
-        ...(category ? { category: { slug: category } } : {}),
-      },
-    }).catch(() => 0);
-
-    if (label && count > 0) {
-      headline = `${count}+ ${label} gigs\nfound this week.`;
-      subtitle = `Sign up and we'll match you to ${label.toLowerCase()} roles — each with a personalized cover letter written for you in seconds — review and send.`;
-    } else if (count > 0) {
-      headline = `${count}+ fresh gigs\nfound today.`;
-      subtitle = "Sign up and we'll match you to the right roles — each with a personalized cover letter written for you in seconds — review and send.";
-    }
-  } else if (params.ref === 'country') {
-    const country = params.country;
-    if (country) {
-      headline = `Remote jobs in\n${country.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}.`;
-      subtitle = "Sign up to get matched to remote roles — each with a personalized cover letter written for you in seconds — review and send.";
-    }
-  } else if (params.ref === 'job') {
-    headline = "This job caught\nyour eye?";
-    subtitle = "Sign up and we'll write your cover letter for this role — plus keep fresh matched gigs landing in your feed daily.";
+  // Already logged in - redirect to dashboard or callback URL
+  if (session?.user) {
+    redirect(params.callbackUrl || '/dashboard');
   }
 
   return (
-    <div className="auth-wrap">
-      {/* LEFT: Form */}
-      <div className="auth-form-side">
-        <a href="/" className="auth-logo">
-          <span className="auth-logo-mark">F</span>
-          <span>Freelanly</span>
-        </a>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <a href="/" className="text-3xl font-bold text-black">
+            Freelanly
+          </a>
+          <h1 className="mt-6 text-2xl font-semibold text-gray-900">
+            Get Started Free
+          </h1>
+          <p className="mt-2 text-gray-600">
+            Create an account to apply to jobs and get instant alerts
+          </p>
+        </div>
 
-        <div className="auth-form">
-          <div className="auth-eyebrow">— Start free · no card</div>
-          <h1 className="auth-title">{headline.split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br/>}</span>)}</h1>
-          <p className="auth-sub">{subtitle}</p>
-
-          {/* Error message */}
-          {params.error && (
-            <div style={{marginBottom: '16px', padding: '12px', background: 'rgba(185,28,28,0.06)', border: '1px solid rgba(185,28,28,0.18)', borderRadius: '10px', color: '#B91C1C', fontSize: '13px'}}>
+        {/* Error message */}
+        {params.error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-700 text-sm">
               {params.error === 'OAuthAccountNotLinked'
                 ? 'This email is already used with a different sign in method.'
                 : params.error === 'EmailSignin'
                   ? 'Failed to send email. Please try again.'
                   : 'An error occurred. Please try again.'}
-            </div>
-          )}
-
-          {/* Registration form */}
-          <RegistrationForm
-            callbackUrl={params.callbackUrl}
-            prefillEmail={profileStep?.email || params.email}
-            initialStep={profileStep ? 'profile' : undefined}
-          />
-
-          {/* Legal */}
-          <div className="legal">
-            By signing up you agree to our{' '}
-            <a href="/terms">Terms</a> and{' '}
-            <a href="/privacy">Privacy Policy</a>.<br/>
-            Your profile is shared only with employers whose open roles match your background.
+            </p>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* RIGHT: Trust panel */}
-      <TrustPanel />
+        {/* Registration form */}
+        <div className="bg-white p-8 rounded-xl shadow-sm border">
+          <RegistrationForm callbackUrl={params.callbackUrl} />
+        </div>
+
+        {/* Footer */}
+        <p className="mt-8 text-center text-sm text-gray-500">
+          By continuing, you agree to our{' '}
+          <a href="/terms" className="underline hover:text-gray-700">
+            Terms of Service
+          </a>{' '}
+          and{' '}
+          <a href="/privacy" className="underline hover:text-gray-700">
+            Privacy Policy
+          </a>
+        </p>
+      </div>
     </div>
   );
 }

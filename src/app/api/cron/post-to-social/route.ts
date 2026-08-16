@@ -74,7 +74,6 @@ export async function POST(request: NextRequest) {
       body: {
         postContent: postData.postContent,
         freelanlyUrl: postData.freelanlyUrl,
-        freelanlyUrlTelegram: postData.freelanlyUrl?.replace('utm_medium=linkedin', 'utm_medium=telegram'),
         workType: postData.jobTitle,
         companyName: postData.companyName,
         languages: postData.skills,

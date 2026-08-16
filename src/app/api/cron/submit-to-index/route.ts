@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { siteConfig } from '@/config/site';
+import { siteConfig, techStacks, categories } from '@/config/site';
 import { SignJWT, importPKCS8 } from 'jose';
 import { submitToIndexNow } from '@/lib/indexing';
 import { isCronAuthorized, logUnauthorizedCronAttempt } from '@/lib/cron-auth';
@@ -81,39 +81,57 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to get Google access token' }, { status: 500 });
   }
 
-  // Pages that still exist (/jobs, /company, /country pages were removed).
+  // Static pages
   const urls: string[] = [
     siteConfig.url,
-    `${siteConfig.url}/blog`,
+    `${siteConfig.url}/jobs`,
+    `${siteConfig.url}/companies`,
     `${siteConfig.url}/pricing`,
-    `${siteConfig.url}/how-it-works`,
-    `${siteConfig.url}/features`,
-    `${siteConfig.url}/about`,
   ];
 
-  // Blog category pages
-  const blogCategories = await prisma.blogCategory.findMany({ select: { slug: true } });
-  for (const cat of blogCategories) {
-    urls.push(`${siteConfig.url}/blog/category/${cat.slug}`);
+  // Add all skill pages (/jobs/skills/react, /jobs/skills/python, etc.)
+  for (const tech of techStacks) {
+    urls.push(`${siteConfig.url}/jobs/skills/${tech.slug}`);
   }
 
-  // Published blog posts — the fresh content we actually want indexed
-  const posts = await prisma.blogPost.findMany({
-    where: { status: 'PUBLISHED' },
-    select: { slug: true },
-    take: 500,
-    orderBy: { publishedAt: 'desc' },
+  // Add all category pages (/jobs/engineering, /jobs/design, etc.)
+  for (const category of categories) {
+    urls.push(`${siteConfig.url}/jobs/${category.slug}`);
+  }
+
+  // For Google: only RICH content jobs (to save 200/day quota)
+  const richJobs = await prisma.job.findMany({
+    where: {
+      isActive: true,
+      contentQuality: 'RICH',
+    },
+    select: { slug: true, company: { select: { slug: true } } },
+    take: DAILY_LIMIT - urls.length,
+    orderBy: { createdAt: 'desc' },
   });
-  const postUrls = posts.map((p) => `${siteConfig.url}/blog/${p.slug}`);
 
-  // Google Indexing API: static + categories + posts, capped at the daily quota
-  const googleUrls = [...urls, ...postUrls].slice(0, DAILY_LIMIT);
+  for (const job of richJobs) {
+    urls.push(`${siteConfig.url}/company/${job.company.slug}/jobs/${job.slug}`);
+  }
 
+  // For IndexNow: all active jobs (no daily limit)
+  const allJobs = await prisma.job.findMany({
+    where: { isActive: true },
+    select: { slug: true, company: { select: { slug: true } } },
+    take: 500, // reasonable batch size
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const allJobUrls = allJobs.map(
+    (job) => `${siteConfig.url}/company/${job.company.slug}/jobs/${job.slug}`
+  );
+
+  // Submit to Google Indexing API (static pages + RICH jobs only)
   let googleSubmitted = 0;
   let googleFailed = 0;
   const errors: Record<string, number> = {};
 
-  for (const url of googleUrls) {
+  for (const url of urls.slice(0, DAILY_LIMIT)) {
     const result = await submitUrl(token, url);
     if (result.success) {
       googleSubmitted++;
@@ -129,26 +147,26 @@ export async function POST(request: NextRequest) {
   await prisma.indexingLog.create({
     data: {
       provider: 'GOOGLE',
-      urlsCount: googleUrls.length,
+      urlsCount: Math.min(urls.length, DAILY_LIMIT),
       success: googleSubmitted,
       failed: googleFailed,
       error: Object.keys(errors).length > 0 ? JSON.stringify(errors) : null,
     },
   }).catch(err => console.error('[submit-to-index] Failed to log:', err));
 
-  // IndexNow (Bing, Yandex, etc.): static + categories + all posts
-  const indexNowUrls = [...new Set([...urls, ...postUrls])]; // dedupe
+  // Submit to IndexNow (Bing, Yandex, etc.) - static pages + ALL jobs
+  const indexNowUrls = [...new Set([...urls, ...allJobUrls])]; // dedupe
   const indexNowResult = await submitToIndexNow(indexNowUrls);
 
-  console.log(`[submit-to-index] Google: ${googleSubmitted}/${googleUrls.length} success, errors:`, errors);
+  console.log(`[submit-to-index] Google: ${googleSubmitted}/${urls.length} success, errors:`, errors);
   console.log(`[submit-to-index] IndexNow: ${indexNowUrls.length} URLs`);
 
   return NextResponse.json({
     google: {
       submitted: googleSubmitted,
       failed: googleFailed,
-      total: googleUrls.length,
-      blogPostsCount: postUrls.length,
+      total: Math.min(urls.length, DAILY_LIMIT),
+      richJobsCount: richJobs.length,
       errors,
     },
     indexNow: { success: indexNowResult.success, urls: indexNowUrls.length },

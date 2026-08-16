@@ -5,7 +5,7 @@
  */
 
 import { prisma } from '../src/lib/db';
-import { extractJobData } from '../src/lib/ai';
+import { extractJobData } from '../src/lib/deepseek';
 import { slugify } from '../src/lib/utils';
 
 async function main() {
@@ -49,7 +49,7 @@ async function main() {
       const extracted = await extractJobData(job.originalContent);
 
       if (!extracted || !extracted.title) {
-        console.log(`  -> SKIP: Z.ai returned no title`);
+        console.log(`  -> SKIP: DeepSeek returned no title`);
         skipped++;
         continue;
       }

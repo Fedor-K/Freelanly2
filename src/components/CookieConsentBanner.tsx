@@ -97,11 +97,10 @@ export function CookieConsentBanner() {
     setShowBanner(false);
     setShowSettings(false);
 
-    // NOTE: no page reload here. The analytics trackers (Yandex Metrika inline in
-    // layout, AnalyticsScripts gated only on env config) already load independently
-    // of this consent cookie, so a reload initializes nothing — it only wiped
-    // in-progress client state, e.g. the inline apply form on /freelance/[slug]
-    // (uploaded resume held in memory, typed LinkedIn, selected notice period).
+    // Reload if analytics was just enabled (to initialize trackers)
+    if (consentData.analytics) {
+      window.location.reload();
+    }
   };
 
   const acceptAll = () => {
@@ -131,15 +130,47 @@ export function CookieConsentBanner() {
   if (!showBanner) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-2 sm:p-4 bg-background border-t shadow-lg">
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-background border-t shadow-lg">
       <div className="container max-w-4xl mx-auto">
         {!showSettings ? (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs text-muted-foreground">Cookies · <Link href="/privacy" className="underline">Privacy</Link></span>
-            <div className="flex items-center gap-1.5">
-              <Button variant="outline" size="sm" onClick={() => setShowSettings(true)} className="h-6 px-2 text-xs"><Settings className="h-3 w-3" /></Button>
-              <Button variant="outline" size="sm" onClick={acceptNecessaryOnly} disabled={saving} className="h-6 px-2 text-xs">Reject</Button>
-              <Button size="sm" onClick={acceptAll} disabled={saving} className="h-6 px-2 text-xs">Accept</Button>
+          // Main banner
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex items-start gap-3 flex-1">
+              <Cookie className="h-6 w-6 text-muted-foreground shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm">
+                  We use cookies to improve your experience. By continuing, you agree to our{' '}
+                  <Link href="/privacy" className="underline hover:text-primary">
+                    Privacy Policy
+                  </Link>
+                  .
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSettings(true)}
+              >
+                <Settings className="h-4 w-4 mr-1" />
+                Settings
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={acceptNecessaryOnly}
+                disabled={saving}
+              >
+                Reject All
+              </Button>
+              <Button
+                size="sm"
+                onClick={acceptAll}
+                disabled={saving}
+              >
+                Accept All
+              </Button>
             </div>
           </div>
         ) : (

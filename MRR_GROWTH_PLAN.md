@@ -70,7 +70,7 @@
 - [ ] Уведомления об ответах
 
 ### 2.2 AI Cover Letter Generator
-- [ ] Интеграция Z.ai для генерации
+- [ ] Интеграция DeepSeek для генерации
 - [ ] Персонализация под вакансию + резюме
 - [ ] A/B шаблоны
 - [ ] Только для Pro пользователей
@@ -237,7 +237,7 @@
 | Низкая конверсия в Pro | Высокая | A/B тесты, value-add features |
 | Высокий churn | Средняя | Email retention, better UX |
 | SEO конкуренция | Средняя | Niche focus, quality content |
-| API costs (Z.ai, Adzuna) | Низкая | Caching, rate limits |
+| API costs (DeepSeek, Adzuna) | Низкая | Caching, rate limits |
 | Stripe compliance | Низкая | Proper KYC, terms |
 
 ---
@@ -250,7 +250,7 @@
 - Redis (Upstash): $10
 - Resend: $20
 - Apify: $50
-- Z.ai: $20
+- DeepSeek: $20
 - **Total:** ~$150/мес
 
 ### При $10K MRR

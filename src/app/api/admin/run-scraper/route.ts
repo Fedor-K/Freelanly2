@@ -3,13 +3,10 @@ import { checkAdminSession } from '@/lib/admin-auth';
 import { fetchAndProcessLinkedInPosts } from '@/services/linkedin-processor';
 
 // Admin endpoint to run LinkedIn scraper
-// Requires an admin session (or CRON_SECRET bearer) — NOT public: triggers paid Apify runs.
+// No CRON_SECRET required - for admin panel use only
 
 export async function POST(request: NextRequest) {
   try {
-    const authError = await checkAdminSession(request);
-    if (authError) return authError;
-
     if (!process.env.APIFY_API_TOKEN) {
       return NextResponse.json(
         { error: 'APIFY_API_TOKEN not configured' },
@@ -43,11 +40,8 @@ export async function POST(request: NextRequest) {
 }
 
 // GET - Run with DB settings
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const authError = await checkAdminSession(request);
-    if (authError) return authError;
-
     if (!process.env.APIFY_API_TOKEN) {
       return NextResponse.json(
         { error: 'APIFY_API_TOKEN not configured' },

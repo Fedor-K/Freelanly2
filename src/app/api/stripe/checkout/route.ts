@@ -45,12 +45,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build URLs. NEXT_PUBLIC_APP_URL is NOT set on Vercel prod — the old localhost fallback made
-    // Stripe bounce paying users to http://localhost:3000 after checkout. Fall back to the real domain.
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === 'production' ? 'https://freelanly.com' : 'http://localhost:3000');
-    // /jobs pages were removed in the pivot — land upgrades on the dashboard (where the queue lives).
-    const successUrl = `${baseUrl}/dashboard?subscription=success&welcome=1`;
-    const cancelUrl = `${baseUrl}/dashboard?subscription=cancelled`;
+    // Build URLs
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const successUrl = `${baseUrl}/jobs?subscription=success&welcome=1`;
+    const cancelUrl = `${baseUrl}/pricing?subscription=cancelled`;
 
     // Fetch user to get gclid for Google Ads attribution
     const user = await prisma.user.findUnique({

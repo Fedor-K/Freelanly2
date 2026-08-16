@@ -2,7 +2,7 @@
  * Backfill clean descriptions for existing jobs
  *
  * This script generates AI-rewritten clean descriptions from existing job posts
- * using Z.ai AI. It creates structured, readable text without clutter.
+ * using DeepSeek AI. It creates structured, readable text without clutter.
  *
  * Usage:
  *   npx tsx scripts/backfill-structured-descriptions.ts [limit]
@@ -15,10 +15,10 @@
 import { prisma } from '../src/lib/db';
 import OpenAI from 'openai';
 
-// Z.ai client
-const ai = new OpenAI({
-  apiKey: process.env.ZAI_API_KEY,
-  baseURL: 'https://api.z.ai/api/paas/v4',
+// DeepSeek client
+const deepseek = new OpenAI({
+  apiKey: process.env.DEEPSEEK_API_KEY,
+  baseURL: 'https://api.deepseek.com/v1',
 });
 
 interface CleanDescriptionResult {
@@ -78,8 +78,8 @@ Return ONLY valid JSON, no markdown or explanation.`;
 
 async function generateCleanDescription(content: string): Promise<CleanDescriptionResult | null> {
   try {
-    const response = await ai.chat.completions.create({
-      model: 'glm-4-32b-0414-128k',
+    const response = await deepseek.chat.completions.create({
+      model: 'deepseek-chat',
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: CLEAN_DESCRIPTION_PROMPT },
@@ -100,7 +100,7 @@ async function generateCleanDescription(content: string): Promise<CleanDescripti
       benefitBullets: data.benefitBullets || [],
     };
   } catch (error) {
-    console.error('Z.ai extraction error:', error);
+    console.error('DeepSeek extraction error:', error);
     return null;
   }
 }

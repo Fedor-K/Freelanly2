@@ -12,6 +12,7 @@ import {
   TrendingUp,
   XCircle,
   Briefcase,
+  RefreshCw,
   CreditCard,
   BarChart3,
   Zap,
@@ -22,8 +23,6 @@ import {
   Share2,
   TrendingDown,
   MessageCircle,
-  Send,
-  Link2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -32,14 +31,9 @@ import { cn } from '@/lib/utils';
 const mainNavigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { name: 'Funnel', href: '/admin/funnel', icon: TrendingDown },
-  { name: 'Recruiter funnel', href: '/admin/recruiter-funnel', icon: TrendingDown },
-  { name: 'Recruiter outreach', href: '/admin/recruiter-outreach', icon: Send },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Chat', href: '/admin/chat', icon: MessageCircle },
   { name: 'Conversions', href: '/admin/conversions', icon: CreditCard },
-  { name: 'Auto-Apply', href: '/admin/auto-apply', icon: Send },
-  { name: 'Отправленные заявки', href: '/admin/sent-applications', icon: FileText },
-  { name: 'Connections', href: '/admin/connections', icon: Link2 },
 ];
 
 // More — hidden behind expandable section
@@ -53,10 +47,17 @@ const moreNavigation = [
   { name: 'Channels', href: '/admin/channels', icon: Share2 },
   { name: 'Clarity', href: '/admin/clarity', icon: BarChart3 },
   { name: 'Jobs', href: '/admin/jobs', icon: Briefcase },
+  { name: 'Parsing', href: '/admin/parsing', icon: RefreshCw },
   { name: 'Keywords', href: '/admin/keywords', icon: Hash },
   { name: 'Import Logs', href: '/admin/logs', icon: FileText },
-  { name: 'Import Feed', href: '/admin/imports', icon: FileText },
-  { name: 'Apify LinkedIn', href: '/admin/sources/apify', icon: Database },
+  {
+    name: 'Sources',
+    icon: Database,
+    children: [
+      { name: 'Overview', href: '/admin/sources' },
+      { name: 'Apify LinkedIn', href: '/admin/sources/apify' },
+    ],
+  },
 ];
 
 // Combined for backwards compatibility

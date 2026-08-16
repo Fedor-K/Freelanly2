@@ -38,20 +38,10 @@ function generateFreeUpsellBlock(hiddenCount: number, userCountry: string | null
         </tr>`;
 }
 
-function truncateDescription(description: string, maxLength = 300): string {
-  // Strip HTML, collapse whitespace, remove AI-generated headers
-  const text = description
-    .replace(/<[^>]*>/g, '')
-    .replace(/\s+/g, ' ')
-    .replace(/^About the Role\s*/i, '')
-    .replace(/Key Responsibilities.*$/s, '') // Remove AI boilerplate
-    .trim();
+function truncateDescription(description: string, maxLength = 150): string {
+  const text = description.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').replace(/^About the Role\s*/i, '').trim();
   if (text.length <= maxLength) return text;
-  // Cut at last sentence boundary within maxLength
-  const truncated = text.slice(0, maxLength);
-  const lastSentence = truncated.lastIndexOf('. ');
-  if (lastSentence > maxLength * 0.5) return truncated.slice(0, lastSentence + 1);
-  return truncated.trim() + '...';
+  return text.slice(0, maxLength).trim() + '...';
 }
 
 interface MatchedOpportunity {
@@ -59,7 +49,6 @@ interface MatchedOpportunity {
   title: string;
   slug: string;
   description: string;
-  originalContent: string | null;
   clientName: string;
   clientAvatar: string | null;
   country: string | null;
@@ -103,13 +92,15 @@ function generateOpportunityAlertEmailHtml(
                   <div style="color: #666; font-size: 14px; margin-top: 4px;">
                     ${opp.country ? `${opp.country}` : ''}
                   </div>
-                  ${(opp.originalContent || opp.description) ? `<div style="color: #555; font-size: 13px; margin-top: 6px; line-height: 1.4;">${truncateDescription(opp.originalContent || opp.description)}</div>` : ''}
+                  ${opp.description ? `<div style="color: #555; font-size: 13px; margin-top: 6px; line-height: 1.4;">${truncateDescription(opp.description)}</div>` : ''}
                   ${salary ? `<div style="color: #22c55e; font-size: 14px; margin-top: 4px;">${salary}</div>` : ''}
                   <div style="margin-top: 10px;">
                     <a href="${oppUrl}" style="display: inline-block; background: #000; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">
                       View Project
                     </a>
-                    ${'' /* Apply button removed */}
+                    ${userPlan !== 'PRO' ? `<a href="${addUtmParams(`${APP_URL}/freelance/${opp.slug}`, `apply_${opp.id}`)}" style="display: inline-block; background: #16a34a; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px; margin-left: 8px;">
+                      🔓 Apply for ${getUnlockPriceLabel(userCountry)}
+                    </a>` : ''}
                   </div>
                 </td>
               </tr>
@@ -190,7 +181,7 @@ function generateOpportunityAlertEmailText(
       const oppUrl = addUtmParams(`${APP_URL}/freelance/${opp.slug}`, `opp_${opp.id}`);
       const salary =
         false ? '' : '';
-      const desc = (opp.originalContent || opp.description) ? truncateDescription(opp.originalContent || opp.description) : '';
+      const desc = opp.description ? truncateDescription(opp.description) : '';
       return `${opp.title}\n${opp.country ? `${opp.country}` : ''}${desc ? `\n${desc}` : ''}\n${oppUrl}\n`;
     })
     .join('\n');
@@ -205,14 +196,13 @@ function generateOpportunityAlertEmailText(
  */
 async function sendOpportunityAlertNotification(params: {
   alertId: string;
-  userId?: string;
   email: string;
   userPlan?: string;
   userCountry?: string | null;
   category: string | null;
   opportunities: MatchedOpportunity[];
 }): Promise<{ success: boolean; error?: string; messageId?: string }> {
-  const { alertId, userId, email, userPlan, userCountry, category, opportunities } = params;
+  const { alertId, email, userPlan, userCountry, category, opportunities } = params;
 
   if (opportunities.length === 0) {
     return { success: true };
@@ -251,7 +241,7 @@ async function sendOpportunityAlertNotification(params: {
   const text = generateOpportunityAlertEmailText(visibleOpps, category);
 
   // Add email tracking (open pixel + link click tracking)
-  const html = addEmailTracking(rawHtml, alertId, userId, 'opportunity');
+  const html = addEmailTracking(rawHtml, alertId, undefined, 'opportunity');
 
   try {
     const result = await sendApplicationEmail({
@@ -515,21 +505,11 @@ export async function processInstantAlertQueue(): Promise<{
 
   console.log(`[InstantAlerts] Found ${newOpportunities.length} new opportunities since ${lastRun.toISOString()}`);
 
-  // Step 3: Find users with active auto-apply loops (skip them — they get auto-apply, not alerts)
-  const usersWithActiveLoops = await prisma.autoApplyLoop.findMany({
-    where: { isActive: true },
-    select: { userId: true },
-    distinct: ['userId'],
-  });
-  const loopUserIds = new Set(usersWithActiveLoops.map(l => l.userId));
-  console.log(`[InstantAlerts] Skipping ${loopUserIds.size} users with active auto-apply loops`);
-
-  // Load all active INSTANT alerts (once, for matching against all opportunities)
+  // Step 3: Load all active INSTANT alerts (once, for matching against all opportunities)
   const instantAlerts = await prisma.jobAlert.findMany({
     where: {
       isActive: true,
       frequency: 'INSTANT',
-      userId: { notIn: [...loopUserIds] },
       OR: [
         {
           user: {
@@ -581,7 +561,6 @@ export async function processInstantAlertQueue(): Promise<{
       title: opp.title,
       slug: opp.slug,
       description: opp.description,
-      originalContent: opp.originalContent,
       clientName: opp.clientName,
       clientAvatar: opp.clientAvatar,
       country: opp.country,
@@ -658,22 +637,11 @@ export async function processInstantAlertQueue(): Promise<{
       continue;
     }
 
-    // Skip users with too many bounces
-    const userId = alerts[0].user?.id;
-    if (userId) {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { emailBounceCount: true },
-      });
-      if (user && user.emailBounceCount >= 3) {
-        continue;
-      }
-    }
-
     processed += opportunities.size;
     const userPlan = alerts[0].user?.plan || 'FREE';
     // Look up user country from ActivityLog (no Prisma relation on User)
     let userCountry: string | null = null;
+    const userId = alerts[0].user?.id;
     if (userId) {
       const latestLog = await prisma.activityLog.findFirst({
         where: { userId, country: { not: null } },
@@ -686,7 +654,6 @@ export async function processInstantAlertQueue(): Promise<{
 
     const result = await sendOpportunityAlertNotification({
       alertId: alerts[0].id,
-      userId,
       email,
       userPlan,
       userCountry,
