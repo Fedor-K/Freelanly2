@@ -44,6 +44,10 @@
     {
       "path": "/api/cron/recover-abandoned-topups",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/send-daily-matches",
+      "schedule": "0 * * * *"
     }
   ]
 }
