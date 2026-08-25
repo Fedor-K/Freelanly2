@@ -28,6 +28,8 @@ interface SendEmailParams {
   fromName?: string;
   /** One-click List-Unsubscribe target (RFC 8058). Set for bulk/marketing sends to recruiters. */
   listUnsubscribe?: string;
+  /** Postal message tag (e.g. the email type) — echoed on every open/click/bounce webhook event. */
+  tag?: string;
   attachments?: Array<{
     filename: string;
     content: string;
@@ -69,6 +71,12 @@ async function sendViaPostal(params: SendEmailParams, fromEmail: string, fromNam
 
     if (params.replyTo) {
       body.reply_to = params.replyTo;
+    }
+
+    // Tag the message with its type so the Postal webhook can attribute opens/clicks/bounces to it
+    // (e.g. daily_matches). Postal echoes this tag on every MessageLoaded/LinkClicked/Bounced event.
+    if (params.tag) {
+      body.tag = params.tag;
     }
 
     if (params.listUnsubscribe) {

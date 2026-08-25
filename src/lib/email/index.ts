@@ -24,6 +24,7 @@ interface SendEmailParams {
   from?: string;
   fromName?: string;
   listUnsubscribe?: string;
+  tag?: string;
   attachments?: Array<{
     filename: string;
     content: string; // base64 encoded
@@ -37,7 +38,10 @@ interface SendEmailParams {
 export async function sendApplicationEmail(
   params: SendEmailParams & { emailType?: string; userId?: string }
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  const result = await sendEmail(params);
+  const emailType = params.emailType || detectEmailType(params.subject);
+  // Tag the Postal message with its type (unless a caller already set one) so the webhook can
+  // attribute opens/clicks/bounces back to it.
+  const result = await sendEmail({ ...params, tag: params.tag || emailType });
 
   // Log EMAIL_SENT to ActivityLog (non-blocking)
   if (result.success) {
@@ -53,10 +57,25 @@ export async function sendApplicationEmail(
           userId,
           action: ActivityAction.EMAIL_SENT,
           details: {
-            type: params.emailType || detectEmailType(params.subject),
+            type: emailType,
             subject: params.subject,
             to: params.to,
           },
+        },
+      }).catch(() => {});
+    }
+
+    // The SENT row in EmailEvent — the funnel denominator the Postal webhook's OPENED/CLICKED/
+    // BOUNCED rows join back to by messageId. Revives EmailEvent, dead since the pre-Postal era.
+    if (result.messageId) {
+      prisma.emailEvent.create({
+        data: {
+          messageId: result.messageId,
+          type: 'SENT',
+          to: params.to.toLowerCase(),
+          subject: params.subject,
+          timestamp: new Date(),
+          metadata: { tag: emailType, userId: userId || undefined },
         },
       }).catch(() => {});
     }
