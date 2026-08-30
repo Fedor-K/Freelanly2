@@ -73,6 +73,7 @@ export async function fetchCareerjetJobs(args: FetchArgs): Promise<CareerjetJob[
     keywords: kw,
     locale_code: localeCode,
     page_size: String(args.pageSize ?? 6),
+    sort: 'date', // newest-first — freshest roles convert best (relevance sort mixed in 3-4 week-old posts)
     user_ip: userIp,
     user_agent: userAgent,
     referer,
