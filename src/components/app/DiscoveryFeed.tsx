@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useTracker } from '@/hooks/useTracker';
 import { SmtpConnectModal } from '@/app/dashboard/settings/SmtpConnect';
 import { QueueUpgradeButton } from '@/components/app/QueueUpgradeButton';
 import { ApplyPaywallModal } from '@/components/app/ApplyPaywallModal';
+import { CareerjetCard, useCareerjetJobs } from '@/components/careerjet/CareerjetCard';
 
 type Job = {
   id: string;
@@ -133,6 +134,11 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vettedFeed]);
   const { track } = useTracker();
+
+  // Careerjet CPC jobs, keyed on the user's top skills, interleaved into the browse ("similar")
+  // section below. Best-effort ([] until loaded / on error); a click on one bills our publisher acct.
+  const cjKeywords = topSkills.slice(0, 2).map((s) => s[0]).join(' ');
+  const cjJobs = useCareerjetJobs(cjKeywords, 12);
 
   // ── Feed impressions ───────────────────────────────────────────────────────
   // We logged clicks but never SHOWS, so relevance had no denominator: "1 apply-click per user" was
@@ -646,7 +652,15 @@ export function DiscoveryFeed({ items: initial, topSkills, sourceCounts, hasAppl
                 </div>
               );
             })}
-            {similarList.slice(0, similarShown).map((item, i) => renderCard(item, verifiedList.length + i))}
+            {similarList.slice(0, similarShown).map((item, i) => (
+              <Fragment key={item.id}>
+                {renderCard(item, verifiedList.length + i)}
+                {/* One Careerjet CPC card after every 4 browse results — billable click on its tracking url. */}
+                {(i + 1) % 4 === 0 && cjJobs[Math.floor((i + 1) / 4) - 1] && (
+                  <CareerjetCard job={cjJobs[Math.floor((i + 1) / 4) - 1]} index={i} variant="light" />
+                )}
+              </Fragment>
+            ))}
             {similarList.length > similarShown && (
               <div style={{ textAlign: 'center', padding: '14px 0 6px' }}>
                 <button

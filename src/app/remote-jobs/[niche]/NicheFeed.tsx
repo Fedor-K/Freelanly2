@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { CareerjetCard, useCareerjetJobs } from '@/components/careerjet/CareerjetCard';
 
 export type NicheCard = {
   slug: string;
@@ -22,10 +23,13 @@ function timeAgo(iso: string): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-export function NicheFeed({ cards, label }: { cards: NicheCard[]; label: string }) {
+export function NicheFeed({ cards, label, keywords }: { cards: NicheCard[]; label: string; keywords?: string }) {
   const [q, setQ] = useState('');
   const [loc, setLoc] = useState('all');
   const [level, setLevel] = useState('all');
+  // Careerjet CPC jobs for this niche, interleaved into the feed (and used to fill an empty niche).
+  // Best-effort: [] until loaded / on error. Keyed on the niche keywords or label.
+  const cjJobs = useCareerjetJobs(keywords || label, 12);
 
   const locations = useMemo(() => {
     const set = new Map<string, number>();
@@ -44,10 +48,19 @@ export function NicheFeed({ cards, label }: { cards: NicheCard[]; label: string 
   }, [cards, q, loc, level]);
 
   if (!cards.length) {
+    // No own opportunities in this niche right now — fill the feed with Careerjet CPC jobs (still
+    // monetizes the visit) if any loaded; otherwise the notify prompt.
     return (
-      <div className="rounded-2xl border p-10 text-center" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-        <p className="text-[#A1A1AA] text-[15px]">No {label} roles live at this moment — fresh ones land every few hours.</p>
-        <Link href="/auth/signin" className="inline-block mt-4 text-[#C7F94A] text-[14px]">Create a profile and get notified →</Link>
+      <div>
+        {cjJobs.length > 0 && (
+          <div className="flex flex-col gap-3 mb-8">
+            {cjJobs.map((job, i) => <CareerjetCard key={job.url} job={job} index={i} variant="dark" />)}
+          </div>
+        )}
+        <div className="rounded-2xl border p-10 text-center" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+          <p className="text-[#A1A1AA] text-[15px]">The freshest {label} matches land in your feed — created for your profile.</p>
+          <Link href="/auth/signin" className="inline-block mt-4 text-[#C7F94A] text-[14px]">Create a profile and get notified →</Link>
+        </div>
       </div>
     );
   }
@@ -82,8 +95,8 @@ export function NicheFeed({ cards, label }: { cards: NicheCard[]; label: string 
       {/* Feed */}
       <div className="flex flex-col gap-3">
         {filtered.map((c, i) => (
+          <Fragment key={c.slug}>
           <Link
-            key={c.slug}
             href={`/freelance/${c.slug}`}
             className="flex gap-4 items-start rounded-2xl border p-5 transition-colors hover:border-[#C7F94A]/40"
             style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}
@@ -107,6 +120,11 @@ export function NicheFeed({ cards, label }: { cards: NicheCard[]; label: string 
             </div>
             <span className="text-[13px] text-[#C7F94A] shrink-0 self-center hidden sm:block">View & apply →</span>
           </Link>
+          {/* One Careerjet CPC card after every 4 opportunities (billable click on its tracking url). */}
+          {(i + 1) % 4 === 0 && cjJobs[Math.floor((i + 1) / 4) - 1] && (
+            <CareerjetCard job={cjJobs[Math.floor((i + 1) / 4) - 1]} index={i} variant="dark" />
+          )}
+          </Fragment>
         ))}
       </div>
 
