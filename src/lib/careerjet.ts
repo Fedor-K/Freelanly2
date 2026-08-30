@@ -12,6 +12,14 @@
 const PROXY_URL = (process.env.CAREERJET_PROXY_URL
   || 'https://n8n.freelanly.com/webhook/cj-43a0d51bf633560740a0').trim();
 
+// Second CPC source: Adzuna (via its own n8n proxy holding the app_id/app_key). Adzuna needs no IP
+// whitelist, and its redirect_url click-throughs work for real users — so it keeps the feed earning
+// even when Careerjet's tracking is down. Adzuna has local sites for only these countries; for any
+// other geo we skip Adzuna (Careerjet covers the rest).
+const ADZUNA_PROXY_URL = (process.env.ADZUNA_PROXY_URL
+  || 'https://n8n.freelanly.com/webhook/adz-16d6cf502fc4ea63e992').trim();
+const ADZUNA_COUNTRIES = new Set(['us', 'gb', 'ca', 'au', 'br', 'mx', 'de', 'fr', 'it', 'nl', 'at', 'pl', 'nz', 'sg', 'za', 'in']);
+
 export interface CareerjetJob {
   title: string;
   company: string;
@@ -92,4 +100,60 @@ export async function fetchCareerjetJobs(args: FetchArgs): Promise<CareerjetJob[
   } catch {
     return [];
   }
+}
+
+/** Visitor country → Adzuna country code (lowercase), or null when Adzuna has no local site there. */
+export function adzunaCountry(country?: string | null): string | null {
+  if (!country) return 'us';
+  const c = country.toLowerCase();
+  return ADZUNA_COUNTRIES.has(c) ? c : null;
+}
+
+interface AdzunaResult {
+  title?: string;
+  company?: { display_name?: string };
+  location?: { display_name?: string };
+  redirect_url?: string;
+  created?: string;
+}
+
+/** Fetch Adzuna jobs for the visitor's country, mapped to the shared CareerjetJob shape (url =
+ *  redirect_url, the billable click). Best-effort; [] on any failure or when the geo has no Adzuna site. */
+export async function fetchAdzunaJobs(args: { keywords: string; country?: string | null; pageSize?: number }): Promise<CareerjetJob[]> {
+  if (!args.keywords.trim()) return [];
+  const country = adzunaCountry(args.country);
+  if (!country) return [];
+  const qs = new URLSearchParams({
+    country,
+    keywords: args.keywords,
+    page_size: String(args.pageSize ?? 8),
+  });
+  try {
+    const res = await fetch(`${ADZUNA_PROXY_URL}?${qs.toString()}`, { cache: 'no-store', signal: AbortSignal.timeout(9000) });
+    if (!res.ok) return [];
+    const data = (await res.json().catch(() => null)) as { results?: AdzunaResult[] } | null;
+    if (!data || !Array.isArray(data.results)) return [];
+    return data.results
+      .filter((r) => r && r.redirect_url && r.title)
+      .map((r) => ({
+        title: r.title as string,
+        company: r.company?.display_name || '',
+        locations: r.location?.display_name || '',
+        url: r.redirect_url as string,
+        date: r.created,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/** Interleave two source lists so the feed shows a mix of both networks. */
+export function interleaveJobs(a: CareerjetJob[], b: CareerjetJob[]): CareerjetJob[] {
+  const out: CareerjetJob[] = [];
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    if (a[i]) out.push(a[i]);
+    if (b[i]) out.push(b[i]);
+  }
+  return out;
 }

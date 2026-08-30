@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchCareerjetJobs } from '@/lib/careerjet';
+import { fetchCareerjetJobs, fetchAdzunaJobs, interleaveJobs } from '@/lib/careerjet';
 
 /**
  * GET /api/careerjet?keywords=<terms>&page_size=<n>
@@ -32,6 +32,13 @@ export async function GET(request: NextRequest) {
   // is on; fall back to our own domain.
   const referer = request.headers.get('referer') || 'https://freelanly.com/remote-jobs';
 
-  const jobs = await fetchCareerjetJobs({ keywords, country, userIp, userAgent, referer, pageSize });
+  // Two CPC sources fetched in parallel and interleaved. Adzuna leads (its click-throughs work for
+  // real users even while Careerjet's tracking recovers); Careerjet fills the rest. Either returning
+  // empty just leaves the other's jobs.
+  const [adzuna, careerjet] = await Promise.all([
+    fetchAdzunaJobs({ keywords, country, pageSize }),
+    fetchCareerjetJobs({ keywords, country, userIp, userAgent, referer, pageSize }),
+  ]);
+  const jobs = interleaveJobs(adzuna, careerjet);
   return NextResponse.json({ jobs, country }, { headers: { 'Cache-Control': 'no-store' } });
 }
