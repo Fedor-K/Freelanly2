@@ -81,13 +81,12 @@ export function CareerjetCard({ job, index = 0, variant }: { job: CareerjetJob; 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-[15px] text-[#FAFAFA]">{job.title}</span>
-            <span className="text-[10px] uppercase tracking-wider font-mono px-1.5 py-0.5 rounded" style={{ color: '#9CA3AF', background: 'rgba(255,255,255,0.06)' }}>Sponsored</span>
           </div>
           <div className="text-[13px] text-[#A1A1AA] mt-0.5">
             {job.company}{job.locations ? ` · ${job.locations}` : ''}{sal ? ` · ${sal}` : ''}
           </div>
         </div>
-        <span className="text-[13px] text-[#C7F94A] shrink-0 self-center hidden sm:block">Apply on Careerjet →</span>
+        <span className="text-[13px] text-[#C7F94A] shrink-0 self-center hidden sm:block">View & apply →</span>
       </a>
     );
   }
@@ -106,9 +105,8 @@ export function CareerjetCard({ job, index = 0, variant }: { job: CareerjetJob; 
       <div>
         <div className="row gap-2">
           <div className="job-title">{job.title}</div>
-          <span className="chip">Sponsored</span>
         </div>
-        <div className="job-company">{job.company ? `${job.company} · ` : ''}via Careerjet</div>
+        <div className="job-company">{job.company || 'Company'}</div>
         <div className="job-meta">
           {job.locations && <span className="tag">{job.locations}</span>}
           {sal && <span className="tag">{sal}</span>}
@@ -116,7 +114,7 @@ export function CareerjetCard({ job, index = 0, variant }: { job: CareerjetJob; 
       </div>
       <div className="job-right">
         <div className="job-actions">
-          <span className="btn btn-primary btn-sm">Apply on Careerjet →</span>
+          <span className="btn btn-primary btn-sm">Apply</span>
         </div>
       </div>
     </a>
