@@ -32,10 +32,11 @@ export async function GET(request: NextRequest) {
   // is on; fall back to our own domain.
   const referer = request.headers.get('referer') || 'https://freelanly.com/remote-jobs';
 
-  // Careerjet's click-tracking (jobviewtrack.com) is down (502) at launch, so clicking a Careerjet
-  // card errors for the user. Suppress Careerjet until it recovers — set CAREERJET_ENABLED=1 (or flip
-  // this default) once jobviewtrack.com is back, and Careerjet rejoins the interleave automatically.
-  const careerjetEnabled = process.env.CAREERJET_ENABLED === '1';
+  // Careerjet's click-tracking (jobviewtrack.com) was down (502) for the first ~24h after launch, so we
+  // gated it out. It recovered 2026-08-31 — real tracking links now 302 to careerjet.com/clk/...?affid=
+  // (our billable attribution) and land on the job — so Careerjet is enabled by default and rejoins the
+  // interleave. Kill switch: set CAREERJET_ENABLED=0 to suppress it again if its tracking breaks.
+  const careerjetEnabled = process.env.CAREERJET_ENABLED !== '0';
 
   // CPC sources fetched in parallel and interleaved. Adzuna leads (its click-throughs work for real
   // users); Careerjet fills when healthy. Either returning empty just leaves the other's jobs.
